@@ -61,7 +61,7 @@
       }
     }
 
-    function ThreeObject(object) {
+    function ThreeNest(object) {
       const parent = xnew.context('THREE.Object3D');
       xnew.context('THREE.Object3D', object);
 
@@ -103,7 +103,7 @@
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
       scene.rotation.x = -60 / 180 * Math.PI
-      xnew.extend(ThreeObject, scene);
+      xnew.extend(ThreeNest, scene);
 
       const xnode = xnew.current;
       xnode.on('~scene.rotate', (move) => {
@@ -116,7 +116,7 @@
 
       xnew(Ground, 1000, 0xF8F8FF);
       xnew(Dorm, 500);
-      xnew(Cube, 0, 0, 0, 40, 0xAAAAFF);
+      xnew(Cube, 0, 0, 20, 40, 0xAAAAFF);
 
       return {
         get scene() {
@@ -140,13 +140,13 @@
       object.shadow.camera.far = +s * 10.0;
       object.shadow.camera.updateProjectionMatrix();
 
-      xnew.extend(ThreeObject, object);
+      xnew.extend(ThreeNest, object);
     }
 
     function AmbientLight() {
       const object = new THREE.AmbientLight(0xFFFFFF, 0.50);
 
-      xnew.extend(ThreeObject, object);
+      xnew.extend(ThreeNest, object);
     }
 
     function Dorm(size) {
@@ -154,7 +154,7 @@
       const material = new THREE.MeshBasicMaterial({ color: 0xEEEEFF, side: THREE.BackSide });
       const object = new THREE.Mesh(geometry, material);
 
-      xnew.extend(ThreeObject, object);
+      xnew.extend(ThreeNest, object);
     }
 
     function Ground(size, color) {
@@ -164,17 +164,17 @@
       object.receiveShadow = true;
       object.material.opacity = 0.7;
 
-      xnew.extend(ThreeObject, object);
+      xnew.extend(ThreeNest, object);
     }
 
     function Cube(x, y, z, size, color) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshLambertMaterial({ color, });
       const object = new THREE.Mesh(geometry, material);
+      object.position.set(x, y, z);
       object.castShadow = true;
-      object.position.z = size / 2;
 
-      xnew.extend(ThreeObject, object);
+      xnew.extend(ThreeNest, object);
     }
   </script>
 </body>

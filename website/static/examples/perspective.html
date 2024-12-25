@@ -24,23 +24,54 @@
 </head>
 
 <body>
-  <div id="main" style="width: 100%; height: 100%;"></div>
+  <div id="main" style="width: 100%; height: 100%; perspective: 300px; perspective-origin: center;">
+    <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
+    <div id="target" style="position: absolute; opacity: 0.5; inset: 0; margin: auto; width: 600px; height: 400px; background: #AAA;">
+      aaa
+    </div>
+  </div>
   <script>
     xnew('#main', () => {
-      const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+      const main = xnew.current;
+      const perspective = 300 / (Math.tan(45 / 2 * Math.PI / 180) * 2);
 
-      xnew(ThreeMain, screen.canvas);
+      //main.element.style.perspective = `${perspective}px`;
+      xnew('#screen', () => {
+        const screen = xnew(xnew.Screen, { width: 600, height: 400, objectFit: 'contain' });
+        xnew(screen, ThreeMain, screen.canvas);
+      });
 
+      xnew('#target', () => {
+        const xnode = xnew.current;
+
+        xnode.element.style.transformOrigin = 'center';
+        xnode.element.style.transform = 'rotateY(20deg) translateX(0px) ';
+
+        let rotx = 0;
+        let roty = 0;
+        xnode.on('~scene.rotate', (move) => {
+          rotx += move.y;
+          roty -= move.x;
+          let x = Math.sin(-roty * Math.PI / 180) * 300;
+          let y = Math.sin(+rotx * Math.PI / 180) * Math.cos(-roty * Math.PI / 180) * 300;
+          let z = Math.cos(-roty * Math.PI / 180) * Math.cos(-rotx * Math.PI / 180) * 300 - 300;
+          xnode.element.style.transform = `rotateY(${roty}deg) rotateX(${rotx}deg) translateX(${x}px) translateY(${y}px) translateZ(${z}px)`;
+        });
+
+      });
       xnew(Event);
     });
 
     function ThreeMain(canvas) {
       const renderer = new THREE.WebGLRenderer({ canvas });
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
-      camera.position.set(0, 0, +200);
+      const perspective = 300;
+      const rect = xnew.current.element.getBoundingClientRect();
+      const deg = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
+      console.log(rect.width, deg);
+      const camera = new THREE.PerspectiveCamera(deg, canvas.width / canvas.height);
+      const z = 300;
+      camera.position.set(0, 0, +z);
 
       const xnode = xnew.current;
       xnode.on('~camera.zscale', (scale) => {
@@ -50,7 +81,14 @@
         camera.position.x += move.x * camera.position.z * 0.001;
         camera.position.y += move.y * camera.position.z * 0.001;
       })
-
+      let rotx = 0;
+      let roty = 0;
+      xnode.on('~scene.rotate', (move) => {
+        rotx += move.y * Math.PI / 180;
+        roty += move.x * Math.PI / 180;
+        camera.rotation.x = rotx;
+        camera.rotation.y = roty;
+      })
       const contents = xnew(ThreeContents);
 
       return {
@@ -104,15 +142,12 @@
       xnew.extend(ThreeObject, scene);
 
       const xnode = xnew.current;
-      xnode.on('~scene.rotate', (move) => {
-        scene.rotation.x += move.y * 0.01;
-        scene.rotation.y += move.x * 0.01;
-      })
+    
 
       xnew(DirectionaLight, 20, -50, 100);
       xnew(AmbientLight);
 
-      xnew(Plane, 200, 0xF8F8FF);
+      xnew(Plane, 300, 200, 0xF8F8FF);
 
       return {
         get scene() {
@@ -124,29 +159,16 @@
     function DirectionaLight(x, y, z) {
       const object = new THREE.DirectionalLight(0xFFFFFF, 0.40);
       object.position.set(x, y, z);
-      const s = object.position.length();
-      object.castShadow = true;
-      object.shadow.mapSize.width = 2048;
-      object.shadow.mapSize.height = 2048;
-      object.shadow.camera.left = -s * 1.0;
-      object.shadow.camera.right = +s * 1.0;
-      object.shadow.camera.top = -s * 1.0;
-      object.shadow.camera.bottom = +s * 1.0;
-      object.shadow.camera.near = +s * 0.1;
-      object.shadow.camera.far = +s * 10.0;
-      object.shadow.camera.updateProjectionMatrix();
-
       xnew.extend(ThreeObject, object);
     }
 
     function AmbientLight() {
       const object = new THREE.AmbientLight(0xFFFFFF, 0.50);
-
       xnew.extend(ThreeObject, object);
     }
 
-    function Plane(size, color) {
-      const geometry = new THREE.PlaneGeometry(size, size, 1, 1);
+    function Plane(w, h, color) {
+      const geometry = new THREE.PlaneGeometry(w, h, 1, 1);
       const material = new THREE.MeshStandardMaterial({ color, transparent: true, });
       const object = new THREE.Mesh(geometry, material);
       object.receiveShadow = true;

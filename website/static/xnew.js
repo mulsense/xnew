@@ -62,7 +62,7 @@
         
         Object.keys(attributes).forEach((key) => {
             const value = attributes[key];
-            if (key === 'tagName') ; else if (key === 'class' || key === 'className') {
+            if (key === 'tagName') ; else if (key === 'insert') ; else if (key === 'className') {
                 if (isString(value) === true) {
                     element.classList.add(...value.trim().split(/\s+/));
                 }
@@ -275,8 +275,7 @@
         static nest(attributes)
         {
             const element = createElement(attributes, this.element);
-
-            this.element.appendChild(element);
+            this.element.append(element);
             this._.nestElements.push(element);
             return element;
         }
@@ -905,7 +904,7 @@
     }
 
     function Screen({ width = 640, height = 480, objectFit = 'contain', pixelated = false } = {}) {
-        const wrapper = xnew.nest({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden; user-select: none;' });
+        const wrapper = xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none;' });
         const absolute = xnew.nest({ style: 'position: absolute; inset: 0; margin: auto; user-select: none;' });
         xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none;' });
 

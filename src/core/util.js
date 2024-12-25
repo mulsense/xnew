@@ -62,7 +62,8 @@ export function createElement(attributes, parentElement = null)
     Object.keys(attributes).forEach((key) => {
         const value = attributes[key];
         if (key === 'tagName') {
-        } else if (key === 'class' || key === 'className') {
+        } else if (key === 'insert') {
+        } else if (key === 'className') {
             if (isString(value) === true) {
                 element.classList.add(...value.trim().split(/\s+/));
             }

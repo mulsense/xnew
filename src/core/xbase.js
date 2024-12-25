@@ -52,8 +52,7 @@ export class XBase
     static nest(attributes)
     {
         const element = createElement(attributes, this.element);
-
-        this.element.appendChild(element);
+        this.element.append(element);
         this._.nestElements.push(element);
         return element;
     }
