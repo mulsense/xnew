@@ -39,8 +39,7 @@
     });
 
     function Contents(canvas) {
-      const xnode = xnew.current;
-      xnode.on('touchstart contextmenu wheel', (event) => {
+      xnew.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });
 

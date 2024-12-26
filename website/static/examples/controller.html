@@ -71,8 +71,7 @@
     }
 
     function Controller() {
-      const xnode = xnew.current;
-      xnode.on('touchstart contextmenu wheel', (event) => {
+      xnew.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });
 
@@ -104,11 +103,10 @@
 
       let move = null;
       let direction = +1;
-      const xnode = xnew.current;
-      xnode.on('~box.move', (vector) => {
+      xnew.on('~box.move', (vector) => {
         move = vector;
       });
-      xnode.on('~box.action', () => {
+      xnew.on('~box.action', () => {
         direction *= -1;
       });
 

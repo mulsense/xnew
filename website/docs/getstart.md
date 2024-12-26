@@ -52,16 +52,14 @@ If you set a component function to `xnew`, you will implement various features.
 const xnode = xnew(Component, ...args);    
 
 function Component(...args) {
-  const xnode = xnew.current; // you can get xnode from inside.
   // ...
   // implement features
 }
 ```
 
-You can also use a function literal.  `xnew(() => { });`
+You can also use a function literal.  `xnew(() => {});`
 ```js
 const xnode = xnew(() => {
-  const xnode = xnew.current;
   // ...
   // implement features
 });
@@ -115,25 +113,18 @@ Click on the square below.
     xnew(Component);
 
     function Component() {
-      xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;'});
-      
-      const xnode = xnew.current;
-      xnode.on('click', (event) => {
-          xnode.state === 'running' ? xnode.stop() : xnode.start();
-      });
+      xnew.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
 
-      const text = xnew({ tagName: 'span' });
+      xnew({ tagName: 'span' }, 'click me');
+
+      xnew.on('click', (event) => {
+        xnew.state === 'running' ? xnew.stop() : xnew.start();
+      });
 
       let counter = 0;
       return {
-        start() {
-          text.element.textContent = 'start';
-        },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
-        },
-        stop() {
-          text.element.textContent = 'stop';
+          xnew.element.style.transform = `rotate(${counter++}deg)`;
         },
       };
     }
@@ -153,16 +144,15 @@ For example, when the parent component stop, its children also stop.
     xnew(Parent);
 
     function Parent() {
-      xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;'});
-
-      const xnode = xnew.current;
-      xnode.on('click', () => {
-        xnode.state === 'running' ? xnode.stop() : xnode.start();
-      });
-
+      xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
+      
       const text = xnew({ tagName: 'span' });
 
       xnew(Child);
+
+      xnew.on('click', () => {
+        xnew.state === 'running' ? xnew.stop() : xnew.start();
+      });
 
       let counter = 0;
       return {
@@ -170,7 +160,7 @@ For example, when the parent component stop, its children also stop.
           text.element.textContent = 'parent: start';
         },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
+          xnew.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'parent: stop';
@@ -179,15 +169,14 @@ For example, when the parent component stop, its children also stop.
     }
 
     function Child() {
-      xnew.nest({ style: 'position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80;' });
-
-      const xnode = xnew.current;
-      xnode.on('click', (event) => {
-        event.stopPropagation();
-        xnode.state === 'running' ? xnode.stop() : xnode.start();
-      });
-
+      xnew.nest({ style: 'position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80;' })
+      
       const text = xnew({ tagName: 'span' });
+
+      xnew.on('click', (event) => {
+        event.stopPropagation(); // cancel propagation to the parent element
+        xnew.state === 'running' ? xnew.stop() : xnew.start();
+      });
 
       let counter = 0;
       return {
@@ -195,7 +184,7 @@ For example, when the parent component stop, its children also stop.
           text.element.textContent = 'child: start';
         },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
+          xnew.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'child: stop';

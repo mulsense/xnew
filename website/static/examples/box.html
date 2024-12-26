@@ -9,28 +9,21 @@
 </head>
 
 <body>
-  <script type="module">
+  <script>
     xnew(Component);
 
     function Component() {
       xnew.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
-      const text = xnew({ tagName: 'span' });
+      xnew({ tagName: 'span' }, 'click me');
 
-      const xnode = xnew.current;
-      xnode.on('click', (event) => {
-        xnode.state === 'running' ? xnode.stop() : xnode.start();
+      xnew.on('click', (event) => {
+        xnew.state === 'running' ? xnew.stop() : xnew.start();
       });
 
       let counter = 0;
       return {
-        start() {
-          text.element.textContent = 'start';
-        },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
-        },
-        stop() {
-          text.element.textContent = 'stop';
+          xnew.element.style.transform = `rotate(${counter++}deg)`;
         },
       };
     }

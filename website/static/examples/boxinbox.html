@@ -13,13 +13,13 @@
 
     function Parent() {
       xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
+      
       const text = xnew({ tagName: 'span' });
 
       xnew(Child);
 
-      const xnode = xnew.current;
-      xnode.on('click', () => {
-        xnode.state === 'running' ? xnode.stop() : xnode.start();
+      xnew.on('click', () => {
+        xnew.state === 'running' ? xnew.stop() : xnew.start();
       });
 
       let counter = 0;
@@ -28,7 +28,7 @@
           text.element.textContent = 'parent: start';
         },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
+          xnew.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'parent: stop';
@@ -38,12 +38,12 @@
 
     function Child() {
       xnew.nest({ style: 'position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80;' })
+      
       const text = xnew({ tagName: 'span' });
 
-      const xnode = xnew.current;
-      xnode.on('click', (event) => {
+      xnew.on('click', (event) => {
         event.stopPropagation(); // cancel propagation to the parent element
-        xnode.state === 'running' ? xnode.stop() : xnode.start();
+        xnew.state === 'running' ? xnew.stop() : xnew.start();
       });
 
       let counter = 0;
@@ -52,14 +52,13 @@
           text.element.textContent = 'child: start';
         },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
+          xnew.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'child: stop';
         },
       };
     }
-
   </script>
 </body>
 

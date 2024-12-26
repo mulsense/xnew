@@ -5,7 +5,7 @@ export function xnew(...args)
 {
     // parent xnode
     let parent = undefined;
-    if (args[0] instanceof XNode) {
+    if (isFunction(args[0]) === false && args[0] instanceof XNode) {
         parent = args.shift();
     } else if (args[0] === null) {
         parent = args.shift();
@@ -16,39 +16,42 @@ export function xnew(...args)
         parent = XNode.current
     }
 
-    // input element
-    let element = undefined;
+    // input target
+    let target = undefined;
     if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
         // an existing html element
-        element = args.shift();
+        target = args.shift();
     } else if (isString(args[0]) === true) {
         // a string for an existing html element
-        element = document.querySelector(args.shift());
+        target = document.querySelector(args.shift());
     } else if (isObject(args[0]) === true) {
         // an attributes for a new html element
-        element = args.shift();
+        target = args.shift();
     } else if (args[0] === null || args[0] === undefined) {
-        element = args.shift();
-        element = null;
+        target = args.shift();
+        target = null;
     } else {
-        element = undefined;
+        target = undefined;
     }
 
-    if (args.length > 0 && isObject(element) === false && isString(args[0]) === true) {
+    if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
         error('xnew', 'The argument is invalid.', 'component');
     } else {
-        return new XNode(parent, element, ...args);
+        return new XNode(parent, target, ...args);
     }
 }
 
-Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
+XNode.xnew = xnew;
+
+Object.defineProperty(xnew, 'current', { enumerable: true, get: getCurrent });
+
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 
-function current()
+function getCurrent()
 {
     return XNode.current;
 }
@@ -96,14 +99,8 @@ function context(key, value)
 
 function find(key)
 {
-    if (isString(key) === false && isFunction(key) === false) {
+    if (isFunction(key) === false) {
         error('xnew.find', 'The argument is invalid.', 'key');
-    } else if (isString(key) === true) {
-        const set = new Set();
-        key.trim().split(/\s+/).forEach((key) => {
-            XNode.keys.get(key)?.forEach((xnode) => set.add(xnode));
-        });
-        return [...set];
     } else if (isFunction(key) === true) {
         const set = new Set();
         XNode.components.get(key)?.forEach((xnode) => set.add(xnode));
