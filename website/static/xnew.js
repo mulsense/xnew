@@ -391,18 +391,18 @@
 
         static scope(func, ...args)
         {
-            const proto = XNode.xnew.__proto__.__proto__;
+            const proto = XNode.xnew.__proto__;
 
             const backup = XNode.current;
             try {
                 XNode.current = this;
-                XNode.xnew.__proto__.__proto__ = this;
+                XNode.xnew.__proto__ = this;
                 return func(...args);
             } catch (error) {
                 throw error;
             } finally {
                 XNode.current = backup;
-                XNode.xnew.__proto__.__proto__ = proto;
+                XNode.xnew.__proto__ = proto;
             }
         }
 
