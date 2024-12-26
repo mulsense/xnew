@@ -35,7 +35,7 @@ export function xnew(...args)
     }
 
     if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
-        error('xnew', 'The argument is invalid.', 'component');
+        error('xnew', 'The argument is invalid.', 'Component');
     } else {
         return new XNode(parent, target, ...args);
     }
