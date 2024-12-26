@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 8
 ---
 
 # xnew.find
@@ -15,9 +15,9 @@ xnew.find(Component); // component function
 const xnode1 = xnew(A);
 const xnode2 = xnew(A);
 
-function A() {
+function Component() {
 }
 
-xnew.find(A); // [xnode1, xnode2]        
+xnew.find(Component); // [xnode1, xnode2]        
 
 ```

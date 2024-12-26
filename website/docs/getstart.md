@@ -80,9 +80,9 @@ You can create html elements using `xnew` and `xnew.nest`.
 </head>
 <body>
   <script>
-    xnew(Div);
+    xnew(Wrapper);
 
-    function Div() {
+    function Wrapper() {
       xnew.nest({ style: 'margin: 4px; padding: 4px; border: solid 1px #222;'});
 
       xnew({ tagName: 'p' }, 'my div');

@@ -8,10 +8,8 @@ It replace `xnode.element`.
 
 ```js
 xnew(() => {
-  const xnode = xnew.current;
-
   const element = xnew.nest(attributes);
-  // You can access the created element by xnode.element or return value.
+  // You can access the created element by xnew.element or return value.
 })
 ```
 
