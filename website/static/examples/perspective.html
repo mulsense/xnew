@@ -41,17 +41,15 @@
       });
 
       xnew('#target', () => {
-        const xnode = xnew.current;
-
-        xnode.element.style.transformOrigin = 'center';
-        xnode.element.style.transform = 'rotateY(20deg) translateX(0px) ';
+        xnew.element.style.transformOrigin = 'center';
+        xnew.element.style.transform = 'rotateY(20deg) translateX(0px) ';
 
         let rotx = 0;
         let roty = 0;
-        xnode.on('~scene.rotate', (move) => {
+        xnew.on('~scene.rotate', (move) => {
           rotx += move.y;
           roty -= move.x;
-          xnode.element.style.transform = `translateZ(300px) rotateY(${roty}deg) rotateX(${rotx}deg) translateZ(-300px)`;
+          xnew.element.style.transform = `translateZ(300px) rotateY(${roty}deg) rotateX(${rotx}deg) translateZ(-300px)`;
         });
 
       });
@@ -69,17 +67,16 @@
       const z = 300;
       camera.position.set(0, 0, +z);
 
-      const xnode = xnew.current;
-      xnode.on('~camera.zscale', (scale) => {
+      xnew.on('~camera.zscale', (scale) => {
         camera.position.z /= scale;
       })
-      xnode.on('~camera.translate', (move) => {
+      xnew.on('~camera.translate', (move) => {
         camera.position.x += move.x * camera.position.z * 0.001;
         camera.position.y += move.y * camera.position.z * 0.001;
       })
       let rotx = 0;
       let roty = 0;
-      xnode.on('~scene.rotate', (move) => {
+      xnew.on('~scene.rotate', (move) => {
         rotx += move.y * Math.PI / 180;
         roty += move.x * Math.PI / 180;
         camera.rotation.x = rotx;
@@ -107,27 +104,26 @@
     }
 
     function Event() {
-      const xnode = xnew.current;
-      xnode.on('touchstart contextmenu wheel', (event) => {
+      xnew.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });
-      xnode.on('wheel', (event) => {
-        xnode.emit('~camera.zscale', 1 + 0.001 * event.wheelDeltaY);
+      xnew.on('wheel', (event) => {
+        xnew.emit('~camera.zscale', 1 + 0.001 * event.wheelDeltaY);
       });
 
       const gesture = xnew(xnew.GestureEvent);
       gesture.on('move', (event, { scale }) => {
-        xnode.emit('~camera.zscale', scale);
+        xnew.emit('~camera.zscale', scale);
       });
 
       const drag = xnew(xnew.DragEvent);
       drag.on('move', (event, { position, delta }) => {
         if (gesture.isActive === true) return;
         if (event.buttons & 1 || !event.buttons) {
-          xnode.emit('~scene.rotate', { x: +delta.x, y: +delta.y });
+          xnew.emit('~scene.rotate', { x: +delta.x, y: +delta.y });
         }
         if (event.buttons & 2) {
-          xnode.emit('~camera.translate', { x: -delta.x, y: +delta.y });
+          xnew.emit('~camera.translate', { x: -delta.x, y: +delta.y });
         }
       });
     }
@@ -136,9 +132,6 @@
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
       xnew.extend(ThreeObject, scene);
-
-      const xnode = xnew.current;
-    
 
       xnew(DirectionaLight, 20, -50, 100);
       xnew(AmbientLight);
