@@ -36,16 +36,14 @@ In the function, you will implement various features.
 const xnode = xnew(Component, ...args);    
 
 function Component(...args) {
-  const xnode = xnew.current; // you can get xnode from inside.
   // ...
   // implement features
 }
 ```
 
-You can also use a function literal.  `xnew(() => { });`
+You can also use a function literal.  `xnew(() => {});`
 ```js
 const xnode = xnew(() => {
-  const xnode = xnew.current;
   // ...
   // implement features
 });
@@ -81,10 +79,9 @@ xnew(() => {
 <body>
   <div id="hoge"></div>
   <script>
-    const xnode = xnew('#hoge', () => {
-      const xnode = xnew.current;
+    xnew('#hoge', () => {
 
-      xnode.element; // element (id = hoge)
+      xnew.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -100,8 +97,7 @@ xnew(() => {
 ```html
 <body>
   <script>
-    const xnode = xnew({ tagName: 'div', id: 'hoge' }, () => {
-      const xnode = xnew.current;
+    xnew({ tagName: 'div', id: 'hoge' }, () => {
       
       xnode.element; // element (id = hoge)
     });
@@ -121,18 +117,18 @@ If you omit the `element` parameter, the parent xnode's element or otherwise `do
 
 <script>
   xnew(() => {
-    // xnew.current.element: document.body
+    // xnew.element: document.body
   });
 
   xnew('#hoge', () => {
-    // xnew.current.element: (id=hoge)
+    // xnew.element: (id=hoge)
 
     xnew(() => {
-      // xnew.current.element: (id=hoge)
+      // xnew.element: (id=hoge)
     });
 
     xnew({ tagName: 'div', id: 'fuga' }, () => {
-      // xnew.current.element: (id=fuga) (as a child element of hoge)
+      // xnew.element: (id=fuga) (as a child element of hoge)
     });
   });
 </script>;
@@ -141,13 +137,11 @@ If you omit the `element` parameter, the parent xnode's element or otherwise `do
 ### innerHTML
 If you set string as `Compoennt`, innerHTML will be added in a created element.
 ```js
-const xnode = xnew({ tagName: 'p', id: 'hoge' }, 'aaa');
+xnew({ tagName: 'p', id: 'hoge' }, 'aaa');
 ```
 ```html
 <body>
-  <p id="hoge">
-    aaa
-  </p>
+  <p id="hoge">aaa</p>
 </body>
 ```
 

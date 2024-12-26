@@ -676,52 +676,52 @@
 
     function nest(attributes)
     {
-        const xnode = XNode.current;
+        const current = XNode.current;
 
-        if (xnode.element instanceof Window || xnode.element instanceof Document) {
+        if (current.element instanceof Window || current.element instanceof Document) {
             error('xnew.nest', 'No elements are added to window or document.');
         } else if (isObject(attributes) === false) {
             error('xnew.nest', 'The argument is invalid.', 'attributes');
-        } else if (xnode._.state !== 'pending') {
+        } else if (current._.state !== 'pending') {
             error('xnew.nest', 'This function can not be called after initialized.');
         } else {
-            return XNode.nest.call(xnode, attributes);
+            return XNode.nest.call(current, attributes);
         }
     }
 
     function extend(component, ...args)
     {
-        const xnode = XNode.current;
+        const current = XNode.current;
 
         if (isFunction(component) === false) {
             error('xnew.extend', 'The argument is invalid.', 'component');
-        } else if (xnode._.state !== 'pending') {
+        } else if (current._.state !== 'pending') {
             error('xnew.extend', 'This function can not be called after initialized.');
-        } else if (xnode._.components.has(component) === true) {
+        } else if (current._.components.has(component) === true) {
             error('xnew.extend', 'This function has already been added.');
         } else {
-            return XNode.extend.call(xnode, component, ...args);
+            return XNode.extend.call(current, component, ...args);
         }
     }
 
     function context(key, value)
     {
-        const xnode = XNode.current;
+        const current = XNode.current;
 
         if (isString(key) === false) {
             error('xnew.context', 'The argument is invalid.', 'key');
         } else {
-            return XNode.context.call(xnode, key, value);
+            return XNode.context.call(current, key, value);
         }
     }
 
-    function find(key)
+    function find(Component)
     {
-        if (isFunction(key) === false) {
-            error('xnew.find', 'The argument is invalid.', 'key');
-        } else if (isFunction(key) === true) {
+        if (isFunction(Component) === false) {
+            error('xnew.find', 'The argument is invalid.', 'Component');
+        } else if (isFunction(Component) === true) {
             const set = new Set();
-            XNode.components.get(key)?.forEach((xnode) => set.add(xnode));
+            XNode.components.get(Component)?.forEach((xnode) => set.add(xnode));
             return [...set];
         }
     }
