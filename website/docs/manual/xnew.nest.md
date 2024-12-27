@@ -9,7 +9,9 @@ It replace `unit.element`.
 ```js
 xnew(() => {
   const element = xnew.nest(attributes);
-  // You can access the created element by xnew.element or return value.
+
+  const self = xnew.current;
+  self.element;
 })
 ```
 

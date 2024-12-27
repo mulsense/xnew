@@ -23,7 +23,6 @@ export class Unit
         };
     
         (parent?._.children ?? Unit.roots).add(this);
-        
         Unit.initialize.call(this, parent, target, Component, ...args);
     }
 
@@ -196,7 +195,7 @@ export class Unit
     {
         this._ = Object.assign(this._, {
             backup: [parent, target, Component],
-            children: new Set(),            // children xnodes
+            children: new Set(),            // children units
             state: 'pending',               // [pending -> running <-> stopped -> finalized]
             tostart: false,                 // flag for start
             promises: [],                   // promises
@@ -358,7 +357,7 @@ export class Unit
         }
     }
 
-    static roots = new Set();   // root xnodes
+    static roots = new Set();   // root units
     static animation = null;    // animation callback id
 
     static reset()

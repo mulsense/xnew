@@ -41,18 +41,12 @@ export function xnew(...args)
     }
 }
 
-Object.defineProperty(xnew, 'current', { enumerable: true, get: getCurrent });
-
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Unit.current });
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
-
-function getCurrent()
-{
-    return Unit.current;
-}
 
 function nest(attributes)
 {
@@ -71,27 +65,23 @@ function nest(attributes)
 
 function extend(component, ...args)
 {
-    const current = Unit.current;
-
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
-    } else if (current._.state !== 'pending') {
+    } else if (Unit.current._.state !== 'pending') {
         error('xnew.extend', 'This function can not be called after initialized.');
-    } else if (current._.components.has(component) === true) {
+    } else if (Unit.current._.components.has(component) === true) {
         error('xnew.extend', 'This function has already been added.');
     } else {
-        return Unit.extend.call(current, component, ...args);
+        return Unit.extend.call(Unit.current, component, ...args);
     }
 }
 
 function context(key, value)
 {
-    const current = Unit.current;
-
     if (isString(key) === false) {
         error('xnew.context', 'The argument is invalid.', 'key');
     } else {
-        return Unit.context.call(current, key, value);
+        return Unit.context.call(Unit.current, key, value);
     }
 }
 
@@ -108,11 +98,8 @@ function find(Component)
 
 function timer(callback, delay = 0, loop = false)
 {
-    const current = Unit.current;
-
-    const timer = new Timer(() => {
-        Unit.scope.call(current, callback);
-    }, delay, loop);
+    const unit = Unit.current;
+    const timer = new Timer(() => Unit.scope.call(unit, callback), delay, loop);
 
     if (document !== undefined) {
         if (document.hidden === false) {
@@ -138,11 +125,8 @@ function timer(callback, delay = 0, loop = false)
 
 function transition(callback, delay = 0, loop = false)
 {
-    const current = Unit.current;
-
-    const timer = new Timer(() => {
-        Unit.scope.call(current, callback);
-    }, delay, loop);
+    const unit = Unit.current;
+    const timer = new Timer(() => Unit.scope.call(unit, callback), delay, loop);
 
     if (document !== undefined) {
         if (document.hidden === false) {
