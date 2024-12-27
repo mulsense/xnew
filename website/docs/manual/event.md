@@ -5,13 +5,13 @@ sidebar_position: 20
 # event listener
 You can set some event listener using `unit.on`.
 
-# unit.on
+## `unit.on`
 this method set a event listener.
 ```js
 unit.on(type, listener);
 ```
 
-# unit.off
+## `unit.off`
 this method unset event listeners.
 
 ```js
@@ -20,7 +20,7 @@ unit.off(type);            // clear events (named type)
 unit.off(type, callback);  // clear the callback event
 ```
 
-### `unit.emit`
+## `unit.emit`
 This method emit a event.
 ```js
 unit.emit(type, ...args);
@@ -35,7 +35,8 @@ unit.emit(type, ...args);
   const unit = xnew('#target', Component);
   
   function Component() {
-    xnew.on('click', (event) => {
+    const self = xnew.current;
+    self.on('click', (event) => {
       // fires when the unit's element (id = target) is clicked.
     });
   });
@@ -53,7 +54,8 @@ unit.emit(type, ...args);
   const unit = xnew('#target', Component);
   
   function Component() {
-    xnew.on('myevent', (data) => {
+    const self = xnew.current;
+    self.on('myevent', (data) => {
       // fires when unit.emit('myevent', data) is called.
     });
   });
