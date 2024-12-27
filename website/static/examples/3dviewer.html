@@ -43,10 +43,11 @@
       const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
       camera.position.set(0, 0, +200);
 
-      xnew.on('~scale', (scale) => {
+      const self = xnew.current;
+      self.on('~scale', (scale) => {
         camera.position.z /= scale;
       })
-      xnew.on('~translate', (move) => {
+      self.on('~translate', (move) => {
         camera.position.x += move.x * camera.position.z * 0.001;
         camera.position.y += move.y * camera.position.z * 0.001;
       })
@@ -73,26 +74,27 @@
     }
 
     function Event() {
-      xnew.on('touchstart contextmenu wheel', (event) => {
+      const self = xnew.current;
+      self.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });
-      xnew.on('wheel', (event) => {
-        xnew.emit('~scale', 1 + 0.001 * event.wheelDeltaY);
+      self.on('wheel', (event) => {
+        self.emit('~scale', 1 + 0.001 * event.wheelDeltaY);
       });
 
       const gesture = xnew(xnew.GestureEvent);
       gesture.on('move', (event, { scale }) => {
-        xnew.emit('~scale', scale);
+        self.emit('~scale', scale);
       });
 
       const drag = xnew(xnew.DragEvent);
       drag.on('move', (event, { position, delta }) => {
         if (gesture.isActive === true) return;
         if (event.buttons & 1 || !event.buttons) {
-          xnew.emit('~rotate', { x: +delta.x, y: +delta.y });
+          self.emit('~rotate', { x: +delta.x, y: +delta.y });
         }
         if (event.buttons & 2) {
-          xnew.emit('~translate', { x: -delta.x, y: +delta.y });
+          self.emit('~translate', { x: -delta.x, y: +delta.y });
         }
       });
     }
@@ -103,7 +105,8 @@
       scene.rotation.x = -60 / 180 * Math.PI
       xnew.extend(ThreeNest, scene);
 
-      xnew.on('~rotate', (move) => {
+      const self = xnew.current;
+      self.on('~rotate', (move) => {
         scene.rotation.x += move.y * 0.01;
         scene.rotation.z += move.x * 0.01;
       })

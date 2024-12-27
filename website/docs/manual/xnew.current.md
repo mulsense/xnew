@@ -3,15 +3,15 @@ sidebar_position: 10
 ---
 
 # xnew.current
-`xnew.current` get the `xnode` in current scope.
+`xnew.current` get the `unit` in current scope.
 
 ## example
 ```js
 xnew(() => {
-  const xnode1 = xnew.current;
+  const unit1 = xnew.current;
 
-  const xnode2 = xnew(() => {
-    const xnode2 = xnew.current;
+  const unit2 = xnew(() => {
+    const unit2 = xnew.current;
 
     // ...
   });  
@@ -19,38 +19,38 @@ xnew(() => {
 ```
 
 ## scope issues
-In some callback functions, appropriate parent xnode may not be set.  
+In some callback functions, appropriate parent unit may not be set.  
 
 :::note
 In the following, appropriate parent is set.
-the xnodes are created as children of `xnode1`.
+the units are created as children of `unit1`.
 ```js
 xnew(() => {
-  const xnode1 = xnew.current;
+  const unit1 = xnew.current;
 
-  const xnode2 = xnew(Component);
-  xnode2.parent; // xnode1
+  const unit2 = xnew(Component);
+  unit2.parent; // unit1
 
-  xnode1.on('click', () => {
-    const xnode3 = xnew(Component);
-    xnode3.parent; // xnode1;
+  unit1.on('click', () => {
+    const unit3 = xnew(Component);
+    unit3.parent; // unit1;
   });
 
   xnew.timer(() => {
-    const xnode4 = xnew(Component);
-    xnode4.parent; // xnode1;
+    const unit4 = xnew(Component);
+    unit4.parent; // unit1;
   }, 1000);
 
 
-  // use callback functions except for xnode method
+  // use callback functions except for unit method
   setTimeout(() => {
-    const xnode5 = xnew(xnode1, Component); // parent xnode is set intentionally
-    xnode5.parent; // xnode1;
+    const unit5 = xnew(unit1, Component); // parent unit is set intentionally
+    unit5.parent; // unit1;
   }, 1000);
 
   window.addEventListener('click', () => {
-    const xnode6 = xnew(xnode1, Component); // parent xnode is set intentionally
-    xnode6.parent; // xnode1
+    const unit6 = xnew(unit1, Component); // parent unit is set intentionally
+    unit6.parent; // unit1
   });
 });
 ```
@@ -58,28 +58,28 @@ xnew(() => {
 
 :::warning
 In the following, appropriate parent is not(?) set.  
-the xnodes are not created as children of `xnode1`.
+the units are not created as children of `unit1`.
 ```js
 xnew(() => {
-  const xnode1 = xnew.current;
+  const unit1 = xnew.current;
 
-  // use callback functions except for xnode method
+  // use callback functions except for unit method
   window.addEventListener('click', () => {
-    const xnode2 = xnew(Component); // parent xnode is not set
-    xnode2.parent; // null
+    const unit2 = xnew(Component); // parent unit is not set
+    unit2.parent; // null
   });
 
   setTimeout(() => {
-    const xnode3 = xnew(Component); // parent xnode is not set
-    xnode3.parent; // null
+    const unit3 = xnew(Component); // parent unit is not set
+    unit3.parent; // null
   }, 1000);
 
 
 
   const another = xnew(Component);
   another.on('click', () => {
-    const xnode4 = xnew(Component);
-    xnode4.parent; // another
+    const unit4 = xnew(Component);
+    unit4.parent; // another
   });
 })
 ```

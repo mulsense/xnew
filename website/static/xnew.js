@@ -247,150 +247,130 @@
         
             (parent?._.children ?? XNode.roots).add(this);
             
-            Object.defineProperty(this, 'parent', { enumerable: true, get: getParent.bind(this) });
-            Object.defineProperty(this, 'element', { enumerable: true, get: getElement.bind(this) });
-            Object.defineProperty(this, 'promise', { enumerable: true, get: getPromise.bind(this) });
-            Object.defineProperty(this, 'state', { enumerable: true, get: getState.bind(this) });
-        
-            Object.defineProperty(this, 'start', { enumerable: true, value: start.bind(this) });
-            Object.defineProperty(this, 'stop', { enumerable: true, value: stop.bind(this) });
-            Object.defineProperty(this, 'finalize', { enumerable: true, value: finalize.bind(this) });
-            Object.defineProperty(this, 'reboot', { enumerable: true, value: reboot.bind(this) });
-            Object.defineProperty(this, 'on', { enumerable: true, value: on.bind(this) });
-            Object.defineProperty(this, 'off', { enumerable: true, value: off.bind(this) });
-            Object.defineProperty(this, 'emit', { enumerable: true, value: emit.bind(this) });
-        
-            XNode.initialize.call(this, parent, target, Component, ...args); 
+            XNode.initialize.call(this, parent, target, Component, ...args);
+        }
 
-            function getParent()
-            {
-                return this._.parent;
+        get parent()
+        {
+            return this._.parent;
+        }
+
+        get element()
+        {
+            return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
+        }
+
+        get promise()
+        {
+            return this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
+        }
+
+        get state()
+        {
+            return this._.state
+        }
+
+        start()
+        {
+            this._.tostart = true;
+        }
+
+        stop()
+        {
+            this._.tostart = false;
+            XNode.stop.call(this);
+        }
+
+        finalize()
+        {
+            XNode.stop.call(this);
+            XNode.finalize.call(this);
+
+            (this._.parent?._.children ?? XNode.roots).delete(this);
+        }
+
+        reboot(...args)
+        {
+            XNode.stop.call(this);
+            XNode.finalize.call(this);
+            
+            (this._.parent?._.children ?? XNode.roots).add(this);
+            XNode.initialize.call(this, ...this._.backup, ...args);
+        }
+
+        on(type, listener, options)
+        {
+            if (isString(type) === false) {
+                error('xnode on', 'The argument is invalid.', 'type');
+            } else if (isFunction(listener) === false) {
+                error('xnode on', 'The argument is invalid.', 'listener');
+            } else {
+                type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
             }
 
-            function getElement()
-            {
-                return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
-            }
-
-            function getPromise()
-            {
-                return this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
-            }
-
-            function getState()
-            {
-                return this._.state
-            }
-
-            function start()
-            {
-                this._.tostart = true;
-            }
-
-            function stop()
-            {
-                this._.tostart = false;
-                XNode.stop.call(this);
-            }
-
-            function finalize()
-            {
-                XNode.stop.call(this);
-                XNode.finalize.call(this);
-
-                (this._.parent?._.children ?? XNode.roots).delete(this);
-            }
-
-            function reboot(...args)
-            {
-                XNode.stop.call(this);
-                XNode.finalize.call(this);
-                
-                (this._.parent?._.children ?? XNode.roots).add(this);
-                XNode.initialize.call(this, ...this._.backup, ...args);
-            }
-
-            function on(type, listener, options)
-            {
-                if (isString(type) === false) {
-                    error('xnode on', 'The argument is invalid.', 'type');
-                } else if (isFunction(listener) === false) {
-                    error('xnode on', 'The argument is invalid.', 'listener');
-                } else {
-                    type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
+            function internal(type, listener) {
+                if (this._.listeners.has(type, listener) === false) {
+                    const element = this.element;
+                    const execute = (...args) => {
+                        XNode.scope.call(this, listener, ...args);
+                    };
+                    this._.listeners.set(type, listener, [element, execute]);
+                    element.addEventListener(type, execute, options);
                 }
-
-                function internal(type, listener) {
-                    if (this._.listeners.has(type, listener) === false) {
-                        const element = this.element;
-                        const execute = (...args) => {
-                            XNode.scope.call(this, listener, ...args);
-                        };
-                        this._.listeners.set(type, listener, [element, execute]);
-                        element.addEventListener(type, execute, options);
-                    }
-                    if (this._.listeners.has(type) === true) {
-                        XNode.etypes.add(type, this);
-                    }
-                }
-            }
-
-            function off(type, listener)
-            {
-                if (type !== undefined && isString(type) === false) {
-                    error('xnode off', 'The argument is invalid.', 'type');
-                } else if (listener !== undefined && isFunction(listener) === false) {
-                    error('xnode off', 'The argument is invalid.', 'listener');
-                } else if (isString(type) === true && listener !== undefined) {
-                    type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-                } else if (isString(type) === true && listener === undefined) {
-                    type.trim().split(/\s+/).forEach((type) => {
-                        this._.listeners.get(type)?.forEach((_, listener) => internal.call(this, type, listener));
-                    });
-                } else if (type === undefined) {
-                    this._.listeners.forEach((map, type) => {
-                        map.forEach((_, listener) => internal.call(this, type, listener));
-                    });
-                }
-
-                function internal(type, listener) {
-                    if (this._.listeners.has(type, listener) === true) {
-                        const [element, execute] = this._.listeners.get(type, listener);
-                        this._.listeners.delete(type, listener);
-                        element.removeEventListener(type, execute);
-                    }
-                    if (this._.listeners.has(type) === false) {
-                        XNode.etypes.delete(type, this);
-                    }
-                }
-            }
-
-            function emit(type, ...args)
-            {
-                if (isString(type) === false) {
-                    error('xnode emit', 'The argument is invalid.', 'type');
-                } else if (this._.state === 'finalized') {
-                    error('xnode emit', 'This function can not be called after finalized.');
-                } else {
-                    type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
-                }
-                function internal(type) {
-                    if (type[0] === '~') {
-                        XNode.etypes.get(type)?.forEach((xnode) => {
-                            xnode._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-                        });
-                    } else {
-                        this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-                    }
+                if (this._.listeners.has(type) === true) {
+                    XNode.etypes.add(type, this);
                 }
             }
         }
 
-        static xnew = null;
+        off(type, listener)
+        {
+            if (type !== undefined && isString(type) === false) {
+                error('xnode off', 'The argument is invalid.', 'type');
+            } else if (listener !== undefined && isFunction(listener) === false) {
+                error('xnode off', 'The argument is invalid.', 'listener');
+            } else if (isString(type) === true && listener !== undefined) {
+                type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
+            } else if (isString(type) === true && listener === undefined) {
+                type.trim().split(/\s+/).forEach((type) => {
+                    this._.listeners.get(type)?.forEach((_, listener) => internal.call(this, type, listener));
+                });
+            } else if (type === undefined) {
+                this._.listeners.forEach((map, type) => {
+                    map.forEach((_, listener) => internal.call(this, type, listener));
+                });
+            }
 
-        static seteup(xnew) {
-            XNode.xnew = xnew;
-            XNode.reset();
+            function internal(type, listener) {
+                if (this._.listeners.has(type, listener) === true) {
+                    const [element, execute] = this._.listeners.get(type, listener);
+                    this._.listeners.delete(type, listener);
+                    element.removeEventListener(type, execute);
+                }
+                if (this._.listeners.has(type) === false) {
+                    XNode.etypes.delete(type, this);
+                }
+            }
+        }
+
+        emit(type, ...args)
+        {
+            if (isString(type) === false) {
+                error('xnode emit', 'The argument is invalid.', 'type');
+            } else if (this._.state === 'finalized') {
+                error('xnode emit', 'This function can not be called after finalized.');
+            } else {
+                type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
+            }
+            function internal(type) {
+                if (type[0] === '~') {
+                    XNode.etypes.get(type)?.forEach((xnode) => {
+                        xnode._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                    });
+                } else {
+                    this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                }
+            }
         }
 
         // current xnode scope
@@ -398,17 +378,14 @@
 
         static scope(func, ...args)
         {
-            const proto = XNode.xnew.__proto__;
             const backup = XNode.current;
             try {
                 XNode.current = this;
-                XNode.xnew.__proto__ = this;
                 return func(...args);
             } catch (error) {
                 throw error;
             } finally {
                 XNode.current = backup;
-                XNode.xnew.__proto__ = proto;
             }
         }
 
@@ -622,6 +599,7 @@
             });
         }
     }
+    XNode.reset();
 
     function xnew(...args)
     {
@@ -662,8 +640,6 @@
             return new XNode(parent, target, ...args);
         }
     }
-
-    XNode.seteup(xnew);
 
     Object.defineProperty(xnew, 'current', { enumerable: true, get: getCurrent });
 
@@ -761,17 +737,17 @@
     }
 
     function DragEvent() {
-        const xnode = xnew.current;
         let isActive = false;
       
+        const self = xnew.current;
         const base = xnew();
 
         base.on('pointerdown', (event) => {
             const id = event.pointerId;
-            const rect = xnode.element.getBoundingClientRect();
+            const rect = self.element.getBoundingClientRect();
             const position = getPosition(event, rect);
            
-            xnode.emit('down', event, { type: 'down', position });
+            self.emit('down', event, { type: 'down', position });
             let previous = position;
             isActive = true;
 
@@ -782,7 +758,7 @@
                     const position = getPosition(event, rect);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     
-                    xnode.emit('move', event, { type: 'move', position, delta });
+                    self.emit('move', event, { type: 'move', position, delta });
                     previous = position;
                 }
             });
@@ -790,7 +766,7 @@
             xwin.on('pointerup', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
-                    xnode.emit('up', event, { type: 'up', position, });
+                    self.emit('up', event, { type: 'up', position, });
                     xwin.finalize();
                     isActive = false;
                 }
@@ -799,7 +775,7 @@
             xwin.on('pointercancel', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
-                    xnode.emit('cancel', event, { type: 'cancel', position, });
+                    self.emit('cancel', event, { type: 'cancel', position, });
                     xwin.finalize();
                     isActive = false;
                 }
@@ -818,7 +794,7 @@
     }
 
     function GestureEvent() {
-        const xnode = xnew.current;
+        const self = xnew.current;
         const drag = xnew(DragEvent);
 
         let isActive = false;
@@ -830,7 +806,7 @@
           
             isActive = map.size === 2 ? true : false;
             if (isActive === true) {
-                xnode.emit('down', event, { type: 'down', });
+                self.emit('down', event, { type: 'down', });
             }
         });
 
@@ -844,7 +820,7 @@
                 const v = { x: a.x - b.x, y: a.y - b.y };
                 const s =  v.x * v.x + v.y * v.y;
                 const scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-                xnode.emit('move', event, { type: 'move', scale, });
+                self.emit('move', event, { type: 'move', scale, });
             }
             map.set(id, { ...position });
         });
@@ -852,7 +828,7 @@
         drag.on('up cancel', (event, { type }) => {
             const id = event.pointerId;
             if (isActive === true) {
-                xnode.emit(type, event, { type, });
+                self.emit(type, event, { type, });
             }
             isActive = false;
             map.delete(id);
@@ -866,22 +842,21 @@
     }
 
     function ResizeEvent() {
-        const xnode = xnew.current;
-
+        const self = xnew.current;
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                xnode.emit('resize');
+                self.emit('resize');
                 break;
             }
         });
 
-        if (xnode.element) {
-            observer.observe(xnode.element);
+        if (self.element) {
+            observer.observe(self.element);
         }
         return {
             finalize() {
-                if (xnode.element) {
-                    observer.unobserve(xnode.element);
+                if (self.element) {
+                    observer.unobserve(self.element);
                 }
             }
         }
@@ -900,7 +875,6 @@
         }
         
         objectFit = ['fill', 'contain', 'cover'].includes(objectFit) ? objectFit : 'contain';
-      
         const observer = xnew(wrapper, ResizeEvent);
         observer.on('resize', resize);
         resize();

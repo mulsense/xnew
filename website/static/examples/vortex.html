@@ -27,7 +27,7 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', () => {
+    xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
       xnew.context('screen', screen);
 
@@ -37,7 +37,7 @@
       xnew.timer(() => xnew(Wave, counter++ / 12 * Math.PI), 500, true);
     });
 
-    function Clear() {
+    function Clear(self) {
       const screen = xnew.context('screen');
       return {
         update() {
@@ -46,7 +46,7 @@
       }
     }
 
-    function Wave(shift) {
+    function Wave(self, shift) {
       const screen = xnew.context('screen');
       const ctx = screen.canvas.getContext('2d');
 
@@ -54,7 +54,7 @@
       let counter = 0;
 
       // finalize after 5000ms
-      xnew.timer(() => xnew.current.finalize(), 5 * 1000);
+      xnew.timer(() => self.finalize(), 5 * 1000);
 
       return {
         update() {

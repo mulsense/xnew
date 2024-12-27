@@ -3,7 +3,7 @@ sidebar_position: 9
 ---
 
 # xnew.context
-`xnew.context` is for context property when you want to get properties on higher xnode.
+`xnew.context` is for context property when you want to get properties on higher unit.
 
 ```js
 // set

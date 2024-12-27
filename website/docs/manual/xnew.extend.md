@@ -24,7 +24,7 @@ function Base() {
 }
 ```
 ```js
-const xnode = xnew(() => {
+const unit = xnew(() => {
   xnew.extend(Base);
 
   return {
@@ -37,7 +37,7 @@ const xnode = xnew(() => {
   }
 });
 
-xnode.hoge();
+unit.hoge();
 // derived hoge
 
 // base update
@@ -58,7 +58,7 @@ If original properties defined in both component functions,
 By using the return value of `xnew.extend`, you can change the calling rules of the original properties.
 
 ```js
-const xnode = xnew(() => {
+const unit = xnew(() => {
   const props = xnew.extend(Base);
 
   return {
@@ -69,7 +69,7 @@ const xnode = xnew(() => {
   }
 });
 
-xnode.hoge();
+unit.hoge();
 // base hoge
 // derived hoge
 

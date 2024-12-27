@@ -22,5 +22,5 @@ xnew(() => {
 
 ```
 :::tip
-If the parent xnode finalize, the timer is automatically cleared.
+If the parent unit finalize, the timer is automatically cleared.
 :::

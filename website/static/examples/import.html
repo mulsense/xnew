@@ -5,27 +5,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- <script src="../xnew.js"></script> -->
   <script type="importmap">
-        {
-          "imports": {
-            "xnew": "../../../dist/xnew.mjs"
-          }
-        }
-      </script>
+    {
+      "imports": {
+        "xnew": "../../../dist/xnew.mjs"
+      }
+    }
+  </script>
 </head>
 
 <body>
   <script type="module">
     import xnew from 'xnew'
     xnew(Component);
-    function Component() {
-      xnew.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
+    function Component(self) {
+      self.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
       const text = xnew({ tagName: 'span' }, 'parent: start');
 
-      const xnode = xnew.current;
-      xnode.on('click', (event) => {
-        xnode.state === 'running' ? xnode.stop() : xnode.start();
+      self.on('click', (event) => {
+        self.state === 'running' ? self.stop() : self.start();
       });
 
       let counter = 0;
@@ -34,7 +32,7 @@
           text.element.textContent = 'start';
         },
         update() {
-          xnode.element.style.transform = `rotate(${counter++}deg)`;
+          self.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'stop';

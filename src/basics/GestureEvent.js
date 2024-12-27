@@ -2,7 +2,7 @@ import { xnew } from '../core/xnew';
 import { DragEvent } from './DragEvent';
 
 export function GestureEvent() {
-    const xnode = xnew.current;
+    const self = xnew.current;
     const drag = xnew(DragEvent);
 
     let isActive = false;
@@ -14,7 +14,7 @@ export function GestureEvent() {
       
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            xnode.emit('down', event, { type: 'down', });
+            self.emit('down', event, { type: 'down', });
         }
     });
 
@@ -28,7 +28,7 @@ export function GestureEvent() {
             const v = { x: a.x - b.x, y: a.y - b.y };
             const s =  v.x * v.x + v.y * v.y;
             const scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-            xnode.emit('move', event, { type: 'move', scale, });
+            self.emit('move', event, { type: 'move', scale, });
         }
         map.set(id, { ...position });
     });
@@ -36,7 +36,7 @@ export function GestureEvent() {
     drag.on('up cancel', (event, { type }) => {
         const id = event.pointerId;
         if (isActive === true) {
-            xnode.emit(type, event, { type, });
+            self.emit(type, event, { type, });
         }
         isActive = false;
         map.delete(id);

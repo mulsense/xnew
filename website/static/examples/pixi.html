@@ -26,13 +26,13 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', () => {
+    xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
       xnew(PixiMain, screen.canvas);
     });
 
-    function PixiMain(canvas) {
+    function PixiMain(self, canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
 
       const contents = xnew(PixiContents);
@@ -44,7 +44,7 @@
       };
     }
 
-    function PixiNest(object) {
+    function PixiNest(self, object) {
       const parent = xnew.context('PIXI.DisplayObject');
       xnew.context('PIXI.DisplayObject', object);
 
@@ -56,9 +56,9 @@
       }
     }
 
-    function PixiContents() {
+    function PixiContents(self) {
       const scene = new PIXI.Container();
-      xnew.extend(PixiNest, scene);
+      self.extend(PixiNest, scene);
 
       xnew(Box, 800 / 2, 400 / 2, 160, 0xEA1E63);
 
@@ -69,9 +69,9 @@
       };
     }
 
-    function Box(x, y, size, color) {
+    function Box(self, x, y, size, color) {
       const object = new PIXI.Container();
-      xnew.extend(PixiNest, object);
+      self.extend(PixiNest, object);
 
       object.x = x;
       object.y = y;

@@ -26,7 +26,7 @@
 <body>
   <div id="main" style="position: relative; width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', () => {
+    xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 450 });
 
       xnew(MatterMain, screen.canvas);
@@ -37,7 +37,7 @@
       });
     });
 
-    function MatterMain(canvas) {
+    function MatterMain(self, canvas) {
       const engine = Matter.Engine.create();
       const render = Matter.Render.create({
         canvas, engine,
@@ -61,7 +61,7 @@
       }
     }
 
-    function MatterNest(object) {
+    function MatterNest(self, object) {
       const parent = xnew.context('Matter.Composite');
       xnew.context('Matter.Composite', object);
 
@@ -73,10 +73,10 @@
       }
     }
 
-    function MatterContents(engine) {
-      xnew.extend(MatterNest, engine.world);
+    function MatterContents(self, engine) {
+      self.extend(MatterNest, engine.world);
 
-      xnew.on('~matter.reset', () => {
+      self.on('~matter.reset', () => {
         xnew.reboot(engine);
       })
 
@@ -86,19 +86,19 @@
       xnew(Rectangle, 400, 400, 800, 20, { isStatic: true });
     }
 
-    function Rectangle(...args) {
+    function Rectangle(self, ...args) {
       const object = Matter.Bodies.rectangle(...args)
-      xnew.extend(MatterNest, object);
+      self.extend(MatterNest, object);
     }
 
-    function Circle(...args) {
+    function Circle(self, ...args) {
       const object = Matter.Bodies.circle(...args)
-      xnew.extend(MatterNest, object);
+      self.extend(MatterNest, object);
     }
 
-    function Polygon(...args) {
+    function Polygon(self, ...args) {
       const object = Matter.Bodies.polygon(...args)
-      xnew.extend(MatterNest, object);
+      self.extend(MatterNest, object);
     }
   </script>
 </body>

@@ -1,17 +1,17 @@
 import { xnew } from '../core/xnew';
 
 export function DragEvent() {
-    const xnode = xnew.current;
     let isActive = false;
   
+    const self = xnew.current;
     const base = xnew();
 
     base.on('pointerdown', (event) => {
         const id = event.pointerId;
-        const rect = xnode.element.getBoundingClientRect();
+        const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
        
-        xnode.emit('down', event, { type: 'down', position });
+        self.emit('down', event, { type: 'down', position });
         let previous = position;
         isActive = true;
 
@@ -22,7 +22,7 @@ export function DragEvent() {
                 const position = getPosition(event, rect);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
                 
-                xnode.emit('move', event, { type: 'move', position, delta });
+                self.emit('move', event, { type: 'move', position, delta });
                 previous = position;
             }
         });
@@ -30,7 +30,7 @@ export function DragEvent() {
         xwin.on('pointerup', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
-                xnode.emit('up', event, { type: 'up', position, });
+                self.emit('up', event, { type: 'up', position, });
                 xwin.finalize();
                 isActive = false;
             }
@@ -39,7 +39,7 @@ export function DragEvent() {
         xwin.on('pointercancel', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
-                xnode.emit('cancel', event, { type: 'cancel', position, });
+                self.emit('cancel', event, { type: 'cancel', position, });
                 xwin.finalize();
                 isActive = false;
             }

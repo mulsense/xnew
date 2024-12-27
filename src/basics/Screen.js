@@ -14,7 +14,6 @@ export function Screen({ width = 640, height = 480, objectFit = 'contain', pixel
     }
     
     objectFit = ['fill', 'contain', 'cover'].includes(objectFit) ? objectFit : 'contain';
-  
     const observer = xnew(wrapper, ResizeEvent);
     observer.on('resize', resize);
     resize();

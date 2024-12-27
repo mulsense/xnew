@@ -41,8 +41,6 @@ export function xnew(...args)
     }
 }
 
-XNode.xnew = xnew;
-
 Object.defineProperty(xnew, 'current', { enumerable: true, get: getCurrent });
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });

@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # xnew.nest
 `xnew.nest` create a new element as a child of the current element.  
-It replace `xnode.element`.
+It replace `unit.element`.
 
 ```js
 xnew(() => {
@@ -25,15 +25,14 @@ xnew(() => {
 }
 
 xnew({ tagName: 'div', name: 'C' }, () => { 
-  // xnew.current.element: (div C)
   xnew.nest({ tagName: 'div', name: 'D' }); // inner div
   // xnew.current.element: (div D)
   // xnew.current.element.parentElement: (div C)
 }
 
-const xnode4 = xnew({ tagName: 'div', name: 'E' }, 'aaa');
-// xnode4.element: (div E)
-// xnode4.element.textContent: aaa
+const unit4 = xnew({ tagName: 'div', name: 'E' }, 'aaa');
+// unit4.element: (div E)
+// unit4.element.textContent: aaa
 ```
 The above code leads to the following result.
 ```html
@@ -50,7 +49,7 @@ The above code leads to the following result.
 ```
 
 :::note
-The created elements are removed when the xnodes finalize.
+The created elements are removed when the units finalize.
 :::
 
 ## example 2

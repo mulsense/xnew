@@ -3,18 +3,18 @@ sidebar_position: 1
 ---
 
 # xnew
-It create a new instance `xnode`.  
+It create a new `unit`.  
 How `xnew` works makes component-oriented programming easier.
 
 ## basic usage
 ### arguments
 As shown below, `xnew` accepts some arguments.
 ```js
-// parent:    [a xnode object]
+// parent:    [a unit object]
 // target:    [an existing html element] or [attributes to create a html element]  
 // Component: [an component function] or [an inner html for the created html element]  
 // ...args:   [arguments for the component function]
-const xnode = xnew(parent, target, Component, ...args);
+const unit = xnew(parent, target, Component, ...args);
 ```
 
 These arguments are often omitted.  
@@ -33,7 +33,7 @@ First, let's set a component function to `xnew`.
 In the function, you will implement various features.  
 
 ```js
-const xnode = xnew(Component, ...args);    
+const unit = xnew(Component, ...args);    
 
 function Component(...args) {
   // ...
@@ -43,36 +43,36 @@ function Component(...args) {
 
 You can also use a function literal.  `xnew(() => {});`
 ```js
-const xnode = xnew(() => {
+const unit = xnew(() => {
   // ...
   // implement features
 });
 ```
 
 ### parent
-`parent` parameter is set as parent `xnode`.  
-If you omit the `parent` parameter, the nesting higher xnode or otherwise `null` is assigned.   
+`parent` parameter is set as parent `unit`.  
+If you omit the `parent` parameter, the nesting higher unit or otherwise `null` is assigned.   
     
 ```js
 xnew(() => {
-  // xnode1.parent: null
-  const xnode1 = xnew.current;
+  // unit1.parent: null
+  const unit1 = xnew.current;
 
-  // xnode2.parent: xnode1
-  const xnode2 = xnew(() => {
+  // unit2.parent: unit1
+  const unit2 = xnew(() => {
   });
 
-  // xnode3.parent: xnode1
-  const xnode3 = xnew(() => {
+  // unit3.parent: unit1
+  const unit3 = xnew(() => {
   });
 
-  // xnode4.parent: xnode2
-  const xnode4 = xnew(xnode2, () => {
+  // unit4.parent: unit2
+  const unit4 = xnew(unit2, () => {
   });
 })
 ```
 ### target
-`target` is set for the html element of the new xnode. The element is accessed by `xnode.element`.
+`target` is set for the html element of the new unit. The element is accessed by `unit.element`.
 
 #### Setting an existing html element  
 ```html
@@ -81,7 +81,8 @@ xnew(() => {
   <script>
     xnew('#hoge', () => {
 
-      xnew.element; // element (id = hoge)
+      const self = xnew.current;
+      self.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -99,7 +100,8 @@ xnew(() => {
   <script>
     xnew({ tagName: 'div', id: 'hoge' }, () => {
       
-      xnode.element; // element (id = hoge)
+      const self = xnew.current;
+      self.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -110,25 +112,25 @@ xnew(() => {
 :::
 
 If you omit the tagName property, `tagName: 'div'` will be set automatically.  
-If you omit the `element` parameter, the parent xnode's element or otherwise `document.body` is assigned. 
+If you omit the `element` parameter, the parent unit's element or otherwise `document.body` is assigned. 
     
 ```html
 <div id="hoge"></div>
 
 <script>
   xnew(() => {
-    // xnew.element: document.body
+    // xnew.current.element: document.body
   });
 
   xnew('#hoge', () => {
-    // xnew.element: (id=hoge)
+    // xnew.current.element: (id=hoge)
 
     xnew(() => {
-      // xnew.element: (id=hoge)
+      // xnew.current.element: (id=hoge)
     });
 
     xnew({ tagName: 'div', id: 'fuga' }, () => {
-      // xnew.element: (id=fuga) (as a child element of hoge)
+      // xnew.current.element: (id=fuga) (as a child element of hoge)
     });
   });
 </script>;
@@ -146,16 +148,16 @@ xnew({ tagName: 'p', id: 'hoge' }, 'aaa');
 ```
 
 ## system properties
-`xnode` has some system properties for basic control.  
+`unit` has some system properties for basic control.  
 You can define the detail in the response of the component function.
 
 ```js
-const xnode = xnew(() => {
+const unit = xnew(() => {
   // initialize
 
   return {
     promise: new Promise((resolve, reject) => {
-      // update will not start until this promise is resolved. (accessed by xnode.promise)
+      // update will not start until this promise is resolved. (accessed by unit.promise)
     }), 
     start() {
       // fires before first update.
@@ -164,52 +166,52 @@ const xnode = xnew(() => {
       // executed repeatedly at the rate available for rendering.
     },
     stop() {
-      // fires when xnode.stop() is called.
+      // fires when unit.stop() is called.
     },
     finalize() {
-      // fires when xnode.finalize() is called.
-      // note that it is also called automatically when the parent xnode finalizes.
+      // fires when unit.finalize() is called.
+      // note that it is also called automatically when the parent unit finalizes.
     },
   }
 });
 
 ```
 
-### `xnode.start`
-This method start update loop. xnodes automatically calls `xnode.start()`.  
-If you want to avoid it, call `xnode.stop()` inside the component function.  
+### `unit.start`
+This method start update loop. units automatically calls `unit.start()`.  
+If you want to avoid it, call `unit.stop()` inside the component function.  
 ```js
-xnode.start();
+unit.start();
 ```
 
-### `xnode.stop`
+### `unit.stop`
 This method stop update loop.
 ```js
-xnode.stop();
+unit.stop();
 ```
 
-### `xnode.finalize`
-This method finalize the xnode and the children.  
+### `unit.finalize`
+This method finalize the unit and the children.  
 Related elements will be deleted and update processing will also stop.
 ```js
-xnode.finalize();
+unit.finalize();
 ```
 
-### `xnode.reboot`
-This method reboot the xnode using the component function. 
+### `unit.reboot`
+This method reboot the unit using the component function. 
 ```js
-xnode.reboot(...args); // ...args for the component function.
+unit.reboot(...args); // ...args for the component function.
 ```
 
-### `xnode.state`
-This variable represents the state of the xnode.
+### `unit.state`
+This variable represents the state of the unit.
 ```js
-xnode.state; // [pending → running ↔ stopped → finalized] 
+unit.state; // [pending → running ↔ stopped → finalized] 
 ```
 
 ### calling order
 `start`, `update`, `stop`, `finalize`, these methods have a calling order.  
-The parent xnode method is called after the children xnode method is called.
+The parent unit method is called after the children unit method is called.
 
 ```js
 const parent = xnew(Patent);
@@ -275,7 +277,7 @@ The following names are not available.
 - `parent`,  `element`, `on`, `off`, `emit`, `key`, `_`
 
 ```js
-const xnode = xnew(() =>  {
+const unit = xnew(() =>  {
   let counter = 0;
 
   return {
@@ -291,8 +293,8 @@ const xnode = xnew(() =>  {
   }
 });
 
-xnode.countup();         // 0 -> 1
-xnode.counter = 2;       // setter
-const x = xnode.counter; // getter
+unit.countup();         // 0 -> 1
+unit.counter = 2;       // setter
+const x = unit.counter; // getter
 ```
 
