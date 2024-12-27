@@ -14,7 +14,7 @@ export class Unit
         }
     
         this._ = {
-            parent,                         // parent Unit
+            parent,                         // parent unit
             baseElement,                    // base element
             nestElements: [],               // nest elements
             contexts: new Map(),            // context value
@@ -78,9 +78,9 @@ export class Unit
     on(type, listener, options)
     {
         if (isString(type) === false) {
-            error('Unit on', 'The argument is invalid.', 'type');
+            error('unit on', 'The argument is invalid.', 'type');
         } else if (isFunction(listener) === false) {
-            error('Unit on', 'The argument is invalid.', 'listener');
+            error('unit on', 'The argument is invalid.', 'listener');
         } else {
             type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
         }
@@ -103,9 +103,9 @@ export class Unit
     off(type, listener)
     {
         if (type !== undefined && isString(type) === false) {
-            error('Unit off', 'The argument is invalid.', 'type');
+            error('unit off', 'The argument is invalid.', 'type');
         } else if (listener !== undefined && isFunction(listener) === false) {
-            error('Unit off', 'The argument is invalid.', 'listener');
+            error('unit off', 'The argument is invalid.', 'listener');
         } else if (isString(type) === true && listener !== undefined) {
             type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
         } else if (isString(type) === true && listener === undefined) {
@@ -133,16 +133,16 @@ export class Unit
     emit(type, ...args)
     {
         if (isString(type) === false) {
-            error('Unit emit', 'The argument is invalid.', 'type');
+            error('unit emit', 'The argument is invalid.', 'type');
         } else if (this._.state === 'finalized') {
-            error('Unit emit', 'This function can not be called after finalized.');
+            error('unit emit', 'This function can not be called after finalized.');
         } else {
             type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
         }
         function internal(type) {
             if (type[0] === '~') {
-                Unit.etypes.get(type)?.forEach((Unit) => {
-                    Unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                Unit.etypes.get(type)?.forEach((unit) => {
+                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
                 });
             } else {
                 this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
@@ -150,7 +150,7 @@ export class Unit
         }
     }
 
-    // current Unit scope
+    // current unit scope
     static current = null;
 
     static scope(func, ...args)
@@ -196,7 +196,7 @@ export class Unit
     {
         this._ = Object.assign(this._, {
             backup: [parent, target, Component],
-            children: new Set(),            // children Units
+            children: new Set(),            // children xnodes
             state: 'pending',               // [pending -> running <-> stopped -> finalized]
             tostart: false,                 // flag for start
             promises: [],                   // promises
@@ -222,7 +222,7 @@ export class Unit
                 this.element.innerHTML = Component;
             }
 
-            // whether the Unit promise was resolved
+            // whether the unit promise was resolved
             this.promise.then((response) => { this._.resolved = true; return response; });
         }
     }
@@ -243,7 +243,7 @@ export class Unit
                 if (descripter.value instanceof Promise) {
                     this._.promises.push(descripter.value);
                 } else {
-                    error('Unit extend', 'The property is invalid.', key);
+                    error('unit extend', 'The property is invalid.', key);
                 }
             } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                 if (isFunction(descripter.value)) {
@@ -254,7 +254,7 @@ export class Unit
                         this._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 } else {
-                    error('Unit extend', 'The property is invalid.', key);
+                    error('unit extend', 'The property is invalid.', key);
                 }
             } else if (this._.props[key] !== undefined || this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
@@ -273,7 +273,7 @@ export class Unit
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
             } else {
-                error('Unit extend', 'The property already exists.', key);
+                error('unit extend', 'The property already exists.', key);
             }
         });
         const { promise, start, update, stop, finalize, ...original } = props;
@@ -291,13 +291,13 @@ export class Unit
         if (this._.resolved === false || this._.tostart === false) {
         } else if (['pending', 'stopped'].includes(this._.state) === true) {
             this._.state = 'running';
-            this._.children.forEach((Unit) => Unit.start.call(Unit, time));
+            this._.children.forEach((unit) => Unit.start.call(unit, time));
 
             if (isFunction(this._.props.start) === true) {
                 Unit.scope.call(this, this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
-            this._.children.forEach((Unit) => Unit.start.call(Unit, time));
+            this._.children.forEach((unit) => Unit.start.call(unit, time));
         }
     }
 
@@ -305,7 +305,7 @@ export class Unit
     {
         if (['running'].includes(this._.state) === true) {
             this._.state = 'stopped';
-            this._.children.forEach((Unit) => Unit.stop.call(Unit));
+            this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
                 Unit.scope.call(this, this._.props.stop);
@@ -316,7 +316,7 @@ export class Unit
     static update(time)
     {
         if (['running'].includes(this._.state) === true) {
-            this._.children.forEach((Unit) => Unit.update.call(Unit, time));
+            this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
                 Unit.scope.call(this, this._.props.update);
@@ -329,7 +329,7 @@ export class Unit
         if (['finalized'].includes(this._.state) === false) {
             this._.state = 'finalized';
             
-            [...this._.children].forEach((Unit) => Unit.finalize());
+            [...this._.children].forEach((unit) => unit.finalize());
             
             if (isFunction(this._.props.finalize)) {
                 Unit.scope.call(this, this._.props.finalize);
@@ -358,12 +358,12 @@ export class Unit
         }
     }
 
-    static roots = new Set();   // root Units
+    static roots = new Set();   // root xnodes
     static animation = null;    // animation callback id
 
     static reset()
     {
-        Unit.roots.forEach((Unit) => Unit.finalize());
+        Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
 
         if (Unit.animation !== null) {
@@ -372,7 +372,7 @@ export class Unit
         }
         Unit.animation = requestAnimationFrame(function ticker() {
             const time = Date.now();
-            Unit.roots.forEach((Unit) => Unit.ticker.call(Unit, time));
+            Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
             Unit.animation = requestAnimationFrame(ticker);
         });
     }
