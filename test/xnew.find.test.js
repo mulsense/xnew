@@ -1,16 +1,16 @@
-import { XNode } from '../src/core/xnode';
+import { Unit } from '../src/core/unit';
 import { xnew } from '../src/core/xnew';
 
 beforeEach(() => {
-    XNode.reset();
+    Unit.reset();
 });
 
-describe('xnode context', () => {
+describe('unit context', () => {
 
     it('component', () => {
-        const xnode1 = xnew(A);
-        const xnode2 = xnew(B);
-        const xnode3 = xnew(C);
+        const unit1 = xnew(A);
+        const unit2 = xnew(B);
+        const unit3 = xnew(C);
         function A() {
         }
         function B() {
@@ -18,9 +18,9 @@ describe('xnode context', () => {
         function C() {
         }
 
-        expect(xnew.find(A)[0]).toBe(xnode1);
-        expect(xnew.find(B)[0]).toBe(xnode2);
-        expect(xnew.find(C)[0]).toBe(xnode3);
+        expect(xnew.find(A)[0]).toBe(unit1);
+        expect(xnew.find(B)[0]).toBe(unit2);
+        expect(xnew.find(C)[0]).toBe(unit3);
     });
 });
 

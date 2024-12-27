@@ -1,19 +1,19 @@
 import { isObject, isString, isFunction, Timer, error } from './util';
-import { XNode } from './xnode';
+import { Unit } from './unit';
 
 export function xnew(...args)
 {
-    // parent xnode
+    // parent Unit
     let parent = undefined;
-    if (isFunction(args[0]) === false && args[0] instanceof XNode) {
+    if (isFunction(args[0]) === false && args[0] instanceof Unit) {
         parent = args.shift();
     } else if (args[0] === null) {
         parent = args.shift();
     } else if (args[0] === undefined) {
         parent = args.shift();
-        parent = XNode.current
+        parent = Unit.current
     } else {
-        parent = XNode.current
+        parent = Unit.current
     }
 
     // input target
@@ -37,7 +37,7 @@ export function xnew(...args)
     if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
         error('xnew', 'The argument is invalid.', 'Component');
     } else {
-        return new XNode(parent, target, ...args);
+        return new Unit(parent, target, ...args);
     }
 }
 
@@ -51,12 +51,12 @@ Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 
 function getCurrent()
 {
-    return XNode.current;
+    return Unit.current;
 }
 
 function nest(attributes)
 {
-    const current = XNode.current;
+    const current = Unit.current;
 
     if (current.element instanceof Window || current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
@@ -65,13 +65,13 @@ function nest(attributes)
     } else if (current._.state !== 'pending') {
         error('xnew.nest', 'This function can not be called after initialized.');
     } else {
-        return XNode.nest.call(current, attributes);
+        return Unit.nest.call(current, attributes);
     }
 }
 
 function extend(component, ...args)
 {
-    const current = XNode.current;
+    const current = Unit.current;
 
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
@@ -80,18 +80,18 @@ function extend(component, ...args)
     } else if (current._.components.has(component) === true) {
         error('xnew.extend', 'This function has already been added.');
     } else {
-        return XNode.extend.call(current, component, ...args);
+        return Unit.extend.call(current, component, ...args);
     }
 }
 
 function context(key, value)
 {
-    const current = XNode.current;
+    const current = Unit.current;
 
     if (isString(key) === false) {
         error('xnew.context', 'The argument is invalid.', 'key');
     } else {
-        return XNode.context.call(current, key, value);
+        return Unit.context.call(current, key, value);
     }
 }
 
@@ -101,17 +101,17 @@ function find(Component)
         error('xnew.find', 'The argument is invalid.', 'Component');
     } else if (isFunction(Component) === true) {
         const set = new Set();
-        XNode.components.get(Component)?.forEach((xnode) => set.add(xnode));
+        Unit.components.get(Component)?.forEach((Unit) => set.add(Unit));
         return [...set];
     }
 }
 
 function timer(callback, delay = 0, loop = false)
 {
-    const current = XNode.current;
+    const current = Unit.current;
 
     const timer = new Timer(() => {
-        XNode.scope.call(current, callback);
+        Unit.scope.call(current, callback);
     }, delay, loop);
 
     if (document !== undefined) {
@@ -138,10 +138,10 @@ function timer(callback, delay = 0, loop = false)
 
 function transition(callback, delay = 0, loop = false)
 {
-    const current = XNode.current;
+    const current = Unit.current;
 
     const timer = new Timer(() => {
-        XNode.scope.call(current, callback);
+        Unit.scope.call(current, callback);
     }, delay, loop);
 
     if (document !== undefined) {

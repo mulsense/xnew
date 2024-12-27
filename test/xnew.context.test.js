@@ -1,8 +1,8 @@
-import { XNode } from '../src/core/xnode';
+import { Unit } from '../src/core/unit';
 import { xnew } from '../src/core/xnew';
 
 beforeEach(() => {
-    XNode.reset();
+    Unit.reset();
 });
 
 describe('xnew.context', () => {

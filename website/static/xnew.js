@@ -223,7 +223,7 @@
         }
     }
 
-    class XNode
+    class Unit
     {
         constructor(parent, target, Component, ...args)
         {
@@ -237,7 +237,7 @@
             }
         
             this._ = {
-                parent,                         // parent xnode
+                parent,                         // parent Unit
                 baseElement,                    // base element
                 nestElements: [],               // nest elements
                 contexts: new Map(),            // context value
@@ -245,9 +245,9 @@
                 listeners: new MapMap(),        // event listners
             };
         
-            (parent?._.children ?? XNode.roots).add(this);
+            (parent?._.children ?? Unit.roots).add(this);
             
-            XNode.initialize.call(this, parent, target, Component, ...args);
+            Unit.initialize.call(this, parent, target, Component, ...args);
         }
 
         get parent()
@@ -278,32 +278,32 @@
         stop()
         {
             this._.tostart = false;
-            XNode.stop.call(this);
+            Unit.stop.call(this);
         }
 
         finalize()
         {
-            XNode.stop.call(this);
-            XNode.finalize.call(this);
+            Unit.stop.call(this);
+            Unit.finalize.call(this);
 
-            (this._.parent?._.children ?? XNode.roots).delete(this);
+            (this._.parent?._.children ?? Unit.roots).delete(this);
         }
 
         reboot(...args)
         {
-            XNode.stop.call(this);
-            XNode.finalize.call(this);
+            Unit.stop.call(this);
+            Unit.finalize.call(this);
             
-            (this._.parent?._.children ?? XNode.roots).add(this);
-            XNode.initialize.call(this, ...this._.backup, ...args);
+            (this._.parent?._.children ?? Unit.roots).add(this);
+            Unit.initialize.call(this, ...this._.backup, ...args);
         }
 
         on(type, listener, options)
         {
             if (isString(type) === false) {
-                error('xnode on', 'The argument is invalid.', 'type');
+                error('Unit on', 'The argument is invalid.', 'type');
             } else if (isFunction(listener) === false) {
-                error('xnode on', 'The argument is invalid.', 'listener');
+                error('Unit on', 'The argument is invalid.', 'listener');
             } else {
                 type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
             }
@@ -312,13 +312,13 @@
                 if (this._.listeners.has(type, listener) === false) {
                     const element = this.element;
                     const execute = (...args) => {
-                        XNode.scope.call(this, listener, ...args);
+                        Unit.scope.call(this, listener, ...args);
                     };
                     this._.listeners.set(type, listener, [element, execute]);
                     element.addEventListener(type, execute, options);
                 }
                 if (this._.listeners.has(type) === true) {
-                    XNode.etypes.add(type, this);
+                    Unit.etypes.add(type, this);
                 }
             }
         }
@@ -326,9 +326,9 @@
         off(type, listener)
         {
             if (type !== undefined && isString(type) === false) {
-                error('xnode off', 'The argument is invalid.', 'type');
+                error('Unit off', 'The argument is invalid.', 'type');
             } else if (listener !== undefined && isFunction(listener) === false) {
-                error('xnode off', 'The argument is invalid.', 'listener');
+                error('Unit off', 'The argument is invalid.', 'listener');
             } else if (isString(type) === true && listener !== undefined) {
                 type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
             } else if (isString(type) === true && listener === undefined) {
@@ -348,7 +348,7 @@
                     element.removeEventListener(type, execute);
                 }
                 if (this._.listeners.has(type) === false) {
-                    XNode.etypes.delete(type, this);
+                    Unit.etypes.delete(type, this);
                 }
             }
         }
@@ -356,16 +356,16 @@
         emit(type, ...args)
         {
             if (isString(type) === false) {
-                error('xnode emit', 'The argument is invalid.', 'type');
+                error('Unit emit', 'The argument is invalid.', 'type');
             } else if (this._.state === 'finalized') {
-                error('xnode emit', 'This function can not be called after finalized.');
+                error('Unit emit', 'This function can not be called after finalized.');
             } else {
                 type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
             }
             function internal(type) {
                 if (type[0] === '~') {
-                    XNode.etypes.get(type)?.forEach((xnode) => {
-                        xnode._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                    Unit.etypes.get(type)?.forEach((Unit) => {
+                        Unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
                     });
                 } else {
                     this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
@@ -373,19 +373,19 @@
             }
         }
 
-        // current xnode scope
+        // current Unit scope
         static current = null;
 
         static scope(func, ...args)
         {
-            const backup = XNode.current;
+            const backup = Unit.current;
             try {
-                XNode.current = this;
+                Unit.current = this;
                 return func(...args);
             } catch (error) {
                 throw error;
             } finally {
-                XNode.current = backup;
+                Unit.current = backup;
             }
         }
 
@@ -419,7 +419,7 @@
         {
             this._ = Object.assign(this._, {
                 backup: [parent, target, Component],
-                children: new Set(),            // children xnodes
+                children: new Set(),            // children Units
                 state: 'pending',               // [pending -> running <-> stopped -> finalized]
                 tostart: false,                 // flag for start
                 promises: [],                   // promises
@@ -435,17 +435,17 @@
 
                 // nest html element
                 if (isObject(target) === true && this.element instanceof Element) {
-                    XNode.nest.call(this, target);
+                    Unit.nest.call(this, target);
                 }
 
                 // setup Component
                 if (isFunction(Component) === true) {
-                    XNode.extend.call(this, Component, ...args);
+                    Unit.extend.call(this, Component, ...args);
                 } else if (isObject(target) === true && isString(Component) === true) {
                     this.element.innerHTML = Component;
                 }
 
-                // whether the xnode promise was resolved
+                // whether the Unit promise was resolved
                 this.promise.then((response) => { this._.resolved = true; return response; });
             }
         }
@@ -455,9 +455,9 @@
         static extend(Component, ...args)
         {
             this._.components.add(Component);
-            XNode.components.add(Component, this);
+            Unit.components.add(Component, this);
 
-            const props = XNode.scope.call(this, Component, ...args) ?? {};
+            const props = Unit.scope.call(this, Component, ...args) ?? {};
             
             Object.keys(props).forEach((key) => {
                 const descripter = Object.getOwnPropertyDescriptor(props, key);
@@ -466,7 +466,7 @@
                     if (descripter.value instanceof Promise) {
                         this._.promises.push(descripter.value);
                     } else {
-                        error('xnode extend', 'The property is invalid.', key);
+                        error('Unit extend', 'The property is invalid.', key);
                     }
                 } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                     if (isFunction(descripter.value)) {
@@ -477,26 +477,26 @@
                             this._.props[key] = (...args) => { descripter.value(...args); };
                         }
                     } else {
-                        error('xnode extend', 'The property is invalid.', key);
+                        error('Unit extend', 'The property is invalid.', key);
                     }
                 } else if (this._.props[key] !== undefined || this[key] === undefined) {
                     const dest = { configurable: true, enumerable: true };
 
                     if (isFunction(descripter.value) === true) {
-                        dest.value = (...args) => XNode.scope.call(this, descripter.value, ...args);
+                        dest.value = (...args) => Unit.scope.call(this, descripter.value, ...args);
                     } else if (descripter.value !== undefined) {
                         dest.value = descripter.value;
                     }
                     if (isFunction(descripter.get) === true) {
-                        dest.get = (...args) => XNode.scope.call(this, descripter.get, ...args);
+                        dest.get = (...args) => Unit.scope.call(this, descripter.get, ...args);
                     }
                     if (isFunction(descripter.set) === true) {
-                        dest.set = (...args) => XNode.scope.call(this, descripter.set, ...args);
+                        dest.set = (...args) => Unit.scope.call(this, descripter.set, ...args);
                     }
                     Object.defineProperty(this._.props, key, dest);
                     Object.defineProperty(this, key, dest);
                 } else {
-                    error('xnode extend', 'The property already exists.', key);
+                    error('Unit extend', 'The property already exists.', key);
                 }
             });
             const { promise, start, update, stop, finalize, ...original } = props;
@@ -505,21 +505,21 @@
 
         static ticker(time)
         {
-            XNode.start.call(this, time);
-            XNode.update.call(this, time);
+            Unit.start.call(this, time);
+            Unit.update.call(this, time);
         }
 
         static start(time)
         {
             if (this._.resolved === false || this._.tostart === false) ; else if (['pending', 'stopped'].includes(this._.state) === true) {
                 this._.state = 'running';
-                this._.children.forEach((xnode) => XNode.start.call(xnode, time));
+                this._.children.forEach((Unit) => Unit.start.call(Unit, time));
 
                 if (isFunction(this._.props.start) === true) {
-                    XNode.scope.call(this, this._.props.start);
+                    Unit.scope.call(this, this._.props.start);
                 }
             } else if (['running'].includes(this._.state) === true) {
-                this._.children.forEach((xnode) => XNode.start.call(xnode, time));
+                this._.children.forEach((Unit) => Unit.start.call(Unit, time));
             }
         }
 
@@ -527,10 +527,10 @@
         {
             if (['running'].includes(this._.state) === true) {
                 this._.state = 'stopped';
-                this._.children.forEach((xnode) => XNode.stop.call(xnode));
+                this._.children.forEach((Unit) => Unit.stop.call(Unit));
 
                 if (isFunction(this._.props.stop)) {
-                    XNode.scope.call(this, this._.props.stop);
+                    Unit.scope.call(this, this._.props.stop);
                 }
             }
         }
@@ -538,10 +538,10 @@
         static update(time)
         {
             if (['running'].includes(this._.state) === true) {
-                this._.children.forEach((xnode) => XNode.update.call(xnode, time));
+                this._.children.forEach((Unit) => Unit.update.call(Unit, time));
 
                 if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                    XNode.scope.call(this, this._.props.update);
+                    Unit.scope.call(this, this._.props.update);
                 }
             }
         }
@@ -551,14 +551,14 @@
             if (['finalized'].includes(this._.state) === false) {
                 this._.state = 'finalized';
                 
-                [...this._.children].forEach((xnode) => xnode.finalize());
+                [...this._.children].forEach((Unit) => Unit.finalize());
                 
                 if (isFunction(this._.props.finalize)) {
-                    XNode.scope.call(this, this._.props.finalize);
+                    Unit.scope.call(this, this._.props.finalize);
                 }
 
                 this._.components.forEach((Component) => {
-                    XNode.components.delete(Component, this);
+                    Unit.components.delete(Component, this);
                 });
                 this._.components.clear();
                 
@@ -580,40 +580,40 @@
             }
         }
 
-        static roots = new Set();   // root xnodes
+        static roots = new Set();   // root Units
         static animation = null;    // animation callback id
 
         static reset()
         {
-            XNode.roots.forEach((xnode) => xnode.finalize());
-            XNode.roots.clear();
+            Unit.roots.forEach((Unit) => Unit.finalize());
+            Unit.roots.clear();
 
-            if (XNode.animation !== null) {
-                cancelAnimationFrame(XNode.animation);
-                XNode.animation = null;
+            if (Unit.animation !== null) {
+                cancelAnimationFrame(Unit.animation);
+                Unit.animation = null;
             }
-            XNode.animation = requestAnimationFrame(function ticker() {
+            Unit.animation = requestAnimationFrame(function ticker() {
                 const time = Date.now();
-                XNode.roots.forEach((xnode) => XNode.ticker.call(xnode, time));
-                XNode.animation = requestAnimationFrame(ticker);
+                Unit.roots.forEach((Unit) => Unit.ticker.call(Unit, time));
+                Unit.animation = requestAnimationFrame(ticker);
             });
         }
     }
-    XNode.reset();
+    Unit.reset();
 
     function xnew(...args)
     {
-        // parent xnode
+        // parent Unit
         let parent = undefined;
-        if (isFunction(args[0]) === false && args[0] instanceof XNode) {
+        if (isFunction(args[0]) === false && args[0] instanceof Unit) {
             parent = args.shift();
         } else if (args[0] === null) {
             parent = args.shift();
         } else if (args[0] === undefined) {
             parent = args.shift();
-            parent = XNode.current;
+            parent = Unit.current;
         } else {
-            parent = XNode.current;
+            parent = Unit.current;
         }
 
         // input target
@@ -637,7 +637,7 @@
         if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
             error('xnew', 'The argument is invalid.', 'Component');
         } else {
-            return new XNode(parent, target, ...args);
+            return new Unit(parent, target, ...args);
         }
     }
 
@@ -651,12 +651,12 @@
 
     function getCurrent()
     {
-        return XNode.current;
+        return Unit.current;
     }
 
     function nest(attributes)
     {
-        const current = XNode.current;
+        const current = Unit.current;
 
         if (current.element instanceof Window || current.element instanceof Document) {
             error('xnew.nest', 'No elements are added to window or document.');
@@ -665,13 +665,13 @@
         } else if (current._.state !== 'pending') {
             error('xnew.nest', 'This function can not be called after initialized.');
         } else {
-            return XNode.nest.call(current, attributes);
+            return Unit.nest.call(current, attributes);
         }
     }
 
     function extend(component, ...args)
     {
-        const current = XNode.current;
+        const current = Unit.current;
 
         if (isFunction(component) === false) {
             error('xnew.extend', 'The argument is invalid.', 'component');
@@ -680,18 +680,18 @@
         } else if (current._.components.has(component) === true) {
             error('xnew.extend', 'This function has already been added.');
         } else {
-            return XNode.extend.call(current, component, ...args);
+            return Unit.extend.call(current, component, ...args);
         }
     }
 
     function context(key, value)
     {
-        const current = XNode.current;
+        const current = Unit.current;
 
         if (isString(key) === false) {
             error('xnew.context', 'The argument is invalid.', 'key');
         } else {
-            return XNode.context.call(current, key, value);
+            return Unit.context.call(current, key, value);
         }
     }
 
@@ -701,17 +701,17 @@
             error('xnew.find', 'The argument is invalid.', 'Component');
         } else if (isFunction(Component) === true) {
             const set = new Set();
-            XNode.components.get(Component)?.forEach((xnode) => set.add(xnode));
+            Unit.components.get(Component)?.forEach((Unit) => set.add(Unit));
             return [...set];
         }
     }
 
     function timer(callback, delay = 0, loop = false)
     {
-        const current = XNode.current;
+        const current = Unit.current;
 
         const timer = new Timer(() => {
-            XNode.scope.call(current, callback);
+            Unit.scope.call(current, callback);
         }, delay, loop);
 
         if (document !== undefined) {

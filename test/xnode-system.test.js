@@ -1,11 +1,11 @@
-import { XNode } from '../src/core/xnode';
+import { Unit } from '../src/core/unit';
 import { xnew } from '../src/core/xnew';
 
 beforeEach(() => {
-    XNode.reset();
+    Unit.reset();
 });
 
-describe('xnode system', () => {
+describe('unit system', () => {
     it('basic', () => {
         return new Promise((resolve, reject) => {
             let state = 0;

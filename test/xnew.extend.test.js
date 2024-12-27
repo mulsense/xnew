@@ -1,14 +1,14 @@
-import { XNode } from '../src/core/xnode';
+import { Unit } from '../src/core/unit';
 import { xnew } from '../src/core/xnew';
 
 beforeEach(() => {
-    XNode.reset();
+    Unit.reset();
 });
 
-describe('xnode extend', () => {
+describe('unit extend', () => {
 
     it('basic', () => {
-        const xnode = xnew(Derived);
+        const unit = xnew(Derived);
 
         function Base() {
             return {
@@ -26,7 +26,7 @@ describe('xnode extend', () => {
                 }
             }
         }
-        expect(xnode.test1()).toBe(2);
+        expect(unit.test1()).toBe(2);
     });
 
 });
