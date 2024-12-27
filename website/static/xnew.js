@@ -386,13 +386,19 @@
             }
         }
 
+        static xnew = null;
+
+        static seteup(xnew) {
+            XNode.xnew = xnew;
+            XNode.reset();
+        }
+
         // current xnode scope
         static current = null;
 
         static scope(func, ...args)
         {
             const proto = XNode.xnew.__proto__;
-
             const backup = XNode.current;
             try {
                 XNode.current = this;
@@ -617,8 +623,6 @@
         }
     }
 
-    XNode.reset();
-
     function xnew(...args)
     {
         // parent xnode
@@ -659,7 +663,7 @@
         }
     }
 
-    XNode.xnew = xnew;
+    XNode.seteup(xnew);
 
     Object.defineProperty(xnew, 'current', { enumerable: true, get: getCurrent });
 

@@ -103,7 +103,7 @@ You can create html elements using `xnew` and `xnew.nest`.
 
 ### example 2
 You can implement various process in the componet function.   
-Click on the square below.
+In the following example, we set up an event listener and animation.
 
 <iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/examples/box.html" ></iframe>
 
