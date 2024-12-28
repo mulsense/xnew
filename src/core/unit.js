@@ -2,7 +2,7 @@ import { isObject, isNumber, isString, isFunction, createElement, MapSet, MapMap
 
 export class Unit
 {
-    constructor(parent, target, Component, ...args)
+    constructor(parent, target, component, ...args)
     {
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
@@ -23,7 +23,7 @@ export class Unit
         };
     
         (parent?._.children ?? Unit.roots).add(this);
-        Unit.initialize.call(this, parent, target, Component, ...args);
+        Unit.initialize.call(this, parent, target, component, ...args);
     }
 
     get parent()
@@ -61,7 +61,6 @@ export class Unit
     {
         Unit.stop.call(this);
         Unit.finalize.call(this);
-
         (this._.parent?._.children ?? Unit.roots).delete(this);
     }
 
@@ -69,7 +68,6 @@ export class Unit
     {
         Unit.stop.call(this);
         Unit.finalize.call(this);
-        
         (this._.parent?._.children ?? Unit.roots).add(this);
         Unit.initialize.call(this, ...this._.backup, ...args);
     }
@@ -191,10 +189,16 @@ export class Unit
         }
     }
 
-    static initialize(parent, target, Component, ...args)
+    static find(component) {
+        const set = new Set();
+        Unit.components.get(component)?.forEach((Unit) => set.add(Unit));
+        return [...set];
+    }
+
+    static initialize(parent, target, component, ...args)
     {
         this._ = Object.assign(this._, {
-            backup: [parent, target, Component],
+            backup: [parent, target, component],
             children: new Set(),            // children units
             state: 'pending',               // [pending -> running <-> stopped -> finalized]
             tostart: false,                 // flag for start
@@ -214,11 +218,11 @@ export class Unit
                 Unit.nest.call(this, target);
             }
 
-            // setup Component
-            if (isFunction(Component) === true) {
-                Unit.extend.call(this, Component, ...args);
-            } else if (isObject(target) === true && isString(Component) === true) {
-                this.element.innerHTML = Component;
+            // setup component
+            if (isFunction(component) === true) {
+                Unit.extend.call(this, component, ...args);
+            } else if (isObject(target) === true && isString(component) === true) {
+                this.element.innerHTML = component;
             }
 
             // whether the unit promise was resolved
@@ -228,12 +232,12 @@ export class Unit
 
     static components = new MapSet();
 
-    static extend(Component, ...args)
+    static extend(component, ...args)
     {
-        this._.components.add(Component);
-        Unit.components.add(Component, this);
+        this._.components.add(component);
+        Unit.components.add(component, this);
 
-        const props = Unit.scope.call(this, Component, ...args) ?? {};
+        const props = Unit.scope.call(this, component, ...args) ?? {};
         
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
@@ -277,12 +281,6 @@ export class Unit
         });
         const { promise, start, update, stop, finalize, ...original } = props;
         return original;
-    }
-
-    static ticker(time)
-    {
-        Unit.start.call(this, time);
-        Unit.update.call(this, time);
     }
 
     static start(time)
@@ -334,8 +332,8 @@ export class Unit
                 Unit.scope.call(this, this._.props.finalize);
             }
 
-            this._.components.forEach((Component) => {
-                Unit.components.delete(Component, this);
+            this._.components.forEach((component) => {
+                Unit.components.delete(component, this);
             });
             this._.components.clear();
             
@@ -369,11 +367,23 @@ export class Unit
             cancelAnimationFrame(Unit.animation);
             Unit.animation = null;
         }
+
+        const interval = 1000 / 60;
+        let prev = Date.now();
         Unit.animation = requestAnimationFrame(function ticker() {
             const time = Date.now();
-            Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
+            if (time - prev > interval * 0.8) {
+                prev = time;
+                Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
+            }
             Unit.animation = requestAnimationFrame(ticker);
         });
+    }
+    
+    static ticker(time)
+    {
+        Unit.start.call(this, time);
+        Unit.update.call(this, time);
     }
 }
 Unit.reset();

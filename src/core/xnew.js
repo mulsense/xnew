@@ -35,7 +35,7 @@ export function xnew(...args)
     }
 
     if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
-        error('xnew', 'The argument is invalid.', 'Component');
+        error('xnew', 'The argument is invalid.', 'component');
     } else {
         return new Unit(parent, target, ...args);
     }
@@ -50,16 +50,14 @@ Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 
 function nest(attributes)
 {
-    const current = Unit.current;
-
-    if (current.element instanceof Window || current.element instanceof Document) {
+    if (Unit.current.element instanceof Window || Unit.current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
     } else if (isObject(attributes) === false) {
         error('xnew.nest', 'The argument is invalid.', 'attributes');
-    } else if (current._.state !== 'pending') {
+    } else if (Unit.current._.state !== 'pending') {
         error('xnew.nest', 'This function can not be called after initialized.');
     } else {
-        return Unit.nest.call(current, attributes);
+        return Unit.nest.call(Unit.current, attributes);
     }
 }
 
@@ -85,14 +83,12 @@ function context(key, value)
     }
 }
 
-function find(Component)
+function find(component)
 {
-    if (isFunction(Component) === false) {
-        error('xnew.find', 'The argument is invalid.', 'Component');
-    } else if (isFunction(Component) === true) {
-        const set = new Set();
-        Unit.components.get(Component)?.forEach((Unit) => set.add(Unit));
-        return [...set];
+    if (isFunction(component) === false) {
+        error('xnew.find', 'The argument is invalid.', 'component');
+    } else if (isFunction(component) === true) {
+        return Unit.find.call(Unit.current, component);
     }
 }
 

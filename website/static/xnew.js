@@ -225,7 +225,7 @@
 
     class Unit
     {
-        constructor(parent, target, Component, ...args)
+        constructor(parent, target, component, ...args)
         {
             let baseElement = null;
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
@@ -246,7 +246,7 @@
             };
         
             (parent?._.children ?? Unit.roots).add(this);
-            Unit.initialize.call(this, parent, target, Component, ...args);
+            Unit.initialize.call(this, parent, target, component, ...args);
         }
 
         get parent()
@@ -284,7 +284,6 @@
         {
             Unit.stop.call(this);
             Unit.finalize.call(this);
-
             (this._.parent?._.children ?? Unit.roots).delete(this);
         }
 
@@ -292,7 +291,6 @@
         {
             Unit.stop.call(this);
             Unit.finalize.call(this);
-            
             (this._.parent?._.children ?? Unit.roots).add(this);
             Unit.initialize.call(this, ...this._.backup, ...args);
         }
@@ -414,10 +412,16 @@
             }
         }
 
-        static initialize(parent, target, Component, ...args)
+        static find(component) {
+            const set = new Set();
+            Unit.components.get(component)?.forEach((Unit) => set.add(Unit));
+            return [...set];
+        }
+
+        static initialize(parent, target, component, ...args)
         {
             this._ = Object.assign(this._, {
-                backup: [parent, target, Component],
+                backup: [parent, target, component],
                 children: new Set(),            // children units
                 state: 'pending',               // [pending -> running <-> stopped -> finalized]
                 tostart: false,                 // flag for start
@@ -437,11 +441,11 @@
                     Unit.nest.call(this, target);
                 }
 
-                // setup Component
-                if (isFunction(Component) === true) {
-                    Unit.extend.call(this, Component, ...args);
-                } else if (isObject(target) === true && isString(Component) === true) {
-                    this.element.innerHTML = Component;
+                // setup component
+                if (isFunction(component) === true) {
+                    Unit.extend.call(this, component, ...args);
+                } else if (isObject(target) === true && isString(component) === true) {
+                    this.element.innerHTML = component;
                 }
 
                 // whether the unit promise was resolved
@@ -451,12 +455,12 @@
 
         static components = new MapSet();
 
-        static extend(Component, ...args)
+        static extend(component, ...args)
         {
-            this._.components.add(Component);
-            Unit.components.add(Component, this);
+            this._.components.add(component);
+            Unit.components.add(component, this);
 
-            const props = Unit.scope.call(this, Component, ...args) ?? {};
+            const props = Unit.scope.call(this, component, ...args) ?? {};
             
             Object.keys(props).forEach((key) => {
                 const descripter = Object.getOwnPropertyDescriptor(props, key);
@@ -500,12 +504,6 @@
             });
             const { promise, start, update, stop, finalize, ...original } = props;
             return original;
-        }
-
-        static ticker(time)
-        {
-            Unit.start.call(this, time);
-            Unit.update.call(this, time);
         }
 
         static start(time)
@@ -556,8 +554,8 @@
                     Unit.scope.call(this, this._.props.finalize);
                 }
 
-                this._.components.forEach((Component) => {
-                    Unit.components.delete(Component, this);
+                this._.components.forEach((component) => {
+                    Unit.components.delete(component, this);
                 });
                 this._.components.clear();
                 
@@ -591,11 +589,23 @@
                 cancelAnimationFrame(Unit.animation);
                 Unit.animation = null;
             }
+
+            const interval = 1000 / 60;
+            let prev = Date.now();
             Unit.animation = requestAnimationFrame(function ticker() {
                 const time = Date.now();
-                Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
+                if (time - prev > interval * 0.8) {
+                    prev = time;
+                    Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
+                }
                 Unit.animation = requestAnimationFrame(ticker);
             });
+        }
+        
+        static ticker(time)
+        {
+            Unit.start.call(this, time);
+            Unit.update.call(this, time);
         }
     }
     Unit.reset();
@@ -634,7 +644,7 @@
         }
 
         if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
-            error('xnew', 'The argument is invalid.', 'Component');
+            error('xnew', 'The argument is invalid.', 'component');
         } else {
             return new Unit(parent, target, ...args);
         }
@@ -649,16 +659,14 @@
 
     function nest(attributes)
     {
-        const current = Unit.current;
-
-        if (current.element instanceof Window || current.element instanceof Document) {
+        if (Unit.current.element instanceof Window || Unit.current.element instanceof Document) {
             error('xnew.nest', 'No elements are added to window or document.');
         } else if (isObject(attributes) === false) {
             error('xnew.nest', 'The argument is invalid.', 'attributes');
-        } else if (current._.state !== 'pending') {
+        } else if (Unit.current._.state !== 'pending') {
             error('xnew.nest', 'This function can not be called after initialized.');
         } else {
-            return Unit.nest.call(current, attributes);
+            return Unit.nest.call(Unit.current, attributes);
         }
     }
 
@@ -684,14 +692,12 @@
         }
     }
 
-    function find(Component)
+    function find(component)
     {
-        if (isFunction(Component) === false) {
-            error('xnew.find', 'The argument is invalid.', 'Component');
-        } else if (isFunction(Component) === true) {
-            const set = new Set();
-            Unit.components.get(Component)?.forEach((Unit) => set.add(Unit));
-            return [...set];
+        if (isFunction(component) === false) {
+            error('xnew.find', 'The argument is invalid.', 'component');
+        } else if (isFunction(component) === true) {
+            return Unit.find.call(Unit.current, component);
         }
     }
 
