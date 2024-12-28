@@ -26,13 +26,13 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', () => {
       const screen = xnew(xnew.Screen, { width: 800, height: 450 });
 
       xnew(PixiMain, screen.canvas);
     });
 
-    function PixiMain(self, canvas) {
+    function PixiMain(canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
       const contents = xnew(PixiContents);
 
@@ -43,7 +43,7 @@
       };
     }
 
-    function PixiNest(self, object) {
+    function PixiNest(object) {
       const parent = xnew.context('PIXI.DisplayObject');
       xnew.context('PIXI.DisplayObject', object);
 
@@ -55,9 +55,9 @@
       }
     }
 
-    function PixiContents(self) {
+    function PixiContents() {
       const scene = new PIXI.Container();
-      self.extend(PixiNest, scene);
+      xnew.extend(PixiNest, scene);
 
       xnew(Scene1);
       return {
@@ -67,36 +67,36 @@
       };
     }
 
-    function Scene1(self) {
+    function Scene1() {
       xnew(Text, 'Scene1');
       xnew(Box, 800 / 2, 400 / 2, 160, 0xff2266);
 
-      self.on('pointerdown', () => {
-        xnew(self.parent, Scene2);
-        self.finalize();
+      xthis.on('pointerdown', () => {
+        xnew(xthis.parent, Scene2);
+        xthis.finalize();
       });
     }
 
-    function Scene2(self) {
+    function Scene2() {
       xnew(Text, 'Scene2');
       xnew(Box, 800 / 2, 400 / 2, 160, 0x6622ff);
 
-      self.on('pointerdown', () => {
-        xnew(self.parent, Scene1);
-        self.finalize();
+      xthis.on('pointerdown', () => {
+        xnew(xthis.parent, Scene1);
+        xthis.finalize();
       });
     }
 
-    function Text(self, value) {
+    function Text(value) {
       const text = new PIXI.Text(value, new PIXI.TextStyle({ fontSize: 24, fill: '#000000' }));
-      self.extend(PixiNest, text);
+      xnew.extend(PixiNest, text);
       text.x = 10;
       text.y = 10;
     }
 
-    function Box(self, x, y, size, color) {
+    function Box(x, y, size, color) {
       const object = new PIXI.Container();
-      self.extend(PixiNest, object);
+      xnew.extend(PixiNest, object);
 
       object.x = x;
       object.y = y;

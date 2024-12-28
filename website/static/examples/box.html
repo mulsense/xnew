@@ -15,16 +15,15 @@
     function Component() {
       xnew.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
       xnew({ tagName: 'span' }, 'click me');
-
-      const self = xnew.current;
-      self.on('click', (event) => {
-        self.state === 'running' ? self.stop() : self.start();
+      
+      xthis.on('click', (event) => {
+        xthis.state === 'running' ? xthis.stop() : xthis.start();
       });
 
       let counter = 0;
       return {
         update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+          xthis.element.style.transform = `rotate(${counter++}deg)`;
         },
       };
     }

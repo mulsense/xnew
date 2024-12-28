@@ -27,14 +27,14 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', () => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
       xnew(ThreeMain, screen.canvas);
       xnew(PixiMain, screen.canvas);
     });
 
-    function ThreeMain(self, canvas) {
+    function ThreeMain(canvas) {
       const renderer = new THREE.WebGLRenderer({}); // not set canvas
       renderer.setSize(canvas.width, canvas.height);
 
@@ -53,7 +53,7 @@
       }
     }
 
-    function ThreeNest(self, object) {
+    function ThreeNest(object) {
       const parent = xnew.context('THREE.Object3D');
       xnew.context('THREE.Object3D', object);
 
@@ -65,11 +65,11 @@
       }
     }
 
-    function ThreeContents(self) {
+    function ThreeContents() {
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
 
-      self.extend(ThreeNest, scene);
+      xnew.extend(ThreeNest, scene);
 
       xnew(Cube, [0, 0, 0], [40, 40, 40]);
       return {
@@ -79,7 +79,7 @@
       }
     }
 
-    function PixiMain(self, canvas) {
+    function PixiMain(canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
 
       const content = xnew(PixiContents);
@@ -91,7 +91,7 @@
       };
     }
 
-    function PixiNest(self, object) {
+    function PixiNest(object) {
       const parent = xnew.context('PIXI.DisplayObject');
       xnew.context('PIXI.DisplayObject', object);
 
@@ -103,10 +103,10 @@
       }
     }
 
-    function PixiContents(self) {
+    function PixiContents() {
       const scene = new PIXI.Container();
 
-      self.extend(PixiNest, scene);
+      xnew.extend(PixiNest, scene);
 
       const three = xnew.find(ThreeMain)[0];
       const background = new PIXI.Sprite(PIXI.Texture.from(three.canvas));
@@ -124,7 +124,7 @@
       };
     }
 
-    function Box(self, x, y, size, color) {
+    function Box(x, y, size, color) {
       const object = new PIXI.Container();
       object.x = x;
       object.y = y;
@@ -134,7 +134,7 @@
       graphics.drawRect(-size / 2, -size / 2, size, size);
       graphics.endFill();
 
-      self.extend(PixiNest, object);
+      xnew.extend(PixiNest, object);
 
       return {
         update() {
@@ -143,12 +143,12 @@
       };
     }
 
-    function Cube(self, [x, y, z], [sx, sy, sz]) {
+    function Cube([x, y, z], [sx, sy, sz]) {
       const geometry = new THREE.BoxGeometry(sx, sy, sz);
       const material = new THREE.MeshNormalMaterial();
       const object = new THREE.Mesh(geometry, material);
 
-      self.extend(ThreeNest, object);
+      xnew.extend(ThreeNest, object);
 
       return {
         update() {

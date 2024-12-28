@@ -34,7 +34,7 @@
       xnew(Controller);
     });
 
-    function PixiMain(self, canvas) {
+    function PixiMain(canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
       const contents = xnew(PixiContents);
 
@@ -45,7 +45,7 @@
       };
     }
 
-    function PixiObject(self, object) {
+    function PixiObject(object) {
       const parent = xnew.context('PixiObject');
       xnew.context('PixiObject', object);
 
@@ -57,9 +57,9 @@
       }
     }
 
-    function PixiContents(self) {
+    function PixiContents() {
       const scene = new PIXI.Container();
-      self.extend(PixiObject, scene);
+      xnew.extend(PixiObject, scene);
 
       xnew(Box, [800 / 2, 400 / 2], [160, 160], 0xEA1E63);
 
@@ -70,8 +70,8 @@
       };
     }
 
-    function Controller(self) {
-      self.on('touchstart contextmenu wheel', (event) => {
+    function Controller() {
+      xthis.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });
 
@@ -89,9 +89,9 @@
       })
     }
 
-    function Box(self, [x, y], [sx, sy], color) {
+    function Box([x, y], [sx, sy], color) {
       const object = new PIXI.Container();
-      self.extend(PixiObject, object);
+      xnew.extend(PixiObject, object);
 
       object.x = x;
       object.y = y;
@@ -103,10 +103,10 @@
 
       let move = null;
       let direction = +1;
-      self.on('~box.move', (vector) => {
+      xthis.on('~box.move', (vector) => {
         move = vector;
       });
-      self.on('~box.action', () => {
+      xthis.on('~box.action', () => {
         direction *= -1;
       });
 
@@ -121,22 +121,23 @@
       };
     }
 
-    function AnalogStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
-      self.nest({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
+    function AnalogStick({ size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
+      xnew.nest({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
 
       const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
       const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
 
       xnew({ tagName: 'svg', style: `position: absolute; width: 100%; height: 100%; user-select: none; ${fillStyle} ${strokeStyle}`, viewBox: '0 0 100 100' }, `
-                <polygon points="50  7 40 18 60 18"></polygon>
-                <polygon points="50 93 40 83 60 83"></polygon>
-                <polygon points=" 7 50 18 40 18 60"></polygon>
-                <polygon points="93 50 83 40 83 60"></polygon>
-            `);
+        <polygon points="50  7 40 18 60 18"></polygon>
+        <polygon points="50 93 40 83 60 83"></polygon>
+        <polygon points=" 7 50 18 40 18 60"></polygon>
+        <polygon points="93 50 83 40 83 60"></polygon>
+      `);
       const target = xnew({ tagName: 'svg', style: `position: absolute; width: 100%; height: 100%; user-select: none; ${fillStyle} ${strokeStyle}`, viewBox: '0 0 100 100' }, `
-                <circle cx="50" cy="50" r="23"></circle>
-            `);
+        <circle cx="50" cy="50" r="23"></circle>
+      `);
 
+      const self = xthis;
       const drag = xnew(xnew.DragEvent);
 
       drag.on('down move', (event, { type, position }) => {
@@ -162,8 +163,8 @@
       });
     }
 
-    function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
-      self.nest({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; overflow: hidden; user-select: none;`, });
+    function DPad({ size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
+      xnew.nest({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; overflow: hidden; user-select: none;`, });
 
       const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
       const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
@@ -194,6 +195,7 @@
         <polygon points="89 50 80 42 80 58"></polygon>
       `);
 
+      const self = xthis;
       const drag = xnew(xnew.DragEvent);
 
       drag.on('down move', (event, { type, position }) => {
@@ -222,15 +224,16 @@
       });
     }
 
-    function CircleButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
-      self.nest({ style: `position: relative; width: ${size}px; height: ${size}px; user-select: none;`, });
+    function CircleButton({ size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
+      xnew.nest({ style: `position: relative; width: ${size}px; height: ${size}px; user-select: none;`, });
       const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
       const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
 
       const target = xnew({ tagName: 'svg', style: `width: 100%; height: 100%; cursor: pointer; user-select: none; ${fillStyle} ${strokeStyle}`, viewBox: '0 0 100 100' }, `
-                <circle cx="50" cy="50" r="40"></circle>
-            `);
+        <circle cx="50" cy="50" r="40"></circle>
+      `);
 
+      const self = xthis;
       const drag = xnew(target, xnew.DragEvent);
 
       drag.on('down', (event, ex) => {

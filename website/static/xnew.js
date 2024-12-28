@@ -223,6 +223,8 @@
         }
     }
 
+    const global = typeof globalThis !== 'undefined' ? globalThis : undefined;
+
     class Unit
     {
         constructor(parent, target, component, ...args)
@@ -378,11 +380,13 @@
             const backup = Unit.current;
             try {
                 Unit.current = this;
+                global.xthis = this;
                 return func(...args);
             } catch (error) {
                 throw error;
             } finally {
                 Unit.current = backup;
+                global.xthis = backup;
             }
         }
 

@@ -18,9 +18,8 @@
 
       xnew(Child);
 
-      const self = xnew.current;
-      self.on('click', () => {
-        self.state === 'running' ? self.stop() : self.start();
+      xthis.on('click', () => {
+        xthis.state === 'running' ? xthis.stop() : xthis.start();
       });
 
       let counter = 0;
@@ -29,7 +28,7 @@
           text.element.textContent = 'parent: start';
         },
         update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+          xthis.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'parent: stop';
@@ -42,10 +41,9 @@
       
       const text = xnew({ tagName: 'span' });
 
-      const self = xnew.current;
-      self.on('click', (event) => {
+      xthis.on('click', (event) => {
         event.stopPropagation(); // cancel propagation to the parent element
-        self.state === 'running' ? self.stop() : self.start();
+        xthis.state === 'running' ? xthis.stop() : xthis.start();
       });
 
       let counter = 0;
@@ -54,7 +52,7 @@
           text.element.textContent = 'child: start';
         },
         update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+          xthis.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'child: stop';
