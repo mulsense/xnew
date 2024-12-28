@@ -117,15 +117,14 @@ In the following example, we set up an event listener and animation.
 
       xnew({ tagName: 'span' }, 'click me');
 
-      const self = xnew.current;
-      self.on('click', (event) => {
-        self.state === 'running' ? self.stop() : self.start();
+      xthis.on('click', (event) => {
+        xthis.state === 'running' ? xthis.stop() : xthis.start();
       });
 
       let counter = 0;
       return {
         update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+          xthis.element.style.transform = `rotate(${counter++}deg)`;
         },
       };
     }
@@ -151,9 +150,8 @@ For example, when the parent component stop, its children also stop.
 
       xnew(Child);
 
-      const self = xnew.current;
-      self.on('click', () => {
-        self.state === 'running' ? self.stop() : self.start();
+      xthis.on('click', () => {
+        xthis.state === 'running' ? xthis.stop() : xthis.start();
       });
 
       let counter = 0;
@@ -162,7 +160,7 @@ For example, when the parent component stop, its children also stop.
           text.element.textContent = 'parent: start';
         },
         update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+          xthis.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'parent: stop';
@@ -175,10 +173,9 @@ For example, when the parent component stop, its children also stop.
       
       const text = xnew({ tagName: 'span' });
 
-      const self = xnew.current;
-      self.on('click', (event) => {
+      xthis.on('click', (event) => {
         event.stopPropagation(); // cancel propagation to the parent element
-        self.state === 'running' ? self.stop() : self.start();
+        xthis.state === 'running' ? xthis.stop() : xthis.start();
       });
 
       let counter = 0;
@@ -187,7 +184,7 @@ For example, when the parent component stop, its children also stop.
           text.element.textContent = 'child: start';
         },
         update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+          xthis.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'child: stop';

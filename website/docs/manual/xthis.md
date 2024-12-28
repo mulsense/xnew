@@ -2,16 +2,16 @@
 sidebar_position: 10
 ---
 
-# xnew.current
-`xnew.current` get the `unit` in current scope.
+# xthis
+`xthis` get the `unit` in current scope.
 
 ## example
 ```js
 xnew(() => {
-  const unit1 = xnew.current;
+  const unit1 = xthis;
 
   const unit2 = xnew(() => {
-    const unit2 = xnew.current;
+    const unit2 = xthis;
 
     // ...
   });  
@@ -26,7 +26,7 @@ In the following, appropriate parent is set.
 the units are created as children of `unit1`.
 ```js
 xnew(() => {
-  const unit1 = xnew.current;
+  const unit1 = xthis;
 
   const unit2 = xnew(Component);
   unit2.parent; // unit1
@@ -61,7 +61,7 @@ In the following, appropriate parent is not(?) set.
 the units are not created as children of `unit1`.
 ```js
 xnew(() => {
-  const unit1 = xnew.current;
+  const unit1 = xthis;
 
   // use callback functions except for unit method
   window.addEventListener('click', () => {

@@ -4,7 +4,7 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "2.0.9",
+  "version": "2.0.10",
   "main": "dist/xnew.js",
   "license": "MIT",
   "bugs": {

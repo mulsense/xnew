@@ -35,8 +35,7 @@ unit.emit(type, ...args);
   const unit = xnew('#target', Component);
   
   function Component() {
-    const self = xnew.current;
-    self.on('click', (event) => {
+    xthis.on('click', (event) => {
       // fires when the unit's element (id = target) is clicked.
     });
   });
@@ -54,8 +53,7 @@ unit.emit(type, ...args);
   const unit = xnew('#target', Component);
   
   function Component() {
-    const self = xnew.current;
-    self.on('myevent', (data) => {
+    xthis.on('myevent', (data) => {
       // fires when unit.emit('myevent', data) is called.
     });
   });
@@ -74,15 +72,13 @@ unit.emit(type, ...args);
 If you add `~` token, `unit.emit` broadcasts to all units.  
 ```js
 xnew(() => {
-  const unit1 = xnew.current;
-  unit1.on('~myevent', () => {
+  xthis.on('~myevent', () => {
     //
   });
 });
 
 xnew(() => {
-  const unit2 = xnew.current;
-  unit2.emit('~myevent'); // broadcast event
+  xthis.emit('~myevent'); // broadcast event
 });
 
 ```
