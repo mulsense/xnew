@@ -62,8 +62,8 @@
     }
 
     function MatterNest(object) {
-      const parent = xnew.context('Matter.Composite');
-      xnew.context('Matter.Composite', object);
+      const parent = xnew.context('MatterNest');
+      xnew.context('MatterNest', object);
 
       parent && Matter.Composite.add(parent, object);
       return {

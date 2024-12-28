@@ -45,8 +45,8 @@
     }
 
     function PixiNest(object) {
-      const parent = xnew.context('PIXI.DisplayObject');
-      xnew.context('PIXI.DisplayObject', object);
+      const parent = xnew.context('PixiNest');
+      xnew.context('PixiNest', object);
 
       parent?.addChild(object);
       return {
