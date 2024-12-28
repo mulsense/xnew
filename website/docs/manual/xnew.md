@@ -56,7 +56,7 @@ If you omit the `parent` parameter, the nesting higher unit or otherwise `null` 
 ```js
 xnew(() => {
   // unit1.parent: null
-  const unit1 = xnew.current;
+  const unit1 = xthis;
 
   // unit2.parent: unit1
   const unit2 = xnew(() => {
@@ -81,8 +81,7 @@ xnew(() => {
   <script>
     xnew('#hoge', () => {
 
-      const self = xnew.current;
-      self.element; // element (id = hoge)
+      xthis.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -100,8 +99,7 @@ xnew(() => {
   <script>
     xnew({ tagName: 'div', id: 'hoge' }, () => {
       
-      const self = xnew.current;
-      self.element; // element (id = hoge)
+      xthis.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -119,18 +117,18 @@ If you omit the `element` parameter, the parent unit's element or otherwise `doc
 
 <script>
   xnew(() => {
-    // xnew.current.element: document.body
+    // xthis.element: document.body
   });
 
   xnew('#hoge', () => {
-    // xnew.current.element: (id=hoge)
+    // xthis.element: (id=hoge)
 
     xnew(() => {
-      // xnew.current.element: (id=hoge)
+      // xthis.element: (id=hoge)
     });
 
     xnew({ tagName: 'div', id: 'fuga' }, () => {
-      // xnew.current.element: (id=fuga) (as a child element of hoge)
+      // xthis.element: (id=fuga) (as a child element of hoge)
     });
   });
 </script>;

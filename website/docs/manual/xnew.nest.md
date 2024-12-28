@@ -10,31 +10,29 @@ It replace `unit.element`.
 xnew(() => {
   const element = xnew.nest(attributes);
 
-  const self = xnew.current;
-  self.element;
+  xthis.element;
 })
 ```
 
 ## example 1
 ```js
 xnew({ tagName: 'div', name: 'A'}, () =>{
-  // xnew.current.element: (div A)
+  xthis.element; // div A
 });
 
 xnew(() => {
   xnew.nest({ tagName: 'div', name: 'B' });
-  // xnew.current.element: (div B)
+  xthis.element; // div B
 }
 
 xnew({ tagName: 'div', name: 'C' }, () => { 
   xnew.nest({ tagName: 'div', name: 'D' }); // inner div
-  // xnew.current.element: (div D)
-  // xnew.current.element.parentElement: (div C)
+  xthis.element; // div D
 }
 
 const unit4 = xnew({ tagName: 'div', name: 'E' }, 'aaa');
-// unit4.element: (div E)
-// unit4.element.textContent: aaa
+unit4.element; // div E
+
 ```
 The above code leads to the following result.
 ```html
