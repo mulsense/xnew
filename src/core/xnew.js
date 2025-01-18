@@ -41,12 +41,12 @@ export function xnew(...args)
     }
 }
 
-Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Unit.current });
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
+Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
 
 function nest(attributes)
 {
@@ -122,8 +122,11 @@ function timer(callback, delay = 0, loop = false)
 function transition(callback, delay = 0, loop = false)
 {
     const unit = Unit.current;
-    const timer = new Timer(() => Unit.scope.call(unit, callback), delay, loop);
+    const timer = new Timer(internal, delay, loop);
 
+    function internal() {
+        Unit.scope.call(unit, callback, 1.0);
+    }
     if (document !== undefined) {
         if (document.hidden === false) {
             Timer.start.call(timer);

@@ -9,22 +9,20 @@ describe('unit event', () => {
     it('basic', () => {
         let state = 0;
         xnew(() => {
-            const unit = xnew.current;
-            unit.on('countup', () => state++);
-            unit.emit('countup');
-            xnew(() => xnew.current.emit('countup'));
+            xthis.on('countup', () => state++);
+            xthis.emit('countup');
+            xnew(() => xthis.emit('countup'));
         });
-        xnew(() => xnew.current.emit('countup'));
+        xnew(() => xthis.emit('countup'));
         expect(state).toBe(1);
     });
 
     it('broadcast ~', () => {
         let state = 0;
         xnew(() => {
-            const unit = xnew.current;
-            unit.on('~myevent', () => state++);
-            unit.emit('~myevent');
-            xnew(() => xnew.current.emit('~myevent'));
+            xthis.on('~myevent', () => state++);
+            xthis.emit('~myevent');
+            xnew(() => xthis.emit('~myevent'));
         });
         expect(state).toBe(2);
     });

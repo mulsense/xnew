@@ -15,19 +15,17 @@ describe('unit relation', () => {
 
     it('nest', () => {
         xnew(() => {
-            const unit1 = xnew.current;
             const unit2 = xnew();
-            expect(unit1.parent).toBe(null);
-            expect(unit2.parent).toBe(unit1);
+            expect(xthis.parent).toBe(null);
+            expect(unit2.parent).toBe(xthis);
         })
     });
 
     it('delete', () => {
         xnew(() => {
-            const unit1 = xnew.current;
             const unit2 = xnew();
-            expect(unit1.parent).toBe(null);
-            expect(unit2.parent).toBe(unit1);
+            expect(xthis.parent).toBe(null);
+            expect(unit2.parent).toBe(xthis);
         })
     });
 });

@@ -2,7 +2,7 @@ import { xnew } from '../core/xnew';
 import { DragEvent } from './DragEvent';
 
 export function SubWindow() {
-    const absolute = xnest({ style: 'position: absolute;' });
+    const absolute = xnew.nest({ style: 'position: absolute;' });
     
     return {
         setPosition(x, y) {

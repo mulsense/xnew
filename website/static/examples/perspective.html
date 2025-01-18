@@ -24,32 +24,31 @@
 </head>
 
 <body>
-  <div id="main" style="width: 100%; height: 100%; perspective: 300px; perspective-origin: center;">
+  <div id="main" style="width: 100%; height: 100%; perspective: 300px; perspective-origin: center; user-select: none;">
     <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
-    <div id="target" style="position: absolute; opacity: 0.5; inset: 0; margin: auto; width: 300px; height: 200px; background: #AAA;">
-      aaa
+    <div id="target" style="position: absolute; opacity: 0.5; inset: 0; margin: auto; width: 800px; height: 400px; background: #AAA;">
+      <img style="pointer-events: none;" width="400" src="harinezumi.jpg"/>
     </div>
   </div>
   <script>
     xnew('#main', () => {
-      const main = xnew.current;
       const perspective = 300 / (Math.tan(45 / 2 * Math.PI / 180) * 2);
-
+      console.log(THREE.UnrealBloomPass)
       xnew('#screen', () => {
-        const screen = xnew(xnew.Screen, { width: 600, height: 400, objectFit: 'contain' });
+        const screen = xnew(xnew.Screen, { width: 600, height: 400, objectFit: 'cover' });
         xnew(screen, ThreeMain, screen.canvas);
       });
 
       xnew('#target', () => {
-        xnew.element.style.transformOrigin = 'center';
-        xnew.element.style.transform = 'rotateY(20deg) translateX(0px) ';
+        xthis.element.style.transformOrigin = 'center';
+        xthis.element.style.transform = 'rotateY(20deg) translateX(0px) ';
 
         let rotx = 0;
         let roty = 0;
-        xnew.on('~scene.rotate', (move) => {
+        xthis.on('~scene.rotate', (move) => {
           rotx += move.y;
           roty -= move.x;
-          xnew.element.style.transform = `translateZ(300px) rotateY(${roty}deg) rotateX(${rotx}deg) translateZ(-300px)`;
+          xthis.element.style.transform = `translateZ(300px) rotateY(${roty}deg) rotateX(${rotx}deg) translateZ(-300px)`;
         });
 
       });
@@ -60,23 +59,21 @@
       const renderer = new THREE.WebGLRenderer({ canvas });
 
       const perspective = 300;
-      const rect = xnew.current.element.getBoundingClientRect();
+      const rect = xthis.element.getBoundingClientRect();
       const deg = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
-      console.log(rect.width, deg);
       const camera = new THREE.PerspectiveCamera(deg, canvas.width / canvas.height);
-      const z = 300;
-      camera.position.set(0, 0, +z);
+      camera.position.set(0, 0, 0);
 
-      xnew.on('~camera.zscale', (scale) => {
+      xthis.on('~scale', (scale) => {
         camera.position.z /= scale;
       })
-      xnew.on('~camera.translate', (move) => {
+      xthis.on('~camera.translate', (move) => {
         camera.position.x += move.x * camera.position.z * 0.001;
         camera.position.y += move.y * camera.position.z * 0.001;
       })
       let rotx = 0;
       let roty = 0;
-      xnew.on('~scene.rotate', (move) => {
+      xthis.on('~scene.rotate', (move) => {
         rotx += move.y * Math.PI / 180;
         roty += move.x * Math.PI / 180;
         camera.rotation.x = rotx;
@@ -104,26 +101,26 @@
     }
 
     function Event() {
-      xnew.on('touchstart contextmenu wheel', (event) => {
+      xthis.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });
-      xnew.on('wheel', (event) => {
-        xnew.emit('~camera.zscale', 1 + 0.001 * event.wheelDeltaY);
+      xthis.on('wheel', (event) => {
+        xthis.emit('~scale', 1 + 0.001 * event.wheelDeltaY);
       });
 
       const gesture = xnew(xnew.GestureEvent);
       gesture.on('move', (event, { scale }) => {
-        xnew.emit('~camera.zscale', scale);
+        xthis.emit('~scale', scale);
       });
 
       const drag = xnew(xnew.DragEvent);
       drag.on('move', (event, { position, delta }) => {
         if (gesture.isActive === true) return;
         if (event.buttons & 1 || !event.buttons) {
-          xnew.emit('~scene.rotate', { x: +delta.x, y: +delta.y });
+          xthis.emit('~scene.rotate', { x: +delta.x, y: +delta.y });
         }
         if (event.buttons & 2) {
-          xnew.emit('~camera.translate', { x: -delta.x, y: +delta.y });
+          xthis.emit('~camera.translate', { x: -delta.x, y: +delta.y });
         }
       });
     }
@@ -136,7 +133,8 @@
       xnew(DirectionaLight, 20, -50, 100);
       xnew(AmbientLight);
 
-      xnew(Plane, 300, 200, 0xF8F8FF);
+      // xnew(Plane, 300, 200, 0xF8F8FF);
+      xnew(Room);
 
       return {
         get scene() {
@@ -156,11 +154,47 @@
       xnew.extend(ThreeObject, object);
     }
 
+    function Room() {
+      const size = 1500;
+      const geometry = new THREE.BoxGeometry(size, size, size);
+      const material = new THREE.MeshStandardMaterial({ color: 0xF8F8FF, transparent: true, side: THREE.BackSide });
+      const object = new THREE.Mesh(geometry, material);
+      object.receiveShadow = true;
+
+      xnew.extend(ThreeObject, object);
+      xnew(Grid, { z: 500 });
+      xnew(Grid, { z: -500 });
+    }
+
+    function Grid({ x = 0, y = 0, z = 0 }) {
+      const grid = new THREE.GridHelper( 2000, 10, 0xDDDDFF, 0xDDDDFF );
+      xnew.extend(ThreeObject, grid);
+      grid.rotation.x = 90 * Math.PI / 180;
+      grid.position.x = x;
+      grid.position.y = y;
+      grid.position.z = z;
+    }
+
+    function Grid2() {
+      const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+
+      const points = [];
+      points.push( new THREE.Vector3( -100, 0, 0 ) );
+      points.push( new THREE.Vector3( +100, 10, 0 ) );
+      points.push( new THREE.Vector3( 10, 0, 0 ) );
+
+      const geometry = new THREE.BufferGeometry().setFromPoints( points );
+
+      const line = new THREE.Line( geometry, material );
+      xnew.extend(ThreeObject, line);
+    }
+
     function Plane(w, h, color) {
       const geometry = new THREE.PlaneGeometry(w, h, 1, 1);
       const material = new THREE.MeshStandardMaterial({ color, transparent: true, });
       const object = new THREE.Mesh(geometry, material);
       object.receiveShadow = true;
+      object.position.z = -300;
 
       xnew.extend(ThreeObject, object);
     }

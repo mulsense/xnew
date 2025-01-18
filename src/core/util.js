@@ -64,7 +64,7 @@ export function createElement(attributes, parentElement = null)
         if (key === 'tagName') {
         } else if (key === 'insert') {
         } else if (key === 'className') {
-            if (isString(value) === true) {
+            if (isString(value) === true && value !== '') {
                 element.classList.add(...value.trim().split(/\s+/));
             }
         } else if (key === 'style') {
@@ -210,6 +210,11 @@ export class Timer
             }, this.delay - this.offset);
             this.time = Date.now();
         }
+    }
+
+    static elapsed()
+    {
+        return Date.now() - this.time + this.offset;
     }
 
     static stop()

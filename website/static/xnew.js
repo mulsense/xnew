@@ -63,7 +63,7 @@
         Object.keys(attributes).forEach((key) => {
             const value = attributes[key];
             if (key === 'tagName') ; else if (key === 'insert') ; else if (key === 'className') {
-                if (isString(value) === true) {
+                if (isString(value) === true && value !== '') {
                     element.classList.add(...value.trim().split(/\s+/));
                 }
             } else if (key === 'style') {
@@ -209,6 +209,11 @@
                 }, this.delay - this.offset);
                 this.time = Date.now();
             }
+        }
+
+        static elapsed()
+        {
+            return Date.now() - this.time + this.offset;
         }
 
         static stop()
@@ -654,12 +659,12 @@
         }
     }
 
-    Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Unit.current });
     Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
     Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
     Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
     Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
     Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
+    Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
 
     function nest(attributes)
     {
@@ -732,10 +737,42 @@
         return timer;
     }
 
+    function transition(callback, delay = 0, loop = false)
+    {
+        const unit = Unit.current;
+        const timer = new Timer(internal, delay, loop);
+
+        function internal() {
+            Unit.scope.call(unit, callback, 1.0);
+        }
+        if (document !== undefined) {
+            if (document.hidden === false) {
+                Timer.start.call(timer);
+            }
+            const xdoc = xnew(document);
+            xdoc.on('visibilitychange', (event) => {
+                document.hidden === false ? Timer.start.call(timer) : Timer.stop.call(timer);
+            });
+        } else {
+            Timer.start.call(timer);
+        }
+
+        xnew(() => {
+            return {
+                start() {
+                },
+                finalize() {
+                    timer.clear();
+                }
+            }
+        });
+        return timer;
+    }
+
     function DragEvent() {
         let isActive = false;
       
-        const self = xnew.current;
+        const self = xthis;
         const base = xnew();
 
         base.on('pointerdown', (event) => {
@@ -790,7 +827,7 @@
     }
 
     function GestureEvent() {
-        const self = xnew.current;
+        const self = xthis;
         const drag = xnew(DragEvent);
 
         let isActive = false;
@@ -838,7 +875,7 @@
     }
 
     function ResizeEvent() {
-        const self = xnew.current;
+        const self = xthis;
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 self.emit('resize');
@@ -846,13 +883,13 @@
             }
         });
 
-        if (self.element) {
-            observer.observe(self.element);
+        if (xthis.element) {
+            observer.observe(xthis.element);
         }
         return {
             finalize() {
-                if (self.element) {
-                    observer.unobserve(self.element);
+                if (xthis.element) {
+                    observer.unobserve(xthis.element);
                 }
             }
         }

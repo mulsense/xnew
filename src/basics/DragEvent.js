@@ -3,7 +3,7 @@ import { xnew } from '../core/xnew';
 export function DragEvent() {
     let isActive = false;
   
-    const self = xnew.current;
+    const self = xthis;
     const base = xnew();
 
     base.on('pointerdown', (event) => {
