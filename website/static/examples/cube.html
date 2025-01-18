@@ -37,10 +37,14 @@
       const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
       camera.position.set(0, 0, +100);
 
-      const contents = xnew(ThreeContents);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFFFFFF);
+      xnew.extend(ThreeObject, scene);
+
+      xnew(ThreeContents);
       return {
         update() {
-          renderer.render(contents.scene, camera);
+          renderer.render(scene, camera);
         },
       }
     }
@@ -58,20 +62,10 @@
     }
 
     function ThreeContents() {
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xFFFFFF);
-      xnew.extend(ThreeObject, scene);
-
       xnew(Light);
 
       // call iteratively (delay = 100ms, loop = true)
       xnew.timer(() => xnew(Cube), 100, true);
-
-      return {
-        get scene() {
-          return scene;
-        },
-      }
     }
 
     function Light() {

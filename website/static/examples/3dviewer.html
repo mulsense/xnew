@@ -51,11 +51,20 @@
         camera.position.y += move.y * camera.position.z * 0.001;
       })
 
-      const contents = xnew(ThreeContents);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFFFFFF);
+      scene.rotation.x = -60 / 180 * Math.PI
+      xnew.extend(ThreeObject, scene);
+
+      xthis.on('~rotate', (move) => {
+        scene.rotation.x += move.y * 0.01;
+        scene.rotation.z += move.x * 0.01;
+      })
+      xnew(ThreeContents);
 
       return {
         update() {
-          renderer.render(contents.scene, camera);
+          renderer.render(scene, camera);
         },
       }
     }
@@ -99,28 +108,12 @@
     }
 
     function ThreeContents() {
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xFFFFFF);
-      scene.rotation.x = -60 / 180 * Math.PI
-      xnew.extend(ThreeObject, scene);
-
-      xthis.on('~rotate', (move) => {
-        scene.rotation.x += move.y * 0.01;
-        scene.rotation.z += move.x * 0.01;
-      })
-
       xnew(DirectionaLight, 20, -50, 100);
       xnew(AmbientLight);
 
       xnew(Ground, 1000, 0xF8F8FF);
       xnew(Dorm, 500);
       xnew(Cube, 0, 0, 20, 40, 0xAAAAFF);
-
-      return {
-        get scene() {
-          return scene;
-        },
-      }
     }
 
     function DirectionaLight(x, y, z) {

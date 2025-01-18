@@ -34,11 +34,14 @@
 
     function PixiMain(canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
-      const contents = xnew(PixiContents);
+      const scene = new PIXI.Container();
+      xnew.extend(PixiObject, scene);
+
+      xnew(PixiContents);
 
       return {
         update() {
-          renderer.render(contents.scene);
+          renderer.render(scene);
         },
       };
     }
@@ -56,15 +59,7 @@
     }
 
     function PixiContents() {
-      const scene = new PIXI.Container();
-      xnew.extend(PixiObject, scene);
-
       xnew(Scene1);
-      return {
-        get scene() {
-          return scene;
-        },
-      };
     }
 
     function Scene1() {
