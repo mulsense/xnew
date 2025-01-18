@@ -60,9 +60,9 @@
       }
     }
 
-    function ThreeNest(object) {
-      const parent = xnew.context('ThreeNest');
-      xnew.context('ThreeNest', object);
+    function ThreeObject(object) {
+      const parent = xnew.context('ThreeObject');
+      xnew.context('ThreeObject', object);
 
       parent?.add(object);
       return {
@@ -102,7 +102,7 @@
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
       scene.rotation.x = -60 / 180 * Math.PI
-      xnew.extend(ThreeNest, scene);
+      xnew.extend(ThreeObject, scene);
 
       xthis.on('~rotate', (move) => {
         scene.rotation.x += move.y * 0.01;
@@ -138,13 +138,13 @@
       object.shadow.camera.far = +s * 10.0;
       object.shadow.camera.updateProjectionMatrix();
 
-      xnew.extend(ThreeNest, object);
+      xnew.extend(ThreeObject, object);
     }
 
     function AmbientLight() {
       const object = new THREE.AmbientLight(0xFFFFFF, 0.50);
 
-      xnew.extend(ThreeNest, object);
+      xnew.extend(ThreeObject, object);
     }
 
     function Dorm(size) {
@@ -152,7 +152,7 @@
       const material = new THREE.MeshBasicMaterial({ color: 0xEEEEFF, side: THREE.BackSide });
       const object = new THREE.Mesh(geometry, material);
 
-      xnew.extend(ThreeNest, object);
+      xnew.extend(ThreeObject, object);
     }
 
     function Ground(size, color) {
@@ -162,7 +162,7 @@
       object.receiveShadow = true;
       object.material.opacity = 0.7;
 
-      xnew.extend(ThreeNest, object);
+      xnew.extend(ThreeObject, object);
     }
 
     function Cube(x, y, z, size, color) {
@@ -172,7 +172,7 @@
       object.position.set(x, y, z);
       object.castShadow = true;
 
-      xnew.extend(ThreeNest, object);
+      xnew.extend(ThreeObject, object);
     }
   </script>
 </body>

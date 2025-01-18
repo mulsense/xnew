@@ -41,21 +41,21 @@
       const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
       camera.position.set(0, 0, +100);
 
-      const content = xnew(ThreeContents);
+      const contents = xnew(ThreeContents);
 
       return {
         get canvas() {
           return renderer.domElement;
         },
         update() {
-          renderer.render(content.scene, camera);
+          renderer.render(contents.scene, camera);
         },
       }
     }
 
-    function ThreeNest(object) {
-      const parent = xnew.context('ThreeNest');
-      xnew.context('ThreeNest', object);
+    function ThreeObject(object) {
+      const parent = xnew.context('ThreeObject');
+      xnew.context('ThreeObject', object);
 
       parent?.add(object);
       return {
@@ -69,7 +69,7 @@
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
 
-      xnew.extend(ThreeNest, scene);
+      xnew.extend(ThreeObject, scene);
 
       xnew(Cube, [0, 0, 0], [40, 40, 40]);
       return {
@@ -91,9 +91,9 @@
       };
     }
 
-    function PixiNest(object) {
-      const parent = xnew.context('PixiNest');
-      xnew.context('PixiNest', object);
+    function PixiObject(object) {
+      const parent = xnew.context('PixiObject');
+      xnew.context('PixiObject', object);
 
       parent?.addChild(object);
       return {
@@ -106,7 +106,7 @@
     function PixiContents() {
       const scene = new PIXI.Container();
 
-      xnew.extend(PixiNest, scene);
+      xnew.extend(PixiObject, scene);
 
       const three = xnew.find(ThreeMain)[0];
       const background = new PIXI.Sprite(PIXI.Texture.from(three.canvas));
@@ -134,7 +134,7 @@
       graphics.drawRect(-size / 2, -size / 2, size, size);
       graphics.endFill();
 
-      xnew.extend(PixiNest, object);
+      xnew.extend(PixiObject, object);
 
       return {
         update() {
@@ -148,7 +148,7 @@
       const material = new THREE.MeshNormalMaterial();
       const object = new THREE.Mesh(geometry, material);
 
-      xnew.extend(ThreeNest, object);
+      xnew.extend(ThreeObject, object);
 
       return {
         update() {
