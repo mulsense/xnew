@@ -51,7 +51,13 @@
       });
       Matter.Composite.add(engine.world, Matter.MouseConstraint.create(engine, { element: canvas }));
 
-      const content = xnew(MatterContents, engine);
+      xnew.extend(MatterObject, engine.world);
+
+      const contents = xnew(MatterContents);
+      xthis.on('~matter.reset', () => {
+        contents.reboot();
+      })
+
 
       return {
         update() {
@@ -73,13 +79,7 @@
       }
     }
 
-    function MatterContents(engine) {
-      xnew.extend(MatterObject, engine.world);
-
-      xthis.on('~matter.reset', () => {
-        xthis.reboot(engine);
-      })
-
+    function MatterContents() {
       xnew(Rectangle, 400, 200, 80, 80);
       xnew(Polygon, 450, 50, 6, 40);
       xnew(Circle, 350, 50, 40);
