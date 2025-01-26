@@ -1,66 +1,163 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <script src="../thirdparty/three.min.js"></script>
   <script src="../xnew.js"></script>
-
   <style>
-    html {
-      height: -webkit-fill-available;
-    }
     body {
-      min-height: 100vh;
-      min-height: -webkit-fill-available;
-      position: absolute;
       margin: 0;
-      inset: 0;
+      height: 100vh;
       overflow: hidden;
+    }
+    .plane {
+      position: absolute;
+      margin: auto;
+      padding: 10px;
+      inset: 0; 
+      width: 46%; 
+      height: 60%;
+      background: #AAA;
+      transform-origin: center;
+    }
+    p {
+      font-size: 1.2em;
+      line-height: 1.2em;
+      margin: 8px 0px;
     }
   </style>
 </head>
 
 <body>
-  <div id="main" style="width: 100%; height: 100%; perspective: 300px; perspective-origin: center; user-select: none;">
+  <div id="main" style="width: 100%; height: 100%; perspective: 500px; perspective-origin: center;">
     <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
-    <div id="target" style="position: absolute; opacity: 0.9; inset: 0; margin: auto; width: 800px; height: 400px; background: #AAA;">
-      <img style="pointer-events: none;" width="400" src="harinezumi.jpg"/>
-      <div>
-        aaa test
-      </div>
+
+    <div id="target1" class="plane">
+      <img style="float: left; margin: 10px;" width="400" src="images/iguana.jpg"/>
+      <b>ウミイグアナ</b>
+      <p>ウミイグアナは、有鱗目イグアナ科ウミイグアナ属に分類されるトカゲ。</p>
+      <p>全長120 - 150センチメートル。頭胴長35 - 55センチメートル[6]。頭部や頸部は太くて短い。頭部背面は瘤状に隆起する。頸部背面には12 - 20枚の刺状鱗（クレスト）が鬣状に並び、胴体背面から尾の先端にかけても頸部ほど大型ではないもののクレストが並ぶ。</p>
+      <p>尾は側扁し、頭胴長の1.5倍に達する。これにより海中で大きな推進力を得ることができる。体色は緑がかった灰褐色で、気温が高いと明色・気温が低いと暗色になる傾向がある。</p>
+      <p>暗い体色は体温を上げるのに役立ったり、周囲の岩礁に似た保護色になると考えられている。</p>
+      <p>眼と鼻孔の間に体内に溜まった塩分を排出する腺を持つ。四肢や指趾は頑丈で、指趾には長く鋭い爪が生える[6]。これにより海底の岩に爪を引っ掛けることで体を固定し、速い海流内でも採食を行うことができる。</p>
+      <a href="https://ja.wikipedia.org/wiki/ウミイグアナ">wiki</a>
     </div>
+    <div id="target2" class="plane">
+      <img style="float: left; margin: 10px;" width="400" src="images/penguin.jpg"/>
+      <b>ガラパゴスペンギン</b>
+      <p>ガラパゴスペンギンは、ペンギン目ペンギン科ケープペンギン属に分類される鳥類。ペンギンの中で最も低緯度の赤道直下に生息する。</p>
+      <p>フンボルトペンギン属の4種うち最小種。種小名のmendiculus は「物乞いのような」の意で、ペンギンの中でも小形（3番目に小さい）であることに由来する。メスよりもオスの方がやや大型になる。</p>
+      <p>全身は短い羽毛で覆われる。頭部や体上面の羽衣は黒色で、眼から喉にかけて白い筋模様が入る。下面の羽衣は白く、胸部には黒い斑点と不明瞭な黒い横縞が入る。オスはメスよりも上面と下面の体色が明瞭。</p>
+      <p>眼の周辺や嘴基部に羽毛はなく、繁殖期になると黒斑のあるピンク色の皮膚が裸出する。腹部の斑紋とともに、この裸出部の大きさや模様は個体により異なる。オスは喉の白色の部分や、嘴基部の皮膚の裸出部がメスよりも広い。</p>
+      <p>若鳥の上面は灰色で、頭部や胸部の斑紋がない。</p>
+      <a href="https://ja.wikipedia.org/wiki/ガラパゴスペンギン">wiki</a>
+    </div>
+    <div id="target3" class="plane">
+      <img style="float: left; margin: 10px;" width="400" src="images/booby.jpg"/>
+      <b>アオアシカツオドリ</b>
+      <p>アオアシカツオドリは、カツオドリ目カツオドリ科に分類される鳥類の1種。鮮やかな青い足からこの名前が付けられた。</p>
+      <p>メキシコからペルーにかけての太平洋沿岸に生息する基亜種と、 ガラパゴス諸島の固有亜種の２亜種に分けられる。ガラパゴス諸島の固有亜種は、ガラパゴス諸島に生息する3種のカツオドリ科の中の1種として、ガラパゴス諸島に広く分布する。わずかに大きく羽に艶がある[3]。</p>
+      <p>全長は約80cm (76-84cm)。翼開長約152cm。雌雄よく似るが、雌のほうが大きく見える。全長は同様であるが、雄は尾が長くて体が小さいことによる。雌は眼の中心の黒い範囲が大きく黒眼がちに見える。</p>
+      <p>求愛行動時、雄が足を交互に持ち上げ、雌の周りをダンスする。また、現在は巣を作らないが、過去に作っていた頃の名残で、小枝や小石を相手に差し出す行動をする。</p>
+      <a href="https://ja.wikipedia.org/wiki/アオアシカツオドリ">wiki</a>
+    </div>
+    <div id="target4" class="plane">
+      <img style="float: left; margin: 10px;" width="400" src="images/tortoise.jpg"/>
+      <b>ゾウガメ</b>
+      <p>ゾウガメとは、大型のリクガメ、特に甲長1mを超すリクガメ。</p>
+      <p>肉食獣による捕食の危険に乏しいインド洋や太平洋などの島嶼において、互いに異なるリクガメから、独立に大型化の進化をたどったものが多い。</p>
+      <p>人類の大航海時代の到来と共に船員らの食料として乱獲され（動きが鈍い上、捕獲後に餌を与えなくても長期間生存し新鮮な肉が得られたため）、大半の種が絶滅した。</p>
+      <p>現在ではインド洋のアルダブラゾウガメ（近縁種としてGeochelone arnoldiとGeochelone hololissaがほぼ野生絶滅の状態で、飼育下での繁殖プログラムが進められているが和名が不明のためゾウガメに含めるかは現時点では不明）と太平洋のガラパゴスゾウガメ（亜種を独立種として分割する説もあり）が、かろうじて生存している。</p>
+      <p>長寿であり、100年以上生きる個体も多い。また、2005年まで生存したアルダブラゾウガメのアドワイチャは、250年以上生きた可能性があり、確実な証拠はないが世界最長寿の動物だったともいわれる。現在は、セイシェルのバード島に生息する女性名エスメラルダと呼ばれる雄のセイシェルゾウガメが200歳で最長寿と言われている。</p>
+      <a href="https://ja.wikipedia.org/wiki/ゾウガメ">wiki</a>
+    </div>
+
+    <div id="move_left" style="position: absolute; left: 0; top: 0; bottom: 0; width: 15%; opacity: 0.1"></div>
+    <div id="move_right" style="position: absolute; right: 0; top: 0; bottom: 0; width: 15%; opacity: 0.1"></div>
   </div>
+
   <script>
     xnew('#main', () => {
-      const perspective = 300 / (Math.tan(45 / 2 * Math.PI / 180) * 2);
+      xnew.context('transform', { px: -180, py: 0, pz: 0, rx: 0, ry: -15, rz: 0 });
+
       xnew('#screen', () => {
         const screen = xnew(xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
         xnew(screen, ThreeMain, screen.canvas);
       });
 
-      xnew('#target', () => {
-        xthis.element.style.transformOrigin = 'center';
-        xthis.element.style.transform = 'rotateY(20deg) translateX(0px) ';
+      // xthis.on('~scene.rotate', (move) => {
+      //   const transform = xnew.context('transform');
+      //   // transform.rx += move.y;
+      //   transform.ry += move.x;
+      // });
 
-        let rotx = 0;
-        let roty = 0;
-        xthis.on('~scene.rotate', (move) => {
-          rotx += move.y;
-          roty -= move.x;
-          xthis.element.style.transform = `translateZ(300px) rotateY(${roty}deg) rotateX(${rotx}deg) translateZ(-300px)`;
+      const transform = xnew.context('transform');
+
+      let current = 0;
+      xnew('#target1', Plane, 0, 0);
+      xnew('#target2', Plane, 1, 90);
+      xnew('#target3', Plane, 2, 180);
+      xnew('#target4', Plane, 3, 270);
+      xthis.emit('~fade', 0);
+
+      xnew('#move_left', () => {
+        xthis.on('mouseover', () => xthis.element.style.background = '#FFF');
+        xthis.on('mouseout', () => xthis.element.style.background = '');
+        xthis.on('click', () => {
+          current = (current + 1) % 4;
+          xthis.emit('~fade', current);
+          const ry = transform.ry;
+          xnew.transition((progress) => {
+            transform.ry = ry + 90 * (1.0 - Math.cos(progress * Math.PI)) * 0.5;
+          }, 500);
         });
-
+      });
+      xnew('#move_right', () => {
+        xthis.on('mouseover', () => xthis.element.style.background = '#FFF');
+        xthis.on('mouseout', () => xthis.element.style.background = '');
+        xthis.on('click', () => {
+          current = (current - 1 + 4) % 4;
+          xthis.emit('~fade', current);
+          const ry = transform.ry;
+          xnew.transition((progress) => {
+            transform.ry = ry - 90 * (1.0 - Math.cos(progress * Math.PI)) * 0.5;
+          }, 500);
+        });
       });
       xnew(Event);
     });
 
+    function Plane(id, offset) {
+      const transform = xnew.context('transform');
+      let opacity = 0.10;
+      xthis.on('~fade', (current) => {
+        if (current === id) {
+          xnew.transition((progress) => {
+            opacity = Math.max(opacity, 0.10 + progress * 0.80);
+            xthis.element.style.opacity = opacity;
+          }, 500);
+        } else {
+          xnew.transition((progress) => {
+            opacity = Math.min(opacity, 0.90 - progress * 0.80);
+            xthis.element.style.opacity = opacity;
+          }, 500);
+        }
+      })
+      return {
+        update() {
+          xthis.element.style.transform = `
+            translateZ(500px) 
+            translateX(${-transform.px}px) rotateY(${-transform.ry+offset}deg) rotateX(${transform.rx}deg) 
+            translateZ(-500px)
+          `;
+        }
+      }
+    }
     function ThreeMain(canvas) {
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 
-      const perspective = 300;
+      const perspective = 500;
       const rect = xthis.element.getBoundingClientRect();
       const deg = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
       const camera = new THREE.PerspectiveCamera(deg, canvas.width / canvas.height);
@@ -73,19 +170,23 @@
         camera.position.x += move.x * camera.position.z * 0.001;
         camera.position.y += move.y * camera.position.z * 0.001;
       })
-      let rotx = 0;
-      let roty = 0;
-      xthis.on('~scene.rotate', (move) => {
-        rotx += move.y * Math.PI / 180;
-        roty += move.x * Math.PI / 180;
-        camera.rotation.x = rotx;
-        camera.rotation.y = roty;
-      })
-      const contents = xnew(ThreeContents);
+ 
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFFFFFF);
+      xnew.extend(ThreeObject, scene);
+
+      xnew(ThreeContents);
 
       return {
         update() {
-          renderer.render(contents.scene, camera);
+          const transform = xnew.context('transform');
+          camera.rotation.x = transform.rx * Math.PI / 180;
+          camera.rotation.y = transform.ry * Math.PI / 180;
+          camera.position.x = +transform.px;
+          camera.position.x = +Math.cos(transform.ry * Math.PI / 180) * transform.px;
+          camera.position.z = -Math.sin(transform.ry * Math.PI / 180) * transform.px;
+          
+          renderer.render(scene, camera);
         },
       }
     }
@@ -128,21 +229,11 @@
     }
 
     function ThreeContents() {
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xFFFFFF);
-      xnew.extend(ThreeObject, scene);
-
       xnew(DirectionaLight, 20, -50, 50);
       xnew(DirectionaLight, 20, 50, -10);
       xnew(AmbientLight);
 
       xnew(Room);
-
-      return {
-        get scene() {
-          return scene;
-        },
-      }
     }
 
     function DirectionaLight(x, y, z) {
@@ -157,7 +248,7 @@
     }
 
     function Room() {
-      const size = 2000;
+      const size = 1000;
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshStandardMaterial({ 
         color: 0xF8F8FF, transparent: true, side: THREE.BackSide,
@@ -167,17 +258,17 @@
       object.receiveShadow = true;
 
       xnew.extend(ThreeObject, object);
-      xnew(Grid, { pz: +1000, rx: 90 });
-      xnew(Grid, { pz: -1000, rx: 90 });
-      xnew(Grid, { px: +1000, rz: 90 });
-      xnew(Grid, { px: -1000, rz: 90 });
-      xnew(Grid, { py: +1000 });
-      xnew(Grid, { py: -1000 });
+      xnew(Grid, { pz: +500, rx: 90 });
+      xnew(Grid, { pz: -500, rx: 90 });
+      xnew(Grid, { px: +500, rz: 90 });
+      xnew(Grid, { px: -500, rz: 90 });
+      xnew(Grid, { py: +500 });
+      xnew(Grid, { py: -500 });
       // xnew(Grid, { z: -1000 });
     }
 
     function Grid({ px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0 }) {
-      const grid = new THREE.GridHelper( 2200, 10, 0x444466, 0x444466 );
+      const grid = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
       xnew.extend(ThreeObject, grid);
       grid.rotation.x = rx * Math.PI / 180;
       grid.rotation.y = ry * Math.PI / 180;

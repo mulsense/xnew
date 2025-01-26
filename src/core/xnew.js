@@ -92,15 +92,21 @@ function find(component)
     }
 }
 
-function timer(callback, delay = 0, loop = false)
+function timer(callback, delay, loop = false)
 {
     let finalizer = null;
 
     const current = Unit.current;
-    const timer = new Timer(() => {
-        Unit.scope.call(current, callback);
-        finalizer.finalize();
-    }, delay, loop);
+    const timer = new Timer({
+        timeout: () => {
+            Unit.scope.call(current, callback);
+        }, 
+        finalize: () => {
+            finalizer.finalize();
+        },
+        delay,
+        loop,
+    });
     
     if (document !== undefined) {
         if (document.hidden === false) {
@@ -125,15 +131,20 @@ function timer(callback, delay = 0, loop = false)
     return timer;
 }
 
-function transition(callback, interval = 1000)
+function transition(callback, interval)
 {
     let finalizer = null;
 
     const current = Unit.current;
-    const timer = new Timer(() => {
-        Unit.scope.call(current, callback, 1.0);
-        finalizer.finalize();
-    }, interval);
+    const timer = new Timer({ 
+        timeout: () => {
+            Unit.scope.call(current, callback, 1.0);
+        },
+        finalize: () => {
+            finalizer.finalize();
+        },
+        delay: interval,
+    });
 
     if (document !== undefined) {
         if (document.hidden === false) {

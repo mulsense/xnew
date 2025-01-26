@@ -174,9 +174,10 @@
 
     class Timer
     {
-        constructor(callback, delay, loop)
+        constructor({ timeout, finalize = null, delay = 0, loop = false })
         {
-            this.callback = callback;
+            this.timeout = timeout;
+            this.finalize = finalize;
             this.delay = delay;
             this.loop = loop;
 
@@ -190,6 +191,7 @@
             if (this.id === null) {
                 clearTimeout(this.id);
                 this.id = null;
+                this.finalize?.();
             }
         }
 
@@ -207,7 +209,7 @@
         {
             if (this.id === null) {
                 this.id = setTimeout(() => {
-                    this.callback();
+                    this.timeout();
 
                     this.id = null;
                     this.time = null;
@@ -215,6 +217,8 @@
         
                     if (this.loop) {
                         Timer.start.call(this);
+                    } else {
+                        this.finalize?.();
                     }
                 }, this.delay - this.offset);
                 this.time = Date.now();
@@ -715,15 +719,21 @@
         }
     }
 
-    function timer(callback, delay = 0, loop = false)
+    function timer(callback, delay, loop = false)
     {
         let finalizer = null;
 
         const current = Unit.current;
-        const timer = new Timer(() => {
-            Unit.scope.call(current, callback);
-            finalizer.finalize();
-        }, delay, loop);
+        const timer = new Timer({
+            timeout: () => {
+                Unit.scope.call(current, callback);
+            }, 
+            finalize: () => {
+                finalizer.finalize();
+            },
+            delay,
+            loop,
+        });
         
         if (document !== undefined) {
             if (document.hidden === false) {
@@ -748,15 +758,20 @@
         return timer;
     }
 
-    function transition(callback, interval = 1000)
+    function transition(callback, interval)
     {
         let finalizer = null;
 
         const current = Unit.current;
-        const timer = new Timer(() => {
-            Unit.scope.call(current, callback, 1.0);
-            finalizer.finalize();
-        }, interval);
+        const timer = new Timer({ 
+            timeout: () => {
+                Unit.scope.call(current, callback, 1.0);
+            },
+            finalize: () => {
+                finalizer.finalize();
+            },
+            delay: interval,
+        });
 
         if (document !== undefined) {
             if (document.hidden === false) {

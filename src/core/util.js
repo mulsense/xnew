@@ -175,9 +175,10 @@ export class MapMap extends Map
 
 export class Timer
 {
-    constructor(callback, delay, loop)
+    constructor({ timeout, finalize = null, delay = 0, loop = false })
     {
-        this.callback = callback;
+        this.timeout = timeout;
+        this.finalize = finalize;
         this.delay = delay;
         this.loop = loop;
 
@@ -191,6 +192,7 @@ export class Timer
         if (this.id === null) {
             clearTimeout(this.id);
             this.id = null;
+            this.finalize?.();
         }
     }
 
@@ -208,14 +210,16 @@ export class Timer
     {
         if (this.id === null) {
             this.id = setTimeout(() => {
-                this.callback();
+                this.timeout();
 
                 this.id = null;
                 this.time = null;
                 this.offset = 0.0;
     
                 if (this.loop) {
-                    Timer.start.call(this)
+                    Timer.start.call(this);
+                } else {
+                    this.finalize?.();
                 }
             }, this.delay - this.offset);
             this.time = Date.now();
