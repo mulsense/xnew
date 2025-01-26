@@ -832,6 +832,7 @@
                     const position = getPosition(event, rect);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     
+                    current = { id, position };
                     self.emit('move', event, { type: 'move', position, delta });
                     previous = position;
                 }
@@ -840,6 +841,8 @@
             xwin.on('pointerup', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
+
+                    current = { id, position };
                     self.emit('up', event, { type: 'up', position, });
                     xwin.finalize();
                     xmap.delete(id);
@@ -849,6 +852,8 @@
             xwin.on('pointercancel', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
+                   
+                    current = null;
                     self.emit('cancel', event, { type: 'cancel', position, });
                     xwin.finalize();
                     xmap.delete(id);
@@ -866,8 +871,9 @@
         return {
             cancel() {
                 if (current !== null) {
-                    xmap.get(current).finalize();
-                    xmap.delete(current);
+                    xmap.get(current.id).finalize();
+                    xmap.delete(current.id);
+                    current = null;
                 }
             }
         }

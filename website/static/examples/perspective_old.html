@@ -12,14 +12,16 @@
       overflow: hidden;
     }
     .plane {
-      position: absolute; top: 0; left: 0; right: 0; 
+      position: absolute;
       margin: auto;
-      margin-top: 10%;
       padding: 10px;
-      width: 75%;
-      max-width: 800px;
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      width: 70%;
       background: #AAA;
       transform-origin: center;
+      margin-top: 80px;
     }
     .plane > img {
       width: 50%;
@@ -28,40 +30,22 @@
       margin: 10px;
     }
 
-    .button-L {
+    .left-button {
       position: absolute; left: 10px; bottom: 10px;
       opacity: 0.2;
       width: 50px; height: 50px;
       border: solid 1px #FFF;
       border-radius: 50%;
     }
-    .button-L:hover {
+    .left-button:hover {
       opacity: 0.4;
     }
-    .button-L::after {
+    .left-button::after {
       display: block;
       content: "";
       background: #FFF;
       width: 100%; height: 100%;
       clip-path: polygon(20% 50%, 70% 20%, 70% 80%);
-    }
-
-    .button-R {
-      position: absolute; right: 10px; bottom: 10px;
-      opacity: 0.2;
-      width: 50px; height: 50px;
-      border: solid 1px #FFF;
-      border-radius: 50%;
-    }
-    .button-R:hover {
-      opacity: 0.4;
-    }
-    .button-R::after {
-      display: block;
-      content: "";
-      background: #FFF;
-      width: 100%; height: 100%;
-      clip-path: polygon(80% 50%, 30% 20%, 30% 80%);
     }
   </style>
 </head>
@@ -145,57 +129,55 @@
       </p>
       <a href="https://ja.wikipedia.org/wiki/ゾウガメ">wiki</a>
     </div>
-
-    <div class="button-L"></div>
-    <div class="button-R"></div>
+    <div class="left-button"></div>
+    <div class="right-button"></div>
   </div>
 
   <script>
     xnew('#main', () => {
       xnew.context('transform', { px: -180, py: 0, pz: 0, rx: 0, ry: -15, rz: 0 });
-      const transform = xnew.context('transform');
 
       xnew('#screen', () => {
         const screen = xnew(xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
-        xnew(screen.element, ThreeMain, screen.canvas);
+        xnew(screen, ThreeMain, screen.canvas);
       });
 
+      xthis.on('~scene.rotate', (move) => {
+        const transform = xnew.context('transform');
+        transform.ry += move.x * 0.2;
+      });
+
+      const transform = xnew.context('transform');
+
+      let current = 0;
       xnew('#target1', Plane, 0, 0);
       xnew('#target2', Plane, 1, 90);
       xnew('#target3', Plane, 2, 180);
       xnew('#target4', Plane, 3, 270);
       xthis.emit('~fade', 0);
 
-      let state = { id: 0, moving: false };
-      xnew('.button-L', Move, +1, state, transform);
-      xnew('.button-R', Move, -1, state, transform);
-
-      xthis.on('touchstart wheel', (event) => {
-        event.preventDefault();
-      });
-      xthis.on('wheel', (event) => {
-        transform.py += event.wheelDeltaY * 0.2;
-        transform.py = Math.max(-200, Math.min(+200, transform.py));
-      });
-    });
-
-    function Move(direction, state, transform) {
-      xthis.on('click', () => {
-        if (state.moving === false) {
-          state.moving = true;
-          state.id = (state.id + direction + 4) % 4;
-          xthis.emit('~fade', state.id);
+      xnew('.left-button', () => {
+        xthis.on('click', () => {
+          current = (current + 1) % 4;
+          xthis.emit('~fade', current);
           const ry = transform.ry;
-          const py = transform.py;
           xnew.transition((progress) => {
-            const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
-            transform.ry = ry + direction * 90 * p;
-            transform.py = py * (1.0 - p);
-            if (progress === 1.0) state.moving = false;
+            transform.ry = ry + 90 * (1.0 - Math.cos(progress * Math.PI)) * 0.5;
           }, 700);
-        }
+        });
       });
-    }
+      xnew('.right-button', () => {
+        xthis.on('click', () => {
+          current = (current - 1 + 4) % 4;
+          xthis.emit('~fade', current);
+          const ry = transform.ry;
+          xnew.transition((progress) => {
+            transform.ry = ry - 90 * (1.0 - Math.cos(progress * Math.PI)) * 0.5;
+          }, 700);
+        });
+      });
+      xnew(Event);
+    });
 
     function Plane(id, offset) {
       const transform = xnew.context('transform');
@@ -214,7 +196,7 @@
         update() {
           xthis.element.style.transform = `
             translateZ(500px) 
-            translateX(${-transform.px}px) translateY(${transform.py}px) rotateY(${-transform.ry+offset}deg) rotateX(${transform.rx}deg) 
+            translateX(${-transform.px}px) rotateY(${-transform.ry+offset}deg) rotateX(${transform.rx}deg) 
             translateZ(-500px)
           `;
         }
@@ -229,13 +211,14 @@
       const deg = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
       const camera = new THREE.PerspectiveCamera(deg, canvas.width / canvas.height);
       camera.position.set(0, 0, 0);
-      const transform = xnew.context('transform');
 
-      xnew(xnew.ResizeEvent).on('resize', () => {
-        const rect = xthis.element.getBoundingClientRect();
-        camera.fov = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
-        camera.updateProjectionMatrix();
-      });
+      xthis.on('~scale', (scale) => {
+        camera.position.z /= scale;
+      })
+      xthis.on('~camera.translate', (move) => {
+        camera.position.x += move.x * camera.position.z * 0.001;
+        camera.position.y += move.y * camera.position.z * 0.001;
+      })
  
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
@@ -245,10 +228,11 @@
 
       return {
         update() {
+          const transform = xnew.context('transform');
           camera.rotation.x = transform.rx * Math.PI / 180;
           camera.rotation.y = transform.ry * Math.PI / 180;
+          camera.position.x = +transform.px;
           camera.position.x = +Math.cos(transform.ry * Math.PI / 180) * transform.px;
-          camera.position.y = transform.py;
           camera.position.z = -Math.sin(transform.ry * Math.PI / 180) * transform.px;
           
           renderer.render(scene, camera);
@@ -268,10 +252,36 @@
       }
     }
 
+    function Event() {
+      xthis.on('touchstart contextmenu wheel', (event) => {
+        event.preventDefault();
+      });
+      xthis.on('wheel', (event) => {
+        xthis.emit('~scale', 1 + 0.001 * event.wheelDeltaY);
+      });
+
+      const gesture = xnew(xnew.GestureEvent);
+      gesture.on('move', (event, { scale }) => {
+        xthis.emit('~scale', scale);
+      });
+
+      const drag = xnew(xnew.DragEvent);
+      drag.on('move', (event, { position, delta }) => {
+        if (gesture.isActive === true) return;
+        if (event.buttons & 1 || !event.buttons) {
+          xthis.emit('~scene.rotate', { x: +delta.x, y: +delta.y });
+        }
+        if (event.buttons & 2) {
+          xthis.emit('~camera.translate', { x: -delta.x, y: +delta.y });
+        }
+      });
+    }
+
     function ThreeContents() {
       xnew(DirectionaLight, 20, -50, 50);
       xnew(DirectionaLight, 20, 50, -10);
       xnew(AmbientLight);
+
       xnew(Room);
     }
 
@@ -303,6 +313,7 @@
       xnew(Grid, { px: -500, rz: 90 });
       xnew(Grid, { py: +500 });
       xnew(Grid, { py: -500 });
+      // xnew(Grid, { z: -1000 });
     }
 
     function Grid({ px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0 }) {
