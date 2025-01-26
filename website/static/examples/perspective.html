@@ -110,7 +110,7 @@
           const ry = transform.ry;
           xnew.transition((progress) => {
             transform.ry = ry + 90 * (1.0 - Math.cos(progress * Math.PI)) * 0.5;
-          }, 500);
+          }, 700);
         });
       });
       xnew('#move_right', () => {
@@ -122,7 +122,7 @@
           const ry = transform.ry;
           xnew.transition((progress) => {
             transform.ry = ry - 90 * (1.0 - Math.cos(progress * Math.PI)) * 0.5;
-          }, 500);
+          }, 700);
         });
       });
       xnew(Event);
@@ -136,12 +136,12 @@
           xnew.transition((progress) => {
             opacity = Math.max(opacity, 0.10 + progress * 0.80);
             xthis.element.style.opacity = opacity;
-          }, 500);
+          }, 700);
         } else {
           xnew.transition((progress) => {
             opacity = Math.min(opacity, 0.90 - progress * 0.80);
             xthis.element.style.opacity = opacity;
-          }, 500);
+          }, 700);
         }
       })
       return {
