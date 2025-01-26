@@ -1,21 +1,21 @@
 import { xnew } from '../core/xnew';
 
 export function DragEvent() {
-    let isActive = false;
   
     const self = xthis;
     const base = xnew();
+
+    const wmap = new Map();
+    let current = null;
 
     base.on('pointerdown', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-       
-        self.emit('down', event, { type: 'down', position });
         let previous = position;
-        isActive = true;
-
+       
         const xwin = xnew(window);
+        wmap.set(id, xwin);
 
         xwin.on('pointermove', (event) => {
             if (event.pointerId === id) {
@@ -32,7 +32,7 @@ export function DragEvent() {
                 const position = getPosition(event, rect);
                 self.emit('up', event, { type: 'up', position, });
                 xwin.finalize();
-                isActive = false;
+                xmap.delete(id);
             }
         });
 
@@ -41,9 +41,12 @@ export function DragEvent() {
                 const position = getPosition(event, rect);
                 self.emit('cancel', event, { type: 'cancel', position, });
                 xwin.finalize();
-                isActive = false;
+                xmap.delete(id);
             }
         });
+
+        current = { id, position };
+        self.emit('down', event, { type: 'down', position });
     });
 
     function getPosition(event, rect) {
@@ -51,8 +54,11 @@ export function DragEvent() {
     }
 
     return {
-        get isActive() {
-            return isActive;
-        },
+        cancel() {
+            if (current !== null) {
+                xmap.get(current).finalize();
+                xmap.delete(current);
+            }
+        }
     }
 }

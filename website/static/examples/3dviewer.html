@@ -87,13 +87,16 @@
       });
 
       const gesture = xnew(xnew.GestureEvent);
+      let isActive = false;
+      gesture.on('down', (event) => isActive = true);
+      gesture.on('up cancel', (event) => isActive = false);
       gesture.on('move', (event, { scale }) => {
         xthis.emit('~scale', scale);
       });
 
       const drag = xnew(xnew.DragEvent);
       drag.on('move', (event, { position, delta }) => {
-        if (gesture.isActive === true) return;
+        if (isActive === true) return;
         if (event.buttons & 1 || !event.buttons) {
           xthis.emit('~rotate', { x: +delta.x, y: +delta.y });
         }

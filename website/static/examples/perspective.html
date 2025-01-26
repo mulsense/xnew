@@ -15,16 +15,19 @@
       position: absolute;
       margin: auto;
       padding: 10px;
-      inset: 0; 
-      width: 46%; 
-      height: 60%;
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      width: 70%;
       background: #AAA;
       transform-origin: center;
+      margin-top: 80px;
     }
-    p {
-      font-size: 1.2em;
-      line-height: 1.2em;
-      margin: 8px 0px;
+    .plane > img {
+      width: 50%;
+      min-width: 300px;
+      float: left;
+      margin: 10px;
     }
   </style>
 </head>
@@ -37,14 +40,22 @@
       <img style="float: left; margin: 10px;" width="400" src="images/iguana.jpg"/>
       <b>ウミイグアナ</b>
       <p>ウミイグアナは、有鱗目イグアナ科ウミイグアナ属に分類されるトカゲ。</p>
-      <p>全長120 - 150センチメートル。頭胴長35 - 55センチメートル[6]。頭部や頸部は太くて短い。頭部背面は瘤状に隆起する。頸部背面には12 - 20枚の刺状鱗（クレスト）が鬣状に並び、胴体背面から尾の先端にかけても頸部ほど大型ではないもののクレストが並ぶ。</p>
-      <p>尾は側扁し、頭胴長の1.5倍に達する。これにより海中で大きな推進力を得ることができる。体色は緑がかった灰褐色で、気温が高いと明色・気温が低いと暗色になる傾向がある。</p>
-      <p>暗い体色は体温を上げるのに役立ったり、周囲の岩礁に似た保護色になると考えられている。</p>
-      <p>眼と鼻孔の間に体内に溜まった塩分を排出する腺を持つ。四肢や指趾は頑丈で、指趾には長く鋭い爪が生える[6]。これにより海底の岩に爪を引っ掛けることで体を固定し、速い海流内でも採食を行うことができる。</p>
+      <p>
+        全長120 - 150センチメートル。頭胴長35 - 55センチメートル。頭部や頸部は太くて短い。
+        頭部背面は瘤状に隆起する。頸部背面には12 - 20枚の刺状鱗（クレスト）が鬣状に並び、
+        胴体背面から尾の先端にかけても頸部ほど大型ではないもののクレストが並ぶ。
+        尾は側扁し頭胴長の1.5倍に達する。これにより海中で大きな推進力を得ることができる。
+      </p>
+      <p>
+        体色は緑がかった灰褐色で、気温が高いと明色・気温が低いと暗色になる傾向がある。
+        暗い体色は体温を上げるのに役立ったり、周囲の岩礁に似た保護色になると考えられている。
+        眼と鼻孔の間に体内に溜まった塩分を排出する腺を持つ。四肢や指趾は頑丈で、指趾には長く鋭い爪が生える。
+        これにより海底の岩に爪を引っ掛けることで体を固定し、速い海流内でも採食を行うことができる。
+      </p>
       <a href="https://ja.wikipedia.org/wiki/ウミイグアナ">wiki</a>
     </div>
     <div id="target2" class="plane">
-      <img style="float: left; margin: 10px;" width="400" src="images/penguin.jpg"/>
+      <img src="images/penguin.jpg"/>
       <b>ガラパゴスペンギン</b>
       <p>ガラパゴスペンギンは、ペンギン目ペンギン科ケープペンギン属に分類される鳥類。ペンギンの中で最も低緯度の赤道直下に生息する。</p>
       <p>フンボルトペンギン属の4種うち最小種。種小名のmendiculus は「物乞いのような」の意で、ペンギンの中でも小形（3番目に小さい）であることに由来する。メスよりもオスの方がやや大型になる。</p>
@@ -54,7 +65,7 @@
       <a href="https://ja.wikipedia.org/wiki/ガラパゴスペンギン">wiki</a>
     </div>
     <div id="target3" class="plane">
-      <img style="float: left; margin: 10px;" width="400" src="images/booby.jpg"/>
+      <img src="images/booby.jpg"/>
       <b>アオアシカツオドリ</b>
       <p>アオアシカツオドリは、カツオドリ目カツオドリ科に分類される鳥類の1種。鮮やかな青い足からこの名前が付けられた。</p>
       <p>メキシコからペルーにかけての太平洋沿岸に生息する基亜種と、 ガラパゴス諸島の固有亜種の２亜種に分けられる。ガラパゴス諸島の固有亜種は、ガラパゴス諸島に生息する3種のカツオドリ科の中の1種として、ガラパゴス諸島に広く分布する。わずかに大きく羽に艶がある[3]。</p>
@@ -63,7 +74,7 @@
       <a href="https://ja.wikipedia.org/wiki/アオアシカツオドリ">wiki</a>
     </div>
     <div id="target4" class="plane">
-      <img style="float: left; margin: 10px;" width="400" src="images/tortoise.jpg"/>
+      <img src="images/tortoise.jpg"/>
       <b>ゾウガメ</b>
       <p>ゾウガメとは、大型のリクガメ、特に甲長1mを超すリクガメ。</p>
       <p>肉食獣による捕食の危険に乏しいインド洋や太平洋などの島嶼において、互いに異なるリクガメから、独立に大型化の進化をたどったものが多い。</p>
@@ -132,17 +143,14 @@
       const transform = xnew.context('transform');
       let opacity = 0.10;
       xthis.on('~fade', (current) => {
-        if (current === id) {
-          xnew.transition((progress) => {
+        xnew.transition((progress) => {
+          if (current === id) {
             opacity = Math.max(opacity, 0.10 + progress * 0.80);
-            xthis.element.style.opacity = opacity;
-          }, 700);
-        } else {
-          xnew.transition((progress) => {
+          } else {
             opacity = Math.min(opacity, 0.90 - progress * 0.80);
-            xthis.element.style.opacity = opacity;
-          }, 700);
-        }
+          }
+          xthis.element.style.opacity = opacity;
+        }, 700);
       })
       return {
         update() {
@@ -154,6 +162,7 @@
         }
       }
     }
+
     function ThreeMain(canvas) {
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 

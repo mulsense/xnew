@@ -43,8 +43,6 @@ export function GestureEvent() {
     });
 
     return {
-        get isActive() {
-            return isActive;
-        },
+       
     }
 }
