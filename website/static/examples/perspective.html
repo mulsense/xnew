@@ -26,16 +26,18 @@
 <body>
   <div id="main" style="width: 100%; height: 100%; perspective: 300px; perspective-origin: center; user-select: none;">
     <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
-    <div id="target" style="position: absolute; opacity: 0.5; inset: 0; margin: auto; width: 800px; height: 400px; background: #AAA;">
+    <div id="target" style="position: absolute; opacity: 0.9; inset: 0; margin: auto; width: 800px; height: 400px; background: #AAA;">
       <img style="pointer-events: none;" width="400" src="harinezumi.jpg"/>
+      <div>
+        aaa test
+      </div>
     </div>
   </div>
   <script>
     xnew('#main', () => {
       const perspective = 300 / (Math.tan(45 / 2 * Math.PI / 180) * 2);
-      console.log(THREE.UnrealBloomPass)
       xnew('#screen', () => {
-        const screen = xnew(xnew.Screen, { width: 600, height: 400, objectFit: 'cover' });
+        const screen = xnew(xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
         xnew(screen, ThreeMain, screen.canvas);
       });
 
@@ -56,7 +58,7 @@
     });
 
     function ThreeMain(canvas) {
-      const renderer = new THREE.WebGLRenderer({ canvas });
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 
       const perspective = 300;
       const rect = xthis.element.getBoundingClientRect();
@@ -130,10 +132,10 @@
       scene.background = new THREE.Color(0xFFFFFF);
       xnew.extend(ThreeObject, scene);
 
-      xnew(DirectionaLight, 20, -50, 100);
+      xnew(DirectionaLight, 20, -50, 50);
+      xnew(DirectionaLight, 20, 50, -10);
       xnew(AmbientLight);
 
-      // xnew(Plane, 300, 200, 0xF8F8FF);
       xnew(Room);
 
       return {
@@ -144,59 +146,45 @@
     }
 
     function DirectionaLight(x, y, z) {
-      const object = new THREE.DirectionalLight(0xFFFFFF, 0.40);
+      const object = new THREE.DirectionalLight(0xFFFFFF, 0.10);
       object.position.set(x, y, z);
       xnew.extend(ThreeObject, object);
     }
 
     function AmbientLight() {
-      const object = new THREE.AmbientLight(0xFFFFFF, 0.50);
+      const object = new THREE.AmbientLight(0xFFFFFF, 0.10);
       xnew.extend(ThreeObject, object);
     }
 
     function Room() {
-      const size = 1500;
+      const size = 2000;
       const geometry = new THREE.BoxGeometry(size, size, size);
-      const material = new THREE.MeshStandardMaterial({ color: 0xF8F8FF, transparent: true, side: THREE.BackSide });
+      const material = new THREE.MeshStandardMaterial({ 
+        color: 0xF8F8FF, transparent: true, side: THREE.BackSide,
+        polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+      });
       const object = new THREE.Mesh(geometry, material);
       object.receiveShadow = true;
 
       xnew.extend(ThreeObject, object);
-      xnew(Grid, { z: 500 });
-      xnew(Grid, { z: -500 });
+      xnew(Grid, { pz: +1000, rx: 90 });
+      xnew(Grid, { pz: -1000, rx: 90 });
+      xnew(Grid, { px: +1000, rz: 90 });
+      xnew(Grid, { px: -1000, rz: 90 });
+      xnew(Grid, { py: +1000 });
+      xnew(Grid, { py: -1000 });
+      // xnew(Grid, { z: -1000 });
     }
 
-    function Grid({ x = 0, y = 0, z = 0 }) {
-      const grid = new THREE.GridHelper( 2000, 10, 0xDDDDFF, 0xDDDDFF );
+    function Grid({ px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0 }) {
+      const grid = new THREE.GridHelper( 2200, 10, 0x444466, 0x444466 );
       xnew.extend(ThreeObject, grid);
-      grid.rotation.x = 90 * Math.PI / 180;
-      grid.position.x = x;
-      grid.position.y = y;
-      grid.position.z = z;
-    }
-
-    function Grid2() {
-      const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
-
-      const points = [];
-      points.push( new THREE.Vector3( -100, 0, 0 ) );
-      points.push( new THREE.Vector3( +100, 10, 0 ) );
-      points.push( new THREE.Vector3( 10, 0, 0 ) );
-
-      const geometry = new THREE.BufferGeometry().setFromPoints( points );
-
-      const line = new THREE.Line( geometry, material );
-      xnew.extend(ThreeObject, line);
-    }
-
-    function Plane(w, h, color) {
-      const geometry = new THREE.PlaneGeometry(w, h, 1, 1);
-      const material = new THREE.MeshStandardMaterial({ color, transparent: true, });
-      const object = new THREE.Mesh(geometry, material);
-      object.receiveShadow = true;
-      object.position.z = -300;
-
-      xnew.extend(ThreeObject, object);
+      grid.rotation.x = rx * Math.PI / 180;
+      grid.rotation.y = ry * Math.PI / 180;
+      grid.rotation.z = rz * Math.PI / 180;
+      grid.position.x = px;
+      grid.position.y = py;
+      grid.position.z = pz;
     }
 
   </script>

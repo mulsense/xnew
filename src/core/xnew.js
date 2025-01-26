@@ -94,59 +94,80 @@ function find(component)
 
 function timer(callback, delay = 0, loop = false)
 {
-    const unit = Unit.current;
-    const timer = new Timer(() => Unit.scope.call(unit, callback), delay, loop);
+    let finalizer = null;
 
+    const current = Unit.current;
+    const timer = new Timer(() => {
+        Unit.scope.call(current, callback);
+        finalizer.finalize();
+    }, delay, loop);
+    
     if (document !== undefined) {
         if (document.hidden === false) {
             Timer.start.call(timer);
         }
-        const xdoc = xnew(document);
-        xdoc.on('visibilitychange', (event) => {
+        const doc = xnew(document);
+        doc.on('visibilitychange', (event) => {
             document.hidden === false ? Timer.start.call(timer) : Timer.stop.call(timer);
         });
     } else {
         Timer.start.call(timer);
     }
 
-    xnew(() => {
+    finalizer = xnew(() => {
         return {
             finalize() {
                 timer.clear();
             }
         }
     });
+
     return timer;
 }
 
-function transition(callback, delay = 0, loop = false)
+function transition(callback, interval = 1000)
 {
-    const unit = Unit.current;
-    const timer = new Timer(internal, delay, loop);
+    let finalizer = null;
 
-    function internal() {
-        Unit.scope.call(unit, callback, 1.0);
-    }
+    const current = Unit.current;
+    const timer = new Timer(() => {
+        Unit.scope.call(current, callback, 1.0);
+        finalizer.finalize();
+    }, interval);
+
     if (document !== undefined) {
         if (document.hidden === false) {
             Timer.start.call(timer);
         }
-        const xdoc = xnew(document);
-        xdoc.on('visibilitychange', (event) => {
+        const doc = xnew(document);
+        doc.on('visibilitychange', (event) => {
             document.hidden === false ? Timer.start.call(timer) : Timer.stop.call(timer);
         });
     } else {
         Timer.start.call(timer);
     }
 
-    xnew(() => {
+    Unit.scope.call(current, callback, 0.0);
+
+    const updater = xnew(null, () => {
         return {
-            start() {
+            update() {
+                const progress = Timer.elapsed.call(timer) / interval;
+                if (progress < 1.0) {
+                    Unit.scope.call(current, callback, progress);
+                }
             },
+        }
+    });
+    
+    finalizer = xnew(() => {
+        return {
             finalize() {
                 timer.clear();
+                updater.finalize();
             }
         }
     });
+
     return timer;
 }

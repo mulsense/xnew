@@ -194,6 +194,16 @@ export class Timer
         }
     }
 
+    static elapsed()
+    {
+        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+    }
+
+    static id()
+    {
+        return this.id;
+    }
+
     static start()
     {
         if (this.id === null) {
@@ -212,15 +222,10 @@ export class Timer
         }
     }
 
-    static elapsed()
-    {
-        return Date.now() - this.time + this.offset;
-    }
-
     static stop()
     {
         if (this.id !== null) {
-            this.offset = Date.now() - this.time + this.offset;
+            this.offset = this.offset + Date.now() - this.time;
             clearTimeout(this.id);
 
             this.id = null;

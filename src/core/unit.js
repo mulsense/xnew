@@ -1,6 +1,6 @@
 import { isObject, isNumber, isString, isFunction, createElement, MapSet, MapMap, error } from './util';
 
-const global = typeof globalThis !== 'undefined' ? globalThis : this;
+const gthis = window ?? global;
 
 export class Unit
 {
@@ -157,13 +157,13 @@ export class Unit
         const backup = Unit.current;
         try {
             Unit.current = this;
-            global.xthis = this;
+            gthis.xthis = this;
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
             Unit.current = backup;
-            global.xthis = backup;
+            gthis.xthis = backup;
         }
     }
 
