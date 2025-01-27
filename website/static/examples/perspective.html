@@ -14,7 +14,6 @@
     .plane {
       position: absolute; top: 0; left: 0; right: 0; 
       margin: auto;
-      margin-top: 10%;
       padding: 10px;
       width: 75%;
       max-width: 800px;
@@ -22,56 +21,50 @@
       transform-origin: center;
     }
     .plane > img {
-      width: 50%;
-      min-width: 300px;
+      width: 50%; min-width: 300px;
       float: left;
-      margin: 10px;
+      margin-right: 10px; margin-bottom: 10px;
     }
 
-    .button-L {
-      position: absolute; left: 10px; bottom: 10px;
+    .button {
+      cursor: pointer;
+      position: absolute; bottom: 10px;
       opacity: 0.2;
       width: 50px; height: 50px;
       border: solid 1px #FFF;
       border-radius: 50%;
     }
-    .button-L:hover {
+    .button:hover {
       opacity: 0.4;
     }
-    .button-L::after {
+    .button::after {
       display: block;
       content: "";
       background: #FFF;
       width: 100%; height: 100%;
       clip-path: polygon(20% 50%, 70% 20%, 70% 80%);
     }
-
-    .button-R {
-      position: absolute; right: 10px; bottom: 10px;
-      opacity: 0.2;
-      width: 50px; height: 50px;
-      border: solid 1px #FFF;
-      border-radius: 50%;
+    .button.left {
+      left: 10px;
     }
-    .button-R:hover {
-      opacity: 0.4;
+    .button.left::after {
+      clip-path: polygon(20% 50%, 70% 20%, 70% 80%);
     }
-    .button-R::after {
-      display: block;
-      content: "";
-      background: #FFF;
-      width: 100%; height: 100%;
+    .button.right {
+      right: 10px;
+    }
+    .button.right:after {
       clip-path: polygon(80% 50%, 30% 20%, 30% 80%);
     }
   </style>
 </head>
 
 <body>
-  <div id="main" style="width: 100%; height: 100%; perspective: 500px; perspective-origin: center;">
-    <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
+  <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
 
-    <div id="target1" class="plane">
-      <img style="float: left; margin: 10px;" width="400" src="images/iguana.jpg"/>
+  <div style="width: 100%; height: 100%; perspective: 500px; perspective-origin: center;">
+    <div class="plane">
+      <img src="images/iguana.jpg"/>
       <b>ウミイグアナ</b>
       <p>ウミイグアナは、有鱗目イグアナ科ウミイグアナ属に分類されるトカゲ。</p>
       <p>
@@ -88,7 +81,7 @@
       </p>
       <a href="https://ja.wikipedia.org/wiki/ウミイグアナ">wiki</a>
     </div>
-    <div id="target2" class="plane">
+    <div class="plane">
       <img src="images/penguin.jpg"/>
       <b>ガラパゴスペンギン</b>
       <p>
@@ -107,7 +100,7 @@
       </p>
       <a href="https://ja.wikipedia.org/wiki/ガラパゴスペンギン">wiki</a>
     </div>
-    <div id="target3" class="plane">
+    <div class="plane">
       <img src="images/booby.jpg"/>
       <b>アオアシカツオドリ</b>
       <p>
@@ -126,7 +119,7 @@
       </p>
       <a href="https://ja.wikipedia.org/wiki/アオアシカツオドリ">wiki</a>
     </div>
-    <div id="target4" class="plane">
+    <div class="plane">
       <img src="images/tortoise.jpg"/>
       <b>ゾウガメ</b>
       <p>ゾウガメとは、大型のリクガメ、特に甲長1mを超すリクガメ。</p>
@@ -145,95 +138,114 @@
       </p>
       <a href="https://ja.wikipedia.org/wiki/ゾウガメ">wiki</a>
     </div>
-
-    <div class="button-L"></div>
-    <div class="button-R"></div>
   </div>
 
+  <div class="button left"></div>
+  <div class="button right"></div>
+
   <script>
-    xnew('#main', () => {
-      xnew.context('transform', { px: -180, py: 0, pz: 0, rx: 0, ry: -15, rz: 0 });
-      const transform = xnew.context('transform');
+    xnew(() => {
+      xnew.context('transform', { px: -140, py: 0, pz: 0, rx: 0, ry: 15, rz: 0 });
+      xnew.context('state', { id: 0, moving: false });
 
-      xnew('#screen', () => {
-        const screen = xnew(xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
-        xnew(screen.element, ThreeMain, screen.canvas);
-      });
+      xnew(HtmlMain);
+      xnew(ThreeMain);
 
-      xnew('#target1', Plane, 0, 0);
-      xnew('#target2', Plane, 1, 90);
-      xnew('#target3', Plane, 2, 180);
-      xnew('#target4', Plane, 3, 270);
-      xthis.emit('~fade', 0);
-
-      let state = { id: 0, moving: false };
-      xnew('.button-L', Move, +1, state, transform);
-      xnew('.button-R', Move, -1, state, transform);
-
-      xthis.on('touchstart wheel', (event) => {
-        event.preventDefault();
-      });
-      xthis.on('wheel', (event) => {
-        transform.py += event.wheelDeltaY * 0.2;
-        transform.py = Math.max(-200, Math.min(+200, transform.py));
-      });
+      xnew(Event);
     });
-
-    function Move(direction, state, transform) {
-      xthis.on('click', () => {
-        if (state.moving === false) {
-          state.moving = true;
-          state.id = (state.id + direction + 4) % 4;
-          xthis.emit('~fade', state.id);
-          const ry = transform.ry;
-          const py = transform.py;
-          xnew.transition((progress) => {
-            const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
-            transform.ry = ry + direction * 90 * p;
-            transform.py = py * (1.0 - p);
-            if (progress === 1.0) state.moving = false;
-          }, 700);
-        }
+    
+    function HtmlMain() {
+      document.querySelectorAll('.plane').forEach((element, index) => {
+        xnew(element, Plane, index);
       });
     }
 
-    function Plane(id, offset) {
+    function Plane(id) {
       const transform = xnew.context('transform');
-      let opacity = 0.10;
-      xthis.on('~fade', (current) => {
+      const state = xnew.context('state');
+
+      let opacity = id === state.id ? 0.90 : 0.10;
+      xthis.on('~fade', () => {
         xnew.transition((progress) => {
-          if (current === id) {
-            opacity = Math.max(opacity, 0.10 + progress * 0.80);
-          } else {
-            opacity = Math.min(opacity, 0.90 - progress * 0.80);
-          }
-          xthis.element.style.opacity = opacity;
+          const p = progress * 0.80;
+          opacity = id === state.id ? Math.max(opacity, 0.10 + p) : Math.min(opacity, 0.90 - p);
         }, 700);
-      })
+      });
+
       return {
         update() {
+          xthis.element.style.opacity = opacity;
           xthis.element.style.transform = `
             translateZ(500px) 
-            translateX(${-transform.px}px) translateY(${transform.py}px) rotateY(${-transform.ry+offset}deg) rotateX(${transform.rx}deg) 
+            translateX(${-transform.px}px) translateY(${transform.py + 100}px)
+            rotateX(${transform.rx}deg) rotateY(${transform.ry + id * 90}deg) 
             translateZ(-500px)
           `;
         }
       }
     }
 
-    function ThreeMain(canvas) {
+    function Event() {
+      const transform = xnew.context('transform');
+
+      xnew('.button.left', Button, +1);
+      xnew('.button.right', Button, -1);
+
+      xthis.on('wheel', (event) => {
+        event.preventDefault();
+        transform.py = Math.max(-300, Math.min(+300, transform.py + event.wheelDeltaY * 0.2));
+      }, { passive: false });
+
+      // xthis.on('~rotate', (move) => {
+      //   transform.ry -= move.x * 0.2;
+      //   transform.rx += move.y * 0.2;
+      // });
+
+      // const drag = xnew(xnew.DragEvent);
+      // drag.on('move', (event, { position, delta }) => {
+      //   if (event.buttons & 1 || !event.buttons) {
+      //     xthis.emit('~rotate', { x: +delta.x, y: +delta.y });
+      //   }
+      //   if (event.buttons & 2) {
+      //     xthis.emit('~translate', { x: -delta.x, y: +delta.y });
+      //   }
+      // });
+    }
+
+    function Button(direction) {
+      const transform = xnew.context('transform');
+      const state = xnew.context('state');
+
+      xthis.on('click', () => {
+        if (state.moving === false) {
+          state.id = (state.id + direction + 4) % 4;
+          state.moving = true;
+          const backup = { ...transform };
+          xnew.transition((progress) => {
+            const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
+            transform.ry = backup.ry - direction * 90 * p;
+            transform.py = backup.py * (1.0 - p);
+            if (progress === 1.0) state.moving = false;
+          }, 700);
+          xthis.emit('~fade');
+        }
+      });
+    }
+
+    function ThreeMain() {
+      const transform = xnew.context('transform');
+     
+      const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
+      const canvas = screen.canvas;
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 
       const perspective = 500;
-      const rect = xthis.element.getBoundingClientRect();
-      const deg = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
-      const camera = new THREE.PerspectiveCamera(deg, canvas.width / canvas.height);
+      const fov = Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
+      const camera = new THREE.PerspectiveCamera(fov, canvas.width / canvas.height);
       camera.position.set(0, 0, 0);
-      const transform = xnew.context('transform');
 
       xnew(xnew.ResizeEvent).on('resize', () => {
-        const rect = xthis.element.getBoundingClientRect();
-        camera.fov = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
+        camera.fov = Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
         camera.updateProjectionMatrix();
       });
  
@@ -245,20 +257,18 @@
 
       return {
         update() {
-          camera.rotation.x = transform.rx * Math.PI / 180;
-          camera.rotation.y = transform.ry * Math.PI / 180;
-          camera.position.x = +Math.cos(transform.ry * Math.PI / 180) * transform.px;
+          scene.rotation.x = transform.rx * Math.PI / 180;
+          scene.rotation.y = transform.ry * Math.PI / 180;
+          camera.position.x = transform.px;
           camera.position.y = transform.py;
-          camera.position.z = -Math.sin(transform.ry * Math.PI / 180) * transform.px;
-          
           renderer.render(scene, camera);
         },
       }
     }
 
     function ThreeObject(object) {
-      const parent = xnew.context('THREE.Object3D');
-      xnew.context('THREE.Object3D', object);
+      const parent = xnew.context('ThreeObject');
+      xnew.context('ThreeObject', object);
 
       parent?.add(object);
       return {
@@ -269,20 +279,20 @@
     }
 
     function ThreeContents() {
-      xnew(DirectionaLight, 20, -50, 50);
-      xnew(DirectionaLight, 20, 50, -10);
-      xnew(AmbientLight);
+      xnew(DirectionaLight, 20, -50, 50, 0.1);
+      xnew(DirectionaLight, 20, 50, -10, 0.1);
+      xnew(AmbientLight, 0.05);
       xnew(Room);
     }
 
-    function DirectionaLight(x, y, z) {
-      const object = new THREE.DirectionalLight(0xFFFFFF, 0.10);
+    function DirectionaLight(x, y, z, value) {
+      const object = new THREE.DirectionalLight(0xFFFFFF, value);
       object.position.set(x, y, z);
       xnew.extend(ThreeObject, object);
     }
 
-    function AmbientLight() {
-      const object = new THREE.AmbientLight(0xFFFFFF, 0.10);
+    function AmbientLight(value) {
+      const object = new THREE.AmbientLight(0xFFFFFF, value);
       xnew.extend(ThreeObject, object);
     }
 
@@ -290,13 +300,12 @@
       const size = 1000;
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshStandardMaterial({ 
-        color: 0xF8F8FF, transparent: true, side: THREE.BackSide,
+        color: 0xF8F8FF, side: THREE.BackSide,
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
       });
       const object = new THREE.Mesh(geometry, material);
-      object.receiveShadow = true;
-
       xnew.extend(ThreeObject, object);
+
       xnew(Grid, { pz: +500, rx: 90 });
       xnew(Grid, { pz: -500, rx: 90 });
       xnew(Grid, { px: +500, rz: 90 });
@@ -306,14 +315,10 @@
     }
 
     function Grid({ px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0 }) {
-      const grid = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
-      xnew.extend(ThreeObject, grid);
-      grid.rotation.x = rx * Math.PI / 180;
-      grid.rotation.y = ry * Math.PI / 180;
-      grid.rotation.z = rz * Math.PI / 180;
-      grid.position.x = px;
-      grid.position.y = py;
-      grid.position.z = pz;
+      const object = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
+      xnew.extend(ThreeObject, object);
+      object.rotation.set(rx * Math.PI / 180, ry * Math.PI / 180, rz * Math.PI / 180);
+      object.position.set(px, py, pz);
     }
 
   </script>

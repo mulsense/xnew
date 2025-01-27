@@ -824,10 +824,10 @@
             const position = getPosition(event, rect);
             let previous = position;
            
-            const xwin = xnew(window);
-            wmap.set(id, xwin);
+            const win = xnew(window);
+            wmap.set(id, win);
 
-            xwin.on('pointermove', (event) => {
+            win.on('pointermove', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -838,25 +838,25 @@
                 }
             });
 
-            xwin.on('pointerup', (event) => {
+            win.on('pointerup', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
 
                     current = { id, position };
                     self.emit('up', event, { type: 'up', position, });
-                    xwin.finalize();
-                    xmap.delete(id);
+                    win.finalize();
+                    wmap.delete(id);
                 }
             });
 
-            xwin.on('pointercancel', (event) => {
+            win.on('pointercancel', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
                    
                     current = null;
                     self.emit('cancel', event, { type: 'cancel', position, });
-                    xwin.finalize();
-                    xmap.delete(id);
+                    win.finalize();
+                    wmap.delete(id);
                 }
             });
 
@@ -871,8 +871,8 @@
         return {
             cancel() {
                 if (current !== null) {
-                    xmap.get(current.id).finalize();
-                    xmap.delete(current.id);
+                    wmap.get(current.id).finalize();
+                    wmap.delete(current.id);
                     current = null;
                 }
             }
