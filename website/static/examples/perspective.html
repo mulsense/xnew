@@ -160,8 +160,8 @@
     const perspective = 500;
 
     xnew(() => {
-      xnew.context('offset', { px: 120, py: 0, pz: 0, rx: 0, ry: 11, rz: 0 });
-      xnew.context('transform', { px: 0, py: 0, pz: 0, rx: 0, ry: 0, rz: 0 });
+      xnew.context('offset', { rx: 0, ry: 11, rz: 0, tx: 120, ty: 0, tz: 0 });
+      xnew.context('transform', { rx: 0, ry: 0, rz: 0, tx: 0, ty: 0, tz: 0 });
       xnew.context('state', { id: 0, moving: false });
 
       xnew(HtmlMain);
@@ -193,7 +193,7 @@
           xthis.element.style.opacity = opacity;
           xthis.element.style.transform = `
             translateZ(${perspective}px) 
-            translateX(${(transform.px + offset.px)}px) translateY(${(transform.py + offset.py)}px)
+            translateX(${(transform.tx + offset.tx)}px) translateY(${(transform.ty + offset.ty)}px)
             rotateX(${transform.rx + offset.rx}deg) rotateY(${transform.ry + offset.ry + id * 90}deg) 
             translateZ(${-perspective}px)
           `;
@@ -217,7 +217,7 @@
             xnew.transition((progress) => {
               const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
               transform.ry = backup.ry - direction * 90 * p;
-              transform.py = backup.py * (1.0 - p);
+              transform.ty = backup.ty * (1.0 - p);
               if (progress === 1.0) state.moving = false;
             }, 700);
             xthis.emit('~planefade');
@@ -227,7 +227,7 @@
 
       xthis.on('wheel', (event) => {
         event.preventDefault();
-        transform.py = Math.max(-300, Math.min(+300, transform.py + event.wheelDeltaY * 0.2));
+        transform.ty = Math.max(-300, Math.min(+300, transform.ty + event.wheelDeltaY * 0.2));
       }, { passive: false });
 
       // xnew(xnew.DragEvent).on('move', (event, { position, delta }) => {
@@ -263,8 +263,8 @@
         update() {
           scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
           scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
-          camera.position.x = -(transform.px + offset.px);
-          camera.position.y = +(transform.py + offset.py);
+          camera.position.x = -(transform.tx + offset.tx);
+          camera.position.y = +(transform.ty + offset.ty);
           renderer.render(scene, camera);
         },
       }
@@ -310,19 +310,19 @@
       const object = new THREE.Mesh(geometry, material);
       xnew.extend(ThreeObject, object);
 
-      xnew(Grid, { pz: +size, rx: 90 });
-      xnew(Grid, { pz: -size, rx: 90 });
-      xnew(Grid, { px: +size, rz: 90 });
-      xnew(Grid, { px: -size, rz: 90 });
-      xnew(Grid, { py: +size });
-      xnew(Grid, { py: -size });
+      xnew(Grid, { tz: +size, rx: 90 });
+      xnew(Grid, { tz: -size, rx: 90 });
+      xnew(Grid, { tx: +size, rz: 90 });
+      xnew(Grid, { tx: -size, rz: 90 });
+      xnew(Grid, { ty: +size });
+      xnew(Grid, { ty: -size });
     }
 
-    function Grid({ px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0 }) {
+    function Grid({ tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
       const object = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
       xnew.extend(ThreeObject, object);
       object.rotation.set(rx * Math.PI / 180, ry * Math.PI / 180, rz * Math.PI / 180);
-      object.position.set(px, py, pz);
+      object.position.set(tx, ty, tz);
     }
 
   </script>
