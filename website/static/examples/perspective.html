@@ -12,16 +12,21 @@
       overflow: hidden;
     }
     .plane {
-      position: absolute; top: 0; left: 0; right: 0; 
-      margin: auto;
-      padding: 10px;
-      width: 75%;
-      max-width: 800px;
-      background: #AAA;
+      position: absolute; inset: 0;
+      display: flex;
       transform-origin: center;
     }
-    .plane > img {
-      width: 50%; min-width: 300px;
+    .plane > div {
+      justify-content: center;
+      align-items: center;
+      width: 85%;
+      max-width: 800px;
+      margin: auto;
+      padding: 10px;
+      background: #AAA;
+    }
+    .plane img {
+      width: 40%; min-width: 300px;
       float: left;
       margin-right: 10px; margin-bottom: 10px;
     }
@@ -35,7 +40,7 @@
       border-radius: 50%;
     }
     .button:hover {
-      opacity: 0.4;
+      opacity: 0.5;
     }
     .button::after {
       display: block;
@@ -64,79 +69,87 @@
 
   <div style="width: 100%; height: 100%; perspective: 500px; perspective-origin: center;">
     <div class="plane">
-      <img src="images/iguana.jpg"/>
-      <b>ウミイグアナ</b>
-      <p>ウミイグアナは、有鱗目イグアナ科ウミイグアナ属に分類されるトカゲ。</p>
-      <p>
-        全長120 - 150センチメートル。頭胴長35 - 55センチメートル。頭部や頸部は太くて短い。
-        頭部背面は瘤状に隆起する。頸部背面には12 - 20枚の刺状鱗（クレスト）が鬣状に並び、
-        胴体背面から尾の先端にかけても頸部ほど大型ではないもののクレストが並ぶ。
-        尾は側扁し頭胴長の1.5倍に達する。これにより海中で大きな推進力を得ることができる。
-      </p>
-      <p>
-        体色は緑がかった灰褐色で、気温が高いと明色・気温が低いと暗色になる傾向がある。
-        暗い体色は体温を上げるのに役立ったり、周囲の岩礁に似た保護色になると考えられている。
-        眼と鼻孔の間に体内に溜まった塩分を排出する腺を持つ。四肢や指趾は頑丈で、指趾には長く鋭い爪が生える。
-        これにより海底の岩に爪を引っ掛けることで体を固定し、速い海流内でも採食を行うことができる。
-      </p>
-      <a href="https://ja.wikipedia.org/wiki/ウミイグアナ">wiki</a>
+      <div>
+        <img src="images/iguana.jpg"/>
+        <b>ウミイグアナ</b>
+        <p>ウミイグアナは、有鱗目イグアナ科ウミイグアナ属に分類されるトカゲ。</p>
+        <p>
+          全長120 - 150センチメートル。頭胴長35 - 55センチメートル。頭部や頸部は太くて短い。
+          頭部背面は瘤状に隆起する。頸部背面には12 - 20枚の刺状鱗（クレスト）が鬣状に並び、
+          胴体背面から尾の先端にかけても頸部ほど大型ではないもののクレストが並ぶ。
+          尾は側扁し頭胴長の1.5倍に達する。これにより海中で大きな推進力を得ることができる。
+        </p>
+        <p>
+          体色は緑がかった灰褐色で、気温が高いと明色・気温が低いと暗色になる傾向がある。
+          暗い体色は体温を上げるのに役立ったり、周囲の岩礁に似た保護色になると考えられている。
+          眼と鼻孔の間に体内に溜まった塩分を排出する腺を持つ。四肢や指趾は頑丈で、指趾には長く鋭い爪が生える。
+          これにより海底の岩に爪を引っ掛けることで体を固定し、速い海流内でも採食を行うことができる。
+        </p>
+        <a href="https://ja.wikipedia.org/wiki/ウミイグアナ">wiki</a>
+      </div>
     </div>
     <div class="plane">
-      <img src="images/penguin.jpg"/>
-      <b>ガラパゴスペンギン</b>
-      <p>
-        ガラパゴスペンギンは、ペンギン目ペンギン科ケープペンギン属に分類される鳥類。
-        ペンギンの中で最も低緯度の赤道直下に生息する。
-      </p>
-      <p>
-        フンボルトペンギン属の4種うち最小種。種小名のmendiculus は「物乞いのような」の意で、
-        ペンギンの中でも小形（3番目に小さい）であることに由来する。メスよりもオスの方がやや大型になる。
-        全身は短い羽毛で覆われる。頭部や体上面の羽衣は黒色で、眼から喉にかけて白い筋模様が入る。
-        下面の羽衣は白く、胸部には黒い斑点と不明瞭な黒い横縞が入る。オスはメスよりも上面と下面の体色が明瞭。
-        眼の周辺や嘴基部に羽毛はなく、繁殖期になると黒斑のあるピンク色の皮膚が裸出する。
-        腹部の斑紋とともに、この裸出部の大きさや模様は個体により異なる。
-        オスは喉の白色の部分や、嘴基部の皮膚の裸出部がメスよりも広い。
-        若鳥の上面は灰色で、頭部や胸部の斑紋がない。
-      </p>
-      <a href="https://ja.wikipedia.org/wiki/ガラパゴスペンギン">wiki</a>
+      <div>
+        <img src="images/penguin.jpg"/>
+        <b>ガラパゴスペンギン</b>
+        <p>
+          ガラパゴスペンギンは、ペンギン目ペンギン科ケープペンギン属に分類される鳥類。
+          ペンギンの中で最も低緯度の赤道直下に生息する。
+        </p>
+        <p>
+          フンボルトペンギン属の4種うち最小種。種小名のmendiculus は「物乞いのような」の意で、
+          ペンギンの中でも小形（3番目に小さい）であることに由来する。メスよりもオスの方がやや大型になる。
+          全身は短い羽毛で覆われる。頭部や体上面の羽衣は黒色で、眼から喉にかけて白い筋模様が入る。
+          下面の羽衣は白く、胸部には黒い斑点と不明瞭な黒い横縞が入る。オスはメスよりも上面と下面の体色が明瞭。
+          眼の周辺や嘴基部に羽毛はなく、繁殖期になると黒斑のあるピンク色の皮膚が裸出する。
+          腹部の斑紋とともに、この裸出部の大きさや模様は個体により異なる。
+          オスは喉の白色の部分や、嘴基部の皮膚の裸出部がメスよりも広い。
+          若鳥の上面は灰色で、頭部や胸部の斑紋がない。
+        </p>
+        <a href="https://ja.wikipedia.org/wiki/ガラパゴスペンギン">wiki</a>
+      </div>
     </div>
     <div class="plane">
-      <img src="images/booby.jpg"/>
-      <b>アオアシカツオドリ</b>
-      <p>
-        アオアシカツオドリは、カツオドリ目カツオドリ科に分類される鳥類の1種。
-        鮮やかな青い足からこの名前が付けられた。
-      </p>
-      <p>
-        メキシコからペルーにかけての太平洋沿岸に生息する基亜種と、ガラパゴス諸島の固有亜種の2亜種に分けられる。
-        ガラパゴス諸島の固有亜種は、ガラパゴス諸島に生息する3種のカツオドリ科の中の1種として、
-        ガラパゴス諸島に広く分布する。わずかに大きく羽に艶がある。
-        全長は約80cm (76-84cm)。翼開長約152cm。雌雄よく似るが、雌のほうが大きく見える。
-        全長は同様であるが、雄は尾が長くて体が小さいことによる。
-        雌は眼の中心の黒い範囲が大きく黒眼がちに見える。
-        求愛行動時、雄が足を交互に持ち上げ、雌の周りをダンスする。
-        また、現在は巣を作らないが、過去に作っていた頃の名残で、小枝や小石を相手に差し出す行動をする。
-      </p>
-      <a href="https://ja.wikipedia.org/wiki/アオアシカツオドリ">wiki</a>
+        <div>
+        <img src="images/booby.jpg"/>
+        <b>アオアシカツオドリ</b>
+        <p>
+          アオアシカツオドリは、カツオドリ目カツオドリ科に分類される鳥類の1種。
+          鮮やかな青い足からこの名前が付けられた。
+        </p>
+        <p>
+          メキシコからペルーにかけての太平洋沿岸に生息する基亜種と、ガラパゴス諸島の固有亜種の2亜種に分けられる。
+          ガラパゴス諸島の固有亜種は、ガラパゴス諸島に生息する3種のカツオドリ科の中の1種として、
+          ガラパゴス諸島に広く分布する。わずかに大きく羽に艶がある。
+          全長は約80cm (76-84cm)。翼開長約152cm。雌雄よく似るが、雌のほうが大きく見える。
+          全長は同様であるが、雄は尾が長くて体が小さいことによる。
+          雌は眼の中心の黒い範囲が大きく黒眼がちに見える。
+          求愛行動時、雄が足を交互に持ち上げ、雌の周りをダンスする。
+          また、現在は巣を作らないが、過去に作っていた頃の名残で、小枝や小石を相手に差し出す行動をする。
+        </p>
+        <a href="https://ja.wikipedia.org/wiki/アオアシカツオドリ">wiki</a>
+      </div>
     </div>
     <div class="plane">
-      <img src="images/tortoise.jpg"/>
-      <b>ゾウガメ</b>
-      <p>ゾウガメとは、大型のリクガメ、特に甲長1mを超すリクガメ。</p>
-      <p>
-        肉食獣による捕食の危険に乏しいインド洋や太平洋などの島嶼において、
-        互いに異なるリクガメから、独立に大型化の進化をたどったものが多い。
-        人類の大航海時代の到来と共に船員らの食料として乱獲され（動きが鈍い上、
-        捕獲後に餌を与えなくても長期間生存し新鮮な肉が得られたため）、大半の種が絶滅した。
-        現在ではインド洋のアルダブラゾウガメ（近縁種としてGeochelone arnoldiとGeochelone hololissaがほぼ野生絶滅の状態で、
-        飼育下での繁殖プログラムが進められているが和名が不明のためゾウガメに含めるかは現時点では不明）
-        と太平洋のガラパゴスゾウガメ（亜種を独立種として分割する説もあり）が、かろうじて生存している。
-        長寿であり、100年以上生きる個体も多い。
-        また、2005年まで生存したアルダブラゾウガメのアドワイチャは、250年以上生きた可能性があり、
-        確実な証拠はないが世界最長寿の動物だったともいわれる。
-        現在は、セイシェルのバード島に生息する女性名エスメラルダと呼ばれる雄のセイシェルゾウガメが200歳で最長寿と言われている。
-      </p>
-      <a href="https://ja.wikipedia.org/wiki/ゾウガメ">wiki</a>
+      <div>
+        <img src="images/tortoise.jpg"/>
+        <b>ゾウガメ</b>
+        <p>ゾウガメとは、大型のリクガメ、特に甲長1mを超すリクガメ。</p>
+        <p>
+          肉食獣による捕食の危険に乏しいインド洋や太平洋などの島嶼において、
+          互いに異なるリクガメから、独立に大型化の進化をたどったものが多い。
+          人類の大航海時代の到来と共に船員らの食料として乱獲され（動きが鈍い上、
+          捕獲後に餌を与えなくても長期間生存し新鮮な肉が得られたため）、大半の種が絶滅した。
+          現在ではインド洋のアルダブラゾウガメ（近縁種としてGeochelone arnoldiとGeochelone hololissaがほぼ野生絶滅の状態で、
+          飼育下での繁殖プログラムが進められているが和名が不明のためゾウガメに含めるかは現時点では不明）
+          と太平洋のガラパゴスゾウガメ（亜種を独立種として分割する説もあり）が、かろうじて生存している。
+          長寿であり、100年以上生きる個体も多い。
+          また、2005年まで生存したアルダブラゾウガメのアドワイチャは、250年以上生きた可能性があり、
+          確実な証拠はないが世界最長寿の動物だったともいわれる。
+          現在は、セイシェルのバード島に生息する女性名エスメラルダと呼ばれる雄のセイシェルゾウガメが200歳で最長寿と言われている。
+        </p>
+        <a href="https://ja.wikipedia.org/wiki/ゾウガメ">wiki</a>
+      </div>
     </div>
   </div>
 
@@ -144,8 +157,11 @@
   <div class="button right"></div>
 
   <script>
+    const perspective = 500;
+
     xnew(() => {
-      xnew.context('transform', { px: -140, py: 0, pz: 0, rx: 0, ry: 15, rz: 0 });
+      xnew.context('offset', { px: 120, py: 0, pz: 0, rx: 0, ry: 11, rz: 0 });
+      xnew.context('transform', { px: 0, py: 0, pz: 0, rx: 0, ry: 0, rz: 0 });
       xnew.context('state', { id: 0, moving: false });
 
       xnew(HtmlMain);
@@ -161,14 +177,14 @@
     }
 
     function Plane(id) {
+      const offset = xnew.context('offset');
       const transform = xnew.context('transform');
       const state = xnew.context('state');
 
-      let opacity = id === state.id ? 0.90 : 0.10;
-      xthis.on('~fade', () => {
+      let opacity = id === state.id ? 0.80 : 0.20;
+      xthis.on('~planefade', () => {
         xnew.transition((progress) => {
-          const p = progress * 0.80;
-          opacity = id === state.id ? Math.max(opacity, 0.10 + p) : Math.min(opacity, 0.90 - p);
+          opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
         }, 700);
       });
 
@@ -176,10 +192,10 @@
         update() {
           xthis.element.style.opacity = opacity;
           xthis.element.style.transform = `
-            translateZ(500px) 
-            translateX(${-transform.px}px) translateY(${transform.py + 100}px)
-            rotateX(${transform.rx}deg) rotateY(${transform.ry + id * 90}deg) 
-            translateZ(-500px)
+            translateZ(${perspective}px) 
+            translateX(${(transform.px + offset.px)}px) translateY(${(transform.py + offset.py)}px)
+            rotateX(${transform.rx + offset.rx}deg) rotateY(${transform.ry + offset.ry + id * 90}deg) 
+            translateZ(${-perspective}px)
           `;
         }
       }
@@ -187,80 +203,68 @@
 
     function Event() {
       const transform = xnew.context('transform');
+      const state = xnew.context('state');
 
       xnew('.button.left', Button, +1);
       xnew('.button.right', Button, -1);
+
+      function Button(direction) {
+        xthis.on('click', () => {
+          if (state.moving === false) {
+            state.id = (state.id + direction + 4) % 4;
+            state.moving = true;
+            const backup = { ...transform };
+            xnew.transition((progress) => {
+              const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
+              transform.ry = backup.ry - direction * 90 * p;
+              transform.py = backup.py * (1.0 - p);
+              if (progress === 1.0) state.moving = false;
+            }, 700);
+            xthis.emit('~planefade');
+          }
+        });
+      }
 
       xthis.on('wheel', (event) => {
         event.preventDefault();
         transform.py = Math.max(-300, Math.min(+300, transform.py + event.wheelDeltaY * 0.2));
       }, { passive: false });
 
-      // xthis.on('~rotate', (move) => {
-      //   transform.ry -= move.x * 0.2;
-      //   transform.rx += move.y * 0.2;
+      // xnew(xnew.DragEvent).on('move', (event, { position, delta }) => {
+      //   transform.ry -= delta.x * 0.2;
+      //   transform.rx += delta.y * 0.2;
       // });
-
-      // const drag = xnew(xnew.DragEvent);
-      // drag.on('move', (event, { position, delta }) => {
-      //   if (event.buttons & 1 || !event.buttons) {
-      //     xthis.emit('~rotate', { x: +delta.x, y: +delta.y });
-      //   }
-      //   if (event.buttons & 2) {
-      //     xthis.emit('~translate', { x: -delta.x, y: +delta.y });
-      //   }
-      // });
-    }
-
-    function Button(direction) {
-      const transform = xnew.context('transform');
-      const state = xnew.context('state');
-
-      xthis.on('click', () => {
-        if (state.moving === false) {
-          state.id = (state.id + direction + 4) % 4;
-          state.moving = true;
-          const backup = { ...transform };
-          xnew.transition((progress) => {
-            const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
-            transform.ry = backup.ry - direction * 90 * p;
-            transform.py = backup.py * (1.0 - p);
-            if (progress === 1.0) state.moving = false;
-          }, 700);
-          xthis.emit('~fade');
-        }
-      });
     }
 
     function ThreeMain() {
+      const offset = xnew.context('offset');
       const transform = xnew.context('transform');
      
       const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
       const canvas = screen.canvas;
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-
-      const perspective = 500;
-      const fov = Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
-      const camera = new THREE.PerspectiveCamera(fov, canvas.width / canvas.height);
-      camera.position.set(0, 0, 0);
+      const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
 
       xnew(xnew.ResizeEvent).on('resize', () => {
-        camera.fov = Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
+        camera.fov = fov();
         camera.updateProjectionMatrix();
       });
+
+      function fov() {
+        return Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
+      }
  
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xFFFFFF);
       xnew.extend(ThreeObject, scene);
 
       xnew(ThreeContents);
 
       return {
         update() {
-          scene.rotation.x = transform.rx * Math.PI / 180;
-          scene.rotation.y = transform.ry * Math.PI / 180;
-          camera.position.x = transform.px;
-          camera.position.y = transform.py;
+          scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
+          scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
+          camera.position.x = -(transform.px + offset.px);
+          camera.position.y = +(transform.py + offset.py);
           renderer.render(scene, camera);
         },
       }
@@ -297,8 +301,8 @@
     }
 
     function Room() {
-      const size = 1000;
-      const geometry = new THREE.BoxGeometry(size, size, size);
+      const size = perspective;
+      const geometry = new THREE.BoxGeometry(size * 2, size * 2, size * 2);
       const material = new THREE.MeshStandardMaterial({ 
         color: 0xF8F8FF, side: THREE.BackSide,
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
@@ -306,12 +310,12 @@
       const object = new THREE.Mesh(geometry, material);
       xnew.extend(ThreeObject, object);
 
-      xnew(Grid, { pz: +500, rx: 90 });
-      xnew(Grid, { pz: -500, rx: 90 });
-      xnew(Grid, { px: +500, rz: 90 });
-      xnew(Grid, { px: -500, rz: 90 });
-      xnew(Grid, { py: +500 });
-      xnew(Grid, { py: -500 });
+      xnew(Grid, { pz: +size, rx: 90 });
+      xnew(Grid, { pz: -size, rx: 90 });
+      xnew(Grid, { px: +size, rz: 90 });
+      xnew(Grid, { px: -size, rz: 90 });
+      xnew(Grid, { py: +size });
+      xnew(Grid, { py: -size });
     }
 
     function Grid({ px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0 }) {
