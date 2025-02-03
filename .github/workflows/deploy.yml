@@ -2,6 +2,7 @@ name: deploy
 
 on:
   push:
+
 jobs:
   build:
     name: build
@@ -17,7 +18,7 @@ jobs:
       - run: |
           cd website
           npm run build
-      - uses: actions/upload-pages-artifact@v1
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: website/build
 
