@@ -120,7 +120,7 @@ function timer(callback, delay, loop = false)
         Timer.start.call(timer);
     }
 
-    finalizer = xnew(() => {
+    finalizer = xnew((self) => {
         return {
             finalize() {
                 timer.clear();
@@ -160,7 +160,7 @@ function transition(callback, interval)
 
     Unit.scope.call(current, callback, 0.0);
 
-    const updater = xnew(null, () => {
+    const updater = xnew(null, (self) => {
         return {
             update() {
                 const progress = Timer.elapsed.call(timer) / interval;
@@ -171,7 +171,7 @@ function transition(callback, interval)
         }
     });
     
-    finalizer = xnew(() => {
+    finalizer = xnew((self) => {
         return {
             finalize() {
                 timer.clear();

@@ -9,7 +9,7 @@ sidebar_position: 1
 ## setup
 ### via cdn
 ```html
-<script src="https://unpkg.com/xnew@2.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@2.1.x/dist/xnew.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -17,7 +17,7 @@ sidebar_position: 1
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@2.0.x/dist/xnew.mjs"
+    "xnew": "https://unpkg.com/xnew@2.1.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -32,7 +32,7 @@ import xnew from 'xnew'
 
 ### via npm
 ```bash
-npm install xnew@2.0.x
+npm install xnew@2.1.x
 ```
 ```js
 import xnew from 'xnew'
@@ -45,7 +45,7 @@ If you set a component function to `xnew`, you will implement various features.
 ```js
 const unit = xnew(Component, ...args);    
 
-function Component(...args) {
+function Component(self, ...args) {
   // ...
   // implement features
 }
@@ -53,7 +53,7 @@ function Component(...args) {
 
 You can also use a function literal.  `xnew(() => {});`
 ```js
-const unit = xnew(() => {
+const unit = xnew((self) => {
   // ...
   // implement features
 });
@@ -76,14 +76,14 @@ You can create html elements using `xnew` and `xnew.nest`.
   <script>
     xnew(Wrapper);
 
-    function Wrapper() {
+    function Wrapper(self) {
       xnew.nest({ style: 'margin: 4px; padding: 4px; border: solid 1px #222;'});
 
       xnew({ tagName: 'p' }, 'my divs');
       xnew(Divs);
     }
 
-    function Divs() {
+    function Divs(self) {
       xnew.nest({ style: 'display: flex;'});
    
       xnew({ style: 'width: 160px; height: 36px; background: #d66;'}, '1');
@@ -106,19 +106,19 @@ In the following example, we set up an event listener and animation.
   <script>
     xnew(Component);
 
-    function Component() {
+    function Component(self) {
       xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
 
       xnew({ tagName: 'span' }, 'click me');
 
-      xthis.on('click', (event) => {
-        xthis.state === 'running' ? xthis.stop() : xthis.start();
+      self.on('click', (event) => {
+        self.state === 'running' ? self.stop() : self.start();
       });
 
       let counter = 0;
       return {
         update() {
-          xthis.element.style.transform = `rotate(${counter++}deg)`;
+          self.element.style.transform = `rotate(${counter++}deg)`;
         },
       };
     }
@@ -137,15 +137,15 @@ For example, when the parent component stop, its children also stop.
   <script>
     xnew(Parent);
 
-    function Parent() {
+    function Parent(self) {
       xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
       
       const text = xnew({ tagName: 'span' });
 
       xnew(Child);
 
-      xthis.on('click', () => {
-        xthis.state === 'running' ? xthis.stop() : xthis.start();
+      self.on('click', () => {
+        self.state === 'running' ? self.stop() : self.start();
       });
 
       let counter = 0;
@@ -154,7 +154,7 @@ For example, when the parent component stop, its children also stop.
           text.element.textContent = 'parent: start';
         },
         update() {
-          xthis.element.style.transform = `rotate(${counter++}deg)`;
+          self.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'parent: stop';
@@ -162,14 +162,14 @@ For example, when the parent component stop, its children also stop.
       };
     }
 
-    function Child() {
+    function Child(self) {
       xnew.nest({ style: 'position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80;' })
       
       const text = xnew({ tagName: 'span' });
 
-      xthis.on('click', (event) => {
+      self.on('click', (event) => {
         event.stopPropagation(); // cancel propagation to the parent element
-        xthis.state === 'running' ? xthis.stop() : xthis.start();
+        self.state === 'running' ? self.stop() : self.start();
       });
 
       let counter = 0;
@@ -178,7 +178,7 @@ For example, when the parent component stop, its children also stop.
           text.element.textContent = 'child: start';
         },
         update() {
-          xthis.element.style.transform = `rotate(${counter++}deg)`;
+          self.element.style.transform = `rotate(${counter++}deg)`;
         },
         stop() {
           text.element.textContent = 'child: stop';

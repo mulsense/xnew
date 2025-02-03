@@ -237,8 +237,6 @@
         }
     }
 
-    const gthis = window ?? global;
-
     class Unit
     {
         constructor(parent, target, component, ...args)
@@ -394,13 +392,11 @@
             const backup = Unit.current;
             try {
                 Unit.current = this;
-                gthis.xthis = this;
                 return func(...args);
             } catch (error) {
                 throw error;
             } finally {
                 Unit.current = backup;
-                gthis.xthis = backup;
             }
         }
 
@@ -478,7 +474,7 @@
             this._.components.add(component);
             Unit.components.add(component, this);
 
-            const props = Unit.scope.call(this, component, ...args) ?? {};
+            const props = Unit.scope.call(this, component, this, ...args) ?? {};
             
             Object.keys(props).forEach((key) => {
                 const descripter = Object.getOwnPropertyDescriptor(props, key);
@@ -747,7 +743,7 @@
             Timer.start.call(timer);
         }
 
-        finalizer = xnew(() => {
+        finalizer = xnew((self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -787,7 +783,7 @@
 
         Unit.scope.call(current, callback, 0.0);
 
-        const updater = xnew(null, () => {
+        const updater = xnew(null, (self) => {
             return {
                 update() {
                     const progress = Timer.elapsed.call(timer) / interval;
@@ -798,7 +794,7 @@
             }
         });
         
-        finalizer = xnew(() => {
+        finalizer = xnew((self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -810,9 +806,8 @@
         return timer;
     }
 
-    function DragEvent() {
+    function DragEvent(self) {
       
-        const self = xthis;
         const base = xnew();
 
         const wmap = new Map();
@@ -879,8 +874,8 @@
         }
     }
 
-    function GestureEvent() {
-        const self = xthis;
+    function GestureEvent(self) {
+
         const drag = xnew(DragEvent);
 
         let isActive = false;
@@ -919,14 +914,10 @@
             isActive = false;
             map.delete(id);
         });
-
-        return {
-           
-        }
     }
 
-    function ResizeEvent() {
-        const self = xthis;
+    function ResizeEvent(self) {
+
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 self.emit('resize');
@@ -934,19 +925,19 @@
             }
         });
 
-        if (xthis.element) {
-            observer.observe(xthis.element);
+        if (self.element) {
+            observer.observe(self.element);
         }
         return {
             finalize() {
-                if (xthis.element) {
-                    observer.unobserve(xthis.element);
+                if (self.element) {
+                    observer.unobserve(self.element);
                 }
             }
         }
     }
 
-    function Screen({ width = 640, height = 480, objectFit = 'contain', pixelated = false } = {}) {
+    function Screen(self, { width = 640, height = 480, objectFit = 'contain', pixelated = false } = {}) {
         const wrapper = xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none; overflow: hidden;' });
         const absolute = xnew.nest({ style: 'position: absolute; inset: 0; margin: auto; user-select: none;' });
         xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none;' });

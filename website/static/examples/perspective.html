@@ -132,7 +132,7 @@
   <script>
     const perspective = 500;
 
-    xnew(() => {
+    xnew((self) => {
       xnew.context('offset', { rx: 0, ry: 11, rz: 0, tx: 120, ty: 0, tz: 0 });
       xnew.context('transform', { rx: 0, ry: 0, rz: 0, tx: 0, ty: 0, tz: 0 });
       xnew.context('state', { id: 0, moving: false });
@@ -143,19 +143,19 @@
       xnew(Event);
     });
     
-    function HtmlMain() {
+    function HtmlMain(self) {
       document.querySelectorAll('.target').forEach((element, index) => {
         xnew(element, Plane, index);
       });
     }
 
-    function Plane(id) {
+    function Plane(self, id) {
       const offset = xnew.context('offset');
       const transform = xnew.context('transform');
       const state = xnew.context('state');
 
       let opacity = id === state.id ? 0.80 : 0.20;
-      xthis.on('~planefade', () => {
+      self.on('~planefade', () => {
         xnew.transition((progress) => {
           opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
         }, 700);
@@ -163,8 +163,8 @@
 
       return {
         update() {
-          xthis.element.style.opacity = opacity;
-          xthis.element.style.transform = `
+          self.element.style.opacity = opacity;
+          self.element.style.transform = `
             translateZ(${perspective}px) 
             translateX(${(transform.tx + offset.tx)}px) translateY(${(transform.ty + offset.ty)}px)
             rotateX(${transform.rx + offset.rx}deg) rotateY(${transform.ry + offset.ry + id * 90}deg) 
@@ -174,15 +174,15 @@
       }
     }
 
-    function Event() {
+    function Event(self) {
       const transform = xnew.context('transform');
       const state = xnew.context('state');
 
       xnew('.button.left', Button, +1);
       xnew('.button.right', Button, -1);
 
-      function Button(direction) {
-        xthis.on('click', () => {
+      function Button(self, direction) {
+        self.on('click', () => {
           if (state.moving === false) {
             state.id = (state.id + direction + 4) % 4;
             state.moving = true;
@@ -193,12 +193,12 @@
               transform.ty = backup.ty * (1.0 - p);
               if (progress === 1.0) state.moving = false;
             }, 700);
-            xthis.emit('~planefade');
+            self.emit('~planefade');
           }
         });
       }
 
-      xthis.on('wheel', (event) => {
+      self.on('wheel', (event) => {
         event.preventDefault();
         transform.ty = Math.max(-300, Math.min(+300, transform.ty + event.wheelDeltaY * 0.2));
       }, { passive: false });
@@ -209,7 +209,7 @@
       // });
     }
 
-    function ThreeMain() {
+    function ThreeMain(self) {
       const offset = xnew.context('offset');
       const transform = xnew.context('transform');
      
@@ -243,7 +243,7 @@
       }
     }
 
-    function ThreeObject(object) {
+    function ThreeObject(self, object) {
       const parent = xnew.context('ThreeObject');
       xnew.context('ThreeObject', object);
 
@@ -255,25 +255,25 @@
       }
     }
 
-    function ThreeContents() {
+    function ThreeContents(self) {
       xnew(DirectionaLight, 20, -50, 50, 0.1);
       xnew(DirectionaLight, 20, 50, -10, 0.1);
       xnew(AmbientLight, 0.05);
       xnew(Room);
     }
 
-    function DirectionaLight(x, y, z, value) {
+    function DirectionaLight(self, x, y, z, value) {
       const object = new THREE.DirectionalLight(0xFFFFFF, value);
       object.position.set(x, y, z);
       xnew.extend(ThreeObject, object);
     }
 
-    function AmbientLight(value) {
+    function AmbientLight(self, value) {
       const object = new THREE.AmbientLight(0xFFFFFF, value);
       xnew.extend(ThreeObject, object);
     }
 
-    function Room() {
+    function Room(self) {
       const size = perspective;
       const geometry = new THREE.BoxGeometry(size * 2, size * 2, size * 2);
       const material = new THREE.MeshStandardMaterial({ 
@@ -291,7 +291,7 @@
       xnew(Grid, { ty: -size });
     }
 
-    function Grid({ tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
+    function Grid(self, { tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
       const object = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
       xnew.extend(ThreeObject, object);
       object.rotation.set(rx * Math.PI / 180, ry * Math.PI / 180, rz * Math.PI / 180);

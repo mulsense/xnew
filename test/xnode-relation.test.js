@@ -14,18 +14,18 @@ describe('unit relation', () => {
     });
 
     it('nest', () => {
-        xnew(() => {
+        xnew((self) => {
             const unit2 = xnew();
-            expect(xthis.parent).toBe(null);
-            expect(unit2.parent).toBe(xthis);
+            expect(self.parent).toBe(null);
+            expect(unit2.parent).toBe(self);
         })
     });
 
     it('delete', () => {
-        xnew(() => {
+        xnew((self) => {
             const unit2 = xnew();
-            expect(xthis.parent).toBe(null);
-            expect(unit2.parent).toBe(xthis);
+            expect(self.parent).toBe(null);
+            expect(unit2.parent).toBe(self);
         })
     });
 });

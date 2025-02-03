@@ -1,7 +1,5 @@
 import { isObject, isNumber, isString, isFunction, createElement, MapSet, MapMap, error } from './util';
 
-const gthis = window ?? global;
-
 export class Unit
 {
     constructor(parent, target, component, ...args)
@@ -157,13 +155,11 @@ export class Unit
         const backup = Unit.current;
         try {
             Unit.current = this;
-            gthis.xthis = this;
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
             Unit.current = backup;
-            gthis.xthis = backup;
         }
     }
 
@@ -241,7 +237,7 @@ export class Unit
         this._.components.add(component);
         Unit.components.add(component, this);
 
-        const props = Unit.scope.call(this, component, ...args) ?? {};
+        const props = Unit.scope.call(this, component, this, ...args) ?? {};
         
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);

@@ -17,14 +17,14 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', () => {
+    xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
       xnew(ThreeMain, screen.canvas);
       xnew(PixiMain, screen.canvas);
     });
 
-    function ThreeMain(canvas) {
+    function ThreeMain(self, canvas) {
       const renderer = new THREE.WebGLRenderer({}); // not set canvas
       renderer.setSize(canvas.width, canvas.height);
 
@@ -47,7 +47,7 @@
       }
     }
 
-    function ThreeObject(object) {
+    function ThreeObject(self, object) {
       const parent = xnew.context('ThreeObject');
       xnew.context('ThreeObject', object);
 
@@ -59,11 +59,11 @@
       }
     }
 
-    function ThreeContents() {
+    function ThreeContents(self) {
       xnew(Cube, 0, 0, 0, 40);
     }
 
-    function PixiMain(canvas) {
+    function PixiMain(self, canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
 
       const scene = new PIXI.Container();
@@ -83,7 +83,7 @@
       };
     }
 
-    function PixiObject(object) {
+    function PixiObject(self, object) {
       const parent = xnew.context('PixiObject');
       xnew.context('PixiObject', object);
 
@@ -95,11 +95,11 @@
       }
     }
 
-    function PixiContents() {
+    function PixiContents(self) {
       xnew(Box, 800 / 2, 400 / 2, 160, 0xEA1E63);
     }
 
-    function Box(x, y, size, color) {
+    function Box(self, x, y, size, color) {
       const object = new PIXI.Container();
       object.x = x;
       object.y = y;
@@ -118,7 +118,7 @@
       };
     }
 
-    function Cube(x, y, z, size) {
+    function Cube(self, x, y, z, size) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshNormalMaterial();
       const object = new THREE.Mesh(geometry, material);

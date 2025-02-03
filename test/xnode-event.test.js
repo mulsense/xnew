@@ -8,21 +8,21 @@ beforeEach(() => {
 describe('unit event', () => {
     it('basic', () => {
         let state = 0;
-        xnew(() => {
-            xthis.on('countup', () => state++);
-            xthis.emit('countup');
-            xnew(() => xthis.emit('countup'));
+        xnew((self) => {
+            self.on('countup', () => state++);
+            self.emit('countup');
+            xnew((self) => self.emit('countup'));
         });
-        xnew(() => xthis.emit('countup'));
+        xnew((self) => self.emit('countup'));
         expect(state).toBe(1);
     });
 
     it('broadcast ~', () => {
         let state = 0;
-        xnew(() => {
-            xthis.on('~myevent', () => state++);
-            xthis.emit('~myevent');
-            xnew(() => xthis.emit('~myevent'));
+        xnew((self) => {
+            self.on('~myevent', () => state++);
+            self.emit('~myevent');
+            xnew((self) => self.emit('~myevent'));
         });
         expect(state).toBe(2);
     });

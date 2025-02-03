@@ -11,7 +11,7 @@ xnew.timer(callback, delay, loop = false);
 ## example
 
 ```js
-xnew(() => {
+xnew((self) => {
   const timer = xnew.timer(() => {
     // This function is called after 100 ms.
   }, 100);

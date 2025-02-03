@@ -1,8 +1,8 @@
 import { xnew } from '../core/xnew';
 import { DragEvent } from './DragEvent';
 
-export function GestureEvent() {
-    const self = xthis;
+export function GestureEvent(self) {
+
     const drag = xnew(DragEvent);
 
     let isActive = false;
@@ -41,8 +41,4 @@ export function GestureEvent() {
         isActive = false;
         map.delete(id);
     });
-
-    return {
-       
-    }
 }

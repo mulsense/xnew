@@ -12,18 +12,18 @@
   <script>
     xnew(Component);
 
-    function Component() {
+    function Component(self) {
       xnew.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
       xnew({ tagName: 'span' }, 'click me');
       
-      xthis.on('click', (event) => {
-        xthis.state === 'running' ? xthis.stop() : xthis.start();
+      self.on('click', (event) => {
+        self.state === 'running' ? self.stop() : self.start();
       });
 
       let counter = 0;
       return {
         update() {
-          xthis.element.style.transform = `rotate(${counter++}deg)`;
+          self.element.style.transform = `rotate(${counter++}deg)`;
         },
       };
     }

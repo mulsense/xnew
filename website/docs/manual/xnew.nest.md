@@ -7,27 +7,27 @@ sidebar_position: 2
 It replace `unit.element`.
 
 ```js
-xnew(() => {
+xnew((self) => {
   const element = xnew.nest(attributes);
 
-  xthis.element;
+  self.element;
 })
 ```
 
 ## example 1
 ```js
-xnew({ tagName: 'div', name: 'A'}, () =>{
-  xthis.element; // div A
+xnew({ tagName: 'div', name: 'A'}, (self) =>{
+  self.element; // div A
 });
 
-xnew(() => {
+xnew((self) => {
   xnew.nest({ tagName: 'div', name: 'B' });
-  xthis.element; // div B
+  self.element; // div B
 }
 
-xnew({ tagName: 'div', name: 'C' }, () => { 
+xnew({ tagName: 'div', name: 'C' }, (self) => { 
   xnew.nest({ tagName: 'div', name: 'D' }); // inner div
-  xthis.element; // div D
+  self.element; // div D
 }
 
 const unit4 = xnew({ tagName: 'div', name: 'E' }, 'aaa');
@@ -59,19 +59,19 @@ The created elements are removed when the units finalize.
 ```html
 <div id="main"></div>
 <script>
-  xnew('#main', () => {
+  xnew('#main', (self) => {
     xnew(Div1);
     xnew(Div2);
     xnew(Div3);
     xnew(Div4);
   });
 
-  function BaseDiv(name) {
+  function BaseDiv(self, name) {
     xnew.nest({ tagName: 'div', style: 'margin: 4px; padding: 4px; border: solid 1px #222;' });
     xnew({ tagName: 'p' }, name);
   }
 
-  function Div1() {
+  function Div1(self) {
     xnew.extend(BaseDiv, 'my div');
 
     xnew({ style: 'display: flex;' }, () => {
@@ -81,7 +81,7 @@ The created elements are removed when the units finalize.
     });
   }
 
-  function Div2() {
+  function Div2(self) {
     xnew.extend(BaseDiv, 'my button');
 
     const button = xnew({ tagName: 'button' }, 'click me');
@@ -92,7 +92,7 @@ The created elements are removed when the units finalize.
     })
   }
 
-  function Div3() {
+  function Div3(self) {
     xnew.extend(BaseDiv, 'my input text');
 
     const input = xnew({ tagName: 'input', type: 'text' });
@@ -103,7 +103,7 @@ The created elements are removed when the units finalize.
     })
   }
 
-  function Div4() {
+  function Div4(self) {
     xnew.extend(BaseDiv, 'my canvas');
 
     const canvas = xnew({ tagName: 'canvas', width: 200, height: 100 });

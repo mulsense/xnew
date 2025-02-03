@@ -16,13 +16,13 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', () => {
+    xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 450 });
 
       xnew(PixiMain, screen.canvas);
     });
 
-    function PixiMain(canvas) {
+    function PixiMain(self, canvas) {
       const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
       const scene = new PIXI.Container();
       xnew.extend(PixiObject, scene);
@@ -36,7 +36,7 @@
       };
     }
 
-    function PixiObject(object) {
+    function PixiObject(self, object) {
       const parent = xnew.context('PixiObject');
       xnew.context('PixiObject', object);
 
@@ -48,38 +48,38 @@
       }
     }
 
-    function PixiContents() {
+    function PixiContents(self) {
       xnew(Scene1);
     }
 
-    function Scene1() {
+    function Scene1(self) {
       xnew(Text, 'Scene1');
       xnew(Box, 800 / 2, 400 / 2, 160, 0xff2266);
 
-      xthis.on('pointerdown', () => {
-        xnew(xthis.parent, Scene2);
-        xthis.finalize();
+      self.on('pointerdown', () => {
+        xnew(self.parent, Scene2);
+        self.finalize();
       });
     }
 
-    function Scene2() {
+    function Scene2(self) {
       xnew(Text, 'Scene2');
       xnew(Box, 800 / 2, 400 / 2, 160, 0x6622ff);
 
-      xthis.on('pointerdown', () => {
-        xnew(xthis.parent, Scene1);
-        xthis.finalize();
+      self.on('pointerdown', () => {
+        xnew(self.parent, Scene1);
+        self.finalize();
       });
     }
 
-    function Text(value) {
+    function Text(self, value) {
       const text = new PIXI.Text(value, new PIXI.TextStyle({ fontSize: 24, fill: '#000000' }));
       xnew.extend(PixiObject, text);
       text.x = 10;
       text.y = 10;
     }
 
-    function Box(x, y, size, color) {
+    function Box(self, x, y, size, color) {
       const object = new PIXI.Container();
       xnew.extend(PixiObject, object);
 

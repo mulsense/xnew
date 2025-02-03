@@ -11,7 +11,7 @@ xnew.transition(callback, interval);
 ## example
 
 ```js
-xnew(() => {
+xnew((self) => {
   xnew.transition((progress) => {
     // this variable (progress) transitions from 0.0 to 1.0 in 5000[ms].
 

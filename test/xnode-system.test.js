@@ -11,7 +11,7 @@ describe('unit system', () => {
             let state = 0;
             let start = Date.now();
             const margin = 100;
-            xnew(() => {
+            xnew((self) => {
                 return {
                     promise: new Promise((resolve, reject) => {
                         setTimeout(() => {

@@ -13,14 +13,14 @@ xnew.context(name);
 ```
 ## example
 ```js
-xnew(() => {
+xnew((self) => {
   xnew.context('hoge', 1);
   xnew.context('hoge');    // 1
 
-  xnew(() => {
+  xnew((self) => {
     xnew.context('hoge'); // 1
 
-    xnew(() => {
+    xnew((self) => {
       xnew.context('hoge', 2);
       xnew.context('hoge');    // 2
 

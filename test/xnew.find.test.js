@@ -11,11 +11,11 @@ describe('unit context', () => {
         const unit1 = xnew(A);
         const unit2 = xnew(B);
         const unit3 = xnew(C);
-        function A() {
+        function A(self) {
         }
-        function B() {
+        function B(self) {
         }
-        function C() {
+        function C(self) {
         }
 
         expect(xnew.find(A)[0]).toBe(unit1);

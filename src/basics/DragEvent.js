@@ -1,8 +1,7 @@
 import { xnew } from '../core/xnew';
 
-export function DragEvent() {
+export function DragEvent(self) {
   
-    const self = xthis;
     const base = xnew();
 
     const wmap = new Map();

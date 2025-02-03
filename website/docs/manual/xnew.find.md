@@ -15,7 +15,7 @@ xnew.find(Component); // component function
 const unit1 = xnew(A);
 const unit2 = xnew(A);
 
-function Component() {
+function Component(self) {
 }
 
 xnew.find(Component); // [unit1, unit2]        

@@ -8,35 +8,35 @@ beforeEach(() => {
 describe('unit element', () => {
 
     it('basic', () => {
-        xnew(() => {
+        xnew((self) => {
             const unit2 = xnew();
-            expect(xthis.element).toBe(document.body);
+            expect(self.element).toBe(document.body);
             expect(unit2.element).toBe(document.body);
         })
     });
 
     it('create', () => {
-        xnew(() => {
+        xnew((self) => {
             xnew.nest({ tagName: 'div', name: 'A' });
-            expect(xthis.element).toBe(document.querySelector('div[name=A]'));
+            expect(self.element).toBe(document.querySelector('div[name=A]'));
         })
-        xnew({ tagName: 'div', name: 'B' }, () => {
-            expect(xthis.element).toBe(document.querySelector('div[name=B]'));
+        xnew({ tagName: 'div', name: 'B' }, (self) => {
+            expect(self.element).toBe(document.querySelector('div[name=B]'));
         })
     });
 
     it('nest', () => {
-        const unit1 = xnew(() => {
+        const unit1 = xnew((self) => {
             xnew.nest({ tagName: 'div', name: 'test' });
             const unit2 = xnew();
-            expect(xthis.element).toBe(document.querySelector('div[name=test]'));
+            expect(self.element).toBe(document.querySelector('div[name=test]'));
             expect(unit2.element).toBe(document.querySelector('div[name=test]'));
         });
         unit1.finalize();
     });
 
     it('delete', () => {
-        const unit1 = xnew(() => {
+        const unit1 = xnew((self) => {
             xnew.nest({ tagName: 'div', name: 'test' });
         });
  

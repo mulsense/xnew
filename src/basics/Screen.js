@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 import { ResizeEvent } from './ResizeEvent';
 
-export function Screen({ width = 640, height = 480, objectFit = 'contain', pixelated = false } = {}) {
+export function Screen(self, { width = 640, height = 480, objectFit = 'contain', pixelated = false } = {}) {
     const wrapper = xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none; overflow: hidden;' });
     const absolute = xnew.nest({ style: 'position: absolute; inset: 0; margin: auto; user-select: none;' });
     xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none;' });

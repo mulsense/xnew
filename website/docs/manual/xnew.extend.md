@@ -12,7 +12,7 @@ xnew.extend(component, ...args);
 
 ```js
 // base component function
-function Base() {
+function Base(self) {
   return {
     update() {
       console.log('base update');
@@ -24,7 +24,7 @@ function Base() {
 }
 ```
 ```js
-const unit = xnew(() => {
+const unit = xnew((self) => {
   xnew.extend(Base);
 
   return {
@@ -58,7 +58,7 @@ If original properties defined in both component functions,
 By using the return value of `xnew.extend`, you can change the calling rules of the original properties.
 
 ```js
-const unit = xnew(() => {
+const unit = xnew((self) => {
   const props = xnew.extend(Base);
 
   return {

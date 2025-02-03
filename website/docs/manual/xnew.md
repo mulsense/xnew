@@ -35,15 +35,15 @@ In the function, you will implement various features.
 ```js
 const unit = xnew(Component, ...args);    
 
-function Component(...args) {
+function Component(self, ...args) {
   // ...
   // implement features
 }
 ```
 
-You can also use a function literal.  `xnew(() => {});`
+You can also use a function literal.  `xnew((self) => {});`
 ```js
-const unit = xnew(() => {
+const unit = xnew((self) => {
   // ...
   // implement features
 });
@@ -54,9 +54,9 @@ const unit = xnew(() => {
 If you omit the `parent` parameter, the nesting higher unit or otherwise `null` is assigned.   
     
 ```js
-xnew(() => {
+xnew((self) => {
   // unit1.parent: null
-  const unit1 = xthis;
+  const unit1 = self;
 
   // unit2.parent: unit1
   const unit2 = xnew(() => {
@@ -79,9 +79,9 @@ xnew(() => {
 <body>
   <div id="hoge"></div>
   <script>
-    xnew('#hoge', () => {
+    xnew('#hoge', (self) => {
 
-      xthis.element; // element (id = hoge)
+      self.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -97,9 +97,9 @@ xnew(() => {
 ```html
 <body>
   <script>
-    xnew({ tagName: 'div', id: 'hoge' }, () => {
+    xnew({ tagName: 'div', id: 'hoge' }, (self) => {
       
-      xthis.element; // element (id = hoge)
+      self.element; // element (id = hoge)
     });
   </script>
 </body>
@@ -116,19 +116,19 @@ If you omit the `element` parameter, the parent unit's element or otherwise `doc
 <div id="hoge"></div>
 
 <script>
-  xnew(() => {
-    // xthis.element: document.body
+  xnew((self) => {
+    // self.element: document.body
   });
 
-  xnew('#hoge', () => {
-    // xthis.element: (id=hoge)
+  xnew('#hoge', (self) => {
+    // self.element: (id=hoge)
 
-    xnew(() => {
-      // xthis.element: (id=hoge)
+    xnew((self) => {
+      // self.element: (id=hoge)
     });
 
-    xnew({ tagName: 'div', id: 'fuga' }, () => {
-      // xthis.element: (id=fuga) (as a child element of hoge)
+    xnew({ tagName: 'div', id: 'fuga' }, (self) => {
+      // self.element: (id=fuga) (as a child element of hoge)
     });
   });
 </script>;
@@ -150,7 +150,7 @@ xnew({ tagName: 'p', id: 'hoge' }, 'aaa');
 You can define the detail in the response of the component function.
 
 ```js
-const unit = xnew(() => {
+const unit = xnew((self) => {
   // initialize
 
   return {
@@ -214,7 +214,7 @@ The parent unit method is called after the children unit method is called.
 ```js
 const parent = xnew(Patent);
 
-function Parent() {
+function Parent(self) {
   xnew(Child1);
   xnew(Child2);
 
@@ -226,7 +226,7 @@ function Parent() {
   }
 }
 
-function Child1() {
+function Child1(self) {
   return {
     start() { console.log('Child1 start'); },
     update() { console.log('Child1 update'); },
@@ -235,7 +235,7 @@ function Child1() {
   }
 }
 
-function Child2() {
+function Child2(self) {
   return {
     start() { console.log('Child2 start'); },
     update() { console.log('Child2 update'); },
@@ -275,7 +275,7 @@ The following names are not available.
 - `parent`,  `element`, `on`, `off`, `emit`, `key`, `_`
 
 ```js
-const unit = xnew(() =>  {
+const unit = xnew((self) =>  {
   let counter = 0;
 
   return {
