@@ -59,15 +59,15 @@ xnew((self) => {
   const unit1 = self;
 
   // unit2.parent: unit1
-  const unit2 = xnew(() => {
+  const unit2 = xnew((self) => {
   });
 
   // unit3.parent: unit1
-  const unit3 = xnew(() => {
+  const unit3 = xnew((self) => {
   });
 
   // unit4.parent: unit2
-  const unit4 = xnew(unit2, () => {
+  const unit4 = xnew(unit2, (self) => {
   });
 })
 ```
