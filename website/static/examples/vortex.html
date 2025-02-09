@@ -17,14 +17,9 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+      xnew.context('screen', screen);
 
-      xnew((self) => {
-        return {
-          update() {
-            screen.clear();
-          }
-        }
-      });
+      xnew(Clear);
 
       let counter = 0;
       xnew.timer(() => xnew(Curve, counter++ / 12 * Math.PI), 500, true);
