@@ -17,24 +17,29 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
-      xnew.context('screen', screen);
 
-      xnew(Clear);
+      xnew((self) => {
+        return {
+          update() {
+            screen.clear();
+          }
+        }
+      });
 
       let counter = 0;
-      xnew.timer(() => xnew(Wave, counter++ / 12 * Math.PI), 500, true);
+      xnew.timer(() => xnew(Curve, counter++ / 12 * Math.PI), 500, true);
     });
 
     function Clear(self) {
       const screen = xnew.context('screen');
       return {
         update() {
-          screen.clear('rgba(0,0,0,0)');
+          screen.clear();
         }
       }
     }
 
-    function Wave(self, shift) {
+    function Curve(self, shift) {
       const screen = xnew.context('screen');
       const ctx = screen.canvas.getContext('2d');
 

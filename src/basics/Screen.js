@@ -60,13 +60,9 @@ export function Screen(self, { width = 640, height = 480, objectFit = 'contain',
             canvas.element.height = height;
             resize();
         },
-        clear(color = null) {
+        clear() {
             const ctx = canvas.element.getContext('2d');
             ctx.clearRect(0, 0, size.width, size.height)
-            if (typeof color === 'string') {
-                ctx.fillStyle = color;
-                ctx.fillRect(0, 0, size.width, size.height);  
-            }
         },
     }
 }
