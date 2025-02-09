@@ -184,6 +184,15 @@
             this.id = null;
             this.time = null;
             this.offset = 0.0;
+
+            this.status = 0;
+
+            this.listener = (event) => {
+                document.hidden === false ? this._start() : this._stop();
+            };
+            if (document !== undefined) {
+                document.addEventListener('visibilitychange', this.listener);
+            }
         }
 
         clear()
@@ -193,21 +202,31 @@
                 this.id = null;
                 this.finalize?.();
             }
+            if (document !== undefined) {
+                document.removeEventListener('visibilitychange', this.listener);
+            }
         }
 
-        static elapsed()
+        elapsed()
         {
             return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
         }
 
-        static id()
+        start()
         {
-            return this.id;
+            this.status = 1;
+            this._start();
         }
 
-        static start()
+        stop()
         {
-            if (this.id === null) {
+            this._stop();
+            this.status = 0;
+        }
+
+        _start()
+        {
+            if (this.status === 1 && this.id === null) {
                 this.id = setTimeout(() => {
                     this.timeout();
 
@@ -216,7 +235,7 @@
                     this.offset = 0.0;
         
                     if (this.loop) {
-                        Timer.start.call(this);
+                        this.start();
                     } else {
                         this.finalize?.();
                     }
@@ -225,9 +244,9 @@
             }
         }
 
-        static stop()
+        _stop()
         {
-            if (this.id !== null) {
+            if (this.status === 1 && this.id !== null) {
                 this.offset = this.offset + Date.now() - this.time;
                 clearTimeout(this.id);
 
@@ -721,27 +740,13 @@
 
         const current = Unit.current;
         const timer = new Timer({
-            timeout: () => {
-                Unit.scope.call(current, callback);
-            }, 
-            finalize: () => {
-                finalizer.finalize();
-            },
+            timeout: () => Unit.scope.call(current, callback), 
+            finalize: () => finalizer.finalize(),
             delay,
             loop,
         });
         
-        if (document !== undefined) {
-            if (document.hidden === false) {
-                Timer.start.call(timer);
-            }
-            const doc = xnew(document);
-            doc.on('visibilitychange', (event) => {
-                document.hidden === false ? Timer.start.call(timer) : Timer.stop.call(timer);
-            });
-        } else {
-            Timer.start.call(timer);
-        }
+        timer.start();
 
         finalizer = xnew((self) => {
             return {
@@ -751,42 +756,29 @@
             }
         });
 
-        return timer;
+        return { clear: () => timer.clear() };
     }
 
     function transition(callback, interval)
     {
         let finalizer = null;
+        let updater = null;
 
         const current = Unit.current;
         const timer = new Timer({ 
-            timeout: () => {
-                Unit.scope.call(current, callback, 1.0);
-            },
-            finalize: () => {
-                finalizer.finalize();
-            },
+            timeout: () => Unit.scope.call(current, callback, 1.0),
+            finalize: () => finalizer.finalize(),
             delay: interval,
         });
 
-        if (document !== undefined) {
-            if (document.hidden === false) {
-                Timer.start.call(timer);
-            }
-            const doc = xnew(document);
-            doc.on('visibilitychange', (event) => {
-                document.hidden === false ? Timer.start.call(timer) : Timer.stop.call(timer);
-            });
-        } else {
-            Timer.start.call(timer);
-        }
+        timer.start();
 
         Unit.scope.call(current, callback, 0.0);
 
-        const updater = xnew(null, (self) => {
+        updater = xnew(null, (self) => {
             return {
                 update() {
-                    const progress = Timer.elapsed.call(timer) / interval;
+                    const progress = timer.elapsed() / interval;
                     if (progress < 1.0) {
                         Unit.scope.call(current, callback, progress);
                     }
@@ -803,7 +795,7 @@
             }
         });
 
-        return timer;
+        return { clear: () => timer.clear() };
     }
 
     function DragEvent(self) {

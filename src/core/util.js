@@ -185,6 +185,15 @@ export class Timer
         this.id = null;
         this.time = null;
         this.offset = 0.0;
+
+        this.status = 0;
+
+        this.listener = (event) => {
+            document.hidden === false ? this._start() : this._stop();
+        };
+        if (document !== undefined) {
+            document.addEventListener('visibilitychange', this.listener);
+        }
     }
 
     clear()
@@ -194,21 +203,31 @@ export class Timer
             this.id = null;
             this.finalize?.();
         }
+        if (document !== undefined) {
+            document.removeEventListener('visibilitychange', this.listener);
+        }
     }
 
-    static elapsed()
+    elapsed()
     {
         return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
     }
 
-    static id()
+    start()
     {
-        return this.id;
+        this.status = 1;
+        this._start();
     }
 
-    static start()
+    stop()
     {
-        if (this.id === null) {
+        this._stop();
+        this.status = 0;
+    }
+
+    _start()
+    {
+        if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
                 this.timeout();
 
@@ -217,7 +236,7 @@ export class Timer
                 this.offset = 0.0;
     
                 if (this.loop) {
-                    Timer.start.call(this);
+                    this.start();
                 } else {
                     this.finalize?.();
                 }
@@ -226,9 +245,9 @@ export class Timer
         }
     }
 
-    static stop()
+    _stop()
     {
-        if (this.id !== null) {
+        if (this.status === 1 && this.id !== null) {
             this.offset = this.offset + Date.now() - this.time;
             clearTimeout(this.id);
 
