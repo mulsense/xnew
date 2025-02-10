@@ -17,13 +17,14 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 512, height: 512, objectFit: 'contain' });
-      screen.clear('rgb(0,0,0)');
+      screen.element.style.border = 'solid 1px #000';
+      screen.clear();
 
       xnew(Contents, screen.canvas);
 
       const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
       button.on('pointerdown', () => {
-        screen.clear('rgb(0,0,0)');
+        screen.clear();
       });
     });
 
@@ -41,7 +42,7 @@
         const scaleY = canvas.height / canvas.clientHeight;
 
         ctx.beginPath();
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = 'black';
         if (type === 'down') {
           ctx.arc(position.x * scaleX, position.y * scaleY, 1, 0, Math.PI * 2, true);
         } else if (type === 'move') {

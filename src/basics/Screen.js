@@ -62,7 +62,7 @@ export function Screen(self, { width = 640, height = 480, objectFit = 'contain',
         },
         clear() {
             const ctx = canvas.element.getContext('2d');
-            ctx.clearRect(0, 0, size.width, size.height)
+            ctx.clearRect(0, 0, size.width, size.height);
         },
     }
 }
