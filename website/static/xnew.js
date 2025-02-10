@@ -393,11 +393,11 @@
                 type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
             }
             function internal(type) {
-                if (type[0] === '~') {
+                if (type[0] === '+') {
                     Unit.etypes.get(type)?.forEach((unit) => {
                         unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
                     });
-                } else {
+                } else if (type[0] === '-') {
                     this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
                 }
             }
@@ -820,7 +820,7 @@
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     
                     current = { id, position };
-                    self.emit('move', event, { type: 'move', position, delta });
+                    self.emit('-move', { type: '-up', id, position, delta });
                     previous = position;
                 }
             });
@@ -830,7 +830,7 @@
                     const position = getPosition(event, rect);
 
                     current = { id, position };
-                    self.emit('up', event, { type: 'up', position, });
+                    self.emit('-up', { type: '-up', id, position, });
                     win.finalize();
                     wmap.delete(id);
                 }
@@ -841,14 +841,14 @@
                     const position = getPosition(event, rect);
                    
                     current = null;
-                    self.emit('cancel', event, { type: 'cancel', position, });
+                    self.emit('-cancel', { type: '-cancel', id, position, });
                     win.finalize();
                     wmap.delete(id);
                 }
             });
 
             current = { id, position };
-            self.emit('down', event, { type: 'down', position });
+            self.emit('-down', { type: '-down', id, position });
         });
 
         function getPosition(event, rect) {
@@ -873,18 +873,16 @@
         let isActive = false;
         const map = new Map();
 
-        drag.on('down', (event, { position }) => {
-            const id = event.pointerId;
+        drag.on('-down', ({ type, id, position }) => {
             map.set(id, { ...position });
           
             isActive = map.size === 2 ? true : false;
             if (isActive === true) {
-                self.emit('down', event, { type: 'down', });
+                self.emit('-down', { type });
             }
         });
 
-        drag.on('move', (event, { position, delta }) => {
-            const id = event.pointerId;
+        drag.on('-move', ({ type, id, position, delta }) => {
             if (isActive === true) {
                 const a = map.get(id);
                 map.delete(id);
@@ -893,26 +891,26 @@
                 const v = { x: a.x - b.x, y: a.y - b.y };
                 const s =  v.x * v.x + v.y * v.y;
                 const scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-                self.emit('move', event, { type: 'move', scale, });
+                self.emit('-move', { type, scale, });
             }
             map.set(id, { ...position });
         });
 
-        drag.on('up cancel', (event, { type }) => {
-            const id = event.pointerId;
+        drag.on('-up -cancel', ({ type, id }) => {
             if (isActive === true) {
-                self.emit(type, event, { type, });
+                self.emit('-up', { type });
             }
             isActive = false;
             map.delete(id);
         });
+     
     }
 
     function ResizeEvent(self) {
 
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                self.emit('resize');
+                self.emit('-resize');
                 break;
             }
         });
@@ -943,7 +941,7 @@
         
         objectFit = ['fill', 'contain', 'cover'].includes(objectFit) ? objectFit : 'contain';
         const observer = xnew(wrapper, ResizeEvent);
-        observer.on('resize', resize);
+        observer.on('-resize', resize);
         resize();
 
         function resize() {

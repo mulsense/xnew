@@ -37,19 +37,24 @@
 
       const drag = xnew(canvas, xnew.DragEvent);
 
-      drag.on('down move', (event, { type, position, delta }) => {
+      drag.on('-down', ({ position, delta }) => {
         const scaleX = canvas.width / canvas.clientWidth;
         const scaleY = canvas.height / canvas.clientHeight;
 
         ctx.beginPath();
         ctx.fillStyle = 'black';
-        if (type === 'down') {
-          ctx.arc(position.x * scaleX, position.y * scaleY, 1, 0, Math.PI * 2, true);
-        } else if (type === 'move') {
-          const length = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
-          for (let i = 0; i < length; i++) {
-            ctx.arc((position.x - delta.x * i / length) * scaleX, (position.y - delta.y * i / length) * scaleY, 1, 0, Math.PI * 2, true);
-          }
+        ctx.arc(position.x * scaleX, position.y * scaleY, 1, 0, Math.PI * 2, true);
+        ctx.fill();
+      });
+      drag.on('-move', ({ position, delta }) => {
+        const scaleX = canvas.width / canvas.clientWidth;
+        const scaleY = canvas.height / canvas.clientHeight;
+
+        ctx.beginPath();
+        ctx.fillStyle = 'black';
+        const length = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
+        for (let i = 0; i < length; i++) {
+          ctx.arc((position.x - delta.x * i / length) * scaleX, (position.y - delta.y * i / length) * scaleY, 1, 0, Math.PI * 2, true);
         }
         ctx.fill();
       });

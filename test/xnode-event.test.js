@@ -9,20 +9,20 @@ describe('unit event', () => {
     it('basic', () => {
         let state = 0;
         xnew((self) => {
-            self.on('countup', () => state++);
-            self.emit('countup');
-            xnew((self) => self.emit('countup'));
+            self.on('-countup', () => state++);
+            self.emit('-countup');
+            xnew((self) => self.emit('-countup'));
         });
-        xnew((self) => self.emit('countup'));
+        xnew((self) => self.emit('-countup'));
         expect(state).toBe(1);
     });
 
-    it('broadcast ~', () => {
+    it('broadcast +', () => {
         let state = 0;
         xnew((self) => {
-            self.on('~myevent', () => state++);
-            self.emit('~myevent');
-            xnew((self) => self.emit('~myevent'));
+            self.on('+myevent', () => state++);
+            self.emit('+myevent');
+            xnew((self) => self.emit('+myevent'));
         });
         expect(state).toBe(2);
     });

@@ -155,7 +155,7 @@
       const state = xnew.context('state');
 
       let opacity = id === state.id ? 0.80 : 0.20;
-      self.on('~planefade', () => {
+      self.on('+planefade', () => {
         xnew.transition((progress) => {
           opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
         }, 700);
@@ -193,7 +193,7 @@
               transform.ty = backup.ty * (1.0 - p);
               if (progress === 1.0) state.moving = false;
             }, 700);
-            self.emit('~planefade');
+            self.emit('+planefade');
           }
         });
       }

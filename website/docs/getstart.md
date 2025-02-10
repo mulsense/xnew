@@ -9,7 +9,7 @@ sidebar_position: 1
 ## setup
 ### via cdn
 ```html
-<script src="https://unpkg.com/xnew@2.1.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@2.2.x/dist/xnew.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -17,7 +17,7 @@ sidebar_position: 1
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@2.1.x/dist/xnew.mjs"
+    "xnew": "https://unpkg.com/xnew@2.2.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -32,7 +32,7 @@ import xnew from 'xnew'
 
 ### via npm
 ```bash
-npm install xnew@2.1.x
+npm install xnew@2.2.x
 ```
 ```js
 import xnew from 'xnew'

@@ -137,11 +137,11 @@ export class Unit
             type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
         }
         function internal(type) {
-            if (type[0] === '~') {
+            if (type[0] === '+') {
                 Unit.etypes.get(type)?.forEach((unit) => {
                     unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
                 });
-            } else {
+            } else if (type[0] === '-') {
                 this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
             }
         }

@@ -8,18 +8,16 @@ export function GestureEvent(self) {
     let isActive = false;
     const map = new Map();
 
-    drag.on('down', (event, { position }) => {
-        const id = event.pointerId;
+    drag.on('-down', ({ type, id, position }) => {
         map.set(id, { ...position });
       
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            self.emit('down', event, { type: 'down', });
+            self.emit('-down', { type });
         }
     });
 
-    drag.on('move', (event, { position, delta }) => {
-        const id = event.pointerId;
+    drag.on('-move', ({ type, id, position, delta }) => {
         if (isActive === true) {
             const a = map.get(id);
             map.delete(id);
@@ -28,17 +26,17 @@ export function GestureEvent(self) {
             const v = { x: a.x - b.x, y: a.y - b.y };
             const s =  v.x * v.x + v.y * v.y;
             const scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-            self.emit('move', event, { type: 'move', scale, });
+            self.emit('-move', { type, scale, });
         }
         map.set(id, { ...position });
     });
 
-    drag.on('up cancel', (event, { type }) => {
-        const id = event.pointerId;
+    drag.on('-up -cancel', ({ type, id }) => {
         if (isActive === true) {
-            self.emit(type, event, { type, });
+            self.emit('-up', { type });
         }
         isActive = false;
         map.delete(id);
     });
+ 
 }

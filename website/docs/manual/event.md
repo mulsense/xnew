@@ -47,38 +47,39 @@ unit.emit(type, ...args);
 ```
 
 ### original event
+If you add `-` token, `unit.emit` emit event to the unit.  
 ```html
 <div id="target"></div>
 <script>
   const unit = xnew('#target', Component);
   
   function Component(self) {
-    self.on('myevent', (data) => {
-      // fires when unit.emit('myevent', data) is called.
+    self.on('-myevent', (data) => {
+      // fires when unit.emit('-myevent', data) is called.
     });
   });
 
-  unit.on('myevent', (data) => {
-    // fires when the unit's element (id = target) is clicked.
+  unit.on('-myevent', (data) => {
+      // fires when unit.emit('-myevent', data) is called.
   });
 
   const data = {};
-  unit.emit('myevent', data);
+  unit.emit('-myevent', data);
 </script>
 ```
 
 
 ### broadcast
-If you add `~` token, `unit.emit` broadcasts to all units.  
+If you add `+` token, `unit.emit` broadcasts to all units.  
 ```js
 xnew((self) => {
-  self.on('~myevent', () => {
+  self.on('+myevent', () => {
     //
   });
 });
 
 xnew((self) => {
-  self.emit('~myevent'); // broadcast event
+  self.emit('+myevent'); // broadcast event
 });
 
 ```
