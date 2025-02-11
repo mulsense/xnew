@@ -19,28 +19,29 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+      xnew.context('screen', screen);
 
-      xnew(ThreeMain, screen.canvas);
-      xnew(PixiMain, screen.canvas);
+      const oscanvas = new OffscreenCanvas(800, 400);
+      xnew.context('oscanvas', oscanvas);
+
+      xnew(ThreeMain);
+      xnew(PixiMain);
     });
 
-    function ThreeMain(self, canvas) {
-      const renderer = new THREE.WebGLRenderer({}); // not set canvas
-      renderer.setSize(canvas.width, canvas.height);
+    function ThreeMain(self) {
+      const oscanvas = xnew.context('oscanvas');
+      const renderer = new THREE.WebGLRenderer({ canvas: oscanvas});
 
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+      const camera = new THREE.PerspectiveCamera(45, oscanvas.width / oscanvas.height);
       camera.position.set(0, 0, +100);
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
       xnew.extend(ThreeObject, scene);
 
-      xnew(ThreeContents);
+      xnew(Cube, { x: 0, y: 0, z: 0, size: 40 });
 
       return {
-        get canvas() {
-          return renderer.domElement;
-        },
         update() {
           renderer.render(scene, camera);
         },
@@ -59,21 +60,18 @@
       }
     }
 
-    function ThreeContents(self) {
-      xnew(Cube, 0, 0, 0, 40);
-    }
-
-    function PixiMain(self, canvas) {
-      const renderer = PIXI.autoDetectRenderer({ view: canvas, width: canvas.width, height: canvas.height, backgroundColor: '#FFF' });
+    function PixiMain(self) {
+      const screen = xnew.context('screen');
+      const renderer = PIXI.autoDetectRenderer({ view: screen.canvas, width: screen.width, height: screen.height, backgroundColor: '#FFF' });
 
       const scene = new PIXI.Container();
       xnew.extend(PixiObject, scene);
 
-      const three = xnew.find(ThreeMain)[0];
-      const background = new PIXI.Sprite(PIXI.Texture.from(three.canvas));
+      const oscanvas = xnew.context('oscanvas');
+      const background = new PIXI.Sprite(PIXI.Texture.from(oscanvas));
       scene.addChild(background);
 
-      xnew(PixiContents);
+      xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0xEA1E63 });
 
       return {
         update() {
@@ -95,16 +93,14 @@
       }
     }
 
-    function PixiContents(self) {
-      xnew(Box, 800 / 2, 400 / 2, 160, 0xEA1E63);
-    }
-
-    function Box(self, x, y, size, color) {
+    function Box(self, { x, y, size, color }) {
       const object = new PIXI.Container();
       object.x = x;
       object.y = y;
 
-      const graphics = object.addChild(new PIXI.Graphics());
+      const graphics = new PIXI.Graphics();
+      object.addChild(graphics);
+
       graphics.beginFill(color);
       graphics.drawRect(-size / 2, -size / 2, size, size);
       graphics.endFill();
@@ -118,7 +114,7 @@
       };
     }
 
-    function Cube(self, x, y, z, size) {
+    function Cube(self, { x, y, z, size }) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshNormalMaterial();
       const object = new THREE.Mesh(geometry, material);
