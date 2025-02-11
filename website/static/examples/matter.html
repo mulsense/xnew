@@ -18,33 +18,37 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 450 });
+      xnew.context('screen', screen);
 
-      xnew(MatterMain, screen.canvas);
+      xnew(MatterMain);
 
       const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
       button.on('click', () => {
-        button.emit('~matter.reset');
+        button.emit('+matter.reset');
       });
     });
 
-    function MatterMain(self, canvas) {
+    function MatterMain(self) {
+      const screen = xnew.context('screen');
+
       const engine = Matter.Engine.create();
       const render = Matter.Render.create({
-        canvas, engine,
+        canvas: screen.canvas,
+        engine,
         options: {
-          width: canvas.width,
-          height: canvas.height,
+          width: screen.width,
+          height: screen.height,
           hasBounds: true,
           wireframes: false,
           background: 'rgb(240,240,240)'
         }
       });
-      Matter.Composite.add(engine.world, Matter.MouseConstraint.create(engine, { element: canvas }));
+      Matter.Composite.add(engine.world, Matter.MouseConstraint.create(engine, { element: screen.canvas }));
 
       xnew.extend(MatterObject, engine.world);
 
       const contents = xnew(MatterContents);
-      self.on('~matter.reset', () => {
+      self.on('+matter.reset', () => {
         contents.reboot();
       })
 
