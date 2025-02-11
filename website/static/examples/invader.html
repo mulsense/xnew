@@ -27,36 +27,39 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', () => {
+    xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 1200, height: 800 });
+      xnew.context('screen', screen);;
 
       // setting for three.js
       const three = xnew(ThreeMain, screen.canvas);
 
       xnew(Controller, three);
-      xnew(Content, three);
     });
 
-    function ThreeMain(canvas) {
-      const renderer = new THREE.WebGLRenderer({ canvas });
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+    function ThreeMain(self) {
+      const screen = xnew.context('screen');
+      const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
+     
+      const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
       camera.position.set(0, -5, +150);
 
       const scene = new THREE.Scene();
+      xnew.extend(ThreeObject, scene);
+    
       scene.background = new THREE.Color(0xFFFFFF);
       scene.rotation.x = -60 / 180 * Math.PI;
 
+      xnew(ThreeContents);
+
       return {
-        get scene() {
-          return scene;
-        },
         update() {
           renderer.render(scene, camera);
         },
       }
     }
 
-    function ThreeObject(object) {
+    function ThreeObject(self, object) {
       const parent = xnew.context('ThreeObject');
       xnew.context('ThreeObject', object);
 
@@ -69,13 +72,13 @@
     }
 
     function Controller() {
-      const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px; z-index: 10;' }, xnew.DPad);
-      dpad.on('down move up', (event, ex) => {
-        dpad.emit('#object.move', ex);
+      const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px; z-index: 10;' }, DPad);
+      dpad.on('-down -move -up', (event) => {
+        dpad.emit('+object.move', event);
       })
-      const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnew.CircleButton);
-      button.on('down', (event, ex) => {
-        button.emit('#object.action');
+      const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, CircleButton);
+      button.on('-down', (event) => {
+        button.emit('+object.action');
       })
 
       const xwin = xnew(window);
@@ -87,9 +90,7 @@
       });
     }
 
-    function Content(three) {
-      xnew.extend(ThreeObject, three.scene);
-
+    function ThreeContents() {
       xnew(DirectionaLight, 20, 50, 100);
       xnew(AmbientLight);
 
@@ -98,7 +99,7 @@
       xnew(Player, [0, -65]);
     }
 
-    function DirectionaLight(x, y, z) {
+    function DirectionaLight(self, x, y, z) {
       const object = new THREE.DirectionalLight(0xFFFFFF, 0.40);
       object.position.set(x, y, z);
       const s = object.position.length();
@@ -116,13 +117,13 @@
       xnew.extend(ThreeObject, object);
     }
 
-    function AmbientLight() {
+    function AmbientLight(self) {
       const object = new THREE.AmbientLight(0xFFFFFF, 0.50);
 
       xnew.extend(ThreeObject, object);
     }
 
-    function Ground(size, color) {
+    function Ground(self, size, color) {
       const geometry = new THREE.PlaneGeometry(size, size, 1, 1);
       const material = new THREE.MeshStandardMaterial({ color });
       const object = new THREE.Mesh(geometry, material);
@@ -131,7 +132,7 @@
       xnew.extend(ThreeObject, object);
     }
 
-    function Blocks() {
+    function Blocks(self) {
       xnew.extend(ThreeObject, new THREE.Group());
 
       xnew(Block, [-36, -50]);
@@ -140,7 +141,7 @@
       xnew(Block, [+36, -50]);
     }
 
-    function Player([x, y]) {
+    function Player(self, [x, y]) {
       const object = new THREE.Group();
       object.position.set(x, y, 0);
 
@@ -156,7 +157,7 @@
       xnew(CubeArray, data, [3, 2], 4, 0xAAFFAA);
 
       let move = null;
-      xnew.current.on('object.move', ({ vector }) => {
+      self.on('+object.move', ({ vector }) => {
         move = vector;
       });
       return {
@@ -169,7 +170,7 @@
       };
     }
 
-    function Block([x, y]) {
+    function Block(self, [x, y]) {
       const object = new THREE.Group();
       xnew.extend(ThreeObject, object);
       object.position.set(x, y, 0);
@@ -185,7 +186,7 @@
       xnew(CubeArray, data, [5, 4], 6, 0xFFAAAA);
     }
 
-    function CubeArray(data, offset, size, color) {
+    function CubeArray(self, data, offset, size, color) {
       const object = new THREE.Group();
       xnew.extend(ThreeObject, object);
 
@@ -200,7 +201,7 @@
       }
     }
 
-    function Cube([x, y, z], [sx, sy, sz], color) {
+    function Cube(self, [x, y, z], [sx, sy, sz], color) {
       const geometry = new THREE.BoxGeometry(sx, sy, sz);
       const material = new THREE.MeshLambertMaterial({ color, });
       const object = new THREE.Mesh(geometry, material);
@@ -208,6 +209,88 @@
       object.position.set(x, y, z);
 
       object.castShadow = true;
+    }
+
+
+    function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
+      xnew.nest({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; overflow: hidden; user-select: none;`, });
+
+      const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
+      const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
+
+      const polygons = [
+        '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35"></polygon>',
+        '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65"></polygon>',
+        '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65"></polygon>',
+        '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65"></polygon>'
+      ];
+
+      const targets = polygons.map((polygon) => {
+        return xnew({
+          tagName: 'svg',
+          style: `position: absolute; width: 100%; height: 100%; user-select: none; ${fillStyle}"`,
+          viewBox: '0 0 100 100'
+        }, polygon);
+      });
+
+      xnew({ tagName: 'svg', style: `position: absolute; width: 100%; height: 100%; user-select: none; fill: none; ${strokeStyle}"`, viewBox: '0 0 100 100' }, `
+        <polyline points="35 35 35  5 37  3 63  3 65  5 65 35"></polyline>
+        <polyline points="35 65 35 95 37 97 63 97 65 95 65 65"></polyline>
+        <polyline points="35 35  5 35  3 37  3 63  5 65 35 65"></polyline>
+        <polyline points="65 35 95 35 97 37 97 63 95 65 65 65"></polyline>
+        <polygon points="50 11 42 20 58 20"></polygon>
+        <polygon points="50 89 42 80 58 80"></polygon>
+        <polygon points="11 50 20 42 20 58"></polygon>
+        <polygon points="89 50 80 42 80 58"></polygon>
+      `);
+
+      const drag = xnew(xnew.DragEvent);
+
+      drag.on('-down -move', ({ type, position }) => {
+        const x = position.x - size / 2;
+        const y = position.y - size / 2;
+        const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
+        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
+
+        const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
+        vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
+        vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
+        targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
+        targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
+        targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
+        targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
+        self.emit(type, { type, vector });
+      });
+
+      drag.on('-up -cancel', ({ type }) => {
+        const vector = { x: 0, y: 0 };
+        targets[0].element.style.filter = '';
+        targets[1].element.style.filter = '';
+        targets[2].element.style.filter = '';
+        targets[3].element.style.filter = '';
+        self.emit(type, { type, vector });
+      });
+    }
+
+    function CircleButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 } = {}) {
+      xnew.nest({ style: `position: relative; width: ${size}px; height: ${size}px; user-select: none;`, });
+      const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
+      const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
+
+      const target = xnew({ tagName: 'svg', style: `width: 100%; height: 100%; cursor: pointer; user-select: none; ${fillStyle} ${strokeStyle}`, viewBox: '0 0 100 100' }, `
+        <circle cx="50" cy="50" r="40"></circle>
+      `);
+
+      const drag = xnew(target, xnew.DragEvent);
+
+      drag.on('-down', (event) => {
+        target.element.style.filter = 'brightness(90%)';
+        self.emit('-down', event);
+      });
+      drag.on('-up', (event) => {
+        target.element.style.filter = '';
+        self.emit('-up', event);
+      });
     }
   </script>
 </body>
