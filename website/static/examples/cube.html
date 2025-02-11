@@ -74,11 +74,11 @@
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshLambertMaterial({ color: 0xFFFFFF * Math.random() });
       const object = new THREE.Mesh(geometry, material);
+      xnew.extend(ThreeObject, object);
+   
       object.position.x = 100 * (Math.random() - 0.5);
       object.position.y = 100 * (Math.random() - 0.5);
       object.position.z = 100 * (Math.random() - 0.5);
-
-      xnew.extend(ThreeObject, object);
 
       const velocity = {};
       velocity.x = Math.random() - 0.5;
