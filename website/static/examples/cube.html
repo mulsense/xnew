@@ -18,13 +18,16 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+      xnew.context('screen', screen);
 
-      xnew(ThreeMain, screen.canvas);
+      xnew(ThreeMain);
     });
 
-    function ThreeMain(self, canvas) {
-      const renderer = new THREE.WebGLRenderer({ canvas });
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+    function ThreeMain(self) {
+      const screen = xnew.context('screen');
+      const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
+
+      const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
       camera.position.set(0, 0, +100);
 
       const scene = new THREE.Scene();
@@ -32,6 +35,7 @@
       xnew.extend(ThreeObject, scene);
 
       xnew(ThreeContents);
+
       return {
         update() {
           renderer.render(scene, camera);
@@ -59,10 +63,10 @@
     }
 
     function Light(self) {
-      const light = new THREE.PointLight(0xFFFFFF, 1);
-      light.position.set(0, 0, +100);
-
-      xnew.extend(ThreeObject, light);
+      const object = new THREE.PointLight(0xFFFFFF, 1);
+      xnew.extend(ThreeObject, object);
+      
+      object.position.set(0, 0, +100);
     }
 
     function Cube(self) {
