@@ -320,12 +320,12 @@
             (this._.parent?._.children ?? Unit.roots).delete(this);
         }
 
-        reboot(...args)
+        reboot()
         {
             Unit.stop.call(this);
             Unit.finalize.call(this);
             (this._.parent?._.children ?? Unit.roots).add(this);
-            Unit.initialize.call(this, ...this._.backup, ...args);
+            Unit.initialize.call(this, ...this._.backup);
         }
 
         on(type, listener, options)
@@ -454,7 +454,7 @@
         static initialize(parent, target, component, ...args)
         {
             this._ = Object.assign(this._, {
-                backup: [parent, target, component],
+                backup: [parent, target, component, ...args],
                 children: new Set(),            // children units
                 state: 'pending',               // [pending -> running <-> stopped -> finalized]
                 tostart: false,                 // flag for start

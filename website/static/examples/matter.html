@@ -48,6 +48,7 @@
       xnew.extend(MatterObject, engine.world);
 
       const contents = xnew(MatterContents);
+      
       self.on('+matter.reset', () => {
         contents.reboot();
       })
