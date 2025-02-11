@@ -18,20 +18,25 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+      xnew.context('screen', screen);
 
       xnew(ThreeMain, screen.canvas);
     });
 
-    function ThreeMain(self, canvas) {
-      const renderer = new THREE.WebGLRenderer({ canvas });
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+    function ThreeMain(self) {
+      const screen = xnew.context('screen');
+      const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
+
+      const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
       camera.position.set(0, 0, +100);
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xFFFFFF);
+
       xnew.extend(ThreeObject, scene);
 
-      xnew(ThreeContents);
+      xnew(Cube, { x: 0, y: 0, z: 0, size: 40 });
+
       return {
         update() {
           renderer.render(scene, camera);
@@ -51,11 +56,7 @@
       }
     }
 
-    function ThreeContents(self) {
-      xnew(Cube, 0, 0, 0, 40);
-    }
-
-    function Cube(self, x, y, z, size) {
+    function Cube(self, { x, y, z, size }) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshNormalMaterial();
       const object = new THREE.Mesh(geometry, material);
