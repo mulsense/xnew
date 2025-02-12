@@ -11,17 +11,19 @@ How `xnew` works makes component-oriented programming easier.
 As shown below, `xnew` accepts some arguments.
 ```js
 // parent:    [a unit object]
-// target:    [an existing html element] or [attributes to create a html element]  
-// component: [an component function] or [an inner html for the created html element]  
-// ...args:   [arguments for the component function]
+// target:    1. [an existing html element] or 
+//            2. [attributes to create a html element]  
+// Component: 1. [an component function] or 
+//            2. [an inner html for the created html element]  
+// ...args:   1. [arguments for the component function]
 const unit = xnew(parent, target, component, ...args);
 ```
 
 These arguments are often omitted.  
 ```js
-xnew(component, ...args);           // parent and target are omitted
-xnew(parent, component, ...args);   // target is omitted
-xnew(target, component, ...args);   // parent is omitted
+xnew(Component, ...args);           // parent and target are omitted
+xnew(parent, Component, ...args);   // target is omitted
+xnew(target, Component, ...args);   // parent is omitted
 xnew(parent, target);               // ...
 xnew(parent);                       // ...
 xnew(target);                       // ...

@@ -51,10 +51,10 @@ function Component(self, ...args) {
 }
 ```
 
-Or, you can create a html element using `xnew`.
+You can also create a html element using `xnew`.
 
 ```js
-const unit = xnew({ className: '...', style: '...' }, 'inner html');
+const unit = xnew({ className: '...', style: '...', ... }, 'inner html');
 
 unit.element;
 ```
