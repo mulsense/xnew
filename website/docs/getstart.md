@@ -39,7 +39,7 @@ import xnew from 'xnew'
 ```
 ## tutorial
 ### basic usage
-By calling `xnew`, an `unit` will be created.  
+By calling `xnew`, an `unit` (`self`) will be created.  
 If you set a component function to `xnew`, you will implement various features.
 
 ```js
@@ -51,12 +51,12 @@ function Component(self, ...args) {
 }
 ```
 
-You can also use a function literal.  `xnew((self) => {});`
+Or, you can create a html element using `xnew`.
+
 ```js
-const unit = xnew((self) => {
-  // ...
-  // implement features
-});
+const unit = xnew({ className: '...', style: '...' }, 'inner html');
+
+unit.element;
 ```
 
 ### example 1

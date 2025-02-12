@@ -13,7 +13,7 @@
     xnew(Component);
 
     function Component(self) {
-      xnew.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
+      xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
       xnew({ tagName: 'span' }, 'click me');
       
       self.on('click', (event) => {
