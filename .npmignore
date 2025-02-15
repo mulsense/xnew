@@ -3,6 +3,7 @@
 /src
 /test
 /website
+/backup
 /babel.config.js
 /jest.config.js
 /rollup.config.js
