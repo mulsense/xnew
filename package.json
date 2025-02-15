@@ -6,7 +6,7 @@
   ],
   "version": "2.2.3",
   "main": "dist/xnew.js",
-  "module": "./dist/xnew.mjs",
+  "module": "./dist/xnew.module.js",
   "exports": {
     ".": {
       "import": "./dist/xnew.mjs",
@@ -40,9 +40,8 @@
     "babel-jest": "^29.7.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
-    "rollup": "^3.3.0"
-  },
-  "dependencies": {
-    "three": "^0.173.0"
+    "rollup": "^3.3.0",
+    "rollup-plugin-copy": "^3.5.0",
+    "xnew": "^2.2.3"
   }
 }

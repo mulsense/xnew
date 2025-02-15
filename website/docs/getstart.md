@@ -17,7 +17,7 @@ sidebar_position: 1
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@2.2.x/dist/xnew.mjs"
+    "xnew": "https://unpkg.com/xnew@2.2.x/dist/xnew.module.js"
   }
 }
 </script>

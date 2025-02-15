@@ -18,7 +18,7 @@ You can architect your code as a collection of simple components.
 <script type="importmap">
 {
     "imports": {
-        "xnew": "https://unpkg.com/xnew@2.2.x/dist/xnew.mjs"
+        "xnew": "https://unpkg.com/xnew@2.2.x/dist/xnew.module.js"
     }
 }
 </script>
