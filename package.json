@@ -4,8 +4,21 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "2.2.2",
+  "version": "2.2.3",
   "main": "dist/xnew.js",
+  "module": "./dist/xnew.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/xnew.mjs",
+      "require": "./dist/xnew.js"
+    },
+    "./addons/*": "./dist/addons/*"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/wisroot-com/xnew/issues"
@@ -28,5 +41,8 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "rollup": "^3.3.0"
+  },
+  "dependencies": {
+    "three": "^0.173.0"
   }
 }
