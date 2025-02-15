@@ -252,9 +252,11 @@ export class Unit
                 if (isFunction(descripter.value)) {
                     const previous = this._.props[key];
                     if (previous !== undefined) {
-                        this._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
+                        this._.props[key] = key !== 'finalize' ?
+                            () => { previous(); descripter.value(); } :
+                            () => { descripter.value(); previous(); };
                     } else {
-                        this._.props[key] = (...args) => { descripter.value(...args); };
+                        this._.props[key] = () => { descripter.value(); };
                     }
                 } else {
                     error('unit extend', 'The property is invalid.', key);

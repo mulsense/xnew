@@ -508,9 +508,11 @@
                     if (isFunction(descripter.value)) {
                         const previous = this._.props[key];
                         if (previous !== undefined) {
-                            this._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
+                            this._.props[key] = key !== 'finalize' ?
+                                () => { previous(); descripter.value(); } :
+                                () => { descripter.value(); previous(); };
                         } else {
-                            this._.props[key] = (...args) => { descripter.value(...args); };
+                            this._.props[key] = () => { descripter.value(); };
                         }
                     } else {
                         error('unit extend', 'The property is invalid.', key);
@@ -710,7 +712,7 @@
         } else if (Unit.current._.state !== 'pending') {
             error('xnew.extend', 'This function can not be called after initialized.');
         } else if (Unit.current._.components.has(component) === true) {
-            error('xnew.extend', 'This function has already been added.');
+            return Unit.extend.call(Unit.current, component, ...args);
         } else {
             return Unit.extend.call(Unit.current, component, ...args);
         }

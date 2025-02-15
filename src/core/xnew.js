@@ -68,6 +68,7 @@ function extend(component, ...args)
     } else if (Unit.current._.state !== 'pending') {
         error('xnew.extend', 'This function can not be called after initialized.');
     } else if (Unit.current._.components.has(component) === true) {
+        return Unit.extend.call(Unit.current, component, ...args);
         error('xnew.extend', 'This function has already been added.');
     } else {
         return Unit.extend.call(Unit.current, component, ...args);
