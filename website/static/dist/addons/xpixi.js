@@ -1,14 +1,13 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew')) :
     typeof define === 'function' && define.amd ? define(['exports', 'xnew'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xthree = global.xthree || {}, global.xnew));
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xpixi = global.xpixi || {}, global.xnew));
 })(this, (function (exports, xnew) { 'use strict';
 
-    function Main(self, { canvas, camera }) {
-        const renderer = new THREE.WebGLRenderer({ canvas });
+    function Main(self, { canvas }) {
+        const renderer = PIXI.autoDetectRenderer({ width: canvas.width, height: canvas.height, view: canvas, backgroundColor: '#FFF' });
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xFFFFFF);
+        const scene = new PIXI.Container();
 
         xnew.extend(Connect, scene);
 
@@ -17,20 +16,19 @@
                 return scene;
             },
             update() {
-                renderer.render(scene, camera);
+                renderer.render(scene);
             },
         }
     }
-
     function Connect(self, object) {
-        const parent = xnew.context('xthree.Connect');
-        xnew.context('xthree.Connect', object);
+        const parent = xnew.context('xpixi.Connect');
+        xnew.context('xpixi.Connect', object);
 
         if (parent) {
-            parent?.add(object);
+            parent.addChild(object);
             return {
                 finalize() {
-                    parent?.remove(object);
+                    parent.removeChild(object);
                 },
             }
         }

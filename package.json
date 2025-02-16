@@ -4,12 +4,12 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "2.2.3",
+  "version": "2.2.6",
   "main": "dist/xnew.js",
   "module": "./dist/xnew.module.js",
   "exports": {
     ".": {
-      "import": "./dist/xnew.mjs",
+      "import": "./dist/xnew.module.js",
       "require": "./dist/xnew.js"
     },
     "./addons/*": "./dist/addons/*"
@@ -27,9 +27,7 @@
   "scripts": {
     "test": "jest",
     "build": "npx rollup --config --bundleConfigAsCjs",
-    "watch": "npx rollup --config --watch --bundleConfigAsCjs",
-    "tw-build": "npx tailwindcss -i ./docs/tailwind.css -o ./docs/style.css",
-    "tw-watch": "npx tailwindcss -i ./docs/tailwind.css -o ./docs/style.css --watch"
+    "watch": "npx rollup --config --watch --bundleConfigAsCjs"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -40,8 +38,8 @@
     "babel-jest": "^29.7.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "matter-js": "^0.20.0",
     "rollup": "^3.3.0",
-    "rollup-plugin-copy": "^3.5.0",
     "xnew": "^2.2.3"
   }
 }

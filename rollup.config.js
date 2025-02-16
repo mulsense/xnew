@@ -1,6 +1,5 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs'
-import copy from 'rollup-plugin-copy';
 
 export default [
     {
@@ -14,21 +13,19 @@ export default [
                 freeze: false,
             },
             {
+                file: 'website/static/dist/xnew.js',
+                format: 'umd',
+                extend: true,
+                name: 'xnew', // name: 'window
+                freeze: false,
+            },
+            {
                 file: 'dist/xnew.module.js',
                 format: 'esm',
                 extend: true,
                 name: 'xnew', // name: 'window
                 freeze: false
             },
-        ],
-        plugins: [
-            // resolve(), // resolve node_modules
-            // commonjs() // CommonJS -> ES6
-            copy({
-                targets: [
-                  { src: 'dist/xnew.js', dest: 'website/static/dist' }
-                ]
-            })
         ]
     },
     {
@@ -40,17 +37,82 @@ export default [
                 extend: true,
                 name: 'xthree',
                 freeze: false,
-            }
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'website/static/dist/addons/xthree.js',
+                format: 'umd',
+                extend: true,
+                name: 'xthree',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'dist/addons/xthree.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xthree',
+                freeze: false
+            },
+        ],
+        external: ['xnew']
+    },
+    {
+        input: 'src/addons/xpixi.js',
+        output: [
+            {
+                file: 'dist/addons/xpixi.js',
+                format: 'umd',
+                extend: true,
+                name: 'xpixi',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'website/static/dist/addons/xpixi.js',
+                format: 'umd',
+                extend: true,
+                name: 'xpixi',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'dist/addons/xpixi.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xpixi',
+                freeze: false
+            },
         ],
         external: ['xnew'],
-        plugins: [
-            // resolve(), // resolve node_modules
-            // commonjs() // CommonJS -> ES6
-            copy({
-                targets: [
-                  { src: 'dist/addons/xthree.js', dest: 'website/static/dist/addons' }
-                ]
-            })
-        ]
+    },
+    {
+        input: 'src/addons/xmatter.js',
+        output: [
+            {
+                file: 'dist/addons/xmatter.js',
+                format: 'umd',
+                extend: true,
+                name: 'xmatter',
+                freeze: false,
+                globals: { 'xnew': 'xnew', 'matter-js': 'Matter' },
+            },
+            {
+                file: 'website/static/dist/addons/xmatter.js',
+                format: 'umd',
+                extend: true,
+                name: 'xmatter',
+                freeze: false,
+                globals: { 'xnew': 'xnew', 'matter-js': 'Matter' },
+            },
+            {
+                file: 'dist/addons/xmatter.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xmatter',
+                freeze: false
+            },
+        ],
+        external: ['xnew', 'matter-js'],
     }
 ];

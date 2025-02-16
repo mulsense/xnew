@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../thirdparty/three.min.js"></script>
   <script src="../dist/xnew.js"></script>
+  <script src="../dist/addons/xthree.js"></script>
   <style>
     body {
       margin: 0;
@@ -18,49 +19,44 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
-      xnew.context('screen', screen);
 
-      xnew(ThreeMain);
+      xnew(ThreeMain, { canvas: screen.canvas });
     });
 
-    function ThreeMain(self) {
-      const screen = xnew.context('screen');
-      const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
-
-      const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
+    function ThreeMain(self, { canvas }) {
+      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
       camera.position.set(0, 0, +100);
 
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xFFFFFF);
+      xnew.extend(xthree.Main, { canvas, camera });
 
-      xnew.extend(ThreeObject, scene);
-
-      xnew(Cube, { x: 0, y: 0, z: 0, size: 40 });
-
-      return {
-        update() {
-          renderer.render(scene, camera);
-        },
-      }
+      xnew(Cubes);
     }
 
-    function ThreeObject(self, object) {
-      const parent = xnew.context('ThreeObject');
-      xnew.context('ThreeObject', object);
-
-      parent?.add(object);
-      return {
-        finalize() {
-          parent?.remove(object);
-        },
+    function Cubes(self) {
+      const object = new THREE.Object3D(); 
+      xnew.extend(xthree.Connect, object);
+      
+      for (let z = -1; z <= 1; z++) {
+        for (let y = -1; y <= 1; y++) {
+          for (let x = -1; x <= 1; x++) {
+            xnew(Cube, { x: 15 * x, y: 15 * y, z: 15 * z, size: 6 });
+          }
+        }
       }
+      return {
+        update() {
+          object.rotation.x += 0.01;
+          object.rotation.y += 0.01;
+        },
+      };
     }
 
     function Cube(self, { x, y, z, size }) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshNormalMaterial();
       const object = new THREE.Mesh(geometry, material);
-      xnew.extend(ThreeObject, object);
+      
+      xnew.extend(xthree.Connect, object);
      
       object.position.set(x, y, z);
 
