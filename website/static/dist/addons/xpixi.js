@@ -4,14 +4,22 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xpixi = global.xpixi || {}, global.xnew));
 })(this, (function (exports, xnew) { 'use strict';
 
-    function Main(self, { canvas }) {
-        const renderer = PIXI.autoDetectRenderer({ width: canvas.width, height: canvas.height, view: canvas, backgroundColor: '#FFF' });
+    function BaseSystem(self, { canvas }) {
+        const renderer = PIXI.autoDetectRenderer({
+            width: canvas.width,
+            height: canvas.height,
+            view: canvas,
+            backgroundColor: '#FFF'
+        });
 
         const scene = new PIXI.Container();
 
         xnew.extend(Connect, scene);
 
         return {
+            get renderer() {
+                return renderer;
+            },
             get scene() {
                 return scene;
             },
@@ -20,6 +28,7 @@
             },
         }
     }
+
     function Connect(self, object) {
         const parent = xnew.context('xpixi.Connect');
         xnew.context('xpixi.Connect', object);
@@ -34,7 +43,7 @@
         }
     }
 
+    exports.BaseSystem = BaseSystem;
     exports.Connect = Connect;
-    exports.Main = Main;
 
 }));

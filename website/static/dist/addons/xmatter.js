@@ -4,7 +4,7 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xmatter = global.xmatter || {}, global.xnew, global.Matter));
 })(this, (function (exports, xnew, matterJs) { 'use strict';
 
-    function System(self, { canvas, options = {} }) {
+    function BaseSystem(self, { canvas, ...options }) {
         const engine = matterJs.Engine.create();
         const render = matterJs.Render.create({
             canvas,
@@ -16,8 +16,6 @@
             }, options)
         });
         
-        matterJs.Composite.add(engine.world, matterJs.MouseConstraint.create(engine, { element: canvas }));
-
         xnew.extend(Connect, engine.world);
 
         return {
@@ -48,7 +46,7 @@
         }
     }
 
+    exports.BaseSystem = BaseSystem;
     exports.Connect = Connect;
-    exports.System = System;
 
 }));

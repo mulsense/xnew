@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../thirdparty/pixi.min.js"></script>
   <script src="../dist/xnew.js"></script>
+  <script src="../dist/addons/xpixi.js"></script>
   <style>
     body {
       margin: 0;
@@ -18,37 +19,14 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 450 });
-      xnew.context('screen', screen);
 
-      xnew(PixiMain);
+      xnew(PixiMain, { canvas: screen.canvas });
     });
 
-    function PixiMain(self) {
-      const screen = xnew.context('screen');
-      const renderer = PIXI.autoDetectRenderer({ view: screen.canvas, width: screen.width, height: screen.height, backgroundColor: '#FFF' });
-    
-      const scene = new PIXI.Container();
-      xnew.extend(PixiObject, scene);
+    function PixiMain(self, { canvas }) {
+      xnew.extend(xpixi.BaseSystem, { canvas });
 
       xnew(Scene1);
-
-      return {
-        update() {
-          renderer.render(scene);
-        },
-      };
-    }
-
-    function PixiObject(self, object) {
-      const parent = xnew.context('PixiObject');
-      xnew.context('PixiObject', object);
-
-      parent?.addChild(object);
-      return {
-        finalize() {
-          parent?.removeChild(object);
-        },
-      }
     }
 
     function Scene1(self) {
@@ -73,14 +51,14 @@
 
     function Text(self, value) {
       const text = new PIXI.Text(value, new PIXI.TextStyle({ fontSize: 24, fill: '#000000' }));
-      xnew.extend(PixiObject, text);
+      xnew.extend(xpixi.Connect, text);
       text.x = 10;
       text.y = 10;
     }
 
     function Box(self, { x, y, size, color }) {
       const object = new PIXI.Container();
-      xnew.extend(PixiObject, object);
+      xnew.extend(xpixi.Connect, object);
 
       object.x = x;
       object.y = y;
@@ -92,7 +70,7 @@
 
       xnew.transition((progress) => {
         object.alpha = progress;
-      },3000);
+      }, 2000);
 
       return {
         update() {

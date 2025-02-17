@@ -18,7 +18,7 @@
   <div id="main" style="position: relative; width: 100%; height: 100%;"></div>
   <script>
     xnew('#main', (self) => {
-      const screen = xnew(xnew.Screen, { width: 800, height: 450 });
+      const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
       xnew(MatterMain, { canvas: screen.canvas });
 
@@ -29,7 +29,7 @@
     });
 
     function MatterMain(self, { canvas }) {
-      const system = xnew.extend(xmatter.System, { canvas, options: { wireframes: false } });
+      const system = xnew.extend(xmatter.BaseSystem, { canvas, wireframes: false });
 
       const constraint = Matter.MouseConstraint.create(system.engine, { element: canvas });
       Matter.Composite.add(system.engine.world, constraint);

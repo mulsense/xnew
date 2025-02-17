@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../thirdparty/three.min.js"></script>
   <script src="../dist/xnew.js"></script>
+  <script src="../dist/addons/xthree.js"></script>
   <style>
     body {
       margin: 0;
@@ -18,44 +19,15 @@
   <script>
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
-      xnew.context('screen', screen);
 
-      xnew(ThreeMain);
+      xnew(ThreeMain, { canvas: screen.canvas});
     });
 
-    function ThreeMain(self) {
-      const screen = xnew.context('screen');
-      const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
+    function ThreeMain(self, { canvas }) {
+      xnew.extend(xthree.BaseSystem, { canvas });
+      
+      self.camera.position.set(0, 0, +100);
 
-      const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
-      camera.position.set(0, 0, +100);
-
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xFFFFFF);
-      xnew.extend(ThreeObject, scene);
-
-      xnew(ThreeContents);
-
-      return {
-        update() {
-          renderer.render(scene, camera);
-        },
-      }
-    }
-
-    function ThreeObject(self, object) {
-      const parent = xnew.context('ThreeObject');
-      xnew.context('ThreeObject', object);
-
-      parent?.add(object);
-      return {
-        finalize() {
-          parent?.remove(object);
-        },
-      }
-    }
-
-    function ThreeContents(self) {
       xnew(Light);
 
       // call iteratively (delay = 100ms, loop = true)
@@ -64,7 +36,7 @@
 
     function Light(self) {
       const object = new THREE.PointLight(0xFFFFFF, 1);
-      xnew.extend(ThreeObject, object);
+      xnew.extend(xthree.Connect, object);
       
       object.position.set(0, 0, +100);
     }
@@ -74,7 +46,7 @@
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshLambertMaterial({ color: 0xFFFFFF * Math.random() });
       const object = new THREE.Mesh(geometry, material);
-      xnew.extend(ThreeObject, object);
+      xnew.extend(xthree.Connect, object);
    
       object.position.x = 100 * (Math.random() - 0.5);
       object.position.y = 100 * (Math.random() - 0.5);

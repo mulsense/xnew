@@ -24,10 +24,9 @@
     });
 
     function ThreeMain(self, { canvas }) {
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
-      camera.position.set(0, 0, +100);
+      xnew.extend(xthree.BaseSystem, { canvas });
 
-      xnew.extend(xthree.Main, { canvas, camera });
+      self.camera.position.set(0, 0, +100);
 
       xnew(Cubes);
     }
@@ -45,8 +44,8 @@
       }
       return {
         update() {
-          object.rotation.x += 0.01;
           object.rotation.y += 0.01;
+          object.rotation.z += 0.01;
         },
       };
     }
@@ -62,6 +61,7 @@
 
       return {
         update() {
+          object.rotation.x += 0.01;
           object.rotation.y += 0.01;
         },
       };

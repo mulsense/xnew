@@ -1,13 +1,21 @@
 import xnew from 'xnew';
 
-export function Main(self, { canvas }) {
-    const renderer = PIXI.autoDetectRenderer({ width: canvas.width, height: canvas.height, view: canvas, backgroundColor: '#FFF' });
+export function BaseSystem(self, { canvas }) {
+    const renderer = PIXI.autoDetectRenderer({
+        width: canvas.width,
+        height: canvas.height,
+        view: canvas,
+        backgroundColor: '#FFF'
+    });
 
     const scene = new PIXI.Container();
 
     xnew.extend(Connect, scene);
 
     return {
+        get renderer() {
+            return renderer;
+        },
         get scene() {
             return scene;
         },
@@ -16,6 +24,7 @@ export function Main(self, { canvas }) {
         },
     }
 }
+
 export function Connect(self, object) {
     const parent = xnew.context('xpixi.Connect');
     xnew.context('xpixi.Connect', object);

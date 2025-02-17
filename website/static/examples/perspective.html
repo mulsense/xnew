@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../thirdparty/three.min.js"></script>
   <script src="../dist/xnew.js"></script>
+  <script src="../dist/addons/xthree.js"></script>
   <style>
     body {
       margin: 0;
@@ -208,15 +209,21 @@
       //   transform.rx += delta.y * 0.2;
       // });
     }
-
     function ThreeMain(self) {
+
+      self.camera.position.set(0, 0, +100);
+
+      xnew(Cubes);
+    }
+    function ThreeMain(self) {
+      const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
+     
+      const canvas = screen.canvas;
+      const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
+      xnew.extend(xthree.BaseSystem, { canvas, camera, antialias: true});
+    
       const offset = xnew.context('offset');
       const transform = xnew.context('transform');
-     
-      const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
-      const canvas = screen.canvas;
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-      const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
 
       xnew(xnew.ResizeEvent).on('resize', () => {
         camera.fov = fov();
@@ -227,30 +234,14 @@
         return Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
       }
  
-      const scene = new THREE.Scene();
-      xnew.extend(ThreeObject, scene);
-
       xnew(ThreeContents);
 
       return {
         update() {
-          scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
-          scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
-          camera.position.x = -(transform.tx + offset.tx);
-          camera.position.y = +(transform.ty + offset.ty);
-          renderer.render(scene, camera);
-        },
-      }
-    }
-
-    function ThreeObject(self, object) {
-      const parent = xnew.context('ThreeObject');
-      xnew.context('ThreeObject', object);
-
-      parent?.add(object);
-      return {
-        finalize() {
-          parent?.remove(object);
+          self.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
+          self.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
+          self.camera.position.x = -(transform.tx + offset.tx);
+          self.camera.position.y = +(transform.ty + offset.ty);
         },
       }
     }
@@ -265,12 +256,12 @@
     function DirectionaLight(self, x, y, z, value) {
       const object = new THREE.DirectionalLight(0xFFFFFF, value);
       object.position.set(x, y, z);
-      xnew.extend(ThreeObject, object);
+      xnew.extend(xthree.Connect, object);
     }
 
     function AmbientLight(self, value) {
       const object = new THREE.AmbientLight(0xFFFFFF, value);
-      xnew.extend(ThreeObject, object);
+      xnew.extend(xthree.Connect, object);
     }
 
     function Room(self) {
@@ -281,7 +272,7 @@
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
       });
       const object = new THREE.Mesh(geometry, material);
-      xnew.extend(ThreeObject, object);
+      xnew.extend(xthree.Connect, object);
 
       xnew(Grid, { tz: +size, rx: 90 });
       xnew(Grid, { tz: -size, rx: 90 });
@@ -293,7 +284,7 @@
 
     function Grid(self, { tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
       const object = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
-      xnew.extend(ThreeObject, object);
+      xnew.extend(xthree.Connect, object);
       object.rotation.set(rx * Math.PI / 180, ry * Math.PI / 180, rz * Math.PI / 180);
       object.position.set(tx, ty, tz);
     }

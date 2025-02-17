@@ -1,7 +1,7 @@
 import xnew from 'xnew';
 import { Engine, Render, Composite, MouseConstraint } from 'matter-js';
 
-export function System(self, { canvas, options = {} }) {
+export function BaseSystem(self, { canvas, ...options }) {
     const engine = Engine.create();
     const render = Render.create({
         canvas,
@@ -13,8 +13,6 @@ export function System(self, { canvas, options = {} }) {
         }, options)
     });
     
-    Composite.add(engine.world, MouseConstraint.create(engine, { element: canvas }));
-
     xnew.extend(Connect, engine.world);
 
     return {
