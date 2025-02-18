@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="../dist/xnew.js"></script>
+</head>
+
+<body>
+  <script>
+    xnew(Component);
+
+    function Component() {
+      xnew.nest({ style: 'width: 300px; height: 200px; margin: 8px; border: solid 1px #AAA;' })
+
+      const integer = xnew(InputInteger);
+    }
+
+    function InputInteger({ className = '', style = {}, value = 0 } = {}) {
+      const input = xnew.nest({ tagName: 'input', type: 'number', className, style, value });
+      
+      let previous = value;
+
+      const self = xthis;
+      const base = xnew();
+      base.on('input', (event) => {
+        if (input.value !== '' && Number.isNaN(input.value) === false && Number.isInteger(Number(input.value))) {
+          value = Number(input.value);
+          previous = value;
+          self.emit('value', { value });
+        } else {
+          value = previous;
+          input.value = value;
+        }
+      });
+
+      return {
+        get value() {
+          return value;
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>

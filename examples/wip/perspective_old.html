@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="../thirdparty/three.min.js"></script>
+  <script src="../dist/xnew.js"></script>
+
+  <style>
+    html {
+      height: -webkit-fill-available;
+    }
+    body {
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      position: absolute;
+      margin: 0;
+      inset: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="main" style="width: 100%; height: 100%; perspective: 300px; perspective-origin: center; user-select: none;">
+    <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
+    <div id="target" style="position: absolute; opacity: 0.5; inset: 0; margin: auto; width: 800px; height: 400px; background: #AAA;">
+      <img style="pointer-events: none;" width="400" src="harinezumi.jpg"/>
+    </div>
+  </div>
+  <script>
+    xnew('#main', () => {
+      const perspective = 300 / (Math.tan(45 / 2 * Math.PI / 180) * 2);
+      console.log(THREE.UnrealBloomPass)
+      xnew('#screen', () => {
+        const screen = xnew(xnew.Screen, { width: 600, height: 400, objectFit: 'cover' });
+        xnew(screen, ThreeMain, screen.canvas);
+      });
+
+      xnew('#target', () => {
+        xthis.element.style.transformOrigin = 'center';
+        xthis.element.style.transform = 'rotateY(20deg) translateX(0px) ';
+
+        let rotx = 0;
+        let roty = 0;
+        xthis.on('~scene.rotate', (move) => {
+          rotx += move.y;
+          roty -= move.x;
+          xthis.element.style.transform = `
+          translateZ(300px) 
+          rotateY(${roty}deg) rotateX(${rotx}deg) 
+          translateZ(-300px)`;
+        });
+
+      });
+      xnew(Event);
+    });
+
+    function ThreeMain(canvas) {
+      const renderer = new THREE.WebGLRenderer({ canvas });
+
+      const perspective = 300;
+      const rect = xthis.element.getBoundingClientRect();
+      const deg = Math.atan2(rect.height / 2, perspective) * 2 * 180 / Math.PI;
+      const camera = new THREE.PerspectiveCamera(deg, canvas.width / canvas.height);
+      camera.position.set(0, 0, 0);
+
+      xthis.on('~scale', (scale) => {
+        camera.position.z /= scale;
+      })
+      xthis.on('~camera.translate', (move) => {
+        camera.position.x += move.x * camera.position.z * 0.001;
+        camera.position.y += move.y * camera.position.z * 0.001;
+      })
+      let rotx = 0;
+      let roty = 0;
+      xthis.on('~scene.rotate', (move) => {
+        rotx += move.y * Math.PI / 180;
+        roty += move.x * Math.PI / 180;
+        camera.rotation.x = rotx;
+        camera.rotation.y = roty;
+      })
+      const contents = xnew(ThreeContents);
+
+      return {
+        update() {
+          renderer.render(contents.scene, camera);
+        },
+      }
+    }
+
+    function ThreeObject(object) {
+      const parent = xnew.context('THREE.Object3D');
+      xnew.context('THREE.Object3D', object);
+
+      parent?.add(object);
+      return {
+        finalize() {
+          parent?.remove(object);
+        },
+      }
+    }
+
+    function Event() {
+      xthis.on('touchstart contextmenu wheel', (event) => {
+        event.preventDefault();
+      });
+      xthis.on('wheel', (event) => {
+        xthis.emit('~scale', 1 + 0.001 * event.wheelDeltaY);
+      });
+
+      const gesture = xnew(xnew.GestureEvent);
+      gesture.on('move', (event, { scale }) => {
+        xthis.emit('~scale', scale);
+      });
+
+      const drag = xnew(xnew.DragEvent);
+      drag.on('move', (event, { position, delta }) => {
+        if (gesture.isActive === true) return;
+        if (event.buttons & 1 || !event.buttons) {
+          xthis.emit('~scene.rotate', { x: +delta.x, y: +delta.y });
+        }
+        if (event.buttons & 2) {
+          xthis.emit('~camera.translate', { x: -delta.x, y: +delta.y });
+        }
+      });
+    }
+
+    function ThreeContents() {
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFFFFFF);
+      xnew.extend(ThreeObject, scene);
+
+      xnew(Grid, { z: 500 });
+      xnew(Grid, { z: -500 });
+
+      return {
+        get scene() {
+          return scene;
+        },
+      }
+    }
+
+    function Grid({ x = 0, y = 0, z = 0 }) {
+      const grid = new THREE.GridHelper( 2000, 10, 0xDDDDFF, 0xDDDDFF );
+      xnew.extend(ThreeObject, grid);
+      grid.rotation.x = 90 * Math.PI / 180;
+      grid.position.x = x;
+      grid.position.y = y;
+      grid.position.z = z;
+    }
+
+
+  </script>
+</body>
+
+</html>

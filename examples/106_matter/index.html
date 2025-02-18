@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../thirdparty/matter.min.js"></script>
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../dist/addons/xmatter.js"></script>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="main" style="position: relative; width: 100%; height: 100%;"></div>
+  <script>
+    xnew('#main', (self) => {
+      const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+
+      xnew(MatterMain, { canvas: screen.canvas });
+
+      const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
+      button.on('click', () => {
+        button.emit('+reset');
+      });
+    });
+
+    function MatterMain(self, { canvas }) {
+      const system = xnew.extend(xmatter.BaseSystem, { canvas, wireframes: false });
+
+      const constraint = Matter.MouseConstraint.create(system.engine, { element: canvas });
+      Matter.Composite.add(system.engine.world, constraint);
+
+      xnew(MatterContents);
+    }
+
+    function MatterContents(self) {
+      self.on('+reset', () => {
+        self.reboot();
+      })
+
+      xnew(Rectangle, 400, 200, 80, 80);
+      xnew(Polygon, 450, 50, 6, 40);
+      xnew(Circle, 350, 50, 40);
+      xnew(Rectangle, 400, 400, 800, 20, { isStatic: true });
+    }
+
+    function Rectangle(self, ...args) {
+      const object = Matter.Bodies.rectangle(...args)
+      xnew.extend(xmatter.Connect, object);
+    }
+
+    function Circle(self, ...args) {
+      const object = Matter.Bodies.circle(...args)
+      xnew.extend(xmatter.Connect, object);
+    }
+
+    function Polygon(self, ...args) {
+      const object = Matter.Bodies.polygon(...args)
+      xnew.extend(xmatter.Connect, object);
+    }
+  </script>
+</body>
+</html>

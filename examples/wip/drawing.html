@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../dist/xnew.js"></script>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  <script>
+    xnew('#main', (self) => {
+      const screen = xnew(xnew.Screen, { width: 512, height: 512, objectFit: 'contain' });
+      screen.element.style.border = 'solid 1px #000';
+      screen.element.style.boxSizing = 'border-box';
+      screen.clear();
+
+      xnew(Contents, screen.canvas);
+
+      const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
+      button.on('pointerdown', () => {
+        screen.clear();
+      });
+    });
+
+    function Contents(self, canvas) {
+      self.on('touchstart contextmenu wheel', (event) => {
+        event.preventDefault();
+      });
+
+      const ctx = canvas.getContext('2d');
+
+      const drag = xnew(canvas, xnew.DragEvent);
+
+      drag.on('-down', ({ position, delta }) => {
+        const scaleX = canvas.width / canvas.clientWidth;
+        const scaleY = canvas.height / canvas.clientHeight;
+
+        ctx.beginPath();
+        ctx.fillStyle = 'black';
+        ctx.arc(position.x * scaleX, position.y * scaleY, 1, 0, Math.PI * 2, true);
+        ctx.fill();
+      });
+      drag.on('-move', ({ position, delta }) => {
+        const scaleX = canvas.width / canvas.clientWidth;
+        const scaleY = canvas.height / canvas.clientHeight;
+
+        ctx.beginPath();
+        ctx.fillStyle = 'black';
+        const length = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
+        for (let i = 0; i < length; i++) {
+          ctx.arc((position.x - delta.x * i / length) * scaleX, (position.y - delta.y * i / length) * scaleY, 1, 0, Math.PI * 2, true);
+        }
+        ctx.fill();
+      });
+    }
+
+  </script>
+</body>
+
+</html>
