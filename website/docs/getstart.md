@@ -70,7 +70,7 @@ You can create html elements using `xnew` and `xnew.nest`.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@2.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@2.2.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
