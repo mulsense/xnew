@@ -39,7 +39,7 @@ export default function Home() {
         <div style={{textAlign: 'center', fontSize: '24px'}}>
           <img width="600" src ="/xnew/img/introduction.svg"/>
           <p><b>xnew</b> is a JavaScript library for component oriented programming.<br/>
-          You can architect your code as a collection of simple components!</p>
+          You can implement your code as a collection of simple components!</p>
         </div>
         {/* <iframe style={{width:'100%',height:'400px'}} src="/xnew/examples/demo.html" ></iframe> */}
 

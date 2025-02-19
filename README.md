@@ -1,6 +1,6 @@
 # xnew
 xnew is a javascript library for component oriented programming.  
-You can architect your code as a collection of simple components.
+You can implement your code as a collection of simple components.
 
 [**xnew website**](https://wisroot-com.github.io/xnew)
 
