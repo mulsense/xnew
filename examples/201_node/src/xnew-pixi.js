@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 
 import xnew from 'xnew';
-import * as xpixi from 'xnew/addons/xpixi.module.js';
+import * as xpixi from 'xnew/xpixi';
 
 xnew('#main', (self) => {
   const screen = xnew(xnew.Screen, { width: 800, height: 400 });
