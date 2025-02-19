@@ -9,21 +9,14 @@ export default [
                 file: 'dist/xnew.js',
                 format: 'umd',
                 extend: true,
-                name: 'xnew', // name: 'window
-                freeze: false,
-            },
-            {
-                file: 'website/static/dist/xnew.js',
-                format: 'umd',
-                extend: true,
-                name: 'xnew', // name: 'window
+                name: 'xnew',
                 freeze: false,
             },
             {
                 file: 'dist/xnew.module.js',
                 format: 'esm',
                 extend: true,
-                name: 'xnew', // name: 'window
+                name: 'xnew',
                 freeze: false
             },
         ]
@@ -33,14 +26,6 @@ export default [
         output: [
             {
                 file: 'dist/addons/xthree.js',
-                format: 'umd',
-                extend: true,
-                name: 'xthree',
-                freeze: false,
-                globals: { 'xnew': 'xnew' },
-            },
-            {
-                file: 'website/static/dist/addons/xthree.js',
                 format: 'umd',
                 extend: true,
                 name: 'xthree',
@@ -69,14 +54,6 @@ export default [
                 globals: { 'xnew': 'xnew' },
             },
             {
-                file: 'website/static/dist/addons/xpixi.js',
-                format: 'umd',
-                extend: true,
-                name: 'xpixi',
-                freeze: false,
-                globals: { 'xnew': 'xnew' },
-            },
-            {
                 file: 'dist/addons/xpixi.module.js',
                 format: 'esm',
                 extend: true,
@@ -91,14 +68,6 @@ export default [
         output: [
             {
                 file: 'dist/addons/xmatter.js',
-                format: 'umd',
-                extend: true,
-                name: 'xmatter',
-                freeze: false,
-                globals: { 'xnew': 'xnew', 'matter-js': 'Matter' },
-            },
-            {
-                file: 'website/static/dist/addons/xmatter.js',
                 format: 'umd',
                 extend: true,
                 name: 'xmatter',

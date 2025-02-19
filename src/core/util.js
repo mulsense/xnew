@@ -4,7 +4,8 @@
 
 export function error(name, text, target = undefined)
 {
-    console.error(name + (target !== undefined ? ` [${target}]` : '') + ': ' + text);
+    const message = name + (target !== undefined ? ` [${target}]` : '') + ': ' + text;
+    console.error(message);
 }
 
 //----------------------------------------------------------------------------------------------------

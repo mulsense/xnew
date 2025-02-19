@@ -23,7 +23,11 @@ export function xnew(...args)
         target = args.shift();
     } else if (isString(args[0]) === true) {
         // a string for an existing html element
-        target = document.querySelector(args.shift());
+        const name = args.shift();
+        target = document.querySelector(name);
+        if (target == null) {
+            error('xnew', `'${name}' can not be found.`, 'target');
+        }
     } else if (isObject(args[0]) === true) {
         // an attributes for a new html element
         target = args.shift();
