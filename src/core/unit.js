@@ -26,6 +26,10 @@ export class Unit
         Unit.initialize.call(this, parent, target, component, ...args);
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // base system 
+    //----------------------------------------------------------------------------------------------------
+
     get parent()
     {
         return this._.parent;
@@ -72,80 +76,6 @@ export class Unit
         Unit.initialize.call(this, ...this._.backup);
     }
 
-    on(type, listener, options)
-    {
-        if (isString(type) === false) {
-            error('unit on', 'The argument is invalid.', 'type');
-        } else if (isFunction(listener) === false) {
-            error('unit on', 'The argument is invalid.', 'listener');
-        } else {
-            type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-        }
-
-        function internal(type, listener) {
-            if (this._.listeners.has(type, listener) === false) {
-                const element = this.element;
-                const execute = (...args) => {
-                    Unit.scope.call(this, listener, ...args);
-                };
-                this._.listeners.set(type, listener, [element, execute]);
-                element.addEventListener(type, execute, options);
-            }
-            if (this._.listeners.has(type) === true) {
-                Unit.etypes.add(type, this);
-            }
-        }
-    }
-
-    off(type, listener)
-    {
-        if (type !== undefined && isString(type) === false) {
-            error('unit off', 'The argument is invalid.', 'type');
-        } else if (listener !== undefined && isFunction(listener) === false) {
-            error('unit off', 'The argument is invalid.', 'listener');
-        } else if (isString(type) === true && listener !== undefined) {
-            type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-        } else if (isString(type) === true && listener === undefined) {
-            type.trim().split(/\s+/).forEach((type) => {
-                this._.listeners.get(type)?.forEach((_, listener) => internal.call(this, type, listener));
-            });
-        } else if (type === undefined) {
-            this._.listeners.forEach((map, type) => {
-                map.forEach((_, listener) => internal.call(this, type, listener));
-            });
-        }
-
-        function internal(type, listener) {
-            if (this._.listeners.has(type, listener) === true) {
-                const [element, execute] = this._.listeners.get(type, listener);
-                this._.listeners.delete(type, listener);
-                element.removeEventListener(type, execute);
-            }
-            if (this._.listeners.has(type) === false) {
-                Unit.etypes.delete(type, this);
-            }
-        }
-    }
-
-    emit(type, ...args)
-    {
-        if (isString(type) === false) {
-            error('unit emit', 'The argument is invalid.', 'type');
-        } else if (this._.state === 'finalized') {
-            error('unit emit', 'This function can not be called after finalized.');
-        } else {
-            type.trim().split(/\s+/).forEach((type) => internal.call(this, type));
-        }
-        function internal(type) {
-            if (type[0] === '+') {
-                Unit.etypes.get(type)?.forEach((unit) => {
-                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-                });
-            } else if (type[0] === '-') {
-                this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-            }
-        }
-    }
 
     // current unit scope
     static current = null;
@@ -169,30 +99,6 @@ export class Unit
         this.element.append(element);
         this._.nestElements.push(element);
         return element;
-    }
-
-    static etypes = new MapSet();
-
-    static context(key, value = undefined)
-    {
-        if (value !== undefined) {
-            this._.contexts.set(key, value);
-        } else {
-            let ret = undefined;
-            for (let target = this; target !== null; target = target.parent) {
-                if (target._.contexts.has(key)) {
-                    ret = target._.contexts.get(key);
-                    break;
-                }
-            }
-            return ret;
-        }
-    }
-
-    static find(component) {
-        const set = new Set();
-        Unit.components.get(component)?.forEach((Unit) => set.add(Unit));
-        return [...set];
     }
 
     static initialize(parent, target, component, ...args)
@@ -386,6 +292,118 @@ export class Unit
     {
         Unit.start.call(this, time);
         Unit.update.call(this, time);
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // event 
+    //----------------------------------------------------------------------------------------------------
+
+    static event = null;
+
+    static etypes = new MapSet();
+  
+    on(type, listener, options)
+    {
+        if (isString(type) === false) {
+            error('unit on', 'The argument is invalid.', 'type');
+        } else if (isFunction(listener) === false) {
+            error('unit on', 'The argument is invalid.', 'listener');
+        } else {
+            type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
+        }
+
+        function internal(type, listener) {
+            if (this._.listeners.has(type, listener) === false) {
+                const element = this.element;
+                const execute = (...args) => {
+                    const backup = Unit.event;
+                    Unit.event = { type };
+                    Unit.scope.call(this, listener, ...args);
+                    Unit.event = backup;
+                };
+                this._.listeners.set(type, listener, [element, execute]);
+                element.addEventListener(type, execute, options);
+            }
+            if (this._.listeners.has(type) === true) {
+                Unit.etypes.add(type, this);
+            }
+        }
+    }
+
+    off(type, listener)
+    {
+        if (type !== undefined && isString(type) === false) {
+            error('unit off', 'The argument is invalid.', 'type');
+        } else if (listener !== undefined && isFunction(listener) === false) {
+            error('unit off', 'The argument is invalid.', 'listener');
+        } else if (isString(type) === true && listener !== undefined) {
+            type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
+        } else if (isString(type) === true && listener === undefined) {
+            type.trim().split(/\s+/).forEach((type) => {
+                this._.listeners.get(type)?.forEach((_, listener) => internal.call(this, type, listener));
+            });
+        } else if (type === undefined) {
+            this._.listeners.forEach((map, type) => {
+                map.forEach((_, listener) => internal.call(this, type, listener));
+            });
+        }
+
+        function internal(type, listener) {
+            if (this._.listeners.has(type, listener) === true) {
+                const [element, execute] = this._.listeners.get(type, listener);
+                this._.listeners.delete(type, listener);
+                element.removeEventListener(type, execute);
+            }
+            if (this._.listeners.has(type) === false) {
+                Unit.etypes.delete(type, this);
+            }
+        }
+    }
+
+    emit(type, ...args)
+    {
+        if (isString(type) === false) {
+            error('unit emit', 'The argument is invalid.', 'type');
+        } else if (this._.state === 'finalized') {
+            error('unit emit', 'This function can not be called after finalized.');
+        } else if (type[0] === '+') {
+            Unit.eventMode = { type };
+            Unit.etypes.get(type)?.forEach((unit) => {
+                unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+            });
+        } else if (type[0] === '-') {
+            this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+        }
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // context 
+    //----------------------------------------------------------------------------------------------------
+
+    static context(key, value = undefined)
+    {
+        if (value !== undefined) {
+            this._.contexts.set(key, value);
+        } else {
+            let ret = undefined;
+            for (let target = this; target !== null; target = target.parent) {
+                if (target._.contexts.has(key)) {
+                    ret = target._.contexts.get(key);
+                    break;
+                }
+            }
+            return ret;
+        }
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // find 
+    //----------------------------------------------------------------------------------------------------
+
+    static find(component) {
+        const set = new Set();
+        Unit.components.get(component)?.forEach((Unit) => set.add(Unit));
+        return [...set];
     }
 }
 Unit.reset();
