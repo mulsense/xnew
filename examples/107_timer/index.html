@@ -25,13 +25,10 @@
 
     function ThreeMain(self, { canvas }) {
       xnew.extend(xthree.BaseSystem, { canvas });
-      
       self.camera.position.set(0, 0, +100);
 
       xnew(Light);
-
-      // call iteratively (delay = 100ms, loop = true)
-      xnew.timer(() => xnew(Cube), 100, true);
+      xnew(Cubes);
     }
 
     function Light(self) {
@@ -41,8 +38,17 @@
       object.position.set(0, 0, +100);
     }
 
+    function Cubes(self) {
+      // call iteratively (delay = 100ms, loop = true)
+
+      xnew.timer(() => {
+        xnew(Cube);
+      }, 100, true);
+    }
+
     function Cube(self) {
       const size = 10 * Math.random() + 5;
+
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshLambertMaterial({ color: 0xFFFFFF * Math.random() });
       const object = new THREE.Mesh(geometry, material);
@@ -58,7 +64,9 @@
       velocity.z = Math.random() - 0.5;
 
       // finalize after 5000ms
-      xnew.timer(() => self.finalize(), 5 * 1000);
+      xnew.timer(() => {
+        self.finalize();
+      }, 5 * 1000);
 
       return {
         update() {
