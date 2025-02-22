@@ -51,6 +51,7 @@ Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
+Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
 
 function nest(attributes)
 {
@@ -159,4 +160,8 @@ function transition(callback, interval)
     });
 
     return { clear: () => timer.clear() };
+}
+
+function event() {
+    return Unit.event;
 }

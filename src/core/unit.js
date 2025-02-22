@@ -317,8 +317,13 @@ export class Unit
                 const element = this.element;
                 const execute = (...args) => {
                     const backup = Unit.event;
-                    Unit.event = { type };
-                    Unit.scope.call(this, listener, ...args);
+                    if (type[0] === '-' || type[0] === '+') {
+                        Unit.event = { type };
+                        Unit.scope.call(this, listener, ...args);
+                    } else {
+                        Unit.event = args[0] ?? null;
+                        Unit.scope.call(this, listener, ...args);
+                    }
                     Unit.event = backup;
                 };
                 this._.listeners.set(type, listener, [element, execute]);
@@ -367,7 +372,6 @@ export class Unit
         } else if (this._.state === 'finalized') {
             error('unit emit', 'This function can not be called after finalized.');
         } else if (type[0] === '+') {
-            Unit.eventMode = { type };
             Unit.etypes.get(type)?.forEach((unit) => {
                 unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
             });
