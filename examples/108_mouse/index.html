@@ -69,7 +69,7 @@
       const gesture = xnew(xnew.GestureEvent);
       let isActive = false;
       gesture.on('-down -up -cancel', () => {
-        isActive = (xnew.type === '-down');
+        isActive = (xnew.event.type === '-down');
       });
       gesture.on('-move', ({ scale }) => {
         self.emit('+scale', scale);
