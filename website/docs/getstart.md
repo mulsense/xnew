@@ -74,21 +74,21 @@ You can create html elements using `xnew` and `xnew.nest`.
 </head>
 <body>
   <script>
-    xnew(Wrapper);
+    xnew(Div);
 
-    function Wrapper(self) {
-      xnew.nest({ style: 'margin: 4px; padding: 4px; border: solid 1px #222;'});
+    function Div(self) {
+      xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222' } });
 
-      xnew({ tagName: 'p' }, 'my divs');
+      xnew({ tagName: 'p' }, 'my div');
       xnew(Divs);
     }
 
     function Divs(self) {
-      xnew.nest({ style: 'display: flex;'});
-   
-      xnew({ style: 'width: 160px; height: 36px; background: #d66;'}, '1');
-      xnew({ style: 'width: 160px; height: 36px; background: #6d6;'}, '2');
-      xnew({ style: 'width: 160px; height: 36px; background: #66d;'}, '3');
+      xnew.nest({ style: { display: 'flex' } });
+
+      xnew({ style: { width: '160px', height: '36px', background: '#d66'} }, '1');
+      xnew({ style: { width: '160px', height: '36px', background: '#6d6'} }, '2');
+      xnew({ style: { width: '160px', height: '36px', background: '#66d'} }, '3');
     }
   </script>
 </body>
@@ -107,10 +107,19 @@ In the following example, we set up an event listener and animation.
     xnew(Component);
 
     function Component(self) {
-      xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
-
+      xnew.nest({
+        style: {
+          position: 'absolute',
+          width: '200px',
+          height: '200px',
+          inset: 0,
+          margin: 'auto',
+          background: '#08F'
+        }
+      });
+      
       xnew({ tagName: 'span' }, 'click me');
-
+      
       self.on('click', (event) => {
         self.state === 'running' ? self.stop() : self.start();
       });
@@ -138,7 +147,16 @@ For example, when the parent component stop, its children also stop.
     xnew(Parent);
 
     function Parent(self) {
-      xnew.nest({ style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
+      xnew.nest({
+        style: {
+          position: 'absolute',
+          width: '200px',
+          height: '200px',
+          inset: 0,
+          margin: 'auto',
+          background: '#08F'
+        }
+      });
       
       const text = xnew({ tagName: 'span' });
 
@@ -163,7 +181,16 @@ For example, when the parent component stop, its children also stop.
     }
 
     function Child(self) {
-      xnew.nest({ style: 'position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80;' })
+      xnew.nest({
+        style: {
+          position: 'absolute',
+          width: '100px',
+          height: '100px',
+          inset: 0,
+          margin: 'auto',
+          background: '#F80'
+        }
+      });
       
       const text = xnew({ tagName: 'span' });
 

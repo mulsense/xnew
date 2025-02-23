@@ -26,17 +26,37 @@
 
     xnew("#main", BaseSystem);
     function BaseSystem(self) {
-      xnew.nest({ style: 'position: absolute; left: 20px; right: 20px; bottom: 20px; height: 200px;' });
+      xnew.nest({ style: 'position: absolute; left: 20px; right: 20px; bottom: 20px;' });
 
       const button = xnew({ tagName: 'button' }, 'button');
 
+      
+      
       let modal = null;
       button.on('click', () => {
         if (modal === null || modal.state === 'finalized') {
-          modal = xnew(null, xnew.Modal);
+          modal = xnew(null, (self) => {
+            xnew.extend(xnew.Modal);
+
+            xnew({ style: 'width: 200px; margin: auto; background: #0A0;' }, () => {
+              xnew({ tagName: 'div' }, 'aaaa');
+              xnew({ tagName: 'div' }, 'aaaa');
+
+              xnew({ tagName: 'div' }, 'aaaa');
+              xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+              // xnew({ tagName: 'div' }, 'aaaa');
+            })
+
+          });
         }
       });
-      xnew(TextRender, 'あああ、これはテストテキストです。');
     }
 
   </script>

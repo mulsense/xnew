@@ -18,7 +18,7 @@
     });
 
     function BaseDiv(self, name) {
-      xnew.nest({ tagName: 'div', style: 'margin: 4px; padding: 4px; border: solid 1px #222;' });
+      xnew.nest({ tagName: 'div', style: { margin: '4px', padding: '4px', border: 'solid 1px #222'} });
       xnew({ tagName: 'p' }, name);
     }
 
@@ -26,9 +26,9 @@
       xnew.extend(BaseDiv, 'my div');
 
       xnew({ style: 'display: flex;' }, () => {
-        xnew({ style: 'width: 160px; height: 36px; background: #d66;' }, '1');
-        xnew({ style: 'width: 160px; height: 36px; background: #6d6;' }, '2');
-        xnew({ style: 'width: 160px; height: 36px; background: #66d;' }, '3');
+        xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
+        xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
+        xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
       });
     }
 

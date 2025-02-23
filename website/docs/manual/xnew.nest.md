@@ -54,7 +54,7 @@ The created elements are removed when the units finalize.
 
 ## example 2
 
-<iframe style={{width:'100%',height:'500px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/examples/element.html" ></iframe>
+<iframe style={{width:'100%',height:'500px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/examples/101_element/index.html" ></iframe>
 
 ```html
 <div id="main"></div>
@@ -67,7 +67,7 @@ The created elements are removed when the units finalize.
   });
 
   function BaseDiv(self, name) {
-    xnew.nest({ tagName: 'div', style: 'margin: 4px; padding: 4px; border: solid 1px #222;' });
+    xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222'} });
     xnew({ tagName: 'p' }, name);
   }
 
@@ -75,9 +75,9 @@ The created elements are removed when the units finalize.
     xnew.extend(BaseDiv, 'my div');
 
     xnew({ style: 'display: flex;' }, () => {
-      xnew({ style: 'width: 160px; height: 36px; background: #d66;' }, '1');
-      xnew({ style: 'width: 160px; height: 36px; background: #6d6;' }, '2');
-      xnew({ style: 'width: 160px; height: 36px; background: #66d;' }, '3');
+      xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
+      xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
+      xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
     });
   }
 
