@@ -32,10 +32,7 @@
       const system = xnew.extend(xmatter.BaseSystem, {
         render: Matter.Render.create({
           canvas, engine: Matter.Engine.create(), options: {
-            width: canvas.width,
-            height: canvas.height,
-            wireframes: false,
-            background: 'rgb(255,255,255)'
+            width: canvas.width, height: canvas.height, wireframes: false,
           }
         })
       });
