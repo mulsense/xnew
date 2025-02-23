@@ -15,7 +15,7 @@
                 background: 'rgb(255,255,255)'
             }, options)
         });
-        
+
         xnew.extend(Connect, engine.world);
 
         return {

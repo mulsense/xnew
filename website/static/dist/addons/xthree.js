@@ -7,10 +7,10 @@
     function BaseSystem(self, { canvas, camera = null, ...parameters }) {
         const renderer = new THREE.WebGLRenderer({ canvas, ...parameters });
 
+        camera = camera ?? new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xFFFFFF);
-
-        camera = camera ?? new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
 
         xnew.extend(Connect, scene);
 
