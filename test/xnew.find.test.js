@@ -8,19 +8,22 @@ beforeEach(() => {
 describe('unit context', () => {
 
     it('component', () => {
-        const unit1 = xnew(A);
-        const unit2 = xnew(B);
-        const unit3 = xnew(C);
+        xnew(() => {
+            const unit1 = xnew(A);
+            const unit2 = xnew(B);
+            const unit3 = xnew(C);
+
+            expect(xnew.find(A)[0]).toBe(unit1);
+            expect(xnew.find(B)[0]).toBe(unit2);
+            expect(xnew.find(C)[0]).toBe(unit3);
+        });
+
         function A(self) {
         }
         function B(self) {
         }
         function C(self) {
         }
-
-        expect(xnew.find(A)[0]).toBe(unit1);
-        expect(xnew.find(B)[0]).toBe(unit2);
-        expect(xnew.find(C)[0]).toBe(unit3);
     });
 });
 

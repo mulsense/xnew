@@ -70,16 +70,17 @@ If you add `-` token, `unit.emit` emit event to the unit.
 
 
 ### broadcast
-If you add `+` token, `unit.emit` broadcasts to all units.  
+If you add `+` token, `unit.emit` broadcasts to all units with the same ancestor unit.  
 ```js
-xnew((self) => {
-  self.on('+myevent', () => {
-    //
+xnew(() => {
+  xnew((self) => {
+    self.on('+myevent', () => {
+      //
+    });
+  });
+
+  xnew((self) => {
+    self.emit('+myevent'); // broadcast event
   });
 });
-
-xnew((self) => {
-  self.emit('+myevent'); // broadcast event
-});
-
 ```

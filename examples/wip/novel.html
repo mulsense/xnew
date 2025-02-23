@@ -4,7 +4,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+  </style>
   <script type="importmap">
     {
       "imports": {
@@ -21,24 +26,26 @@
 
     xnew("#main", BaseSystem);
     function BaseSystem(self) {
-      xnew.nest({ style: 'position: absolute; height: 200px; left: 20; right: 20; bottom: 20; ' })
-      const text = xnew({ tagName: 'span' }, '');
+      xnew.nest({ style: 'position: absolute; left: 20px; right: 20px; bottom: 20px; height: 200px;' });
 
-      const mytext = 'あああ、これはテストテキストです。';
-      let counter = 0;
-      xnew.timer(() => {
-        text.element.textContent = mytext.substr(0, counter);
-        counter++;
-      }, 50, true);
+      const button = xnew({ tagName: 'button' }, 'button');
 
+      let modal = null;
+      button.on('click', () => {
+        if (modal === null) {
+          modal
+        }
+      });
+      xnew(TextRender, 'あああ、これはテストテキストです。');
     }
 
-    function TextRender(self) {
+    function TextRender(self, mytext) {
+      const text = xnew({ tagName: 'span' }, '');
       let counter = 0;
       xnew.timer(() => {
         text.element.textContent = mytext.substr(0, counter);
         counter++;
-      }, 50, true);
+      }, 10, true);
     }
   </script>
 </body>
