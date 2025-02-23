@@ -157,7 +157,7 @@
 
       let opacity = id === state.id ? 0.80 : 0.20;
       self.on('+planefade', () => {
-        xnew.transition((progress) => {
+        xnew.transition(({ progress }) => {
           opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
         }, 700);
       });

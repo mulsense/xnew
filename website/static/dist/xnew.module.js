@@ -794,17 +794,20 @@ function transition(callback, interval)
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
+    const clear = function() {
+        timer.clear();
+    };
 
     timer.start();
 
-    Unit.scope.call(current, callback, 0.0);
+    Unit.scope.call(current, callback, { progress: 0.0 });
 
     updater = xnew(null, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    Unit.scope.call(current, callback, progress);
+                    Unit.scope.call(current, callback, { progress });
                 }
             },
         }
@@ -819,7 +822,7 @@ function transition(callback, interval)
         }
     });
 
-    return { clear: () => timer.clear() };
+    return { clear };
 }
 
 function event() {

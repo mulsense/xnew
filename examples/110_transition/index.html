@@ -72,7 +72,7 @@
       graphics.drawRect(-size / 2, -size / 2, size, size);
       graphics.endFill();
 
-      xnew.transition((progress) => {
+      xnew.transition(({ progress }) => {
         object.alpha = progress;
       }, 2000);
 
