@@ -23,24 +23,22 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
       const oscanvas = new OffscreenCanvas(800, 400);
-      const texture = PIXI.Texture.from(oscanvas);
 
       xnew(ThreeMain, { canvas: oscanvas });
-      xnew(PixiMain, { canvas: screen.canvas, texture });
+      xnew(PixiMain, { canvas: screen.canvas, oscanvas });
     });
 
     function ThreeMain(self, { canvas }) {
       xnew.extend(xthree.BaseSystem, { canvas });
-
       self.camera.position.set(0, 0, +100);
 
       xnew(Cubes);
     }
 
-    function PixiMain(self, { canvas, texture }) {
+    function PixiMain(self, { canvas, oscanvas }) {
       xnew.extend(xpixi.BaseSystem, { canvas });
 
-      xnew(ThreeTexture, texture);
+      xnew(ThreeTexture, PIXI.Texture.from(oscanvas));
       xnew(Boxes);
     }
 

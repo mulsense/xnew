@@ -22,7 +22,7 @@ export function DragEvent(self) {
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
                 
                 current = { id, position };
-                self.emit('-move', { type: '-up', id, position, delta });
+                self.emit('-move', { id, position, delta });
                 previous = position;
             }
         });
@@ -32,7 +32,7 @@ export function DragEvent(self) {
                 const position = getPosition(event, rect);
 
                 current = { id, position };
-                self.emit('-up', { type: '-up', id, position, });
+                self.emit('-up', { id, position, });
                 win.finalize();
                 wmap.delete(id);
             }
@@ -43,14 +43,14 @@ export function DragEvent(self) {
                 const position = getPosition(event, rect);
                
                 current = null;
-                self.emit('-cancel', { type: '-cancel', id, position, });
+                self.emit('-cancel', { id, position, });
                 win.finalize();
                 wmap.delete(id);
             }
         });
 
         current = { id, position };
-        self.emit('-down', { type: '-down', id, position });
+        self.emit('-down', { id, position });
     });
 
     function getPosition(event, rect) {

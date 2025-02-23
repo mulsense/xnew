@@ -6,7 +6,6 @@ export function Screen(self, { width = 640, height = 480, objectFit = 'contain',
     const absolute = xnew.nest({ style: 'position: absolute; inset: 0; margin: auto; user-select: none;' });
     xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none;' });
 
-    const size = { width, height };
     const canvas = xnew({ tagName: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom; user-select: none;' });
     
     if (pixelated === true) {
@@ -19,7 +18,7 @@ export function Screen(self, { width = 640, height = 480, objectFit = 'contain',
     resize();
 
     function resize() {
-        const aspect = size.width / size.height;
+        const aspect = canvas.element.width / canvas.element.height;
        
         let style = { width: '100%', height: '100%', top: '0', left: '0', bottom: '0', right: '0' };
         if (objectFit === 'fill') {
@@ -44,18 +43,10 @@ export function Screen(self, { width = 640, height = 480, objectFit = 'contain',
     }
 
     return {
-        get width() {
-            return size.width;
-        },
-        get height() {
-            return size.height;
-        },
         get canvas() {
             return canvas.element;
         },
         resize(width, height) {
-            size.width = width;
-            size.height = height;
             canvas.element.width = width;
             canvas.element.height = height;
             resize();

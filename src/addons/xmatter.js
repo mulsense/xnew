@@ -12,7 +12,7 @@ export function BaseSystem(self, { canvas, ...options }) {
             background: 'rgb(255,255,255)'
         }, options)
     });
-    
+
     xnew.extend(Connect, engine.world);
 
     return {

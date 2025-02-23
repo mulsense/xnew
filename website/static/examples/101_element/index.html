@@ -8,7 +8,16 @@
 
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
-  <script>
+  <script type="importmap">
+    {
+      "imports": {
+        "xnew": "../../dist/xnew.js"
+      }
+    }
+  </script>
+  
+  <script type="module">
+    import xnew from 'xnew'
     xnew('#main', (self) => {
       xnew(Div1);
       xnew(Div2);
