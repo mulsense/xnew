@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "xnew": "../../dist/xnew.module.js"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div id="main" style="position: relative; width: 100%; height: 100%;"></div>
+  <script type="module">
+    import xnew from 'xnew'
+
+    xnew("#main", BaseSystem);
+    function BaseSystem(self) {
+      xnew.nest({ style: 'position: absolute; left: 20px; right: 20px; bottom: 20px; height: 200px;' });
+
+      const button = xnew({ tagName: 'button' }, 'button');
+
+      let modal = null;
+      button.on('click', () => {
+        if (modal === null || modal.state === 'finalized') {
+          modal = xnew(null, xnew.Modal);
+        }
+      });
+      xnew(TextRender, 'あああ、これはテストテキストです。');
+    }
+
+  </script>
+</body>
+
+</html>
