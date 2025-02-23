@@ -26,7 +26,11 @@
     });
 
     function PixiMain(self, { canvas }) {
-      xnew.extend(xpixi.BaseSystem, { canvas });
+      xnew.extend(xpixi.BaseSystem, {
+        renderer: PIXI.autoDetectRenderer({
+          width: canvas.width, height: canvas.height, view: canvas
+        }) 
+      });
 
       xnew(Box, { x: 800 / 2, y: 400 / 2, size: 100, color: 0xEA1E63 });
     }

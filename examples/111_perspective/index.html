@@ -215,7 +215,7 @@
      
       const canvas = screen.canvas;
       const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
-      xnew.extend(xthree.BaseSystem, { canvas, camera, antialias: true});
+      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas, antialias: true }) });
     
       const offset = xnew.context('offset');
       const transform = xnew.context('transform');

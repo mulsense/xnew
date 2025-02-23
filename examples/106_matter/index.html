@@ -29,7 +29,16 @@
     });
 
     function MatterMain(self, { canvas }) {
-      const system = xnew.extend(xmatter.BaseSystem, { canvas, wireframes: false });
+      const system = xnew.extend(xmatter.BaseSystem, {
+        render: Matter.Render.create({
+          canvas, engine: Matter.Engine.create(), options: {
+            width: canvas.width,
+            height: canvas.height,
+            wireframes: false,
+            background: 'rgb(255,255,255)'
+          }
+        })
+      });
 
       const constraint = Matter.MouseConstraint.create(system.engine, { element: canvas });
       Matter.Composite.add(system.engine.world, constraint);

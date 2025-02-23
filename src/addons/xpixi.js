@@ -1,12 +1,7 @@
 import xnew from 'xnew';
 
-export function BaseSystem(self, { canvas }) {
-    const renderer = PIXI.autoDetectRenderer({
-        width: canvas.width,
-        height: canvas.height,
-        view: canvas,
-        backgroundColor: '#FFF'
-    });
+export function BaseSystem(self, { renderer = null }) {
+    renderer = renderer ?? PIXI.autoDetectRenderer({});
 
     const scene = new PIXI.Container();
 

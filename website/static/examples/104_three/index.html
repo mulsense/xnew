@@ -24,7 +24,7 @@
     });
 
     function ThreeMain(self, { canvas }) {
-      xnew.extend(xthree.BaseSystem, { canvas });
+      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas }) });
 
       self.camera.position.set(0, 0, +100);
 

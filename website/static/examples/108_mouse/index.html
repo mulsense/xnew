@@ -34,7 +34,7 @@
     });
 
     function ThreeMain(self, { canvas }) {
-      xnew.extend(xthree.BaseSystem, { canvas });
+      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas }) });
 
       self.renderer.shadowMap.enabled = true;
       self.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
