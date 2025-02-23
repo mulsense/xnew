@@ -1,17 +1,8 @@
 import xnew from 'xnew';
 import { Engine, Render, Composite } from 'matter-js';
 
-function BaseSystem(self, { canvas, ...options }) {
-    const engine = Engine.create();
-    const render = Render.create({
-        canvas,
-        engine,
-        options: Object.assign({
-            width: canvas.width,
-            height: canvas.height,
-            background: 'rgb(255,255,255)'
-        }, options)
-    });
+function BaseSystem(self, { engine = null, render = null }) {
+    engine = engine ?? render?.engine ?? Engine.create();
 
     xnew.extend(Connect, engine.world);
 
@@ -24,7 +15,9 @@ function BaseSystem(self, { canvas, ...options }) {
         },
         update() {
             Engine.update(engine);
-            Render.world(render);
+            if (render !== null) {
+                Render.world(render);
+            }
         },
     }
 }

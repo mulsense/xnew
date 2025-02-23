@@ -4,13 +4,8 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xpixi = global.xpixi || {}, global.xnew));
 })(this, (function (exports, xnew) { 'use strict';
 
-    function BaseSystem(self, { canvas }) {
-        const renderer = PIXI.autoDetectRenderer({
-            width: canvas.width,
-            height: canvas.height,
-            view: canvas,
-            backgroundColor: '#FFF'
-        });
+    function BaseSystem(self, { renderer = null }) {
+        renderer = renderer ?? PIXI.autoDetectRenderer({});
 
         const scene = new PIXI.Container();
 

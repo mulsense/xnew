@@ -4,17 +4,8 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xmatter = global.xmatter || {}, global.xnew, global.Matter));
 })(this, (function (exports, xnew, matterJs) { 'use strict';
 
-    function BaseSystem(self, { canvas, ...options }) {
-        const engine = matterJs.Engine.create();
-        const render = matterJs.Render.create({
-            canvas,
-            engine,
-            options: Object.assign({
-                width: canvas.width,
-                height: canvas.height,
-                background: 'rgb(255,255,255)'
-            }, options)
-        });
+    function BaseSystem(self, { engine = null, render = null }) {
+        engine = engine ?? render?.engine ?? matterJs.Engine.create();
 
         xnew.extend(Connect, engine.world);
 
@@ -27,7 +18,9 @@
             },
             update() {
                 matterJs.Engine.update(engine);
-                matterJs.Render.world(render);
+                if (render !== null) {
+                    matterJs.Render.world(render);
+                }
             },
         }
     }

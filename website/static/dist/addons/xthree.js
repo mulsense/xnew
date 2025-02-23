@@ -4,13 +4,11 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xthree = global.xthree || {}, global.xnew));
 })(this, (function (exports, xnew) { 'use strict';
 
-    function BaseSystem(self, { canvas, camera = null, ...parameters }) {
-        const renderer = new THREE.WebGLRenderer({ canvas, ...parameters });
-
-        camera = camera ?? new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+    function BaseSystem(self, { renderer = null, camera = null }) {
+        renderer = renderer ?? new THREE.WebGLRenderer({});
+        camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xFFFFFF);
 
         xnew.extend(Connect, scene);
 
@@ -18,11 +16,11 @@
             get renderer() {
                 return renderer;
             },
-            get scene() {
-                return scene;
-            },
             get camera() {
                 return camera;
+            },
+            get scene() {
+                return scene;
             },
             update() {
                 renderer.render(scene, camera);
