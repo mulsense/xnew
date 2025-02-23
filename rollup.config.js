@@ -83,5 +83,26 @@ export default [
             },
         ],
         external: ['xnew', 'matter-js'],
+    },
+    {
+        input: 'src/addons/xcontroller.js',
+        output: [
+            {
+                file: 'dist/addons/xcontroller.js',
+                format: 'umd',
+                extend: true,
+                name: 'xcontroller',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'dist/addons/xcontroller.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xcontroller',
+                freeze: false
+            },
+        ],
+        external: ['xnew'],
     }
 ];
