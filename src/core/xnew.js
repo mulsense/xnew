@@ -130,7 +130,7 @@ function transition(callback, interval)
 
     const current = Unit.current;
     const timer = new Timer({ 
-        timeout: () => Unit.scope.call(current, callback, 1.0),
+        timeout: () => Unit.scope.call(current, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
