@@ -74,7 +74,7 @@ The created elements are removed when the units finalize.
   function Div1(self) {
     xnew.extend(BaseDiv, 'my div');
 
-    xnew({ style: 'display: flex;' }, () => {
+    xnew({ style: { display: 'flex' } }, () => {
       xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
       xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
       xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
