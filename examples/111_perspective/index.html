@@ -211,11 +211,11 @@
     }
 
     function ThreeMain(self) {
-      const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, objectFit: 'cover' });
+      const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, fit: 'cover' });
      
       const canvas = screen.canvas;
       const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
-      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas, antialias: true }) });
+      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas, antialias: true }), camera });
     
       const offset = xnew.context('offset');
       const transform = xnew.context('transform');
@@ -230,7 +230,6 @@
       }
  
       xnew(ThreeContents);
-
       xnew(() => {
         return {
           update() {
