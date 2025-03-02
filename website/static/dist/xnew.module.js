@@ -265,6 +265,7 @@ class Unit
         }
     
         this._ = {
+            root: parent?._.root ?? this,   // root unit 
             parent,                         // parent unit
             baseElement,                    // base element
             nestElements: [],               // nest elements
@@ -623,7 +624,9 @@ class Unit
             error('unit emit', 'This function can not be called after finalized.');
         } else if (type[0] === '+') {
             Unit.etypes.get(type)?.forEach((unit) => {
-                unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                if (unit._.root === this._.root) {
+                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                }
             });
         } else if (type[0] === '-') {
             this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
@@ -656,7 +659,11 @@ class Unit
 
     static find(component) {
         const set = new Set();
-        Unit.components.get(component)?.forEach((Unit) => set.add(Unit));
+        Unit.components.get(component)?.forEach((unit) => {
+            if (unit._.root === Unit.current?._.root) {
+                set.add(unit);
+            }
+        });
         return [...set];
     }
 }
@@ -790,7 +797,7 @@ function transition(callback, interval)
 
     const current = Unit.current;
     const timer = new Timer({ 
-        timeout: () => Unit.scope.call(current, callback, 1.0),
+        timeout: () => Unit.scope.call(current, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -829,84 +836,57 @@ function event() {
     return Unit.event;
 }
 
-function DragEvent(self) {
-  
-    const base = xnew();
-
-    const wmap = new Map();
-    let current = null;
-
-    base.on('pointerdown', (event) => {
+function DragEvent(self)
+{
+    xnew().on('pointerdown', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
         let previous = position;
        
         const win = xnew(window);
-        wmap.set(id, win);
 
         win.on('pointermove', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
                 
-                current = { id, position };
                 self.emit('-move', { id, position, delta });
                 previous = position;
             }
         });
 
-        win.on('pointerup', (event) => {
+        win.on('pointerup pointercancel', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
 
-                current = { id, position };
-                self.emit('-up', { id, position, });
+                if (event.type === 'pointerup') {
+                    self.emit('-up', { id, position, });
+                } else if (event.type === 'pointercancel') {
+                    self.emit('-cancel', { id, position, });
+                }
                 win.finalize();
-                wmap.delete(id);
             }
         });
 
-        win.on('pointercancel', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(event, rect);
-               
-                current = null;
-                self.emit('-cancel', { id, position, });
-                win.finalize();
-                wmap.delete(id);
-            }
-        });
-
-        current = { id, position };
         self.emit('-down', { id, position });
     });
 
     function getPosition(event, rect) {
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
-
-    return {
-        cancel() {
-            if (current !== null) {
-                wmap.get(current.id).finalize();
-                wmap.delete(current.id);
-                current = null;
-            }
-        }
-    }
 }
 
-function GestureEvent(self) {
-
+function GestureEvent(self)
+{
     const drag = xnew(DragEvent);
 
     let isActive = false;
     const map = new Map();
-
+    
     drag.on('-down', ({ id, position }) => {
         map.set(id, { ...position });
-      
+
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
             self.emit('-down', {});
@@ -916,15 +896,23 @@ function GestureEvent(self) {
     drag.on('-move', ({ id, position, delta }) => {
         if (isActive === true) {
             const a = map.get(id);
-            map.delete(id);
-            const b = [...map.values()][0]; 
+            const b = getOthers(id)[0];
 
-            const v = { x: a.x - b.x, y: a.y - b.y };
-            const s =  v.x * v.x + v.y * v.y;
-            const scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-            self.emit('-move', { scale, });
+            let scale = 0.0;
+            {
+                const v = { x: a.x - b.x, y: a.y - b.y };
+                const s =  v.x * v.x + v.y * v.y;
+                scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
+            }
+            {
+                const c = { x: a.x + delta.x, y: a.y + delta.y };
+                ({ x: a.x - b.x, y: a.y - b.y });
+                ({ x: c.x - b.x, y: c.y - b.y });
+            }
+
+            self.emit('-move', { scale });
         }
-        map.set(id, { ...position });
+        map.set(id, position);
     });
 
     drag.on('-up -cancel', ({ id }) => {
@@ -934,11 +922,18 @@ function GestureEvent(self) {
         isActive = false;
         map.delete(id);
     });
- 
+    
+    function getOthers(id) {
+        const backup = map.get(id);
+        map.delete(id);
+        const others = [...map.values()];
+        map.set(id, backup);
+        return others;
+    }
 }
 
-function ResizeEvent(self) {
-
+function ResizeEvent(self)
+{
     const observer = new ResizeObserver((entries) => {
         for (const entry of entries) {
             self.emit('-resize');
@@ -958,33 +953,34 @@ function ResizeEvent(self) {
     }
 }
 
-function Screen(self, { width = 640, height = 480, objectFit = 'contain', pixelated = false } = {}) {
-    const wrapper = xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none; overflow: hidden;' });
-    const absolute = xnew.nest({ style: 'position: absolute; inset: 0; margin: auto; user-select: none;' });
-    xnew.nest({ style: 'position: relative; width: 100%; height: 100%; user-select: none;' });
+function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
+    const wrapper = xnew.nest({
+        style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
+    });
+    const absolute = xnew.nest({
+        style: { position: 'absolute', margin: 'auto' } 
+    });
 
-    const canvas = xnew({ tagName: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom; user-select: none;' });
+    const canvas = xnew({
+        tagName: 'canvas', width, height,
+        style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
+    });
     
-    if (pixelated === true) {
-        canvas.element.style.imageRendering = 'pixelated';
-    }
-    
-    objectFit = ['fill', 'contain', 'cover'].includes(objectFit) ? objectFit : 'contain';
     const observer = xnew(wrapper, ResizeEvent);
     observer.on('-resize', resize);
     resize();
 
     function resize() {
         const aspect = canvas.element.width / canvas.element.height;
-       
-        let style = { width: '100%', height: '100%', top: '0', left: '0', bottom: '0', right: '0' };
-        if (objectFit === 'fill') ; else if (objectFit === 'contain') {
+        const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
+        
+        if (fit === 'contain') {
             if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
                 style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
             } else {
                 style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
             }
-        } else if (objectFit === 'cover') {
+        } else if (fit === 'cover') {
             if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
                 style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
                 style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
@@ -994,7 +990,7 @@ function Screen(self, { width = 640, height = 480, objectFit = 'contain', pixela
                 style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
                 style.bottom = 'auto';
             }
-        }
+        } else ;
         Object.assign(absolute.style, style);
     }
 
@@ -1007,16 +1003,31 @@ function Screen(self, { width = 640, height = 480, objectFit = 'contain', pixela
             canvas.element.height = height;
             resize();
         },
-        clear() {
-            const ctx = canvas.element.getContext('2d');
-            ctx.clearRect(0, 0, size.width, size.height);
-        },
     }
+}
+
+function Modal(self, {} = {}) {
+    xnew.nest({
+        style: {
+            position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        },
+    });
+    
+    xnew().on('click', () => {
+        self.close();
+    });
+
+    xnew.nest({});
+
+    xnew().on('click', (event) => {
+        event.stopPropagation(); 
+    });
 }
 
 Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
 Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
 Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
 Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
+Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
 
 export { xnew as default };
