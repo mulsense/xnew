@@ -112,7 +112,8 @@ xnew((self) => {
 :::
 
 If you omit the tagName property, `tagName: 'div'` will be set automatically.  
-If you omit the `element` parameter, the parent unit's element or otherwise `document.body` is assigned. 
+
+If you omit the `element` parameter, the parent unit's element or otherwise parent element of current scope is assigned. 
     
 ```html
 <div id="hoge"></div>
@@ -133,7 +134,15 @@ If you omit the `element` parameter, the parent unit's element or otherwise `doc
       // self.element: (id=fuga) (as a child element of hoge)
     });
   });
-</script>;
+</script>
+
+<div id="parent">
+  <script>
+    xnew((self) => {
+      // self.element: (id=parent)
+    });
+  </script>
+</div>
 ```
 
 ### innerHTML

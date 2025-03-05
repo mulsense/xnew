@@ -10,7 +10,7 @@ export class Unit
         } else if (parent !== null) {
             baseElement = parent.element;
         } else if (document instanceof Document) {
-            baseElement = document.body;
+            baseElement = document.currentScript?.parentElement ?? document.body;
         }
     
         this._ = {
