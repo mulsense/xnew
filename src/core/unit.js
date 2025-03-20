@@ -374,9 +374,7 @@ export class Unit
             error('unit emit', 'This function can not be called after finalized.');
         } else if (type[0] === '+') {
             Unit.etypes.get(type)?.forEach((unit) => {
-                if (unit._.root === this._.root) {
-                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-                }
+                unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
             });
         } else if (type[0] === '-') {
             this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
@@ -410,9 +408,7 @@ export class Unit
     static find(component) {
         const set = new Set();
         Unit.components.get(component)?.forEach((unit) => {
-            if (unit._.root === Unit.current?._.root) {
-                set.add(unit);
-            }
+            set.add(unit);
         });
         return [...set];
     }
