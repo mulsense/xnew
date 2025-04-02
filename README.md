@@ -2,14 +2,14 @@
 xnew is a javascript library for component oriented programming.  
 You can implement your code as a collection of simple components.
 
-[**xnew website**](https://wisroot-com.github.io/xnew)
+[**xnew website**](https://mulsense.github.io/xnew)
 
 ## setup
 
 ### via cdn  
   
 ```html
-<script src="https://unpkg.com/xnew@2.2.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@2.3.x/dist/xnew.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -18,7 +18,7 @@ You can implement your code as a collection of simple components.
 <script type="importmap">
 {
     "imports": {
-        "xnew": "https://unpkg.com/xnew@2.2.x/dist/xnew.module.js"
+        "xnew": "https://unpkg.com/xnew@2.3.x/dist/xnew.module.js"
     }
 }
 </script>
@@ -33,7 +33,7 @@ import xnew from 'xnew'
 
 ### via npm
 ```bash
-npm install xnew@2.2.x
+npm install xnew@2.3.x
 ```
 ```js
 import xnew from 'xnew'

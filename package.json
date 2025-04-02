@@ -4,7 +4,7 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "2.2.20",
+  "version": "2.3.0",
   "main": "dist/xnew.js",
   "module": "./dist/xnew.module.js",
   "exports": {
@@ -24,9 +24,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/wisroot-com/xnew/issues"
+    "url": "https://github.com/mulsense/xnew/issues"
   },
-  "homepage": "https://github.com/wisroot-com/xnew#readme",
+  "homepage": "https://github.com/mulsense/xnew#readme",
   "scripts": {
     "test": "jest",
     "build": "npx rollup --config --bundleConfigAsCjs",
