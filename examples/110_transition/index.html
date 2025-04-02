@@ -20,18 +20,14 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 450 });
 
-      xnew(PixiMain, { canvas: screen.canvas });
-    });
-
-    function PixiMain(self, { canvas }) {
-      xnew.extend(xpixi.BaseSystem, {
+      xnew.extend(xpixi.Root, {
         renderer: PIXI.autoDetectRenderer({
-          width: canvas.width, height: canvas.height, view: canvas
+          width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
         }) 
       });
 
       xnew(Scene1);
-    }
+    });
 
     function Scene1(self) {
       xnew(Text, 'Scene1');

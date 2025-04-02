@@ -1,21 +1,20 @@
 import xnew from 'xnew';
+import * as PIXI from 'pixi.js';
 
-function BaseSystem(self, { renderer = null }) {
-    renderer = renderer ?? PIXI.autoDetectRenderer({});
+function Root(self, { renderer = null }) {
+    const pixi = {};
 
-    const scene = new PIXI.Container();
+    pixi.renderer = renderer ?? PIXI.autoDetectRenderer({});
+    pixi.scene = new PIXI.Container();
 
-    xnew.extend(Connect, scene);
+    xnew.extend(Connect, pixi.scene);
 
     return {
-        get renderer() {
-            return renderer;
-        },
-        get scene() {
-            return scene;
+        get pixi() {
+            return pixi;
         },
         update() {
-            renderer.render(scene);
+            pixi.renderer.render(pixi.scene);
         },
     }
 }
@@ -34,4 +33,4 @@ function Connect(self, object) {
     }
 }
 
-export { BaseSystem, Connect };
+export { Connect, Root };

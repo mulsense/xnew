@@ -20,16 +20,13 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      xnew(ThreeMain, { canvas: screen.canvas});
-    });
-
-    function ThreeMain(self, { canvas }) {
-      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas }) });
-      self.camera.position.set(0, 0, +100);
+      xnew.extend(xthree.Root, { renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
+      self.three.camera.position.set(0, 0, +100);
 
       xnew(Light);
       xnew(Cubes);
-    }
+    });
+
 
     function Light(self) {
       const object = new THREE.PointLight(0xFFFFFF, 1);

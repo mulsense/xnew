@@ -30,7 +30,7 @@ export default [
                 extend: true,
                 name: 'xthree',
                 freeze: false,
-                globals: { 'xnew': 'xnew' },
+                globals: { 'xnew': 'xnew', 'three': 'THREE' },
             },
             {
                 file: 'dist/addons/xthree.module.js',
@@ -40,7 +40,7 @@ export default [
                 freeze: false
             },
         ],
-        external: ['xnew']
+        external: ['xnew', 'three'],
     },
     {
         input: 'src/addons/xpixi.js',
@@ -51,7 +51,7 @@ export default [
                 extend: true,
                 name: 'xpixi',
                 freeze: false,
-                globals: { 'xnew': 'xnew' },
+                globals: { 'xnew': 'xnew', 'pixi.js': 'PIXI' },
             },
             {
                 file: 'dist/addons/xpixi.module.js',
@@ -61,7 +61,7 @@ export default [
                 freeze: false
             },
         ],
-        external: ['xnew'],
+        external: ['xnew', 'pixi.js'],
     },
     {
         input: 'src/addons/xmatter.js',

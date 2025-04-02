@@ -215,7 +215,7 @@
      
       const canvas = screen.canvas;
       const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
-      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas, antialias: true }), camera });
+      xnew.extend(xthree.Root, { renderer: new THREE.WebGLRenderer({ canvas, antialias: true }), camera });
     
       const offset = xnew.context('offset');
       const transform = xnew.context('transform');
@@ -233,10 +233,10 @@
       xnew(() => {
         return {
           update() {
-            self.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
-            self.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
-            self.camera.position.x = -(transform.tx + offset.tx);
-            self.camera.position.y = +(transform.ty + offset.ty);
+            self.three.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
+            self.three.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
+            self.three.camera.position.x = -(transform.tx + offset.tx);
+            self.three.camera.position.y = +(transform.ty + offset.ty);
           },
         }
       });

@@ -1,29 +1,43 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'xnew'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xthree = global.xthree || {}, global.xnew));
-})(this, (function (exports, xnew) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew'), require('three')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'xnew', 'three'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xthree = global.xthree || {}, global.xnew, global.THREE));
+})(this, (function (exports, xnew, THREE) { 'use strict';
 
-    function BaseSystem(self, { renderer = null, camera = null }) {
-        renderer = renderer ?? new THREE.WebGLRenderer({});
-        camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
+    function _interopNamespaceDefault(e) {
+        var n = Object.create(null);
+        if (e) {
+            Object.keys(e).forEach(function (k) {
+                if (k !== 'default') {
+                    var d = Object.getOwnPropertyDescriptor(e, k);
+                    Object.defineProperty(n, k, d.get ? d : {
+                        enumerable: true,
+                        get: function () { return e[k]; }
+                    });
+                }
+            });
+        }
+        n.default = e;
+        return n;
+    }
 
-        const scene = new THREE.Scene();
+    var THREE__namespace = /*#__PURE__*/_interopNamespaceDefault(THREE);
 
-        xnew.extend(Connect, scene);
+    function Root(self, { renderer = null, camera = null }) {
+        const three = {};
+
+        three.renderer = renderer ?? new THREE__namespace.WebGLRenderer({});
+        three.camera = camera ?? new THREE__namespace.PerspectiveCamera(45, three.renderer.domElement.width / three.renderer.domElement.height);
+        three.scene = new THREE__namespace.Scene();
+
+        xnew.extend(Connect, three.scene);
 
         return {
-            get renderer() {
-                return renderer;
-            },
-            get camera() {
-                return camera;
-            },
-            get scene() {
-                return scene;
+            get three() {
+                return three;
             },
             update() {
-                renderer.render(scene, camera);
+                three.renderer.render(three.scene, three.camera);
             },
         }
     }
@@ -42,7 +56,7 @@
         }
     }
 
-    exports.BaseSystem = BaseSystem;
     exports.Connect = Connect;
+    exports.Root = Root;
 
 }));

@@ -1,25 +1,21 @@
 import xnew from 'xnew';
+import * as THREE from 'three'
 
-export function BaseSystem(self, { renderer = null, camera = null }) {
-    renderer = renderer ?? new THREE.WebGLRenderer({});
-    camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
+export function Root(self, { renderer = null, camera = null }) {
+    const three = {};
 
-    const scene = new THREE.Scene();
+    three.renderer = renderer ?? new THREE.WebGLRenderer({});
+    three.camera = camera ?? new THREE.PerspectiveCamera(45, three.renderer.domElement.width / three.renderer.domElement.height);
+    three.scene = new THREE.Scene();
 
-    xnew.extend(Connect, scene);
+    xnew.extend(Connect, three.scene);
 
     return {
-        get renderer() {
-            return renderer;
-        },
-        get camera() {
-            return camera;
-        },
-        get scene() {
-            return scene;
+        get three() {
+            return three;
         },
         update() {
-            renderer.render(scene, camera);
+            three.renderer.render(three.scene, three.camera);
         },
     }
 }

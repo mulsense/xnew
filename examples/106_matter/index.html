@@ -20,28 +20,24 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      xnew(MatterMain, { canvas: screen.canvas });
+      xnew.extend(xmatter.Root, {
+        render: Matter.Render.create({
+          canvas: screen.canvas, engine: Matter.Engine.create(), options: {
+            width: screen.canvas.width, height: screen.canvas.height, wireframes: false,
+          }
+        })
+      });
+
+      const constraint = Matter.MouseConstraint.create(self.matter.engine, { element: screen.canvas });
+      Matter.Composite.add(self.matter.engine.world, constraint);
+
+      xnew(MatterContents);
 
       const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
       button.on('click', () => {
         button.emit('+reset');
       });
     });
-
-    function MatterMain(self, { canvas }) {
-      const system = xnew.extend(xmatter.BaseSystem, {
-        render: Matter.Render.create({
-          canvas, engine: Matter.Engine.create(), options: {
-            width: canvas.width, height: canvas.height, wireframes: false,
-          }
-        })
-      });
-
-      const constraint = Matter.MouseConstraint.create(system.engine, { element: canvas });
-      Matter.Composite.add(system.engine.world, constraint);
-
-      xnew(MatterContents);
-    }
 
     function MatterContents(self) {
       self.on('+reset', () => {

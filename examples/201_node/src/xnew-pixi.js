@@ -10,7 +10,7 @@ xnew('#main', (self) => {
 });
 
 function PixiMain(self, { canvas }) {
-  xnew.extend(xpixi.BaseSystem, { canvas });
+  xnew.extend(xpixi.Root, { canvas });
 
   xnew(Boxes);
 }

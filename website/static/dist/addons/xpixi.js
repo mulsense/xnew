@@ -1,25 +1,42 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'xnew'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xpixi = global.xpixi || {}, global.xnew));
-})(this, (function (exports, xnew) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew'), require('pixi.js')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'xnew', 'pixi.js'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xpixi = global.xpixi || {}, global.xnew, global.PIXI));
+})(this, (function (exports, xnew, PIXI) { 'use strict';
 
-    function BaseSystem(self, { renderer = null }) {
-        renderer = renderer ?? PIXI.autoDetectRenderer({});
+    function _interopNamespaceDefault(e) {
+        var n = Object.create(null);
+        if (e) {
+            Object.keys(e).forEach(function (k) {
+                if (k !== 'default') {
+                    var d = Object.getOwnPropertyDescriptor(e, k);
+                    Object.defineProperty(n, k, d.get ? d : {
+                        enumerable: true,
+                        get: function () { return e[k]; }
+                    });
+                }
+            });
+        }
+        n.default = e;
+        return n;
+    }
 
-        const scene = new PIXI.Container();
+    var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
-        xnew.extend(Connect, scene);
+    function Root(self, { renderer = null }) {
+        const pixi = {};
+
+        pixi.renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
+        pixi.scene = new PIXI__namespace.Container();
+
+        xnew.extend(Connect, pixi.scene);
 
         return {
-            get renderer() {
-                return renderer;
-            },
-            get scene() {
-                return scene;
+            get pixi() {
+                return pixi;
             },
             update() {
-                renderer.render(scene);
+                pixi.renderer.render(pixi.scene);
             },
         }
     }
@@ -38,7 +55,7 @@
         }
     }
 
-    exports.BaseSystem = BaseSystem;
     exports.Connect = Connect;
+    exports.Root = Root;
 
 }));

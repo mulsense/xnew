@@ -4,22 +4,22 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xmatter = global.xmatter || {}, global.xnew, global.Matter));
 })(this, (function (exports, xnew, matterJs) { 'use strict';
 
-    function BaseSystem(self, { engine = null, render = null }) {
-        engine = engine ?? render?.engine ?? matterJs.Engine.create();
+    function Root(self, { engine = null, render = null }) {
+        const matter = {};
 
-        xnew.extend(Connect, engine.world);
+        matter.engine = engine ?? render?.engine ?? matterJs.Engine.create();
+        matter.render = render;
+
+        xnew.extend(Connect, matter.engine.world);
 
         return {
-            get engine() {
-                return engine;
-            },
-            get render() {
-                return render;
+            get matter() {
+                return matter;
             },
             update() {
-                matterJs.Engine.update(engine);
-                if (render !== null) {
-                    matterJs.Render.world(render);
+                matterJs.Engine.update(matter.engine);
+                if (matter.render !== null) {
+                    matterJs.Render.world(matter.render);
                 }
             },
         }
@@ -39,7 +39,7 @@
         }
     }
 
-    exports.BaseSystem = BaseSystem;
     exports.Connect = Connect;
+    exports.Root = Root;
 
 }));

@@ -1,22 +1,22 @@
 import xnew from 'xnew';
 import { Engine, Render, Composite } from 'matter-js';
 
-function BaseSystem(self, { engine = null, render = null }) {
-    engine = engine ?? render?.engine ?? Engine.create();
+function Root(self, { engine = null, render = null }) {
+    const matter = {};
 
-    xnew.extend(Connect, engine.world);
+    matter.engine = engine ?? render?.engine ?? Engine.create();
+    matter.render = render;
+
+    xnew.extend(Connect, matter.engine.world);
 
     return {
-        get engine() {
-            return engine;
-        },
-        get render() {
-            return render;
+        get matter() {
+            return matter;
         },
         update() {
-            Engine.update(engine);
-            if (render !== null) {
-                Render.world(render);
+            Engine.update(matter.engine);
+            if (matter.render !== null) {
+                Render.world(matter.render);
             }
         },
     }
@@ -36,4 +36,4 @@ function Connect(self, object) {
     }
 }
 
-export { BaseSystem, Connect };
+export { Connect, Root };

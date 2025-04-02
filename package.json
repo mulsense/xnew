@@ -42,7 +42,9 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "matter-js": "^0.20.0",
+    "pixi.js": "^8.9.1",
     "rollup": "^3.3.0",
+    "three": "^0.175.0",
     "xnew": "^2.2.3"
   }
 }

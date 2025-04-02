@@ -28,34 +28,30 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      xnew(ThreeMain, { canvas: screen.canvas });
+      xnew.extend(xthree.Root, { renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
 
-      xnew(Event);
-    });
+      self.three.renderer.shadowMap.enabled = true;
+      self.three.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    function ThreeMain(self, { canvas }) {
-      xnew.extend(xthree.BaseSystem, { renderer: new THREE.WebGLRenderer({ canvas }) });
-
-      self.renderer.shadowMap.enabled = true;
-      self.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-      self.camera.position.set(0, 0, +200);
-      self.scene.rotation.x = -60 / 180 * Math.PI
+      self.three.camera.position.set(0, 0, +200);
+      self.three.scene.rotation.x = -60 / 180 * Math.PI
 
       self.on('+scale', (scale) => {
-        self.camera.position.z /= scale;
+        self.three.camera.position.z /= scale;
       })
       self.on('+translate', (move) => {
-        self.camera.position.x += move.x * self.camera.position.z * 0.001;
-        self.camera.position.y += move.y * self.camera.position.z * 0.001;
+        self.three.camera.position.x += move.x * self.three.camera.position.z * 0.001;
+        self.three.camera.position.y += move.y * self.three.camera.position.z * 0.001;
       })
       self.on('+rotate', (move) => {
-        self.scene.rotation.x += move.y * 0.01;
-        self.scene.rotation.z += move.x * 0.01;
+        self.three.scene.rotation.x += move.y * 0.01;
+        self.three.scene.rotation.z += move.x * 0.01;
       })
 
       xnew(ThreeContents);
-    }
+
+      xnew(Event);
+    });
 
     function Event(self) {
 
