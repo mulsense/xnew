@@ -50,16 +50,13 @@
     }
 
     function Text(self, value) {
-      const text = new PIXI.Text(value, new PIXI.TextStyle({ fontSize: 24, fill: '#000000' }));
-      xnew.extend(xpixi.Connect, text);
+      const text = xpixi.nest(new PIXI.Text(value, new PIXI.TextStyle({ fontSize: 24, fill: '#FFFFFF' })));
       text.x = 10;
       text.y = 10;
     }
 
     function Box(self, { x, y, size, color }) {
-      const object = new PIXI.Container();
-      xnew.extend(xpixi.Connect, object);
-
+      const object = xpixi.nest(new PIXI.Container());
       object.x = x;
       object.y = y;
 

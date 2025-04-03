@@ -40,9 +40,7 @@
     });
 
     function ThreeTexture(self, texture) {
-      const object = new PIXI.Sprite(texture);
-
-      xnew.extend(xpixi.Connect, object);
+      const object = xpixi.nest(new PIXI.Sprite(texture)); 
       return {
         update() {
           object.texture.update()
@@ -51,9 +49,7 @@
     }
 
     function Boxes(self) {
-      const object = new PIXI.Container();
-      xnew.extend(xpixi.Connect, object);
-      
+      const object = xpixi.nest(new PIXI.Container()); 
       object.position.set(800 / 2, 400 / 2);
       
       for (let y = -1; y <= 1; y++) {
@@ -69,9 +65,7 @@
     }
 
     function Box(self, { x, y, size, color }) {
-      const object = new PIXI.Container();
-      xnew.extend(xpixi.Connect, object);
-
+      const object = xpixi.nest(new PIXI.Container()); 
       object.x = x;
       object.y = y;
 
@@ -90,8 +84,7 @@
     }
 
     function Cubes(self) {
-      const object = new THREE.Object3D(); 
-      xnew.extend(xthree.Connect, object);
+      const object = xthree.nest(new THREE.Object3D()); 
       
       for (let z = -1; z <= 1; z++) {
         for (let y = -1; y <= 1; y++) {
@@ -111,10 +104,7 @@
     function Cube(self, { x, y, z, size }) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshNormalMaterial();
-      const object = new THREE.Mesh(geometry, material);
-      
-      xnew.extend(xthree.Connect, object);
-     
+      const object = xthree.nest(new THREE.Mesh(geometry, material)); 
       object.position.set(x, y, z);
 
       return {

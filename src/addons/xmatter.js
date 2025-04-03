@@ -22,6 +22,11 @@ export function Root(self, { engine = null, render = null }) {
     }
 }
 
+export function nest(object) {
+    xnew.extend(Connect, object);
+    return object;
+}
+
 export function Connect(self, object) {
     const parent = xnew.context('xmatter.Connect');
     xnew.context('xmatter.Connect', object);

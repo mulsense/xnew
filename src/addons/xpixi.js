@@ -19,6 +19,11 @@ export function Root(self, { renderer = null }) {
     }
 }
 
+export function nest(object) {
+    xnew.extend(Connect, object);
+    return object;
+}
+
 export function Connect(self, object) {
     const parent = xnew.context('xpixi.Connect');
     xnew.context('xpixi.Connect', object);

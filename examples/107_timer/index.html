@@ -27,11 +27,8 @@
       xnew(Cubes);
     });
 
-
     function Light(self) {
-      const object = new THREE.PointLight(0xFFFFFF, 1);
-      xnew.extend(xthree.Connect, object);
-      
+      const object = xthree.nest(new THREE.PointLight(0xFFFFFF, 1));
       object.position.set(0, 0, +100);
     }
 
@@ -48,8 +45,7 @@
 
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshLambertMaterial({ color: 0xFFFFFF * Math.random() });
-      const object = new THREE.Mesh(geometry, material);
-      xnew.extend(xthree.Connect, object);
+      const object = xthree.nest(new THREE.Mesh(geometry, material));
    
       object.position.x = 100 * (Math.random() - 0.5);
       object.position.y = 100 * (Math.random() - 0.5);

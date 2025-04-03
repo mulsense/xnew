@@ -30,9 +30,7 @@
     });
 
     function Boxes(self) {
-      const object = new PIXI.Container();
-      xnew.extend(xpixi.Connect, object);
-      
+      const object = xpixi.nest(new PIXI.Container());
       object.position.set(800 / 2, 400 / 2);
       
       for (let y = -1; y <= 1; y++) {
@@ -48,9 +46,7 @@
     }
 
     function Box(self, { x, y, size, color }) {
-      const object = new PIXI.Container();
-      xnew.extend(xpixi.Connect, object);
-
+      const object = xpixi.nest(new PIXI.Container());
       object.x = x;
       object.y = y;
 

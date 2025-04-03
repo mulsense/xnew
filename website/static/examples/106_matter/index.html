@@ -51,18 +51,15 @@
     }
 
     function Rectangle(self, ...args) {
-      const object = Matter.Bodies.rectangle(...args)
-      xnew.extend(xmatter.Connect, object);
+      xmatter.nest(Matter.Bodies.rectangle(...args));
     }
 
     function Circle(self, ...args) {
-      const object = Matter.Bodies.circle(...args)
-      xnew.extend(xmatter.Connect, object);
+      xmatter.nest(Matter.Bodies.circle(...args));
     }
 
     function Polygon(self, ...args) {
-      const object = Matter.Bodies.polygon(...args)
-      xnew.extend(xmatter.Connect, object);
+      xmatter.nest(Matter.Bodies.polygon(...args));
     }
   </script>
 </body>

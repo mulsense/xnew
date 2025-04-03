@@ -65,9 +65,7 @@
     }
 
     function Box(self, { x, y, size, color }) {
-      const object = new PIXI.Container();
-      xnew.extend(xpixi.Connect, object);
-
+      const object = xpixi.nest(new PIXI.Container());
       object.x = x;
       object.y = y;
 

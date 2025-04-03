@@ -25,6 +25,11 @@
         }
     }
 
+    function nest(object) {
+        xnew.extend(Connect, object);
+        return object;
+    }
+
     function Connect(self, object) {
         const parent = xnew.context('xmatter.Connect');
         xnew.context('xmatter.Connect', object);
@@ -41,5 +46,6 @@
 
     exports.Connect = Connect;
     exports.Root = Root;
+    exports.nest = nest;
 
 }));

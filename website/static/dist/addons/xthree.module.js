@@ -20,6 +20,11 @@ function Root(self, { renderer = null, camera = null }) {
     }
 }
 
+function nest(object) {
+    xnew.extend(Connect, object);
+    return object;
+}
+
 function Connect(self, object) {
     const parent = xnew.context('xthree.Connect');
     xnew.context('xthree.Connect', object);
@@ -34,4 +39,4 @@ function Connect(self, object) {
     }
 }
 
-export { Connect, Root };
+export { Connect, Root, nest };

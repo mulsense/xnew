@@ -20,6 +20,11 @@ export function Root(self, { renderer = null, camera = null }) {
     }
 }
 
+export function nest(object) {
+    xnew.extend(Connect, object);
+    return object;
+}
+
 export function Connect(self, object) {
     const parent = xnew.context('xthree.Connect');
     xnew.context('xthree.Connect', object);

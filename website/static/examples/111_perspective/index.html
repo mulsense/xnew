@@ -132,15 +132,13 @@
 
   <script>
     const perspective = 500;
+    const offset = { rx: 0, ry: 11, rz: 0, tx: 120, ty: 0, tz: 0 };
+    const transform = { rx: 0, ry: 0, rz: 0, tx: 0, ty: 0, tz: 0 };
+    const state = { id: 0, moving: false };
 
     xnew((self) => {
-      xnew.context('offset', { rx: 0, ry: 11, rz: 0, tx: 120, ty: 0, tz: 0 });
-      xnew.context('transform', { rx: 0, ry: 0, rz: 0, tx: 0, ty: 0, tz: 0 });
-      xnew.context('state', { id: 0, moving: false });
-
       xnew(HtmlMain);
       xnew(ThreeMain);
-
       xnew(Event);
     });
     
@@ -151,10 +149,6 @@
     }
 
     function Plane(self, id) {
-      const offset = xnew.context('offset');
-      const transform = xnew.context('transform');
-      const state = xnew.context('state');
-
       let opacity = id === state.id ? 0.80 : 0.20;
       self.on('+planefade', () => {
         xnew.transition(({ progress }) => {
@@ -176,9 +170,6 @@
     }
 
     function Event(self) {
-      const transform = xnew.context('transform');
-      const state = xnew.context('state');
-
       xnew('.button.left', Button, +1);
       xnew('.button.right', Button, -1);
 
@@ -217,9 +208,6 @@
       const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
       xnew.extend(xthree.Root, { renderer: new THREE.WebGLRenderer({ canvas, antialias: true }), camera });
     
-      const offset = xnew.context('offset');
-      const transform = xnew.context('transform');
-
       xnew(xnew.ResizeEvent).on('resize', () => {
         camera.fov = fov();
         camera.updateProjectionMatrix();
@@ -250,14 +238,12 @@
     }
 
     function DirectionaLight(self, x, y, z, value) {
-      const object = new THREE.DirectionalLight(0xFFFFFF, value);
+      const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, value));
       object.position.set(x, y, z);
-      xnew.extend(xthree.Connect, object);
     }
 
     function AmbientLight(self, value) {
-      const object = new THREE.AmbientLight(0xFFFFFF, value);
-      xnew.extend(xthree.Connect, object);
+      const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, value));
     }
 
     function Room(self) {
@@ -267,8 +253,7 @@
         color: 0xF8F8FF, side: THREE.BackSide,
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
       });
-      const object = new THREE.Mesh(geometry, material);
-      xnew.extend(xthree.Connect, object);
+      const object = xthree.nest(new THREE.Mesh(geometry, material));
 
       xnew(Grid, { tz: +size, rx: 90 });
       xnew(Grid, { tz: -size, rx: 90 });
@@ -279,8 +264,7 @@
     }
 
     function Grid(self, { tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
-      const object = new THREE.GridHelper( 1100, 10, 0x444466, 0x444466 );
-      xnew.extend(xthree.Connect, object);
+      const object = xthree.nest(new THREE.GridHelper(1100, 10, 0x444466, 0x444466));
       object.rotation.set(rx * Math.PI / 180, ry * Math.PI / 180, rz * Math.PI / 180);
       object.position.set(tx, ty, tz);
     }

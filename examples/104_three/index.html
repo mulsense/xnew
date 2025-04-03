@@ -27,8 +27,7 @@
     });
 
     function Cubes(self) {
-      const object = new THREE.Object3D(); 
-      xnew.extend(xthree.Connect, object);
+      const object = xthree.nest(new THREE.Object3D()); 
       
       for (let z = -1; z <= 1; z++) {
         for (let y = -1; y <= 1; y++) {
@@ -48,10 +47,7 @@
     function Cube(self, { x, y, z, size }) {
       const geometry = new THREE.BoxGeometry(size, size, size);
       const material = new THREE.MeshNormalMaterial();
-      const object = new THREE.Mesh(geometry, material);
-      
-      xnew.extend(xthree.Connect, object);
-     
+      const object = xthree.nest(new THREE.Mesh(geometry, material)); 
       object.position.set(x, y, z);
 
       return {

@@ -42,6 +42,11 @@
         }
     }
 
+    function nest(object) {
+        xnew.extend(Connect, object);
+        return object;
+    }
+
     function Connect(self, object) {
         const parent = xnew.context('xthree.Connect');
         xnew.context('xthree.Connect', object);
@@ -58,5 +63,6 @@
 
     exports.Connect = Connect;
     exports.Root = Root;
+    exports.nest = nest;
 
 }));
