@@ -15,14 +15,14 @@ const config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://wisroot-com.github.io/',
+  url: 'https://mulsense.github.io/',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/xnew/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'wisroot-com', // Usually your GitHub org/user name.
+  organizationName: 'mulsense', // Usually your GitHub org/user name.
   projectName: 'xnew', // Usually your repo name.
 
   onBrokenLinks: 'throw',
@@ -97,7 +97,7 @@ const config = {
           },
           // {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'https://github.com/wisroot-com/xnew',
+            href: 'https://github.com/mulsense/xnew',
             label: 'GitHub',
             position: 'right',
           },
@@ -145,7 +145,7 @@ const config = {
               // },
               {
                 label: 'GitHub',
-                href: 'https://wisroot-com.github.io/xnew/',
+                href: 'https://mulsense.github.io/xnew/',
               },
             ],
           },
