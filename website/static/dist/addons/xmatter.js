@@ -4,25 +4,24 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xmatter = global.xmatter || {}, global.xnew, global.Matter));
 })(this, (function (exports, xnew, matterJs) { 'use strict';
 
-    function Root(self, { engine = null, render = null }) {
+    function setup({ engine = null, render = null }) {
         const matter = {};
 
-        matter.engine = engine ?? render?.engine ?? matterJs.Engine.create();
-        matter.render = render;
-
-        xnew.extend(Connect, matter.engine.world);
-
-        return {
-            get matter() {
-                return matter;
-            },
-            update() {
-                matterJs.Engine.update(matter.engine);
-                if (matter.render !== null) {
-                    matterJs.Render.world(matter.render);
-                }
-            },
-        }
+        xnew.extend((self) => {
+            matter.engine = engine ?? render?.engine ?? matterJs.Engine.create();
+            matter.render = render;
+            xnew.extend(Connect, matter.engine.world);
+        
+            return {
+                update() {
+                    matterJs.Engine.update(matter.engine);
+                    if (matter.render !== null) {
+                        matterJs.Render.world(matter.render);
+                    }
+                },
+            }
+        });
+        return matter;
     }
 
     function nest(object) {
@@ -45,7 +44,7 @@
     }
 
     exports.Connect = Connect;
-    exports.Root = Root;
     exports.nest = nest;
+    exports.setup = setup;
 
 }));

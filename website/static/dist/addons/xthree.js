@@ -23,31 +23,32 @@
 
     var THREE__namespace = /*#__PURE__*/_interopNamespaceDefault(THREE);
 
-    function Root(self, { renderer = null, camera = null }) {
+    function setup({ renderer = null, camera = null })
+    {
         const three = {};
+        xnew.extend((self) => {
+            three.renderer = renderer ?? new THREE__namespace.WebGLRenderer({});
+            three.camera = camera ?? new THREE__namespace.PerspectiveCamera(45, three.renderer.domElement.width / three.renderer.domElement.height);
+            three.scene = new THREE__namespace.Scene();
+            xnew.extend(Connect, three.scene);
 
-        three.renderer = renderer ?? new THREE__namespace.WebGLRenderer({});
-        three.camera = camera ?? new THREE__namespace.PerspectiveCamera(45, three.renderer.domElement.width / three.renderer.domElement.height);
-        three.scene = new THREE__namespace.Scene();
-
-        xnew.extend(Connect, three.scene);
-
-        return {
-            get three() {
-                return three;
-            },
-            update() {
-                three.renderer.render(three.scene, three.camera);
-            },
-        }
+            return {
+                update() {
+                    three.renderer.render(three.scene, three.camera);
+                },
+            }
+        });
+        return three;
     }
 
-    function nest(object) {
+    function nest(object)
+    {
         xnew.extend(Connect, object);
         return object;
     }
 
-    function Connect(self, object) {
+    function Connect(self, object)
+    {
         const parent = xnew.context('xthree.Connect');
         xnew.context('xthree.Connect', object);
 
@@ -62,7 +63,7 @@
     }
 
     exports.Connect = Connect;
-    exports.Root = Root;
     exports.nest = nest;
+    exports.setup = setup;
 
 }));

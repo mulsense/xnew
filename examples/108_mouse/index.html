@@ -28,33 +28,31 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      xnew.extend(xthree.Root, { renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
+      const three = xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
 
-      self.three.renderer.shadowMap.enabled = true;
-      self.three.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      three.renderer.shadowMap.enabled = true;
+      three.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-      self.three.camera.position.set(0, 0, +200);
-      self.three.scene.rotation.x = -60 / 180 * Math.PI
+      three.camera.position.set(0, 0, +200);
+      three.scene.rotation.x = -60 / 180 * Math.PI
 
       self.on('+scale', (scale) => {
-        self.three.camera.position.z /= scale;
+        three.camera.position.z /= scale;
       })
       self.on('+translate', (move) => {
-        self.three.camera.position.x += move.x * self.three.camera.position.z * 0.001;
-        self.three.camera.position.y += move.y * self.three.camera.position.z * 0.001;
+        three.camera.position.x += move.x * three.camera.position.z * 0.001;
+        three.camera.position.y += move.y * three.camera.position.z * 0.001;
       })
       self.on('+rotate', (move) => {
-        self.three.scene.rotation.x += move.y * 0.01;
-        self.three.scene.rotation.z += move.x * 0.01;
+        three.scene.rotation.x += move.y * 0.01;
+        three.scene.rotation.z += move.x * 0.01;
       })
 
       xnew(ThreeContents);
-
       xnew(Event);
     });
 
     function Event(self) {
-
       self.on('touchstart contextmenu wheel', (event) => {
         event.preventDefault();
       });

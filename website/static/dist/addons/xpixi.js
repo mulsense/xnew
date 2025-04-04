@@ -23,30 +23,30 @@
 
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
-    function Root(self, { renderer = null }) {
+    function setup({ renderer = null, camera = null })
+    {
         const pixi = {};
-
-        pixi.renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
-        pixi.scene = new PIXI__namespace.Container();
-
-        xnew.extend(Connect, pixi.scene);
-
-        return {
-            get pixi() {
-                return pixi;
-            },
-            update() {
-                pixi.renderer.render(pixi.scene);
-            },
-        }
+        xnew.extend((self) => {
+            pixi.renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
+            pixi.scene = new PIXI__namespace.Container();
+            xnew.extend(Connect, pixi.scene);
+            return {
+                update() {
+                    pixi.renderer.render(pixi.scene);
+                },
+            }
+        });
+        return pixi;
     }
 
-    function nest(object) {
+    function nest(object)
+    {
         xnew.extend(Connect, object);
         return object;
     }
 
-    function Connect(self, object) {
+    function Connect(self, object)
+    {
         const parent = xnew.context('xpixi.Connect');
         xnew.context('xpixi.Connect', object);
 
@@ -61,7 +61,7 @@
     }
 
     exports.Connect = Connect;
-    exports.Root = Root;
     exports.nest = nest;
+    exports.setup = setup;
 
 }));
