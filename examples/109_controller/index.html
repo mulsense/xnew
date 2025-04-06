@@ -22,7 +22,7 @@
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
       xnew.context('screen', screen);
 
-      const pixi = xpixi.setup({
+      xpixi.setup({
         renderer: PIXI.autoDetectRenderer({
           width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
         }) 

@@ -24,20 +24,26 @@
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
       const oscanvas = new OffscreenCanvas(800, 400);
 
-      const three = xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: oscanvas }) });
-      three.camera.position.set(0, 0, +100);
-      xnew(Cubes);
-
-      const pixi = xpixi.setup({
-        renderer: PIXI.autoDetectRenderer({
-          width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
-        }) 
+      // three 
+      xnew((self) => {
+        xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: oscanvas }) });
+        xthree.camera.position.set(0, 0, +100);
+        xnew(Cubes);
       });
-      xnew(ThreeTexture, PIXI.Texture.from(oscanvas));
-      xnew(Boxes);
+
+      // pixi
+      xnew((self) => {
+        xpixi.setup({
+          renderer: PIXI.autoDetectRenderer({
+            width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
+          }) 
+        });
+        xnew(TextureUpdate, PIXI.Texture.from(oscanvas));
+        xnew(Boxes);
+      });
     });
 
-    function ThreeTexture(self, texture) {
+    function TextureUpdate(self, texture) {
       const object = xpixi.nest(new PIXI.Sprite(texture)); 
       return {
         update() {

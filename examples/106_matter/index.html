@@ -20,7 +20,7 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      const matter = xmatter.setup({
+      xmatter.setup({
         render: Matter.Render.create({
           canvas: screen.canvas, engine: Matter.Engine.create(), options: {
             width: screen.canvas.width, height: screen.canvas.height, wireframes: false,
@@ -28,8 +28,8 @@
         })
       });
 
-      const constraint = Matter.MouseConstraint.create(matter.engine, { element: screen.canvas });
-      Matter.Composite.add(matter.engine.world, constraint);
+      const constraint = Matter.MouseConstraint.create(xmatter.engine, { element: screen.canvas });
+      Matter.Composite.add(xmatter.engine.world, constraint);
 
       xnew(MatterContents);
 

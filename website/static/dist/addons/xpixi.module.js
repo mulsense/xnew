@@ -1,20 +1,27 @@
 import xnew from 'xnew';
 import * as PIXI from 'pixi.js';
 
+function xpixi() {
+}
+
+Object.defineProperty(xpixi, 'setup', { enumerable: true, value: setup });
+Object.defineProperty(xpixi, 'renderer', { enumerable: true, get: renderer });
+Object.defineProperty(xpixi, 'scene', { enumerable: true, get: scene });
+Object.defineProperty(xpixi, 'nest', { enumerable: true, value: nest });
+
 function setup({ renderer = null, camera = null })
 {
-    const pixi = {};
-    xnew.extend((self) => {
-        pixi.renderer = renderer ?? PIXI.autoDetectRenderer({});
-        pixi.scene = new PIXI.Container();
-        xnew.extend(Connect, pixi.scene);
-        return {
-            update() {
-                pixi.renderer.render(pixi.scene);
-            },
-        }
-    });
-    return pixi;
+    xnew.extend(Root, { renderer, camera });
+}
+
+function renderer()
+{
+    return xnew.context('xpixi.root')?.renderer;
+}
+
+function scene()
+{
+    return xnew.context('xpixi.root')?.scene;
 }
 
 function nest(object)
@@ -23,10 +30,24 @@ function nest(object)
     return object;
 }
 
+function Root(self, { renderer, camera })
+{
+    const root = {};
+    xnew.context('xpixi.root', root);
+    root.renderer = renderer ?? PIXI.autoDetectRenderer({});
+    root.scene = new PIXI.Container();
+    xnew.extend(Connect, root.scene);
+    return {
+        update() {
+            root.renderer.render(root.scene);
+        },
+    }
+}
+
 function Connect(self, object)
 {
-    const parent = xnew.context('xpixi.Connect');
-    xnew.context('xpixi.Connect', object);
+    const parent = xnew.context('xpixi.object');
+    xnew.context('xpixi.object', object);
 
     if (parent) {
         parent.addChild(object);
@@ -38,4 +59,4 @@ function Connect(self, object)
     }
 }
 
-export { Connect, nest, setup };
+export { xpixi as default };

@@ -1,8 +1,8 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew'), require('pixi.js')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'xnew', 'pixi.js'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xpixi = global.xpixi || {}, global.xnew, global.PIXI));
-})(this, (function (exports, xnew, PIXI) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew'), require('pixi.js')) :
+    typeof define === 'function' && define.amd ? define(['xnew', 'pixi.js'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xpixi = factory(global.xnew, global.PIXI));
+})(this, (function (xnew, PIXI) { 'use strict';
 
     function _interopNamespaceDefault(e) {
         var n = Object.create(null);
@@ -23,20 +23,27 @@
 
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
+    function xpixi() {
+    }
+
+    Object.defineProperty(xpixi, 'setup', { enumerable: true, value: setup });
+    Object.defineProperty(xpixi, 'renderer', { enumerable: true, get: renderer });
+    Object.defineProperty(xpixi, 'scene', { enumerable: true, get: scene });
+    Object.defineProperty(xpixi, 'nest', { enumerable: true, value: nest });
+
     function setup({ renderer = null, camera = null })
     {
-        const pixi = {};
-        xnew.extend((self) => {
-            pixi.renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
-            pixi.scene = new PIXI__namespace.Container();
-            xnew.extend(Connect, pixi.scene);
-            return {
-                update() {
-                    pixi.renderer.render(pixi.scene);
-                },
-            }
-        });
-        return pixi;
+        xnew.extend(Root, { renderer, camera });
+    }
+
+    function renderer()
+    {
+        return xnew.context('xpixi.root')?.renderer;
+    }
+
+    function scene()
+    {
+        return xnew.context('xpixi.root')?.scene;
     }
 
     function nest(object)
@@ -45,10 +52,24 @@
         return object;
     }
 
+    function Root(self, { renderer, camera })
+    {
+        const root = {};
+        xnew.context('xpixi.root', root);
+        root.renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
+        root.scene = new PIXI__namespace.Container();
+        xnew.extend(Connect, root.scene);
+        return {
+            update() {
+                root.renderer.render(root.scene);
+            },
+        }
+    }
+
     function Connect(self, object)
     {
-        const parent = xnew.context('xpixi.Connect');
-        xnew.context('xpixi.Connect', object);
+        const parent = xnew.context('xpixi.object');
+        xnew.context('xpixi.object', object);
 
         if (parent) {
             parent.addChild(object);
@@ -60,8 +81,6 @@
         }
     }
 
-    exports.Connect = Connect;
-    exports.nest = nest;
-    exports.setup = setup;
+    return xpixi;
 
 }));

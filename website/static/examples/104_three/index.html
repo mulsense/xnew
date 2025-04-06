@@ -20,8 +20,8 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      const three = xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
-      three.camera.position.set(0, 0, +100);
+      xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
+      xthree.camera.position.set(0, 0, +100);
 
       xnew(Cubes);
     });

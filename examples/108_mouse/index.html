@@ -28,24 +28,24 @@
     xnew('#main', (self) => {
       const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
-      const three = xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
+      xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: screen.canvas }) });
 
-      three.renderer.shadowMap.enabled = true;
-      three.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      xthree.renderer.shadowMap.enabled = true;
+      xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-      three.camera.position.set(0, 0, +200);
-      three.scene.rotation.x = -60 / 180 * Math.PI
+      xthree.camera.position.set(0, 0, +200);
+      xthree.scene.rotation.x = -60 / 180 * Math.PI
 
       self.on('+scale', (scale) => {
-        three.camera.position.z /= scale;
+        xthree.camera.position.z /= scale;
       })
       self.on('+translate', (move) => {
-        three.camera.position.x += move.x * three.camera.position.z * 0.001;
-        three.camera.position.y += move.y * three.camera.position.z * 0.001;
+        xthree.camera.position.x += move.x * xthree.camera.position.z * 0.001;
+        xthree.camera.position.y += move.y * xthree.camera.position.z * 0.001;
       })
       self.on('+rotate', (move) => {
-        three.scene.rotation.x += move.y * 0.01;
-        three.scene.rotation.z += move.x * 0.01;
+        xthree.scene.rotation.x += move.y * 0.01;
+        xthree.scene.rotation.z += move.x * 0.01;
       })
 
       xnew(ThreeContents);
