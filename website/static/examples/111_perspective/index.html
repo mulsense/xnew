@@ -7,11 +7,6 @@
   <script src="../../dist/xnew.js"></script>
   <script src="../../dist/addons/xthree.js"></script>
   <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      overflow: hidden;
-    }
     .target {
       position: absolute;
       inset: 0;
@@ -68,7 +63,7 @@
   </style>
 </head>
 
-<body>
+<body style="margin: 0; height: 100vh; overflow: hidden;">
   <div id="screen" style="position: absolute; width: 100%; height: 100%;"></div>
 
   <div style="width: 100%; height: 100%; perspective: 500px; perspective-origin: center;">
@@ -204,27 +199,28 @@
     function ThreeMain(self) {
       const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, fit: 'cover' });
      
-      const canvas = screen.canvas;
-      const camera = new THREE.PerspectiveCamera(fov(), canvas.width / canvas.height);
-      const three = xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas, antialias: true }), camera });
+      xthree.setup({
+        renderer: new THREE.WebGLRenderer({ canvas: screen.canvas, antialias: true }),
+        camera: new THREE.PerspectiveCamera(fov(), screen.canvas.width / screen.canvas.height)
+      });
     
-      xnew(xnew.ResizeEvent).on('resize', () => {
-        camera.fov = fov();
-        camera.updateProjectionMatrix();
+      xnew(xnew.ResizeEvent).on('-resize', () => {
+        xthree.camera.fov = fov();
+        xthree.camera.updateProjectionMatrix();
       });
 
       function fov() {
-        return Math.atan2(canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
+        return Math.atan2(screen.canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
       }
  
       xnew(ThreeContents);
       xnew(() => {
         return {
           update() {
-            three.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
-            three.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
-            three.camera.position.x = -(transform.tx + offset.tx);
-            three.camera.position.y = +(transform.ty + offset.ty);
+            xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
+            xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
+            xthree.camera.position.x = -(transform.tx + offset.tx);
+            xthree.camera.position.y = +(transform.ty + offset.ty);
           },
         }
       });
