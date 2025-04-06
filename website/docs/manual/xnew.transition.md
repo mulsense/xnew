@@ -1,12 +1,12 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # xnew.transition
 `xnew.transition` execute repetitive processing for a specified period of time.
 
 ```js
-xnew.transition(callback, interval);
+xnew.transition(callback, delay);
 ```
 ## example
 

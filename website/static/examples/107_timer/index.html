@@ -35,9 +35,9 @@
     function Cubes(self) {
       // call iteratively (delay = 100ms, loop = true)
 
-      xnew.timer(() => {
+      xnew.interval(() => {
         xnew(Cube);
-      }, 100, true);
+      }, 100);
     }
 
     function Cube(self) {

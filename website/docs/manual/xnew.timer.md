@@ -6,7 +6,7 @@ sidebar_position: 4
 `xnew.timer` create a timer that execute a callback function for a specified time.
 
 ```js
-xnew.timer(callback, delay, loop = false);
+xnew.timer(callback, delay);
 ```
 ## example
 

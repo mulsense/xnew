@@ -720,6 +720,7 @@
     Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
     Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
     Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
+    Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
     Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
     Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
 
@@ -767,7 +768,7 @@
         }
     }
 
-    function timer(callback, delay, loop = false)
+    function timer(callback, delay)
     {
         let finalizer = null;
 
@@ -776,7 +777,31 @@
             timeout: () => Unit.scope.call(current, callback), 
             finalize: () => finalizer.finalize(),
             delay,
-            loop,
+        });
+        
+        timer.start();
+
+        finalizer = xnew((self) => {
+            return {
+                finalize() {
+                    timer.clear();
+                }
+            }
+        });
+
+        return { clear: () => timer.clear() };
+    }
+
+    function interval(callback, delay)
+    {
+        let finalizer = null;
+
+        const current = Unit.current;
+        const timer = new Timer({
+            timeout: () => Unit.scope.call(current, callback), 
+            finalize: () => finalizer.finalize(),
+            delay,
+            loop: true,
         });
         
         timer.start();
