@@ -19,6 +19,7 @@ export class Unit
             baseElement,                    // base element
             nestElements: [],               // nest elements
             contexts: new Map(),            // context value
+            ctxstack: null,                 // context stack
             keys: new Set(),                // keys
             listeners: new MapMap(),        // event listners
         };
@@ -81,16 +82,23 @@ export class Unit
     // current unit scope
     static current = null;
 
-    static scope(func, ...args)
+    static scope(ctxstack, func, ...args)
     {
-        const backup = Unit.current;
+        const unitbackup = Unit.current;
+        const ctxbackup = this?._.ctxstack;
         try {
             Unit.current = this;
+            if (this) {
+                this._.ctxstack = ctxstack;
+            }
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
-            Unit.current = backup;
+            Unit.current = unitbackup;
+            if (this) {
+                this._.ctxstack = ctxbackup;
+            }
         }
     }
 
@@ -144,7 +152,7 @@ export class Unit
         this._.components.add(component);
         Unit.components.add(component, this);
 
-        const props = Unit.scope.call(this, component, this, ...args) ?? {};
+        const props = Unit.scope.call(this, this._.ctxstack, component, this, ...args) ?? {};
         
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
@@ -172,15 +180,15 @@ export class Unit
                 const dest = { configurable: true, enumerable: true };
 
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => Unit.scope.call(this, descripter.value, ...args);
+                    dest.value = (...args) => Unit.scope.call(this, this._.ctxstack, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => Unit.scope.call(this, descripter.get, ...args);
+                    dest.get = (...args) => Unit.scope.call(this, this._.ctxstack, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => Unit.scope.call(this, descripter.set, ...args);
+                    dest.set = (...args) => Unit.scope.call(this, this._.ctxstack, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
@@ -200,7 +208,7 @@ export class Unit
             this._.children.forEach((unit) => Unit.start.call(unit, time));
 
             if (isFunction(this._.props.start) === true) {
-                Unit.scope.call(this, this._.props.start);
+                Unit.scope.call(this, this._.ctxstack, this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -214,7 +222,7 @@ export class Unit
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                Unit.scope.call(this, this._.props.stop);
+                Unit.scope.call(this, this._.ctxstack, this._.props.stop);
             }
         }
     }
@@ -225,7 +233,7 @@ export class Unit
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Unit.scope.call(this, this._.props.update);
+                Unit.scope.call(this, this._.ctxstack, this._.props.update);
             }
         }
     }
@@ -238,7 +246,7 @@ export class Unit
             [...this._.children].forEach((unit) => unit.finalize());
             
             if (isFunction(this._.props.finalize)) {
-                Unit.scope.call(this, this._.props.finalize);
+                Unit.scope.call(this, this._.ctxstack, this._.props.finalize);
             }
 
             this._.components.forEach((component) => {
@@ -256,6 +264,7 @@ export class Unit
 
             this.off();
             this._.contexts.clear();
+            this._.ctxstack = null;
 
             if (this._.nestElements.length > 0) {
                 this._.baseElement.removeChild(this._.nestElements[0]);
@@ -316,16 +325,17 @@ export class Unit
         function internal(type, listener) {
             if (this._.listeners.has(type, listener) === false) {
                 const element = this.element;
+                const ctxstack = this._.ctxstack;
                 const execute = (...args) => {
-                    const backup = Unit.event;
+                    const eventbackup = Unit.event;
                     if (type[0] === '-' || type[0] === '+') {
                         Unit.event = { type };
-                        Unit.scope.call(this, listener, ...args);
+                        Unit.scope.call(this, ctxstack, listener, ...args);
                     } else {
                         Unit.event = args[0] ?? null;
-                        Unit.scope.call(this, listener, ...args);
+                        Unit.scope.call(this, ctxstack, listener, ...args);
                     }
-                    Unit.event = backup;
+                    Unit.event = eventbackup;
                 };
                 this._.listeners.set(type, listener, [element, execute]);
                 element.addEventListener(type, execute, options);
@@ -389,12 +399,22 @@ export class Unit
     {
         if (value !== undefined) {
             this._.contexts.set(key, value);
+            this._.ctxstack = [this._.ctxstack, key, value];
         } else {
             let ret = undefined;
             for (let target = this; target !== null; target = target.parent) {
                 if (target._.contexts.has(key)) {
-                    ret = target._.contexts.get(key);
-                    break;
+                    for (let stack = target._.ctxstack; stack !== null; stack = stack[0]) {
+                        if (stack[1] === key) {
+                            ret = stack[2];
+                            break;
+                        }
+                    }
+                    if (ret !== undefined) {
+                        break;
+                    }
+                    // ret = target._.contexts.get(key);
+                    // break;
                 }
             }
             return ret;

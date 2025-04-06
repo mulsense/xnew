@@ -104,8 +104,11 @@ function timer(callback, delay)
     let finalizer = null;
 
     const current = Unit.current;
+    const ctxstack = current?._.ctxstack;
     const timer = new Timer({
-        timeout: () => Unit.scope.call(current, callback), 
+        timeout: () => {
+            Unit.scope.call(current, ctxstack, callback);
+        },
         finalize: () => finalizer.finalize(),
         delay,
     });
@@ -128,8 +131,9 @@ function interval(callback, delay)
     let finalizer = null;
 
     const current = Unit.current;
+    const ctxstack = current?._.ctxstack;
     const timer = new Timer({
-        timeout: () => Unit.scope.call(current, callback), 
+        timeout: () => Unit.scope.call(current, ctxstack, callback), 
         finalize: () => finalizer.finalize(),
         delay,
         loop: true,
@@ -154,8 +158,9 @@ function transition(callback, interval)
     let updater = null;
 
     const current = Unit.current;
+    const ctxstack = current?._.ctxstack;
     const timer = new Timer({ 
-        timeout: () => Unit.scope.call(current, callback, { progress: 1.0 }),
+        timeout: () => Unit.scope.call(current, ctxstack, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -165,14 +170,14 @@ function transition(callback, interval)
 
     timer.start();
 
-    Unit.scope.call(current, callback, { progress: 0.0 });
+    Unit.scope.call(current, ctxstack, callback, { progress: 0.0 });
 
     updater = xnew(null, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    Unit.scope.call(current, callback, { progress });
+                    Unit.scope.call(current, ctxstack, callback, { progress });
                 }
             },
         }
