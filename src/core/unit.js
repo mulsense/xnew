@@ -18,8 +18,7 @@ export class Unit
             parent,                         // parent unit
             baseElement,                    // base element
             nestElements: [],               // nest elements
-            contexts: new Map(),            // context value
-            ctxstack: parent?._.ctxstack ?? null,                 // context stack
+            context: parent?._.context,     // context stack
             keys: new Set(),                // keys
             listeners: new MapMap(),        // event listners
         };
@@ -84,11 +83,11 @@ export class Unit
 
     static scope(context, func, ...args)
     {
-        const backup = { unit: Unit.current, context: this?._.ctxstack };
+        const backup = { unit: Unit.current, context: this?._.context };
         try {
             Unit.current = this;
             if (this) {
-                this._.ctxstack = context;
+                this._.context = context;
             }
             return func(...args);
         } catch (error) {
@@ -96,7 +95,7 @@ export class Unit
         } finally {
             Unit.current = backup.unit;
             if (this) {
-                this._.ctxstack = backup.context;
+                this._.context = backup.context;
             }
         }
     }
@@ -134,7 +133,7 @@ export class Unit
 
             // setup component
             if (isFunction(component) === true) {
-                Unit.scope.call(this, this._.ctxstack, () => {
+                Unit.scope.call(this, this._.context, () => {
                     Unit.extend.call(this, component, ...args);
                 });
             } else if (isObject(target) === true && isString(component) === true) {
@@ -179,7 +178,7 @@ export class Unit
                 }
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
-                const context = this._.ctxstack;
+                const context = this._.context;
                 if (isFunction(descripter.value) === true) {
                     dest.value = (...args) => Unit.scope.call(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
@@ -206,7 +205,7 @@ export class Unit
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                Unit.scope.call(this, this._.ctxstack, this._.props.start);
+                Unit.scope.call(this, this._.context, this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -220,7 +219,7 @@ export class Unit
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                Unit.scope.call(this, this._.ctxstack, this._.props.stop);
+                Unit.scope.call(this, this._.context, this._.props.stop);
             }
         }
     }
@@ -231,7 +230,7 @@ export class Unit
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Unit.scope.call(this, this._.ctxstack, this._.props.update);
+                Unit.scope.call(this, this._.context, this._.props.update);
             }
         }
     }
@@ -244,7 +243,7 @@ export class Unit
             [...this._.children].forEach((unit) => unit.finalize());
             
             if (isFunction(this._.props.finalize)) {
-                Unit.scope.call(this, this._.ctxstack, this._.props.finalize);
+                Unit.scope.call(this, this._.context, this._.props.finalize);
             }
 
             this._.components.forEach((component) => {
@@ -261,8 +260,7 @@ export class Unit
             this._.props = {};
 
             this.off();
-            this._.contexts.clear();
-            this._.ctxstack = null;
+            this._.context = null;
 
             if (this._.nestElements.length > 0) {
                 this._.baseElement.removeChild(this._.nestElements[0]);
@@ -323,7 +321,7 @@ export class Unit
         function internal(type, listener) {
             if (this._.listeners.has(type, listener) === false) {
                 const element = this.element;
-                const context = this._.ctxstack;
+                const context = this._.context;
                 const execute = (...args) => {
                     const eventbackup = Unit.event;
                     
@@ -397,19 +395,15 @@ export class Unit
     static context(key, value = undefined)
     {
         if (value !== undefined) {
-            this._.contexts.set(key, value);
-            this._.ctxstack = [this._.ctxstack, key, value];
-            console.log('set', key, this._.ctxstack);
+            this._.context = [this._.context, key, value];
         } else {
             let ret = undefined;
-            console.log('get', key, this._.ctxstack);
-            for (let ctxstack = this._.ctxstack; ctxstack !== null; ctxstack = ctxstack[0]) {
-                if (ctxstack[1] === key) {
-                    ret = ctxstack[2];
+            for (let context = this._.context; context !== undefined; context = context[0]) {
+                if (context[1] === key) {
+                    ret = context[2];
                     break;
                 }
             }
-            console.log('ret', this, key, ret);
             return ret;
         }
     }

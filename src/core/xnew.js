@@ -104,7 +104,7 @@ function timer(callback, delay)
     let finalizer = null;
 
     const current = Unit.current;
-    const context = current._.ctxstack;
+    const context = current._.context;
     const timer = new Timer({
         timeout: () => {
             Unit.scope.call(current, context, callback);
@@ -131,7 +131,7 @@ function interval(callback, delay)
     let finalizer = null;
 
     const current = Unit.current;
-    const context = current._.ctxstack;
+    const context = current._.context;
     const timer = new Timer({
         timeout: () => Unit.scope.call(current, context, callback), 
         finalize: () => finalizer.finalize(),
@@ -158,7 +158,7 @@ function transition(callback, interval)
     let updater = null;
 
     const current = Unit.current;
-    const context = current._.ctxstack;
+    const context = current._.context;
     const timer = new Timer({ 
         timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
