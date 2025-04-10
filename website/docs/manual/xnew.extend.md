@@ -31,14 +31,15 @@ const unit = xnew((self) => {
     update() {
       console.log('derived update');
     },
-    hoge() {
-      console.log('derived hoge');
-    },
+    // error
+    // hoge() {
+    //   console.log('derived hoge');
+    // },
   }
 });
 
 unit.hoge();
-// derived hoge
+// base hoge
 
 // base update
 // derived update
@@ -50,27 +51,3 @@ unit.hoge();
 If system properties (`promise`, `start`, `update`, `stop`, `finalize`) defined in both component functions,
   the properties are automatically merged.
 :::
-:::tip
-If original properties defined in both component functions,
-  the properties are overridden.
-:::
-
-By using the return value of `xnew.extend`, you can change the calling rules of the original properties.
-
-```js
-const unit = xnew((self) => {
-  const props = xnew.extend(Base);
-
-  return {
-    hoge() {
-      props.hoge(); // execute Base component hoge
-      console.log('derived hoge');
-    },
-  }
-});
-
-unit.hoge();
-// base hoge
-// derived hoge
-
-```
