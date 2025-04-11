@@ -104,7 +104,7 @@ function timer(callback, delay)
     let finalizer = null;
 
     const current = Unit.current;
-    const context = current._.context;
+    const context = current?._.context;
     const timer = new Timer({
         timeout: () => {
             Unit.scope.call(current, context, callback);

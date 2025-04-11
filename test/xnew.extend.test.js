@@ -19,14 +19,14 @@ describe('unit extend', () => {
         }
 
         function Derived(self) {
-            const props = xnew.extend(Base);
+            xnew.extend(Base);
             return {
-                test1() {
-                    return props.test1() + 1;
+                test2() {
+                    return self.test1() + 1;
                 }
             }
         }
-        expect(unit.test1()).toBe(2);
+        expect(unit.test2()).toBe(2);
     });
 
 });
