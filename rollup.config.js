@@ -85,7 +85,7 @@ export default [
         external: ['xnew', 'matter-js'],
     },
     {
-        input: 'src/addons/xcontroller.js',
+        input: 'src/addons/xgui.js',
         output: [
             {
                 file: 'dist/addons/xcontroller.js',
@@ -100,6 +100,27 @@ export default [
                 format: 'esm',
                 extend: true,
                 name: 'xcontroller',
+                freeze: false
+            },
+        ],
+        external: ['xnew'],
+    },
+    {
+        input: 'src/addons/xgui.js',
+        output: [
+            {
+                file: 'dist/addons/xgui.js',
+                format: 'umd',
+                extend: true,
+                name: 'xgui',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'dist/addons/xgui.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xgui',
                 freeze: false
             },
         ],

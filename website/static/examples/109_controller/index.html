@@ -6,7 +6,7 @@
   <script src="../thirdparty/pixi.min.js"></script>
   <script src="../../dist/xnew.js"></script>
   <script src="../../dist/addons/xpixi.js"></script>
-  <script src="../../dist/addons/xcontroller.js"></script>
+  <script src="../../dist/addons/xgui.js"></script>
 </head>
 
 <body style="margin: 0; height: 100vh;">
@@ -31,27 +31,22 @@
         event.preventDefault();
       });
 
-      const stick = xnew(
-        { style: 'position: absolute; left: 10px; bottom: 10px; z-index: 10;' }, 
-        xcontroller.AnalogStick,
-        { size: 130 }
+      const stick = xnew({ style: 'position: absolute; left: 10px; bottom: 10px; z-index: 10;' }, 
+        xgui.AnalogStick, { size: 130 }
       );
       stick.on('-down -move -up', ({ vector }) => {
         stick.emit('+move', { vector });
       })
 
-      const dpad = xnew(
-        { style: 'position: absolute; left: 10px; bottom: 150px; z-index: 10;' },
-        xcontroller.DPad,
-        { size: 130 }
+      const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 150px; z-index: 10;' },
+        xgui.DPad, { size: 130 }
       );
       dpad.on('-down -move -up', ({ vector }) => {
         dpad.emit('+move', { vector });
       })
 
-      const button = xnew(
-        { style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' },
-        xcontroller.CircleButton
+      const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' },
+        xgui.CircleButton
       );
       button.on('-down', () => {
         button.emit('+action');

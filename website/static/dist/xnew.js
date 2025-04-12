@@ -275,7 +275,7 @@
                 parent,                         // parent unit
                 baseElement,                    // base element
                 nestElements: [],               // nest elements
-                contexts: new Map(),            // context value
+                context: parent?._.context,     // context stack
                 keys: new Set(),                // keys
                 listeners: new MapMap(),        // event listners
             };
@@ -338,16 +338,22 @@
         // current unit scope
         static current = null;
 
-        static scope(func, ...args)
+        static scope(context, func, ...args)
         {
-            const backup = Unit.current;
+            const backup = { unit: Unit.current, context: this?._.context };
             try {
                 Unit.current = this;
+                if (this) {
+                    this._.context = context;
+                }
                 return func(...args);
             } catch (error) {
                 throw error;
             } finally {
-                Unit.current = backup;
+                Unit.current = backup.unit;
+                if (this) {
+                    this._.context = backup.context;
+                }
             }
         }
 
@@ -384,7 +390,9 @@
 
                 // setup component
                 if (isFunction(component) === true) {
-                    Unit.extend.call(this, component, ...args);
+                    Unit.scope.call(this, this._.context, () => {
+                        Unit.extend.call(this, component, ...args);
+                    });
                 } else if (isObject(target) === true && isString(component) === true) {
                     this.element.innerHTML = component;
                 }
@@ -401,7 +409,7 @@
             this._.components.add(component);
             Unit.components.add(component, this);
 
-            const props = Unit.scope.call(this, component, this, ...args) ?? {};
+            const props = component(this, ...args) ?? {};
             
             Object.keys(props).forEach((key) => {
                 const descripter = Object.getOwnPropertyDescriptor(props, key);
@@ -425,19 +433,19 @@
                     } else {
                         error('unit extend', 'The property is invalid.', key);
                     }
-                } else if (this._.props[key] !== undefined || this[key] === undefined) {
+                } else if (this[key] === undefined) {
                     const dest = { configurable: true, enumerable: true };
-
+                    const context = this._.context;
                     if (isFunction(descripter.value) === true) {
-                        dest.value = (...args) => Unit.scope.call(this, descripter.value, ...args);
+                        dest.value = (...args) => Unit.scope.call(this, context, descripter.value, ...args);
                     } else if (descripter.value !== undefined) {
                         dest.value = descripter.value;
                     }
                     if (isFunction(descripter.get) === true) {
-                        dest.get = (...args) => Unit.scope.call(this, descripter.get, ...args);
+                        dest.get = (...args) => Unit.scope.call(this, context, descripter.get, ...args);
                     }
                     if (isFunction(descripter.set) === true) {
-                        dest.set = (...args) => Unit.scope.call(this, descripter.set, ...args);
+                        dest.set = (...args) => Unit.scope.call(this, context, descripter.set, ...args);
                     }
                     Object.defineProperty(this._.props, key, dest);
                     Object.defineProperty(this, key, dest);
@@ -445,8 +453,6 @@
                     error('unit extend', 'The property already exists.', key);
                 }
             });
-            const { promise, start, update, stop, finalize, ...original } = props;
-            return original;
         }
 
         static start(time)
@@ -454,9 +460,8 @@
             if (this._.resolved === false || this._.tostart === false) ; else if (['pending', 'stopped'].includes(this._.state) === true) {
                 this._.state = 'running';
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
-
                 if (isFunction(this._.props.start) === true) {
-                    Unit.scope.call(this, this._.props.start);
+                    Unit.scope.call(this, this._.context, this._.props.start);
                 }
             } else if (['running'].includes(this._.state) === true) {
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -470,7 +475,7 @@
                 this._.children.forEach((unit) => Unit.stop.call(unit));
 
                 if (isFunction(this._.props.stop)) {
-                    Unit.scope.call(this, this._.props.stop);
+                    Unit.scope.call(this, this._.context, this._.props.stop);
                 }
             }
         }
@@ -481,7 +486,7 @@
                 this._.children.forEach((unit) => Unit.update.call(unit, time));
 
                 if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                    Unit.scope.call(this, this._.props.update);
+                    Unit.scope.call(this, this._.context, this._.props.update);
                 }
             }
         }
@@ -494,7 +499,7 @@
                 [...this._.children].forEach((unit) => unit.finalize());
                 
                 if (isFunction(this._.props.finalize)) {
-                    Unit.scope.call(this, this._.props.finalize);
+                    Unit.scope.call(this, this._.context, this._.props.finalize);
                 }
 
                 this._.components.forEach((component) => {
@@ -511,7 +516,7 @@
                 this._.props = {};
 
                 this.off();
-                this._.contexts.clear();
+                this._.context = null;
 
                 if (this._.nestElements.length > 0) {
                     this._.baseElement.removeChild(this._.nestElements[0]);
@@ -572,16 +577,18 @@
             function internal(type, listener) {
                 if (this._.listeners.has(type, listener) === false) {
                     const element = this.element;
+                    const context = this._.context;
                     const execute = (...args) => {
-                        const backup = Unit.event;
+                        const eventbackup = Unit.event;
+                        
                         if (type[0] === '-' || type[0] === '+') {
                             Unit.event = { type };
-                            Unit.scope.call(this, listener, ...args);
+                            Unit.scope.call(this, context, listener, ...args);
                         } else {
                             Unit.event = args[0] ?? null;
-                            Unit.scope.call(this, listener, ...args);
+                            Unit.scope.call(this, context, listener, ...args);
                         }
-                        Unit.event = backup;
+                        Unit.event = eventbackup;
                     };
                     this._.listeners.set(type, listener, [element, execute]);
                     element.addEventListener(type, execute, options);
@@ -644,12 +651,12 @@
         static context(key, value = undefined)
         {
             if (value !== undefined) {
-                this._.contexts.set(key, value);
+                this._.context = [this._.context, key, value];
             } else {
                 let ret = undefined;
-                for (let target = this; target !== null; target = target.parent) {
-                    if (target._.contexts.has(key)) {
-                        ret = target._.contexts.get(key);
+                for (let context = this._.context; context !== undefined; context = context[0]) {
+                    if (context[1] === key) {
+                        ret = context[2];
                         break;
                     }
                 }
@@ -773,8 +780,11 @@
         let finalizer = null;
 
         const current = Unit.current;
+        const context = current?._.context;
         const timer = new Timer({
-            timeout: () => Unit.scope.call(current, callback), 
+            timeout: () => {
+                Unit.scope.call(current, context, callback);
+            },
             finalize: () => finalizer.finalize(),
             delay,
         });
@@ -797,8 +807,9 @@
         let finalizer = null;
 
         const current = Unit.current;
+        const context = current._.context;
         const timer = new Timer({
-            timeout: () => Unit.scope.call(current, callback), 
+            timeout: () => Unit.scope.call(current, context, callback), 
             finalize: () => finalizer.finalize(),
             delay,
             loop: true,
@@ -823,8 +834,9 @@
         let updater = null;
 
         const current = Unit.current;
+        const context = current._.context;
         const timer = new Timer({ 
-            timeout: () => Unit.scope.call(current, callback, { progress: 1.0 }),
+            timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
             finalize: () => finalizer.finalize(),
             delay: interval,
         });
@@ -834,14 +846,14 @@
 
         timer.start();
 
-        Unit.scope.call(current, callback, { progress: 0.0 });
+        Unit.scope.call(current, context, callback, { progress: 0.0 });
 
         updater = xnew(null, (self) => {
             return {
                 update() {
                     const progress = timer.elapsed() / interval;
                     if (progress < 1.0) {
-                        Unit.scope.call(current, callback, { progress });
+                        Unit.scope.call(current, context, callback, { progress });
                     }
                 },
             }
