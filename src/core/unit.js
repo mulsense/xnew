@@ -1,4 +1,6 @@
-import { isObject, isNumber, isString, isFunction, createElement, MapSet, MapMap, error } from './util';
+import { isObject, isNumber, isString, isFunction, createElement, error } from './util';
+import { MapSet, MapMap } from './exmap';
+import { ticker } from './ticker';
 
 export class Unit
 {
@@ -86,7 +88,7 @@ export class Unit
         const backup = { unit: Unit.current, context: this?._.context };
         try {
             Unit.current = this;
-            if (this) {
+            if (this && context !== undefined) {
                 this._.context = context;
             }
             return func(...args);
@@ -94,7 +96,7 @@ export class Unit
             throw error;
         } finally {
             Unit.current = backup.unit;
-            if (this) {
+            if (this && context !== undefined) {
                 this._.context = backup.context;
             }
         }
@@ -133,7 +135,7 @@ export class Unit
 
             // setup component
             if (isFunction(component) === true) {
-                Unit.scope.call(this, this._.context, () => {
+                Unit.scope.call(this, undefined, () => {
                     Unit.extend.call(this, component, ...args);
                 });
             } else if (isObject(target) === true && isString(component) === true) {
@@ -276,28 +278,15 @@ export class Unit
     {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
-
-        if (Unit.animation !== null) {
-            cancelAnimationFrame(Unit.animation);
-            Unit.animation = null;
-        }
-
-        const interval = 1000 / 60;
-        let prev = Date.now();
-        Unit.animation = requestAnimationFrame(function ticker() {
-            const time = Date.now();
-            if (time - prev > interval * 0.8) {
-                prev = time;
-                Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
-            }
-            Unit.animation = requestAnimationFrame(ticker);
+        
+        ticker.reset();
+        ticker.start();
+        ticker.append((time) => {
+            Unit.roots.forEach((unit) => {
+                Unit.start.call(unit, time);
+                Unit.update.call(unit, time);
+            });
         });
-    }
-    
-    static ticker(time)
-    {
-        Unit.start.call(this, time);
-        Unit.update.call(this, time);
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -329,7 +318,7 @@ export class Unit
                         Unit.event = { type };
                         Unit.scope.call(this, context, listener, ...args);
                     } else {
-                        Unit.event = args[0] ?? null;
+                        Unit.event = { type: args[0]?.etype ?? null };
                         Unit.scope.call(this, context, listener, ...args);
                     }
                     Unit.event = eventbackup;

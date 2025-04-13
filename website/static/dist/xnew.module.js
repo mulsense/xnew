@@ -89,81 +89,6 @@ function createElement(attributes, parentElement = null)
 }
 
 //----------------------------------------------------------------------------------------------------
-// map set / map map
-//----------------------------------------------------------------------------------------------------
-
-class MapSet extends Map
-{
-    has(key, value)
-    {
-        if (value === undefined) {
-            return super.has(key);
-        } else {
-            return super.has(key) && super.get(key).has(value);
-        }
-    }
-
-    add(key, value)
-    {
-        if (this.has(key) === false) {
-            this.set(key, new Set());
-        }
-        this.get(key).add(value);
-    }
-
-    delete(key, value)
-    {
-        if (this.has(key, value) === false) {
-            return;
-        }
-        this.get(key).delete(value);
-        if (this.get(key).size === 0) {
-            super.delete(key);
-        }
-    }
-}
-
-class MapMap extends Map
-{
-    has(key, subkey)
-    {
-        if (subkey === undefined) {
-            return super.has(key);
-        } else {
-            return super.has(key) && super.get(key).has(subkey);
-        }
-    }
-
-    set(key, subkey, value)
-    {
-        if (super.has(key) === false) {
-            super.set(key, new Map());
-        }
-        super.get(key).set(subkey, value);
-    }
-
-    get(key, subkey)
-    {
-        if (subkey === undefined) {
-            return super.get(key);
-        } else {
-            return super.get(key)?.get(subkey);
-        }
-    }
-
-    delete(key, subkey)
-    {
-        if (this.has(key) === false) {
-            return;
-        }
-        this.get(key).delete(subkey);
-        if (this.get(key).size === 0) {
-            super.delete(key);
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
 // timer
 //----------------------------------------------------------------------------------------------------
 
@@ -251,6 +176,142 @@ class Timer
     }
 }
 
+//----------------------------------------------------------------------------------------------------
+// map set
+//----------------------------------------------------------------------------------------------------
+
+class MapSet extends Map
+{
+    has(key, value)
+    {
+        if (value === undefined) {
+            return super.has(key);
+        } else {
+            return super.has(key) && super.get(key).has(value);
+        }
+    }
+
+    add(key, value)
+    {
+        if (this.has(key) === false) {
+            this.set(key, new Set());
+        }
+        this.get(key).add(value);
+    }
+
+    delete(key, value)
+    {
+        if (this.has(key, value) === false) {
+            return;
+        }
+        this.get(key).delete(value);
+        if (this.get(key).size === 0) {
+            super.delete(key);
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// map map
+//----------------------------------------------------------------------------------------------------
+
+class MapMap extends Map
+{
+    has(key, subkey)
+    {
+        if (subkey === undefined) {
+            return super.has(key);
+        } else {
+            return super.has(key) && super.get(key).has(subkey);
+        }
+    }
+
+    set(key, subkey, value)
+    {
+        if (super.has(key) === false) {
+            super.set(key, new Map());
+        }
+        super.get(key).set(subkey, value);
+    }
+
+    get(key, subkey)
+    {
+        if (subkey === undefined) {
+            return super.get(key);
+        } else {
+            return super.get(key)?.get(subkey);
+        }
+    }
+
+    delete(key, subkey)
+    {
+        if (this.has(key) === false) {
+            return;
+        }
+        this.get(key).delete(subkey);
+        if (this.get(key).size === 0) {
+            super.delete(key);
+        }
+    }
+}
+
+class Ticker {
+    constructor() {
+        this.animation = null;
+        this.reset();
+    }
+    
+    reset()
+    {
+        if (this.animation !== null) {
+            this.animation = null;
+            cancelAnimationFrame(this.animation);
+        }
+        this.callbacks = [];
+        this.counter = 0;
+        this.previous = Date.now();
+    }
+
+    append(callback)
+    {
+        if (isFunction(callback) === false) {
+            throw new Error('The argument is invalid.');
+        } else if (this.callbacks.includes(callback) === false) {
+            this.callbacks.push(callback);
+        }
+    }
+
+    start()
+    {
+        if (isFunction(requestAnimationFrame) === true && this.animation === null) {
+            this.animation = requestAnimationFrame(Ticker.execute.bind(this));
+        }
+    }
+
+    stop()
+    {
+        if (isFunction(cancelAnimationFrame) === true && this.animation !== null) {
+            cancelAnimationFrame(this.animation);
+            this.animation = null;
+        }
+    }
+
+    static execute()
+    {
+        const interval = 1000 / 60;
+        const time = Date.now();
+        if (time - this.previous > interval * 0.8) {
+            this.callbacks.forEach((callback) => callback(time));
+            this.previous = time;
+            this.counter++;
+        }
+        this.animation = requestAnimationFrame(Ticker.execute.bind(this));
+    }
+}
+
+const ticker = new Ticker();
+ticker.start();
+
 class Unit
 {
     constructor(parent, target, component, ...args)
@@ -337,7 +398,7 @@ class Unit
         const backup = { unit: Unit.current, context: this?._.context };
         try {
             Unit.current = this;
-            if (this) {
+            if (this && context !== undefined) {
                 this._.context = context;
             }
             return func(...args);
@@ -345,7 +406,7 @@ class Unit
             throw error;
         } finally {
             Unit.current = backup.unit;
-            if (this) {
+            if (this && context !== undefined) {
                 this._.context = backup.context;
             }
         }
@@ -384,7 +445,7 @@ class Unit
 
             // setup component
             if (isFunction(component) === true) {
-                Unit.scope.call(this, this._.context, () => {
+                Unit.scope.call(this, undefined, () => {
                     Unit.extend.call(this, component, ...args);
                 });
             } else if (isObject(target) === true && isString(component) === true) {
@@ -526,28 +587,15 @@ class Unit
     {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
-
-        if (Unit.animation !== null) {
-            cancelAnimationFrame(Unit.animation);
-            Unit.animation = null;
-        }
-
-        const interval = 1000 / 60;
-        let prev = Date.now();
-        Unit.animation = requestAnimationFrame(function ticker() {
-            const time = Date.now();
-            if (time - prev > interval * 0.8) {
-                prev = time;
-                Unit.roots.forEach((unit) => Unit.ticker.call(unit, time));
-            }
-            Unit.animation = requestAnimationFrame(ticker);
+        
+        ticker.reset();
+        ticker.start();
+        ticker.append((time) => {
+            Unit.roots.forEach((unit) => {
+                Unit.start.call(unit, time);
+                Unit.update.call(unit, time);
+            });
         });
-    }
-    
-    static ticker(time)
-    {
-        Unit.start.call(this, time);
-        Unit.update.call(this, time);
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -579,7 +627,7 @@ class Unit
                         Unit.event = { type };
                         Unit.scope.call(this, context, listener, ...args);
                     } else {
-                        Unit.event = args[0] ?? null;
+                        Unit.event = { type: args[0]?.etype ?? null };
                         Unit.scope.call(this, context, listener, ...args);
                     }
                     Unit.event = eventbackup;
@@ -717,6 +765,7 @@ function xnew(...args)
 }
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
+Object.defineProperty(xnew, 'next', { enumerable: true, value: next });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
@@ -867,6 +916,10 @@ function transition(callback, interval)
 
 function event() {
     return Unit.event;
+}
+
+function next(unit, ...args) {
+    xnew(unit.parent, ...args);
 }
 
 function DragEvent(self)
@@ -1057,10 +1110,62 @@ function Modal(self, {} = {}) {
     });
 }
 
+function Keyboard(self)
+{
+    const win = xnew(window);
+    const state = {};
+
+    win.on('keydown', (event) => {
+        if (event.repeat === true) return;
+        state[event.code] = 1;
+        self.emit('-keydown', { code: event.code });
+    });
+      
+    win.on('keyup', (event) => {
+        if (state[event.code]) state[event.code] = 0;
+        self.emit('-keyup', { code: event.code });
+    });
+
+    win.on('keydown', (event) => {
+        if (event.repeat === true) return;
+        self.emit('-arrowkeydown', { code: event.code, vector: getVector() });
+    });
+
+    win.on('keyup', (event) => {
+        if (event.repeat === true) return;
+        self.emit('-arrowkeyup', { code: event.code, vector: getVector() });
+    });
+
+    function getVector() {
+        return {
+            x: (getKey('ArrowLeft') ? -1 : 0) + (getKey('ArrowRight') ? +1 : 0),
+            y: (getKey('ArrowUp') ? -1 : 0) + (getKey('ArrowDown') ? +1 : 0)
+        };
+    }
+    function getKey(code) {
+        return state[code] ? true : false;
+    }
+    // return {
+    //     getKey(code) {
+    //         if (isString(code) === false) return false;
+    //         return (state[code] && state[code].up === null) ? true : false;
+    //     },
+    //     getKeyDown(code) {
+    //         if (isString(code) === false) return false;
+    //         return (state[code] && state[code].down === ticker.counter) ? true : false;
+    //     },
+    //     getKeyUp(code) {
+    //         if (isString(code) === false) return false;
+    //         return (state[code] && state[code].up === ticker.counter) ? true : false;
+    //     },
+    // };
+}
+
 Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
 Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
 Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
 Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
 Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
+Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });
 
 export { xnew as default };

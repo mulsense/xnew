@@ -197,4 +197,6 @@ export function CircleButton(self,
         target.element.style.filter = '';
         self.emit('-up', event);
     });
-}            
+}
+
+

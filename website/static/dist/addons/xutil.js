@@ -1,7 +1,7 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew')) :
   typeof define === 'function' && define.amd ? define(['exports', 'xnew'], factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xgui = global.xgui || {}, global.xnew));
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xutil = global.xutil || {}, global.xnew));
 })(this, (function (exports, xnew) { 'use strict';
 
   function AnalogStick(self, 

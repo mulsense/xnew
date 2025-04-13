@@ -1,4 +1,5 @@
-import { isObject, isString, isFunction, Timer, error } from './util';
+import { isObject, isString, isFunction, error } from './util';
+import { Timer } from './timer';
 import { Unit } from './unit';
 
 export function xnew(...args)
@@ -46,6 +47,7 @@ export function xnew(...args)
 }
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
+Object.defineProperty(xnew, 'next', { enumerable: true, value: next });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
@@ -197,4 +199,8 @@ function transition(callback, interval)
 
 function event() {
     return Unit.event;
+}
+
+function next(unit, ...args) {
+    xnew(unit.parent, ...args);
 }

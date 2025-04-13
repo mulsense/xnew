@@ -30,7 +30,7 @@ function nest(object)
     return object;
 }
 
-function Root(self, { renderer, camera })
+function Root(self, { renderer })
 {
     const root = {};
     xnew.context('xpixi.root', root);

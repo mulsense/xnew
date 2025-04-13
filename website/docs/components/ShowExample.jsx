@@ -9,7 +9,7 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../dist/addons/xthree.js', 'https://unpkg.com/xnew@2.3.x/dist/addons/xthree.js');
     code = code.replace('../../dist/addons/xmatter.js', 'https://unpkg.com/xnew@2.3.x/dist/addons/xmatter.js');
     code = code.replace('../../dist/addons/xcontroller.js', 'https://unpkg.com/xnew@2.3.x/dist/addons/xcontroller.js');
-    code = code.replace('../../dist/addons/xgui.js', 'https://unpkg.com/xnew@2.3.x/dist/addons/xgui.js');
+    code = code.replace('../../dist/addons/xutil.js', 'https://unpkg.com/xnew@2.3.x/dist/addons/xutil.js');
     return (
         <>
             <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/examples/' + name} ></iframe>
