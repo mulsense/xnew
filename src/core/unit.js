@@ -48,9 +48,9 @@ export class Unit
         return this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
     }
 
-    get state()
+    get isRunning()
     {
-        return this._.state
+        return this._.state === 'running';
     }
 
     start()

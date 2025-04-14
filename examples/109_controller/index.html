@@ -26,9 +26,7 @@
     });
 
     function Controller(self) {
-      self.on('touchstart contextmenu wheel', (event) => {
-        event.preventDefault();
-      });
+      xutil.cancelDefaultActions();
 
       const stick = xnew({ style: 'position: absolute; left: 10px; bottom: 10px; z-index: 10;' }, 
         xutil.AnalogStick, { size: 130 }

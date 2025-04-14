@@ -1,6 +1,8 @@
 const width = 400, height = 300;
 
 function Main(self) {
+  xutil.cancelDefaultActions();
+  
   const screen = xnew(xnew.Screen, { width, height });
   screen.canvas.style.imageRendering = 'pixelated';
 
@@ -9,10 +11,7 @@ function Main(self) {
       width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
     }) 
   });
-  xnew(window).on('touchstart contextmenu wheel keydown', (event) => {
-    event.preventDefault();
-  });
-
+  
   xnew(Background);
   xnew(TitleScene);
 }
@@ -28,21 +27,15 @@ function Background(self) {
 function Dot(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * width, Math.random() * height);
-
-  const graphics = new PIXI.Graphics();
-  object.addChild(graphics);
-  graphics.beginFill(0xFFFFFF);
-  graphics.drawCircle(0, 0, 1);
-  graphics.endFill();
+  object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
 
   let velocity = Math.random() + 0.1;
   return {
     update() {
       object.y += velocity;
       if (object.y > height) {
+        object.position.set(Math.random() * width, 0);
         velocity = Math.random() + 0.1;
-        object.x = Math.random() * width;
-        object.y = 0;
       }
     }
   };
@@ -69,42 +62,34 @@ function GameScene(self) {
   xpixi.nest(new PIXI.Container());
   
   xnew(Controller);
-  xnew(Score);
+  xnew(ScoreText);
   xnew(Player);
-
-  xnew.interval(() => {
-    if (xnew.find(Enemy).length < 100) {
-      xnew(Enemy);
-    }
-  }, 500);
+  xnew.interval(() => xnew(Enemy), 500);
 
   self.on('+gameover', () => {
     xnew(GameOverText);
 
-    // receive touch event after a while
-    xnew.timer(() => {
-      xnew(window).on('keydown pointerdown', () => {
-        xnew(self.parent, TitleScene)
-        self.finalize();
-      });
-    }, 1000);
+    xnew(window).on('keydown pointerdown', () => {
+      xnew(self.parent, TitleScene)
+      self.finalize();
+    });
   });
 }
 
 function Controller(self) {
-  const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px; z-index: 10;' }, xutil.DPad, { size: 130 });
+  const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px;' }, xutil.DPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => {
-    self.emit('+move', { x: vector.x * 0.7, y: vector.y * 0.7 });
+    self.emit('+move', vector);
   })
 
-  const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xutil.CircleButton);
+  const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
   button.on('-down', () => {
     self.emit('+action');
   })
 
   const keyboard = xnew(xnew.Keyboard);
   keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => {
-    self.emit('+move', { x: vector.x * 0.7, y: vector.y * 0.7 });
+    self.emit('+move', vector);
   });
   keyboard.on('-keydown', ({ code }) => {
     if (code === 'Space') {
@@ -113,14 +98,12 @@ function Controller(self) {
   });
 }
 
-function Score(self) {
-  const object = xpixi.nest(new PIXI.Text('', { fontSize: 16, fill: 0xFFFFFF }));
+function ScoreText(self) {
+  const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 16, fill: 0xFFFFFF }));
   object.position.set(width, 0);
   object.anchor.set(1.0, 0.0);
-  object.text = `score 0`;
-
   let sum = 0;
-  self.on('+scoreplus', (score) => {
+  self.on('+scoreup', (score) => {
     object.text = `score ${sum += score}`;
   });
 }
@@ -134,31 +117,15 @@ function GameOverText(self) {
 function Player(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(width / 2, height / 2);
+  addSprite(object, 'texture.png', [[0, 0, 32, 32], [32, 0, 32, 32]]);
 
-  const texture = PIXI.Texture.from('texture.png');
-
-  // extract part of the texture
-  const textures = [
-    new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32)), 
-    new PIXI.Texture(texture, new PIXI.Rectangle(32, 0, 32, 32)),
-  ];
-
-  // set the textures to a sprite and switch at a certain speed
-  const sprite = new PIXI.AnimatedSprite(textures);
-  object.addChild(sprite);
-  sprite.animationSpeed = 0.1;
-  sprite.anchor.set(0.5);
-  sprite.play();
-
-  // receive events from Input component
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
-  self.on('+action', () => {
-    xnew(self.parent, Shot, object.x, object.y);
-  });
+  self.on('+action', () => xnew(self.parent, Shot, object.x, object.y));
+
   return {
     update() {
-      // move the position of the object, just keep it from going off screen.
+      // move limitation
       object.x = Math.min(Math.max(object.x + velocity.x * 2, 10), width - 10);
       object.y = Math.min(Math.max(object.y + velocity.y * 2, 10), height - 10);
 
@@ -171,20 +138,14 @@ function Player(self) {
           return;
         }
       }
-    }
+    },
   };
 }
 
 function Shot(self, x, y) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
-
-  // set ellipse shape to the object
-  const graphics = new PIXI.Graphics();
-  object.addChild(graphics);
-  graphics.beginFill(0x22FFFF);
-  graphics.drawEllipse(0, 0, 2, 12);
-  graphics.endFill();
+  object.addChild(new PIXI.Graphics().ellipse(0, 0, 2, 12).fill(0x22FFFF));
 
   return {
     update() {
@@ -210,26 +171,8 @@ function Shot(self, x, y) {
 
 function Enemy(self) {
   const object = xpixi.nest(new PIXI.Container());
-
-  const texture = PIXI.Texture.from('texture.png');
-
-  // extract part of the texture
-  const textures = [
-    new PIXI.Texture(texture, new PIXI.Rectangle(0, 32, 32, 32)),
-    new PIXI.Texture(texture, new PIXI.Rectangle(32, 32, 32, 32)),
-    new PIXI.Texture(texture, new PIXI.Rectangle(64, 32, 32, 32)),
-  ];
-
-  // set the textures to a sprite and switch at a certain speed
-  const sprite = new PIXI.AnimatedSprite(textures);
-  object.addChild(sprite);
-  sprite.animationSpeed = 0.1;
-  sprite.anchor.set(0.5);
-  sprite.play();
-
-  // set a random position for the top of the screen
-  object.x = Math.random() * width;
-  object.y = 0;
+  object.position.set(Math.random() * width, 0);
+  addSprite(object, 'texture.png', [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]);
 
   // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
@@ -248,14 +191,12 @@ function Enemy(self) {
       object.y += velocity.y;
     },
     clash(score) {
-      // when an enemy crashes, create star and score text
-
       for(let i = 0; i < 4; i++) {
-        xnew(self.parent, Star, object.x, object.y, score);
+        xnew(self.parent, CrashStar, object.x, object.y, score);
       }
-      xnew(self.parent, ScorePop, object.x, object.y, score);
+      xnew(self.parent, CrashText, object.x, object.y, score);
 
-      self.emit('+scoreplus', score);
+      self.emit('+scoreup', score);
       self.finalize();
     },
     distance(target) {
@@ -266,7 +207,7 @@ function Enemy(self) {
   };
 }
 
-function ScorePop(self, x, y, score) {
+function CrashText(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Text(`+ ${score}`, { fontSize: 12, fill: '#FFFF22' }));
   object.position.set(x, y);
   object.anchor.set(0.5);
@@ -282,16 +223,11 @@ function ScorePop(self, x, y, score) {
   }
 }
 
-function Star(self, x, y, score) {
+function CrashStar(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
+  addSprite(object, 'texture.png', [[0, 64, 32, 32]]);
 
-  const sprite = new PIXI.Sprite();
-  object.addChild(sprite);
-  sprite.texture = new PIXI.Texture(PIXI.Texture.from('texture.png'), new PIXI.Rectangle(0, 64, 32, 32));
-  sprite.anchor.set(0.5);
-
-  // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
   const a = Math.random() * 2 * Math.PI;
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
@@ -315,4 +251,16 @@ function Star(self, x, y, score) {
       }
     },
   };
+}
+
+async function addSprite(object, path, rects) {
+  const texture = await PIXI.Assets.load(path);
+
+  const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
+  
+  const sprite = new PIXI.AnimatedSprite(textures);
+  sprite.animationSpeed = 0.1;
+  sprite.anchor.set(0.5);
+  sprite.play();
+  object.addChild(sprite);
 }

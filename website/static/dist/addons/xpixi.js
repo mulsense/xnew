@@ -52,14 +52,24 @@
         return object;
     }
 
-    function Root(self, { renderer })
+    function Root(self, { renderer = null })
     {
         const root = {};
         xnew.context('xpixi.root', root);
-        root.renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
-        root.scene = new PIXI__namespace.Container();
+
+        root.renderer = null;
+        let promise = null;
+        renderer = renderer ?? PIXI__namespace.autoDetectRenderer({});
+        if (renderer instanceof Promise) {
+            promise = renderer.then((renderer) => {
+                root.renderer = renderer;
+                return renderer;
+            });
+        }
+        root.scene = new PIXI__namespace.Container();  
         xnew.extend(Connect, root.scene);
         return {
+            promise: (promise ?? Promise.resolve()),
             update() {
                 root.renderer.render(root.scene);
             },

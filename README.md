@@ -9,7 +9,7 @@ You can implement your code as a collection of simple components.
 ### via cdn  
   
 ```html
-<script src="https://unpkg.com/xnew@2.3.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@2.4.x/dist/xnew.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -18,7 +18,7 @@ You can implement your code as a collection of simple components.
 <script type="importmap">
 {
     "imports": {
-        "xnew": "https://unpkg.com/xnew@2.3.x/dist/xnew.module.js"
+        "xnew": "https://unpkg.com/xnew@2.4.x/dist/xnew.module.js"
     }
 }
 </script>
@@ -33,7 +33,7 @@ import xnew from 'xnew'
 
 ### via npm
 ```bash
-npm install xnew@2.3.x
+npm install xnew@2.4.x
 ```
 ```js
 import xnew from 'xnew'

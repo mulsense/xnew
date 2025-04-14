@@ -41,15 +41,8 @@
 
     function Box(self, { x, y, size, color }) {
       const object = xpixi.nest(new PIXI.Container());
-      object.x = x;
-      object.y = y;
-
-      const graphics = new PIXI.Graphics();
-      object.addChild(graphics);
-
-      graphics.beginFill(color);
-      graphics.drawRect(-size / 2, -size / 2, size, size);
-      graphics.endFill();
+      object.position.set(x, y);
+      object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
       return {
         update() {

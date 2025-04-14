@@ -88,27 +88,6 @@ export default [
         input: 'src/addons/xutil.js',
         output: [
             {
-                file: 'dist/addons/xcontroller.js',
-                format: 'umd',
-                extend: true,
-                name: 'xcontroller',
-                freeze: false,
-                globals: { 'xnew': 'xnew' },
-            },
-            {
-                file: 'dist/addons/xcontroller.module.js',
-                format: 'esm',
-                extend: true,
-                name: 'xcontroller',
-                freeze: false
-            },
-        ],
-        external: ['xnew'],
-    },
-    {
-        input: 'src/addons/xutil.js',
-        output: [
-            {
                 file: 'dist/addons/xutil.js',
                 format: 'umd',
                 extend: true,

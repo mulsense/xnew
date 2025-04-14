@@ -27,7 +27,7 @@
       xnew({ tagName: 'span' }, 'click me');
       
       self.on('click', (event) => {
-        self.state === 'running' ? self.stop() : self.start();
+        self.isRunning ? self.stop() : self.start();
       });
 
       let counter = 0;

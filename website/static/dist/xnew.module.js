@@ -358,9 +358,9 @@ class Unit
         return this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
     }
 
-    get state()
+    get isRunning()
     {
-        return this._.state
+        return this._.state === 'running';
     }
 
     start()
@@ -765,7 +765,7 @@ function xnew(...args)
 }
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-Object.defineProperty(xnew, 'next', { enumerable: true, value: next });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
@@ -785,6 +785,11 @@ function nest(attributes)
     } else {
         return Unit.nest.call(Unit.current, attributes);
     }
+}
+
+function current()
+{
+    return Unit.current;
 }
 
 function extend(component, ...args)
@@ -916,10 +921,6 @@ function transition(callback, interval)
 
 function event() {
     return Unit.event;
-}
-
-function next(unit, ...args) {
-    xnew(unit.parent, ...args);
 }
 
 function DragEvent(self)

@@ -43,7 +43,7 @@ function Component(self, ...args) {
 }
 ```
 
-You can also use a function literal.  `xnew((self) => {});`
+You can also use a arrow function.  `xnew((self) => {});`
 ```js
 const unit = xnew((self) => {
   // ...

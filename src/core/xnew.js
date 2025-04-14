@@ -47,7 +47,7 @@ export function xnew(...args)
 }
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-Object.defineProperty(xnew, 'next', { enumerable: true, value: next });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
@@ -67,6 +67,11 @@ function nest(attributes)
     } else {
         return Unit.nest.call(Unit.current, attributes);
     }
+}
+
+function current()
+{
+    return Unit.current;
 }
 
 function extend(component, ...args)
@@ -201,6 +206,3 @@ function event() {
     return Unit.event;
 }
 
-function next(unit, ...args) {
-    xnew(unit.parent, ...args);
-}

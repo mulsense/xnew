@@ -150,7 +150,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} xnew, wisroot.com.`,
+        copyright: `Copyright © ${new Date().getFullYear()} xnew, mulsense.`,
       },
       prism: {
         theme: prismThemes.github,
