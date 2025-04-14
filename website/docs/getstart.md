@@ -123,10 +123,9 @@ In the following example, we set up an event listener and animation.
         self.isRunning ? self.stop() : self.start();
       });
 
-      let counter = 0;
       return {
-        update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+        update({ count }) {
+          self.element.style.transform = `rotate(${count}deg)`;
         },
       };
     }
@@ -165,13 +164,12 @@ For example, when the parent component stop, its children also stop.
         self.isRunning ? self.stop() : self.start();
       });
 
-      let counter = 0;
       return {
         start() {
           text.element.textContent = 'parent: start';
         },
-        update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+        update({ count }) {
+          self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {
           text.element.textContent = 'parent: stop';
@@ -198,13 +196,12 @@ For example, when the parent component stop, its children also stop.
         self.isRunning ? self.stop() : self.start();
       });
 
-      let counter = 0;
       return {
         start() {
           text.element.textContent = 'child: start';
         },
-        update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+        update({ count }) {
+          self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {
           text.element.textContent = 'child: stop';

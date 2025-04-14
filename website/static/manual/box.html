@@ -30,10 +30,9 @@
         self.isRunning ? self.stop() : self.start();
       });
 
-      let counter = 0;
       return {
-        update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
+        update({ count }) {
+          self.element.style.transform = `rotate(${count}deg)`;
         },
       };
     }

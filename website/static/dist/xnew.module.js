@@ -117,7 +117,7 @@ class Timer
 
     clear()
     {
-        if (this.id === null) {
+        if (this.id !== null) {
             clearTimeout(this.id);
             this.id = null;
             this.finalize?.();
@@ -427,6 +427,7 @@ class Unit
             children: new Set(),            // children units
             state: 'pending',               // [pending -> running <-> stopped -> finalized]
             tostart: false,                 // flag for start
+            upcount: 0,                     // update count    
             promises: [],                   // promises
             resolved: false,                // promise check
             components: new Set(),          // components functions
@@ -479,11 +480,9 @@ class Unit
                 if (isFunction(descripter.value)) {
                     const previous = this._.props[key];
                     if (previous !== undefined) {
-                        this._.props[key] = key !== 'finalize' ?
-                            () => { previous(); descripter.value(); } :
-                            () => { descripter.value(); previous(); };
+                        this._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
                     } else {
-                        this._.props[key] = () => { descripter.value(); };
+                        this._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 } else {
                     error('unit extend', 'The property is invalid.', key);
@@ -541,7 +540,7 @@ class Unit
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Unit.scope.call(this, this._.context, this._.props.update);
+                Unit.scope.call(this, this._.context, this._.props.update, { count: this._.upcount++ });
             }
         }
     }

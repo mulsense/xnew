@@ -64,9 +64,10 @@ function GameScene(self) {
   xnew(Controller);
   xnew(ScoreText);
   xnew(Player);
-  xnew.interval(() => xnew(Enemy), 500);
+  const interval = xnew.interval(() => xnew(Enemy), 500);
 
   self.on('+gameover', () => {
+    interval.clear();
     xnew(GameOverText);
 
     xnew(window).on('keydown pointerdown', () => {
@@ -214,11 +215,9 @@ function CrashText(self, x, y, score) {
 
   xnew.timer(() => self.finalize(), 1000);
 
-  let t = 0;
   return {
-    update() {
-      object.y = y - 50 * Math.exp(-t / 20) * Math.abs(Math.sin(Math.PI * (t * 10) / 180)); 
-      t++;
+    update({ count }) {
+      object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180)); 
     },
   }
 }
@@ -234,12 +233,12 @@ function CrashStar(self, x, y, score) {
 
   xnew.timer(() => self.finalize(), 800);
 
-  let t = 0;
   return {
-    update() {
+    update({ count }) {
       object.x += velocity.x;
       object.y += velocity.y;
-      object.rotation = t++ / 10;
+      object.rotation = count / 10;
+      object.alpha = 1 - count / 100;
 
       // detect collision
       for (const enemy of xnew.find(Enemy)) {

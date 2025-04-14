@@ -171,7 +171,7 @@ const unit = xnew((self) => {
     start() {
       // fires before first update.
     },
-    update() {
+    update({ count }) {
       // executed repeatedly at the rate available for rendering.
     },
     stop() {
@@ -212,8 +212,8 @@ This method reboot the unit using the component function.
 unit.reboot(...args); // ...args for the component function.
 ```
 
-### `unit.state`
-This variable represents the state of the unit.
+### `unit.isRunning`
+The variable indicates the status of the update process.
 ```js
 unit.state; // [pending → running ↔ stopped → finalized] 
 ```
@@ -282,7 +282,7 @@ parent.finalize();
 ## original properties
 You can define original properties unless the properties are already defined.  
 The following names are not available.
-- `promise`, `start`, `update`, `stop`, `finalize`, `reboot`, `state`
+- `promise`, `start`, `update`, `stop`, `finalize`, `reboot`, `isRunning`
 - `parent`,  `element`, `on`, `off`, `emit`, `key`, `_`
 
 ```js

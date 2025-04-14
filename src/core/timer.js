@@ -27,7 +27,7 @@ export class Timer
 
     clear()
     {
-        if (this.id === null) {
+        if (this.id !== null) {
             clearTimeout(this.id);
             this.id = null;
             this.finalize?.();
