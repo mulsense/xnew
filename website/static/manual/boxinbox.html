@@ -35,7 +35,7 @@
         start() {
           text.element.textContent = 'parent: start';
         },
-        update({ count }) {
+        update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {
@@ -67,7 +67,7 @@
         start() {
           text.element.textContent = 'child: start';
         },
-        update({ count }) {
+        update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {

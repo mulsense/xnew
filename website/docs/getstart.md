@@ -124,7 +124,7 @@ In the following example, we set up an event listener and animation.
       });
 
       return {
-        update({ count }) {
+        update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
       };
@@ -168,7 +168,7 @@ For example, when the parent component stop, its children also stop.
         start() {
           text.element.textContent = 'parent: start';
         },
-        update({ count }) {
+        update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {
@@ -200,7 +200,7 @@ For example, when the parent component stop, its children also stop.
         start() {
           text.element.textContent = 'child: start';
         },
-        update({ count }) {
+        update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {

@@ -216,7 +216,7 @@ function CrashText(self, x, y, score) {
   xnew.timer(() => self.finalize(), 1000);
 
   return {
-    update({ count }) {
+    update(count) {
       object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180)); 
     },
   }
@@ -234,7 +234,7 @@ function CrashStar(self, x, y, score) {
   xnew.timer(() => self.finalize(), 800);
 
   return {
-    update({ count }) {
+    update(count) {
       object.x += velocity.x;
       object.y += velocity.y;
       object.rotation = count / 10;

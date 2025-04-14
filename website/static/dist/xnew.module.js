@@ -540,7 +540,7 @@ class Unit
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Unit.scope.call(this, this._.context, this._.props.update, { count: this._.upcount++ });
+                Unit.scope.call(this, this._.context, this._.props.update, this._.upcount++);
             }
         }
     }

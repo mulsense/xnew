@@ -171,7 +171,7 @@ const unit = xnew((self) => {
     start() {
       // fires before first update.
     },
-    update({ count }) {
+    update(count) {
       // executed repeatedly at the rate available for rendering.
     },
     stop() {
@@ -287,23 +287,23 @@ The following names are not available.
 
 ```js
 const unit = xnew((self) =>  {
-  let counter = 0;
+  let count = 0;
 
   return {
     countup () {
-      counter++;
+      count++;
     },
-    set counter(value) { // setter
-      counter = value;
+    set count(value) { // setter
+      count = value;
     },
-    get counter() { // getter
-      return counter;
+    get count() { // getter
+      return count;
     }
   }
 });
 
-unit.countup();         // 0 -> 1
-unit.counter = 2;       // setter
-const x = unit.counter; // getter
+unit.countup();       // 0 -> 1
+unit.count = 2;       // setter
+const x = unit.count; // getter
 ```
 
