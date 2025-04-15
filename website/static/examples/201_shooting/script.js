@@ -1,8 +1,6 @@
 const width = 400, height = 300;
 
 function Main(self) {
-  xutil.cancelDefaultActions();
-  
   const screen = xnew(xnew.Screen, { width, height });
   screen.canvas.style.imageRendering = 'pixelated';
 
@@ -11,7 +9,13 @@ function Main(self) {
       width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
     }) 
   });
-  
+  xnew(window).on('keydown', (event) => {
+    event.preventDefault();
+  });
+  self.on('touchstart contextmenu wheel', (event) => {
+      event.preventDefault();
+  });
+
   xnew(Background);
   xnew(TitleScene);
 }
