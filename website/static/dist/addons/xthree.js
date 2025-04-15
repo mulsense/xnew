@@ -32,34 +32,28 @@
     Object.defineProperty(xthree, 'scene', { enumerable: true, get: scene });
     Object.defineProperty(xthree, 'nest', { enumerable: true, value: nest });
 
-    function setup({ renderer = null, camera = null })
-    {
+    function setup({ renderer = null, camera = null }) {
         xnew.extend(Root, { renderer, camera });
     }
 
-    function camera()
-    {
+    function camera() {
         return xnew.context('xthree.root')?.camera;
     }
 
-    function renderer()
-    {
+    function renderer() {
         return xnew.context('xthree.root')?.renderer;
     }
 
-    function scene()
-    {
+    function scene() {
         return xnew.context('xthree.root')?.scene;
     }
 
-    function nest(object)
-    {
+    function nest(object) {
         xnew.extend(Connect, object);
         return object;
     }
 
-    function Root(self, { renderer, camera })
-    {
+    function Root(self, { renderer, camera }) {
         const root = {};
         xnew.context('xthree.root', root);
         root.renderer = renderer ?? new THREE__namespace.WebGLRenderer({});
@@ -74,8 +68,7 @@
         }
     }
 
-    function Connect(self, object)
-    {
+    function Connect(self, object) {
         const parent = xnew.context('xthree.object');
         xnew.context('xthree.object', object);
 

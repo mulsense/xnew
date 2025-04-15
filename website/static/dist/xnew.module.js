@@ -2,8 +2,7 @@
 // error 
 //----------------------------------------------------------------------------------------------------
 
-function error(name, text, target = undefined)
-{
+function error(name, text, target = undefined) {
     const message = name + (target !== undefined ? ` [${target}]` : '') + ': ' + text;
     console.error(message);
 }
@@ -12,18 +11,15 @@ function error(name, text, target = undefined)
 // type check
 //----------------------------------------------------------------------------------------------------
 
-function isString(value)
-{
+function isString(value) {
     return typeof value === 'string';
 }
 
-function isFunction(value)
-{
+function isFunction(value) {
     return typeof value === 'function';
 }
 
-function isObject(value)
-{
+function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
@@ -31,8 +27,7 @@ function isObject(value)
 // create element from attributes
 //----------------------------------------------------------------------------------------------------
 
-function createElement(attributes, parentElement = null)
-{
+function createElement(attributes, parentElement = null) {
     const tagName = (attributes.tagName ?? 'div').toLowerCase();
     let element = null;
 
@@ -54,7 +49,7 @@ function createElement(attributes, parentElement = null)
     } else {
         element = document.createElement(tagName);
     }
-    
+
     Object.keys(attributes).forEach((key) => {
         const value = attributes[key];
         if (key === 'tagName') ; else if (key === 'insert') ; else if (key === 'className') {
@@ -64,7 +59,7 @@ function createElement(attributes, parentElement = null)
         } else if (key === 'style') {
             if (isString(value) === true) {
                 element.style = value;
-            } else if (isObject(value) === true){
+            } else if (isObject(value) === true) {
                 Object.assign(element.style, value);
             }
         } else {
@@ -74,7 +69,7 @@ function createElement(attributes, parentElement = null)
             } else {
                 setAttribute(element, key, value);
             }
-            
+
             function setAttribute(element, key, value) {
                 if (nsmode === true) {
                     element.setAttributeNS(null, key, value);
@@ -89,101 +84,11 @@ function createElement(attributes, parentElement = null)
 }
 
 //----------------------------------------------------------------------------------------------------
-// timer
-//----------------------------------------------------------------------------------------------------
-
-class Timer
-{
-    constructor({ timeout, finalize = null, delay = 0, loop = false })
-    {
-        this.timeout = timeout;
-        this.finalize = finalize;
-        this.delay = delay;
-        this.loop = loop;
-
-        this.id = null;
-        this.time = null;
-        this.offset = 0.0;
-
-        this.status = 0;
-
-        this.listener = (event) => {
-            document.hidden === false ? this._start() : this._stop();
-        };
-        if (document !== undefined) {
-            document.addEventListener('visibilitychange', this.listener);
-        }
-    }
-
-    clear()
-    {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
-            this.finalize?.();
-        }
-        if (document !== undefined) {
-            document.removeEventListener('visibilitychange', this.listener);
-        }
-    }
-
-    elapsed()
-    {
-        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
-    }
-
-    start()
-    {
-        this.status = 1;
-        this._start();
-    }
-
-    stop()
-    {
-        this._stop();
-        this.status = 0;
-    }
-
-    _start()
-    {
-        if (this.status === 1 && this.id === null) {
-            this.id = setTimeout(() => {
-                this.timeout();
-
-                this.id = null;
-                this.time = null;
-                this.offset = 0.0;
-    
-                if (this.loop) {
-                    this.start();
-                } else {
-                    this.finalize?.();
-                }
-            }, this.delay - this.offset);
-            this.time = Date.now();
-        }
-    }
-
-    _stop()
-    {
-        if (this.status === 1 && this.id !== null) {
-            this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.id);
-
-            this.id = null;
-            this.time = null;
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
 // map set
 //----------------------------------------------------------------------------------------------------
 
-class MapSet extends Map
-{
-    has(key, value)
-    {
+class MapSet extends Map {
+    has(key, value) {
         if (value === undefined) {
             return super.has(key);
         } else {
@@ -191,16 +96,14 @@ class MapSet extends Map
         }
     }
 
-    add(key, value)
-    {
+    add(key, value) {
         if (this.has(key) === false) {
             this.set(key, new Set());
         }
         this.get(key).add(value);
     }
 
-    delete(key, value)
-    {
+    delete(key, value) {
         if (this.has(key, value) === false) {
             return;
         }
@@ -215,10 +118,8 @@ class MapSet extends Map
 // map map
 //----------------------------------------------------------------------------------------------------
 
-class MapMap extends Map
-{
-    has(key, subkey)
-    {
+class MapMap extends Map {
+    has(key, subkey) {
         if (subkey === undefined) {
             return super.has(key);
         } else {
@@ -226,16 +127,14 @@ class MapMap extends Map
         }
     }
 
-    set(key, subkey, value)
-    {
+    set(key, subkey, value) {
         if (super.has(key) === false) {
             super.set(key, new Map());
         }
         super.get(key).set(subkey, value);
     }
 
-    get(key, subkey)
-    {
+    get(key, subkey) {
         if (subkey === undefined) {
             return super.get(key);
         } else {
@@ -243,8 +142,7 @@ class MapMap extends Map
         }
     }
 
-    delete(key, subkey)
-    {
+    delete(key, subkey) {
         if (this.has(key) === false) {
             return;
         }
@@ -260,9 +158,8 @@ class Ticker {
         this.animation = null;
         this.reset();
     }
-    
-    reset()
-    {
+
+    reset() {
         if (this.animation !== null) {
             this.animation = null;
             cancelAnimationFrame(this.animation);
@@ -272,8 +169,7 @@ class Ticker {
         this.previous = Date.now();
     }
 
-    append(callback)
-    {
+    append(callback) {
         if (isFunction(callback) === false) {
             throw new Error('The argument is invalid.');
         } else if (this.callbacks.includes(callback) === false) {
@@ -281,23 +177,20 @@ class Ticker {
         }
     }
 
-    start()
-    {
+    start() {
         if (isFunction(requestAnimationFrame) === true && this.animation === null) {
             this.animation = requestAnimationFrame(Ticker.execute.bind(this));
         }
     }
 
-    stop()
-    {
+    stop() {
         if (isFunction(cancelAnimationFrame) === true && this.animation !== null) {
             cancelAnimationFrame(this.animation);
             this.animation = null;
         }
     }
 
-    static execute()
-    {
+    static execute() {
         const interval = 1000 / 60;
         const time = Date.now();
         if (time - this.previous > interval * 0.8) {
@@ -312,10 +205,8 @@ class Ticker {
 const ticker = new Ticker();
 ticker.start();
 
-class Unit
-{
-    constructor(parent, target, component, ...args)
-    {
+class Unit {
+    constructor(parent, target, component, ...args) {
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseElement = target;
@@ -324,17 +215,16 @@ class Unit
         } else if (document instanceof Document) {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
-    
+
         this._ = {
             root: parent?._.root ?? this,   // root unit 
             parent,                         // parent unit
             baseElement,                    // base element
             nestElements: [],               // nest elements
             context: parent?._.context,     // context stack
-            keys: new Set(),                // keys
             listeners: new MapMap(),        // event listners
         };
-    
+
         (parent?._.children ?? Unit.roots).add(this);
         Unit.initialize.call(this, parent, target, component, ...args);
     }
@@ -343,58 +233,48 @@ class Unit
     // base system 
     //----------------------------------------------------------------------------------------------------
 
-    get parent()
-    {
+    get parent() {
         return this._.parent;
     }
 
-    get element()
-    {
+    get element() {
         return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
     }
 
-    get promise()
-    {
+    get promise() {
         return this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
     }
 
-    get isRunning()
-    {
+    get isRunning() {
         return this._.state === 'running';
     }
 
-    start()
-    {
+    start() {
         this._.tostart = true;
     }
 
-    stop()
-    {
+    stop() {
         this._.tostart = false;
         Unit.stop.call(this);
     }
 
-    finalize()
-    {
+    finalize() {
         Unit.stop.call(this);
         Unit.finalize.call(this);
         (this._.parent?._.children ?? Unit.roots).delete(this);
     }
 
-    reboot()
-    {
+    reboot() {
         Unit.stop.call(this);
         Unit.finalize.call(this);
         (this._.parent?._.children ?? Unit.roots).add(this);
         Unit.initialize.call(this, ...this._.backup);
     }
 
-
     // current unit scope
     static current = null;
 
-    static scope(context, func, ...args)
-    {
+    static scope(context, func, ...args) {
         const backup = { unit: Unit.current, context: this?._.context };
         try {
             Unit.current = this;
@@ -412,16 +292,14 @@ class Unit
         }
     }
 
-    static nest(attributes)
-    {
+    static nest(attributes) {
         const element = createElement(attributes, this.element);
         this.element.append(element);
         this._.nestElements.push(element);
         return element;
     }
 
-    static initialize(parent, target, component, ...args)
-    {
+    static initialize(parent, target, component, ...args) {
         this._ = Object.assign(this._, {
             backup: [parent, target, component, ...args],
             children: new Set(),            // children units
@@ -460,23 +338,15 @@ class Unit
 
     static components = new MapSet();
 
-    static extend(component, ...args)
-    {
+    static extend(component, ...args) {
         this._.components.add(component);
         Unit.components.add(component, this);
 
         const props = component(this, ...args) ?? {};
-        
+
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-
-            if (key === 'promise') {
-                if (descripter.value instanceof Promise) {
-                    this._.promises.push(descripter.value);
-                } else {
-                    error('unit extend', 'The property is invalid.', key);
-                }
-            } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
+            if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                 if (isFunction(descripter.value)) {
                     const previous = this._.props[key];
                     if (previous !== undefined) {
@@ -509,8 +379,18 @@ class Unit
         });
     }
 
-    static start(time)
-    {
+    static promise(promise) {
+        if (promise instanceof Promise) {
+            const unitpromise = new UnitPromise((resolve, reject) => {
+                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
+            this._.promises.push(unitpromise);
+            return unitpromise;
+        } else {
+            error('unit promise', 'The property is invalid.', promise);
+        }
+    }
+    static start(time) {
         if (this._.resolved === false || this._.tostart === false) ; else if (['pending', 'stopped'].includes(this._.state) === true) {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -522,8 +402,7 @@ class Unit
         }
     }
 
-    static stop()
-    {
+    static stop() {
         if (['running'].includes(this._.state) === true) {
             this._.state = 'stopped';
             this._.children.forEach((unit) => Unit.stop.call(unit));
@@ -534,8 +413,7 @@ class Unit
         }
     }
 
-    static update(time)
-    {
+    static update(time) {
         if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
@@ -545,13 +423,12 @@ class Unit
         }
     }
 
-    static finalize()
-    {
+    static finalize() {
         if (['finalized'].includes(this._.state) === false) {
             this._.state = 'finalized';
-            
+
             [...this._.children].forEach((unit) => unit.finalize());
-            
+
             if (isFunction(this._.props.finalize)) {
                 Unit.scope.call(this, this._.context, this._.props.finalize);
             }
@@ -560,7 +437,7 @@ class Unit
                 Unit.components.delete(component, this);
             });
             this._.components.clear();
-            
+
             // reset props
             Object.keys(this._.props).forEach((key) => {
                 if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) === false) {
@@ -582,11 +459,10 @@ class Unit
     static roots = new Set();   // root units
     static animation = null;    // animation callback id
 
-    static reset()
-    {
+    static reset() {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
-        
+
         ticker.reset();
         ticker.start();
         ticker.append((time) => {
@@ -604,9 +480,8 @@ class Unit
     static event = null;
 
     static etypes = new MapSet();
-  
-    on(type, listener, options)
-    {
+
+    on(type, listener, options) {
         if (isString(type) === false) {
             error('unit on', 'The argument is invalid.', 'type');
         } else if (isFunction(listener) === false) {
@@ -621,12 +496,12 @@ class Unit
                 const context = this._.context;
                 const execute = (...args) => {
                     const eventbackup = Unit.event;
-                    
+
                     if (type[0] === '-' || type[0] === '+') {
                         Unit.event = { type };
                         Unit.scope.call(this, context, listener, ...args);
                     } else {
-                        Unit.event = { type: args[0]?.etype ?? null };
+                        Unit.event = { type: args[0]?.type ?? null };
                         Unit.scope.call(this, context, listener, ...args);
                     }
                     Unit.event = eventbackup;
@@ -640,8 +515,7 @@ class Unit
         }
     }
 
-    off(type, listener)
-    {
+    off(type, listener) {
         if (type !== undefined && isString(type) === false) {
             error('unit off', 'The argument is invalid.', 'type');
         } else if (listener !== undefined && isFunction(listener) === false) {
@@ -670,8 +544,7 @@ class Unit
         }
     }
 
-    emit(type, ...args)
-    {
+    emit(type, ...args) {
         if (isString(type) === false) {
             error('unit emit', 'The argument is invalid.', 'type');
         } else if (this._.state === 'finalized') {
@@ -689,8 +562,7 @@ class Unit
     // context 
     //----------------------------------------------------------------------------------------------------
 
-    static context(key, value = undefined)
-    {
+    static context(key, value = undefined) {
         if (value !== undefined) {
             this._.context = [this._.context, key, value];
         } else {
@@ -719,8 +591,200 @@ class Unit
 }
 Unit.reset();
 
-function xnew(...args)
-{
+class UnitPromise extends Promise {
+    then(callback) {
+        const [unit, context] = [Unit.current, Unit.current?._.context];
+        super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
+        return this;
+    }
+
+    catch(callback) {
+        const [unit, context] = [Unit.current, Unit.current?._.context];
+        super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
+        return this;
+    }
+
+    finally(callback) {
+        const [unit, context] = [Unit.current, Unit.current?._.context];
+        super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
+        return this;
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// timer
+//----------------------------------------------------------------------------------------------------
+
+class Timer {
+    constructor({ timeout, finalize = null, delay = 0, loop = false }) {
+        this.timeout = timeout;
+        this.finalize = finalize;
+        this.delay = delay;
+        this.loop = loop;
+
+        this.id = null;
+        this.time = null;
+        this.offset = 0.0;
+
+        this.status = 0;
+
+        this.listener = (event) => {
+            document.hidden === false ? this._start() : this._stop();
+        };
+        if (document !== undefined) {
+            document.addEventListener('visibilitychange', this.listener);
+        }
+    }
+
+    clear() {
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
+            this.finalize?.();
+        }
+        if (document !== undefined) {
+            document.removeEventListener('visibilitychange', this.listener);
+        }
+    }
+
+    elapsed() {
+        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+    }
+
+    start() {
+        this.status = 1;
+        this._start();
+    }
+
+    stop() {
+        this._stop();
+        this.status = 0;
+    }
+
+    _start() {
+        if (this.status === 1 && this.id === null) {
+            this.id = setTimeout(() => {
+                this.timeout();
+
+                this.id = null;
+                this.time = null;
+                this.offset = 0.0;
+
+                if (this.loop) {
+                    this.start();
+                } else {
+                    this.finalize?.();
+                }
+            }, this.delay - this.offset);
+            this.time = Date.now();
+        }
+    }
+
+    _stop() {
+        if (this.status === 1 && this.id !== null) {
+            this.offset = this.offset + Date.now() - this.time;
+            clearTimeout(this.id);
+
+            this.id = null;
+            this.time = null;
+        }
+    }
+}
+
+function timer(callback, delay) {
+    let finalizer = null;
+
+    const current = Unit.current;
+    const context = current?._.context;
+    const timer = new Timer({
+        timeout: () => {
+            Unit.scope.call(current, context, callback);
+        },
+        finalize: () => finalizer.finalize(),
+        delay,
+    });
+
+    timer.start();
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function interval(callback, delay) {
+    let finalizer = null;
+
+    const current = Unit.current;
+    const context = current._.context;
+    const timer = new Timer({
+        timeout: () => Unit.scope.call(current, context, callback),
+        finalize: () => finalizer.finalize(),
+        delay,
+        loop: true,
+    });
+
+    timer.start();
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function transition(callback, interval) {
+    let finalizer = null;
+    let updater = null;
+
+    const current = Unit.current;
+    const context = current._.context;
+    const timer = new Timer({
+        timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
+        finalize: () => finalizer.finalize(),
+        delay: interval,
+    });
+    const clear = function () {
+        timer.clear();
+    };
+
+    timer.start();
+
+    Unit.scope.call(current, context, callback, { progress: 0.0 });
+
+    updater = xnew(null, (self) => {
+        return {
+            update() {
+                const progress = timer.elapsed() / interval;
+                if (progress < 1.0) {
+                    Unit.scope.call(current, context, callback, { progress });
+                }
+            },
+        }
+    });
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+                updater.finalize();
+            }
+        }
+    });
+
+    return { clear };
+}
+
+function xnew$1(...args) {
     // parent Unit
     let parent = undefined;
     if (isFunction(args[0]) === false && args[0] instanceof Unit) {
@@ -763,18 +827,18 @@ function xnew(...args)
     }
 }
 
-Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
-Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
-Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
-Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
-Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
-Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
-Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
-Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
+Object.defineProperty(xnew$1, 'nest', { enumerable: true, value: nest });
+Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: extend });
+Object.defineProperty(xnew$1, 'context', { enumerable: true, value: context });
+Object.defineProperty(xnew$1, 'promise', { enumerable: true, value: promise });
+Object.defineProperty(xnew$1, 'find', { enumerable: true, value: find });
+Object.defineProperty(xnew$1, 'event', { enumerable: true, get: event });
 
-function nest(attributes)
-{
+Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: timer });
+Object.defineProperty(xnew$1, 'interval', { enumerable: true, value: interval });
+Object.defineProperty(xnew$1, 'transition', { enumerable: true, value: transition });
+
+function nest(attributes) {
     if (Unit.current.element instanceof Window || Unit.current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
     } else if (isObject(attributes) === false) {
@@ -786,13 +850,7 @@ function nest(attributes)
     }
 }
 
-function current()
-{
-    return Unit.current;
-}
-
-function extend(component, ...args)
-{
+function extend(component, ...args) {
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
     } else if (Unit.current._.state !== 'pending') {
@@ -804,8 +862,7 @@ function extend(component, ...args)
     }
 }
 
-function context(key, value)
-{
+function context(key, value) {
     if (isString(key) === false) {
         error('xnew.context', 'The argument is invalid.', 'key');
     } else {
@@ -813,8 +870,7 @@ function context(key, value)
     }
 }
 
-function find(component)
-{
+function find(component) {
     if (isFunction(component) === false) {
         error('xnew.find', 'The argument is invalid.', 'component');
     } else if (isFunction(component) === true) {
@@ -822,115 +878,23 @@ function find(component)
     }
 }
 
-function timer(callback, delay)
-{
-    let finalizer = null;
-
-    const current = Unit.current;
-    const context = current?._.context;
-    const timer = new Timer({
-        timeout: () => {
-            Unit.scope.call(current, context, callback);
-        },
-        finalize: () => finalizer.finalize(),
-        delay,
-    });
-    
-    timer.start();
-
-    finalizer = xnew((self) => {
-        return {
-            finalize() {
-                timer.clear();
-            }
-        }
-    });
-
-    return { clear: () => timer.clear() };
-}
-
-function interval(callback, delay)
-{
-    let finalizer = null;
-
-    const current = Unit.current;
-    const context = current._.context;
-    const timer = new Timer({
-        timeout: () => Unit.scope.call(current, context, callback), 
-        finalize: () => finalizer.finalize(),
-        delay,
-        loop: true,
-    });
-    
-    timer.start();
-
-    finalizer = xnew((self) => {
-        return {
-            finalize() {
-                timer.clear();
-            }
-        }
-    });
-
-    return { clear: () => timer.clear() };
-}
-
-function transition(callback, interval)
-{
-    let finalizer = null;
-    let updater = null;
-
-    const current = Unit.current;
-    const context = current._.context;
-    const timer = new Timer({ 
-        timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
-        finalize: () => finalizer.finalize(),
-        delay: interval,
-    });
-    const clear = function() {
-        timer.clear();
-    };
-
-    timer.start();
-
-    Unit.scope.call(current, context, callback, { progress: 0.0 });
-
-    updater = xnew(null, (self) => {
-        return {
-            update() {
-                const progress = timer.elapsed() / interval;
-                if (progress < 1.0) {
-                    Unit.scope.call(current, context, callback, { progress });
-                }
-            },
-        }
-    });
-    
-    finalizer = xnew((self) => {
-        return {
-            finalize() {
-                timer.clear();
-                updater.finalize();
-            }
-        }
-    });
-
-    return { clear };
-}
-
 function event() {
     return Unit.event;
 }
 
+function promise(executor) {
+    return Unit.promise.call(Unit.current, executor);
+}
+
 function DragEvent(self)
 {
-    xnew().on('pointerdown', (event) => {
+    xnew$1().on('pointerdown', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
         let previous = position;
        
-        const win = xnew(window);
+        const win = xnew$1(window);
 
         win.on('pointermove', (event) => {
             if (event.pointerId === id) {
@@ -965,7 +929,7 @@ function DragEvent(self)
 
 function GestureEvent(self)
 {
-    const drag = xnew(DragEvent);
+    const drag = xnew$1(DragEvent);
 
     let isActive = false;
     const map = new Map();
@@ -1040,19 +1004,19 @@ function ResizeEvent(self)
 }
 
 function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
-    const wrapper = xnew.nest({
+    const wrapper = xnew$1.nest({
         style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
     });
-    const absolute = xnew.nest({
+    const absolute = xnew$1.nest({
         style: { position: 'absolute', margin: 'auto' } 
     });
 
-    const canvas = xnew({
+    const canvas = xnew$1({
         tagName: 'canvas', width, height,
         style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
     });
     
-    const observer = xnew(wrapper, ResizeEvent);
+    const observer = xnew$1(wrapper, ResizeEvent);
     observer.on('-resize', resize);
     resize();
 
@@ -1093,26 +1057,26 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
 }
 
 function Modal(self, {} = {}) {
-    xnew.nest({
+    xnew$1.nest({
         style: {
             position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
         },
     });
     
-    xnew().on('click', () => {
+    xnew$1().on('click', () => {
         self.close();
     });
 
-    xnew.nest({});
+    xnew$1.nest({});
 
-    xnew().on('click', (event) => {
+    xnew$1().on('click', (event) => {
         event.stopPropagation(); 
     });
 }
 
 function Keyboard(self)
 {
-    const win = xnew(window);
+    const win = xnew$1(window);
     const state = {};
 
     win.on('keydown', (event) => {
@@ -1161,11 +1125,11 @@ function Keyboard(self)
     // };
 }
 
-Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
-Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
-Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
-Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
-Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
-Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });
+Object.defineProperty(xnew$1, 'Screen', { enumerable: true, value: Screen });
+Object.defineProperty(xnew$1, 'DragEvent', { enumerable: true, value: DragEvent });
+Object.defineProperty(xnew$1, 'GestureEvent', { enumerable: true, value: GestureEvent });
+Object.defineProperty(xnew$1, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
+Object.defineProperty(xnew$1, 'Modal', { enumerable: true, value: Modal });
+Object.defineProperty(xnew$1, 'Keyboard', { enumerable: true, value: Keyboard });
 
-export { xnew as default };
+export { xnew$1 as default };

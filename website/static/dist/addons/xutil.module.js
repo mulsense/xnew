@@ -13,14 +13,13 @@ function cancelDefaultActions() {
 // controller
 //----------------------------------------------------------------------------------------------------
 
-function AnalogStick(self, 
+function AnalogStick(self,
     {
         size = 130,
         fill = '#FFF', fillOpacity = 0.8,
         stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round'
     } = {}
-)
-{
+) {
     strokeWidth /= (size / 100);
 
     xnew.nest({
@@ -86,15 +85,14 @@ function AnalogStick(self,
 }
 
 function DPad(self,
-    { 
+    {
         size = 130,
         fill = '#FFF', fillOpacity = 0.8,
         stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round'
     } = {}
-)
-{
+) {
     strokeWidth /= (size / 100);
-  
+
     xnew.nest({
         style: {
             position: 'relative', width: `${size}px`, height: `${size}px`,
@@ -125,7 +123,7 @@ function DPad(self,
         tagName: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%',
-            userSelect: 'none', 
+            userSelect: 'none',
             fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin,
         },
         viewBox: '0 0 100 100'
@@ -176,8 +174,7 @@ function CircleButton(self,
         fill = '#FFF', fillOpacity = 0.8,
         stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round'
     } = {}
-)
-{
+) {
     strokeWidth /= (size / 100);
     xnew.nest({
         style: {
@@ -216,15 +213,13 @@ function CircleButton(self,
 // audio
 //----------------------------------------------------------------------------------------------------
 
-function audio()
-{
+function audio() {
 
 }
 
 Object.defineProperty(audio, 'synthesizer', { enumerable: true, value: synthesizer });
 
-function synthesizer(props, effects)
-{
+function synthesizer(props, effects) {
     return new Synthesizer(props, effects);
 }
 
@@ -238,7 +233,7 @@ class Audio {
             Audio.master = Audio.context.createGain();
             Audio.master.gain.value = 1.0;
             Audio.master.connect(Audio.context.destination);
-            
+
             window.addEventListener('touchstart', initialize, true);
             window.addEventListener('mousedown', initialize, true);
             function initialize() {
@@ -262,10 +257,10 @@ class Audio {
                 }
             });
         });
-    
+
         Object.keys(params).forEach((key) => {
             const [type, props, ...to] = params[key];
-            
+
             to.forEach((to) => {
                 let dest = null;
                 if (to.indexOf('.') > 0) {
@@ -288,18 +283,15 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
-function isString(value)
-{
+function isString(value) {
     return typeof value === 'string';
 }
 
-function isNumber(value)
-{
+function isNumber(value) {
     return Number.isFinite(value);
 }
 
-function isObject(value)
-{
+function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
@@ -349,7 +341,7 @@ class Synthesizer {
 
         function setLFO(LFO, maxAmount) {
             if (isObject(LFO) === false) return null;
-            LFO.amount = isNumber(LFO.amount) ? clamp(LFO.amount, 0, maxAmount): 0;
+            LFO.amount = isNumber(LFO.amount) ? clamp(LFO.amount, 0, maxAmount) : 0;
             LFO.type = setType(LFO.type, ['sine', 'triangle', 'square', 'sawtooth']);
             LFO.rate = clamp(LFO.rate, 1, 128);
             return LFO;
@@ -357,8 +349,8 @@ class Synthesizer {
     }
 
     static keymap = {
-        'A0': 27.500, 'A#0': 29.135, 'B0': 30.868, 
-        'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735, 
+        'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
+        'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735,
         'C2': 65.406, 'C#2': 69.296, 'D2': 73.416, 'D#2': 77.782, 'E2': 82.407, 'F2': 87.307, 'F#2': 92.499, 'G2': 97.999, 'G#2': 103.826, 'A2': 110.000, 'A#2': 116.541, 'B2': 123.471,
         'C3': 130.813, 'C#3': 138.591, 'D3': 146.832, 'D#3': 155.563, 'E3': 164.814, 'F3': 174.614, 'F#3': 184.997, 'G3': 195.998, 'G#3': 207.652, 'A3': 220.000, 'A#3': 233.082, 'B3': 246.942,
         'C4': 261.626, 'C#4': 277.183, 'D4': 293.665, 'D#4': 311.127, 'E4': 329.628, 'F4': 349.228, 'F#4': 369.994, 'G4': 391.995, 'G#4': 415.305, 'A4': 440.000, 'A#4': 466.164, 'B4': 493.883,
@@ -378,7 +370,7 @@ class Synthesizer {
         duration = isString(duration) ? (Synthesizer.notemap[duration] * 60 / this.options.bmp) : (duration !== null ? (duration / 1000) : duration);
         const start = Audio.context.currentTime + wait / 1000;
         let stop = null;
-        
+
         const params = {};
 
         if (this.filter.type && this.filter.cutoff) {
@@ -397,7 +389,7 @@ class Synthesizer {
         }
         if (this.delay.time > 0.0 && this.delay.mix > 0.0) {
             params.amp.push('delay');
-            params.delay = ['Delay', { }, 'delayDepth', 'delayFeedback'];
+            params.delay = ['Delay', {}, 'delayDepth', 'delayFeedback'];
             params.delayDepth = ['Gain', { gain: 1.0 }, 'master'];
             params.delayFeedback = ['Gain', { gain: this.delay.feedback }, 'delay'];
         }
@@ -419,7 +411,7 @@ class Synthesizer {
 
         nodes.oscillator.type = this.oscillator.type;
         nodes.oscillator.frequency.value = clamp(frequency, 10.0, 5000.0);
-        
+
         if (this.filter.type && this.filter.cutoff) {
             nodes.filter.type = this.filter.type;
             nodes.filter.frequency.value = this.filter.cutoff;

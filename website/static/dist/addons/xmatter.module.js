@@ -13,13 +13,11 @@ function setup({ engine = null, render = null }) {
     xnew.extend(Root, { engine, render });
 }
 
-function render()
-{
+function render() {
     return xnew.context('xmatter.root')?.render;
 }
 
-function engine()
-{
+function engine() {
     return xnew.context('xmatter.root')?.engine;
 }
 
