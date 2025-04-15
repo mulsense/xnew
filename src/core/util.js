@@ -2,8 +2,7 @@
 // error 
 //----------------------------------------------------------------------------------------------------
 
-export function error(name, text, target = undefined)
-{
+export function error(name, text, target = undefined) {
     const message = name + (target !== undefined ? ` [${target}]` : '') + ': ' + text;
     console.error(message);
 }
@@ -12,23 +11,19 @@ export function error(name, text, target = undefined)
 // type check
 //----------------------------------------------------------------------------------------------------
 
-export function isString(value)
-{
+export function isString(value) {
     return typeof value === 'string';
 }
 
-export function isFunction(value)
-{
+export function isFunction(value) {
     return typeof value === 'function';
 }
 
-export function isNumber(value)
-{
+export function isNumber(value) {
     return Number.isFinite(value);
 }
 
-export function isObject(value)
-{
+export function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
@@ -36,8 +31,7 @@ export function isObject(value)
 // create element from attributes
 //----------------------------------------------------------------------------------------------------
 
-export function createElement(attributes, parentElement = null)
-{
+export function createElement(attributes, parentElement = null) {
     const tagName = (attributes.tagName ?? 'div').toLowerCase();
     let element = null;
 
@@ -59,7 +53,7 @@ export function createElement(attributes, parentElement = null)
     } else {
         element = document.createElement(tagName);
     }
-    
+
     Object.keys(attributes).forEach((key) => {
         const value = attributes[key];
         if (key === 'tagName') {
@@ -71,7 +65,7 @@ export function createElement(attributes, parentElement = null)
         } else if (key === 'style') {
             if (isString(value) === true) {
                 element.style = value;
-            } else if (isObject(value) === true){
+            } else if (isObject(value) === true) {
                 Object.assign(element.style, value);
             }
         } else {
@@ -81,7 +75,7 @@ export function createElement(attributes, parentElement = null)
             } else {
                 setAttribute(element, key, value);
             }
-            
+
             function setAttribute(element, key, value) {
                 if (nsmode === true) {
                     element.setAttributeNS(null, key, value);

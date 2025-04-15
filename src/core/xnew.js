@@ -1,9 +1,8 @@
 import { isObject, isString, isFunction, error } from './util';
-import { Timer } from './timer';
+import { timer, interval, transition } from './timer';
 import { Unit } from './unit';
 
-export function xnew(...args)
-{
+export function xnew(...args) {
     // parent Unit
     let parent = undefined;
     if (isFunction(args[0]) === false && args[0] instanceof Unit) {
@@ -47,17 +46,17 @@ export function xnew(...args)
 }
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
+Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
+Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
+
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
 Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
-Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
 
-function nest(attributes)
-{
+function nest(attributes) {
     if (Unit.current.element instanceof Window || Unit.current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
     } else if (isObject(attributes) === false) {
@@ -69,13 +68,7 @@ function nest(attributes)
     }
 }
 
-function current()
-{
-    return Unit.current;
-}
-
-function extend(component, ...args)
-{
+function extend(component, ...args) {
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
     } else if (Unit.current._.state !== 'pending') {
@@ -88,8 +81,7 @@ function extend(component, ...args)
     }
 }
 
-function context(key, value)
-{
+function context(key, value) {
     if (isString(key) === false) {
         error('xnew.context', 'The argument is invalid.', 'key');
     } else {
@@ -97,8 +89,7 @@ function context(key, value)
     }
 }
 
-function find(component)
-{
+function find(component) {
     if (isFunction(component) === false) {
         error('xnew.find', 'The argument is invalid.', 'component');
     } else if (isFunction(component) === true) {
@@ -106,103 +97,11 @@ function find(component)
     }
 }
 
-function timer(callback, delay)
-{
-    let finalizer = null;
-
-    const current = Unit.current;
-    const context = current?._.context;
-    const timer = new Timer({
-        timeout: () => {
-            Unit.scope.call(current, context, callback);
-        },
-        finalize: () => finalizer.finalize(),
-        delay,
-    });
-    
-    timer.start();
-
-    finalizer = xnew((self) => {
-        return {
-            finalize() {
-                timer.clear();
-            }
-        }
-    });
-
-    return { clear: () => timer.clear() };
-}
-
-function interval(callback, delay)
-{
-    let finalizer = null;
-
-    const current = Unit.current;
-    const context = current._.context;
-    const timer = new Timer({
-        timeout: () => Unit.scope.call(current, context, callback), 
-        finalize: () => finalizer.finalize(),
-        delay,
-        loop: true,
-    });
-    
-    timer.start();
-
-    finalizer = xnew((self) => {
-        return {
-            finalize() {
-                timer.clear();
-            }
-        }
-    });
-
-    return { clear: () => timer.clear() };
-}
-
-function transition(callback, interval)
-{
-    let finalizer = null;
-    let updater = null;
-
-    const current = Unit.current;
-    const context = current._.context;
-    const timer = new Timer({ 
-        timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
-        finalize: () => finalizer.finalize(),
-        delay: interval,
-    });
-    const clear = function() {
-        timer.clear();
-    }
-
-    timer.start();
-
-    Unit.scope.call(current, context, callback, { progress: 0.0 });
-
-    updater = xnew(null, (self) => {
-        return {
-            update() {
-                const progress = timer.elapsed() / interval;
-                if (progress < 1.0) {
-                    Unit.scope.call(current, context, callback, { progress });
-                }
-            },
-        }
-    });
-    
-    finalizer = xnew((self) => {
-        return {
-            finalize() {
-                timer.clear();
-                updater.finalize();
-            }
-        }
-    });
-
-    return { clear };
-}
-
 function event() {
     return Unit.event;
+}
+
+function promise(executor) {
+    return Unit.promise.call(Unit.current, executor);
 }
 

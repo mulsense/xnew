@@ -118,7 +118,11 @@ function GameOverText(self) {
 function Player(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(width / 2, height / 2);
-  addSprite(object, 'texture.png', [[0, 0, 32, 32], [32, 0, 32, 32]]);
+  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
+    object.addChild(createSprite(texture, [[0, 0, 32, 32], [32, 0, 32, 32]]));
+  });
+
+  // addSprite(object, 'texture.png', [[0, 0, 32, 32], [32, 0, 32, 32]]);
 
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
@@ -173,8 +177,9 @@ function Shot(self, x, y) {
 function Enemy(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * width, 0);
-  addSprite(object, 'texture.png', [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]);
-
+  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
+    object.addChild(createSprite(texture, [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]));
+  });
   // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
   const a = Math.random() * (Math.PI / 2) + Math.PI / 4;
@@ -225,8 +230,9 @@ function CrashText(self, x, y, score) {
 function CrashStar(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
-  addSprite(object, 'texture.png', [[0, 64, 32, 32]]);
-
+  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
+    object.addChild(createSprite(texture, [[0, 64, 32, 32]]));
+  });
   const v = Math.random() * 2 + 1;
   const a = Math.random() * 2 * Math.PI;
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
@@ -252,14 +258,11 @@ function CrashStar(self, x, y, score) {
   };
 }
 
-async function addSprite(object, path, rects) {
-  const texture = await PIXI.Assets.load(path);
-
+function createSprite(texture, rects) {
   const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
-  
   const sprite = new PIXI.AnimatedSprite(textures);
   sprite.animationSpeed = 0.1;
   sprite.anchor.set(0.5);
   sprite.play();
-  object.addChild(sprite);
+  return sprite;
 }

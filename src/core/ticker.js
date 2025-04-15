@@ -5,9 +5,8 @@ class Ticker {
         this.animation = null;
         this.reset()
     }
-    
-    reset()
-    {
+
+    reset() {
         if (this.animation !== null) {
             this.animation = null;
             cancelAnimationFrame(this.animation);
@@ -17,8 +16,7 @@ class Ticker {
         this.previous = Date.now();
     }
 
-    append(callback)
-    {
+    append(callback) {
         if (isFunction(callback) === false) {
             throw new Error('The argument is invalid.');
         } else if (this.callbacks.includes(callback) === false) {
@@ -26,23 +24,20 @@ class Ticker {
         }
     }
 
-    start()
-    {
+    start() {
         if (isFunction(requestAnimationFrame) === true && this.animation === null) {
             this.animation = requestAnimationFrame(Ticker.execute.bind(this));
         }
     }
 
-    stop()
-    {
+    stop() {
         if (isFunction(cancelAnimationFrame) === true && this.animation !== null) {
             cancelAnimationFrame(this.animation);
             this.animation = null;
         }
     }
 
-    static execute()
-    {
+    static execute() {
         const interval = 1000 / 60;
         const time = Date.now();
         if (time - this.previous > interval * 0.8) {

@@ -11,12 +11,10 @@ xnew.find(Component); // component function
 
 ## example
 ```js
-xnew(() => {
-  const unit1 = xnew(Component);
-  const unit2 = xnew(Component);
+const unit1 = xnew(Component);
+const unit2 = xnew(Component);
 
-  xnew.find(Component); // [unit1, unit2]
-});
+xnew.find(Component); // [unit1, unit2]
 
 function Component(self) {
 }

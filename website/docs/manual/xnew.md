@@ -165,9 +165,6 @@ const unit = xnew((self) => {
   // initialize
 
   return {
-    promise: new Promise((resolve, reject) => {
-      // update will not start until this promise is resolved. (accessed by unit.promise)
-    }), 
     start() {
       // fires before first update.
     },

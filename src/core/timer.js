@@ -1,11 +1,12 @@
+import { isObject, isString, isFunction, error } from './util';
+import { Unit } from './unit';
+
 //----------------------------------------------------------------------------------------------------
 // timer
 //----------------------------------------------------------------------------------------------------
 
-export class Timer
-{
-    constructor({ timeout, finalize = null, delay = 0, loop = false })
-    {
+export class Timer {
+    constructor({ timeout, finalize = null, delay = 0, loop = false }) {
         this.timeout = timeout;
         this.finalize = finalize;
         this.delay = delay;
@@ -25,8 +26,7 @@ export class Timer
         }
     }
 
-    clear()
-    {
+    clear() {
         if (this.id !== null) {
             clearTimeout(this.id);
             this.id = null;
@@ -37,25 +37,21 @@ export class Timer
         }
     }
 
-    elapsed()
-    {
+    elapsed() {
         return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
     }
 
-    start()
-    {
+    start() {
         this.status = 1;
         this._start();
     }
 
-    stop()
-    {
+    stop() {
         this._stop();
         this.status = 0;
     }
 
-    _start()
-    {
+    _start() {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
                 this.timeout();
@@ -63,7 +59,7 @@ export class Timer
                 this.id = null;
                 this.time = null;
                 this.offset = 0.0;
-    
+
                 if (this.loop) {
                     this.start();
                 } else {
@@ -74,8 +70,7 @@ export class Timer
         }
     }
 
-    _stop()
-    {
+    _stop() {
         if (this.status === 1 && this.id !== null) {
             this.offset = this.offset + Date.now() - this.time;
             clearTimeout(this.id);
@@ -84,4 +79,97 @@ export class Timer
             this.time = null;
         }
     }
+}
+
+export function timer(callback, delay) {
+    let finalizer = null;
+
+    const current = Unit.current;
+    const context = current?._.context;
+    const timer = new Timer({
+        timeout: () => {
+            Unit.scope.call(current, context, callback);
+        },
+        finalize: () => finalizer.finalize(),
+        delay,
+    });
+
+    timer.start();
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+export function interval(callback, delay) {
+    let finalizer = null;
+
+    const current = Unit.current;
+    const context = current._.context;
+    const timer = new Timer({
+        timeout: () => Unit.scope.call(current, context, callback),
+        finalize: () => finalizer.finalize(),
+        delay,
+        loop: true,
+    });
+
+    timer.start();
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+export function transition(callback, interval) {
+    let finalizer = null;
+    let updater = null;
+
+    const current = Unit.current;
+    const context = current._.context;
+    const timer = new Timer({
+        timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
+        finalize: () => finalizer.finalize(),
+        delay: interval,
+    });
+    const clear = function () {
+        timer.clear();
+    }
+
+    timer.start();
+
+    Unit.scope.call(current, context, callback, { progress: 0.0 });
+
+    updater = xnew(null, (self) => {
+        return {
+            update() {
+                const progress = timer.elapsed() / interval;
+                if (progress < 1.0) {
+                    Unit.scope.call(current, context, callback, { progress });
+                }
+            },
+        }
+    });
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+                updater.finalize();
+            }
+        }
+    });
+
+    return { clear };
 }
