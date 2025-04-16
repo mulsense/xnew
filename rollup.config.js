@@ -104,5 +104,26 @@ export default [
             },
         ],
         external: ['xnew'],
+    },
+    {
+        input: 'src/addons/xaudio.js',
+        output: [
+            {
+                file: 'dist/addons/xaudio.js',
+                format: 'umd',
+                extend: true,
+                name: 'xaudio',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'dist/addons/xaudio.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xaudio',
+                freeze: false
+            },
+        ],
+        external: ['xnew'],
     }
 ];

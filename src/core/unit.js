@@ -1,8 +1,11 @@
-import { isObject, isNumber, isString, isFunction, createElement, error } from './util';
+import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { createElement } from './element';
 import { MapSet, MapMap } from './map';
-import { ticker } from './ticker';
+import { Ticker } from './ticker';
 
 export class Unit {
+    static roots = new Set();   // root units
+
     constructor(parent, target, component, ...args) {
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
@@ -13,17 +16,21 @@ export class Unit {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
+        let baseContext = null;
+        if (parent) {
+            baseContext = parent._.context;
+        }
+
         this._ = {
-            root: parent?._.root ?? this,   // root unit 
-            parent,                         // parent unit
-            baseElement,                    // base element
-            nestElements: [],               // nest elements
-            context: parent?._.context,     // context stack
-            listeners: new MapMap(),        // event listners
+            parent,          // parent unit
+            target,          // target info
+            baseElement,     // base element
+            baseContext,     // base context
+            componentArgs: [component, ...args],
         };
 
         (parent?._.children ?? Unit.roots).add(this);
-        Unit.initialize.call(this, parent, target, component, ...args);
+        Unit.initialize.call(this, component, ...args);
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -39,7 +46,10 @@ export class Unit {
     }
 
     get promise() {
-        return this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
+        const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
+        return new UnitPromise((resolve, reject) => {
+            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+        });
     }
 
     get isRunning() {
@@ -64,15 +74,14 @@ export class Unit {
     reboot() {
         Unit.stop.call(this);
         Unit.finalize.call(this);
-        (this._.parent?._.children ?? Unit.roots).add(this);
-        Unit.initialize.call(this, ...this._.backup);
+        Unit.initialize.call(this, ...this._.componentArgs);
     }
 
     // current unit scope
     static current = null;
 
     static scope(context, func, ...args) {
-        const backup = { unit: Unit.current, context: this?._.context };
+        const stack = [Unit.current, this?._.context];
         try {
             Unit.current = this;
             if (this && context !== undefined) {
@@ -82,9 +91,9 @@ export class Unit {
         } catch (error) {
             throw error;
         } finally {
-            Unit.current = backup.unit;
+            Unit.current = stack[0];
             if (this && context !== undefined) {
-                this._.context = backup.context;
+                this._.context = stack[1];
             }
         }
     }
@@ -96,27 +105,29 @@ export class Unit {
         return element;
     }
 
-    static initialize(parent, target, component, ...args) {
+    static initialize(component, ...args) {
         this._ = Object.assign(this._, {
-            backup: [parent, target, component, ...args],
             children: new Set(),            // children units
+            nestElements: [],               // nest elements
             state: 'pending',               // [pending -> running <-> stopped -> finalized]
             tostart: false,                 // flag for start
             upcount: 0,                     // update count    
             promises: [],                   // promises
             resolved: false,                // promise check
+            listeners: new MapMap(),        // event listners
+            context: this._.baseContext,    // context
             components: new Set(),          // components functions
             props: {},                      // properties in the component function
         });
 
-        if (parent !== null && ['finalized'].includes(parent._.state)) {
+        if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
             this._.state = 'finalized';
         } else {
             this._.tostart = true;
 
             // nest html element
-            if (isObject(target) === true && this.element instanceof Element) {
-                Unit.nest.call(this, target);
+            if (isObject(this._.target) === true && this.element instanceof Element) {
+                Unit.nest.call(this, this._.target);
             }
 
             // setup component
@@ -124,7 +135,7 @@ export class Unit {
                 Unit.scope.call(this, undefined, () => {
                     Unit.extend.call(this, component, ...args);
                 });
-            } else if (isObject(target) === true && isString(component) === true) {
+            } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
 
@@ -181,12 +192,13 @@ export class Unit {
             const unitpromise = new UnitPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
             });
-            this._.promises.push(unitpromise);
+            this._.promises.push(promise);
             return unitpromise;
         } else {
             error('unit promise', 'The property is invalid.', promise);
         }
     }
+
     static start(time) {
         if (this._.resolved === false || this._.tostart === false) {
         } else if (['pending', 'stopped'].includes(this._.state) === true) {
@@ -226,6 +238,7 @@ export class Unit {
             this._.state = 'finalized';
 
             [...this._.children].forEach((unit) => unit.finalize());
+            this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
                 Unit.scope.call(this, this._.context, this._.props.finalize);
@@ -254,16 +267,13 @@ export class Unit {
         }
     }
 
-    static roots = new Set();   // root units
-    static animation = null;    // animation callback id
-
     static reset() {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
 
-        ticker.reset();
-        ticker.start();
-        ticker.append((time) => {
+        Ticker.reset();
+        Ticker.start();
+        Ticker.push((time) => {
             Unit.roots.forEach((unit) => {
                 Unit.start.call(unit, time);
                 Unit.update.call(unit, time);
@@ -292,20 +302,24 @@ export class Unit {
             if (this._.listeners.has(type, listener) === false) {
                 const element = this.element;
                 const context = this._.context;
-                const execute = (...args) => {
-                    const eventbackup = Unit.event;
-
-                    if (type[0] === '-' || type[0] === '+') {
+                if (type[0] === '-' || type[0] === '+') {
+                    const execute = (...args) => {
+                        const eventbackup = Unit.event;
                         Unit.event = { type };
                         Unit.scope.call(this, context, listener, ...args);
-                    } else {
+                        Unit.event = eventbackup;
+                    };
+                    this._.listeners.set(type, listener, [element, execute]);
+                } else {
+                    const execute = (...args) => {
+                        const eventbackup = Unit.event;
                         Unit.event = { type: args[0]?.type ?? null };
                         Unit.scope.call(this, context, listener, ...args);
-                    }
-                    Unit.event = eventbackup;
-                };
-                this._.listeners.set(type, listener, [element, execute]);
-                element.addEventListener(type, execute, options);
+                        Unit.event = eventbackup;
+                    };
+                    this._.listeners.set(type, listener, [element, execute]);
+                    element.addEventListener(type, execute, options);
+                }
             }
             if (this._.listeners.has(type) === true) {
                 Unit.etypes.add(type, this);
@@ -365,7 +379,7 @@ export class Unit {
             this._.context = [this._.context, key, value];
         } else {
             let ret = undefined;
-            for (let context = this._.context; context !== undefined; context = context[0]) {
+            for (let context = this._.context; context !== null; context = context[0]) {
                 if (context[1] === key) {
                     ret = context[2];
                     break;
@@ -381,9 +395,7 @@ export class Unit {
 
     static find(component) {
         const set = new Set();
-        Unit.components.get(component)?.forEach((unit) => {
-            set.add(unit);
-        });
+        Unit.components.get(component)?.forEach((unit) => set.add(unit));
         return [...set];
     }
 }

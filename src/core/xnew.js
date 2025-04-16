@@ -1,4 +1,4 @@
-import { isObject, isString, isFunction, error } from './util';
+import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { timer, interval, transition } from './timer';
 import { Unit } from './unit';
 
@@ -75,7 +75,6 @@ function extend(component, ...args) {
         error('xnew.extend', 'This function can not be called after initialized.');
     } else if (Unit.current._.components.has(component) === true) {
         return Unit.extend.call(Unit.current, component, ...args);
-        error('xnew.extend', 'This function has already been added.');
     } else {
         return Unit.extend.call(Unit.current, component, ...args);
     }

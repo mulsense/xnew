@@ -1,4 +1,4 @@
-import { isObject, isString, isFunction, error } from './util';
+import { isObject, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
 
 //----------------------------------------------------------------------------------------------------

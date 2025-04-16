@@ -9,6 +9,7 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../dist/addons/xthree.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xthree.js');
     code = code.replace('../../dist/addons/xmatter.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xmatter.js');
     code = code.replace('../../dist/addons/xutil.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xutil.js');
+    code = code.replace('../../dist/addons/xaudio.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xaudio.js');
     return (
         <>
             <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/examples/' + name} ></iframe>
