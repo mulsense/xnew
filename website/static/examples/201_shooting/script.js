@@ -9,12 +9,8 @@ function Main(self) {
       width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
     }) 
   });
-  xnew(window).on('keydown', (event) => {
-    event.preventDefault();
-  });
-  self.on('touchstart contextmenu wheel', (event) => {
-      event.preventDefault();
-  });
+  xnew(window).on('keydown', (event) => event.preventDefault());
+  self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
   xnew(Background);
   xnew(TitleScene);
@@ -83,19 +79,13 @@ function GameScene(self) {
 
 function Controller(self) {
   const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px;' }, xutil.DPad, { size: 130 });
-  dpad.on('-down -move -up', ({ vector }) => {
-    self.emit('+move', vector);
-  })
+  dpad.on('-down -move -up', ({ vector }) => self.emit('+move', vector));
 
   const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
-  button.on('-down', () => {
-    self.emit('+action');
-  })
+  button.on('-down', () => self.emit('+action'));
 
   const keyboard = xnew(xnew.Keyboard);
-  keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => {
-    self.emit('+move', vector);
-  });
+  keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => self.emit('+move', vector));
   keyboard.on('-keydown', ({ code }) => {
     if (code === 'Space') {
       self.emit('+action')
@@ -108,9 +98,7 @@ function ScoreText(self) {
   object.position.set(width, 0);
   object.anchor.set(1.0, 0.0);
   let sum = 0;
-  self.on('+scoreup', (score) => {
-    object.text = `score ${sum += score}`;
-  });
+  self.on('+scoreup', (score) => object.text = `score ${sum += score}`);
 }
 
 function GameOverText(self) {
@@ -125,8 +113,6 @@ function Player(self) {
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
     object.addChild(createSprite(texture, [[0, 0, 32, 32], [32, 0, 32, 32]]));
   });
-
-  // addSprite(object, 'texture.png', [[0, 0, 32, 32], [32, 0, 32, 32]]);
 
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
@@ -156,6 +142,7 @@ function Shot(self, x, y) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().ellipse(0, 0, 2, 12).fill(0x22FFFF));
 
+  soundShot();
   return {
     update() {
       object.y -= 8;
@@ -184,6 +171,7 @@ function Enemy(self) {
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
     object.addChild(createSprite(texture, [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]));
   });
+
   // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
   const a = Math.random() * (Math.PI / 2) + Math.PI / 4;
@@ -201,7 +189,8 @@ function Enemy(self) {
       object.y += velocity.y;
     },
     clash(score) {
-      for(let i = 0; i < 4; i++) {
+      soundClash(score);
+      for (let i = 0; i < 4; i++) {
         xnew(self.parent, CrashStar, object.x, object.y, score);
       }
       xnew(self.parent, CrashText, object.x, object.y, score);
@@ -226,6 +215,7 @@ function CrashText(self, x, y, score) {
 
   return {
     update(count) {
+      // bounding
       object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180)); 
     },
   }
@@ -269,4 +259,26 @@ function createSprite(texture, rects) {
   sprite.anchor.set(0.5);
   sprite.play();
   return sprite;
+}
+
+function soundShot() {
+  const duration = 200;
+  const synth = xaudio.synthesizer({
+    oscillator: { type: 'square', envelope: { amount: 36, ADSR: [0, 200, 0.2, 200], }, },
+    amp: { envelope: { amount: 0.1, ADSR: [0, 100, 0.2, 200], },},
+  });
+  synth.press('E3', duration); 
+}
+
+function soundClash(score) {
+  // convert svore(1->0, 2->1, 4->2, 8->3, ...)
+  const v = Math.log2(score);
+  const duration = 200;
+  const synth = xaudio.synthesizer({
+    oscillator: { type: 'triangle', },
+    amp: { envelope: { amount: 0.1, ADSR: [0, 200, 0.0, 0], }, },
+  });
+  synth.press(440 * Math.pow(2, (v * 2 + 0) / 12), duration, 0); 
+  synth.press(440 * Math.pow(2, (v * 2 + 8) / 12), duration, 100); 
+  synth.press(440 * Math.pow(2, (v * 2 + 12) / 12), duration, 200); 
 }
