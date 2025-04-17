@@ -1,5 +1,5 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
-import { timer, interval, transition } from './timer';
+import { Timer } from './timer';
 import { Unit } from './unit';
 
 export function xnew(...args) {
@@ -104,3 +104,96 @@ function promise(executor) {
     return Unit.promise.call(Unit.current, executor);
 }
 
+
+function timer(callback, delay) {
+    let finalizer = null;
+
+    const current = Unit.current;
+    const context = current?._.context;
+    const timer = new Timer({
+        timeout: () => {
+            Unit.scope.call(current, context, callback);
+        },
+        finalize: () => finalizer.finalize(),
+        delay,
+    });
+
+    timer.start();
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function interval(callback, delay) {
+    let finalizer = null;
+
+    const current = Unit.current;
+    const context = current._.context;
+    const timer = new Timer({
+        timeout: () => Unit.scope.call(current, context, callback),
+        finalize: () => finalizer.finalize(),
+        delay,
+        loop: true,
+    });
+
+    timer.start();
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function transition(callback, interval) {
+    let finalizer = null;
+    let updater = null;
+
+    const current = Unit.current;
+    const context = current._.context;
+    const timer = new Timer({
+        timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
+        finalize: () => finalizer.finalize(),
+        delay: interval,
+    });
+    const clear = function () {
+        timer.clear();
+    }
+
+    timer.start();
+
+    Unit.scope.call(current, context, callback, { progress: 0.0 });
+
+    updater = xnew(null, (self) => {
+        return {
+            update() {
+                const progress = timer.elapsed() / interval;
+                if (progress < 1.0) {
+                    Unit.scope.call(current, context, callback, { progress });
+                }
+            },
+        }
+    });
+
+    finalizer = xnew((self) => {
+        return {
+            finalize() {
+                timer.clear();
+                updater.finalize();
+            }
+        }
+    });
+
+    return { clear };
+}
