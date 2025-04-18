@@ -3,12 +3,8 @@ const width = 400, height = 300;
 function Main(self) {
   const screen = xnew(xnew.Screen, { width, height });
   screen.canvas.style.imageRendering = 'pixelated';
+  xpixi.setup();
 
-  xpixi.setup({
-    renderer: PIXI.autoDetectRenderer({
-      width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
-    }) 
-  });
   xnew(window).on('keydown', (event) => event.preventDefault());
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
@@ -17,8 +13,6 @@ function Main(self) {
 }
 
 function Background(self) {
-  xpixi.nest(new PIXI.Container());
-
   for (let i = 0; i < 100; i++) {
     xnew(Dot);
   }
@@ -26,7 +20,11 @@ function Background(self) {
 
 function Dot(self) {
   const object = xpixi.nest(new PIXI.Container());
+
+  // random position
   object.position.set(Math.random() * width, Math.random() * height);
+
+  // set circle
   object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
 
   let velocity = Math.random() + 0.1;
@@ -35,15 +33,12 @@ function Dot(self) {
       object.y += velocity;
       if (object.y > height) {
         object.position.set(Math.random() * width, 0);
-        velocity = Math.random() + 0.1;
       }
     }
   };
 }
 
 function TitleScene(self) {
-  xpixi.nest(new PIXI.Container());
-  
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
@@ -59,8 +54,6 @@ function TitleText(self) {
 }
 
 function GameScene(self) {
-  xpixi.nest(new PIXI.Container());
-  
   xnew(Controller);
   xnew(ScoreText);
   xnew(Player);
@@ -97,6 +90,7 @@ function ScoreText(self) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 16, fill: 0xFFFFFF }));
   object.position.set(width, 0);
   object.anchor.set(1.0, 0.0);
+
   let sum = 0;
   self.on('+scoreup', (score) => object.text = `score ${sum += score}`);
 }
@@ -110,8 +104,15 @@ function GameOverText(self) {
 function Player(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(width / 2, height / 2);
+
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
-    object.addChild(createSprite(texture, [[0, 0, 32, 32], [32, 0, 32, 32]]));
+    const rects = [[0, 0, 32, 32], [32, 0, 32, 32]];
+    const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
+    const sprite = new PIXI.AnimatedSprite(textures);
+    sprite.animationSpeed = 0.1;
+    sprite.anchor.set(0.5);
+    sprite.play();
+    object.addChild(sprite);
   });
 
   let velocity = { x: 0, y: 0 };
@@ -169,7 +170,13 @@ function Enemy(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * width, 0);
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
-    object.addChild(createSprite(texture, [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]));
+    const rects = [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]];
+    const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
+    const sprite = new PIXI.AnimatedSprite(textures);
+    sprite.animationSpeed = 0.1;
+    sprite.anchor.set(0.5);
+    sprite.play();
+    object.addChild(sprite);
   });
 
   // set velocity and angle of the object
@@ -224,9 +231,13 @@ function CrashText(self, x, y, score) {
 function CrashStar(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
+
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
-    object.addChild(createSprite(texture, [[0, 64, 32, 32]]));
+    const sprite = new PIXI.Sprite(new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(0, 64, 32, 32) }));
+    sprite.anchor.set(0.5);
+    object.addChild(sprite);
   });
+
   const v = Math.random() * 2 + 1;
   const a = Math.random() * 2 * Math.PI;
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
@@ -250,15 +261,6 @@ function CrashStar(self, x, y, score) {
       }
     },
   };
-}
-
-function createSprite(texture, rects) {
-  const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
-  const sprite = new PIXI.AnimatedSprite(textures);
-  sprite.animationSpeed = 0.1;
-  sprite.anchor.set(0.5);
-  sprite.play();
-  return sprite;
 }
 
 function soundShot() {

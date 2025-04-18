@@ -198,11 +198,7 @@
 
     function ThreeMain(self) {
       const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, fit: 'cover' });
-     
-      xthree.setup({
-        renderer: new THREE.WebGLRenderer({ canvas: screen.canvas, antialias: true }),
-        camera: new THREE.PerspectiveCamera(fov(), screen.canvas.width / screen.canvas.height)
-      });
+      xthree.setup();
     
       xnew(xnew.ResizeEvent).on('-resize', () => {
         xthree.camera.fov = fov();

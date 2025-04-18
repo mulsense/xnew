@@ -45,12 +45,10 @@
 
       const gesture = xnew(xnew.GestureEvent);
       let isActive = false;
-      gesture.on('-down -up -cancel', () => {
-        isActive = (xnew.event.type === '-down');
-      });
-      gesture.on('-move', ({ scale }) => {
-        self.emit('+scale', scale);
-      });
+      gesture.on('-down', () => isActive = true);
+      gesture.on('-up -cancel', () => isActive = false);
+      gesture.on('-move', ({ scale }) => self.emit('+scale', scale));
+      
       const drag = xnew(xnew.DragEvent);
       drag.on('-move', ({ position, delta }) => {
         if (isActive === true) return;

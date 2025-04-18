@@ -28,11 +28,11 @@
       xnew(MatterContents);
 
       const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
-      button.on('click', () => { button.emit('+reset'); });
+      button.on('click', () => button.emit('+reset'));
     });
 
     function MatterContents(self) {
-      self.on('+reset', () => { self.reboot(); });
+      self.on('+reset', () => self.reboot());
 
       xnew(Rectangle, 400, 200, 80, 80);
       xnew(Polygon, 450, 50, 6, 40);

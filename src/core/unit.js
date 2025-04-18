@@ -3,6 +3,8 @@ import { createElement } from './element';
 import { MapSet, MapMap } from './map';
 import { Ticker } from './ticker';
 import { ScopedPromise } from './promise';
+import { EventController } from './event';
+import { scope } from './scope';
 
 export class Unit {
     static roots = new Set();   // root units
@@ -78,27 +80,6 @@ export class Unit {
         Unit.initialize.call(this, ...this._.componentArgs);
     }
 
-    // current unit scope
-    static current = null;
-
-    static scope(context, func, ...args) {
-        const stack = [Unit.current, this?._.context];
-        try {
-            Unit.current = this;
-            if (this && context !== undefined) {
-                this._.context = context;
-            }
-            return func(...args);
-        } catch (error) {
-            throw error;
-        } finally {
-            Unit.current = stack[0];
-            if (this && context !== undefined) {
-                this._.context = stack[1];
-            }
-        }
-    }
-
     static nest(attributes) {
         const element = createElement(attributes, this.element);
         this.element.append(element);
@@ -133,9 +114,7 @@ export class Unit {
 
             // setup component
             if (isFunction(component) === true) {
-                Unit.scope.call(this, undefined, () => {
-                    Unit.extend.call(this, component, ...args);
-                });
+                scope(this, undefined, () => Unit.extend.call(this, component, ...args));
             } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
@@ -170,15 +149,15 @@ export class Unit {
                 const dest = { configurable: true, enumerable: true };
                 const context = this._.context;
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => Unit.scope.call(this, context, descripter.value, ...args);
+                    dest.value = (...args) => scope(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => Unit.scope.call(this, context, descripter.get, ...args);
+                    dest.get = (...args) => scope(this, context, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => Unit.scope.call(this, context, descripter.set, ...args);
+                    dest.set = (...args) => scope(this, context, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
@@ -206,7 +185,7 @@ export class Unit {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                Unit.scope.call(this, this._.context, this._.props.start);
+                scope(this, this._.context, this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -219,7 +198,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                Unit.scope.call(this, this._.context, this._.props.stop);
+                scope(this, this._.context, this._.props.stop);
             }
         }
     }
@@ -229,7 +208,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Unit.scope.call(this, this._.context, this._.props.update, this._.upcount++);
+                scope(this, this._.context, this._.props.update, this._.upcount++);
             }
         }
     }
@@ -242,7 +221,7 @@ export class Unit {
             this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
-                Unit.scope.call(this, this._.context, this._.props.finalize);
+                scope(this, this._.context, this._.props.finalize);
             }
 
             this._.components.forEach((component) => {
@@ -286,110 +265,17 @@ export class Unit {
     // event 
     //----------------------------------------------------------------------------------------------------
 
-    static event = null;
-
-    static etypes = new MapSet();
-
     on(type, listener, options) {
-        if (isString(type) === false) {
-            error('unit on', 'The argument is invalid.', 'type');
-        } else if (isFunction(listener) === false) {
-            error('unit on', 'The argument is invalid.', 'listener');
-        } else {
-            type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-        }
-
-        function internal(type, listener) {
-            if (this._.listeners.has(type, listener) === false) {
-                const element = this.element;
-                const context = this._.context;
-                if (type[0] === '-' || type[0] === '+') {
-                    const execute = (...args) => {
-                        const eventbackup = Unit.event;
-                        Unit.event = { type };
-                        Unit.scope.call(this, context, listener, ...args);
-                        Unit.event = eventbackup;
-                    };
-                    this._.listeners.set(type, listener, [element, execute]);
-                } else {
-                    const execute = (...args) => {
-                        const eventbackup = Unit.event;
-                        Unit.event = { type: args[0]?.type ?? null };
-                        Unit.scope.call(this, context, listener, ...args);
-                        Unit.event = eventbackup;
-                    };
-                    this._.listeners.set(type, listener, [element, execute]);
-                    element.addEventListener(type, execute, options);
-                }
-            }
-            if (this._.listeners.has(type) === true) {
-                Unit.etypes.add(type, this);
-            }
-        }
+        EventController.on(this, type, listener, options);
     }
 
     off(type, listener) {
-        if (type !== undefined && isString(type) === false) {
-            error('unit off', 'The argument is invalid.', 'type');
-        } else if (listener !== undefined && isFunction(listener) === false) {
-            error('unit off', 'The argument is invalid.', 'listener');
-        } else if (isString(type) === true && listener !== undefined) {
-            type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-        } else if (isString(type) === true && listener === undefined) {
-            type.trim().split(/\s+/).forEach((type) => {
-                this._.listeners.get(type)?.forEach((_, listener) => internal.call(this, type, listener));
-            });
-        } else if (type === undefined) {
-            this._.listeners.forEach((map, type) => {
-                map.forEach((_, listener) => internal.call(this, type, listener));
-            });
-        }
-
-        function internal(type, listener) {
-            if (this._.listeners.has(type, listener) === true) {
-                const [element, execute] = this._.listeners.get(type, listener);
-                this._.listeners.delete(type, listener);
-                element.removeEventListener(type, execute);
-            }
-            if (this._.listeners.has(type) === false) {
-                Unit.etypes.delete(type, this);
-            }
-        }
+        EventController.off(this, type, listener);
     }
 
     emit(type, ...args) {
-        if (isString(type) === false) {
-            error('unit emit', 'The argument is invalid.', 'type');
-        } else if (this._.state === 'finalized') {
-            error('unit emit', 'This function can not be called after finalized.');
-        } else if (type[0] === '+') {
-            Unit.etypes.get(type)?.forEach((unit) => {
-                unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-            });
-        } else if (type[0] === '-') {
-            this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-        }
+        EventController.emit(this, type, ...args);
     }
-
-    //----------------------------------------------------------------------------------------------------
-    // context 
-    //----------------------------------------------------------------------------------------------------
-
-    static context(key, value = undefined) {
-        if (value !== undefined) {
-            this._.context = [this._.context, key, value];
-        } else {
-            let ret = undefined;
-            for (let context = this._.context; context !== null; context = context[0]) {
-                if (context[1] === key) {
-                    ret = context[2];
-                    break;
-                }
-            }
-            return ret;
-        }
-    }
-
 }
 Unit.reset();
 

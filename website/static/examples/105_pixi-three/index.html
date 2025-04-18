@@ -15,7 +15,6 @@
   <script>
     xnew('#main', (self) => {
       const oscanvas = new OffscreenCanvas(800, 400);
-      const screen = xnew(xnew.Screen, { width: 800, height: 400 });
 
       // three 
       xnew((self) => {
@@ -26,11 +25,8 @@
 
       // pixi
       xnew((self) => {
-        xpixi.setup({
-          renderer: PIXI.autoDetectRenderer({
-            width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
-          }) 
-        });
+        xnew(xnew.Screen, { width: 800, height: 400 });
+        xpixi.setup();
         xnew(TextureUpdate, PIXI.Texture.from(oscanvas));
         xnew(Boxes);
       });
