@@ -102,6 +102,14 @@
             }
         }
 
+        get(key) {
+            if (this.has(key) === false) {
+                return new Set();
+            } else {
+                return super.get(key);
+            }
+        }
+
         add(key, value) {
             if (this.has(key) === false) {
                 this.set(key, new Set());
@@ -197,6 +205,145 @@
         }
     }
 
+    // current scope
+    let current$1 = null;
+
+    function scope(unit, context, func, ...args) {
+        const stack = [current$1, unit?._.context];
+
+        try {
+            current$1 = unit;
+            if (unit && context !== undefined) {
+                unit._.context = context;
+            }
+            return func(...args);
+        } catch (error) {
+            throw error;
+        } finally {
+            current$1 = stack[0];
+            if (unit && context !== undefined) {
+                unit._.context = stack[1];
+            }
+        }
+    }
+
+    Object.defineProperty(scope, 'current', { enumerable: true, get: () => current$1 });
+
+    function promise(executor) {
+        return Unit.promise.call(scope.current, executor);
+    }
+
+    class ScopedPromise extends Promise {
+        then(callback) {
+            const [unit, context] = [scope.current, scope.current?._.context];
+            super.then((...args) => scope(unit, context, callback, ...args));
+            return this;
+        }
+
+        catch(callback) {
+            const [unit, context] = [scope.current, scope.current?._.context];
+            super.then((...args) => scope(unit, context, callback, ...args));
+            return this;
+        }
+
+        finally(callback) {
+            const [unit, context] = [scope.current, scope.current?._.context];
+            super.then((...args) => scope(unit, context, callback, ...args));
+            return this;
+        }
+    }
+
+    function event() {
+        return EventController.event;
+    }
+
+    class EventController {
+        static event = null;
+
+        static etypes = new MapSet();
+
+        static on(unit, type, listener, options) {
+            if (isString(type) === false) {
+                error('unit on', 'The argument is invalid.', 'type');
+            } else if (isFunction(listener) === false) {
+                error('unit on', 'The argument is invalid.', 'listener');
+            } else {
+                type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+            }
+
+            function internal(type, listener) {
+                if (unit._.listeners.has(type, listener) === false) {
+                    const element = unit.element;
+                    const context = unit._.context;
+                    if (type[0] === '-' || type[0] === '+') {
+                        const execute = (...args) => {
+                            const eventbackup = EventController.event;
+                            EventController.event = { type };
+                            scope(unit, context, listener, ...args);
+                            EventController.event = eventbackup;
+                        };
+                        unit._.listeners.set(type, listener, [element, execute]);
+                    } else {
+                        const execute = (...args) => {
+                            const eventbackup = EventController.event;
+                            EventController.event = { type: args[0]?.type ?? null };
+                            scope(unit, context, listener, ...args);
+                            EventController.event = eventbackup;
+                        };
+                        unit._.listeners.set(type, listener, [element, execute]);
+                        element.addEventListener(type, execute, options);
+                    }
+                }
+                if (unit._.listeners.has(type) === true) {
+                    EventController.etypes.add(type, unit);
+                }
+            }
+        }
+
+        static off(unit, type, listener) {
+            if (type !== undefined && isString(type) === false) {
+                error('unit off', 'The argument is invalid.', 'type');
+            } else if (listener !== undefined && isFunction(listener) === false) {
+                error('unit off', 'The argument is invalid.', 'listener');
+            } else if (isString(type) === true && listener !== undefined) {
+                type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+            } else if (isString(type) === true && listener === undefined) {
+                type.trim().split(/\s+/).forEach((type) => {
+                    unit._.listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
+                });
+            } else if (type === undefined) {
+                unit._.listeners.forEach((map, type) => {
+                    map.forEach((_, listener) => internal.call(unit, type, listener));
+                });
+            }
+
+            function internal(type, listener) {
+                if (unit._.listeners.has(type, listener) === true) {
+                    const [element, execute] = unit._.listeners.get(type, listener);
+                    unit._.listeners.delete(type, listener);
+                    element.removeEventListener(type, execute);
+                }
+                if (unit._.listeners.has(type) === false) {
+                    EventController.etypes.delete(type, unit);
+                }
+            }
+        }
+
+        static emit(unit, type, ...args) {
+            if (isString(type) === false) {
+                error('unit emit', 'The argument is invalid.', 'type');
+            } else if (unit._.state === 'finalized') {
+                error('unit emit', 'This function can not be called after finalized.');
+            } else if (type[0] === '+') {
+                EventController.etypes.get(type)?.forEach((unit) => {
+                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+                });
+            } else if (type[0] === '-') {
+                unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+            }
+        }
+    }
+
     class Unit {
         static roots = new Set();   // root units
 
@@ -241,7 +388,7 @@
 
         get promise() {
             const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
-            return new UnitPromise((resolve, reject) => {
+            return new ScopedPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
             });
         }
@@ -269,27 +416,6 @@
             Unit.stop.call(this);
             Unit.finalize.call(this);
             Unit.initialize.call(this, ...this._.componentArgs);
-        }
-
-        // current unit scope
-        static current = null;
-
-        static scope(context, func, ...args) {
-            const stack = [Unit.current, this?._.context];
-            try {
-                Unit.current = this;
-                if (this && context !== undefined) {
-                    this._.context = context;
-                }
-                return func(...args);
-            } catch (error) {
-                throw error;
-            } finally {
-                Unit.current = stack[0];
-                if (this && context !== undefined) {
-                    this._.context = stack[1];
-                }
-            }
         }
 
         static nest(attributes) {
@@ -326,9 +452,7 @@
 
                 // setup component
                 if (isFunction(component) === true) {
-                    Unit.scope.call(this, undefined, () => {
-                        Unit.extend.call(this, component, ...args);
-                    });
+                    scope(this, undefined, () => Unit.extend.call(this, component, ...args));
                 } else if (isObject(this._.target) === true && isString(component) === true) {
                     this.element.innerHTML = component;
                 }
@@ -363,15 +487,15 @@
                     const dest = { configurable: true, enumerable: true };
                     const context = this._.context;
                     if (isFunction(descripter.value) === true) {
-                        dest.value = (...args) => Unit.scope.call(this, context, descripter.value, ...args);
+                        dest.value = (...args) => scope(this, context, descripter.value, ...args);
                     } else if (descripter.value !== undefined) {
                         dest.value = descripter.value;
                     }
                     if (isFunction(descripter.get) === true) {
-                        dest.get = (...args) => Unit.scope.call(this, context, descripter.get, ...args);
+                        dest.get = (...args) => scope(this, context, descripter.get, ...args);
                     }
                     if (isFunction(descripter.set) === true) {
-                        dest.set = (...args) => Unit.scope.call(this, context, descripter.set, ...args);
+                        dest.set = (...args) => scope(this, context, descripter.set, ...args);
                     }
                     Object.defineProperty(this._.props, key, dest);
                     Object.defineProperty(this, key, dest);
@@ -383,11 +507,11 @@
 
         static promise(promise) {
             if (promise instanceof Promise) {
-                const unitpromise = new UnitPromise((resolve, reject) => {
+                const scopedpromise = new ScopedPromise((resolve, reject) => {
                     promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
                 });
                 this._.promises.push(promise);
-                return unitpromise;
+                return scopedpromise;
             } else {
                 error('unit promise', 'The property is invalid.', promise);
             }
@@ -398,7 +522,7 @@
                 this._.state = 'running';
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
                 if (isFunction(this._.props.start) === true) {
-                    Unit.scope.call(this, this._.context, this._.props.start);
+                    scope(this, this._.context, this._.props.start);
                 }
             } else if (['running'].includes(this._.state) === true) {
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -411,7 +535,7 @@
                 this._.children.forEach((unit) => Unit.stop.call(unit));
 
                 if (isFunction(this._.props.stop)) {
-                    Unit.scope.call(this, this._.context, this._.props.stop);
+                    scope(this, this._.context, this._.props.stop);
                 }
             }
         }
@@ -421,7 +545,7 @@
                 this._.children.forEach((unit) => Unit.update.call(unit, time));
 
                 if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                    Unit.scope.call(this, this._.context, this._.props.update, this._.upcount++);
+                    scope(this, this._.context, this._.props.update, this._.upcount++);
                 }
             }
         }
@@ -434,7 +558,7 @@
                 this._.children.clear();
 
                 if (isFunction(this._.props.finalize)) {
-                    Unit.scope.call(this, this._.context, this._.props.finalize);
+                    scope(this, this._.context, this._.props.finalize);
                 }
 
                 this._.components.forEach((component) => {
@@ -478,145 +602,19 @@
         // event 
         //----------------------------------------------------------------------------------------------------
 
-        static event = null;
-
-        static etypes = new MapSet();
-
         on(type, listener, options) {
-            if (isString(type) === false) {
-                error('unit on', 'The argument is invalid.', 'type');
-            } else if (isFunction(listener) === false) {
-                error('unit on', 'The argument is invalid.', 'listener');
-            } else {
-                type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-            }
-
-            function internal(type, listener) {
-                if (this._.listeners.has(type, listener) === false) {
-                    const element = this.element;
-                    const context = this._.context;
-                    if (type[0] === '-' || type[0] === '+') {
-                        const execute = (...args) => {
-                            const eventbackup = Unit.event;
-                            Unit.event = { type };
-                            Unit.scope.call(this, context, listener, ...args);
-                            Unit.event = eventbackup;
-                        };
-                        this._.listeners.set(type, listener, [element, execute]);
-                    } else {
-                        const execute = (...args) => {
-                            const eventbackup = Unit.event;
-                            Unit.event = { type: args[0]?.type ?? null };
-                            Unit.scope.call(this, context, listener, ...args);
-                            Unit.event = eventbackup;
-                        };
-                        this._.listeners.set(type, listener, [element, execute]);
-                        element.addEventListener(type, execute, options);
-                    }
-                }
-                if (this._.listeners.has(type) === true) {
-                    Unit.etypes.add(type, this);
-                }
-            }
+            EventController.on(this, type, listener, options);
         }
 
         off(type, listener) {
-            if (type !== undefined && isString(type) === false) {
-                error('unit off', 'The argument is invalid.', 'type');
-            } else if (listener !== undefined && isFunction(listener) === false) {
-                error('unit off', 'The argument is invalid.', 'listener');
-            } else if (isString(type) === true && listener !== undefined) {
-                type.trim().split(/\s+/).forEach((type) => internal.call(this, type, listener));
-            } else if (isString(type) === true && listener === undefined) {
-                type.trim().split(/\s+/).forEach((type) => {
-                    this._.listeners.get(type)?.forEach((_, listener) => internal.call(this, type, listener));
-                });
-            } else if (type === undefined) {
-                this._.listeners.forEach((map, type) => {
-                    map.forEach((_, listener) => internal.call(this, type, listener));
-                });
-            }
-
-            function internal(type, listener) {
-                if (this._.listeners.has(type, listener) === true) {
-                    const [element, execute] = this._.listeners.get(type, listener);
-                    this._.listeners.delete(type, listener);
-                    element.removeEventListener(type, execute);
-                }
-                if (this._.listeners.has(type) === false) {
-                    Unit.etypes.delete(type, this);
-                }
-            }
+            EventController.off(this, type, listener);
         }
 
         emit(type, ...args) {
-            if (isString(type) === false) {
-                error('unit emit', 'The argument is invalid.', 'type');
-            } else if (this._.state === 'finalized') {
-                error('unit emit', 'This function can not be called after finalized.');
-            } else if (type[0] === '+') {
-                Unit.etypes.get(type)?.forEach((unit) => {
-                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-                });
-            } else if (type[0] === '-') {
-                this._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-            }
-        }
-
-        //----------------------------------------------------------------------------------------------------
-        // context 
-        //----------------------------------------------------------------------------------------------------
-
-        static context(key, value = undefined) {
-            if (value !== undefined) {
-                this._.context = [this._.context, key, value];
-            } else {
-                let ret = undefined;
-                for (let context = this._.context; context !== null; context = context[0]) {
-                    if (context[1] === key) {
-                        ret = context[2];
-                        break;
-                    }
-                }
-                return ret;
-            }
-        }
-
-        //----------------------------------------------------------------------------------------------------
-        // find 
-        //----------------------------------------------------------------------------------------------------
-
-        static find(component) {
-            const set = new Set();
-            Unit.components.get(component)?.forEach((unit) => set.add(unit));
-            return [...set];
+            EventController.emit(this, type, ...args);
         }
     }
     Unit.reset();
-
-    class UnitPromise extends Promise {
-        then(callback) {
-            const [unit, context] = [Unit.current, Unit.current?._.context];
-            super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
-            return this;
-        }
-
-        catch(callback) {
-            const [unit, context] = [Unit.current, Unit.current?._.context];
-            super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
-            return this;
-        }
-
-        finally(callback) {
-            const [unit, context] = [Unit.current, Unit.current?._.context];
-            super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
-            return this;
-        }
-    }
-
-    //----------------------------------------------------------------------------------------------------
-    // timer
-    //----------------------------------------------------------------------------------------------------
 
     class Timer {
         constructor({ timeout, finalize = null, delay = 0, loop = false }) {
@@ -697,11 +695,11 @@
     function timer(callback, delay) {
         let finalizer = null;
 
-        const current = Unit.current;
+        const current = scope.current;
         const context = current?._.context;
         const timer = new Timer({
             timeout: () => {
-                Unit.scope.call(current, context, callback);
+                scope(current, context, callback);
             },
             finalize: () => finalizer.finalize(),
             delay,
@@ -709,7 +707,7 @@
 
         timer.start();
 
-        finalizer = xnew((self) => {
+        finalizer = new Unit(current, undefined, (self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -723,10 +721,10 @@
     function interval(callback, delay) {
         let finalizer = null;
 
-        const current = Unit.current;
+        const current = scope.current;
         const context = current._.context;
         const timer = new Timer({
-            timeout: () => Unit.scope.call(current, context, callback),
+            timeout: () => scope(current, context, callback),
             finalize: () => finalizer.finalize(),
             delay,
             loop: true,
@@ -734,7 +732,7 @@
 
         timer.start();
 
-        finalizer = xnew((self) => {
+        finalizer = new Unit(current, undefined, (self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -749,10 +747,10 @@
         let finalizer = null;
         let updater = null;
 
-        const current = Unit.current;
+        const current = scope.current;
         const context = current._.context;
         const timer = new Timer({
-            timeout: () => Unit.scope.call(current, context, callback, { progress: 1.0 }),
+            timeout: () => scope(current, context, callback, { progress: 1.0 }),
             finalize: () => finalizer.finalize(),
             delay: interval,
         });
@@ -762,20 +760,20 @@
 
         timer.start();
 
-        Unit.scope.call(current, context, callback, { progress: 0.0 });
+        scope(current, context, callback, { progress: 0.0 });
 
-        updater = xnew(null, (self) => {
+        updater = new Unit(null, undefined, (self) => {
             return {
                 update() {
                     const progress = timer.elapsed() / interval;
                     if (progress < 1.0) {
-                        Unit.scope.call(current, context, callback, { progress });
+                        scope(current, context, callback, { progress });
                     }
                 },
             }
         });
 
-        finalizer = xnew((self) => {
+        finalizer = new Unit(current, undefined, (self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -787,7 +785,56 @@
         return { clear };
     }
 
-    function xnew$1(...args) {
+    function find(...args) {
+        // current Unit
+        let current = null;
+        if (args[0] === null || args[0] instanceof Unit) {
+            current = args.shift();
+        }
+        const component = args[0];
+
+        if (isFunction(component) === false) {
+            error('xnew.find', 'The argument is invalid.', 'component');
+        } else if (isFunction(component) === true) {
+            if (current !== null) {
+                return [...Unit.components.get(component)].filter((unit) => {
+                    let temp = unit;
+                    while (temp !== null) {
+                        if (temp === current) {
+                            return true;
+                        } else {
+                            temp = temp.parent;
+                        }
+                    }
+                    return false;
+                });
+            } else {
+                return [...Unit.components.get(component)];
+            }
+        }
+    }
+
+    function context(key, value = undefined) {
+        if (isString(key) === false) {
+            error('context', 'The argument is invalid.', 'key');
+        } else {
+            const unit = scope.current;
+            if (value !== undefined) {
+                unit._.context = [unit._.context, key, value];
+            } else {
+                let ret = undefined;
+                for (let context = unit._.context; context !== null; context = context[0]) {
+                    if (context[1] === key) {
+                        ret = context[2];
+                        break;
+                    }
+                }
+                return ret;
+            }
+        }
+    }
+
+    function xnew(...args) {
         // parent Unit
         let parent = undefined;
         if (isFunction(args[0]) === false && args[0] instanceof Unit) {
@@ -796,9 +843,9 @@
             parent = args.shift();
         } else if (args[0] === undefined) {
             parent = args.shift();
-            parent = Unit.current;
+            parent = scope.current;
         } else {
-            parent = Unit.current;
+            parent = scope.current;
         }
 
         // input target
@@ -830,74 +877,57 @@
         }
     }
 
-    Object.defineProperty(xnew$1, 'nest', { enumerable: true, value: nest });
-    Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: extend });
-    Object.defineProperty(xnew$1, 'context', { enumerable: true, value: context });
-    Object.defineProperty(xnew$1, 'promise', { enumerable: true, value: promise });
-    Object.defineProperty(xnew$1, 'find', { enumerable: true, value: find });
-    Object.defineProperty(xnew$1, 'event', { enumerable: true, get: event });
+    Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
+    Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 
-    Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: timer });
-    Object.defineProperty(xnew$1, 'interval', { enumerable: true, value: interval });
-    Object.defineProperty(xnew$1, 'transition', { enumerable: true, value: transition });
+    Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
+    Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
+    Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
+    Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
+    Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
+
+    Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
+    Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
+    Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
+
 
     function nest(attributes) {
-        if (Unit.current.element instanceof Window || Unit.current.element instanceof Document) {
+        if (scope.current.element instanceof Window || scope.current.element instanceof Document) {
             error('xnew.nest', 'No elements are added to window or document.');
         } else if (isObject(attributes) === false) {
             error('xnew.nest', 'The argument is invalid.', 'attributes');
-        } else if (Unit.current._.state !== 'pending') {
+        } else if (scope.current._.state !== 'pending') {
             error('xnew.nest', 'This function can not be called after initialized.');
         } else {
-            return Unit.nest.call(Unit.current, attributes);
+            return Unit.nest.call(scope.current, attributes);
         }
     }
 
     function extend(component, ...args) {
         if (isFunction(component) === false) {
             error('xnew.extend', 'The argument is invalid.', 'component');
-        } else if (Unit.current._.state !== 'pending') {
+        } else if (scope.current._.state !== 'pending') {
             error('xnew.extend', 'This function can not be called after initialized.');
-        } else if (Unit.current._.components.has(component) === true) {
-            return Unit.extend.call(Unit.current, component, ...args);
+        } else if (scope.current._.components.has(component) === true) {
+            return Unit.extend.call(scope.current, component, ...args);
         } else {
-            return Unit.extend.call(Unit.current, component, ...args);
+            return Unit.extend.call(scope.current, component, ...args);
         }
     }
 
-    function context(key, value) {
-        if (isString(key) === false) {
-            error('xnew.context', 'The argument is invalid.', 'key');
-        } else {
-            return Unit.context.call(Unit.current, key, value);
-        }
-    }
-
-    function find(component) {
-        if (isFunction(component) === false) {
-            error('xnew.find', 'The argument is invalid.', 'component');
-        } else if (isFunction(component) === true) {
-            return Unit.find.call(Unit.current, component);
-        }
-    }
-
-    function event() {
-        return Unit.event;
-    }
-
-    function promise(executor) {
-        return Unit.promise.call(Unit.current, executor);
+    function current() {
+        return scope.current;
     }
 
     function DragEvent(self)
     {
-        xnew$1().on('pointerdown', (event) => {
+        xnew().on('pointerdown', (event) => {
             const id = event.pointerId;
             const rect = self.element.getBoundingClientRect();
             const position = getPosition(event, rect);
             let previous = position;
            
-            const win = xnew$1(window);
+            const win = xnew(window);
 
             win.on('pointermove', (event) => {
                 if (event.pointerId === id) {
@@ -932,7 +962,7 @@
 
     function GestureEvent(self)
     {
-        const drag = xnew$1(DragEvent);
+        const drag = xnew(DragEvent);
 
         let isActive = false;
         const map = new Map();
@@ -1007,19 +1037,19 @@
     }
 
     function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
-        const wrapper = xnew$1.nest({
+        const wrapper = xnew.nest({
             style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
         });
-        const absolute = xnew$1.nest({
+        const absolute = xnew.nest({
             style: { position: 'absolute', margin: 'auto' } 
         });
 
-        const canvas = xnew$1({
+        const canvas = xnew({
             tagName: 'canvas', width, height,
             style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
         });
-        
-        const observer = xnew$1(wrapper, ResizeEvent);
+
+        const observer = xnew(wrapper, ResizeEvent);
         observer.on('-resize', resize);
         resize();
 
@@ -1060,26 +1090,26 @@
     }
 
     function Modal(self, {} = {}) {
-        xnew$1.nest({
+        xnew.nest({
             style: {
                 position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             },
         });
         
-        xnew$1().on('click', () => {
+        xnew().on('click', () => {
             self.close();
         });
 
-        xnew$1.nest({});
+        xnew.nest({});
 
-        xnew$1().on('click', (event) => {
+        xnew().on('click', (event) => {
             event.stopPropagation(); 
         });
     }
 
     function Keyboard(self)
     {
-        const win = xnew$1(window);
+        const win = xnew(window);
         const state = {};
 
         win.on('keydown', (event) => {
@@ -1128,13 +1158,13 @@
         // };
     }
 
-    Object.defineProperty(xnew$1, 'Screen', { enumerable: true, value: Screen });
-    Object.defineProperty(xnew$1, 'DragEvent', { enumerable: true, value: DragEvent });
-    Object.defineProperty(xnew$1, 'GestureEvent', { enumerable: true, value: GestureEvent });
-    Object.defineProperty(xnew$1, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
-    Object.defineProperty(xnew$1, 'Modal', { enumerable: true, value: Modal });
-    Object.defineProperty(xnew$1, 'Keyboard', { enumerable: true, value: Keyboard });
+    Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
+    Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
+    Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
+    Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
+    Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
+    Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });
 
-    return xnew$1;
+    return xnew;
 
 }));
