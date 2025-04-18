@@ -11,6 +11,14 @@ export class MapSet extends Map {
         }
     }
 
+    get(key) {
+        if (this.has(key) === false) {
+            return new Set();
+        } else {
+            return super.get(key);
+        }
+    }
+
     add(key, value) {
         if (this.has(key) === false) {
             this.set(key, new Set());

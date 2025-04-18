@@ -2,6 +2,7 @@ import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { createElement } from './element';
 import { MapSet, MapMap } from './map';
 import { Ticker } from './ticker';
+import { ScopedPromise } from './promise';
 
 export class Unit {
     static roots = new Set();   // root units
@@ -47,7 +48,7 @@ export class Unit {
 
     get promise() {
         const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
-        return new UnitPromise((resolve, reject) => {
+        return new ScopedPromise((resolve, reject) => {
             promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
         });
     }
@@ -189,11 +190,11 @@ export class Unit {
 
     static promise(promise) {
         if (promise instanceof Promise) {
-            const unitpromise = new UnitPromise((resolve, reject) => {
+            const scopedpromise = new ScopedPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
             });
             this._.promises.push(promise);
-            return unitpromise;
+            return scopedpromise;
         } else {
             error('unit promise', 'The property is invalid.', promise);
         }
@@ -389,34 +390,6 @@ export class Unit {
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // find 
-    //----------------------------------------------------------------------------------------------------
-
-    static find(component) {
-        const set = new Set();
-        Unit.components.get(component)?.forEach((unit) => set.add(unit));
-        return [...set];
-    }
 }
 Unit.reset();
 
-class UnitPromise extends Promise {
-    then(callback) {
-        const [unit, context] = [Unit.current, Unit.current?._.context];
-        super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
-        return this;
-    }
-
-    catch(callback) {
-        const [unit, context] = [Unit.current, Unit.current?._.context];
-        super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
-        return this;
-    }
-
-    finally(callback) {
-        const [unit, context] = [Unit.current, Unit.current?._.context];
-        super.then((...args) => Unit.scope.call(unit, context, callback, ...args));
-        return this;
-    }
-}

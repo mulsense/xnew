@@ -9,8 +9,8 @@ Object.defineProperty(xpixi, 'renderer', { enumerable: true, get: renderer });
 Object.defineProperty(xpixi, 'scene', { enumerable: true, get: scene });
 Object.defineProperty(xpixi, 'nest', { enumerable: true, value: nest });
 
-function setup({ renderer = null, camera = null }) {
-    xnew.extend(Root, { renderer, camera });
+function setup({ renderer = null } = {}) {
+    xnew.extend(Root, { renderer });
 }
 
 function renderer() {
@@ -26,13 +26,28 @@ function nest(object) {
     return object;
 }
 
-function Root(self, { renderer = null }) {
+function Root(self, { renderer }) {
     const root = {};
     xnew.context('xpixi.root', root);
-
+    
+    if (renderer === null) {
+        let root = xnew.current;
+        while (root?.parent) {
+            root = root.parent;
+        }
+        const screens = xnew.find(root, xnew.Screen);
+        if (screens.length > 0) {
+            const screen = screens.slice(-1)[0]; // last screen
+            renderer = PIXI.autoDetectRenderer({
+                width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
+            });
+        } else {
+            renderer = PIXI.autoDetectRenderer({});
+        }
+    }
     root.renderer = null;
+
     let promise = null;
-    renderer = renderer ?? PIXI.autoDetectRenderer({});
     if (renderer instanceof Promise) {
         promise = renderer.then((renderer) => {
             root.renderer = renderer;
@@ -40,6 +55,7 @@ function Root(self, { renderer = null }) {
         });
         xnew.promise(promise);
     }
+
     root.scene = new PIXI.Container();
     xnew.extend(Connect, root.scene);
     return {

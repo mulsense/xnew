@@ -8,10 +8,9 @@
   <script src="../../dist/addons/xaudio.js"></script>
 </head>
 
-<body style="margin: 0; height: 100vh; margin: 8px;">
-  <div id="main" style="width: 100%; height: 100%; margin: 8px;"></div>
+<body>
   <script>
-    xnew('#main', (self) => {
+    xnew((self) => {
       xnew(Keyboard);
       xnew(CodeBlock);
       xnew({ style: { display: 'flex', margin: '12px 0' }}, () => {
@@ -23,7 +22,7 @@
     });
   
     function Keyboard() {
-      xnew.nest({ style: { margin: '8px 0', display: 'flex' }});
+      xnew.nest({ style: { display: 'flex' }});
       for (let i = 2; i < 6; i++) {
         xnew(Keyset, i);
       }
@@ -251,7 +250,7 @@
     function Slider(self, { name, value, max, min, step }) {
       xnew({ tagName: 'span' }, name);
       xnew.nest({ style: { display: 'flex', alignItems: 'center' }});
-      const input = xnew({ tagName: 'input', type: 'range',  style: 'width: 120px;', min: `${min}`, max: `${max}`, step: `${step}`, value });
+      const input = xnew({ tagName: 'input', type: 'range', style: { width: '120px' }, min, max, step, value });
       const span = xnew({ tagName: 'span' }, `${value}`);
       input.on('change input', () => span.element.textContent = input.element.value);
       return {
@@ -290,18 +289,18 @@
     }
 
     function Check(self, name, checkable = false) {
-      const header = xnew({});
-      xnew(header, { tagName: 'span', style: 'font-size: 1.2em;' }, name);
-
-      xnew.nest({ style: checkable ? 'display: none;' : ''});
+      xnew.nest({});
+      xnew({ tagName: 'span', style: { fontSize: '1.2em' } }, name);
       let check = null;
 
       if (checkable) {
-        check = xnew(header, { tagName: 'input', type: 'checkbox', checked: false });
+        check = xnew({ tagName: 'input', type: 'checkbox', checked: false });
         check.on('change', () => {
           self.element.style.display = check.element.checked ? 'block' : 'none';
         })
       }
+
+      xnew.nest({ style: checkable ? { display: 'none' } : {}});
       return {
         get checked() { return check ? check.element.checked : true; },
       }

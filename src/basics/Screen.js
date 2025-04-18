@@ -13,7 +13,7 @@ export function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}
         tagName: 'canvas', width, height,
         style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
     });
-    
+
     const observer = xnew(wrapper, ResizeEvent);
     observer.on('-resize', resize);
     resize();
