@@ -57,7 +57,7 @@ Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => scope.current });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -81,13 +81,7 @@ function extend(component, ...args) {
         error('xnew.extend', 'The argument is invalid.', 'component');
     } else if (scope.current._.state !== 'pending') {
         error('xnew.extend', 'This function can not be called after initialized.');
-    } else if (scope.current._.components.has(component) === true) {
-        return Unit.extend.call(scope.current, component, ...args);
-    } else {
+    }  else {
         return Unit.extend.call(scope.current, component, ...args);
     }
-}
-
-function current() {
-    return scope.current;
 }

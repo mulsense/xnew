@@ -3,8 +3,9 @@ import { createElement } from './element';
 import { MapSet, MapMap } from './map';
 import { Ticker } from './ticker';
 import { ScopedPromise } from './promise';
-import { EventController } from './event';
+import { event } from './event';
 import { scope } from './scope';
+import { find } from './find';
 
 export class Unit {
     static roots = new Set();   // root units
@@ -98,7 +99,6 @@ export class Unit {
             resolved: false,                // promise check
             listeners: new MapMap(),        // event listners
             context: this._.baseContext,    // context
-            components: new Set(),          // components functions
             props: {},                      // properties in the component function
         });
 
@@ -124,11 +124,8 @@ export class Unit {
         }
     }
 
-    static components = new MapSet();
-
     static extend(component, ...args) {
-        this._.components.add(component);
-        Unit.components.add(component, this);
+        find.add(this, component);
 
         const props = component(this, ...args) ?? {};
 
@@ -223,11 +220,7 @@ export class Unit {
             if (isFunction(this._.props.finalize)) {
                 scope(this, this._.context, this._.props.finalize);
             }
-
-            this._.components.forEach((component) => {
-                Unit.components.delete(component, this);
-            });
-            this._.components.clear();
+            find.remove(this);
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
@@ -266,15 +259,15 @@ export class Unit {
     //----------------------------------------------------------------------------------------------------
 
     on(type, listener, options) {
-        EventController.on(this, type, listener, options);
+        event.on(this, type, listener, options);
     }
 
     off(type, listener) {
-        EventController.off(this, type, listener);
+        event.off(this, type, listener);
     }
 
     emit(type, ...args) {
-        EventController.emit(this, type, ...args);
+        event.emit(this, type, ...args);
     }
 }
 Unit.reset();

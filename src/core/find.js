@@ -1,6 +1,10 @@
 
 import { isObject, isString, isFunction, error } from '../common';
+import { MapSet, MapMap } from './map';
 import { Unit } from './unit';
+
+let componentToUnits = new MapSet();
+let unitToComponents = new MapSet();
 
 export function find(...args) {
     // current Unit
@@ -14,7 +18,7 @@ export function find(...args) {
         error('xnew.find', 'The argument is invalid.', 'component');
     } else if (isFunction(component) === true) {
         if (current !== null) {
-            return [...Unit.components.get(component)].filter((unit) => {
+            return [...componentToUnits.get(component)].filter((unit) => {
                 let temp = unit;
                 while (temp !== null) {
                     if (temp === current) {
@@ -26,7 +30,22 @@ export function find(...args) {
                 return false;
             });
         } else {
-            return [...Unit.components.get(component)];
+            return [...componentToUnits.get(component)];
         }
     }
+}
+
+Object.defineProperty(find, 'add', { enumerable: true, value: add });
+Object.defineProperty(find, 'remove', { enumerable: true, value: remove });
+
+function add(unit, component) {
+    unitToComponents.add(unit, component);
+    componentToUnits.add(component, unit);
+}
+
+function remove(unit) {
+    unitToComponents.get(unit).forEach((component) => {
+        componentToUnits.delete(component, unit);
+    });
+    unitToComponents.delete(unit);
 }
