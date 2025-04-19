@@ -52,5 +52,11 @@ export function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}
             canvas.element.height = height;
             resize();
         },
+        get scale() {
+            return {
+                x: canvas.element.width / canvas.element.clientWidth,
+                y: canvas.element.height / canvas.element.clientHeight
+            };
+        }
     }
 }
