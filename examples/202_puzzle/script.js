@@ -39,7 +39,7 @@ function GameScene(self) {
   xnew(Cursor, list);
 
   self.on('+addball', ({ x, y, hue, score }) => {
-    xnew(ColorBall, { x, y, r: 26 + 8 * score, hue, score });
+    xnew(ColorBall, { x, y, r: 26 + 6 * score, hue, score });
   });
 
   self.on('+gameover', () => {
@@ -53,7 +53,6 @@ function GameScene(self) {
   });
 }
 function Queue(self, list) {
-  const pobject = xpixi.nest(new PIXI.Container());
   for(let i = 0; i < 4; i++) {
     list.push(Math.random() * Math.PI * 2);
   }
@@ -245,20 +244,20 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, isStatic = false } = {}
 }
 
 function Circle(self, { x, y, r, color = 0xFFFFFF, isStatic = false } = {}) {
-  const mobject = xmatter.nest(Matter.Bodies.circle(x, y, r, { isStatic }));
-  const pobject = xpixi.nest(new PIXI.Container());
-  pobject.position.set(x, y);
-  pobject.addChild(new PIXI.Graphics().circle(0, 0, r).fill(color));
+  const matter = xmatter.nest(Matter.Bodies.circle(x, y, r, { isStatic }));
+  const object = xpixi.nest(new PIXI.Container());
+  object.position.set(x, y);
+  object.addChild(new PIXI.Graphics().circle(0, 0, r).fill(color));
   return {
     update() {
-      pobject.rotation = mobject.angle;
-      pobject.position.set(mobject.position.x, mobject.position.y);
+      object.rotation = matter.angle;
+      object.position.set(matter.position.x, matter.position.y);
     },
     get pobject() {
-      return pobject;
+      return object;
     },
     get mobject() {
-      return mobject;
+      return matter;
     },
   };
 }
