@@ -9,7 +9,7 @@ Object.defineProperty(xmatter, 'render', { enumerable: true, get: render });
 Object.defineProperty(xmatter, 'engine', { enumerable: true, get: engine });
 Object.defineProperty(xmatter, 'nest', { enumerable: true, value: nest });
 
-function setup({ engine = null, render = null }) {
+function setup({ engine = null, render = null } = {}) {
     xnew.extend(Root, { engine, render });
 }
 
