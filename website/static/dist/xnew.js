@@ -206,13 +206,13 @@
     }
 
     // current scope
-    let current$1 = null;
+    let current = null;
 
     function scope(unit, context, func, ...args) {
-        const stack = [current$1, unit?._.context];
+        const stack = [current, unit?._.context];
 
         try {
-            current$1 = unit;
+            current = unit;
             if (unit && context !== undefined) {
                 unit._.context = context;
             }
@@ -220,14 +220,14 @@
         } catch (error) {
             throw error;
         } finally {
-            current$1 = stack[0];
+            current = stack[0];
             if (unit && context !== undefined) {
                 unit._.context = stack[1];
             }
         }
     }
 
-    Object.defineProperty(scope, 'current', { enumerable: true, get: () => current$1 });
+    Object.defineProperty(scope, 'current', { enumerable: true, get: () => current });
 
     function promise(executor) {
         return Unit.promise.call(scope.current, executor);
@@ -253,95 +253,144 @@
         }
     }
 
+    let etypes = new MapSet();
+
     function event() {
         return EventController.event;
     }
-
     class EventController {
         static event = null;
+    }
+    Object.defineProperty(event, 'on', { enumerable: true, value: on });
+    Object.defineProperty(event, 'off', { enumerable: true, value: off });
+    Object.defineProperty(event, 'emit', { enumerable: true, value: emit });
 
-        static etypes = new MapSet();
-
-        static on(unit, type, listener, options) {
-            if (isString(type) === false) {
-                error('unit on', 'The argument is invalid.', 'type');
-            } else if (isFunction(listener) === false) {
-                error('unit on', 'The argument is invalid.', 'listener');
-            } else {
-                type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
-            }
-
-            function internal(type, listener) {
-                if (unit._.listeners.has(type, listener) === false) {
-                    const element = unit.element;
-                    const context = unit._.context;
-                    if (type[0] === '-' || type[0] === '+') {
-                        const execute = (...args) => {
-                            const eventbackup = EventController.event;
-                            EventController.event = { type };
-                            scope(unit, context, listener, ...args);
-                            EventController.event = eventbackup;
-                        };
-                        unit._.listeners.set(type, listener, [element, execute]);
-                    } else {
-                        const execute = (...args) => {
-                            const eventbackup = EventController.event;
-                            EventController.event = { type: args[0]?.type ?? null };
-                            scope(unit, context, listener, ...args);
-                            EventController.event = eventbackup;
-                        };
-                        unit._.listeners.set(type, listener, [element, execute]);
-                        element.addEventListener(type, execute, options);
-                    }
-                }
-                if (unit._.listeners.has(type) === true) {
-                    EventController.etypes.add(type, unit);
-                }
-            }
+    function on(unit, type, listener, options) {
+        if (isString(type) === false) {
+            error('unit on', 'The argument is invalid.', 'type');
+        } else if (isFunction(listener) === false) {
+            error('unit on', 'The argument is invalid.', 'listener');
+        } else {
+            type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
         }
 
-        static off(unit, type, listener) {
-            if (type !== undefined && isString(type) === false) {
-                error('unit off', 'The argument is invalid.', 'type');
-            } else if (listener !== undefined && isFunction(listener) === false) {
-                error('unit off', 'The argument is invalid.', 'listener');
-            } else if (isString(type) === true && listener !== undefined) {
-                type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
-            } else if (isString(type) === true && listener === undefined) {
-                type.trim().split(/\s+/).forEach((type) => {
-                    unit._.listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
-                });
-            } else if (type === undefined) {
-                unit._.listeners.forEach((map, type) => {
-                    map.forEach((_, listener) => internal.call(unit, type, listener));
-                });
+        function internal(type, listener) {
+            if (unit._.listeners.has(type, listener) === false) {
+                const element = unit.element;
+                const context = unit._.context;
+                if (type[0] === '-' || type[0] === '+') {
+                    const execute = (...args) => {
+                        const eventbackup = EventController.event;
+                        EventController.event = { type };
+                        scope(unit, context, listener, ...args);
+                        EventController.event = eventbackup;
+                    };
+                    unit._.listeners.set(type, listener, [element, execute]);
+                } else {
+                    const execute = (...args) => {
+                        const eventbackup = EventController.event;
+                        EventController.event = { type: args[0]?.type ?? null };
+                        scope(unit, context, listener, ...args);
+                        EventController.event = eventbackup;
+                    };
+                    unit._.listeners.set(type, listener, [element, execute]);
+                    element.addEventListener(type, execute, options);
+                }
             }
-
-            function internal(type, listener) {
-                if (unit._.listeners.has(type, listener) === true) {
-                    const [element, execute] = unit._.listeners.get(type, listener);
-                    unit._.listeners.delete(type, listener);
-                    element.removeEventListener(type, execute);
-                }
-                if (unit._.listeners.has(type) === false) {
-                    EventController.etypes.delete(type, unit);
-                }
+            if (unit._.listeners.has(type) === true) {
+                etypes.add(type, unit);
             }
         }
+    }
 
-        static emit(unit, type, ...args) {
-            if (isString(type) === false) {
-                error('unit emit', 'The argument is invalid.', 'type');
-            } else if (unit._.state === 'finalized') {
-                error('unit emit', 'This function can not be called after finalized.');
-            } else if (type[0] === '+') {
-                EventController.etypes.get(type)?.forEach((unit) => {
-                    unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-                });
-            } else if (type[0] === '-') {
+    function off(unit, type, listener) {
+        if (type !== undefined && isString(type) === false) {
+            error('unit off', 'The argument is invalid.', 'type');
+        } else if (listener !== undefined && isFunction(listener) === false) {
+            error('unit off', 'The argument is invalid.', 'listener');
+        } else if (isString(type) === true && listener !== undefined) {
+            type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+        } else if (isString(type) === true && listener === undefined) {
+            type.trim().split(/\s+/).forEach((type) => {
+                unit._.listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
+            });
+        } else if (type === undefined) {
+            unit._.listeners.forEach((map, type) => {
+                map.forEach((_, listener) => internal.call(unit, type, listener));
+            });
+        }
+
+        function internal(type, listener) {
+            if (unit._.listeners.has(type, listener) === true) {
+                const [element, execute] = unit._.listeners.get(type, listener);
+                unit._.listeners.delete(type, listener);
+                element.removeEventListener(type, execute);
+            }
+            if (unit._.listeners.has(type) === false) {
+                etypes.delete(type, unit);
+            }
+        }
+    }
+
+    function emit(unit, type, ...args) {
+        if (isString(type) === false) {
+            error('unit emit', 'The argument is invalid.', 'type');
+        } else if (unit._.state === 'finalized') {
+            error('unit emit', 'This function can not be called after finalized.');
+        } else if (type[0] === '+') {
+            etypes.get(type)?.forEach((unit) => {
                 unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+            });
+        } else if (type[0] === '-') {
+            unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+        }
+    }
+
+    let componentToUnits = new MapSet();
+    let unitToComponents = new MapSet();
+
+    function find(...args) {
+        // current Unit
+        let current = null;
+        if (args[0] === null || args[0] instanceof Unit) {
+            current = args.shift();
+        }
+        const component = args[0];
+
+        if (isFunction(component) === false) {
+            error('xnew.find', 'The argument is invalid.', 'component');
+        } else if (isFunction(component) === true) {
+            if (current !== null) {
+                return [...componentToUnits.get(component)].filter((unit) => {
+                    let temp = unit;
+                    while (temp !== null) {
+                        if (temp === current) {
+                            return true;
+                        } else {
+                            temp = temp.parent;
+                        }
+                    }
+                    return false;
+                });
+            } else {
+                return [...componentToUnits.get(component)];
             }
         }
+    }
+
+    Object.defineProperty(find, 'add', { enumerable: true, value: add });
+    Object.defineProperty(find, 'remove', { enumerable: true, value: remove });
+
+    function add(unit, component) {
+        unitToComponents.add(unit, component);
+        componentToUnits.add(component, unit);
+    }
+
+    function remove(unit) {
+        unitToComponents.get(unit).forEach((component) => {
+            componentToUnits.delete(component, unit);
+        });
+        unitToComponents.delete(unit);
     }
 
     class Unit {
@@ -436,7 +485,6 @@
                 resolved: false,                // promise check
                 listeners: new MapMap(),        // event listners
                 context: this._.baseContext,    // context
-                components: new Set(),          // components functions
                 props: {},                      // properties in the component function
             });
 
@@ -462,11 +510,8 @@
             }
         }
 
-        static components = new MapSet();
-
         static extend(component, ...args) {
-            this._.components.add(component);
-            Unit.components.add(component, this);
+            find.add(this, component);
 
             const props = component(this, ...args) ?? {};
 
@@ -560,11 +605,7 @@
                 if (isFunction(this._.props.finalize)) {
                     scope(this, this._.context, this._.props.finalize);
                 }
-
-                this._.components.forEach((component) => {
-                    Unit.components.delete(component, this);
-                });
-                this._.components.clear();
+                find.remove(this);
 
                 // reset props
                 Object.keys(this._.props).forEach((key) => {
@@ -603,15 +644,15 @@
         //----------------------------------------------------------------------------------------------------
 
         on(type, listener, options) {
-            EventController.on(this, type, listener, options);
+            event.on(this, type, listener, options);
         }
 
         off(type, listener) {
-            EventController.off(this, type, listener);
+            event.off(this, type, listener);
         }
 
         emit(type, ...args) {
-            EventController.emit(this, type, ...args);
+            event.emit(this, type, ...args);
         }
     }
     Unit.reset();
@@ -785,35 +826,6 @@
         return { clear };
     }
 
-    function find(...args) {
-        // current Unit
-        let current = null;
-        if (args[0] === null || args[0] instanceof Unit) {
-            current = args.shift();
-        }
-        const component = args[0];
-
-        if (isFunction(component) === false) {
-            error('xnew.find', 'The argument is invalid.', 'component');
-        } else if (isFunction(component) === true) {
-            if (current !== null) {
-                return [...Unit.components.get(component)].filter((unit) => {
-                    let temp = unit;
-                    while (temp !== null) {
-                        if (temp === current) {
-                            return true;
-                        } else {
-                            temp = temp.parent;
-                        }
-                    }
-                    return false;
-                });
-            } else {
-                return [...Unit.components.get(component)];
-            }
-        }
-    }
-
     function context(key, value = undefined) {
         if (isString(key) === false) {
             error('context', 'The argument is invalid.', 'key');
@@ -884,7 +896,7 @@
     Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
     Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
     Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
-    Object.defineProperty(xnew, 'current', { enumerable: true, get: current });
+    Object.defineProperty(xnew, 'current', { enumerable: true, get: () => scope.current });
 
     Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
     Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -908,32 +920,25 @@
             error('xnew.extend', 'The argument is invalid.', 'component');
         } else if (scope.current._.state !== 'pending') {
             error('xnew.extend', 'This function can not be called after initialized.');
-        } else if (scope.current._.components.has(component) === true) {
-            return Unit.extend.call(scope.current, component, ...args);
-        } else {
+        }  else {
             return Unit.extend.call(scope.current, component, ...args);
         }
     }
 
-    function current() {
-        return scope.current;
-    }
-
-    function DragEvent(self)
-    {
+    function DragEvent(self) {
         xnew().on('pointerdown', (event) => {
             const id = event.pointerId;
             const rect = self.element.getBoundingClientRect();
             const position = getPosition(event, rect);
             let previous = position;
-           
+
             const win = xnew(window);
 
             win.on('pointermove', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(event, rect);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                    
+
                     self.emit('-move', { id, position, delta });
                     previous = position;
                 }
@@ -960,13 +965,12 @@
         }
     }
 
-    function GestureEvent(self)
-    {
+    function GestureEvent(self) {
         const drag = xnew(DragEvent);
 
         let isActive = false;
         const map = new Map();
-        
+
         drag.on('-down', ({ id, position }) => {
             map.set(id, { ...position });
 
@@ -984,7 +988,7 @@
                 let scale = 0.0;
                 {
                     const v = { x: a.x - b.x, y: a.y - b.y };
-                    const s =  v.x * v.x + v.y * v.y;
+                    const s = v.x * v.x + v.y * v.y;
                     scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
                 }
                 {
@@ -1005,7 +1009,7 @@
             isActive = false;
             map.delete(id);
         });
-        
+
         function getOthers(id) {
             const backup = map.get(id);
             map.delete(id);
@@ -1015,8 +1019,7 @@
         }
     }
 
-    function ResizeEvent(self)
-    {
+    function ResizeEvent(self) {
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 self.emit('-resize');
@@ -1033,6 +1036,57 @@
                     observer.unobserve(self.element);
                 }
             }
+        }
+    }
+
+    function PointerEvent(self) {
+
+        const win = xnew(window);
+        win.on('pointermove', (event) => {
+            const id = event.pointerId;
+            const rect = self.element.getBoundingClientRect();
+            const position = getPosition(event, rect);
+            self.emit('-pointermove', { id, position });
+        });
+        win.on('wheel', (event) => {
+            self.emit('-wheel', { deltaY: event.wheelDeltaY });
+        });
+        const unit = xnew();
+        unit.on('pointerdown', (event) => {
+            const id = event.pointerId;
+            const rect = self.element.getBoundingClientRect();
+            const position = getPosition(event, rect);
+            self.emit('-pointerdown', { id, position });
+        });
+        unit.on('pointerup', (event) => {
+            const id = event.pointerId;
+            const rect = self.element.getBoundingClientRect();
+            const position = getPosition(event, rect);
+            self.emit('-pointerup', { id, position });
+        });
+        const gesture = xnew(GestureEvent);
+        gesture.on('-down', (...args) => {
+            self.emit('-gesturestart', ...args);
+        });
+        gesture.on('-move', (...args) => {
+            self.emit('-gesturemove', ...args);
+        });
+        gesture.on('-up', (...args) => {
+            self.emit('-gestureend', ...args);
+        });
+        gesture.on('-cancel', (...args) => {
+            self.emit('-gesturecancel', ...args);
+        });  
+
+        const drag = xnew(DragEvent);
+        drag.on('-down', (...args) => self.emit('-dragstart', ...args));
+        drag.on('-move', (...args) => self.emit('-dragmove', ...args));
+        drag.on('-up', (...args) => self.emit('-dragend', ...args));
+        drag.on('-cancel', (...args) => self.emit('-dragcancel', ...args));
+
+
+        function getPosition(event, rect) {
+            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
         }
     }
 
@@ -1107,8 +1161,7 @@
         });
     }
 
-    function Keyboard(self)
-    {
+    function Keyboard(self) {
         const win = xnew(window);
         const state = {};
 
@@ -1117,7 +1170,7 @@
             state[event.code] = 1;
             self.emit('-keydown', { code: event.code });
         });
-          
+
         win.on('keyup', (event) => {
             if (state[event.code]) state[event.code] = 0;
             self.emit('-keyup', { code: event.code });
@@ -1161,6 +1214,7 @@
     Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
     Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
     Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
+    Object.defineProperty(xnew, 'PointerEvent', { enumerable: true, value: PointerEvent });
     Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
     Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
     Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });

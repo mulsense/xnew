@@ -1,13 +1,12 @@
 import { xnew } from '../core/xnew';
 import { DragEvent } from './DragEvent';
 
-export function GestureEvent(self)
-{
+export function GestureEvent(self) {
     const drag = xnew(DragEvent);
 
     let isActive = false;
     const map = new Map();
-    
+
     drag.on('-down', ({ id, position }) => {
         map.set(id, { ...position });
 
@@ -25,7 +24,7 @@ export function GestureEvent(self)
             let scale = 0.0;
             {
                 const v = { x: a.x - b.x, y: a.y - b.y };
-                const s =  v.x * v.x + v.y * v.y;
+                const s = v.x * v.x + v.y * v.y;
                 scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
             }
             let rotate = 0.0;
@@ -55,7 +54,7 @@ export function GestureEvent(self)
         isActive = false;
         map.delete(id);
     });
-    
+
     function getOthers(id) {
         const backup = map.get(id);
         map.delete(id);

@@ -1,7 +1,6 @@
 import { xnew } from '../core/xnew';
 
-export function Keyboard(self)
-{
+export function Keyboard(self) {
     const win = xnew(window);
     const state = {};
 
@@ -10,7 +9,7 @@ export function Keyboard(self)
         state[event.code] = 1;
         self.emit('-keydown', { code: event.code });
     });
-      
+
     win.on('keyup', (event) => {
         if (state[event.code]) state[event.code] = 0;
         self.emit('-keyup', { code: event.code });
@@ -50,4 +49,3 @@ export function Keyboard(self)
     //     },
     // };
 }
-       

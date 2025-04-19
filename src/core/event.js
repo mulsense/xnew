@@ -6,8 +6,11 @@ import { scope } from './scope';
 let etypes = new MapSet();
 
 export function event() {
+    return EventController.event;
 }
-
+export class EventController {
+    static event = null;
+}
 Object.defineProperty(event, 'on', { enumerable: true, value: on });
 Object.defineProperty(event, 'off', { enumerable: true, value: off });
 Object.defineProperty(event, 'emit', { enumerable: true, value: emit });
@@ -27,12 +30,18 @@ function on(unit, type, listener, options) {
             const context = unit._.context;
             if (type[0] === '-' || type[0] === '+') {
                 const execute = (...args) => {
+                    const eventbackup = EventController.event;
+                    EventController.event = { type };
                     scope(unit, context, listener, ...args);
+                    EventController.event = eventbackup;
                 };
                 unit._.listeners.set(type, listener, [element, execute]);
             } else {
                 const execute = (...args) => {
+                    const eventbackup = EventController.event;
+                    EventController.event = { type: args[0]?.type ?? null };
                     scope(unit, context, listener, ...args);
+                    EventController.event = eventbackup;
                 };
                 unit._.listeners.set(type, listener, [element, execute]);
                 element.addEventListener(type, execute, options);
