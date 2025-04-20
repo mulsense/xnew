@@ -199,29 +199,28 @@ class Ticker {
     }
 }
 
-// current scope
-let current = null;
+class Scope {
+    static current = null;
 
-function scope(unit, context, func, ...args) {
-    const stack = [current, Context.get(unit)];
+    static set(unit, context, func, ...args) {
+        const stack = [Scope.current, Context.get(unit)];
 
-    try {
-        current = unit;
-        if (unit && context !== undefined) {
-            Context.set(unit, context);
-        }
-        return func(...args);
-    } catch (error) {
-        throw error;
-    } finally {
-        current = stack[0];
-        if (unit && context !== undefined) {
-            Context.set(unit, stack[1]);
+        try {
+            Scope.current = unit;
+            if (unit && context !== undefined) {
+                Context.set(unit, context);
+            }
+            return func(...args);
+        } catch (error) {
+            throw error;
+        } finally {
+            Scope.current = stack[0];
+            if (unit && context !== undefined) {
+                Context.set(unit, stack[1]);
+            }
         }
     }
 }
-
-Object.defineProperty(scope, 'current', { enumerable: true, get: () => current });
 
 class Context {
     static map = new Map();
@@ -229,23 +228,23 @@ class Context {
     static set(unit, context) {
         Context.map.set(unit, context);
     }
+
     static get(unit) {
         return Context.map.get(unit) ?? null;
-    }
-
-    static next(unit, key, value) {
-        Context.map.set(unit, [Context.map.get(unit), key, value]);
-    }
-
-    static back(unit) {
-        Context.map.set(unit, Context.map.get(unit)[0]);
     }
 
     static clear(unit) {
         Context.map.delete(unit);
     }
 
-    static search(unit, key) {
+
+    static next(key, value) {
+        const unit = Scope.current;
+        Context.map.set(unit, [Context.map.get(unit), key, value]);
+    }
+
+    static trace(key) {
+        const unit = Scope.current;
         let ret = undefined;
         for (let context = Context.map.get(unit); context !== null; context = context[0]) {
             if (context[1] === key) {
@@ -259,20 +258,20 @@ class Context {
 
 class ScopedPromise extends Promise {
     then(callback) {
-        const [unit, context] = [scope.current, Context.get(scope.current)];
-        super.then((...args) => scope(unit, context, callback, ...args));
+        const [unit, context] = [Scope.current, Context.get(Scope.current)];
+        super.then((...args) => Scope.set(unit, context, callback, ...args));
         return this;
     }
 
     catch(callback) {
-        const [unit, context] = [scope.current, Context.get(scope.current)];
-        super.then((...args) => scope(unit, context, callback, ...args));
+        const [unit, context] = [Scope.current, Context.get(Scope.current)];
+        super.then((...args) => Scope.set(unit, context, callback, ...args));
         return this;
     }
 
     finally(callback) {
-        const [unit, context] = [scope.current, Context.get(scope.current)];
-        super.then((...args) => scope(unit, context, callback, ...args));
+        const [unit, context] = [Scope.current, Context.get(Scope.current)];
+        super.then((...args) => Scope.set(unit, context, callback, ...args));
         return this;
     }
 }
@@ -306,7 +305,7 @@ function on(unit, type, listener, options) {
                 const execute = (...args) => {
                     const eventbackup = EventController.event;
                     EventController.event = { type };
-                    scope(unit, context, listener, ...args);
+                    Scope.set(unit, context, listener, ...args);
                     EventController.event = eventbackup;
                 };
                 unit._.listeners.set(type, listener, [element, execute]);
@@ -314,7 +313,7 @@ function on(unit, type, listener, options) {
                 const execute = (...args) => {
                     const eventbackup = EventController.event;
                     EventController.event = { type: args[0]?.type ?? null };
-                    scope(unit, context, listener, ...args);
+                    Scope.set(unit, context, listener, ...args);
                     EventController.event = eventbackup;
                 };
                 unit._.listeners.set(type, listener, [element, execute]);
@@ -370,51 +369,50 @@ function emit(unit, type, ...args) {
     }
 }
 
-let componentToUnits = new MapSet();
-let unitToComponents = new MapSet();
+class Component {
+    static componentToUnits = new MapSet();
+    static unitToComponents = new MapSet();
 
-function find(...args) {
-    // current Unit
-    let current = null;
-    if (args[0] === null || args[0] instanceof Unit) {
-        current = args.shift();
+    static add(unit, component) {
+        Component.unitToComponents.add(unit, component);
+        Component.componentToUnits.add(component, unit);
     }
-    const component = args[0];
+    
+    static remove(unit) {
+        Component.unitToComponents.get(unit).forEach((component) => {
+            Component.componentToUnits.delete(component, unit);
+        });
+        Component.unitToComponents.delete(unit);
+    }
 
-    if (isFunction(component) === false) {
-        error('xnew.find', 'The argument is invalid.', 'component');
-    } else if (isFunction(component) === true) {
-        if (current !== null) {
-            return [...componentToUnits.get(component)].filter((unit) => {
-                let temp = unit;
-                while (temp !== null) {
-                    if (temp === current) {
-                        return true;
-                    } else {
-                        temp = temp.parent;
+    static find(...args) {
+        // current Unit
+        let current = null;
+        if (args[0] === null || args[0] instanceof Unit) {
+            current = args.shift();
+        }
+        const component = args[0];
+
+        if (isFunction(component) === false) {
+            error('xnew.find', 'The argument is invalid.', 'component');
+        } else if (isFunction(component) === true) {
+            if (current !== null) {
+                return [...Component.componentToUnits.get(component)].filter((unit) => {
+                    let temp = unit;
+                    while (temp !== null) {
+                        if (temp === current) {
+                            return true;
+                        } else {
+                            temp = temp.parent;
+                        }
                     }
-                }
-                return false;
-            });
-        } else {
-            return [...componentToUnits.get(component)];
+                    return false;
+                });
+            } else {
+                return [...Component.componentToUnits.get(component)];
+            }
         }
     }
-}
-
-Object.defineProperty(find, 'add', { enumerable: true, value: add });
-Object.defineProperty(find, 'remove', { enumerable: true, value: remove });
-
-function add(unit, component) {
-    unitToComponents.add(unit, component);
-    componentToUnits.add(component, unit);
-}
-
-function remove(unit) {
-    unitToComponents.get(unit).forEach((component) => {
-        componentToUnits.delete(component, unit);
-    });
-    unitToComponents.delete(unit);
 }
 
 class Unit {
@@ -522,7 +520,7 @@ class Unit {
 
             // setup component
             if (isFunction(component) === true) {
-                scope(this, undefined, () => Unit.extend.call(this, component, ...args));
+                Scope.set(this, undefined, () => Unit.extend.call(this, component, ...args));
             } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
@@ -533,7 +531,7 @@ class Unit {
     }
 
     static extend(component, ...args) {
-        find.add(this, component);
+        Component.add(this, component);
 
         const props = component(this, ...args) ?? {};
 
@@ -554,15 +552,15 @@ class Unit {
                 const dest = { configurable: true, enumerable: true };
                 const context = Context.get(this);
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => scope(this, context, descripter.value, ...args);
+                    dest.value = (...args) => Scope.set(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => scope(this, context, descripter.get, ...args);
+                    dest.get = (...args) => Scope.set(this, context, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => scope(this, context, descripter.set, ...args);
+                    dest.set = (...args) => Scope.set(this, context, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
@@ -589,7 +587,7 @@ class Unit {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                scope(this, Context.get(this), this._.props.start);
+                Scope.set(this, Context.get(this), this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -602,7 +600,7 @@ class Unit {
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                scope(this, Context.get(this), this._.props.stop);
+                Scope.set(this, Context.get(this), this._.props.stop);
             }
         }
     }
@@ -612,7 +610,7 @@ class Unit {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                scope(this, Context.get(this), this._.props.update, this._.upcount++);
+                Scope.set(this, Context.get(this), this._.props.update, this._.upcount++);
             }
         }
     }
@@ -625,9 +623,9 @@ class Unit {
             this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
-                scope(this, Context.get(this), this._.props.finalize);
+                Scope.set(this, Context.get(this), this._.props.finalize);
             }
-            find.remove(this);
+            Component.remove(this);
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
@@ -758,11 +756,11 @@ class Timer {
 function timer(callback, delay) {
     let finalizer = null;
 
-    const current = scope.current;
+    const current = Scope.current;
     const context = current?._.context;
     const timer = new Timer({
         timeout: () => {
-            scope(current, context, callback);
+            Scope.set(current, context, callback);
         },
         finalize: () => finalizer.finalize(),
         delay,
@@ -784,10 +782,10 @@ function timer(callback, delay) {
 function interval(callback, delay) {
     let finalizer = null;
 
-    const current = scope.current;
+    const current = Scope.current;
     const context = current._.context;
     const timer = new Timer({
-        timeout: () => scope(current, context, callback),
+        timeout: () => Scope.set(current, context, callback),
         finalize: () => finalizer.finalize(),
         delay,
         loop: true,
@@ -810,10 +808,10 @@ function transition(callback, interval) {
     let finalizer = null;
     let updater = null;
 
-    const current = scope.current;
+    const current = Scope.current;
     const context = current._.context;
     const timer = new Timer({
-        timeout: () => scope(current, context, callback, { progress: 1.0 }),
+        timeout: () => Scope.set(current, context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -823,14 +821,14 @@ function transition(callback, interval) {
 
     timer.start();
 
-    scope(current, context, callback, { progress: 0.0 });
+    Scope.set(current, context, callback, { progress: 0.0 });
 
     updater = new Unit(null, undefined, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    scope(current, context, callback, { progress });
+                    Scope.set(current, context, callback, { progress });
                 }
             },
         }
@@ -857,9 +855,9 @@ function xnew(...args) {
         parent = args.shift();
     } else if (args[0] === undefined) {
         parent = args.shift();
-        parent = scope.current;
+        parent = Scope.current;
     } else {
-        parent = scope.current;
+        parent = Scope.current;
     }
 
     // input target
@@ -898,7 +896,7 @@ Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: () => scope.current });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Scope.current });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -906,40 +904,45 @@ Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition 
 
 
 function nest(attributes) {
-    if (scope.current.element instanceof Window || scope.current.element instanceof Document) {
+    if (Scope.current.element instanceof Window || Scope.current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
     } else if (isObject(attributes) === false) {
         error('xnew.nest', 'The argument is invalid.', 'attributes');
-    } else if (scope.current._.state !== 'pending') {
+    } else if (Scope.current._.state !== 'pending') {
         error('xnew.nest', 'This function can not be called after initialized.');
     } else {
-        return Unit.nest.call(scope.current, attributes);
+        return Unit.nest.call(Scope.current, attributes);
     }
 }
 
 function extend(component, ...args) {
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
-    } else if (scope.current._.state !== 'pending') {
+    } else if (Scope.current._.state !== 'pending') {
         error('xnew.extend', 'This function can not be called after initialized.');
     }  else {
-        return Unit.extend.call(scope.current, component, ...args);
+        return Unit.extend.call(Scope.current, component, ...args);
     }
 }
+
 function context(key, value = undefined) {
     if (isString(key) === false) {
         error('context', 'The argument is invalid.', 'key');
     } else {
         if (value !== undefined) {
-            Context.next(scope.current, key, value);
+            Context.next(key, value);
         } else {
-            return Context.search(scope.current, key);
+            return Context.trace(key);
         }
     }
 }
 
 function promise(executor) {
-    return Unit.promise.call(scope.current, executor);
+    return Unit.promise.call(Scope.current, executor);
+}
+
+function find(...args) {
+    return Component.find(...args);
 }
 
 function DragEvent(self) {
