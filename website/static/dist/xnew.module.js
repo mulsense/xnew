@@ -1035,17 +1035,16 @@ function ResizeEvent(self) {
 
 function PointerEvent(self) {
 
-    const win = xnew(window);
-    win.on('pointermove', (event) => {
+    const unit = xnew();
+    unit.on('pointermove', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
         self.emit('-pointermove', { id, position });
     });
-    win.on('wheel', (event) => {
+    unit.on('wheel', (event) => {
         self.emit('-wheel', { deltaY: event.wheelDeltaY });
     });
-    const unit = xnew();
     unit.on('pointerdown', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
