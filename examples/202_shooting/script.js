@@ -1,12 +1,8 @@
-const width = 400, height = 300;
+const width = 800, height = 600;
 
 function Main(self) {
-  const screen = xnew(xnew.Screen, { width, height });
-  screen.canvas.style.imageRendering = 'pixelated';
+  xnew(xnew.Screen, { width, height });
   xpixi.setup();
-
-  xnew(window).on('keydown', (event) => event.preventDefault());
-  self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
   xnew(Background);
   xnew(TitleScene);
@@ -23,8 +19,6 @@ function Dot(self) {
 
   // random position
   object.position.set(Math.random() * width, Math.random() * height);
-
-  // set circle
   object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
 
   let velocity = Math.random() + 0.1;
@@ -48,7 +42,9 @@ function TitleScene(self) {
 }
 
 function TitleText(self) {
-  const object = xpixi.nest(new PIXI.Text('touch start', { fill: 0xFFFFFF }));
+  const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 32, fill: 0xFFFFFF }));
+  
+  // center
   object.position.set(width / 2, height / 2);
   object.anchor.set(0.5);
 }
@@ -57,7 +53,7 @@ function GameScene(self) {
   xnew(Controller);
   xnew(ScoreText);
   xnew(Player);
-  const interval = xnew.interval(() => xnew(Enemy), 500);
+  const interval = xnew.interval(() => xnew(Enemy), 5500);
 
   self.on('+gameover', () => {
     interval.clear();
@@ -71,24 +67,33 @@ function GameScene(self) {
 }
 
 function Controller(self) {
+  // prevent default event
+  xnew(window).on('keydown', (event) => event.preventDefault());
+  self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+  
+  // virtual D-Pad
   const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px;' }, xutil.DPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => self.emit('+move', vector));
 
+  // virtual button
   const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
-  button.on('-down', () => self.emit('+action'));
+  button.on('-down', () => self.emit('+shot'));
 
+  // keyboard
   const keyboard = xnew(xnew.Keyboard);
   keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => self.emit('+move', vector));
   keyboard.on('-keydown', ({ code }) => {
     if (code === 'Space') {
-      self.emit('+action')
+      self.emit('+shot')
     }
   });
 }
 
 function ScoreText(self) {
-  const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 16, fill: 0xFFFFFF }));
-  object.position.set(width, 0);
+  const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0xFFFFFF }));
+
+  // top right
+  object.position.set(width - 10, 0 + 10);
   object.anchor.set(1.0, 0.0);
 
   let sum = 0;
@@ -97,37 +102,37 @@ function ScoreText(self) {
 
 function GameOverText(self) {
   const object = xpixi.nest(new PIXI.Text('game over', { fill: 0xFFFFFF }));
+  
+  // center
   object.position.set(width / 2, height / 2);
   object.anchor.set(0.5);
 }
 
 function Player(self) {
   const object = xpixi.nest(new PIXI.Container());
+
+  // center
   object.position.set(width / 2, height / 2);
+  setSprite(object, [[0, 0, 32, 32], [32, 0, 32, 32]]);
 
-  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
-    const rects = [[0, 0, 32, 32], [32, 0, 32, 32]];
-    const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
-    const sprite = new PIXI.AnimatedSprite(textures);
-    sprite.animationSpeed = 0.1;
-    sprite.anchor.set(0.5);
-    sprite.play();
-    object.addChild(sprite);
-  });
-
+  // actions
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
-  self.on('+action', () => xnew(self.parent, Shot, object.x, object.y));
+  self.on('+shot', () => xnew(self.parent, Shot, object.x, object.y));
+  self.on('+shot', () => self.sound());
 
   return {
     update() {
-      // move limitation
-      object.x = Math.min(Math.max(object.x + velocity.x * 2, 10), width - 10);
-      object.y = Math.min(Math.max(object.y + velocity.y * 2, 10), height - 10);
+      object.x += velocity.x * 2;
+      object.y += velocity.y * 2;
+
+      // limitation (10 < x < width - 10, 10 < y < height - 10)
+      object.x = Math.min(Math.max(object.x, 10), width - 10);
+      object.y = Math.min(Math.max(object.y, 10), height - 10);
 
       // detect collision
       for (const enemy of xnew.find(Enemy)) {
-        if (enemy.distance(object) < 15) {
+        if (enemy.distance(object) < 30) {
           enemy.clash(1);
           self.emit('+gameover');
           self.finalize();
@@ -135,18 +140,25 @@ function Player(self) {
         }
       }
     },
+    sound() {
+      const synth = xaudio.synthesizer({
+        oscillator: { type: 'square', envelope: { amount: 36, ADSR: [0, 200, 0.2, 200], }, },
+        amp: { envelope: { amount: 0.1, ADSR: [0, 100, 0.2, 200], },},
+      });
+      synth.press('E3', 200); 
+    }
   };
 }
 
 function Shot(self, x, y) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(x, y);
-  object.addChild(new PIXI.Graphics().ellipse(0, 0, 2, 12).fill(0x22FFFF));
 
-  soundShot();
+  object.position.set(x, y);
+  object.addChild(new PIXI.Graphics().ellipse(0, 0, 4, 24).fill(0x22FFFF));
+
   return {
     update() {
-      object.y -= 8;
+      object.y -= 1;
 
       // finalize when out of screen
       if (object.y < 0) {
@@ -156,7 +168,7 @@ function Shot(self, x, y) {
       
       // detect collision
       for (const enemy of xnew.find(Enemy)) {
-        if (enemy.distance(object) < 15) {
+        if (enemy.distance(object) < 30) {
           enemy.clash(1);
           self.finalize();
           return;
@@ -169,15 +181,7 @@ function Shot(self, x, y) {
 function Enemy(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * width, 0);
-  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
-    const rects = [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]];
-    const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
-    const sprite = new PIXI.AnimatedSprite(textures);
-    sprite.animationSpeed = 0.1;
-    sprite.anchor.set(0.5);
-    sprite.play();
-    object.addChild(sprite);
-  });
+  setSprite(object, [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]);
 
   // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
@@ -196,9 +200,9 @@ function Enemy(self) {
       object.y += velocity.y;
     },
     clash(score) {
-      soundClash(score);
+      self.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew(self.parent, CrashStar, object.x, object.y, score);
+        xnew(self.parent, Crash, object.x, object.y, score);
       }
       xnew(self.parent, CrashText, object.x, object.y, score);
 
@@ -210,14 +214,26 @@ function Enemy(self) {
       const dy = target.y - object.y;
       return Math.sqrt(dx * dx + dy * dy);
     },
+    sound(score) {
+      const v = Math.log2(score); // convert svore (1->0, 2->1, 4->2, 8->3, ...)
+      const synth = xaudio.synthesizer({
+        oscillator: { type: 'triangle', },
+        amp: { envelope: { amount: 0.1, ADSR: [0, 200, 0.0, 0], }, },
+      });
+      synth.press(440 * Math.pow(2, (v * 2 + 0) / 12), 200, 0); 
+      synth.press(440 * Math.pow(2, (v * 2 + 8) / 12), 200, 100); 
+      synth.press(440 * Math.pow(2, (v * 2 + 12) / 12), 200, 200); 
+    }
   };
 }
 
 function CrashText(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Text(`+ ${score}`, { fontSize: 12, fill: '#FFFF22' }));
+
   object.position.set(x, y);
   object.anchor.set(0.5);
 
+  // remove this unit after 1 second
   xnew.timer(() => self.finalize(), 1000);
 
   return {
@@ -228,20 +244,17 @@ function CrashText(self, x, y, score) {
   }
 }
 
-function CrashStar(self, x, y, score) {
+function Crash(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Container());
+
   object.position.set(x, y);
+  setSprite(object, [[0, 64, 32, 32]]);
 
-  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
-    const sprite = new PIXI.Sprite(new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(0, 64, 32, 32) }));
-    sprite.anchor.set(0.5);
-    object.addChild(sprite);
-  });
-
-  const v = Math.random() * 2 + 1;
-  const a = Math.random() * 2 * Math.PI;
+  const v = Math.random() * 4 + 1; // 1 ~ 5
+  const a = Math.random() * 2 * Math.PI; // 0 ~ 2PI
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
 
+  // remove this unit after 800ms
   xnew.timer(() => self.finalize(), 800);
 
   return {
@@ -249,11 +262,11 @@ function CrashStar(self, x, y, score) {
       object.x += velocity.x;
       object.y += velocity.y;
       object.rotation = count / 10;
-      object.alpha = 1 - count / 100;
+      object.alpha = 1 - count / 100; // fade out
 
       // detect collision
       for (const enemy of xnew.find(Enemy)) {
-        if (enemy.distance(object) < 15) {
+        if (enemy.distance(object) < 30) {
           enemy.clash(score * 2);
           self.finalize();
           return;
@@ -263,24 +276,15 @@ function CrashStar(self, x, y, score) {
   };
 }
 
-function soundShot() {
-  const duration = 200;
-  const synth = xaudio.synthesizer({
-    oscillator: { type: 'square', envelope: { amount: 36, ADSR: [0, 200, 0.2, 200], }, },
-    amp: { envelope: { amount: 0.1, ADSR: [0, 100, 0.2, 200], },},
+function setSprite(object, rects) {
+  xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
+    texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+    const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
+    const sprite = new PIXI.AnimatedSprite(textures);
+    sprite.animationSpeed = 0.1;
+    sprite.anchor.set(0.5);
+    sprite.scale.set(2);
+    sprite.play();
+    object.addChild(sprite);
   });
-  synth.press('E3', duration); 
-}
-
-function soundClash(score) {
-  // convert svore(1->0, 2->1, 4->2, 8->3, ...)
-  const v = Math.log2(score);
-  const duration = 200;
-  const synth = xaudio.synthesizer({
-    oscillator: { type: 'triangle', },
-    amp: { envelope: { amount: 0.1, ADSR: [0, 200, 0.0, 0], }, },
-  });
-  synth.press(440 * Math.pow(2, (v * 2 + 0) / 12), duration, 0); 
-  synth.press(440 * Math.pow(2, (v * 2 + 8) / 12), duration, 100); 
-  synth.press(440 * Math.pow(2, (v * 2 + 12) / 12), duration, 200); 
 }

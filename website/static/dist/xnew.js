@@ -1084,7 +1084,6 @@
         drag.on('-up', (...args) => self.emit('-dragend', ...args));
         drag.on('-cancel', (...args) => self.emit('-dragcancel', ...args));
 
-
         function getPosition(event, rect) {
             return { x: event.clientX - rect.left, y: event.clientY - rect.top };
         }
@@ -1140,6 +1139,12 @@
                 canvas.element.height = height;
                 resize();
             },
+            get scale() {
+                return {
+                    x: canvas.element.width / canvas.element.clientWidth,
+                    y: canvas.element.height / canvas.element.clientHeight
+                };
+            }
         }
     }
 

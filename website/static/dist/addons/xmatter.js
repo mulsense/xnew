@@ -11,8 +11,10 @@
     Object.defineProperty(xmatter, 'render', { enumerable: true, get: render });
     Object.defineProperty(xmatter, 'engine', { enumerable: true, get: engine });
     Object.defineProperty(xmatter, 'nest', { enumerable: true, value: nest });
+    Object.defineProperty(xmatter, 'start', { enumerable: true, value: start });
+    Object.defineProperty(xmatter, 'stop', { enumerable: true, value: stop });
 
-    function setup({ engine = null, render = null }) {
+    function setup({ engine = null, render = null } = {}) {
         xnew.extend(Root, { engine, render });
     }
 
@@ -29,17 +31,30 @@
         return object;
     }
 
+    function start() {
+        const root = xnew.context('xmatter.root');
+        root.isActive = true;
+    }
+
+    function stop() {
+        const root = xnew.context('xmatter.root');
+        root.isActive = false;
+    }
+
     function Root(self, { engine, render }) {
         const root = {};
         xnew.context('xmatter.root', root);
 
+        root.isActive = true;
         root.engine = engine ?? render?.engine ?? matterJs.Engine.create();
         root.render = render;
         xnew.extend(Connect, root.engine.world);
 
         return {
             update() {
-                matterJs.Engine.update(root.engine);
+                if (root.isActive) {
+                    matterJs.Engine.update(root.engine);
+                }
                 if (root.render !== null) {
                     matterJs.Render.world(root.render);
                 }

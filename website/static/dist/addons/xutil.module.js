@@ -60,7 +60,6 @@ function AnalogStick(self,
         const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        console.log(xnew.event);
         self.emit(xnew.event.type, { vector });
         target.element.style.left = vector.x * size / 4 + 'px';
         target.element.style.top = vector.y * size / 4 + 'px';
