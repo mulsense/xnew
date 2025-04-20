@@ -209,12 +209,12 @@
     let current = null;
 
     function scope(unit, context, func, ...args) {
-        const stack = [current, unit?._.context];
+        const stack = [current, Context.get(unit)];
 
         try {
             current = unit;
             if (unit && context !== undefined) {
-                unit._.context = context;
+                Context.set(unit, context);
             }
             return func(...args);
         } catch (error) {
@@ -222,32 +222,62 @@
         } finally {
             current = stack[0];
             if (unit && context !== undefined) {
-                unit._.context = stack[1];
+                Context.set(unit, stack[1]);
             }
         }
     }
 
     Object.defineProperty(scope, 'current', { enumerable: true, get: () => current });
 
-    function promise(executor) {
-        return Unit.promise.call(scope.current, executor);
+    class Context {
+        static map = new Map();
+
+        static set(unit, context) {
+            Context.map.set(unit, context);
+        }
+        static get(unit) {
+            return Context.map.get(unit) ?? null;
+        }
+
+        static next(unit, key, value) {
+            Context.map.set(unit, [Context.map.get(unit), key, value]);
+        }
+
+        static back(unit) {
+            Context.map.set(unit, Context.map.get(unit)[0]);
+        }
+
+        static clear(unit) {
+            Context.map.delete(unit);
+        }
+
+        static search(unit, key) {
+            let ret = undefined;
+            for (let context = Context.map.get(unit); context !== null; context = context[0]) {
+                if (context[1] === key) {
+                    ret = context[2];
+                    break;
+                }
+            }
+            return ret;
+        }
     }
 
     class ScopedPromise extends Promise {
         then(callback) {
-            const [unit, context] = [scope.current, scope.current?._.context];
+            const [unit, context] = [scope.current, Context.get(scope.current)];
             super.then((...args) => scope(unit, context, callback, ...args));
             return this;
         }
 
         catch(callback) {
-            const [unit, context] = [scope.current, scope.current?._.context];
+            const [unit, context] = [scope.current, Context.get(scope.current)];
             super.then((...args) => scope(unit, context, callback, ...args));
             return this;
         }
 
         finally(callback) {
-            const [unit, context] = [scope.current, scope.current?._.context];
+            const [unit, context] = [scope.current, Context.get(scope.current)];
             super.then((...args) => scope(unit, context, callback, ...args));
             return this;
         }
@@ -406,10 +436,7 @@
                 baseElement = document.currentScript?.parentElement ?? document.body;
             }
 
-            let baseContext = null;
-            if (parent) {
-                baseContext = parent._.context;
-            }
+            const baseContext = Context.get(parent);
 
             this._ = {
                 parent,          // parent unit
@@ -484,9 +511,10 @@
                 promises: [],                   // promises
                 resolved: false,                // promise check
                 listeners: new MapMap(),        // event listners
-                context: this._.baseContext,    // context
                 props: {},                      // properties in the component function
             });
+
+            Context.set(this, this._.baseContext);
 
             if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
                 this._.state = 'finalized';
@@ -530,7 +558,7 @@
                     }
                 } else if (this[key] === undefined) {
                     const dest = { configurable: true, enumerable: true };
-                    const context = this._.context;
+                    const context = Context.get(this);
                     if (isFunction(descripter.value) === true) {
                         dest.value = (...args) => scope(this, context, descripter.value, ...args);
                     } else if (descripter.value !== undefined) {
@@ -567,7 +595,7 @@
                 this._.state = 'running';
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
                 if (isFunction(this._.props.start) === true) {
-                    scope(this, this._.context, this._.props.start);
+                    scope(this, Context.get(this), this._.props.start);
                 }
             } else if (['running'].includes(this._.state) === true) {
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -580,7 +608,7 @@
                 this._.children.forEach((unit) => Unit.stop.call(unit));
 
                 if (isFunction(this._.props.stop)) {
-                    scope(this, this._.context, this._.props.stop);
+                    scope(this, Context.get(this), this._.props.stop);
                 }
             }
         }
@@ -590,7 +618,7 @@
                 this._.children.forEach((unit) => Unit.update.call(unit, time));
 
                 if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                    scope(this, this._.context, this._.props.update, this._.upcount++);
+                    scope(this, Context.get(this), this._.props.update, this._.upcount++);
                 }
             }
         }
@@ -603,7 +631,7 @@
                 this._.children.clear();
 
                 if (isFunction(this._.props.finalize)) {
-                    scope(this, this._.context, this._.props.finalize);
+                    scope(this, Context.get(this), this._.props.finalize);
                 }
                 find.remove(this);
 
@@ -616,7 +644,7 @@
                 this._.props = {};
 
                 this.off();
-                this._.context = null;
+                Context.clear(this);
 
                 if (this._.nestElements.length > 0) {
                     this._.baseElement.removeChild(this._.nestElements[0]);
@@ -826,26 +854,6 @@
         return { clear };
     }
 
-    function context(key, value = undefined) {
-        if (isString(key) === false) {
-            error('context', 'The argument is invalid.', 'key');
-        } else {
-            const unit = scope.current;
-            if (value !== undefined) {
-                unit._.context = [unit._.context, key, value];
-            } else {
-                let ret = undefined;
-                for (let context = unit._.context; context !== null; context = context[0]) {
-                    if (context[1] === key) {
-                        ret = context[2];
-                        break;
-                    }
-                }
-                return ret;
-            }
-        }
-    }
-
     function xnew(...args) {
         // parent Unit
         let parent = undefined;
@@ -923,6 +931,21 @@
         }  else {
             return Unit.extend.call(scope.current, component, ...args);
         }
+    }
+    function context(key, value = undefined) {
+        if (isString(key) === false) {
+            error('context', 'The argument is invalid.', 'key');
+        } else {
+            if (value !== undefined) {
+                Context.next(scope.current, key, value);
+            } else {
+                return Context.search(scope.current, key);
+            }
+        }
+    }
+
+    function promise(executor) {
+        return Unit.promise.call(scope.current, executor);
     }
 
     function DragEvent(self) {

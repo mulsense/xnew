@@ -1,11 +1,9 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
 import { timer, interval, transition } from './timer';
-import { find } from './find';
-import { context } from './context';
-import { promise } from './promise';
+import { Component } from './component';
 import { event } from './event';
-import { scope } from './scope';
+import { Scope, Context } from './scope';
 
 export function xnew(...args) {
     // parent Unit
@@ -16,9 +14,9 @@ export function xnew(...args) {
         parent = args.shift();
     } else if (args[0] === undefined) {
         parent = args.shift();
-        parent = scope.current
+        parent = Scope.current
     } else {
-        parent = scope.current
+        parent = Scope.current
     }
 
     // input target
@@ -57,7 +55,7 @@ Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: () => scope.current });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Scope.current });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -65,23 +63,43 @@ Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition 
 
 
 function nest(attributes) {
-    if (scope.current.element instanceof Window || scope.current.element instanceof Document) {
+    if (Scope.current.element instanceof Window || Scope.current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
     } else if (isObject(attributes) === false) {
         error('xnew.nest', 'The argument is invalid.', 'attributes');
-    } else if (scope.current._.state !== 'pending') {
+    } else if (Scope.current._.state !== 'pending') {
         error('xnew.nest', 'This function can not be called after initialized.');
     } else {
-        return Unit.nest.call(scope.current, attributes);
+        return Unit.nest.call(Scope.current, attributes);
     }
 }
 
 function extend(component, ...args) {
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
-    } else if (scope.current._.state !== 'pending') {
+    } else if (Scope.current._.state !== 'pending') {
         error('xnew.extend', 'This function can not be called after initialized.');
     }  else {
-        return Unit.extend.call(scope.current, component, ...args);
+        return Unit.extend.call(Scope.current, component, ...args);
     }
+}
+
+function context(key, value = undefined) {
+    if (isString(key) === false) {
+        error('context', 'The argument is invalid.', 'key');
+    } else {
+        if (value !== undefined) {
+            Context.next(key, value);
+        } else {
+            return Context.trace(key);
+        }
+    }
+}
+
+function promise(executor) {
+    return Unit.promise.call(Scope.current, executor);
+}
+
+function find(...args) {
+    return Component.find(...args);
 }

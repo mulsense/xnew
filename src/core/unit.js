@@ -2,10 +2,9 @@ import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { createElement } from './element';
 import { MapSet, MapMap } from './map';
 import { Ticker } from './ticker';
-import { ScopedPromise } from './promise';
 import { event } from './event';
-import { scope } from './scope';
-import { find } from './find';
+import { Scope, Context, ScopedPromise } from './scope';
+import { Component } from './component';
 
 export class Unit {
     static roots = new Set();   // root units
@@ -20,10 +19,7 @@ export class Unit {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
-        let baseContext = null;
-        if (parent) {
-            baseContext = parent._.context;
-        }
+        const baseContext = Context.get(parent);
 
         this._ = {
             parent,          // parent unit
@@ -98,9 +94,10 @@ export class Unit {
             promises: [],                   // promises
             resolved: false,                // promise check
             listeners: new MapMap(),        // event listners
-            context: this._.baseContext,    // context
             props: {},                      // properties in the component function
         });
+
+        Context.set(this, this._.baseContext);
 
         if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
             this._.state = 'finalized';
@@ -114,7 +111,7 @@ export class Unit {
 
             // setup component
             if (isFunction(component) === true) {
-                scope(this, undefined, () => Unit.extend.call(this, component, ...args));
+                Scope.set(this, undefined, () => Unit.extend.call(this, component, ...args));
             } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
@@ -125,7 +122,7 @@ export class Unit {
     }
 
     static extend(component, ...args) {
-        find.add(this, component);
+        Component.add(this, component);
 
         const props = component(this, ...args) ?? {};
 
@@ -144,17 +141,17 @@ export class Unit {
                 }
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
-                const context = this._.context;
+                const context = Context.get(this);
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => scope(this, context, descripter.value, ...args);
+                    dest.value = (...args) => Scope.set(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => scope(this, context, descripter.get, ...args);
+                    dest.get = (...args) => Scope.set(this, context, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => scope(this, context, descripter.set, ...args);
+                    dest.set = (...args) => Scope.set(this, context, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
@@ -182,7 +179,7 @@ export class Unit {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                scope(this, this._.context, this._.props.start);
+                Scope.set(this, Context.get(this), this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -195,7 +192,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                scope(this, this._.context, this._.props.stop);
+                Scope.set(this, Context.get(this), this._.props.stop);
             }
         }
     }
@@ -205,7 +202,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                scope(this, this._.context, this._.props.update, this._.upcount++);
+                Scope.set(this, Context.get(this), this._.props.update, this._.upcount++);
             }
         }
     }
@@ -218,9 +215,9 @@ export class Unit {
             this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
-                scope(this, this._.context, this._.props.finalize);
+                Scope.set(this, Context.get(this), this._.props.finalize);
             }
-            find.remove(this);
+            Component.remove(this);
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
@@ -231,7 +228,7 @@ export class Unit {
             this._.props = {};
 
             this.off();
-            this._.context = null;
+            Context.clear(this)
 
             if (this._.nestElements.length > 0) {
                 this._.baseElement.removeChild(this._.nestElements[0]);

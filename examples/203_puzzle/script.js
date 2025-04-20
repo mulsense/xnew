@@ -34,9 +34,9 @@ function GameScene(self) {
   xnew(ScoreText);
   xnew(Bowl);
 
-  const list = [];
-  xnew(Queue, list);
-  xnew(Cursor, list);
+  const balls = [];
+  xnew(Queue, balls);
+  xnew(Cursor, balls);
 
   self.on('+addball', ({ x, y, hue, score }) => {
     xnew(ColorBall, { x, y, r: 28 + 3 * score, hue, score });
@@ -65,30 +65,30 @@ function Controller(self) {
   });
 }
 
-function Queue(self, list) {
+function Queue(self, balls) {
   for(let i = 0; i < 4; i++) {
-    list.push(Math.random() * Math.PI * 2);
+    balls.push(Math.random() * Math.PI * 2);
   }
 
   xnew((self) => {
     const object = xpixi.nest(new PIXI.Container());
-    object.addChild(new PIXI.Graphics().moveTo(0, 5).lineTo(80, 5).stroke({ color: 0x000000, width: 6, cap: 'round' }));
-    object.addChild(new PIXI.Graphics().moveTo(0, 55).lineTo(80, 55).stroke({ color: 0x000000, width: 6, cap: 'round' }));
+    object.addChild(new PIXI.Graphics().moveTo(0, 5).lineTo(80, 5).stroke({ color: 0x000000, width: 8, cap: 'round' }));
+    object.addChild(new PIXI.Graphics().moveTo(0, 55).lineTo(80, 55).stroke({ color: 0x000000, width: 8, cap: 'round' }));
     object.y = 10;
   });
  
   xnew((self) => {
     const object = xpixi.nest(new PIXI.Container());
-    const circle3 = xnew(Circle, { x: 80 - 3 * 30, y: 40, r: 20, color: hueToHex(list[3]) }, { isStatic: true });
-    const circle2 = xnew(Circle, { x: 80 - 2 * 30, y: 40, r: 20, color: hueToHex(list[2]) }, { isStatic: true });
-    const circle1 = xnew(Circle, { x: 80 - 1 * 30, y: 40, r: 20, color: hueToHex(list[1]) }, { isStatic: true });
+    const circle3 = xnew(Circle, { x: 80 - 3 * 30, y: 40, r: 20, color: hueToHex(balls[3]) }, { isStatic: true });
+    const circle2 = xnew(Circle, { x: 80 - 2 * 30, y: 40, r: 20, color: hueToHex(balls[2]) }, { isStatic: true });
+    const circle1 = xnew(Circle, { x: 80 - 1 * 30, y: 40, r: 20, color: hueToHex(balls[1]) }, { isStatic: true });
 
     self.on('+reload', () => {
-      list.shift();
-      list.push(Math.random() * Math.PI * 2);
-      circle1.setColor(hueToHex(list[1]));
-      circle2.setColor(hueToHex(list[2]));
-      circle3.setColor(hueToHex(list[3]));
+      balls.shift();
+      balls.push(Math.random() * Math.PI * 2);
+      circle1.setColor(hueToHex(balls[1]));
+      circle2.setColor(hueToHex(balls[2]));
+      circle3.setColor(hueToHex(balls[3]));
       xnew.transition(({ progress }) => {
         object.x = 30 * progress - 10;
         if (progress === 1.0) {
@@ -100,11 +100,11 @@ function Queue(self, list) {
   });
 }
 
-function Cursor(self, list) {
+function Cursor(self, balls) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 50);
 
-  const circle = new PIXI.Graphics().circle(0, 0, 32).fill(hueToHex(list[0]));
+  const circle = new PIXI.Graphics().circle(0, 0, 32).fill(hueToHex(balls[0]));
   object.addChild(circle);
 
   const line1 = new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4, cap: 'round' });
@@ -121,9 +121,9 @@ function Cursor(self, list) {
   self.on('+action', () => {
     if (reloaded === true) {
       reloaded = false;
-      self.emit('+addball', { x: object.position.x, y: object.position.y, hue: list[0], score: 1 });
+      self.emit('+addball', { x: object.position.x, y: object.position.y, hue: balls[0], score: 1 });
       self.emit('+reload');
-      circle.clear().circle(0, 0, 32).fill(hueToHex(list[0]));
+      circle.clear().circle(0, 0, 32).fill(hueToHex(balls[0]));
     } 
   });
 

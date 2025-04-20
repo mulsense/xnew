@@ -101,7 +101,7 @@ function ScoreText(self) {
 }
 
 function GameOverText(self) {
-  const object = xpixi.nest(new PIXI.Text('game over', { fill: 0xFFFFFF }));
+  const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0xFFFFFF }));
   
   // center
   object.position.set(width / 2, height / 2);

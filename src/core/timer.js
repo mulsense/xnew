@@ -1,6 +1,6 @@
 import { isObject, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
-import { scope } from './scope';
+import { Scope } from './scope';
 
 export class Timer {
     constructor({ timeout, finalize = null, delay = 0, loop = false }) {
@@ -81,11 +81,11 @@ export class Timer {
 export function timer(callback, delay) {
     let finalizer = null;
 
-    const current = scope.current;
+    const current = Scope.current;
     const context = current?._.context;
     const timer = new Timer({
         timeout: () => {
-            scope(current, context, callback);
+            Scope.set(current, context, callback);
         },
         finalize: () => finalizer.finalize(),
         delay,
@@ -107,10 +107,10 @@ export function timer(callback, delay) {
 export function interval(callback, delay) {
     let finalizer = null;
 
-    const current = scope.current;
+    const current = Scope.current;
     const context = current._.context;
     const timer = new Timer({
-        timeout: () => scope(current, context, callback),
+        timeout: () => Scope.set(current, context, callback),
         finalize: () => finalizer.finalize(),
         delay,
         loop: true,
@@ -133,10 +133,10 @@ export function transition(callback, interval) {
     let finalizer = null;
     let updater = null;
 
-    const current = scope.current;
+    const current = Scope.current;
     const context = current._.context;
     const timer = new Timer({
-        timeout: () => scope(current, context, callback, { progress: 1.0 }),
+        timeout: () => Scope.set(current, context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -146,14 +146,14 @@ export function transition(callback, interval) {
 
     timer.start();
 
-    scope(current, context, callback, { progress: 0.0 });
+    Scope.set(current, context, callback, { progress: 0.0 });
 
     updater = new Unit(null, undefined, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    scope(current, context, callback, { progress });
+                    Scope.set(current, context, callback, { progress });
                 }
             },
         }
