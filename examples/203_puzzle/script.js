@@ -60,6 +60,7 @@ function Controller(self) {
     self.emit('+move', { x: position.x * screen.scale.x });
   });
   pointer.on('-pointerdown', ({ position }) => {
+    self.emit('+move', { x: position.x * screen.scale.x });
     self.emit('+action');
   });
 }
