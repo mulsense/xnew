@@ -39,7 +39,7 @@ function GameScene(self) {
   xnew(Cursor, list);
 
   self.on('+addball', ({ x, y, hue, score }) => {
-    xnew(ColorBall, { x, y, r: 26 + 3 * score, hue, score });
+    xnew(ColorBall, { x, y, r: 28 + 3 * score, hue, score });
   });
 
   self.on('+gameover', () => {

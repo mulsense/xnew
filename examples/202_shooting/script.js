@@ -228,7 +228,7 @@ function Enemy(self) {
 }
 
 function CrashText(self, x, y, score) {
-  const object = xpixi.nest(new PIXI.Text(`+ ${score}`, { fontSize: 12, fill: '#FFFF22' }));
+  const object = xpixi.nest(new PIXI.Text(`+ ${score}`, { fontSize: 24, fill: '#FFFF22' }));
 
   object.position.set(x, y);
   object.anchor.set(0.5);
