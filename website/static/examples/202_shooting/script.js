@@ -53,7 +53,7 @@ function GameScene(self) {
   xnew(Controller);
   xnew(ScoreText);
   xnew(Player);
-  const interval = xnew.interval(() => xnew(Enemy), 5500);
+  const interval = xnew.interval(() => xnew(Enemy), 500);
 
   self.on('+gameover', () => {
     interval.clear();
@@ -158,7 +158,7 @@ function Shot(self, x, y) {
 
   return {
     update() {
-      object.y -= 1;
+      object.y -= 12;
 
       // finalize when out of screen
       if (object.y < 0) {
