@@ -115,7 +115,7 @@ const config = {
               },
               {
                 label: 'examples',
-                to: '/docs/examples/element',
+                to: '/docs/examples/basic/element',
               },
             ],
           },
