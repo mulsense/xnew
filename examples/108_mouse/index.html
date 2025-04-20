@@ -19,24 +19,24 @@
       xthree.camera.position.set(0, 0, +200);
       xthree.scene.rotation.x = -60 / 180 * Math.PI
 
+      xnew(Controller);
+      xnew(ThreeMain);
+    });
+
+    function Controller(self) {
+      self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+
       self.on('+scale', (scale) => {
         xthree.camera.position.z /= scale;
-      })
+      });
       self.on('+translate', (move) => {
         xthree.camera.position.x += move.x * xthree.camera.position.z * 0.001;
         xthree.camera.position.y += move.y * xthree.camera.position.z * 0.001;
-      })
+      });
       self.on('+rotate', (move) => {
         xthree.scene.rotation.x += move.y * 0.01;
         xthree.scene.rotation.z += move.x * 0.01;
-      })
-
-      xnew(ThreeContents);
-      xnew(Event);
-    });
-
-    function Event(self) {
-      self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+      });
 
       const pointer = xnew(xnew.PointerEvent);
       let isActive = false;
@@ -54,12 +54,10 @@
         }
       });
 
-      pointer.on('-wheel', ({ deltaY }) => {
-        self.emit('+scale', 1 + 0.001 * deltaY);
-      });
+      pointer.on('-wheel', ({ deltaY }) => self.emit('+scale', 1 + 0.001 * deltaY));
     }
 
-    function ThreeContents(self) {
+    function ThreeMain(self) {
       xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
       xnew(AmbientLight);
 

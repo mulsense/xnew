@@ -39,9 +39,8 @@
     }
 
     function Text(self, value) {
-      const text = xpixi.nest(new PIXI.Text(value, new PIXI.TextStyle({ fontSize: 24, fill: '#FFFFFF' })));
-      text.x = 10;
-      text.y = 10;
+      const object = xpixi.nest(new PIXI.Text(value, { fontSize: 24, fill: '#FFFFFF' }));
+      object.position.set(10, 10);
     }
 
     function Box(self, { x, y, size, color }) {
@@ -49,9 +48,7 @@
       object.position.set(x, y);
       object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
       
-      xnew.transition(({ progress }) => {
-        object.alpha = progress;
-      }, 2000);
+      xnew.transition(({ progress }) => object.alpha = progress, 2000);
 
       return {
         update() {

@@ -21,63 +21,35 @@
     });
 
     function Controller(self) {
-      xnew(window).on('keydown', (event) => {
-        event.preventDefault();
-      });
-      self.on('touchstart contextmenu wheel', (event) => {
-          event.preventDefault();
-      });
+      // prevent default event
+      xnew(window).on('keydown', (event) => event.preventDefault());
+      self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
-      const stick = xnew({ style: 'position: absolute; left: 10px; bottom: 10px; z-index: 10;' }, 
-        xutil.AnalogStick, { size: 130 }
-      );
-      stick.on('-down -move -up', ({ vector }) => {
-        stick.emit('+move', { vector });
-      })
+      const stick = xnew({ style: 'position: absolute; left: 10px; bottom: 10px;' }, xutil.AnalogStick, { size: 130 });
+      stick.on('-down -move -up', ({ vector }) => stick.emit('+move', { vector }));
 
-      const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 150px; z-index: 10;' },
-        xutil.DPad, { size: 130 }
-      );
-      dpad.on('-down -move -up', ({ vector }) => {
-        dpad.emit('+move', { vector });
-      })
+      const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 150px;' }, xutil.DPad, { size: 130 });
+      dpad.on('-down -move -up', ({ vector }) => dpad.emit('+move', { vector }));
 
-      const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' },
-        xutil.CircleButton
-      );
-      button.on('-down', () => {
-        button.emit('+action');
-      })
+      const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
+      button.on('-down', () => button.emit('+action'));
     }
 
     function Box(self, { x, y, size, color }) {
       const object = xpixi.nest(new PIXI.Container());
-      object.x = x;
-      object.y = y;
+      object.position.set(x, y);
+      object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-      const graphics = new PIXI.Graphics();
-      object.addChild(graphics);
-
-      graphics.beginFill(color);
-      graphics.drawRect(-size / 2, -size / 2, size, size);
-      graphics.endFill();
-
-      let move = null;
+      let move = { x: 0, y: 0};
       let direction = +1;
-      self.on('+move', ({ vector }) => {
-        move = vector;
-      });
-      self.on('+action', () => {
-        direction *= -1;
-      });
+      self.on('+move', ({ vector }) => move = vector);
+      self.on('+action', () => direction *= -1);
 
       return {
         update() {
+          object.x += move.x * 5;
+          object.y += move.y * 5;
           object.rotation += 0.01 * direction;
-          if (move) {
-            object.x += move.x * 5;
-            object.y += move.y * 5;
-          }
         },
       };
     }
