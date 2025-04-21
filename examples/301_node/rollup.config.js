@@ -5,10 +5,10 @@ export default {
     input: 'src/xnew-pixi.js',
     output: {
         file: 'dist/xnew-pixi.js',
-        format: 'umd',
-        globals: { 'pixi.js': 'PIXI' }
+        format: 'cjs',
+        inlineDynamicImports: true,
     },
-    external: ['pixi.js'],
+    // external: ['pixi.js'],
     plugins: [
         resolve(),
         commonjs()
