@@ -3,13 +3,7 @@ const width = 800, height = 600;
 function Main(self) {
   xnew(xnew.Screen, { width, height });
   xpixi.setup();
-  xnew(Background);
   xnew(TitleScene);
-}
-
-function Background(self) {
-  const object = xpixi.nest(new PIXI.Container());
-  object.addChild(new PIXI.Graphics().rect(0, 0, width, height).fill(0xFFFFFF));
 }
 
 function TitleScene(self) {

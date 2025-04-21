@@ -3,7 +3,7 @@ import { Unit } from './unit';
 import { timer, interval, transition } from './timer';
 import { Component } from './component';
 import { event } from './event';
-import { Scope, Context } from './scope';
+import { Scope } from './scope';
 
 export function xnew(...args) {
     // parent Unit
@@ -89,9 +89,9 @@ function context(key, value = undefined) {
         error('context', 'The argument is invalid.', 'key');
     } else {
         if (value !== undefined) {
-            Context.next(key, value);
+            Scope.next(key, value);
         } else {
-            return Context.trace(key);
+            return Scope.trace(key);
         }
     }
 }
@@ -101,5 +101,15 @@ function promise(executor) {
 }
 
 function find(...args) {
-    return Component.find(...args);
+    let base = null;
+    if (args[0] === null || args[0] instanceof Unit) {
+        base = args.shift();
+    }
+    const component = args[0];
+
+    if (isFunction(component) === false) {
+        error('xnew.find', 'The argument is invalid.', 'component');
+    } else if (isFunction(component) === true) {
+        return Component.find(base, component);
+    }
 }

@@ -11,35 +11,26 @@
 </head>
 
 <body style="margin: 0; height: 100vh;">
-  <div id="main" style="width: 100%; height: 100%;"></div>
+  <div id="main" style="position: relative; width: 100%; height: 100%;"></div>
   <script>
     xnew('#main', (self) => {
-      const oscanvas = new OffscreenCanvas(800, 400);
+      const width = 800, height = 400;
 
       // three 
       xnew((self) => {
-        xthree.setup({ renderer: new THREE.WebGLRenderer({ canvas: oscanvas }) });
+        xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+        xthree.setup();
         xthree.camera.position.set(0, 0, +100);
         xnew(Cubes);
       });
 
       // pixi
       xnew((self) => {
-        xnew(xnew.Screen, { width: 800, height: 400 });
+        xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
         xpixi.setup();
-        xnew(TextureUpdate, PIXI.Texture.from(oscanvas));
         xnew(Boxes);
       });
     });
-
-    function TextureUpdate(self, texture) {
-      const object = xpixi.nest(new PIXI.Sprite(texture)); 
-      return {
-        update() {
-          object.texture.source.update()
-        },
-      };
-    }
 
     function Boxes(self) {
       const object = xpixi.nest(new PIXI.Container()); 

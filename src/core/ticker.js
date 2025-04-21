@@ -5,7 +5,7 @@ export class Ticker {
     static callbacks = [];
     static previous = Date.now();
 
-    static reset() {
+    static clear() {
         Ticker.callbacks = [];
         Ticker.previous = Date.now();
     }

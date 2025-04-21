@@ -32,7 +32,7 @@ function on(unit, type, listener, options) {
                 const execute = (...args) => {
                     const eventbackup = EventController.event;
                     EventController.event = { type };
-                    Scope.set(unit, context, listener, ...args);
+                    Scope.execute(unit, context, listener, ...args);
                     EventController.event = eventbackup;
                 };
                 unit._.listeners.set(type, listener, [element, execute]);
@@ -40,7 +40,7 @@ function on(unit, type, listener, options) {
                 const execute = (...args) => {
                     const eventbackup = EventController.event;
                     EventController.event = { type: args[0]?.type ?? null };
-                    Scope.set(unit, context, listener, ...args);
+                    Scope.execute(unit, context, listener, ...args);
                     EventController.event = eventbackup;
                 };
                 unit._.listeners.set(type, listener, [element, execute]);

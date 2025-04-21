@@ -3,13 +3,14 @@ import { createElement } from './element';
 import { MapSet, MapMap } from './map';
 import { Ticker } from './ticker';
 import { event } from './event';
-import { Scope, Context, ScopedPromise } from './scope';
+import { Scope, ScopedPromise } from './scope';
 import { Component } from './component';
 
 export class Unit {
     static roots = new Set();   // root units
 
     constructor(parent, target, component, ...args) {
+        
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseElement = target;
@@ -19,14 +20,15 @@ export class Unit {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
-        const baseContext = Context.get(parent);
+        const baseContext = Scope.context(parent);
 
         this._ = {
-            parent,          // parent unit
-            target,          // target info
-            baseElement,     // base element
-            baseContext,     // base context
-            componentArgs: [component, ...args],
+            parent,         // parent unit
+            target,         // target info
+            component,      // component function
+            args,           // component arguments
+            baseElement,    // base element
+            baseContext,    // base context
         };
 
         (parent?._.children ?? Unit.roots).add(this);
@@ -74,7 +76,7 @@ export class Unit {
     reboot() {
         Unit.stop.call(this);
         Unit.finalize.call(this);
-        Unit.initialize.call(this, ...this._.componentArgs);
+        Unit.initialize.call(this, this._.component, ...this._.args);
     }
 
     static nest(attributes) {
@@ -86,18 +88,18 @@ export class Unit {
 
     static initialize(component, ...args) {
         this._ = Object.assign(this._, {
-            children: new Set(),            // children units
-            nestElements: [],               // nest elements
-            state: 'pending',               // [pending -> running <-> stopped -> finalized]
-            tostart: false,                 // flag for start
-            upcount: 0,                     // update count    
-            promises: [],                   // promises
-            resolved: false,                // promise check
-            listeners: new MapMap(),        // event listners
-            props: {},                      // properties in the component function
+            children: new Set(),       // children units
+            nestElements: [],          // nest elements
+            state: 'pending',          // [pending -> running <-> stopped -> finalized]
+            tostart: false,            // flag for start
+            upcount: 0,                // update count    
+            promises: [],              // promises
+            resolved: false,           // promise check
+            listeners: new MapMap(),   // event listners
+            props: {},                 // properties in the component function
         });
 
-        Context.set(this, this._.baseContext);
+        Scope.context(this, this._.baseContext);
 
         if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
             this._.state = 'finalized';
@@ -111,7 +113,7 @@ export class Unit {
 
             // setup component
             if (isFunction(component) === true) {
-                Scope.set(this, undefined, () => Unit.extend.call(this, component, ...args));
+                Scope.execute(this, undefined, () => Unit.extend.call(this, component, ...args));
             } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
@@ -141,17 +143,17 @@ export class Unit {
                 }
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
-                const context = Context.get(this);
+                const context = Scope.context(this);
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => Scope.set(this, context, descripter.value, ...args);
+                    dest.value = (...args) => Scope.execute(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => Scope.set(this, context, descripter.get, ...args);
+                    dest.get = (...args) => Scope.execute(this, context, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => Scope.set(this, context, descripter.set, ...args);
+                    dest.set = (...args) => Scope.execute(this, context, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
@@ -179,7 +181,7 @@ export class Unit {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                Scope.set(this, Context.get(this), this._.props.start);
+                Scope.execute(this, Scope.context(this), this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -192,7 +194,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                Scope.set(this, Context.get(this), this._.props.stop);
+                Scope.execute(this, Scope.context(this), this._.props.stop);
             }
         }
     }
@@ -202,7 +204,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Scope.set(this, Context.get(this), this._.props.update, this._.upcount++);
+                Scope.execute(this, Scope.context(this), this._.props.update, this._.upcount++);
             }
         }
     }
@@ -215,9 +217,9 @@ export class Unit {
             this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
-                Scope.set(this, Context.get(this), this._.props.finalize);
+                Scope.execute(this, Scope.context(this), this._.props.finalize);
             }
-            Component.remove(this);
+            Component.clear(this);
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
@@ -228,7 +230,7 @@ export class Unit {
             this._.props = {};
 
             this.off();
-            Context.clear(this)
+            Scope.clear(this)
 
             if (this._.nestElements.length > 0) {
                 this._.baseElement.removeChild(this._.nestElements[0]);
@@ -241,7 +243,7 @@ export class Unit {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
 
-        Ticker.reset();
+        Ticker.clear();
         Ticker.start();
         Ticker.push((time) => {
             Unit.roots.forEach((unit) => {

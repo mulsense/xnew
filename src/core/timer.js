@@ -1,6 +1,6 @@
 import { isObject, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
-import { Scope, Context } from './scope';
+import { Scope } from './scope';
 
 export class Timer {
     constructor({ timeout, finalize = null, delay = 0, loop = false }) {
@@ -81,19 +81,16 @@ export class Timer {
 export function timer(callback, delay) {
     let finalizer = null;
 
-    const current = Scope.current;
-    const context = Context.get(current);
+    const snapshot = Scope.snapshot;
     const timer = new Timer({
-        timeout: () => {
-            Scope.set(current, context, callback);
-        },
+        timeout: () => Scope.execute(snapshot.unit, snapshot.context, callback),
         finalize: () => finalizer.finalize(),
         delay,
     });
 
     timer.start();
 
-    finalizer = new Unit(current, undefined, (self) => {
+    finalizer = new Unit(snapshot.unit, undefined, (self) => {
         return {
             finalize() {
                 timer.clear();
@@ -107,10 +104,9 @@ export function timer(callback, delay) {
 export function interval(callback, delay) {
     let finalizer = null;
 
-    const current = Scope.current;
-    const context = Context.get(current);
+    const snapshot = Scope.snapshot;
     const timer = new Timer({
-        timeout: () => Scope.set(current, context, callback),
+        timeout: () => Scope.execute(snapshot.unit, snapshot.context, callback),
         finalize: () => finalizer.finalize(),
         delay,
         loop: true,
@@ -118,7 +114,7 @@ export function interval(callback, delay) {
 
     timer.start();
 
-    finalizer = new Unit(current, undefined, (self) => {
+    finalizer = new Unit(snapshot.unit, undefined, (self) => {
         return {
             finalize() {
                 timer.clear();
@@ -133,10 +129,9 @@ export function transition(callback, interval) {
     let finalizer = null;
     let updater = null;
 
-    const current = Scope.current;
-    const context = Context.get(current);
+    const snapshot = Scope.snapshot;
     const timer = new Timer({
-        timeout: () => Scope.set(current, context, callback, { progress: 1.0 }),
+        timeout: () => Scope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -146,20 +141,20 @@ export function transition(callback, interval) {
 
     timer.start();
 
-    Scope.set(current, context, callback, { progress: 0.0 });
+    Scope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
 
     updater = new Unit(null, undefined, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    Scope.set(current, context, callback, { progress });
+                    Scope.execute(snapshot.unit, snapshot.context, callback, { progress });
                 }
             },
         }
     });
 
-    finalizer = new Unit(current, undefined, (self) => {
+    finalizer = new Unit(snapshot.unit, undefined, (self) => {
         return {
             finalize() {
                 timer.clear();

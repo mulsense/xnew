@@ -39,7 +39,8 @@ function Root(self, { renderer }) {
         if (screens.length > 0) {
             const screen = screens.slice(-1)[0]; // last screen
             renderer = PIXI.autoDetectRenderer({
-                width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas
+                width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas,
+                backgroundAlpha: 0.0, antialias: true,
             });
         } else {
             renderer = PIXI.autoDetectRenderer({});
