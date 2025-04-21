@@ -4,15 +4,15 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../thirdparty/matter.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js');
     code = code.replace('../thirdparty/three.min.js', 'https://unpkg.com/three@0.142.x/build/three.min.js');
     code = code.replace('../thirdparty/pixi.min.js', 'https://pixijs.download/v7.0.5/pixi.min.js');
-    code = code.replace('../../dist/xnew.js', 'https://unpkg.com/xnew@2.4.x/dist/xnew.js');
-    code = code.replace('../../dist/addons/xpixi.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xpixi.js');
-    code = code.replace('../../dist/addons/xthree.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xthree.js');
-    code = code.replace('../../dist/addons/xmatter.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xmatter.js');
-    code = code.replace('../../dist/addons/xutil.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xutil.js');
-    code = code.replace('../../dist/addons/xaudio.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xaudio.js');
+    code = code.replace('../dist/xnew.js', 'https://unpkg.com/xnew@2.4.x/dist/xnew.js');
+    code = code.replace('../dist/addons/xpixi.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xpixi.js');
+    code = code.replace('../dist/addons/xthree.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xthree.js');
+    code = code.replace('../dist/addons/xmatter.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xmatter.js');
+    code = code.replace('../dist/addons/xutil.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xutil.js');
+    code = code.replace('../dist/addons/xaudio.js', 'https://unpkg.com/xnew@2.4.x/dist/addons/xaudio.js');
     return (
         <>
-            <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/examples/' + name} ></iframe>
+            <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/' + name} ></iframe>
             <CodeBlock language='html'>{code}</CodeBlock>
         </>
     )

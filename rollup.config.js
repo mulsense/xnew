@@ -19,6 +19,20 @@ export default [
                 name: 'xnew',
                 freeze: false
             },
+            {
+                file: 'examples/dist/xnew.js',
+                format: 'umd',
+                extend: true,
+                name: 'xnew',
+                freeze: false,
+            },
+            {
+                file: 'examples/dist/xnew.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xnew',
+                freeze: false
+            },
         ]
     },
     {
@@ -34,6 +48,21 @@ export default [
             },
             {
                 file: 'dist/addons/xthree.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xthree',
+                freeze: false
+            },
+            {
+                file: 'examples/dist/addons/xthree.js',
+                format: 'umd',
+                extend: true,
+                name: 'xthree',
+                freeze: false,
+                globals: { 'xnew': 'xnew', 'three': 'THREE' },
+            },
+            {
+                file: 'examples/dist/addons/xthree.module.js',
                 format: 'esm',
                 extend: true,
                 name: 'xthree',
@@ -60,6 +89,21 @@ export default [
                 name: 'xpixi',
                 freeze: false
             },
+            {
+                file: 'examples/dist/addons/xpixi.js',
+                format: 'umd',
+                extend: true,
+                name: 'xpixi',
+                freeze: false,
+                globals: { 'xnew': 'xnew', 'pixi.js': 'PIXI' },
+            },
+            {
+                file: 'examples/dist/addons/xpixi.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xpixi',
+                freeze: false
+            },
         ],
         external: ['xnew', 'pixi.js'],
     },
@@ -76,6 +120,21 @@ export default [
             },
             {
                 file: 'dist/addons/xmatter.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xmatter',
+                freeze: false
+            },
+            {
+                file: 'examples/dist/addons/xmatter.js',
+                format: 'umd',
+                extend: true,
+                name: 'xmatter',
+                freeze: false,
+                globals: { 'xnew': 'xnew', 'matter-js': 'Matter' },
+            },
+            {
+                file: 'examples/dist/addons/xmatter.module.js',
                 format: 'esm',
                 extend: true,
                 name: 'xmatter',
@@ -102,6 +161,21 @@ export default [
                 name: 'xutil',
                 freeze: false
             },
+            {
+                file: 'examples/dist/addons/xutil.js',
+                format: 'umd',
+                extend: true,
+                name: 'xutil',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'examples/dist/addons/xutil.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xutil',
+                freeze: false
+            },
         ],
         external: ['xnew'],
     },
@@ -118,6 +192,21 @@ export default [
             },
             {
                 file: 'dist/addons/xaudio.module.js',
+                format: 'esm',
+                extend: true,
+                name: 'xaudio',
+                freeze: false
+            },
+            {
+                file: 'examples/dist/addons/xaudio.js',
+                format: 'umd',
+                extend: true,
+                name: 'xaudio',
+                freeze: false,
+                globals: { 'xnew': 'xnew' },
+            },
+            {
+                file: 'examples/dist/addons/xaudio.module.js',
                 format: 'esm',
                 extend: true,
                 name: 'xaudio',

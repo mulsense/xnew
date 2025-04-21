@@ -20,7 +20,7 @@ const config = {
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/xnew/',
 
-  staticDirectories: ['static', '../'],
+  staticDirectories: ['static', '../examples'],
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
