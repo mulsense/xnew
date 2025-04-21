@@ -158,6 +158,12 @@ const config = {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
       },
+      themeConfig: {
+        // Declare some <meta> tags
+        metadata: [
+          {name: 'google-site-verification', content: 'VMIri0b4029DpITL33uK7B8pH6GckEqTC2uy7bSGIOE'},
+        ],
+      },
     }),
 };
 
