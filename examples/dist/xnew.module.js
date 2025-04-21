@@ -1143,6 +1143,37 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
         Object.assign(absolute.style, style);
     }
 
+    const pointer = xnew(canvas, PointerEvent);
+    pointer.on('-wheel', (data) => self.emit('-wheel', scale(data)));
+    pointer.on('-pointermove', (data) => self.emit('-pointermove', scale(data)));
+    pointer.on('-pointerdown', (data) => self.emit('-pointerdown', scale(data)));
+    pointer.on('-pointerup', (data) => self.emit('-pointerup', scale(data)));
+    pointer.on('-pointercancel', (data) => self.emit('-pointercancel', scale(data)));
+
+    pointer.on('-gesturestart', (data) => self.emit('-gesturestart', scale(data)));
+    pointer.on('-gesturemove', (data) => self.emit('-gesturemove', scale(data)));
+    pointer.on('-gestureend', (data) => self.emit('-gestureend', scale(data)));
+    pointer.on('-gesturecancel', (data) => self.emit('-gesturecancel', scale(data)));
+
+    pointer.on('-dragstart', (data) => self.emit('-dragstart', scale(data)));
+    pointer.on('-dragmove', (data) => self.emit('-dragmove', scale(data)));
+    pointer.on('-dragend', (data) => self.emit('-dragend', scale(data)));
+    pointer.on('-dragcancel', (data) => self.emit('-dragcancel', scale(data)));
+
+    function scale(data) {
+        const sx = canvas.element.width / canvas.element.clientWidth;
+        const sy = canvas.element.height / canvas.element.clientHeight;
+        if (data.position) {
+            data.position.x *= sx;
+            data.position.y *= sy;
+        }
+        if (data.delta) {
+            data.delta.x *= sx;
+            data.delta.y *= sy;
+        }
+        return data;
+    }
+
     return {
         get canvas() {
             return canvas.element;
@@ -1152,12 +1183,6 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
             canvas.element.height = height;
             resize();
         },
-        get scale() {
-            return {
-                x: canvas.element.width / canvas.element.clientWidth,
-                y: canvas.element.height / canvas.element.clientHeight
-            };
-        }
     }
 }
 

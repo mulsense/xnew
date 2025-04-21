@@ -32,9 +32,7 @@ function GameScene(self) {
   xnew(Queue, balls);
   xnew(Cursor, balls);
 
-  self.on('+addball', ({ x, y, hue, score }) => {
-    xnew(ColorBall, { x, y, r: 28 + 3 * score, hue, score });
-  });
+  self.on('+addball', (...args) => xnew(ColorBall, ...args));
 
   self.on('+gameover', () => {
     xnew(GameOverText);
@@ -49,12 +47,11 @@ function GameScene(self) {
 
 function Controller(self) {
   const screen = xnew.find(xnew.Screen)[0];
-  const pointer = xnew(screen.canvas, xnew.PointerEvent);
-  pointer.on('-pointermove', ({ position }) => {
-    self.emit('+move', { x: position.x * screen.scale.x });
+  screen.on('-pointermove', ({ position }) => {
+    self.emit('+move', { x: position.x });
   });
-  pointer.on('-pointerdown', ({ position }) => {
-    self.emit('+move', { x: position.x * screen.scale.x });
+  screen.on('-pointerdown', ({ position }) => {
+    self.emit('+move', { x: position.x });
     self.emit('+action');
   });
 }
@@ -73,16 +70,17 @@ function Queue(self, balls) {
  
   xnew((self) => {
     const object = xpixi.nest(new PIXI.Container());
-    const circle3 = xnew(Circle, { x: 80 - 3 * 30, y: 40, r: 20, color: hueToHex(balls[3]) }, { isStatic: true });
-    const circle2 = xnew(Circle, { x: 80 - 2 * 30, y: 40, r: 20, color: hueToHex(balls[2]) }, { isStatic: true });
-    const circle1 = xnew(Circle, { x: 80 - 1 * 30, y: 40, r: 20, color: hueToHex(balls[1]) }, { isStatic: true });
+    const circle3 = xnew(Circle, { x: 80 - 3 * 30, y: 40, r: 20, color: hueToCol(balls[3]) }, { isStatic: true });
+    const circle2 = xnew(Circle, { x: 80 - 2 * 30, y: 40, r: 20, color: hueToCol(balls[2]) }, { isStatic: true });
+    const circle1 = xnew(Circle, { x: 80 - 1 * 30, y: 40, r: 20, color: hueToCol(balls[1]) }, { isStatic: true });
 
+    object.x = 20;
     self.on('+reload', () => {
       balls.shift();
       balls.push(Math.random() * Math.PI * 2);
-      circle1.setColor(hueToHex(balls[1]));
-      circle2.setColor(hueToHex(balls[2]));
-      circle3.setColor(hueToHex(balls[3]));
+      circle1.setColor(hueToCol(balls[1]));
+      circle2.setColor(hueToCol(balls[2]));
+      circle3.setColor(hueToCol(balls[3]));
       xnew.transition(({ progress }) => {
         object.x = 30 * progress - 10;
         if (progress === 1.0) {
@@ -90,7 +88,6 @@ function Queue(self, balls) {
         }
       }, 500);
     });
-    xnew.transition(({ progress }) => object.x = 30 * progress - 10, 1000);
   });
 }
 
@@ -98,7 +95,7 @@ function Cursor(self, balls) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 50);
 
-  const circle = new PIXI.Graphics().circle(0, 0, 32).fill(hueToHex(balls[0]));
+  const circle = new PIXI.Graphics().circle(0, 0, 32).fill(hueToCol(balls[0]));
   object.addChild(circle);
 
   const line1 = new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4, cap: 'round' });
@@ -117,7 +114,7 @@ function Cursor(self, balls) {
       reloaded = false;
       self.emit('+addball', { x: object.position.x, y: object.position.y, hue: balls[0], score: 1 });
       self.emit('+reload');
-      circle.clear().circle(0, 0, 32).fill(hueToHex(balls[0]));
+      circle.clear().circle(0, 0, 32).fill(hueToCol(balls[0]));
     } 
   });
 
@@ -145,8 +142,9 @@ function Bowl(self) {
   }
 }
 
-function ColorBall(self, { x, y, r, hue = 0, score = 1 }) {
-  xnew.extend(Circle, { x, y, r, color: hueToHex(hue) });
+function ColorBall(self, { x, y, hue = 0, score = 1 }) {
+  const r = 28 + 3 * score;
+  xnew.extend(Circle, { x, y, r, color: hueToCol(hue) });
 
   self.emit('+scoreup', score);
   xnew(ColorBallText, { hue, score });
@@ -165,7 +163,11 @@ function ColorBall(self, { x, y, r, hue = 0, score = 1 }) {
           const hue = meanHue(self.hue, target.hue);
           const x = (self.object.x * self.score + target.object.x * target.score) / (self.score + target.score);
           const y = (self.object.y * self.score + target.object.y * target.score) / (self.score + target.score);
-          xnew.timer(() => self.emit('+addball', { x, y, hue, score }), 1);
+          xnew.timer(() => {
+            self.emit('+addball', { x, y, hue, score });
+            self.finalize();
+            target.finalize();
+          }, 1);
           self.close();
           target.close();
         }
@@ -185,7 +187,6 @@ function ColorBall(self, { x, y, r, hue = 0, score = 1 }) {
     },
     close() {
       isClosed = true;
-      xnew.timer(() => self.finalize(), 10);
     },
     mergeCheck(target) {
       if (self === target || self.isClosed === true || target.isClosed === true) return false;
@@ -237,7 +238,7 @@ function Circle(self, { x, y, r, color = 0xFFFFFF } = {}, options = {}) {
 // color functions
 // --------------------------------------------------
 
-function hueToHex(hue) {
+function hueToCol(hue) {
   const [h, s, v] = [hue, 0.9, 0.9];
   const r = h * 180.0 / Math.PI;
   const i = Math.floor(r / 60);
@@ -261,19 +262,15 @@ function hueToHex(hue) {
 function meanHue(a, b) {
   if (Math.abs(a - b) < Math.PI) {
     return (a + b) / 2;
-  } else if (a + b < 2 * Math.PI) {
-    return (a + b) / 2 + Math.PI;
   } else {
-    return (a + b) / 2 - Math.PI;
+    return a + b < 2 * Math.PI ? (a + b) / 2 + Math.PI : (a + b) / 2 - Math.PI;
   }
 }
 
 function diffHue(a, b) {
   if (Math.abs(a - b) < Math.PI) {
     return Math.abs(a - b);
-  } else if (a > b)  {
-    return Math.abs(a - b - Math.PI * 2);
   } else {
-    return Math.abs(b - a - Math.PI * 2);
+    return Math.abs(a > b ? a - b - Math.PI * 2 : b - a - Math.PI * 2);
   }
 }
