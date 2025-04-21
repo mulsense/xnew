@@ -757,7 +757,7 @@ function timer(callback, delay) {
     let finalizer = null;
 
     const current = Scope.current;
-    const context = current?._.context;
+    const context = Context.get(current);
     const timer = new Timer({
         timeout: () => {
             Scope.set(current, context, callback);
@@ -783,7 +783,7 @@ function interval(callback, delay) {
     let finalizer = null;
 
     const current = Scope.current;
-    const context = current._.context;
+    const context = Context.get(current);
     const timer = new Timer({
         timeout: () => Scope.set(current, context, callback),
         finalize: () => finalizer.finalize(),
@@ -809,7 +809,7 @@ function transition(callback, interval) {
     let updater = null;
 
     const current = Scope.current;
-    const context = current._.context;
+    const context = Context.get(current);
     const timer = new Timer({
         timeout: () => Scope.set(current, context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
