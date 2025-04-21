@@ -1,0 +1,1246 @@
+//----------------------------------------------------------------------------------------------------
+// type check
+//----------------------------------------------------------------------------------------------------
+
+function isString(value) {
+    return typeof value === 'string';
+}
+
+function isFunction(value) {
+    return typeof value === 'function';
+}
+
+function isObject(value) {
+    return value !== null && typeof value === 'object' && value.constructor === Object;
+}
+
+//----------------------------------------------------------------------------------------------------
+// error 
+//----------------------------------------------------------------------------------------------------
+
+function error(name, text, target = undefined) {
+    const message = name + (target !== undefined ? ` [${target}]` : '') + ': ' + text;
+    console.error(message);
+}
+
+//----------------------------------------------------------------------------------------------------
+// create element from attributes
+//----------------------------------------------------------------------------------------------------
+
+function createElement(attributes, parentElement = null) {
+    const tagName = (attributes.tagName ?? 'div').toLowerCase();
+    let element = null;
+
+    let nsmode = false;
+    if (tagName === 'svg') {
+        nsmode = true;
+    } else {
+        while (parentElement) {
+            if (parentElement.tagName.toLowerCase() === 'svg') {
+                nsmode = true;
+                break;
+            }
+            parentElement = parentElement.parentElement;
+        }
+    }
+
+    if (nsmode === true) {
+        element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+    } else {
+        element = document.createElement(tagName);
+    }
+
+    Object.keys(attributes).forEach((key) => {
+        const value = attributes[key];
+        if (key === 'tagName') ; else if (key === 'insert') ; else if (key === 'className') {
+            if (isString(value) === true && value !== '') {
+                element.classList.add(...value.trim().split(/\s+/));
+            }
+        } else if (key === 'style') {
+            if (isString(value) === true) {
+                element.style = value;
+            } else if (isObject(value) === true) {
+                Object.assign(element.style, value);
+            }
+        } else {
+            key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            if (element[key] === true || element[key] === false) {
+                element[key] = value;
+            } else {
+                setAttribute(element, key, value);
+            }
+
+            function setAttribute(element, key, value) {
+                if (nsmode === true) {
+                    element.setAttributeNS(null, key, value);
+                } else {
+                    element.setAttribute(key, value);
+                }
+            }
+        }
+    });
+
+    return element;
+}
+
+//----------------------------------------------------------------------------------------------------
+// map set
+//----------------------------------------------------------------------------------------------------
+
+class MapSet extends Map {
+    has(key, value) {
+        if (value === undefined) {
+            return super.has(key);
+        } else {
+            return super.has(key) && super.get(key).has(value);
+        }
+    }
+
+    get(key) {
+        if (this.has(key) === false) {
+            return new Set();
+        } else {
+            return super.get(key);
+        }
+    }
+
+    add(key, value) {
+        if (this.has(key) === false) {
+            this.set(key, new Set());
+        }
+        this.get(key).add(value);
+    }
+
+    delete(key, value) {
+        if (this.has(key, value) === false) {
+            return;
+        }
+        this.get(key).delete(value);
+        if (this.get(key).size === 0) {
+            super.delete(key);
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// map map
+//----------------------------------------------------------------------------------------------------
+
+class MapMap extends Map {
+    has(key, subkey) {
+        if (subkey === undefined) {
+            return super.has(key);
+        } else {
+            return super.has(key) && super.get(key).has(subkey);
+        }
+    }
+
+    set(key, subkey, value) {
+        if (super.has(key) === false) {
+            super.set(key, new Map());
+        }
+        super.get(key).set(subkey, value);
+    }
+
+    get(key, subkey) {
+        if (subkey === undefined) {
+            return super.get(key);
+        } else {
+            return super.get(key)?.get(subkey);
+        }
+    }
+
+    delete(key, subkey) {
+        if (this.has(key) === false) {
+            return;
+        }
+        this.get(key).delete(subkey);
+        if (this.get(key).size === 0) {
+            super.delete(key);
+        }
+    }
+}
+
+class Ticker {
+    static animation = null;
+    static callbacks = [];
+    static previous = Date.now();
+
+    static reset() {
+        Ticker.callbacks = [];
+        Ticker.previous = Date.now();
+    }
+
+    static push(callback) {
+        Ticker.callbacks.push(callback);
+    }
+
+    static start() {
+        if (isFunction(requestAnimationFrame) === true && Ticker.animation === null) {
+            Ticker.animation = requestAnimationFrame(Ticker.execute);
+        }
+    }
+
+    static stop() {
+        if (isFunction(cancelAnimationFrame) === true && Ticker.animation !== null) {
+            cancelAnimationFrame(Ticker.animation);
+            Ticker.animation = null;
+        }
+    }
+
+    static execute() {
+        const interval = 1000 / 60;
+        const time = Date.now();
+        if (time - Ticker.previous > interval * 0.8) {
+            Ticker.callbacks.forEach((callback) => callback(time));
+            Ticker.previous = time;
+        }
+        Ticker.animation = requestAnimationFrame(Ticker.execute);
+    }
+}
+
+class Scope {
+    static current = null;
+
+    static set(unit, context, func, ...args) {
+        const stack = [Scope.current, Context.get(unit)];
+
+        try {
+            Scope.current = unit;
+            if (unit && context !== undefined) {
+                Context.set(unit, context);
+            }
+            return func(...args);
+        } catch (error) {
+            throw error;
+        } finally {
+            Scope.current = stack[0];
+            if (unit && context !== undefined) {
+                Context.set(unit, stack[1]);
+            }
+        }
+    }
+}
+
+class Context {
+    static map = new Map();
+
+    static set(unit, context) {
+        Context.map.set(unit, context);
+    }
+
+    static get(unit) {
+        return Context.map.get(unit) ?? null;
+    }
+
+    static clear(unit) {
+        Context.map.delete(unit);
+    }
+
+
+    static next(key, value) {
+        const unit = Scope.current;
+        Context.map.set(unit, [Context.map.get(unit), key, value]);
+    }
+
+    static trace(key) {
+        const unit = Scope.current;
+        let ret = undefined;
+        for (let context = Context.map.get(unit); context !== null; context = context[0]) {
+            if (context[1] === key) {
+                ret = context[2];
+                break;
+            }
+        }
+        return ret;
+    }
+}
+
+class ScopedPromise extends Promise {
+    then(callback) {
+        const [unit, context] = [Scope.current, Context.get(Scope.current)];
+        super.then((...args) => Scope.set(unit, context, callback, ...args));
+        return this;
+    }
+
+    catch(callback) {
+        const [unit, context] = [Scope.current, Context.get(Scope.current)];
+        super.then((...args) => Scope.set(unit, context, callback, ...args));
+        return this;
+    }
+
+    finally(callback) {
+        const [unit, context] = [Scope.current, Context.get(Scope.current)];
+        super.then((...args) => Scope.set(unit, context, callback, ...args));
+        return this;
+    }
+}
+
+let etypes = new MapSet();
+
+function event() {
+    return EventController.event;
+}
+class EventController {
+    static event = null;
+}
+Object.defineProperty(event, 'on', { enumerable: true, value: on });
+Object.defineProperty(event, 'off', { enumerable: true, value: off });
+Object.defineProperty(event, 'emit', { enumerable: true, value: emit });
+
+function on(unit, type, listener, options) {
+    if (isString(type) === false) {
+        error('unit on', 'The argument is invalid.', 'type');
+    } else if (isFunction(listener) === false) {
+        error('unit on', 'The argument is invalid.', 'listener');
+    } else {
+        type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+    }
+
+    function internal(type, listener) {
+        if (unit._.listeners.has(type, listener) === false) {
+            const element = unit.element;
+            const context = unit._.context;
+            if (type[0] === '-' || type[0] === '+') {
+                const execute = (...args) => {
+                    const eventbackup = EventController.event;
+                    EventController.event = { type };
+                    Scope.set(unit, context, listener, ...args);
+                    EventController.event = eventbackup;
+                };
+                unit._.listeners.set(type, listener, [element, execute]);
+            } else {
+                const execute = (...args) => {
+                    const eventbackup = EventController.event;
+                    EventController.event = { type: args[0]?.type ?? null };
+                    Scope.set(unit, context, listener, ...args);
+                    EventController.event = eventbackup;
+                };
+                unit._.listeners.set(type, listener, [element, execute]);
+                element.addEventListener(type, execute, options);
+            }
+        }
+        if (unit._.listeners.has(type) === true) {
+            etypes.add(type, unit);
+        }
+    }
+}
+
+function off(unit, type, listener) {
+    if (type !== undefined && isString(type) === false) {
+        error('unit off', 'The argument is invalid.', 'type');
+    } else if (listener !== undefined && isFunction(listener) === false) {
+        error('unit off', 'The argument is invalid.', 'listener');
+    } else if (isString(type) === true && listener !== undefined) {
+        type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+    } else if (isString(type) === true && listener === undefined) {
+        type.trim().split(/\s+/).forEach((type) => {
+            unit._.listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
+        });
+    } else if (type === undefined) {
+        unit._.listeners.forEach((map, type) => {
+            map.forEach((_, listener) => internal.call(unit, type, listener));
+        });
+    }
+
+    function internal(type, listener) {
+        if (unit._.listeners.has(type, listener) === true) {
+            const [element, execute] = unit._.listeners.get(type, listener);
+            unit._.listeners.delete(type, listener);
+            element.removeEventListener(type, execute);
+        }
+        if (unit._.listeners.has(type) === false) {
+            etypes.delete(type, unit);
+        }
+    }
+}
+
+function emit(unit, type, ...args) {
+    if (isString(type) === false) {
+        error('unit emit', 'The argument is invalid.', 'type');
+    } else if (unit._.state === 'finalized') {
+        error('unit emit', 'This function can not be called after finalized.');
+    } else if (type[0] === '+') {
+        etypes.get(type)?.forEach((unit) => {
+            unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+        });
+    } else if (type[0] === '-') {
+        unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+    }
+}
+
+class Component {
+    static componentToUnits = new MapSet();
+    static unitToComponents = new MapSet();
+
+    static add(unit, component) {
+        Component.unitToComponents.add(unit, component);
+        Component.componentToUnits.add(component, unit);
+    }
+    
+    static remove(unit) {
+        Component.unitToComponents.get(unit).forEach((component) => {
+            Component.componentToUnits.delete(component, unit);
+        });
+        Component.unitToComponents.delete(unit);
+    }
+
+    static find(...args) {
+        // current Unit
+        let current = null;
+        if (args[0] === null || args[0] instanceof Unit) {
+            current = args.shift();
+        }
+        const component = args[0];
+
+        if (isFunction(component) === false) {
+            error('xnew.find', 'The argument is invalid.', 'component');
+        } else if (isFunction(component) === true) {
+            if (current !== null) {
+                return [...Component.componentToUnits.get(component)].filter((unit) => {
+                    let temp = unit;
+                    while (temp !== null) {
+                        if (temp === current) {
+                            return true;
+                        } else {
+                            temp = temp.parent;
+                        }
+                    }
+                    return false;
+                });
+            } else {
+                return [...Component.componentToUnits.get(component)];
+            }
+        }
+    }
+}
+
+class Unit {
+    static roots = new Set();   // root units
+
+    constructor(parent, target, component, ...args) {
+        let baseElement = null;
+        if (target instanceof Element || target instanceof Window || target instanceof Document) {
+            baseElement = target;
+        } else if (parent !== null) {
+            baseElement = parent.element;
+        } else if (document instanceof Document) {
+            baseElement = document.currentScript?.parentElement ?? document.body;
+        }
+
+        const baseContext = Context.get(parent);
+
+        this._ = {
+            parent,          // parent unit
+            target,          // target info
+            baseElement,     // base element
+            baseContext,     // base context
+            componentArgs: [component, ...args],
+        };
+
+        (parent?._.children ?? Unit.roots).add(this);
+        Unit.initialize.call(this, component, ...args);
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // base system 
+    //----------------------------------------------------------------------------------------------------
+
+    get parent() {
+        return this._.parent;
+    }
+
+    get element() {
+        return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
+    }
+
+    get promise() {
+        const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
+        return new ScopedPromise((resolve, reject) => {
+            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+        });
+    }
+
+    get isRunning() {
+        return this._.state === 'running';
+    }
+
+    start() {
+        this._.tostart = true;
+    }
+
+    stop() {
+        this._.tostart = false;
+        Unit.stop.call(this);
+    }
+
+    finalize() {
+        Unit.stop.call(this);
+        Unit.finalize.call(this);
+        (this._.parent?._.children ?? Unit.roots).delete(this);
+    }
+
+    reboot() {
+        Unit.stop.call(this);
+        Unit.finalize.call(this);
+        Unit.initialize.call(this, ...this._.componentArgs);
+    }
+
+    static nest(attributes) {
+        const element = createElement(attributes, this.element);
+        this.element.append(element);
+        this._.nestElements.push(element);
+        return element;
+    }
+
+    static initialize(component, ...args) {
+        this._ = Object.assign(this._, {
+            children: new Set(),            // children units
+            nestElements: [],               // nest elements
+            state: 'pending',               // [pending -> running <-> stopped -> finalized]
+            tostart: false,                 // flag for start
+            upcount: 0,                     // update count    
+            promises: [],                   // promises
+            resolved: false,                // promise check
+            listeners: new MapMap(),        // event listners
+            props: {},                      // properties in the component function
+        });
+
+        Context.set(this, this._.baseContext);
+
+        if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
+            this._.state = 'finalized';
+        } else {
+            this._.tostart = true;
+
+            // nest html element
+            if (isObject(this._.target) === true && this.element instanceof Element) {
+                Unit.nest.call(this, this._.target);
+            }
+
+            // setup component
+            if (isFunction(component) === true) {
+                Scope.set(this, undefined, () => Unit.extend.call(this, component, ...args));
+            } else if (isObject(this._.target) === true && isString(component) === true) {
+                this.element.innerHTML = component;
+            }
+
+            // whether the unit promise was resolved
+            this.promise.then((response) => { this._.resolved = true; return response; });
+        }
+    }
+
+    static extend(component, ...args) {
+        Component.add(this, component);
+
+        const props = component(this, ...args) ?? {};
+
+        Object.keys(props).forEach((key) => {
+            const descripter = Object.getOwnPropertyDescriptor(props, key);
+            if (['start', 'update', 'stop', 'finalize'].includes(key)) {
+                if (isFunction(descripter.value)) {
+                    const previous = this._.props[key];
+                    if (previous !== undefined) {
+                        this._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
+                    } else {
+                        this._.props[key] = (...args) => { descripter.value(...args); };
+                    }
+                } else {
+                    error('unit extend', 'The property is invalid.', key);
+                }
+            } else if (this[key] === undefined) {
+                const dest = { configurable: true, enumerable: true };
+                const context = Context.get(this);
+                if (isFunction(descripter.value) === true) {
+                    dest.value = (...args) => Scope.set(this, context, descripter.value, ...args);
+                } else if (descripter.value !== undefined) {
+                    dest.value = descripter.value;
+                }
+                if (isFunction(descripter.get) === true) {
+                    dest.get = (...args) => Scope.set(this, context, descripter.get, ...args);
+                }
+                if (isFunction(descripter.set) === true) {
+                    dest.set = (...args) => Scope.set(this, context, descripter.set, ...args);
+                }
+                Object.defineProperty(this._.props, key, dest);
+                Object.defineProperty(this, key, dest);
+            } else {
+                error('unit extend', 'The property already exists.', key);
+            }
+        });
+    }
+
+    static promise(promise) {
+        if (promise instanceof Promise) {
+            const scopedpromise = new ScopedPromise((resolve, reject) => {
+                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
+            this._.promises.push(promise);
+            return scopedpromise;
+        } else {
+            error('unit promise', 'The property is invalid.', promise);
+        }
+    }
+
+    static start(time) {
+        if (this._.resolved === false || this._.tostart === false) ; else if (['pending', 'stopped'].includes(this._.state) === true) {
+            this._.state = 'running';
+            this._.children.forEach((unit) => Unit.start.call(unit, time));
+            if (isFunction(this._.props.start) === true) {
+                Scope.set(this, Context.get(this), this._.props.start);
+            }
+        } else if (['running'].includes(this._.state) === true) {
+            this._.children.forEach((unit) => Unit.start.call(unit, time));
+        }
+    }
+
+    static stop() {
+        if (['running'].includes(this._.state) === true) {
+            this._.state = 'stopped';
+            this._.children.forEach((unit) => Unit.stop.call(unit));
+
+            if (isFunction(this._.props.stop)) {
+                Scope.set(this, Context.get(this), this._.props.stop);
+            }
+        }
+    }
+
+    static update(time) {
+        if (['running'].includes(this._.state) === true) {
+            this._.children.forEach((unit) => Unit.update.call(unit, time));
+
+            if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
+                Scope.set(this, Context.get(this), this._.props.update, this._.upcount++);
+            }
+        }
+    }
+
+    static finalize() {
+        if (['finalized'].includes(this._.state) === false) {
+            this._.state = 'finalized';
+
+            [...this._.children].forEach((unit) => unit.finalize());
+            this._.children.clear();
+
+            if (isFunction(this._.props.finalize)) {
+                Scope.set(this, Context.get(this), this._.props.finalize);
+            }
+            Component.remove(this);
+
+            // reset props
+            Object.keys(this._.props).forEach((key) => {
+                if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) === false) {
+                    delete this[key];
+                }
+            });
+            this._.props = {};
+
+            this.off();
+            Context.clear(this);
+
+            if (this._.nestElements.length > 0) {
+                this._.baseElement.removeChild(this._.nestElements[0]);
+                this._.nestElements = [];
+            }
+        }
+    }
+
+    static reset() {
+        Unit.roots.forEach((unit) => unit.finalize());
+        Unit.roots.clear();
+
+        Ticker.reset();
+        Ticker.start();
+        Ticker.push((time) => {
+            Unit.roots.forEach((unit) => {
+                Unit.start.call(unit, time);
+                Unit.update.call(unit, time);
+            });
+        });
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // event 
+    //----------------------------------------------------------------------------------------------------
+
+    on(type, listener, options) {
+        event.on(this, type, listener, options);
+    }
+
+    off(type, listener) {
+        event.off(this, type, listener);
+    }
+
+    emit(type, ...args) {
+        event.emit(this, type, ...args);
+    }
+}
+Unit.reset();
+
+class Timer {
+    constructor({ timeout, finalize = null, delay = 0, loop = false }) {
+        this.timeout = timeout;
+        this.finalize = finalize;
+        this.delay = delay;
+        this.loop = loop;
+
+        this.id = null;
+        this.time = null;
+        this.offset = 0.0;
+
+        this.status = 0;
+
+        this.listener = (event) => {
+            document.hidden === false ? this._start() : this._stop();
+        };
+        if (document !== undefined) {
+            document.addEventListener('visibilitychange', this.listener);
+        }
+    }
+
+    clear() {
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
+            this.finalize?.();
+        }
+        if (document !== undefined) {
+            document.removeEventListener('visibilitychange', this.listener);
+        }
+    }
+
+    elapsed() {
+        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+    }
+
+    start() {
+        this.status = 1;
+        this._start();
+    }
+
+    stop() {
+        this._stop();
+        this.status = 0;
+    }
+
+    _start() {
+        if (this.status === 1 && this.id === null) {
+            this.id = setTimeout(() => {
+                this.timeout();
+
+                this.id = null;
+                this.time = null;
+                this.offset = 0.0;
+
+                if (this.loop) {
+                    this.start();
+                } else {
+                    this.finalize?.();
+                }
+            }, this.delay - this.offset);
+            this.time = Date.now();
+        }
+    }
+
+    _stop() {
+        if (this.status === 1 && this.id !== null) {
+            this.offset = this.offset + Date.now() - this.time;
+            clearTimeout(this.id);
+
+            this.id = null;
+            this.time = null;
+        }
+    }
+}
+
+function timer(callback, delay) {
+    let finalizer = null;
+
+    const current = Scope.current;
+    const context = Context.get(current);
+    const timer = new Timer({
+        timeout: () => {
+            Scope.set(current, context, callback);
+        },
+        finalize: () => finalizer.finalize(),
+        delay,
+    });
+
+    timer.start();
+
+    finalizer = new Unit(current, undefined, (self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function interval(callback, delay) {
+    let finalizer = null;
+
+    const current = Scope.current;
+    const context = Context.get(current);
+    const timer = new Timer({
+        timeout: () => Scope.set(current, context, callback),
+        finalize: () => finalizer.finalize(),
+        delay,
+        loop: true,
+    });
+
+    timer.start();
+
+    finalizer = new Unit(current, undefined, (self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function transition(callback, interval) {
+    let finalizer = null;
+    let updater = null;
+
+    const current = Scope.current;
+    const context = Context.get(current);
+    const timer = new Timer({
+        timeout: () => Scope.set(current, context, callback, { progress: 1.0 }),
+        finalize: () => finalizer.finalize(),
+        delay: interval,
+    });
+    const clear = function () {
+        timer.clear();
+    };
+
+    timer.start();
+
+    Scope.set(current, context, callback, { progress: 0.0 });
+
+    updater = new Unit(null, undefined, (self) => {
+        return {
+            update() {
+                const progress = timer.elapsed() / interval;
+                if (progress < 1.0) {
+                    Scope.set(current, context, callback, { progress });
+                }
+            },
+        }
+    });
+
+    finalizer = new Unit(current, undefined, (self) => {
+        return {
+            finalize() {
+                timer.clear();
+                updater.finalize();
+            }
+        }
+    });
+
+    return { clear };
+}
+
+function xnew(...args) {
+    // parent Unit
+    let parent = undefined;
+    if (isFunction(args[0]) === false && args[0] instanceof Unit) {
+        parent = args.shift();
+    } else if (args[0] === null) {
+        parent = args.shift();
+    } else if (args[0] === undefined) {
+        parent = args.shift();
+        parent = Scope.current;
+    } else {
+        parent = Scope.current;
+    }
+
+    // input target
+    let target = undefined;
+    if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
+        // an existing html element
+        target = args.shift();
+    } else if (isString(args[0]) === true) {
+        // a string for an existing html element
+        const name = args.shift();
+        target = document.querySelector(name);
+        if (target == null) {
+            error('xnew', `'${name}' can not be found.`, 'target');
+        }
+    } else if (isObject(args[0]) === true) {
+        // an attributes for a new html element
+        target = args.shift();
+    } else if (args[0] === null || args[0] === undefined) {
+        target = args.shift();
+        target = null;
+    } else {
+        target = undefined;
+    }
+
+    if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
+        error('xnew', 'The argument is invalid.', 'component');
+    } else {
+        return new Unit(parent, target, ...args);
+    }
+}
+
+Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
+Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
+
+Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
+Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
+Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
+Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Scope.current });
+
+Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
+Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
+Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
+
+
+function nest(attributes) {
+    if (Scope.current.element instanceof Window || Scope.current.element instanceof Document) {
+        error('xnew.nest', 'No elements are added to window or document.');
+    } else if (isObject(attributes) === false) {
+        error('xnew.nest', 'The argument is invalid.', 'attributes');
+    } else if (Scope.current._.state !== 'pending') {
+        error('xnew.nest', 'This function can not be called after initialized.');
+    } else {
+        return Unit.nest.call(Scope.current, attributes);
+    }
+}
+
+function extend(component, ...args) {
+    if (isFunction(component) === false) {
+        error('xnew.extend', 'The argument is invalid.', 'component');
+    } else if (Scope.current._.state !== 'pending') {
+        error('xnew.extend', 'This function can not be called after initialized.');
+    }  else {
+        return Unit.extend.call(Scope.current, component, ...args);
+    }
+}
+
+function context(key, value = undefined) {
+    if (isString(key) === false) {
+        error('context', 'The argument is invalid.', 'key');
+    } else {
+        if (value !== undefined) {
+            Context.next(key, value);
+        } else {
+            return Context.trace(key);
+        }
+    }
+}
+
+function promise(executor) {
+    return Unit.promise.call(Scope.current, executor);
+}
+
+function find(...args) {
+    return Component.find(...args);
+}
+
+function DragEvent(self) {
+    xnew().on('pointerdown', (event) => {
+        const id = event.pointerId;
+        const rect = self.element.getBoundingClientRect();
+        const position = getPosition(event, rect);
+        let previous = position;
+
+        const win = xnew(window);
+
+        win.on('pointermove', (event) => {
+            if (event.pointerId === id) {
+                const position = getPosition(event, rect);
+                const delta = { x: position.x - previous.x, y: position.y - previous.y };
+
+                self.emit('-move', { id, position, delta });
+                previous = position;
+            }
+        });
+
+        win.on('pointerup pointercancel', (event) => {
+            if (event.pointerId === id) {
+                const position = getPosition(event, rect);
+
+                if (event.type === 'pointerup') {
+                    self.emit('-up', { id, position, });
+                } else if (event.type === 'pointercancel') {
+                    self.emit('-cancel', { id, position, });
+                }
+                win.finalize();
+            }
+        });
+
+        self.emit('-down', { id, position });
+    });
+
+    function getPosition(event, rect) {
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+}
+
+function GestureEvent(self) {
+    const drag = xnew(DragEvent);
+
+    let isActive = false;
+    const map = new Map();
+
+    drag.on('-down', ({ id, position }) => {
+        map.set(id, { ...position });
+
+        isActive = map.size === 2 ? true : false;
+        if (isActive === true) {
+            self.emit('-down', {});
+        }
+    });
+
+    drag.on('-move', ({ id, position, delta }) => {
+        if (isActive === true) {
+            const a = map.get(id);
+            const b = getOthers(id)[0];
+
+            let scale = 0.0;
+            {
+                const v = { x: a.x - b.x, y: a.y - b.y };
+                const s = v.x * v.x + v.y * v.y;
+                scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
+            }
+            {
+                const c = { x: a.x + delta.x, y: a.y + delta.y };
+                ({ x: a.x - b.x, y: a.y - b.y });
+                ({ x: c.x - b.x, y: c.y - b.y });
+            }
+
+            self.emit('-move', { scale });
+        }
+        map.set(id, position);
+    });
+
+    drag.on('-up -cancel', ({ id }) => {
+        if (isActive === true) {
+            self.emit('-up', {});
+        }
+        isActive = false;
+        map.delete(id);
+    });
+
+    function getOthers(id) {
+        const backup = map.get(id);
+        map.delete(id);
+        const others = [...map.values()];
+        map.set(id, backup);
+        return others;
+    }
+}
+
+function ResizeEvent(self) {
+    const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            self.emit('-resize');
+            break;
+        }
+    });
+
+    if (self.element) {
+        observer.observe(self.element);
+    }
+    return {
+        finalize() {
+            if (self.element) {
+                observer.unobserve(self.element);
+            }
+        }
+    }
+}
+
+function PointerEvent(self) {
+
+    const unit = xnew();
+    unit.on('pointermove', (event) => {
+        const id = event.pointerId;
+        const rect = self.element.getBoundingClientRect();
+        const position = getPosition(event, rect);
+        self.emit('-pointermove', { id, position });
+    });
+    unit.on('wheel', (event) => {
+        self.emit('-wheel', { deltaY: event.wheelDeltaY });
+    });
+    unit.on('pointerdown', (event) => {
+        const id = event.pointerId;
+        const rect = self.element.getBoundingClientRect();
+        const position = getPosition(event, rect);
+        self.emit('-pointerdown', { id, position });
+    });
+    unit.on('pointerup', (event) => {
+        const id = event.pointerId;
+        const rect = self.element.getBoundingClientRect();
+        const position = getPosition(event, rect);
+        self.emit('-pointerup', { id, position });
+    });
+    const gesture = xnew(GestureEvent);
+    gesture.on('-down', (...args) => {
+        self.emit('-gesturestart', ...args);
+    });
+    gesture.on('-move', (...args) => {
+        self.emit('-gesturemove', ...args);
+    });
+    gesture.on('-up', (...args) => {
+        self.emit('-gestureend', ...args);
+    });
+    gesture.on('-cancel', (...args) => {
+        self.emit('-gesturecancel', ...args);
+    });  
+
+    const drag = xnew(DragEvent);
+    drag.on('-down', (...args) => self.emit('-dragstart', ...args));
+    drag.on('-move', (...args) => self.emit('-dragmove', ...args));
+    drag.on('-up', (...args) => self.emit('-dragend', ...args));
+    drag.on('-cancel', (...args) => self.emit('-dragcancel', ...args));
+
+    function getPosition(event, rect) {
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+}
+
+function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
+    const wrapper = xnew.nest({
+        style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
+    });
+    const absolute = xnew.nest({
+        style: { position: 'absolute', margin: 'auto' } 
+    });
+
+    const canvas = xnew({
+        tagName: 'canvas', width, height,
+        style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
+    });
+
+    const observer = xnew(wrapper, ResizeEvent);
+    observer.on('-resize', resize);
+    resize();
+
+    function resize() {
+        const aspect = canvas.element.width / canvas.element.height;
+        const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
+        
+        if (fit === 'contain') {
+            if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
+                style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
+            } else {
+                style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
+            }
+        } else if (fit === 'cover') {
+            if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
+                style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
+                style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
+                style.right = 'auto';
+            } else {
+                style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
+                style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
+                style.bottom = 'auto';
+            }
+        } else ;
+        Object.assign(absolute.style, style);
+    }
+
+    return {
+        get canvas() {
+            return canvas.element;
+        },
+        resize(width, height) {
+            canvas.element.width = width;
+            canvas.element.height = height;
+            resize();
+        },
+        get scale() {
+            return {
+                x: canvas.element.width / canvas.element.clientWidth,
+                y: canvas.element.height / canvas.element.clientHeight
+            };
+        }
+    }
+}
+
+function Modal(self, {} = {}) {
+    xnew.nest({
+        style: {
+            position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        },
+    });
+    
+    xnew().on('click', () => {
+        self.close();
+    });
+
+    xnew.nest({});
+
+    xnew().on('click', (event) => {
+        event.stopPropagation(); 
+    });
+}
+
+function Keyboard(self) {
+    const win = xnew(window);
+    const state = {};
+
+    win.on('keydown', (event) => {
+        if (event.repeat === true) return;
+        state[event.code] = 1;
+        self.emit('-keydown', { code: event.code });
+    });
+
+    win.on('keyup', (event) => {
+        if (state[event.code]) state[event.code] = 0;
+        self.emit('-keyup', { code: event.code });
+    });
+
+    win.on('keydown', (event) => {
+        if (event.repeat === true) return;
+        self.emit('-arrowkeydown', { code: event.code, vector: getVector() });
+    });
+
+    win.on('keyup', (event) => {
+        if (event.repeat === true) return;
+        self.emit('-arrowkeyup', { code: event.code, vector: getVector() });
+    });
+
+    function getVector() {
+        return {
+            x: (getKey('ArrowLeft') ? -1 : 0) + (getKey('ArrowRight') ? +1 : 0),
+            y: (getKey('ArrowUp') ? -1 : 0) + (getKey('ArrowDown') ? +1 : 0)
+        };
+    }
+    function getKey(code) {
+        return state[code] ? true : false;
+    }
+    // return {
+    //     getKey(code) {
+    //         if (isString(code) === false) return false;
+    //         return (state[code] && state[code].up === null) ? true : false;
+    //     },
+    //     getKeyDown(code) {
+    //         if (isString(code) === false) return false;
+    //         return (state[code] && state[code].down === ticker.counter) ? true : false;
+    //     },
+    //     getKeyUp(code) {
+    //         if (isString(code) === false) return false;
+    //         return (state[code] && state[code].up === ticker.counter) ? true : false;
+    //     },
+    // };
+}
+
+Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
+Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
+Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
+Object.defineProperty(xnew, 'PointerEvent', { enumerable: true, value: PointerEvent });
+Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
+Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
+Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });
+
+export { xnew as default };

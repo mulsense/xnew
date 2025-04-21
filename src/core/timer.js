@@ -1,6 +1,6 @@
 import { isObject, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
-import { Scope } from './scope';
+import { Scope, Context } from './scope';
 
 export class Timer {
     constructor({ timeout, finalize = null, delay = 0, loop = false }) {
@@ -82,7 +82,7 @@ export function timer(callback, delay) {
     let finalizer = null;
 
     const current = Scope.current;
-    const context = current?._.context;
+    const context = Context.get(current);
     const timer = new Timer({
         timeout: () => {
             Scope.set(current, context, callback);
@@ -108,7 +108,7 @@ export function interval(callback, delay) {
     let finalizer = null;
 
     const current = Scope.current;
-    const context = current._.context;
+    const context = Context.get(current);
     const timer = new Timer({
         timeout: () => Scope.set(current, context, callback),
         finalize: () => finalizer.finalize(),
@@ -134,7 +134,7 @@ export function transition(callback, interval) {
     let updater = null;
 
     const current = Scope.current;
-    const context = current._.context;
+    const context = Context.get(current);
     const timer = new Timer({
         timeout: () => Scope.set(current, context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
