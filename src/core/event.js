@@ -1,5 +1,4 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
-import { Unit } from './unit';
 import { MapSet, MapMap } from './map';
 import { Scope } from './scope';
 

@@ -42,36 +42,79 @@ export class MapSet extends Map {
 //----------------------------------------------------------------------------------------------------
 
 export class MapMap extends Map {
-    has(key, subkey) {
+    has(key1, key2) {
         if (subkey === undefined) {
-            return super.has(key);
+            return super.has(key1);
         } else {
-            return super.has(key) && super.get(key).has(subkey);
+            return super.has(key1) && super.get(key1).has(key2);
         }
     }
 
-    set(key, subkey, value) {
-        if (super.has(key) === false) {
-            super.set(key, new Map());
+    set(key1, key2, value) {
+        if (super.has(key1) === false) {
+            super.set(key1, new Map());
         }
-        super.get(key).set(subkey, value);
+        super.get(key1).set(key2, value);
     }
 
-    get(key, subkey) {
-        if (subkey === undefined) {
-            return super.get(key);
+    get(key1, key2) {
+        if (super.has(key1) === false) {
+            return new Map();
+        } else if (key2 === undefined) {
+            return super.get(key1);
         } else {
-            return super.get(key)?.get(subkey);
+            return super.get(key1).get(key2);
         }
     }
 
-    delete(key, subkey) {
-        if (this.has(key) === false) {
+    delete(key1, key2) {
+        if (super.has(key1) === false) {
             return;
         }
-        this.get(key).delete(subkey);
-        if (this.get(key).size === 0) {
-            super.delete(key);
+        super.get(key1).delete(key2);
+        if (super.get(key1).size === 0) {
+            super.delete(key1);
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// map map map
+//----------------------------------------------------------------------------------------------------
+
+export class MapMapMap extends MapMap {
+    has(key1, key2, key3) {
+        if (key3 === undefined) {
+            return super.has(key1, key2);
+        } else {
+            return super.has(key1, key2) && super.get(key1, key2).has(key3);
+        }
+    }
+
+    set(key1, key2, key3, value) {
+        if (super.has(key1, key2) === false) {
+            super.set(key1, key2, new Map());
+        }
+        super.get(key1, key2).set(key3, value);
+    }
+
+    get(key1, key2, key3) {
+        if (super.has(key1, key2) === false) {
+            return new Map();
+        } else if (key3 === undefined) {
+            return super.get(key1, key2);
+        } else {
+            return super.get(key1, key2).get(key3);
+        }
+    }
+
+    delete(key1, key2, key3) {
+        if (super.has(key1, key2) === false) {
+            return;
+        }
+        super.get(key1, key2).delete(key3);
+        if (super.get(key1, key2).size === 0) {
+            super.delete(key1, key2);
         }
     }
 }

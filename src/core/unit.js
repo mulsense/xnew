@@ -7,8 +7,6 @@ import { Scope, ScopedPromise } from './scope';
 import { Component } from './component';
 
 export class Unit {
-    static roots = new Set();   // root units
-
     constructor(parent, target, component, ...args) {
         
         let baseElement = null;
@@ -21,8 +19,10 @@ export class Unit {
         }
 
         const baseContext = Scope.context(parent);
+        const root = parent?._.root ?? this;
 
         this._ = {
+            root,           // root unit
             parent,         // parent unit
             target,         // target info
             component,      // component function
@@ -79,12 +79,19 @@ export class Unit {
         Unit.initialize.call(this, this._.component, ...this._.args);
     }
 
-    static nest(attributes) {
-        const element = createElement(attributes, this.element);
-        this.element.append(element);
-        this._.nestElements.push(element);
-        return element;
+    on(type, listener, options) {
+        event.on(this, type, listener, options);
     }
+
+    off(type, listener) {
+        event.off(this, type, listener);
+    }
+
+    emit(type, ...args) {
+        event.emit(this, type, ...args);
+    }
+
+    static roots = new Set();   // root units
 
     static initialize(component, ...args) {
         this._ = Object.assign(this._, {
@@ -121,6 +128,12 @@ export class Unit {
             // whether the unit promise was resolved
             this.promise.then((response) => { this._.resolved = true; return response; });
         }
+    }
+    static nest(attributes) {
+        const element = createElement(attributes, this.element);
+        this.element.append(element);
+        this._.nestElements.push(element);
+        return element;
     }
 
     static extend(component, ...args) {
@@ -251,22 +264,6 @@ export class Unit {
                 Unit.update.call(unit, time);
             });
         });
-    }
-
-    //----------------------------------------------------------------------------------------------------
-    // event 
-    //----------------------------------------------------------------------------------------------------
-
-    on(type, listener, options) {
-        event.on(this, type, listener, options);
-    }
-
-    off(type, listener) {
-        event.off(this, type, listener);
-    }
-
-    emit(type, ...args) {
-        event.emit(this, type, ...args);
     }
 }
 Unit.reset();
