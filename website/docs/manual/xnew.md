@@ -212,7 +212,7 @@ unit.reboot(...args); // ...args for the component function.
 ### `unit.isRunning`
 The variable indicates the status of the update process.
 ```js
-unit.state; // [pending → running ↔ stopped → finalized] 
+unit.isRunning; // bool
 ```
 
 ### calling order

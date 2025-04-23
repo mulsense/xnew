@@ -60,7 +60,7 @@ function Controller(self) {
 function ScoreText(self) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0x000000 }));
   object.position.set(width - 10, 10);
-  object.anchor.set(1.0, 0.0);
+  object.anchor.set(1, 0);
 
   let sum = 0;
   self.on('+scoreup', (score) => object.text = `score ${sum += score}`);
@@ -81,8 +81,8 @@ function Queue(self, balls) {
 
   xnew((self) => {
     const object = xpixi.nest(new PIXI.Container());
-    object.addChild(new PIXI.Graphics().moveTo(0, -25).lineTo(80, -25).stroke({ color: 0x000000, width: 8, cap: 'round' }));
-    object.addChild(new PIXI.Graphics().moveTo(0, +25).lineTo(80, +25).stroke({ color: 0x000000, width: 8, cap: 'round' }));
+    object.addChild(new PIXI.Graphics().moveTo(0, -25).lineTo(80, -25).stroke({ color: 0x000000, width: 8 }));
+    object.addChild(new PIXI.Graphics().moveTo(0, +25).lineTo(80, +25).stroke({ color: 0x000000, width: 8 }));
     object.position.set(0, 40);
   });
  
@@ -115,22 +115,17 @@ function Cursor(self, balls) {
 
   const circle = new PIXI.Graphics().circle(0, 0, 32).fill(hueToCol(balls[0]));
   object.addChild(circle);
+  object.addChild(new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 }));
+  object.addChild(new PIXI.Graphics().moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 }));
 
-  const line1 = new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4, cap: 'round' });
-  const line2 = new PIXI.Graphics().moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4, cap: 'round' });
-  object.addChild(line1);
-  object.addChild(line2);
-
-  self.on('+move', ({ x }) => {
-    object.position.x = Math.max(Math.min(x, width / 2 + 240), width / 2 - 240);
-  });
+  self.on('+move', ({ x }) => object.x = Math.max(Math.min(x, width / 2 + 240), width / 2 - 240));
 
   let reloaded = true;
   self.on('+reloadcomplete', () => reloaded = true);
   self.on('+action', () => {
     if (reloaded === true) {
       reloaded = false;
-      self.emit('+addobject', ColorBall, { x: object.position.x, y: object.position.y, hue: balls[0], score: 1 });
+      self.emit('+addobject', ColorBall, { x: object.x, y: object.y, hue: balls[0], score: 1 });
       self.emit('+reload');
       circle.clear().circle(0, 0, 32).fill(hueToCol(balls[0]));
     } 
@@ -156,7 +151,6 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
       if (self.object.y > height - 10) {
         self.emit('+gameover');
       }
-      
       for (const target of xnew.find(ColorBall)) {
         if (self.mergeCheck(target)) {
           const score = self.score + target.score;
@@ -187,7 +181,7 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
 }
 
 function ColorBallText(self, { score }) {
-  const object = xpixi.nest(new PIXI.Text(`${score}`, { fontSize: 34 + 6 * score, fill: 0xffffff }));
+  const object = xpixi.nest(new PIXI.Text(score, { fontSize: 34 + 6 * score, fill: 0xffffff }));
   object.anchor.set(0.5);
 }
 
