@@ -3,7 +3,7 @@ import { Unit } from './unit';
 import { timer, interval, transition } from './timer';
 import { UnitComponent } from './component';
 import { UnitEvent } from './event';
-import { UnitScope } from './scope';
+import { UnitScope, ScopedPromise } from './scope';
 
 export function xnew(...args) {
     // parent Unit
@@ -55,7 +55,7 @@ Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
-Object.defineProperty(xnew, 'root', { enumerable: true, get: root });
+Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -96,8 +96,23 @@ function context(key, value = undefined) {
     }
 }
 
-function promise(executor) {
-    return Unit.promise.call(UnitScope.current, executor);
+function promise(data) {
+    let promise = null;
+    if (data instanceof Promise) {
+        promise = data;
+    } else if (data instanceof Unit) {
+        promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
+    } else {
+        error('unit promise', 'The property is invalid.', data);
+    }
+    if (promise) {
+        const scopedpromise = new ScopedPromise((resolve, reject) => {
+            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+        });
+        const unit = UnitScope.current;
+        unit._.promises.push(promise);
+        return scopedpromise;
+    }
 }
 
 function find(...args) {
@@ -112,12 +127,4 @@ function find(...args) {
     } else if (isFunction(component) === true) {
         return UnitComponent.find(base, component);
     }
-}
-
-function root() {
-    let root = UnitScope.current;
-    while (root?.parent) {
-        root = root.parent;
-    }
-    return root;
 }

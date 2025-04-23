@@ -444,7 +444,6 @@
 
     class Unit {
         constructor(parent, target, component, ...args) {
-            
             let baseElement = null;
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
                 baseElement = target;
@@ -572,9 +571,11 @@
                 }
 
                 // whether the unit promise was resolved
-                Unit.promise.call(this, this).then((response) => { this._.resolved = true; return response; });
+                const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
+                promise.then((response) => { this._.resolved = true; return response; });
             }
         }
+
         static nest(attributes) {
             const element = createElement(attributes, this.element);
             this.element.append(element);
@@ -620,25 +621,6 @@
                     error('unit extend', 'The property already exists.', key);
                 }
             });
-        }
-
-        static promise(data) {
-            if (data instanceof Promise) {
-                const scopedpromise = new ScopedPromise((resolve, reject) => {
-                    data.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-                });
-                this._.promises.push(data);
-                return scopedpromise;
-            } if (data instanceof Unit) {
-                const promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
-                const scopedpromise = new ScopedPromise((resolve, reject) => {
-                    promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-                });
-                this._.promises.push(promise);
-                return scopedpromise;
-            } else {
-                error('unit promise', 'The property is invalid.', promise);
-            }
         }
 
         static start(time) {
@@ -931,10 +913,10 @@
     Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 
     Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
-    Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise$1 });
+    Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
     Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
     Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
-    Object.defineProperty(xnew, 'root', { enumerable: true, get: root });
+    Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
 
     Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
     Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -975,8 +957,23 @@
         }
     }
 
-    function promise$1(executor) {
-        return Unit.promise.call(UnitScope.current, executor);
+    function promise(data) {
+        let promise = null;
+        if (data instanceof Promise) {
+            promise = data;
+        } else if (data instanceof Unit) {
+            promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
+        } else {
+            error('unit promise', 'The property is invalid.', data);
+        }
+        if (promise) {
+            const scopedpromise = new ScopedPromise((resolve, reject) => {
+                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
+            const unit = UnitScope.current;
+            unit._.promises.push(promise);
+            return scopedpromise;
+        }
     }
 
     function find(...args) {
@@ -991,14 +988,6 @@
         } else if (isFunction(component) === true) {
             return UnitComponent.find(base, component);
         }
-    }
-
-    function root() {
-        let root = UnitScope.current;
-        while (root?.parent) {
-            root = root.parent;
-        }
-        return root;
     }
 
     function DragEvent(self) {

@@ -7,7 +7,6 @@ import { UnitComponent } from './component';
 
 export class Unit {
     constructor(parent, target, component, ...args) {
-        
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseElement = target;
@@ -135,9 +134,11 @@ export class Unit {
             }
 
             // whether the unit promise was resolved
-            Unit.promise.call(this, this).then((response) => { this._.resolved = true; return response; });
+            const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
+            promise.then((response) => { this._.resolved = true; return response; });
         }
     }
+
     static nest(attributes) {
         const element = createElement(attributes, this.element);
         this.element.append(element);
@@ -183,25 +184,6 @@ export class Unit {
                 error('unit extend', 'The property already exists.', key);
             }
         });
-    }
-
-    static promise(data) {
-        if (data instanceof Promise) {
-            const scopedpromise = new ScopedPromise((resolve, reject) => {
-                data.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-            });
-            this._.promises.push(data);
-            return scopedpromise;
-        } if (data instanceof Unit) {
-            const promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
-            const scopedpromise = new ScopedPromise((resolve, reject) => {
-                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-            });
-            this._.promises.push(promise);
-            return scopedpromise;
-        } else {
-            error('unit promise', 'The property is invalid.', promise);
-        }
     }
 
     static start(time) {
