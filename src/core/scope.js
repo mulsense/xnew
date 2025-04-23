@@ -1,23 +1,23 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
 
-export class Scope {
+export class UnitScope {
     static current = null;
 
     static execute(unit, context, func, ...args) {
-        const stack = [Scope.current, Scope.context(unit)];
+        const stack = [UnitScope.current, UnitScope.context(unit)];
 
         try {
-            Scope.current = unit;
+            UnitScope.current = unit;
             if (unit && context !== undefined) {
-                Scope.context(unit, context);
+                UnitScope.context(unit, context);
             }
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
-            Scope.current = stack[0];
+            UnitScope.current = stack[0];
             if (unit && context !== undefined) {
-                Scope.context(unit, stack[1]);
+                UnitScope.context(unit, stack[1]);
             }
         }
     }
@@ -26,29 +26,29 @@ export class Scope {
 
     static context(unit, context = undefined) {
         if (context !== undefined) {
-            Scope.map.set(unit, context);
+            UnitScope.map.set(unit, context);
         } else {
-            return Scope.map.get(unit) ?? null;
+            return UnitScope.map.get(unit) ?? null;
         }
     }
 
     static get snapshot() {
-        return { unit: Scope.current, context: Scope.context(Scope.current) };
+        return { unit: UnitScope.current, context: UnitScope.context(UnitScope.current) };
     }
 
     static clear(unit) {
-        Scope.map.delete(unit);
+        UnitScope.map.delete(unit);
     }
 
     static next(key, value) {
-        const unit = Scope.current;
-        Scope.map.set(unit, [Scope.map.get(unit), key, value]);
+        const unit = UnitScope.current;
+        UnitScope.map.set(unit, [UnitScope.map.get(unit), key, value]);
     }
 
     static trace(key) {
-        const unit = Scope.current;
+        const unit = UnitScope.current;
         let ret = undefined;
-        for (let context = Scope.map.get(unit); context !== null; context = context[0]) {
+        for (let context = UnitScope.map.get(unit); context !== null; context = context[0]) {
             if (context[1] === key) {
                 ret = context[2];
                 break;
@@ -60,20 +60,20 @@ export class Scope {
 
 export class ScopedPromise extends Promise {
     then(callback) {
-        const snapshot = Scope.snapshot;
-        super.then((...args) => Scope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        const snapshot = UnitScope.snapshot;
+        super.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
         return this;
     }
 
     catch(callback) {
-        const snapshot = Scope.snapshot;
-        super.then((...args) => Scope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        const snapshot = UnitScope.snapshot;
+        super.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
         return this;
     }
 
     finally(callback) {
-        const snapshot = Scope.snapshot;
-        super.then((...args) => Scope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        const snapshot = UnitScope.snapshot;
+        super.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
         return this;
     }
 }

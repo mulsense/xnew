@@ -1,96 +1,85 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
-import { MapSet, MapMap } from './map';
-import { Scope } from './scope';
+import { MapSet, MapMap, MapMapMap } from './map';
+import { UnitScope } from './scope';
 
-let etypes = new MapSet();
-
-export function event() {
-    return EventController.event;
-}
-export class EventController {
+export class UnitEvent {
     static event = null;
-}
-Object.defineProperty(event, 'on', { enumerable: true, value: on });
-Object.defineProperty(event, 'off', { enumerable: true, value: off });
-Object.defineProperty(event, 'emit', { enumerable: true, value: emit });
 
-function on(unit, type, listener, options) {
-    if (isString(type) === false) {
-        error('unit on', 'The argument is invalid.', 'type');
-    } else if (isFunction(listener) === false) {
-        error('unit on', 'The argument is invalid.', 'listener');
-    } else {
+    static typeToUnits = new MapSet();
+
+    static unitToListeners = new MapMapMap();
+
+    static on(unit, type, listener, options) {
+        const listeners = UnitEvent.unitToListeners.get(unit);
+
         type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
-    }
-
-    function internal(type, listener) {
-        if (unit._.listeners.has(type, listener) === false) {
-            const element = unit.element;
-            const context = unit._.context;
-            if (type[0] === '-' || type[0] === '+') {
-                const execute = (...args) => {
-                    const eventbackup = EventController.event;
-                    EventController.event = { type };
-                    Scope.execute(unit, context, listener, ...args);
-                    EventController.event = eventbackup;
-                };
-                unit._.listeners.set(type, listener, [element, execute]);
-            } else {
-                const execute = (...args) => {
-                    const eventbackup = EventController.event;
-                    EventController.event = { type: args[0]?.type ?? null };
-                    Scope.execute(unit, context, listener, ...args);
-                    EventController.event = eventbackup;
-                };
-                unit._.listeners.set(type, listener, [element, execute]);
-                element.addEventListener(type, execute, options);
+    
+        function internal(type, listener) {
+            if (listeners.has(type, listener) === false) {
+                const element = unit.element;
+                const context = unit._.context;
+                if (type[0] === '-' || type[0] === '+') {
+                    const execute = (...args) => {
+                        const eventbackup = UnitEvent.event;
+                        UnitEvent.event = { type };
+                        UnitScope.execute(unit, context, listener, ...args);
+                        UnitEvent.event = eventbackup;
+                    };
+                    listeners.set(type, listener, [element, execute]);
+                } else {
+                    const execute = (...args) => {
+                        const eventbackup = UnitEvent.event;
+                        UnitEvent.event = { type: args[0]?.type ?? null };
+                        UnitScope.execute(unit, context, listener, ...args);
+                        UnitEvent.event = eventbackup;
+                    };
+                    listeners.set(type, listener, [element, execute]);
+                    element.addEventListener(type, execute, options);
+                }
+            }
+            if (listeners.has(type) === true) {
+                UnitEvent.typeToUnits.add(type, unit);
             }
         }
-        if (unit._.listeners.has(type) === true) {
-            etypes.add(type, unit);
+    }
+    
+    static off(unit, type, listener) {
+        const listeners = UnitEvent.unitToListeners.get(unit);
+       
+        if (isString(type) === true && listener !== undefined) {
+            type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+        } else if (isString(type) === true && listener === undefined) {
+            type.trim().split(/\s+/).forEach((type) => {
+                listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
+            });
+        } else if (type === undefined) {
+            listeners.forEach((map, type) => {
+                map.forEach((_, listener) => internal.call(unit, type, listener));
+            });
+        }
+    
+        function internal(type, listener) {
+            if (listeners.has(type, listener) === true) {
+                const [element, execute] = listeners.get(type, listener);
+                listeners.delete(type, listener);
+                element.removeEventListener(type, execute);
+            }
+            if (listeners.has(type) === false) {
+                UnitEvent.typeToUnits.delete(type, unit);
+            }
+        }
+    }
+    
+    static emit(unit, type, ...args) {
+        if (type[0] === '+') {
+            UnitEvent.typeToUnits.get(type)?.forEach((unit) => {
+                const listeners = UnitEvent.unitToListeners.get(unit);
+                listeners.get(type)?.forEach(([element, execute]) => execute(...args));
+            });
+        } else if (type[0] === '-') {
+            const listeners = UnitEvent.unitToListeners.get(unit);
+            listeners.get(type)?.forEach(([element, execute]) => execute(...args));
         }
     }
 }
 
-function off(unit, type, listener) {
-    if (type !== undefined && isString(type) === false) {
-        error('unit off', 'The argument is invalid.', 'type');
-    } else if (listener !== undefined && isFunction(listener) === false) {
-        error('unit off', 'The argument is invalid.', 'listener');
-    } else if (isString(type) === true && listener !== undefined) {
-        type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
-    } else if (isString(type) === true && listener === undefined) {
-        type.trim().split(/\s+/).forEach((type) => {
-            unit._.listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
-        });
-    } else if (type === undefined) {
-        unit._.listeners.forEach((map, type) => {
-            map.forEach((_, listener) => internal.call(unit, type, listener));
-        });
-    }
-
-    function internal(type, listener) {
-        if (unit._.listeners.has(type, listener) === true) {
-            const [element, execute] = unit._.listeners.get(type, listener);
-            unit._.listeners.delete(type, listener);
-            element.removeEventListener(type, execute);
-        }
-        if (unit._.listeners.has(type) === false) {
-            etypes.delete(type, unit);
-        }
-    }
-}
-
-function emit(unit, type, ...args) {
-    if (isString(type) === false) {
-        error('unit emit', 'The argument is invalid.', 'type');
-    } else if (unit._.state === 'finalized') {
-        error('unit emit', 'This function can not be called after finalized.');
-    } else if (type[0] === '+') {
-        etypes.get(type)?.forEach((unit) => {
-            unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-        });
-    } else if (type[0] === '-') {
-        unit._.listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-    }
-}

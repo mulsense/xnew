@@ -32,7 +32,9 @@
       dpad.on('-down -move -up', ({ vector }) => dpad.emit('+move', { vector }));
 
       const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
-      button.on('-down', () => button.emit('+action'));
+      button.on('-down', () => {
+        button.emit('+action')
+    });
     }
 
     function Box(self, { x, y, size, color }) {

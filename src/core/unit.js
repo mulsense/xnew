@@ -1,10 +1,9 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { createElement } from './element';
-import { MapSet, MapMap } from './map';
 import { Ticker } from './ticker';
-import { event } from './event';
-import { Scope, ScopedPromise } from './scope';
-import { Component } from './component';
+import { UnitEvent } from './event';
+import { UnitScope, ScopedPromise } from './scope';
+import { UnitComponent } from './component';
 
 export class Unit {
     constructor(parent, target, component, ...args) {
@@ -18,7 +17,7 @@ export class Unit {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
-        const baseContext = Scope.context(parent);
+        const baseContext = UnitScope.context(parent);
         const root = parent?._.root ?? this;
 
         this._ = {
@@ -47,13 +46,6 @@ export class Unit {
         return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
     }
 
-    get promise() {
-        const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
-        return new ScopedPromise((resolve, reject) => {
-            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-        });
-    }
-
     get isRunning() {
         return this._.state === 'running';
     }
@@ -80,15 +72,33 @@ export class Unit {
     }
 
     on(type, listener, options) {
-        event.on(this, type, listener, options);
+        if (isString(type) === false || type.trim() === '') {
+            error('unit on', 'The argument is invalid.', 'type');
+        } else if (isFunction(listener) === false) {
+            error('unit on', 'The argument is invalid.', 'listener');
+        } else {
+            UnitEvent.on(this, type, listener, options);
+        }
     }
 
     off(type, listener) {
-        event.off(this, type, listener);
+        if (type !== undefined && (isString(type) === false || type.trim() === '')) {
+            error('unit off', 'The argument is invalid.', 'type');
+        } else if (listener !== undefined && isFunction(listener) === false) {
+            error('unit off', 'The argument is invalid.', 'listener');
+        } else if (isString(type) === true) {
+            UnitEvent.off(this, type, listener);
+        }
     }
 
     emit(type, ...args) {
-        event.emit(this, type, ...args);
+        if (isString(type) === false) {
+            error('unit emit', 'The argument is invalid.', 'type');
+        } else if (this._.state === 'finalized') {
+            error('unit emit', 'This function can not be called after finalized.');
+        } else {
+            UnitEvent.emit(this, type, ...args);
+        }
     }
 
     static roots = new Set();   // root units
@@ -102,11 +112,10 @@ export class Unit {
             upcount: 0,                // update count    
             promises: [],              // promises
             resolved: false,           // promise check
-            listeners: new MapMap(),   // event listners
             props: {},                 // properties in the component function
         });
 
-        Scope.context(this, this._.baseContext);
+        UnitScope.context(this, this._.baseContext);
 
         if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
             this._.state = 'finalized';
@@ -120,13 +129,13 @@ export class Unit {
 
             // setup component
             if (isFunction(component) === true) {
-                Scope.execute(this, undefined, () => Unit.extend.call(this, component, ...args));
+                UnitScope.execute(this, undefined, () => Unit.extend.call(this, component, ...args));
             } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
 
             // whether the unit promise was resolved
-            this.promise.then((response) => { this._.resolved = true; return response; });
+            Unit.promise.call(this, this).then((response) => { this._.resolved = true; return response; });
         }
     }
     static nest(attributes) {
@@ -137,7 +146,7 @@ export class Unit {
     }
 
     static extend(component, ...args) {
-        Component.add(this, component);
+        UnitComponent.add(this, component);
 
         const props = component(this, ...args) ?? {};
 
@@ -156,17 +165,17 @@ export class Unit {
                 }
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
-                const context = Scope.context(this);
+                const context = UnitScope.context(this);
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => Scope.execute(this, context, descripter.value, ...args);
+                    dest.value = (...args) => UnitScope.execute(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => Scope.execute(this, context, descripter.get, ...args);
+                    dest.get = (...args) => UnitScope.execute(this, context, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => Scope.execute(this, context, descripter.set, ...args);
+                    dest.set = (...args) => UnitScope.execute(this, context, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
@@ -176,8 +185,15 @@ export class Unit {
         });
     }
 
-    static promise(promise) {
-        if (promise instanceof Promise) {
+    static promise(data) {
+        if (data instanceof Promise) {
+            const scopedpromise = new ScopedPromise((resolve, reject) => {
+                data.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
+            this._.promises.push(data);
+            return scopedpromise;
+        } if (data instanceof Unit) {
+            const promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
             const scopedpromise = new ScopedPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
             });
@@ -194,7 +210,7 @@ export class Unit {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                Scope.execute(this, Scope.context(this), this._.props.start);
+                UnitScope.execute(this, UnitScope.context(this), this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -207,7 +223,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                Scope.execute(this, Scope.context(this), this._.props.stop);
+                UnitScope.execute(this, UnitScope.context(this), this._.props.stop);
             }
         }
     }
@@ -217,7 +233,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                Scope.execute(this, Scope.context(this), this._.props.update, this._.upcount++);
+                UnitScope.execute(this, UnitScope.context(this), this._.props.update, this._.upcount++);
             }
         }
     }
@@ -230,9 +246,9 @@ export class Unit {
             this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
-                Scope.execute(this, Scope.context(this), this._.props.finalize);
+                UnitScope.execute(this, UnitScope.context(this), this._.props.finalize);
             }
-            Component.clear(this);
+            UnitComponent.clear(this);
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
@@ -243,7 +259,7 @@ export class Unit {
             this._.props = {};
 
             this.off();
-            Scope.clear(this)
+            UnitScope.clear(this)
 
             if (this._.nestElements.length > 0) {
                 this._.baseElement.removeChild(this._.nestElements[0]);

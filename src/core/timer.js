@@ -1,6 +1,6 @@
 import { isObject, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
-import { Scope } from './scope';
+import { UnitScope } from './scope';
 
 export class Timer {
     constructor({ timeout, finalize = null, delay = 0, loop = false }) {
@@ -81,9 +81,9 @@ export class Timer {
 export function timer(callback, delay) {
     let finalizer = null;
 
-    const snapshot = Scope.snapshot;
+    const snapshot = UnitScope.snapshot;
     const timer = new Timer({
-        timeout: () => Scope.execute(snapshot.unit, snapshot.context, callback),
+        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
         finalize: () => finalizer.finalize(),
         delay,
     });
@@ -104,9 +104,9 @@ export function timer(callback, delay) {
 export function interval(callback, delay) {
     let finalizer = null;
 
-    const snapshot = Scope.snapshot;
+    const snapshot = UnitScope.snapshot;
     const timer = new Timer({
-        timeout: () => Scope.execute(snapshot.unit, snapshot.context, callback),
+        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
         finalize: () => finalizer.finalize(),
         delay,
         loop: true,
@@ -129,9 +129,9 @@ export function transition(callback, interval) {
     let finalizer = null;
     let updater = null;
 
-    const snapshot = Scope.snapshot;
+    const snapshot = UnitScope.snapshot;
     const timer = new Timer({
-        timeout: () => Scope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
+        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -141,14 +141,14 @@ export function transition(callback, interval) {
 
     timer.start();
 
-    Scope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
+    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
 
     updater = new Unit(null, undefined, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    Scope.execute(snapshot.unit, snapshot.context, callback, { progress });
+                    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress });
                 }
             },
         }

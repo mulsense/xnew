@@ -1,9 +1,9 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
 import { timer, interval, transition } from './timer';
-import { Component } from './component';
-import { event } from './event';
-import { Scope } from './scope';
+import { UnitComponent } from './component';
+import { UnitEvent } from './event';
+import { UnitScope } from './scope';
 
 export function xnew(...args) {
     // parent Unit
@@ -14,9 +14,9 @@ export function xnew(...args) {
         parent = args.shift();
     } else if (args[0] === undefined) {
         parent = args.shift();
-        parent = Scope.current
+        parent = UnitScope.current
     } else {
-        parent = Scope.current
+        parent = UnitScope.current
     }
 
     // input target
@@ -54,8 +54,8 @@ Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
-Object.defineProperty(xnew, 'event', { enumerable: true, get: event });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: () => Scope.current });
+Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
+Object.defineProperty(xnew, 'root', { enumerable: true, get: root });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -63,24 +63,24 @@ Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition 
 
 
 function nest(attributes) {
-    if (Scope.current.element instanceof Window || Scope.current.element instanceof Document) {
+    if (UnitScope.current.element instanceof Window || UnitScope.current.element instanceof Document) {
         error('xnew.nest', 'No elements are added to window or document.');
     } else if (isObject(attributes) === false) {
         error('xnew.nest', 'The argument is invalid.', 'attributes');
-    } else if (Scope.current._.state !== 'pending') {
+    } else if (UnitScope.current._.state !== 'pending') {
         error('xnew.nest', 'This function can not be called after initialized.');
     } else {
-        return Unit.nest.call(Scope.current, attributes);
+        return Unit.nest.call(UnitScope.current, attributes);
     }
 }
 
 function extend(component, ...args) {
     if (isFunction(component) === false) {
         error('xnew.extend', 'The argument is invalid.', 'component');
-    } else if (Scope.current._.state !== 'pending') {
+    } else if (UnitScope.current._.state !== 'pending') {
         error('xnew.extend', 'This function can not be called after initialized.');
     }  else {
-        return Unit.extend.call(Scope.current, component, ...args);
+        return Unit.extend.call(UnitScope.current, component, ...args);
     }
 }
 
@@ -89,15 +89,15 @@ function context(key, value = undefined) {
         error('context', 'The argument is invalid.', 'key');
     } else {
         if (value !== undefined) {
-            Scope.next(key, value);
+            UnitScope.next(key, value);
         } else {
-            return Scope.trace(key);
+            return UnitScope.trace(key);
         }
     }
 }
 
 function promise(executor) {
-    return Unit.promise.call(Scope.current, executor);
+    return Unit.promise.call(UnitScope.current, executor);
 }
 
 function find(...args) {
@@ -110,6 +110,14 @@ function find(...args) {
     if (isFunction(component) === false) {
         error('xnew.find', 'The argument is invalid.', 'component');
     } else if (isFunction(component) === true) {
-        return Component.find(base, component);
+        return UnitComponent.find(base, component);
     }
+}
+
+function root() {
+    let root = UnitScope.current;
+    while (root?.parent) {
+        root = root.parent;
+    }
+    return root;
 }

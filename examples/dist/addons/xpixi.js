@@ -53,11 +53,7 @@
         xnew.context('xpixi.root', root);
         
         if (renderer === null) {
-            let root = xnew.current;
-            while (root?.parent) {
-                root = root.parent;
-            }
-            const screens = xnew.find(root, xnew.Screen);
+            const screens = xnew.find(xnew.root, xnew.Screen);
             if (screens.length > 0) {
                 const screen = screens.slice(-1)[0]; // last screen
                 renderer = PIXI__namespace.autoDetectRenderer({
