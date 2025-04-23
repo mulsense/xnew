@@ -16,6 +16,7 @@
       xpixi.setup();
 
       xnew(Scene1);
+      self.on('+addscene', xnew);
     });
 
     function Scene1(self) {
@@ -23,7 +24,7 @@
       xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0xff2266 });
 
       self.on('pointerdown', () => {
-        xnew(self.parent, Scene2);
+        self.emit('+addscene', Scene2);
         self.finalize();
       });
     }
@@ -33,7 +34,7 @@
       xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0x6622ff });
 
       self.on('pointerdown', () => {
-        xnew(self.parent, Scene1);
+        self.emit('+addscene', Scene1);
         self.finalize();
       });
     }

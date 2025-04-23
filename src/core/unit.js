@@ -86,7 +86,7 @@ export class Unit {
             error('unit off', 'The argument is invalid.', 'type');
         } else if (listener !== undefined && isFunction(listener) === false) {
             error('unit off', 'The argument is invalid.', 'listener');
-        } else if (isString(type) === true) {
+        } else {
             UnitEvent.off(this, type, listener);
         }
     }
@@ -252,7 +252,7 @@ export class Unit {
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
-                if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) === false) {
+                if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
                     delete this[key];
                 }
             });

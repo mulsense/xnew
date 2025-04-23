@@ -57,8 +57,9 @@ export class UnitEvent {
                 map.forEach((_, listener) => internal.call(unit, type, listener));
             });
         }
-    
+
         function internal(type, listener) {
+
             if (listeners.has(type, listener) === true) {
                 const [element, execute] = listeners.get(type, listener);
                 listeners.delete(type, listener);

@@ -21,7 +21,7 @@ export class UnitScope {
             }
         }
     }
-
+    
     static map = new Map();
 
     static context(unit, context = undefined) {

@@ -265,7 +265,7 @@ class UnitScope {
             }
         }
     }
-
+    
     static map = new Map();
 
     static context(unit, context = undefined) {
@@ -377,8 +377,9 @@ class UnitEvent {
                 map.forEach((_, listener) => internal.call(unit, type, listener));
             });
         }
-    
+
         function internal(type, listener) {
+
             if (listeners.has(type, listener) === true) {
                 const [element, execute] = listeners.get(type, listener);
                 listeners.delete(type, listener);
@@ -516,7 +517,7 @@ class Unit {
             error('unit off', 'The argument is invalid.', 'type');
         } else if (listener !== undefined && isFunction(listener) === false) {
             error('unit off', 'The argument is invalid.', 'listener');
-        } else if (isString(type) === true) {
+        } else {
             UnitEvent.off(this, type, listener);
         }
     }
@@ -681,7 +682,7 @@ class Unit {
 
             // reset props
             Object.keys(this._.props).forEach((key) => {
-                if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) === false) {
+                if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
                     delete this[key];
                 }
             });

@@ -279,8 +279,8 @@ parent.finalize();
 ## original properties
 You can define original properties unless the properties are already defined.  
 The following names are not available.
-- `promise`, `start`, `update`, `stop`, `finalize`, `reboot`, `isRunning`
-- `parent`,  `element`, `on`, `off`, `emit`, `key`, `_`
+- `start`, `update`, `stop`, `finalize`, `reboot`, `isRunning`
+- `parent`,  `element`, `on`, `off`, `emit`, `_`
 
 ```js
 const unit = xnew((self) =>  {

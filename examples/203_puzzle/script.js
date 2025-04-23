@@ -3,14 +3,16 @@ const width = 800, height = 600;
 function Main(self) {
   xnew(xnew.Screen, { width, height });
   xpixi.setup();
+
   xnew(TitleScene);
+  self.on('+addscene', xnew);
 }
 
 function TitleScene(self) {
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
-    xnew(self.parent, GameScene);
+    self.emit('+addscene', GameScene);
     self.finalize();
   });
 }
@@ -32,13 +34,13 @@ function GameScene(self) {
   xnew(Queue, balls);
   xnew(Cursor, balls);
 
-  self.on('+addball', (...args) => xnew(ColorBall, ...args));
+  self.on('+addobject', xnew);
   self.on('+gameover', () => {
     xnew(GameOverText);
     self.stop();
 
     xnew(window).on('keydown pointerdown', () => {
-      xnew(self.parent, TitleScene)
+      self.emit('+addscene', TitleScene);
       self.finalize();
     });
   });
@@ -128,7 +130,7 @@ function Cursor(self, balls) {
   self.on('+action', () => {
     if (reloaded === true) {
       reloaded = false;
-      self.emit('+addball', { x: object.position.x, y: object.position.y, hue: balls[0], score: 1 });
+      self.emit('+addobject', ColorBall, { x: object.position.x, y: object.position.y, hue: balls[0], score: 1 });
       self.emit('+reload');
       circle.clear().circle(0, 0, 32).fill(hueToCol(balls[0]));
     } 
@@ -162,7 +164,7 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
           const x = (self.object.x * self.score + target.object.x * target.score) / score;
           const y = (self.object.y * self.score + target.object.y * target.score) / score;
           xnew.timer(() => {
-            self.emit('+addball', { x, y, hue, score });
+            self.emit('+addobject', ColorBall, { x, y, hue, score });
             self.finalize();
             target.finalize();
           });

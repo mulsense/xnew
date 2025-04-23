@@ -6,6 +6,7 @@ function Main(self) {
 
   xnew(Background);
   xnew(TitleScene);
+  self.on('+addscene', xnew);
 }
 
 function Background(self) {
@@ -39,7 +40,7 @@ function TitleScene(self) {
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
-    xnew(self.parent, GameScene);
+    self.emit('+addscene', GameScene);
     self.finalize();
   });
 }
@@ -57,13 +58,14 @@ function GameScene(self) {
   xnew(ScoreText);
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
+  self.on('+addobject', xnew);
 
   self.on('+gameover', () => {
     interval.clear();
     xnew(GameOverText);
 
     xnew(window).on('keydown pointerdown', () => {
-      xnew(self.parent, TitleScene)
+      self.emit('+addscene', TitleScene);
       self.finalize();
     });
   });
@@ -121,7 +123,7 @@ function Player(self) {
   // actions
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
-  self.on('+shot', () => xnew(self.parent, Shot, object.x, object.y));
+  self.on('+shot', () => self.emit('+addobject', Shot, object.x, object.y));
   self.on('+shot', () => self.sound());
 
   return {
@@ -205,9 +207,9 @@ function Enemy(self) {
     clash(score) {
       self.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew(self.parent, Crash, object.x, object.y, score);
+        self.emit('+addobject', Crash, object.x, object.y, score);
       }
-      xnew(self.parent, CrashText, object.x, object.y, score);
+      self.emit('+addobject', CrashText, object.x, object.y, score);
 
       self.emit('+scoreup', score);
       self.finalize();
