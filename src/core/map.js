@@ -43,7 +43,7 @@ export class MapSet extends Map {
 
 export class MapMap extends Map {
     has(key1, key2) {
-        if (subkey === undefined) {
+        if (key2 === undefined) {
             return super.has(key1);
         } else {
             return super.has(key1) && super.get(key1).has(key2);
@@ -59,7 +59,8 @@ export class MapMap extends Map {
 
     get(key1, key2) {
         if (super.has(key1) === false) {
-            return new Map();
+            super.set(key1, new Map());
+            return super.get(key1);
         } else if (key2 === undefined) {
             return super.get(key1);
         } else {
@@ -82,12 +83,12 @@ export class MapMap extends Map {
 // map map map
 //----------------------------------------------------------------------------------------------------
 
-export class MapMapMap extends MapMap {
+export class MapMapMap extends Map {
     has(key1, key2, key3) {
-        if (key3 === undefined) {
-            return super.has(key1, key2);
+        if (key2 === undefined) {
+            return super.has(key1);
         } else {
-            return super.has(key1, key2) && super.get(key1, key2).has(key3);
+            return super.has(key1) && super.get(key1).has(key2, key3);
         }
     }
 
@@ -100,7 +101,8 @@ export class MapMapMap extends MapMap {
 
     get(key1, key2, key3) {
         if (super.has(key1, key2) === false) {
-            return new Map();
+            super.set(key1, key2, new Map());
+            return super.get(key1, key2);
         } else if (key3 === undefined) {
             return super.get(key1, key2);
         } else {
