@@ -38,7 +38,7 @@ function Root(self, { renderer, camera }) {
     if (renderer !== null) {
         root.renderer = renderer;
     } else {
-        const screens = xnew.find(xnew.current, xnew.Screen);
+        const screens = xnew.find(xnew.root, xnew.Screen);
         if (screens.length > 0) {
             const screen = screens.slice(-1)[0]; // last screen
             root.renderer = new THREE.WebGLRenderer({ canvas: screen.canvas, alpha: true });
