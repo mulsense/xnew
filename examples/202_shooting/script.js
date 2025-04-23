@@ -98,7 +98,7 @@ function ScoreText(self) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0xFFFFFF }));
 
   // top right
-  object.position.set(width - 10, 0 + 10);
+  object.position.set(width - 10, 10);
   object.anchor.set(1.0, 0.0);
 
   let sum = 0;
@@ -157,7 +157,6 @@ function Player(self) {
 
 function Shot(self, x, y) {
   const object = xpixi.nest(new PIXI.Container());
-
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().ellipse(0, 0, 4, 24).fill(0x22FFFF));
 
@@ -210,7 +209,6 @@ function Enemy(self) {
         self.emit('+addobject', Crash, object.x, object.y, score);
       }
       self.emit('+addobject', CrashText, object.x, object.y, score);
-
       self.emit('+scoreup', score);
       self.finalize();
     },
@@ -234,7 +232,6 @@ function Enemy(self) {
 
 function CrashText(self, x, y, score) {
   const object = xpixi.nest(new PIXI.Text(`+ ${score}`, { fontSize: 24, fill: '#FFFF22' }));
-
   object.position.set(x, y);
   object.anchor.set(0.5);
 

@@ -44,13 +44,8 @@ function Root(self, { renderer }) {
     }
     root.renderer = null;
 
-    let promise = null;
     if (renderer instanceof Promise) {
-        promise = renderer.then((renderer) => {
-            root.renderer = renderer;
-            return renderer;
-        });
-        xnew.promise(promise);
+        xnew.promise(renderer).then((renderer) => root.renderer = renderer);
     }
 
     root.scene = new PIXI.Container();
