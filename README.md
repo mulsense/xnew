@@ -4,6 +4,10 @@ You can implement your code as a collection of simple components.
 
 [**xnew website**](https://mulsense.github.io/xnew)
 
+<div>
+    <img src="website/static/img/introduction.svg"width="500" />
+</div>
+
 ## setup
 
 ### via cdn  
