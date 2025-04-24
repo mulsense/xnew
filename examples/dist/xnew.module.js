@@ -772,96 +772,7 @@ class Timer {
     }
 }
 
-function timer(callback, delay) {
-    let finalizer = null;
-
-    const snapshot = UnitScope.snapshot;
-    const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
-        finalize: () => finalizer.finalize(),
-        delay,
-    });
-
-    timer.start();
-
-    finalizer = new Unit(snapshot.unit, undefined, (self) => {
-        return {
-            finalize() {
-                timer.clear();
-            }
-        }
-    });
-
-    return { clear: () => timer.clear() };
-}
-
-function interval(callback, delay) {
-    let finalizer = null;
-
-    const snapshot = UnitScope.snapshot;
-    const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
-        finalize: () => finalizer.finalize(),
-        delay,
-        loop: true,
-    });
-
-    timer.start();
-
-    finalizer = new Unit(snapshot.unit, undefined, (self) => {
-        return {
-            finalize() {
-                timer.clear();
-            }
-        }
-    });
-
-    return { clear: () => timer.clear() };
-}
-
-function transition(callback, interval) {
-    let finalizer = null;
-    let updater = null;
-
-    const snapshot = UnitScope.snapshot;
-    const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
-        finalize: () => finalizer.finalize(),
-        delay: interval,
-    });
-    const clear = function () {
-        timer.clear();
-    };
-
-    timer.start();
-
-    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
-
-    updater = new Unit(null, undefined, (self) => {
-        return {
-            update() {
-                const progress = timer.elapsed() / interval;
-                if (progress < 1.0) {
-                    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress });
-                }
-            },
-        }
-    });
-
-    finalizer = new Unit(snapshot.unit, undefined, (self) => {
-        return {
-            finalize() {
-                timer.clear();
-                updater.finalize();
-            }
-        }
-    });
-
-    return { clear };
-}
-
 function xnew(...args) {
-    // parent Unit
     let parent = undefined;
     if (isFunction(args[0]) === false && args[0] instanceof Unit) {
         parent = args.shift();
@@ -915,7 +826,6 @@ Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.cur
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
 Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
-
 
 function nest(attributes) {
     if (UnitScope.current.element instanceof Window || UnitScope.current.element instanceof Document) {
@@ -982,6 +892,94 @@ function find(...args) {
     } else if (isFunction(component) === true) {
         return UnitComponent.find(base, component);
     }
+}
+
+function timer(callback, delay) {
+    let finalizer = null;
+
+    const snapshot = UnitScope.snapshot;
+    const timer = new Timer({
+        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
+        finalize: () => finalizer.finalize(),
+        delay,
+    });
+
+    timer.start();
+
+    finalizer = xnew(snapshot.unit, (self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function interval(callback, delay) {
+    let finalizer = null;
+
+    const snapshot = UnitScope.snapshot;
+    const timer = new Timer({
+        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
+        finalize: () => finalizer.finalize(),
+        delay,
+        loop: true,
+    });
+
+    timer.start();
+
+    finalizer = xnew(snapshot.unit, (self) => {
+        return {
+            finalize() {
+                timer.clear();
+            }
+        }
+    });
+
+    return { clear: () => timer.clear() };
+}
+
+function transition(callback, interval) {
+    let finalizer = null;
+    let updater = null;
+
+    const snapshot = UnitScope.snapshot;
+    const timer = new Timer({
+        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
+        finalize: () => finalizer.finalize(),
+        delay: interval,
+    });
+    const clear = function () {
+        timer.clear();
+    };
+
+    timer.start();
+
+    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
+
+    updater = xnew(null, (self) => {
+        return {
+            update() {
+                const progress = timer.elapsed() / interval;
+                if (progress < 1.0) {
+                    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress });
+                }
+            },
+        }
+    });
+
+    finalizer = xnew(snapshot.unit, (self) => {
+        return {
+            finalize() {
+                timer.clear();
+                updater.finalize();
+            }
+        }
+    });
+
+    return { clear };
 }
 
 function DragEvent(self) {

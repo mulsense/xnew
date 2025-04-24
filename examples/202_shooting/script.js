@@ -6,7 +6,7 @@ function Main(self) {
 
   xnew(Background);
   xnew(TitleScene);
-  self.on('+addscene', xnew);
+  self.on('+nextscene', xnew);
 }
 
 function Background(self) {
@@ -40,7 +40,7 @@ function TitleScene(self) {
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
-    self.emit('+addscene', GameScene);
+    self.emit('+nextscene', GameScene);
     self.finalize();
   });
 }
@@ -65,7 +65,7 @@ function GameScene(self) {
     xnew(GameOverText);
 
     xnew(window).on('keydown pointerdown', () => {
-      self.emit('+addscene', TitleScene);
+      self.emit('+nextscene', TitleScene);
       self.finalize();
     });
   });

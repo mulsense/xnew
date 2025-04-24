@@ -5,14 +5,14 @@ function Main(self) {
   xpixi.setup();
 
   xnew(TitleScene);
-  self.on('+addscene', xnew);
+  self.on('+nextscene', xnew);
 }
 
 function TitleScene(self) {
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
-    self.emit('+addscene', GameScene);
+    self.emit('+nextscene', GameScene);
     self.finalize();
   });
 }
@@ -40,7 +40,7 @@ function GameScene(self) {
     self.stop();
 
     xnew(window).on('keydown pointerdown', () => {
-      self.emit('+addscene', TitleScene);
+      self.emit('+nextscene', TitleScene);
       self.finalize();
     });
   });
