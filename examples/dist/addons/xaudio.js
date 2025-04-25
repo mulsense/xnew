@@ -1,8 +1,8 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'xnew'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xaudio = global.xaudio || {}));
-})(this, (function (exports) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew')) :
+    typeof define === 'function' && define.amd ? define(['xnew'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xaudio = factory());
+})(this, (function () { 'use strict';
 
     //----------------------------------------------------------------------------------------------------
     // type check
@@ -19,6 +19,10 @@
     function isObject(value) {
         return value !== null && typeof value === 'object' && value.constructor === Object;
     }
+
+    function xaudio() {
+    }
+    Object.defineProperty(xaudio, 'synthesizer', { enumerable: true, value: synthesizer });
 
     function synthesizer(props, effects) {
         return new Synthesizer(props, effects);
@@ -326,6 +330,6 @@
         return impulse;
     }
 
-    exports.synthesizer = synthesizer;
+    return xaudio;
 
 }));

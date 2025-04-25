@@ -16,6 +16,10 @@ function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
+function xaudio() {
+}
+Object.defineProperty(xaudio, 'synthesizer', { enumerable: true, value: synthesizer });
+
 function synthesizer(props, effects) {
     return new Synthesizer(props, effects);
 }
@@ -322,4 +326,4 @@ function impulseResponse({ time, decay = 2.0 }) {
     return impulse;
 }
 
-export { synthesizer };
+export { xaudio as default };

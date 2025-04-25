@@ -61,7 +61,7 @@ unit.element;
 ### example 1
 You can create html elements using `xnew` and `xnew.nest`.  
 
-<iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/manual/getstart1.html" ></iframe>
+<iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/001_getstart/getstart.html" ></iframe>
 
 ```html
 <!DOCTYPE html>
@@ -98,7 +98,7 @@ You can create html elements using `xnew` and `xnew.nest`.
 You can implement various process in the componet function.   
 In the following example, we set up an event listener and animation.
 
-<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/manual/box.html" ></iframe>
+<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/001_getstart/box.html" ></iframe>
 
 ```html
 <body>
@@ -106,26 +106,26 @@ In the following example, we set up an event listener and animation.
     xnew(Component);
 
     function Component(self) {
-      xnew.nest({
-        style: {
-          position: 'absolute',
-          width: '200px',
-          height: '200px',
-          inset: 0,
-          margin: 'auto',
-          background: '#08F'
-        }
-      });
+      xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
       
-      xnew({ tagName: 'span' }, 'click me');
+      xnew({ tagName: 'span' });
       
+      let isRunning = false;
       self.on('click', (event) => {
-        self.isRunning ? self.stop() : self.start();
+        isRunning ? self.stop() : self.start();
       });
 
       return {
+        start() {
+          isRunning = true;
+          self.element.textContent = 'start';
+        },
         update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
+        },
+        stop() {
+          isRunning = false;
+          self.element.textContent = 'stop';
         },
       };
     }
@@ -137,7 +137,7 @@ If you call `xnew` inside a component function, a parent-child relationship is c
 The conencted xnodes will work together.  
 For example, when the parent component stop, its children also stop.   
 
-<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/manual/boxinbox.html" ></iframe>
+<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/001_getstart/boxinbox.html" ></iframe>
 
 ```html
 <body>
@@ -145,65 +145,53 @@ For example, when the parent component stop, its children also stop.
     xnew(Parent);
 
     function Parent(self) {
-      xnew.nest({
-        style: {
-          position: 'absolute',
-          width: '200px',
-          height: '200px',
-          inset: 0,
-          margin: 'auto',
-          background: '#08F'
-        }
-      });
+      xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' }});
       
       const text = xnew({ tagName: 'span' });
 
       xnew(Child);
 
+      let isRunning = false;
       self.on('click', () => {
-        self.isRunning ? self.stop() : self.start();
+        isRunning ? self.stop() : self.start();
       });
 
       return {
         start() {
+          isRunning = true;
           text.element.textContent = 'parent: start';
         },
         update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {
+          isRunning = false;
           text.element.textContent = 'parent: stop';
         },
       };
     }
 
     function Child(self) {
-      xnew.nest({
-        style: {
-          position: 'absolute',
-          width: '100px',
-          height: '100px',
-          inset: 0,
-          margin: 'auto',
-          background: '#F80'
-        }
-      });
+      xnew.nest({ style: { position: 'absolute', width: '100px', height: '100px', inset: 0, margin: 'auto', background: '#F80' }});
       
       const text = xnew({ tagName: 'span' });
 
+      let isRunning = false;
       self.on('click', (event) => {
         event.stopPropagation(); // cancel propagation to the parent element
-        self.isRunning ? self.stop() : self.start();
+        isRunning ? self.stop() : self.start();
       });
 
       return {
         start() {
+          isRunning = true;
           text.element.textContent = 'child: start';
         },
         update(count) {
           self.element.style.transform = `rotate(${count}deg)`;
         },
         stop() {
+          isRunning = false;
           text.element.textContent = 'child: stop';
         },
       };

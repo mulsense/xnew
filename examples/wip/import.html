@@ -8,37 +8,19 @@
   <script type="importmap">
     {
       "imports": {
-        "xnew": "../../../dist/xnew.module.js"
+        "xnew": "../dist/xnew.module.js",
+        "xnew/addons/xaudio": "../dist/addons/xaudio.module.js"
       }
     }
-  </script>
+    </script>
+    
 </head>
 
 <body>
   <script type="module">
     import xnew from 'xnew'
-    xnew(Component);
-    function Component(self) {
-      self.nest({ tagName: 'div', style: 'position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;' })
-      const text = xnew({ tagName: 'span' }, 'parent: start');
-
-      self.on('click', (event) => {
-        self.state === 'running' ? self.stop() : self.start();
-      });
-
-      let counter = 0;
-      return {
-        start() {
-          text.element.textContent = 'start';
-        },
-        update() {
-          self.element.style.transform = `rotate(${counter++}deg)`;
-        },
-        stop() {
-          text.element.textContent = 'stop';
-        },
-      };
-    }
+    import xaudio from 'xnew/addons/xaudio'
+    
   </script>
 </body>
 

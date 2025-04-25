@@ -54,7 +54,7 @@ The created elements are removed when the units finalize.
 
 ## example 2
 
-<iframe style={{width:'100%',height:'500px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/examples/101_element/index.html" ></iframe>
+<iframe style={{width:'100%',height:'500px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/101_element/index.html" ></iframe>
 
 ```html
 <div id="main"></div>

@@ -1,7 +1,11 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
 import xnew from 'xnew';
 
-export function synthesizer(props, effects) {
+export default function xaudio() {
+}
+Object.defineProperty(xaudio, 'synthesizer', { enumerable: true, value: synthesizer });
+
+function synthesizer(props, effects) {
     return new Synthesizer(props, effects);
 }
 

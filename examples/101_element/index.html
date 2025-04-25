@@ -37,9 +37,9 @@
 
       const button = xnew({ tagName: 'button' }, 'click me');
 
-      let counter = 0;
+      let count = 0;
       button.on('click', () => {
-        button.element.textContent = `counter: ${counter++}`;
+        button.element.textContent = `count: ${count++}`;
       })
     }
 

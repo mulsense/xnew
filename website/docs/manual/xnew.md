@@ -3,14 +3,12 @@ sidebar_position: 1
 ---
 
 # xnew
-It create a new `unit`.  
 How `xnew` works makes component-oriented programming easier.
 
 ## basic usage
 ### arguments
 As shown below, `xnew` accepts some arguments.
 ```js
-// parent:    [a unit object]
 // target:    1. [an existing html element] or 
 //            2. [attributes to create a html element]  
 // Component: 1. [an component function] or 
@@ -21,12 +19,8 @@ const unit = xnew(parent, target, component, ...args);
 
 These arguments are often omitted.  
 ```js
-xnew(Component, ...args);           // parent and target are omitted
-xnew(parent, Component, ...args);   // target is omitted
-xnew(target, Component, ...args);   // parent is omitted
-xnew(parent, target);               // ...
-xnew(parent);                       // ...
-xnew(target);                       // ...
+xnew(Component, ...args);           // target is omitted
+xnew(target);                       // component is omitted
 xnew();                             // ...
 ```
 
@@ -49,29 +43,6 @@ const unit = xnew((self) => {
   // ...
   // implement features
 });
-```
-
-### parent
-`parent` parameter is set as parent `unit`.  
-If you omit the `parent` parameter, the nesting higher unit or otherwise `null` is assigned.   
-    
-```js
-xnew((self) => {
-  // unit1.parent: null
-  const unit1 = self;
-
-  // unit2.parent: unit1
-  const unit2 = xnew((self) => {
-  });
-
-  // unit3.parent: unit1
-  const unit3 = xnew((self) => {
-  });
-
-  // unit4.parent: unit2
-  const unit4 = xnew(unit2, (self) => {
-  });
-})
 ```
 ### target
 `target` is set for the html element of the new unit. The element is accessed by `unit.element`.
@@ -206,13 +177,7 @@ unit.finalize();
 ### `unit.reboot`
 This method reboot the unit using the component function. 
 ```js
-unit.reboot(...args); // ...args for the component function.
-```
-
-### `unit.isRunning`
-The variable indicates the status of the update process.
-```js
-unit.isRunning; // bool
+unit.reboot();
 ```
 
 ### calling order
@@ -275,12 +240,10 @@ parent.finalize();
 // Parent finalize
 ```
 
-
 ## original properties
 You can define original properties unless the properties are already defined.  
 The following names are not available.
-- `start`, `update`, `stop`, `finalize`, `reboot`, `isRunning`
-- `parent`,  `element`, `on`, `off`, `emit`, `_`
+- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `emit`, `_`
 
 ```js
 const unit = xnew((self) =>  {
