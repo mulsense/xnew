@@ -25,19 +25,16 @@ function TitleText(self) {
 
 function GameScene(self) {
   xmatter.setup();
-
+ 
   xnew(Controller);
   xnew(ScoreText);
   xnew(Bowl);
-
-  const balls = [];
-  xnew(Queue, balls);
-  xnew(Cursor, balls);
-
+  xnew(Cursor);
+  xnew(Queue);
   self.on('+addobject', xnew);
+
   self.on('+gameover', () => {
     xnew(GameOverText);
-    self.stop();
 
     xnew(window).on('keydown pointerdown', () => {
       self.emit('+nextscene', TitleScene);
@@ -48,13 +45,11 @@ function GameScene(self) {
 
 function Controller(self) {
   const screen = xnew.find(xnew.Screen)[0];
-  screen.on('-pointermove', ({ position }) => {
-    self.emit('+move', { x: position.x });
+  const pointer = xnew(screen.canvas, xnew.PointerEvent);
+  pointer.on('-pointermove -pointerdown', ({ position }) => {
+    self.emit('+move', { x: position.x * screen.scale.x });
   });
-  screen.on('-pointerdown', ({ position }) => {
-    self.emit('+move', { x: position.x });
-    self.emit('+action');
-  });
+  pointer.on('-pointerdown', () => self.emit('+action'));
 }
 
 function ScoreText(self) {
@@ -74,7 +69,8 @@ function Bowl(self) {
   }
 }
 
-function Queue(self, balls) {
+function Queue(self) {
+  const balls = [];
   for(let i = 0; i < 4; i++) {
     balls.push(Math.random() * Math.PI * 2);
   }
@@ -91,6 +87,7 @@ function Queue(self, balls) {
     const circle1 = xnew(Circle, { x: 1 * 30, y: 0, r: 20, color: hueToCol(balls[3]) }, { isStatic: true });
     const circle2 = xnew(Circle, { x: 2 * 30, y: 0, r: 20, color: hueToCol(balls[2]) }, { isStatic: true });
     const circle3 = xnew(Circle, { x: 3 * 30, y: 0, r: 20, color: hueToCol(balls[1]) }, { isStatic: true });
+    self.emit('+reloadcomplete', balls[0]);
 
     object.position.set(-20, 40);
     self.on('+reload', () => {
@@ -102,32 +99,35 @@ function Queue(self, balls) {
       xnew.transition(({ progress }) => {
         object.x = 30 * progress - 50;
         if (progress === 1.0) {
-          self.emit('+reloadcomplete');
+          self.emit('+reloadcomplete', balls[0]);
         }
       }, 500);
     });
   });
 }
 
-function Cursor(self, balls) {
+function Cursor(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 40);
 
-  const circle = new PIXI.Graphics().circle(0, 0, 32).fill(hueToCol(balls[0]));
+  const circle = new PIXI.Graphics();
   object.addChild(circle);
   object.addChild(new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 }));
   object.addChild(new PIXI.Graphics().moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 }));
 
   self.on('+move', ({ x }) => object.x = Math.max(Math.min(x, width / 2 + 240), width / 2 - 240));
 
-  let reloaded = true;
-  self.on('+reloadcomplete', () => reloaded = true);
+  let next = null;
+  self.on('+reloadcomplete', (hue) => {
+    next = hue;
+    circle.circle(0, 0, 32).fill(hueToCol(next));
+  });
   self.on('+action', () => {
-    if (reloaded === true) {
-      reloaded = false;
-      self.emit('+addobject', ColorBall, { x: object.x, y: object.y, hue: balls[0], score: 1 });
+    if (next !== null) {
+      circle.clear();
+      self.emit('+addobject', ColorBall, { x: object.x, y: object.y, hue: next, score: 1 });
       self.emit('+reload');
-      circle.clear().circle(0, 0, 32).fill(hueToCol(balls[0]));
+      next = null;
     } 
   });
 

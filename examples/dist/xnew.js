@@ -482,10 +482,6 @@
             return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
         }
 
-        get isRunning() {
-            return this._.state === 'running';
-        }
-
         start() {
             this._.tostart = true;
         }
@@ -1232,6 +1228,9 @@
                 canvas.element.height = height;
                 resize();
             },
+            get scale() {
+                return { x: canvas.element.width / canvas.element.clientWidth, y: canvas.element.height / canvas.element.clientHeight };
+            }
         }
     }
 

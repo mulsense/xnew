@@ -45,10 +45,6 @@ export class Unit {
         return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
     }
 
-    get isRunning() {
-        return this._.state === 'running';
-    }
-
     start() {
         this._.tostart = true;
     }
