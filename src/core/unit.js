@@ -86,16 +86,6 @@ export class Unit {
         }
     }
 
-    emit(type, ...args) {
-        if (isString(type) === false) {
-            error('unit emit', 'The argument is invalid.', 'type');
-        } else if (this._.state === 'finalized') {
-            error('unit emit', 'This function can not be called after finalized.');
-        } else {
-            UnitEvent.emit(this, type, ...args);
-        }
-    }
-
     static roots = new Set();   // root units
 
     static initialize(component, ...args) {

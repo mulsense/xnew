@@ -55,6 +55,9 @@ Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
 Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
+Object.defineProperty(xnew, 'emit', { enumerable: true, value: emit });
+Object.defineProperty(xnew, 'scope', { enumerable: true, value: scope });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -125,6 +128,24 @@ function find(...args) {
     } else if (isFunction(component) === true) {
         return UnitComponent.find(base, component);
     }
+}
+
+function emit(type, ...args) {
+    const unit = UnitScope.current;
+    if (isString(type) === false) {
+        error('xnew.emit', 'The argument is invalid.', 'type');
+    } else if (unit?._.state === 'finalized') {
+        error('xnew.emit', 'This function can not be called after finalized.');
+    } else {
+        UnitEvent.emit(unit, type, ...args);
+    }
+}
+
+function scope(callback) {
+    const snapshot = UnitScope.snapshot;
+    return (...args) => {
+        UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args);
+    };
 }
 
 function timer(callback, delay) {

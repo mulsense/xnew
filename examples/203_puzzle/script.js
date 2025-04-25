@@ -12,7 +12,7 @@ function TitleScene(self) {
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
-    self.emit('+nextscene', GameScene);
+    xnew.emit('+nextscene', GameScene);
     self.finalize();
   });
 }
@@ -37,7 +37,7 @@ function GameScene(self) {
     xnew(GameOverText);
 
     xnew(window).on('keydown pointerdown', () => {
-      self.emit('+nextscene', TitleScene);
+      xnew.emit('+nextscene', TitleScene);
       self.finalize();
     });
   });
@@ -47,9 +47,9 @@ function Controller(self) {
   const screen = xnew.find(xnew.Screen)[0];
   const pointer = xnew(screen.canvas, xnew.PointerEvent);
   pointer.on('-pointermove -pointerdown', ({ position }) => {
-    self.emit('+move', { x: position.x * screen.scale.x });
+    xnew.emit('+move', { x: position.x * screen.scale.x });
   });
-  pointer.on('-pointerdown', () => self.emit('+action'));
+  pointer.on('-pointerdown', () => xnew.emit('+action'));
 }
 
 function ScoreText(self) {
@@ -87,7 +87,7 @@ function Queue(self) {
     const circle1 = xnew(Circle, { x: 1 * 30, y: 0, r: 20, color: hueToCol(balls[3]) }, { isStatic: true });
     const circle2 = xnew(Circle, { x: 2 * 30, y: 0, r: 20, color: hueToCol(balls[2]) }, { isStatic: true });
     const circle3 = xnew(Circle, { x: 3 * 30, y: 0, r: 20, color: hueToCol(balls[1]) }, { isStatic: true });
-    self.emit('+reloadcomplete', balls[0]);
+    xnew.emit('+reloadcomplete', balls[0]);
 
     object.position.set(-20, 40);
     self.on('+reload', () => {
@@ -99,7 +99,7 @@ function Queue(self) {
       xnew.transition(({ progress }) => {
         object.x = 30 * progress - 50;
         if (progress === 1.0) {
-          self.emit('+reloadcomplete', balls[0]);
+          xnew.emit('+reloadcomplete', balls[0]);
         }
       }, 500);
     });
@@ -125,8 +125,8 @@ function Cursor(self) {
   self.on('+action', () => {
     if (next !== null) {
       circle.clear();
-      self.emit('+addobject', ColorBall, { x: object.x, y: object.y, hue: next, score: 1 });
-      self.emit('+reload');
+      xnew.emit('+addobject', ColorBall, { x: object.x, y: object.y, hue: next, score: 1 });
+      xnew.emit('+reload');
       next = null;
     } 
   });
@@ -142,14 +142,14 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
   const r = 28 + 3 * score;
   xnew.extend(Circle, { x, y, r, color: hueToCol(hue) });
 
-  self.emit('+scoreup', score);
+  xnew.emit('+scoreup', score);
   xnew(ColorBallText, { hue, score });
   
   return {
     r, hue, score, isMearged: false,
     update() {
       if (self.object.y > height - 10) {
-        self.emit('+gameover');
+        xnew.emit('+gameover');
       }
       for (const target of xnew.find(ColorBall)) {
         if (self.mergeCheck(target)) {
@@ -158,7 +158,7 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
           const x = (self.object.x * self.score + target.object.x * target.score) / score;
           const y = (self.object.y * self.score + target.object.y * target.score) / score;
           xnew.timer(() => {
-            self.emit('+addobject', ColorBall, { x, y, hue, score });
+            xnew.emit('+addobject', ColorBall, { x, y, hue, score });
             self.finalize();
             target.finalize();
           });

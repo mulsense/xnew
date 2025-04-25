@@ -7,22 +7,22 @@ export function Keyboard(self) {
     win.on('keydown', (event) => {
         if (event.repeat === true) return;
         state[event.code] = 1;
-        self.emit('-keydown', { code: event.code });
+        xnew.emit('-keydown', { code: event.code });
     });
 
     win.on('keyup', (event) => {
         if (state[event.code]) state[event.code] = 0;
-        self.emit('-keyup', { code: event.code });
+        xnew.emit('-keyup', { code: event.code });
     });
 
     win.on('keydown', (event) => {
         if (event.repeat === true) return;
-        self.emit('-arrowkeydown', { code: event.code, vector: getVector() });
+        xnew.emit('-arrowkeydown', { code: event.code, vector: getVector() });
     });
 
     win.on('keyup', (event) => {
         if (event.repeat === true) return;
-        self.emit('-arrowkeyup', { code: event.code, vector: getVector() });
+        xnew.emit('-arrowkeyup', { code: event.code, vector: getVector() });
     });
 
     function getVector() {

@@ -13,7 +13,7 @@ You can implement your code as a collection of simple components.
 ### via cdn  
   
 ```html
-<script src="https://unpkg.com/xnew@2.4.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@2.5.x/dist/xnew.js"></script>
 ```
 
 ### via cdn (ESM)

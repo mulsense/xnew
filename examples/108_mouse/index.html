@@ -42,19 +42,19 @@
       let isActive = false;
       pointer.on('-gesturestart', () => isActive = true);
       pointer.on('-gestureend', () => isActive = false);
-      pointer.on('-gesturemove', ({ scale }) => self.emit('+scale', scale));
+      pointer.on('-gesturemove', ({ scale }) => xnew.emit('+scale', scale));
       
       pointer.on('-dragmove', ({ position, delta }) => {
         if (isActive === true) return;
         if (event.buttons & 1 || !event.buttons) {
-          self.emit('+rotate', { x: +delta.x, y: +delta.y });
+          xnew.emit('+rotate', { x: +delta.x, y: +delta.y });
         }
         if (event.buttons & 2) {
-          self.emit('+translate', { x: -delta.x, y: +delta.y });
+          xnew.emit('+translate', { x: -delta.x, y: +delta.y });
         }
       });
 
-      pointer.on('-wheel', ({ deltaY }) => self.emit('+scale', 1 + 0.001 * deltaY));
+      pointer.on('-wheel', ({ deltaY }) => xnew.emit('+scale', 1 + 0.001 * deltaY));
     }
 
     function ThreeMain(self) {

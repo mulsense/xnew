@@ -40,7 +40,7 @@ function TitleScene(self) {
   xnew(TitleText);
 
   xnew(window).on('keydown pointerdown', () => {
-    self.emit('+nextscene', GameScene);
+    xnew.emit('+nextscene', GameScene);
     self.finalize();
   });
 }
@@ -65,7 +65,7 @@ function GameScene(self) {
     xnew(GameOverText);
 
     xnew(window).on('keydown pointerdown', () => {
-      self.emit('+nextscene', TitleScene);
+      xnew.emit('+nextscene', TitleScene);
       self.finalize();
     });
   });
@@ -78,18 +78,18 @@ function Controller(self) {
   
   // virtual D-Pad
   const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px;' }, xutil.DPad, { size: 130 });
-  dpad.on('-down -move -up', ({ vector }) => self.emit('+move', vector));
+  dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', vector));
 
   // virtual button
   const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
-  button.on('-down', () => self.emit('+shot'));
+  button.on('-down', () => xnew.emit('+shot'));
 
   // keyboard
   const keyboard = xnew(xnew.Keyboard);
-  keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => self.emit('+move', vector));
+  keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => xnew.emit('+move', vector));
   keyboard.on('-keydown', ({ code }) => {
     if (code === 'Space') {
-      self.emit('+shot')
+      xnew.emit('+shot')
     }
   });
 }
@@ -123,7 +123,7 @@ function Player(self) {
   // actions
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
-  self.on('+shot', () => self.emit('+addobject', Shot, object.x, object.y));
+  self.on('+shot', () => xnew.emit('+addobject', Shot, object.x, object.y));
   self.on('+shot', () => self.sound());
 
   return {
@@ -139,7 +139,7 @@ function Player(self) {
       for (const enemy of xnew.find(Enemy)) {
         if (enemy.distance(object) < 30) {
           enemy.clash(1);
-          self.emit('+gameover');
+          xnew.emit('+gameover');
           self.finalize();
           return;
         }
@@ -206,10 +206,10 @@ function Enemy(self) {
     clash(score) {
       self.sound(score);
       for (let i = 0; i < 4; i++) {
-        self.emit('+addobject', Crash, object.x, object.y, score);
+        xnew.emit('+addobject', Crash, object.x, object.y, score);
       }
-      self.emit('+addobject', CrashText, object.x, object.y, score);
-      self.emit('+scoreup', score);
+      xnew.emit('+addobject', CrashText, object.x, object.y, score);
+      xnew.emit('+scoreup', score);
       self.finalize();
     },
     distance(target) {

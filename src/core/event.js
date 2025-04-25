@@ -11,18 +11,17 @@ export class UnitEvent {
 
     static on(unit, type, listener, options) {
         const listeners = UnitEvent.unitToListeners.get(unit);
+        const snapshot = UnitScope.snapshot;
 
-        type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
-    
+        type.trim().split(/\s+/).forEach((type) => internal(type, listener));
         function internal(type, listener) {
             if (listeners.has(type, listener) === false) {
                 const element = unit.element;
-                const context = unit._.context;
                 if (type[0] === '-' || type[0] === '+') {
                     const execute = (...args) => {
                         const eventbackup = UnitEvent.event;
                         UnitEvent.event = { type };
-                        UnitScope.execute(unit, context, listener, ...args);
+                        UnitScope.execute(snapshot.unit, snapshot.context, listener, ...args);
                         UnitEvent.event = eventbackup;
                     };
                     listeners.set(type, listener, [element, execute]);
@@ -30,7 +29,7 @@ export class UnitEvent {
                     const execute = (...args) => {
                         const eventbackup = UnitEvent.event;
                         UnitEvent.event = { type: args[0]?.type ?? null };
-                        UnitScope.execute(unit, context, listener, ...args);
+                        UnitScope.execute(snapshot.unit, snapshot.context, listener, ...args);
                         UnitEvent.event = eventbackup;
                     };
                     listeners.set(type, listener, [element, execute]);

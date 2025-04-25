@@ -243,7 +243,7 @@ parent.finalize();
 ## original properties
 You can define original properties unless the properties are already defined.  
 The following names are not available.
-- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `emit`, `_`
+- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `_`
 
 ```js
 const unit = xnew((self) =>  {
@@ -265,5 +265,86 @@ const unit = xnew((self) =>  {
 unit.countup();       // 0 -> 1
 unit.count = 2;       // setter
 const x = unit.count; // getter
+```
+
+## event listener
+You can set a event listener using `unit.on`, and remove it using `unit.off`.
+
+### `unit.on`
+This method set a event listener.
+```js
+unit.on(type, listener);
+```
+
+### `unit.off`
+This method unset event listeners.
+
+```js
+unit.off();                // clear all listeners
+unit.off(type);            // clear the listeners (named type)
+unit.off(type, listener);  // clear the listener (named type)
+```
+
+```js
+xnew.emit(type, ...args);
+```
+
+### html event
+```html
+<div id="target"></div>
+<script>
+  const unit = xnew('#target', Component);
+  
+  function Component(self) {
+    self.on('click', (event) => {
+      // fires when the unit's element (id = target) is clicked.
+    });
+  });
+
+  unit.on('click', (event) => {
+    // fires when the unit's element (id = target) is clicked.
+  });
+</script>
+```
+
+### original event
+#### from anywhere
+If you set a listener using `+` token, the listener can recieve a event from anywhere.
+
+```js
+xnew(() => {
+  xnew((self) => {
+    self.on('+myevent', () => {
+      //
+    });
+  });
+
+  xnew((self) => {
+    xnew.emit('+myevent'); // emit event
+  });
+});
+```
+
+#### from internal
+If you set a listener using `-` token,
+the listener can only recieve a event from within the component function.
+
+```html
+<div id="target"></div>
+<script>
+  const unit = xnew('#target', Component);
+
+  unit.on('-myevent', (data) => {
+    // fires when xnew.emit('-myevent', data) is called.
+  });
+
+  function Component(self) {
+    xnew.timer(() => {
+      const data = {};
+      xnew.emit('-myevent', data);
+    }, 1000)
+  });
+
+</script>
 ```
 

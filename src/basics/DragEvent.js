@@ -13,8 +13,7 @@ export function DragEvent(self) {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
-
-                self.emit('-move', { id, position, delta });
+                xnew.emit('-move', { id, position, delta });
                 previous = position;
             }
         });
@@ -24,15 +23,15 @@ export function DragEvent(self) {
                 const position = getPosition(event, rect);
 
                 if (event.type === 'pointerup') {
-                    self.emit('-up', { id, position, });
+                    xnew.emit('-up', { id, position, });
                 } else if (event.type === 'pointercancel') {
-                    self.emit('-cancel', { id, position, });
+                    xnew.emit('-cancel', { id, position, });
                 }
                 win.finalize();
             }
         });
 
-        self.emit('-down', { id, position });
+        xnew.emit('-down', { id, position });
     });
 
     function getPosition(event, rect) {

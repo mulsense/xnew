@@ -12,7 +12,7 @@ export function GestureEvent(self) {
 
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            self.emit('-down', {});
+            xnew.emit('-down', {});
         }
     });
 
@@ -42,14 +42,14 @@ export function GestureEvent(self) {
                 }
             }
 
-            self.emit('-move', { scale });
+            xnew.emit('-move', { scale });
         }
         map.set(id, position);
     });
 
     drag.on('-up -cancel', ({ id }) => {
         if (isActive === true) {
-            self.emit('-up', {});
+            xnew.emit('-up', {});
         }
         isActive = false;
         map.delete(id);

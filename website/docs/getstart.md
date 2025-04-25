@@ -9,7 +9,7 @@ sidebar_position: 1
 ## setup
 ### via cdn
 ```html
-<script src="https://unpkg.com/xnew@2.4.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@2.5.x/dist/xnew.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -17,7 +17,7 @@ sidebar_position: 1
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@2.4.x/dist/xnew.module.js"
+    "xnew": "https://unpkg.com/xnew@2.5.x/dist/xnew.module.js"
   }
 }
 </script>
@@ -31,7 +31,7 @@ import xnew from 'xnew'
 
 ### via npm
 ```bash
-npm install xnew@2.4.x
+npm install xnew@2.5.x
 ```
 ```js
 import xnew from 'xnew'
@@ -69,7 +69,7 @@ You can create html elements using `xnew` and `xnew.nest`.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@2.4.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@2.5.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>

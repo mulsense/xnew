@@ -331,18 +331,17 @@ class UnitEvent {
 
     static on(unit, type, listener, options) {
         const listeners = UnitEvent.unitToListeners.get(unit);
+        const snapshot = UnitScope.snapshot;
 
-        type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
-    
+        type.trim().split(/\s+/).forEach((type) => internal(type, listener));
         function internal(type, listener) {
             if (listeners.has(type, listener) === false) {
                 const element = unit.element;
-                const context = unit._.context;
                 if (type[0] === '-' || type[0] === '+') {
                     const execute = (...args) => {
                         const eventbackup = UnitEvent.event;
                         UnitEvent.event = { type };
-                        UnitScope.execute(unit, context, listener, ...args);
+                        UnitScope.execute(snapshot.unit, snapshot.context, listener, ...args);
                         UnitEvent.event = eventbackup;
                     };
                     listeners.set(type, listener, [element, execute]);
@@ -350,7 +349,7 @@ class UnitEvent {
                     const execute = (...args) => {
                         const eventbackup = UnitEvent.event;
                         UnitEvent.event = { type: args[0]?.type ?? null };
-                        UnitScope.execute(unit, context, listener, ...args);
+                        UnitScope.execute(snapshot.unit, snapshot.context, listener, ...args);
                         UnitEvent.event = eventbackup;
                     };
                     listeners.set(type, listener, [element, execute]);
@@ -514,16 +513,6 @@ class Unit {
             error('unit off', 'The argument is invalid.', 'listener');
         } else {
             UnitEvent.off(this, type, listener);
-        }
-    }
-
-    emit(type, ...args) {
-        if (isString(type) === false) {
-            error('unit emit', 'The argument is invalid.', 'type');
-        } else if (this._.state === 'finalized') {
-            error('unit emit', 'This function can not be called after finalized.');
-        } else {
-            UnitEvent.emit(this, type, ...args);
         }
     }
 
@@ -818,6 +807,9 @@ Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
 Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
+Object.defineProperty(xnew, 'emit', { enumerable: true, value: emit });
+Object.defineProperty(xnew, 'scope', { enumerable: true, value: scope });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
@@ -888,6 +880,24 @@ function find(...args) {
     } else if (isFunction(component) === true) {
         return UnitComponent.find(base, component);
     }
+}
+
+function emit(type, ...args) {
+    const unit = UnitScope.current;
+    if (isString(type) === false) {
+        error('xnew.emit', 'The argument is invalid.', 'type');
+    } else if (unit?._.state === 'finalized') {
+        error('xnew.emit', 'This function can not be called after finalized.');
+    } else {
+        UnitEvent.emit(unit, type, ...args);
+    }
+}
+
+function scope(callback) {
+    const snapshot = UnitScope.snapshot;
+    return (...args) => {
+        UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args);
+    };
 }
 
 function timer(callback, delay) {
@@ -991,8 +1001,7 @@ function DragEvent(self) {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
-
-                self.emit('-move', { id, position, delta });
+                xnew.emit('-move', { id, position, delta });
                 previous = position;
             }
         });
@@ -1002,15 +1011,15 @@ function DragEvent(self) {
                 const position = getPosition(event, rect);
 
                 if (event.type === 'pointerup') {
-                    self.emit('-up', { id, position, });
+                    xnew.emit('-up', { id, position, });
                 } else if (event.type === 'pointercancel') {
-                    self.emit('-cancel', { id, position, });
+                    xnew.emit('-cancel', { id, position, });
                 }
                 win.finalize();
             }
         });
 
-        self.emit('-down', { id, position });
+        xnew.emit('-down', { id, position });
     });
 
     function getPosition(event, rect) {
@@ -1029,7 +1038,7 @@ function GestureEvent(self) {
 
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            self.emit('-down', {});
+            xnew.emit('-down', {});
         }
     });
 
@@ -1050,14 +1059,14 @@ function GestureEvent(self) {
                 ({ x: c.x - b.x, y: c.y - b.y });
             }
 
-            self.emit('-move', { scale });
+            xnew.emit('-move', { scale });
         }
         map.set(id, position);
     });
 
     drag.on('-up -cancel', ({ id }) => {
         if (isActive === true) {
-            self.emit('-up', {});
+            xnew.emit('-up', {});
         }
         isActive = false;
         map.delete(id);
@@ -1073,12 +1082,12 @@ function GestureEvent(self) {
 }
 
 function ResizeEvent(self) {
-    const observer = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver(xnew.scope((entries) => {
         for (const entry of entries) {
-            self.emit('-resize');
+            xnew.emit('-resize');
             break;
         }
-    });
+    }));
 
     if (self.element) {
         observer.observe(self.element);
@@ -1099,42 +1108,42 @@ function PointerEvent(self) {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-        self.emit('-pointermove', { id, position });
+        xnew.emit('-pointermove', { id, position });
     });
     unit.on('wheel', (event) => {
-        self.emit('-wheel', { deltaY: event.wheelDeltaY });
+        xnew.emit('-wheel', { deltaY: event.wheelDeltaY });
     });
     unit.on('pointerdown', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-        self.emit('-pointerdown', { id, position });
+        xnew.emit('-pointerdown', { id, position });
     });
     unit.on('pointerup', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-        self.emit('-pointerup', { id, position });
+        xnew.emit('-pointerup', { id, position });
     });
     const gesture = xnew(GestureEvent);
     gesture.on('-down', (...args) => {
-        self.emit('-gesturestart', ...args);
+        xnew.emit('-gesturestart', ...args);
     });
     gesture.on('-move', (...args) => {
-        self.emit('-gesturemove', ...args);
+        xnew.emit('-gesturemove', ...args);
     });
     gesture.on('-up', (...args) => {
-        self.emit('-gestureend', ...args);
+        xnew.emit('-gestureend', ...args);
     });
     gesture.on('-cancel', (...args) => {
-        self.emit('-gesturecancel', ...args);
+        xnew.emit('-gesturecancel', ...args);
     });  
 
     const drag = xnew(DragEvent);
-    drag.on('-down', (...args) => self.emit('-dragstart', ...args));
-    drag.on('-move', (...args) => self.emit('-dragmove', ...args));
-    drag.on('-up', (...args) => self.emit('-dragend', ...args));
-    drag.on('-cancel', (...args) => self.emit('-dragcancel', ...args));
+    drag.on('-down', (...args) => xnew.emit('-dragstart', ...args));
+    drag.on('-move', (...args) => xnew.emit('-dragmove', ...args));
+    drag.on('-up', (...args) => xnew.emit('-dragend', ...args));
+    drag.on('-cancel', (...args) => xnew.emit('-dragcancel', ...args));
 
     function getPosition(event, rect) {
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -1182,37 +1191,6 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
         Object.assign(absolute.style, style);
     }
 
-    const pointer = xnew(canvas, PointerEvent);
-    pointer.on('-wheel', (data) => self.emit('-wheel', scale(data)));
-    pointer.on('-pointermove', (data) => self.emit('-pointermove', scale(data)));
-    pointer.on('-pointerdown', (data) => self.emit('-pointerdown', scale(data)));
-    pointer.on('-pointerup', (data) => self.emit('-pointerup', scale(data)));
-    pointer.on('-pointercancel', (data) => self.emit('-pointercancel', scale(data)));
-
-    pointer.on('-gesturestart', (data) => self.emit('-gesturestart', scale(data)));
-    pointer.on('-gesturemove', (data) => self.emit('-gesturemove', scale(data)));
-    pointer.on('-gestureend', (data) => self.emit('-gestureend', scale(data)));
-    pointer.on('-gesturecancel', (data) => self.emit('-gesturecancel', scale(data)));
-
-    pointer.on('-dragstart', (data) => self.emit('-dragstart', scale(data)));
-    pointer.on('-dragmove', (data) => self.emit('-dragmove', scale(data)));
-    pointer.on('-dragend', (data) => self.emit('-dragend', scale(data)));
-    pointer.on('-dragcancel', (data) => self.emit('-dragcancel', scale(data)));
-
-    function scale(data) {
-        const sx = canvas.element.width / canvas.element.clientWidth;
-        const sy = canvas.element.height / canvas.element.clientHeight;
-        if (data.position) {
-            data.position.x *= sx;
-            data.position.y *= sy;
-        }
-        if (data.delta) {
-            data.delta.x *= sx;
-            data.delta.y *= sy;
-        }
-        return data;
-    }
-
     return {
         get canvas() {
             return canvas.element;
@@ -1253,22 +1231,22 @@ function Keyboard(self) {
     win.on('keydown', (event) => {
         if (event.repeat === true) return;
         state[event.code] = 1;
-        self.emit('-keydown', { code: event.code });
+        xnew.emit('-keydown', { code: event.code });
     });
 
     win.on('keyup', (event) => {
         if (state[event.code]) state[event.code] = 0;
-        self.emit('-keyup', { code: event.code });
+        xnew.emit('-keyup', { code: event.code });
     });
 
     win.on('keydown', (event) => {
         if (event.repeat === true) return;
-        self.emit('-arrowkeydown', { code: event.code, vector: getVector() });
+        xnew.emit('-arrowkeydown', { code: event.code, vector: getVector() });
     });
 
     win.on('keyup', (event) => {
         if (event.repeat === true) return;
-        self.emit('-arrowkeyup', { code: event.code, vector: getVector() });
+        xnew.emit('-arrowkeyup', { code: event.code, vector: getVector() });
     });
 
     function getVector() {

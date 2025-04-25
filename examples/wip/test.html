@@ -19,6 +19,18 @@
           xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
           xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
           xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
+          const drag = xnew(xnew.DragEvent);
+
+          drag.on('-down', (event) => {
+            console.log('drag start');
+          });
+          // self.on('-test', (event) => {
+          //   console.log('test', event);
+          // });
+          // xnew(window).on('click', (event) => {
+          //   console.log('click', xnew.current);
+          //   xnew.emit('-test', 1);
+          // });
         });
       </script>
     </div>

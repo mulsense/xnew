@@ -26,13 +26,13 @@
       self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
       const stick = xnew({ style: 'position: absolute; left: 10px; bottom: 10px;' }, xutil.AnalogStick, { size: 130 });
-      stick.on('-down -move -up', ({ vector }) => stick.emit('+move', { vector }));
+      stick.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
 
       const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 150px;' }, xutil.DPad, { size: 130 });
-      dpad.on('-down -move -up', ({ vector }) => dpad.emit('+move', { vector }));
+      dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
 
       const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
-      button.on('-down', () => button.emit('+action'));
+      button.on('-down', () => xnew.emit('+action'));
     }
 
     function Box(self, { x, y, size, color }) {
