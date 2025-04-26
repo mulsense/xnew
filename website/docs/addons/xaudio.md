@@ -4,14 +4,18 @@ sidebar_position: 501
 
 # xaudio
 
-## setup
-### via cdn
+`xaudio` is an addon for `xnew` that provides audio-related features.
+
+## Setup
+### Via CDN
+Include the following scripts in your HTML file:
 ```html
 <script src="https://unpkg.com/xnew@2.5.x/dist/xnew.js"></script>
 <script src="https://unpkg.com/xnew@2.5.x/dist/addons/xaudio.js"></script>
 ```
 
-### via cdn (ESM)
+### Via CDN (ESM)
+Use the ES module version with an import map:
 ```html
 <script type="importmap">
 {
@@ -23,20 +27,23 @@ sidebar_position: 501
 </script>
 
 <script type="module">
-import xnew from 'xnew'
-import xaudio from 'xnew/addons/xaudio'
+import xnew from 'xnew';
+import xaudio from 'xnew/addons/xaudio';
 
-// ...
+// Your code here
 </script>
 ```
 
-### via npm
+### Via npm
+Install `xnew` using npm:
 ```bash
 npm install xnew@2.5.x
 ```
+
+Then import `xnew` and `xaudio` in your JavaScript file:
 ```js
-import xnew from 'xnew'
-import xaudio from 'xnew/addons/xaudio'
+import xnew from 'xnew';
+import xaudio from 'xnew/addons/xaudio';
 ```
 
 ## synthesizer

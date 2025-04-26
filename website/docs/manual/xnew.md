@@ -3,70 +3,70 @@ sidebar_position: 1
 ---
 
 # xnew
-How `xnew` works makes component-oriented programming easier.
+`xnew` simplifies component-oriented programming by providing a flexible and intuitive API.
 
-## basic usage
-### arguments
-As shown below, `xnew` accepts some arguments.
+## Basic Usage
+### Arguments
+`xnew` accepts the following arguments:
+
 ```js
-// target:    1. [an existing html element] or 
-//            2. [attributes to create a html element]  
-// Component: 1. [an component function] or 
-//            2. [an inner html for the created html element]  
+// target:    1. [an existing HTML element] or 
+//            2. [attributes to create a new HTML element]  
+// Component: 1. [a component function] or 
+//            2. [innerHTML for the created HTML element]  
 // ...args:   1. [arguments for the component function]
 const unit = xnew(target, component, ...args);
 ```
 
-These arguments are often omitted.  
+All arguments are optional:
 ```js
 xnew(Component, ...args);           // target is omitted
 xnew(target);                       // component is omitted
-xnew();                             // ...
+xnew();                             // both are omitted
 ```
 
-### component
-First, let's set a component function to `xnew`.  
-In the function, you will implement various features.  
+### Component
+Define a component function to implement features for the unit:
 
 ```js
-const unit = xnew(Component, ...args);    
+const unit = xnew(Component, ...args);
 
 function Component(self, ...args) {
-  // ...
-  // implement features
+  // Implement features here
 }
 ```
 
-You can also use a arrow function.  `xnew((self) => {});`
+You can also use an arrow function:
 ```js
 const unit = xnew((self) => {
-  // ...
-  // implement features
+  // Implement features here
 });
 ```
-### target
-`target` is set for the html element of the new unit. The element is accessed by `unit.element`.
 
-#### Setting an existing html element  
+### Target
+The `target` specifies the HTML element for the new unit. Access it via `unit.element`.
+
+#### Using an Existing HTML Element
 ```html
 <body>
   <div id="hoge"></div>
   <script>
     xnew('#hoge', (self) => {
-
+      
       self.element; // element (id = hoge)
     });
   </script>
 </body>
 ```
-:::note Setting variations
-- `xnew('#hoge', ...)` string
-- `xnew(document.querySelector('#hoge'), ...)` HTMLElement
-- `xnew(window, ...)` Document
-- `xnew(document, ...)` Windwow
+
+:::note Variations
+- `xnew('#hoge', ...)` (string)
+- `xnew(document.querySelector('#hoge'), ...)` (HTMLElement)
+- `xnew(window, ...)` (Window)
+- `xnew(document, ...)` (Document)
 :::
 
-#### Creating a new html element   
+#### Creating a New HTML Element
 ```html
 <body>
   <script>
@@ -78,17 +78,17 @@ const unit = xnew((self) => {
 </body>
 ```
 
-:::note Setting variations
-- `xnew({ tagName: 'div', className: 'aaa', style: 'bbb', }, ...)`  
+:::note Variations
+- `xnew({ tagName: 'div', className: 'aaa', style: 'bbb' }, ...)`
 :::
 
-If you omit the tagName property, `tagName: 'div'` will be set automatically.  
+If `tagName` is omitted, it defaults to `'div'`.
 
-If you omit the `element` parameter, the parent unit's element or otherwise parent element of current scope is assigned. 
-    
+#### Inheriting Parent Elements
+If `target` is omitted, the parent unit's element or the current scope's parent element is used.
+
 ```html
 <div id="hoge"></div>
-
 <script>
   xnew((self) => {
     // self.element: document.body
@@ -102,7 +102,7 @@ If you omit the `element` parameter, the parent unit's element or otherwise pare
     });
 
     xnew({ tagName: 'div', id: 'fuga' }, (self) => {
-      // self.element: (id=fuga) (as a child element of hoge)
+      // self.element: (id=fuga)
     });
   });
 </script>
@@ -116,76 +116,76 @@ If you omit the `element` parameter, the parent unit's element or otherwise pare
 </div>
 ```
 
-### innerHTML
-If you set string as `Compoennt`, innerHTML will be added in a created element.
+### InnerHTML
+If `Component` is a string, it is set as the `innerHTML` of the created element.
+
 ```js
 xnew({ tagName: 'p', id: 'hoge' }, 'aaa');
 ```
+
 ```html
 <body>
   <p id="hoge">aaa</p>
 </body>
 ```
 
-## system properties
-`unit` has some system properties for basic control.  
-You can define the detail in the response of the component function.
+## System Properties
+`unit` provides system properties for basic control. These are defined in the return value of the component function.
 
 ```js
 const unit = xnew((self) => {
-  // initialize
+  // Initialization
 
   return {
     start() {
-      // fires before first update.
+      // Called before the first update
     },
     update(count) {
-      // executed repeatedly at the rate available for rendering.
+      // Called repeatedly at rendering speed
     },
     stop() {
-      // fires when unit.stop() is called.
+      // Called when unit.stop() is invoked
     },
     finalize() {
-      // fires when unit.finalize() is called.
-      // note that it is also called automatically when the parent unit finalizes.
+      // Called when unit.finalize() is invoked
+      // Automatically called when the parent unit finalizes
     },
-  }
+  };
 });
-
 ```
 
 ### `unit.start`
-This method start update loop. units automatically calls `unit.start()`.  
-If you want to avoid it, call `unit.stop()` inside the component function.  
+Starts the update loop. By default, `unit.start()` is called automatically.  
+To prevent this, call `unit.stop()` inside the component function.
+
 ```js
 unit.start();
 ```
 
 ### `unit.stop`
-This method stop update loop.
+Stops the update loop.
 ```js
 unit.stop();
 ```
 
 ### `unit.finalize`
-This method finalize the unit and the children.  
-Related elements will be deleted and update processing will also stop.
+Finalizes the unit and its children. Associated elements are removed, and updates stop.
 ```js
 unit.finalize();
 ```
 
 ### `unit.reboot`
-This method reboot the unit using the component function. 
+Reboots the unit using the component function.
 ```js
 unit.reboot();
 ```
 
-### calling order
-`start`, `update`, `stop`, `finalize`, these methods have a calling order.  
-The parent unit method is called after the children unit method is called.
+### Calling Order
+The methods `start`, `update`, `stop`, and `finalize` are called in a specific order:  
+Child units are processed before their parent unit.
 
 ```js
-const parent = xnew(Patent);
+const parent = xnew(Parent);
 
 function Parent(self) {
   xnew(Child1);
@@ -196,7 +196,7 @@ function Parent(self) {
     update() { console.log('Parent update'); },
     stop() { console.log('Parent stop'); },
     finalize() { console.log('Parent finalize'); },
-  }
+  };
 }
 
 function Child1(self) {
@@ -205,7 +205,7 @@ function Child1(self) {
     update() { console.log('Child1 update'); },
     stop() { console.log('Child1 stop'); },
     finalize() { console.log('Child1 finalize'); },
-  }
+  };
 }
 
 function Child2(self) {
@@ -214,7 +214,7 @@ function Child2(self) {
     update() { console.log('Child2 update'); },
     stop() { console.log('Child2 stop'); },
     finalize() { console.log('Child2 finalize'); },
-  }
+  };
 }
 ```
 
@@ -240,94 +240,88 @@ parent.finalize();
 // Parent finalize
 ```
 
-## original properties
-You can define original properties unless the properties are already defined.  
-The following names are not available.
+## Custom Properties
+You can define custom properties unless they conflict with system properties. Reserved names include:
 - `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `_`
 
 ```js
-const unit = xnew((self) =>  {
+const unit = xnew((self) => {
   let count = 0;
 
   return {
-    countup () {
+    countup() {
       count++;
     },
-    set count(value) { // setter
+    set count(value) { // Setter
       count = value;
     },
-    get count() { // getter
+    get count() { // Getter
       return count;
-    }
-  }
+    },
+  };
 });
 
 unit.countup();       // 0 -> 1
-unit.count = 2;       // setter
-const x = unit.count; // getter
+unit.count = 2;       // Setter
+const x = unit.count; // Getter
 ```
 
-## event listener
-You can set a event listener using `unit.on`, and remove it using `unit.off`.
+## Event Listener
+Use `unit.on` to add event listeners and `unit.off` to remove them.
 
 ### `unit.on`
-This method set a event listener.
+Adds an event listener.
 ```js
 unit.on(type, listener);
 ```
 
 ### `unit.off`
-This method unset event listeners.
+Removes event listeners.
 
 ```js
-unit.off();                // clear all listeners
-unit.off(type);            // clear the listeners (named type)
-unit.off(type, listener);  // clear the listener (named type)
+unit.off();                // Removes all listeners
+unit.off(type);            // Removes listeners of a specific type
+unit.off(type, listener);  // Removes a specific listener
 ```
 
-```js
-xnew.emit(type, ...args);
-```
-
-### html event
+### HTML Events
 ```html
 <div id="target"></div>
 <script>
   const unit = xnew('#target', Component);
-  
+
   function Component(self) {
     self.on('click', (event) => {
-      // fires when the unit's element (id = target) is clicked.
+      console.log('Clicked!');
     });
-  });
+  }
 
   unit.on('click', (event) => {
-    // fires when the unit's element (id = target) is clicked.
+    console.log('Clicked!');
   });
 </script>
 ```
 
-### original event
-#### from anywhere
-If you set a listener using `+` token, the listener can recieve a event from anywhere.
+### Custom Events
+#### Global Events
+Use the `+` prefix to listen for events from anywhere.
 
 ```js
 xnew(() => {
   xnew((self) => {
     self.on('+myevent', () => {
-      //
+      console.log('Event received');
     });
   });
 
   xnew((self) => {
-    xnew.emit('+myevent'); // emit event
+    xnew.emit('+myevent'); // Emit event
   });
 });
 ```
 
-#### from internal
-If you set a listener using `-` token,
-the listener can only recieve a event from within the component function.
+#### Internal Events
+Use the `-` prefix to listen for events emitted within the component function.
 
 ```html
 <div id="target"></div>
@@ -335,16 +329,15 @@ the listener can only recieve a event from within the component function.
   const unit = xnew('#target', Component);
 
   unit.on('-myevent', (data) => {
-    // fires when xnew.emit('-myevent', data) is called.
+    console.log('Internal event received', data);
   });
 
   function Component(self) {
     xnew.timer(() => {
-      const data = {};
+      const data = { key: 'value' };
       xnew.emit('-myevent', data);
-    }, 1000)
-  });
-
+    }, 1000);
+  }
 </script>
 ```
 
