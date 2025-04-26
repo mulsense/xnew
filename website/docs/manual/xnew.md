@@ -14,7 +14,7 @@ As shown below, `xnew` accepts some arguments.
 // Component: 1. [an component function] or 
 //            2. [an inner html for the created html element]  
 // ...args:   1. [arguments for the component function]
-const unit = xnew(parent, target, component, ...args);
+const unit = xnew(target, component, ...args);
 ```
 
 These arguments are often omitted.  
