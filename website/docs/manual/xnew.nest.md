@@ -3,21 +3,21 @@ sidebar_position: 2
 ---
 
 # xnew.nest
-`xnew.nest` create a new element as a child of the current element.  
-It replace `unit.element`.
+
+`xnew.nest` creates a new element as a child of the current element and replaces `unit.element`.
 
 ```js
 xnew((self) => {
   const element = xnew.nest(attributes);
 
-  self.element;
+  self.element; // Access the new element
 })
 ```
 
-## example 1
+## Example 1: Basic Usage
 ```js
 xnew({ tagName: 'div', name: 'A'}, (self) =>{
-  self.element; // div A
+self.element; // div A
 });
 
 xnew((self) => {
@@ -25,7 +25,7 @@ xnew((self) => {
   self.element; // div B
 }
 
-xnew({ tagName: 'div', name: 'C' }, (self) => { 
+xnew({ tagName: 'div', name: 'C' }, (self) => {
   xnew.nest({ tagName: 'div', name: 'D' }); // inner div
   self.element; // div D
 }
@@ -34,7 +34,8 @@ const unit4 = xnew({ tagName: 'div', name: 'E' }, 'aaa');
 unit4.element; // div E
 
 ```
-The above code leads to the following result.
+
+The above code produces the following HTML structure:
 ```html
 <body>
   <div name="A"></div>
@@ -49,10 +50,10 @@ The above code leads to the following result.
 ```
 
 :::note
-The created elements are removed when the units finalize.
+The created elements are automatically removed when the units are finalized.
 :::
 
-## example 2
+## Example 2: Advanced Usage
 
 <iframe style={{width:'100%',height:'500px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/101_element/index.html" ></iframe>
 
@@ -67,7 +68,7 @@ The created elements are removed when the units finalize.
   });
 
   function BaseDiv(self, name) {
-    xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222'} });
+    xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222' } });
     xnew({ tagName: 'p' }, name);
   }
 
@@ -89,7 +90,7 @@ The created elements are removed when the units finalize.
     let counter = 0;
     button.on('click', () => {
       button.element.textContent = `counter: ${counter++}`;
-    })
+    });
   }
 
   function Div3(self) {
@@ -100,31 +101,29 @@ The created elements are removed when the units finalize.
 
     input.on('change input', () => {
       span.element.textContent = input.element.value;
-    })
+    });
   }
 
   function Div4(self) {
     xnew.extend(BaseDiv, 'my canvas');
 
     const canvas = xnew({ tagName: 'canvas', width: 200, height: 100 });
-    
+
     const ctx = canvas.element.getContext('2d');
     const cx = canvas.element.width / 2;
     const cy = canvas.element.height / 2;
     const s = Math.min(cx, cy) * 0.5;
 
-    ctx.fillStyle = "rgb(0,0,0)";
+    ctx.fillStyle = 'rgb(0,0,0)';
     ctx.fillRect(0, 0, canvas.element.width, canvas.element.height);
 
-    ctx.fillStyle = "rgb(200,0,100)";
+    ctx.fillStyle = 'rgb(200,0,100)';
     ctx.fillRect(cx - 0.6 * cx - s, cy - s, s * 2, s * 2);
 
-    ctx.fillStyle = "rgb(100,200,0)";
+    ctx.fillStyle = 'rgb(100,200,0)';
     ctx.fillRect(cx + 0.0 * cx - s, cy - s, s * 2, s * 2);
 
-    ctx.fillStyle = "rgb(0,100,200)";
+    ctx.fillStyle = 'rgb(0,100,200)';
     ctx.fillRect(cx + 0.6 * cx - s, cy - s, s * 2, s * 2);
   }
-
 </script>
-```
