@@ -4,8 +4,14 @@ function Main(self) {
   xnew(xnew.Screen, { width, height });
   xpixi.setup();
 
+  xnew(Background);
   xnew(TitleScene);
   self.on('+nextscene', xnew);
+}
+
+function Background(self) {
+  const object = xpixi.nest(new PIXI.Container());
+  object.addChild(new PIXI.Graphics().rect(0, 0, width, height).fill(0xCCEEEE));
 }
 
 function TitleScene(self) {
@@ -70,39 +76,41 @@ function Bowl(self) {
 }
 
 function Queue(self) {
+  xnew(QueueCover);
+  xnew(QueueBalls);
+}
+
+function QueueCover(self) {
+  const object = xpixi.nest(new PIXI.Container());
+  object.addChild(new PIXI.Graphics().moveTo(0, -25).lineTo(80, -25).stroke({ color: 0x000000, width: 8 }));
+  object.addChild(new PIXI.Graphics().moveTo(0, +25).lineTo(80, +25).stroke({ color: 0x000000, width: 8 }));
+  object.position.set(0, 40);
+}
+
+function QueueBalls(self) {
   const balls = [];
   for(let i = 0; i < 4; i++) {
     balls.push(Math.random() * Math.PI * 2);
   }
+  const object = xpixi.nest(new PIXI.Container());
+  const circle1 = xnew(Circle, { x: 1 * 30, y: 0, r: 20, color: hueToCol(balls[3]) }, { isStatic: true });
+  const circle2 = xnew(Circle, { x: 2 * 30, y: 0, r: 20, color: hueToCol(balls[2]) }, { isStatic: true });
+  const circle3 = xnew(Circle, { x: 3 * 30, y: 0, r: 20, color: hueToCol(balls[1]) }, { isStatic: true });
+  xnew.emit('+reloadcomplete', balls[0]);
 
-  xnew((self) => {
-    const object = xpixi.nest(new PIXI.Container());
-    object.addChild(new PIXI.Graphics().moveTo(0, -25).lineTo(80, -25).stroke({ color: 0x000000, width: 8 }));
-    object.addChild(new PIXI.Graphics().moveTo(0, +25).lineTo(80, +25).stroke({ color: 0x000000, width: 8 }));
-    object.position.set(0, 40);
-  });
- 
-  xnew((self) => {
-    const object = xpixi.nest(new PIXI.Container());
-    const circle1 = xnew(Circle, { x: 1 * 30, y: 0, r: 20, color: hueToCol(balls[3]) }, { isStatic: true });
-    const circle2 = xnew(Circle, { x: 2 * 30, y: 0, r: 20, color: hueToCol(balls[2]) }, { isStatic: true });
-    const circle3 = xnew(Circle, { x: 3 * 30, y: 0, r: 20, color: hueToCol(balls[1]) }, { isStatic: true });
-    xnew.emit('+reloadcomplete', balls[0]);
-
-    object.position.set(-20, 40);
-    self.on('+reload', () => {
-      balls.shift();
-      balls.push(Math.random() * Math.PI * 2);
-      circle1.color = hueToCol(balls[3]);
-      circle2.color = hueToCol(balls[2]);
-      circle3.color = hueToCol(balls[1]);
-      xnew.transition(({ progress }) => {
-        object.x = 30 * progress - 50;
-        if (progress === 1.0) {
-          xnew.emit('+reloadcomplete', balls[0]);
-        }
-      }, 500);
-    });
+  object.position.set(-20, 40);
+  self.on('+reload', () => {
+    balls.shift();
+    balls.push(Math.random() * Math.PI * 2);
+    circle1.color = hueToCol(balls[3]);
+    circle2.color = hueToCol(balls[2]);
+    circle3.color = hueToCol(balls[1]);
+    xnew.transition(({ progress }) => {
+      object.x = 30 * progress - 50;
+      if (progress === 1.0) {
+        xnew.emit('+reloadcomplete', balls[0]);
+      }
+    }, 500);
   });
 }
 

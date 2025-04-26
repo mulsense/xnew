@@ -20,9 +20,9 @@ const unit = xnew(target, component, ...args);
 
 All arguments are optional:
 ```js
-xnew(Component, ...args);           // target is omitted
-xnew(target);                       // component is omitted
-xnew();                             // both are omitted
+xnew(Component, ...args);   // target is omitted
+xnew(target);               // Component is omitted
+xnew();                     // both are omitted
 ```
 
 ### Component
@@ -71,7 +71,6 @@ The `target` specifies the HTML element for the new unit. Access it via `unit.el
 <body>
   <script>
     xnew({ tagName: 'div', id: 'hoge' }, (self) => {
-      
       self.element; // element (id = hoge)
     });
   </script>
