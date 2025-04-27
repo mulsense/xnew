@@ -11,7 +11,7 @@ function Main(self) {
 
 function Background(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.addChild(new PIXI.Graphics().rect(0, 0, width, height).fill(0xCCEEEE));
+  object.addChild(new PIXI.Graphics().rect(0, 0, width, height).fill(0xDDFFFF));
 }
 
 function TitleScene(self) {

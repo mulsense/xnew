@@ -1,26 +1,28 @@
 ---
-sidebar_position: 4
+sidebar_position: 201
 ---
 
 # xnew.timer
-`xnew.timer` create a timer that execute a callback function for a specified time.
+
+`xnew.timer` creates a timer that executes a callback function after a specified delay. The callback function is executed within the current `xnew` scope, ensuring that it has access to the same context as other `xnew` operations.
 
 ```js
 xnew.timer(callback, delay);
 ```
-## example
+
+## Example
 
 ```js
 xnew((self) => {
   const timer = xnew.timer(() => {
-    // This function is called after 100 ms.
+    // This function is called after 100 ms within the current xnew scope.
   }, 100);
 
-  // If you cancel the timer, call bellow.
+  // To cancel the timer, call the following:
   // timer.clear();
 });
-
 ```
+
 :::tip
-If the parent unit finalize, the timer is automatically cleared.
+If the parent unit is finalized, the timer is automatically cleared. Additionally, the callback function provided to `xnew.timer` will always execute within the current `xnew` scope.
 :::
