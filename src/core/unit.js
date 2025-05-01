@@ -156,6 +156,7 @@ export class Unit {
                 if (isFunction(descripter.value) === true) {
                     dest.value = (...args) => UnitScope.execute(this, context, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
+                    dest.writable = true;
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {

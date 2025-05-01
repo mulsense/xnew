@@ -1,10 +1,18 @@
 import xnew from 'xnew';
 
+export default function xutil() {
+}
+
+Object.defineProperty(xutil, 'AnalogStick', { enumerable: true, value: AnalogStick });
+Object.defineProperty(xutil, 'DPad', { enumerable: true, value: DPad });
+Object.defineProperty(xutil, 'CircleButton', { enumerable: true, value: CircleButton });
+
+
 //----------------------------------------------------------------------------------------------------
 // controller
 //----------------------------------------------------------------------------------------------------
 
-export function AnalogStick(self,
+function AnalogStick(self,
     {
         size = 130,
         fill = '#FFF', fillOpacity = 0.8,
@@ -75,7 +83,7 @@ export function AnalogStick(self,
     });
 }
 
-export function DPad(self,
+function DPad(self,
     {
         size = 130,
         fill = '#FFF', fillOpacity = 0.8,
@@ -159,7 +167,7 @@ export function DPad(self,
     });
 }
 
-export function CircleButton(self,
+function CircleButton(self,
     {
         size = 80,
         fill = '#FFF', fillOpacity = 0.8,

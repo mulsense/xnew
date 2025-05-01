@@ -1,8 +1,16 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('xnew')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'xnew'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.xutil = global.xutil || {}, global.xnew));
-})(this, (function (exports, xnew) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew')) :
+    typeof define === 'function' && define.amd ? define(['xnew'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xutil = factory(global.xnew));
+})(this, (function (xnew) { 'use strict';
+
+    function xutil() {
+    }
+
+    Object.defineProperty(xutil, 'AnalogStick', { enumerable: true, value: AnalogStick });
+    Object.defineProperty(xutil, 'DPad', { enumerable: true, value: DPad });
+    Object.defineProperty(xutil, 'CircleButton', { enumerable: true, value: CircleButton });
+
 
     //----------------------------------------------------------------------------------------------------
     // controller
@@ -204,8 +212,6 @@
         });
     }
 
-    exports.AnalogStick = AnalogStick;
-    exports.CircleButton = CircleButton;
-    exports.DPad = DPad;
+    return xutil;
 
 }));

@@ -1,4 +1,12 @@
+import * as PIXI from 'pixi.js';
+import xnew from 'xnew';
+import xpixi from 'xnew/addons/xpixi';
+import xutil from 'xnew/addons/xutil';
+import xaudio from 'xnew/addons/xaudio';
+
 const width = 800, height = 600;
+
+xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width, height });

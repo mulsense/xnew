@@ -1,5 +1,13 @@
 import xnew from 'xnew';
 
+function xutil() {
+}
+
+Object.defineProperty(xutil, 'AnalogStick', { enumerable: true, value: AnalogStick });
+Object.defineProperty(xutil, 'DPad', { enumerable: true, value: DPad });
+Object.defineProperty(xutil, 'CircleButton', { enumerable: true, value: CircleButton });
+
+
 //----------------------------------------------------------------------------------------------------
 // controller
 //----------------------------------------------------------------------------------------------------
@@ -200,4 +208,4 @@ function CircleButton(self,
     });
 }
 
-export { AnalogStick, CircleButton, DPad };
+export { xutil as default };

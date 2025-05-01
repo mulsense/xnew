@@ -9,22 +9,23 @@ export function PointerEvent(self) {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-        xnew.emit('-pointermove', { id, position });
+        xnew.emit('-pointermove', { event, position });
     });
     unit.on('wheel', (event) => {
-        xnew.emit('-wheel', { deltaY: event.wheelDeltaY });
+        const delta = { x: event.wheelDeltaY, y: event.wheelDeltaY };
+        xnew.emit('-wheel', { event, delta });
     });
     unit.on('pointerdown', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-        xnew.emit('-pointerdown', { id, position });
+        xnew.emit('-pointerdown', { event, position });
     });
     unit.on('pointerup', (event) => {
         const id = event.pointerId;
         const rect = self.element.getBoundingClientRect();
         const position = getPosition(event, rect);
-        xnew.emit('-pointerup', { id, position });
+        xnew.emit('-pointerup', { event, position });
     });
 
     let isActive = false;

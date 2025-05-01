@@ -2,7 +2,7 @@
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew'), require('matter-js')) :
     typeof define === 'function' && define.amd ? define(['xnew', 'matter-js'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xmatter = factory(global.xnew, global.Matter));
-})(this, (function (xnew, matterJs) { 'use strict';
+})(this, (function (xnew, Matter) { 'use strict';
 
     function xmatter() {
     }
@@ -46,17 +46,17 @@
         xnew.context('xmatter.root', root);
 
         root.isActive = true;
-        root.engine = engine ?? render?.engine ?? matterJs.Engine.create();
+        root.engine = engine ?? render?.engine ?? Matter.Engine.create();
         root.render = render;
         xnew.extend(Connect, root.engine.world);
 
         return {
             update() {
                 if (root.isActive) {
-                    matterJs.Engine.update(root.engine);
+                    Matter.Engine.update(root.engine);
                 }
                 if (root.render !== null) {
-                    matterJs.Render.world(root.render);
+                    Matter.Render.world(root.render);
                 }
             },
         }
@@ -67,10 +67,10 @@
         xnew.context('xmatter.object', object);
 
         if (parent) {
-            matterJs.Composite.add(parent, object);
+            Matter.Composite.add(parent, object);
             return {
                 finalize() {
-                    matterJs.Composite.remove(parent, object);
+                    Matter.Composite.remove(parent, object);
                 },
             }
         }

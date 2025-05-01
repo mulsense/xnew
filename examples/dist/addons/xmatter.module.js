@@ -1,5 +1,5 @@
 import xnew from 'xnew';
-import { Engine, Render, Composite } from 'matter-js';
+import Matter from 'matter-js';
 
 function xmatter() {
 }
@@ -43,17 +43,17 @@ function Root(self, { engine, render }) {
     xnew.context('xmatter.root', root);
 
     root.isActive = true;
-    root.engine = engine ?? render?.engine ?? Engine.create();
+    root.engine = engine ?? render?.engine ?? Matter.Engine.create();
     root.render = render;
     xnew.extend(Connect, root.engine.world);
 
     return {
         update() {
             if (root.isActive) {
-                Engine.update(root.engine);
+                Matter.Engine.update(root.engine);
             }
             if (root.render !== null) {
-                Render.world(root.render);
+                Matter.Render.world(root.render);
             }
         },
     }
@@ -64,10 +64,10 @@ function Connect(self, object) {
     xnew.context('xmatter.object', object);
 
     if (parent) {
-        Composite.add(parent, object);
+        Matter.Composite.add(parent, object);
         return {
             finalize() {
-                Composite.remove(parent, object);
+                Matter.Composite.remove(parent, object);
             },
         }
     }

@@ -1,4 +1,12 @@
+import * as PIXI from 'pixi.js';
+import Matter from 'matter-js';
+import xnew from 'xnew';
+import xpixi from 'xnew/addons/xpixi';
+import xmatter from 'xnew/addons/xmatter';
+
 const width = 800, height = 600;
+
+xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width, height });

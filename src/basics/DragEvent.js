@@ -12,8 +12,8 @@ export function DragEvent(self) {
         win.on('pointermove', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(event, rect);
-                const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew.emit('-move', { id, position, delta });
+                const movement = { x: position.x - previous.x, y: position.y - previous.y };
+                xnew.emit('-move', { event, position, movement });
                 previous = position;
             }
         });
@@ -23,15 +23,15 @@ export function DragEvent(self) {
                 const position = getPosition(event, rect);
 
                 if (event.type === 'pointerup') {
-                    xnew.emit('-up', { id, position, });
+                    xnew.emit('-up', { event, position, });
                 } else if (event.type === 'pointercancel') {
-                    xnew.emit('-cancel', { id, position, });
+                    xnew.emit('-cancel', { event, position, });
                 }
                 win.finalize();
             }
         });
 
-        xnew.emit('-down', { id, position });
+        xnew.emit('-down', { event, position });
     });
 
     function getPosition(event, rect) {

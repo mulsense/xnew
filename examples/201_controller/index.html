@@ -3,57 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="../thirdparty/pixi.min.js"></script>
-  <script src="../dist/xnew.js"></script>
-  <script src="../dist/addons/xpixi.js"></script>
-  <script src="../dist/addons/xutil.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "../thirdparty/pixi/pixi.min.mjs",
+        "xnew": "../dist/xnew.module.js",
+        "xnew/addons/xpixi": "../dist/addons/xpixi.module.js",
+        "xnew/addons/xutil": "../dist/addons/xutil.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="./script.js"></script>
 </head>
 
 <body style="margin: 0; height: 100vh;">
   <div id="main" style="width: 100%; height: 100%;"></div>
-  <script>
-    xnew('#main', (self) => {
-      xnew(xnew.Screen, { width: 800, height: 400 });
-      xpixi.setup();
-
-      xnew(Box, { x: 800 / 2, y: 400 / 2, size: 100, color: 0xEA1E63 });
-      xnew(Controller);
-    });
-
-    function Controller(self) {
-      // prevent default event
-      xnew(window).on('keydown', (event) => event.preventDefault());
-      self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-
-      const stick = xnew({ style: 'position: absolute; left: 10px; bottom: 10px;' }, xutil.AnalogStick, { size: 130 });
-      stick.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
-
-      const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 150px;' }, xutil.DPad, { size: 130 });
-      dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
-
-      const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
-      button.on('-down', () => xnew.emit('+action'));
-    }
-
-    function Box(self, { x, y, size, color }) {
-      const object = xpixi.nest(new PIXI.Container());
-      object.position.set(x, y);
-      object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
-
-      let move = { x: 0, y: 0};
-      let direction = +1;
-      self.on('+move', ({ vector }) => move = vector);
-      self.on('+action', () => direction *= -1);
-
-      return {
-        update() {
-          object.x += move.x * 5;
-          object.y += move.y * 5;
-          object.rotation += 0.01 * direction;
-        },
-      };
-    }
-  </script>
 </body>
 
 </html>

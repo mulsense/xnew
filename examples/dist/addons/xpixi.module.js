@@ -52,7 +52,9 @@ function Root(self, { renderer }) {
     xnew.extend(Connect, root.scene);
     return {
         update() {
-            root.renderer.render(root.scene);
+            if (root.renderer && root.scene) {
+                root.renderer.render(root.scene);
+            }
         },
     }
 }

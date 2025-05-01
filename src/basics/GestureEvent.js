@@ -7,8 +7,8 @@ export function GestureEvent(self) {
     let isActive = false;
     const map = new Map();
 
-    drag.on('-down', ({ id, position }) => {
-        map.set(id, { ...position });
+    drag.on('-down', ({ event, position }) => {
+        map.set(event.pointerId, { ...position });
 
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
@@ -16,20 +16,20 @@ export function GestureEvent(self) {
         }
     });
 
-    drag.on('-move', ({ id, position, delta }) => {
+    drag.on('-move', ({ event, position, movement }) => {
         if (isActive === true) {
-            const a = map.get(id);
-            const b = getOthers(id)[0];
+            const a = map.get(event.pointerId);
+            const b = getOthers(event.pointerId)[0];
 
             let scale = 0.0;
             {
                 const v = { x: a.x - b.x, y: a.y - b.y };
                 const s = v.x * v.x + v.y * v.y;
-                scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
+                scale = 1 + (s > 0.0 ? (v.x * movement.x + v.y * movement.y) / s : 0);
             }
             let rotate = 0.0;
             {
-                const c = { x: a.x + delta.x, y: a.y + delta.y };
+                const c = { x: a.x + movement.x, y: a.y + movement.y };
                 const v1 = { x: a.x - b.x, y: a.y - b.y };
                 const v2 = { x: c.x - b.x, y: c.y - b.y };
                 const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
@@ -44,15 +44,15 @@ export function GestureEvent(self) {
 
             xnew.emit('-move', { scale });
         }
-        map.set(id, position);
+        map.set(event.pointerId, position);
     });
 
-    drag.on('-up -cancel', ({ id }) => {
+    drag.on('-up -cancel', ({ event }) => {
         if (isActive === true) {
             xnew.emit('-up', {});
         }
         isActive = false;
-        map.delete(id);
+        map.delete(event.pointerId);
     });
 
     function getOthers(id) {
