@@ -302,22 +302,25 @@ class UnitScope {
     }
 }
 
-class ScopedPromise extends Promise {
+class ScopedPromise {
+    constructor(promise) {
+        this.promise = promise;
+    }
     then(callback) {
         const snapshot = UnitScope.snapshot;
-        super.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        this.promise.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
         return this;
     }
 
     catch(callback) {
         const snapshot = UnitScope.snapshot;
-        super.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        this.promise.catch((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
         return this;
     }
 
     finally(callback) {
         const snapshot = UnitScope.snapshot;
-        super.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        this.promise.finally((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
         return this;
     }
 }
@@ -862,9 +865,9 @@ function promise(data) {
         error('unit promise', 'The property is invalid.', data);
     }
     if (promise) {
-        const scopedpromise = new ScopedPromise((resolve, reject) => {
+        const scopedpromise = new ScopedPromise(new Promise((resolve, reject) => {
             promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-        });
+        }));
         const unit = UnitScope.current;
         unit._.promises.push(promise);
         return scopedpromise;

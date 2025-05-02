@@ -2,7 +2,7 @@ import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { createElement } from './element';
 import { Ticker } from './ticker';
 import { UnitEvent } from './event';
-import { UnitScope, ScopedPromise } from './scope';
+import { UnitScope } from './scope';
 import { UnitComponent } from './component';
 
 export class Unit {
