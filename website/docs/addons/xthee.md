@@ -41,9 +41,9 @@ import xthree from 'xnew/addons/xthree'
 
 # basic API
 
-## `xthree.setup`
+## `xthree.initialize`
 ```js
-xthree.setup({
+xthree.initialize({
   renderer: new THREE.WebGLRenderer({ canvas }),
   camera: new THREE.PerspectiveCamera(degree, aspect);
 })

@@ -41,9 +41,9 @@ import xpixi from 'xnew/addons/xpixi'
 
 # basic API
 
-## `xpixi.setup`
+## `xpixi.initialize`
 ```js
-xpixi.setup({
+xpixi.initialize({
   renderer: PIXI.autoDetectRenderer({ width, height, view })
 })
 ```
