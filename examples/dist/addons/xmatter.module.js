@@ -5,6 +5,8 @@ function xmatter() {
 }
 
 Object.defineProperty(xmatter, 'setup', { enumerable: true, value: setup });
+Object.defineProperty(xmatter, 'initialize', { enumerable: true, value: initialize });
+
 Object.defineProperty(xmatter, 'render', { enumerable: true, get: render });
 Object.defineProperty(xmatter, 'engine', { enumerable: true, get: engine });
 Object.defineProperty(xmatter, 'nest', { enumerable: true, value: nest });
@@ -12,6 +14,10 @@ Object.defineProperty(xmatter, 'start', { enumerable: true, value: start });
 Object.defineProperty(xmatter, 'stop', { enumerable: true, value: stop });
 
 function setup({ engine = null, render = null } = {}) {
+    xnew.extend(Root, { engine, render });
+}
+
+function initialize({ engine = null, render = null } = {}) {
     xnew.extend(Root, { engine, render });
 }
 

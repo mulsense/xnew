@@ -50,14 +50,16 @@ export function xnew(...args) {
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
 Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 
+Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
+Object.defineProperty(xnew, 'parent', { enumerable: true, get: () => UnitScope.current?._.parent });
+Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
+
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
 Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
 Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
-Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
 Object.defineProperty(xnew, 'emit', { enumerable: true, value: emit });
 Object.defineProperty(xnew, 'scope', { enumerable: true, value: scope });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
 
 Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });

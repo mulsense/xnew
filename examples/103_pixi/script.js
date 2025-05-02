@@ -2,18 +2,19 @@ import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
+const width = 800, height = 400;
 xnew('#main', Main);
 
 function Main(self) {
-  xnew(xnew.Screen, { width: 800, height: 400 });
-  xpixi.setup();
+  xnew(xnew.Screen, { width, height });
+  xpixi.initialize();
 
   xnew(Boxes);
 }
 
 function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(800 / 2, 400 / 2);
+  object.position.set(width / 2, height / 2);
 
   for (let y = -1; y <= 1; y++) {
     for (let x = -1; x <= 1; x++) {

@@ -1,18 +1,18 @@
-import * as THREE from 'three';
-import * as PIXI from 'pixi.js';
 import xnew from 'xnew';
-import xthree from 'xnew/addons/xthree';
 import xpixi from 'xnew/addons/xpixi';
+import xthree from 'xnew/addons/xthree';
+import * as PIXI from 'pixi.js';
+import * as THREE from 'three';
 
+const width = 800, height = 400;
 xnew('#main', Main);
 
 function Main(self) {
-  const width = 800, height = 400;
 
   // three 
   xnew((self) => {
     xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xthree.setup();
+    xthree.initialize();
     xthree.camera.position.set(0, 0, +100);
     xnew(Cubes);
   });
@@ -20,14 +20,14 @@ function Main(self) {
   // pixi
   xnew((self) => {
     xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xpixi.setup();
+    xpixi.initialize();
     xnew(Boxes);
   });
 }
 
 function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(800 / 2, 400 / 2);
+  object.position.set(width / 2, height / 2);
 
   for (let y = -1; y <= 1; y++) {
     for (let x = -1; x <= 1; x++) {

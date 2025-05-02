@@ -5,11 +5,16 @@ export default function xpixi() {
 }
 
 Object.defineProperty(xpixi, 'setup', { enumerable: true, value: setup });
+Object.defineProperty(xpixi, 'initialize', { enumerable: true, value: initialize });
 Object.defineProperty(xpixi, 'renderer', { enumerable: true, get: renderer });
 Object.defineProperty(xpixi, 'scene', { enumerable: true, get: scene });
 Object.defineProperty(xpixi, 'nest', { enumerable: true, value: nest });
 
 function setup({ renderer = null } = {}) {
+    xnew.extend(Root, { renderer });
+}
+
+function initialize({ renderer = null } = {}) {
     xnew.extend(Root, { renderer });
 }
 
@@ -31,7 +36,7 @@ function Root(self, { renderer }) {
     xnew.context('xpixi.root', root);
     
     if (renderer === null) {
-        const screens = xnew.find(xnew.root, xnew.Screen);
+        const screens = xnew.find(xnew.parent, xnew.Screen);
         if (screens.length > 0) {
             const screen = screens.slice(-1)[0]; // last screen
             renderer = PIXI.autoDetectRenderer({

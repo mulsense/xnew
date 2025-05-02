@@ -5,12 +5,17 @@ function xthree() {
 }
 
 Object.defineProperty(xthree, 'setup', { enumerable: true, value: setup });
+Object.defineProperty(xthree, 'initialize', { enumerable: true, value: initialize });
 Object.defineProperty(xthree, 'camera', { enumerable: true, get: camera });
 Object.defineProperty(xthree, 'renderer', { enumerable: true, get: renderer });
 Object.defineProperty(xthree, 'scene', { enumerable: true, get: scene });
 Object.defineProperty(xthree, 'nest', { enumerable: true, value: nest });
 
 function setup({ renderer = null, camera = null } = {}) {
+    xnew.extend(Root, { renderer, camera });
+}
+
+function initialize({ renderer = null, camera = null } = {}) {
     xnew.extend(Root, { renderer, camera });
 }
 
