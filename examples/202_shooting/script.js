@@ -93,9 +93,9 @@ function Controller(self) {
   button.on('-down', () => xnew.emit('+shot'));
 
   // keyboard
-  const keyboard = xnew(xnew.Keyboard);
-  keyboard.on('-arrowkeydown -arrowkeyup', ({ vector }) => xnew.emit('+move', vector));
-  keyboard.on('-keydown', ({ code }) => {
+  const user = xnew(xnew.UserEvent);
+  user.on('-arrowkeydown -arrowkeyup', ({ vector }) => xnew.emit('+move', vector));
+  user.on('-keydown', ({ code }) => {
     if (code === 'Space') {
       xnew.emit('+shot')
     }

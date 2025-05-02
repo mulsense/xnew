@@ -31,13 +31,13 @@ function Controller(self) {
     xthree.scene.rotation.z += move.x * 0.01;
   });
 
-  const pointer = xnew(xnew.PointerEvent);
+  const user = xnew(xnew.UserEvent);
   let isActive = false;
-  pointer.on('-gesturestart', () => isActive = true);
-  pointer.on('-gestureend', () => isActive = false);
-  pointer.on('-gesturemove', ({ scale }) => xnew.emit('+scale', scale));
+  user.on('-gesturestart', () => isActive = true);
+  user.on('-gestureend', () => isActive = false);
+  user.on('-gesturemove', ({ scale }) => xnew.emit('+scale', scale));
   
-  pointer.on('-dragmove', ({ event, movement }) => {
+  user.on('-dragmove', ({ event, movement }) => {
     if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
       xnew.emit('+rotate', { x: +movement.x, y: +movement.y });
@@ -47,7 +47,7 @@ function Controller(self) {
     }
   });
 
-  pointer.on('-wheel', ({ delta }) => xnew.emit('+scale', 1 + 0.001 * delta.y));
+  user.on('-wheel', ({ delta }) => xnew.emit('+scale', 1 + 0.001 * delta.y));
 }
 
 function ThreeMain(self) {

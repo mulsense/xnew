@@ -66,13 +66,12 @@
 
         drag.on('-down -move', ({ event, position }) => {
             target.element.style.filter = 'brightness(90%)';
-
             const x = position.x - size / 2;
             const y = position.y - size / 2;
             const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
             const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
             const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-            xnew.emit(event.type, { vector });
+            xnew.emit(xnew.event.type, { vector });
             target.element.style.left = vector.x * size / 4 + 'px';
             target.element.style.top = vector.y * size / 4 + 'px';
         });
@@ -81,7 +80,7 @@
             target.element.style.filter = '';
 
             const vector = { x: 0, y: 0 };
-            xnew.emit(event.type, { vector });
+            xnew.emit(xnew.event.type, { vector });
             target.element.style.left = vector.x * size / 4 + 'px';
             target.element.style.top = vector.y * size / 4 + 'px';
         });
@@ -158,7 +157,7 @@
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
             targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-            xnew.emit(event.type, { vector });
+            xnew.emit(xnew.event.type, { vector });
         });
 
         drag.on('-up -cancel', ({ event }) => {
@@ -167,7 +166,7 @@
             targets[1].element.style.filter = '';
             targets[2].element.style.filter = '';
             targets[3].element.style.filter = '';
-            xnew.emit(event.type, { vector });
+            xnew.emit(xnew.event.type, { vector });
         });
     }
 

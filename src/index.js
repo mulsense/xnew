@@ -5,6 +5,7 @@ import { DragEvent } from './basics/DragEvent';
 import { GestureEvent } from './basics/GestureEvent';
 import { ResizeEvent } from './basics/ResizeEvent';
 import { PointerEvent } from './basics/PointerEvent';
+import { UserEvent } from './basics/UserEvent';
 
 import { Screen } from './basics/Screen';
 import { Modal } from './basics/Modal';
@@ -13,6 +14,7 @@ Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
 Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent });
 Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent });
 Object.defineProperty(xnew, 'PointerEvent', { enumerable: true, value: PointerEvent });
+Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
 Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
 Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
 Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });
