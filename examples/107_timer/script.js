@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width: 800, height: 400 });
-  xthree.setup();
+  xthree.initalize();
   xthree.camera.position.set(0, 0, +100);
 
   xnew(Light);

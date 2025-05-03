@@ -79,7 +79,7 @@ function Event(self) {
 
 function ThreeMain(self) {
   const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, fit: 'cover' });
-  xthree.setup();
+  xthree.initalize();
 
   xnew(xnew.ResizeEvent).on('-resize', () => {
     xthree.camera.fov = fov();

@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width: 800, height: 450 });
-  xpixi.setup();
+  xpixi.initalize();
 
   xnew(Scene1);
   self.on('+addscene', xnew);

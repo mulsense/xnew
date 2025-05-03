@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width: 800, height: 400 });
-  xthree.setup();
+  xthree.initalize();
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +200);
