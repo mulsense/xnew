@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 
 export class Ticker {
     static animation = null;

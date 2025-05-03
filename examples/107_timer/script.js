@@ -10,16 +10,12 @@ function Main(self) {
   xthree.camera.position.set(0, 0, +100);
 
   xnew(Light);
-  xnew(Cubes);
+  xnew.interval(() => xnew(Cube), 100);
 }
 
 function Light(self) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
   object.position.set(0, 0, 1);
-}
-
-function Cubes(self) {
-  xnew.interval(() => xnew(Cube), 100);
 }
 
 function Cube(self) {

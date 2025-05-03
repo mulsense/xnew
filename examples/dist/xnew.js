@@ -21,15 +21,6 @@
     }
 
     //----------------------------------------------------------------------------------------------------
-    // error 
-    //----------------------------------------------------------------------------------------------------
-
-    function error(name, text, target = undefined) {
-        const message = name + (target !== undefined ? ` [${target}]` : '') + ': ' + text;
-        console.error(message);
-    }
-
-    //----------------------------------------------------------------------------------------------------
     // create element from attributes
     //----------------------------------------------------------------------------------------------------
 
@@ -253,7 +244,7 @@
     class UnitScope {
         static current = null;
 
-        static execute(unit, context, func, ...args) {
+        static execute({ unit, context }, func, ...args) {
             const stack = [UnitScope.current, UnitScope.context(unit)];
 
             try {
@@ -282,8 +273,8 @@
             }
         }
 
-        static get snapshot() {
-            return { unit: UnitScope.current, context: UnitScope.context(UnitScope.current) };
+        static snapshot(unit = UnitScope.current) {
+            return { unit, context: UnitScope.context(unit) };
         }
 
         static clear(unit) {
@@ -313,20 +304,20 @@
             this.promise = new Promise(excutor);
         }
         then(callback) {
-            const snapshot = UnitScope.snapshot;
-            this.promise.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+            const snapshot = UnitScope.snapshot();
+            this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
             return this;
         }
 
         catch(callback) {
-            const snapshot = UnitScope.snapshot;
-            this.promise.catch((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+            const snapshot = UnitScope.snapshot();
+            this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
             return this;
         }
 
         finally(callback) {
-            const snapshot = UnitScope.snapshot;
-            this.promise.finally((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+            const snapshot = UnitScope.snapshot();
+            this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
             return this;
         }
     }
@@ -340,7 +331,7 @@
 
         static on(unit, type, listener, options) {
             const listeners = UnitEvent.unitToListeners.get(unit);
-            const snapshot = UnitScope.snapshot;
+            const snapshot = UnitScope.snapshot();
 
             type.trim().split(/\s+/).forEach((type) => internal(type, listener));
             function internal(type, listener) {
@@ -503,9 +494,9 @@
 
         on(type, listener, options) {
             if (isString(type) === false || type.trim() === '') {
-                error('unit on', 'The argument is invalid.', 'type');
+                console.error(`unit.on: The argument [type] is invalid.`);
             } else if (isFunction(listener) === false) {
-                error('unit on', 'The argument is invalid.', 'listener');
+                console.error(`unit.on: The argument [listener] is invalid.`);
             } else {
                 UnitEvent.on(this, type, listener, options);
             }
@@ -513,9 +504,9 @@
 
         off(type, listener) {
             if (type !== undefined && (isString(type) === false || type.trim() === '')) {
-                error('unit off', 'The argument is invalid.', 'type');
+                console.error(`unit.off: The argument [type] is invalid.`);
             } else if (listener !== undefined && isFunction(listener) === false) {
-                error('unit off', 'The argument is invalid.', 'listener');
+                console.error(`unit.off: The argument [listener] is invalid.`);
             } else {
                 UnitEvent.off(this, type, listener);
             }
@@ -549,7 +540,7 @@
 
                 // setup component
                 if (isFunction(component) === true) {
-                    UnitScope.execute(this, undefined, () => Unit.extend.call(this, component, ...args));
+                    UnitScope.execute({ unit: this }, () => Unit.extend.call(this, component, ...args));
                 } else if (isObject(this._.target) === true && isString(component) === true) {
                     this.element.innerHTML = component;
                 }
@@ -583,27 +574,27 @@
                             this._.props[key] = (...args) => { descripter.value(...args); };
                         }
                     } else {
-                        error('unit extend', 'The property is invalid.', key);
+                        console.error(`unit.extend: The property [${key}] is invalid.`);
                     }
                 } else if (this[key] === undefined) {
                     const dest = { configurable: true, enumerable: true };
-                    const context = UnitScope.context(this);
+                    const snapshot = UnitScope.snapshot(this);
                     if (isFunction(descripter.value) === true) {
-                        dest.value = (...args) => UnitScope.execute(this, context, descripter.value, ...args);
+                        dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
                     } else if (descripter.value !== undefined) {
                         dest.writable = true;
                         dest.value = descripter.value;
                     }
                     if (isFunction(descripter.get) === true) {
-                        dest.get = (...args) => UnitScope.execute(this, context, descripter.get, ...args);
+                        dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
                     }
                     if (isFunction(descripter.set) === true) {
-                        dest.set = (...args) => UnitScope.execute(this, context, descripter.set, ...args);
+                        dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
                     }
                     Object.defineProperty(this._.props, key, dest);
                     Object.defineProperty(this, key, dest);
                 } else {
-                    error('unit extend', 'The property already exists.', key);
+                    console.error(`unit.extend: The property [${key}] already exists.`);
                 }
             });
         }
@@ -613,7 +604,7 @@
                 this._.state = 'running';
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
                 if (isFunction(this._.props.start) === true) {
-                    UnitScope.execute(this, UnitScope.context(this), this._.props.start);
+                    UnitScope.execute(UnitScope.snapshot(this), this._.props.start);
                 }
             } else if (['running'].includes(this._.state) === true) {
                 this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -626,7 +617,7 @@
                 this._.children.forEach((unit) => Unit.stop.call(unit));
 
                 if (isFunction(this._.props.stop)) {
-                    UnitScope.execute(this, UnitScope.context(this), this._.props.stop);
+                    UnitScope.execute(UnitScope.snapshot(this), this._.props.stop);
                 }
             }
         }
@@ -636,7 +627,7 @@
                 this._.children.forEach((unit) => Unit.update.call(unit, time));
 
                 if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                    UnitScope.execute(this, UnitScope.context(this), this._.props.update, this._.upcount++);
+                    UnitScope.execute(UnitScope.snapshot(this), this._.props.update, this._.upcount++);
                 }
             }
         }
@@ -649,7 +640,7 @@
                 this._.children.clear();
 
                 if (isFunction(this._.props.finalize)) {
-                    UnitScope.execute(this, UnitScope.context(this), this._.props.finalize);
+                    UnitScope.execute(UnitScope.snapshot(this), this._.props.finalize);
                 }
                 UnitComponent.clear(this);
 
@@ -688,7 +679,7 @@
     Unit.reset();
 
     class Timer {
-        constructor({ timeout, finalize = null, delay = 0, loop = false }) {
+        constructor({ timeout, finalize = null, delay = 1, loop = false }) {
             this.timeout = timeout;
             this.finalize = finalize;
             this.delay = delay;
@@ -700,10 +691,8 @@
 
             this.status = 0;
 
-            this.listener = (event) => {
-                document.hidden === false ? this._start() : this._stop();
-            };
             if (document !== undefined) {
+                this.listener = () => document.hidden === false ? this._start() : this._stop();
                 document.addEventListener('visibilitychange', this.listener);
             }
         }
@@ -768,6 +757,7 @@
         if (isFunction(args[0]) === false && args[0] instanceof Unit) {
             parent = args.shift();
         } else if (args[0] === null) {
+            // root unit
             parent = args.shift();
         } else if (args[0] === undefined) {
             parent = args.shift();
@@ -786,7 +776,7 @@
             const name = args.shift();
             target = document.querySelector(name);
             if (target == null) {
-                error('xnew', `'${name}' can not be found.`, 'target');
+                console.error(`xnew: '${name}' can not be found.`);
             }
         } else if (isObject(args[0]) === true) {
             // an attributes for a new html element
@@ -799,18 +789,18 @@
         }
 
         if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
-            error('xnew', 'The argument is invalid.', 'component');
+            console.error(`xnew: The argument [component] is invalid.`);
         } else {
             return new Unit(parent, target, ...args);
         }
     }
 
-    Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-    Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
-
     Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
     Object.defineProperty(xnew, 'parent', { enumerable: true, get: () => UnitScope.current?._.parent });
     Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
+
+    Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
+    Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 
     Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
     Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
@@ -825,11 +815,11 @@
 
     function nest(attributes) {
         if (UnitScope.current.element instanceof Window || UnitScope.current.element instanceof Document) {
-            error('xnew.nest', 'No elements are added to window or document.');
+            console.error(`xnew.nest: No elements are added to window or document.`);
         } else if (isObject(attributes) === false) {
-            error('xnew.nest', 'The argument is invalid.', 'attributes');
+            console.error(`xnew.nest: The argument [attributes] is invalid.`);
         } else if (UnitScope.current._.state !== 'pending') {
-            error('xnew.nest', 'This function can not be called after initialized.');
+            console.error(`xnew.nest: This function can not be called after initialized.`);
         } else {
             return Unit.nest.call(UnitScope.current, attributes);
         }
@@ -837,9 +827,9 @@
 
     function extend(component, ...args) {
         if (isFunction(component) === false) {
-            error('xnew.extend', 'The argument is invalid.', 'component');
+            console.error(`xnew.extend: The argument [component] is invalid.`);
         } else if (UnitScope.current._.state !== 'pending') {
-            error('xnew.extend', 'This function can not be called after initialized.');
+            console.error(`xnew.extend: This function can not be called after initialized.`);
         }  else {
             return Unit.extend.call(UnitScope.current, component, ...args);
         }
@@ -847,7 +837,7 @@
 
     function context(key, value = undefined) {
         if (isString(key) === false) {
-            error('context', 'The argument is invalid.', 'key');
+            console.error(`xnew.context: The argument [key] is invalid.`);
         } else {
             if (value !== undefined) {
                 UnitScope.next(key, value);
@@ -864,11 +854,12 @@
         } else if (data instanceof Unit) {
             promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
         } else {
-            error('unit promise', 'The property is invalid.', data);
+            console.error(`xnew.promise: The argument is invalid.`);
         }
         if (promise) {
             const scopedpromise = new ScopedPromise((resolve, reject) => {
-                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+                promise.then((...args) => resolve(...args));
+                promise.catch((...args) => reject(...args));
             });
             UnitScope.current._.promises.push(promise);
             return scopedpromise;
@@ -883,7 +874,7 @@
         const component = args[0];
 
         if (isFunction(component) === false) {
-            error('xnew.find', 'The argument is invalid.', 'component');
+            console.error(`xnew.find: The argument [component] is invalid.`);
         } else if (isFunction(component) === true) {
             return UnitComponent.find(base, component);
         }
@@ -892,34 +883,34 @@
     function emit(type, ...args) {
         const unit = UnitScope.current;
         if (isString(type) === false) {
-            error('xnew.emit', 'The argument is invalid.', 'type');
+            console.error(`xnew.emit: The argument [type] is invalid.`);
         } else if (unit?._.state === 'finalized') {
-            error('xnew.emit', 'This function can not be called after finalized.');
+            console.error(`xnew.emit: This function can not be called after finalized.`);
         } else {
             UnitEvent.emit(unit, type, ...args);
         }
     }
 
     function scope(callback) {
-        const snapshot = UnitScope.snapshot;
+        const snapshot = UnitScope.snapshot();
         return (...args) => {
-            UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args);
+            UnitScope.execute(snapshot, callback, ...args);
         };
     }
 
     function timer(callback, delay) {
         let finalizer = null;
 
-        const snapshot = UnitScope.snapshot;
+        const snapshot = UnitScope.snapshot();
         const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
+            timeout: () => UnitScope.execute(snapshot, callback),
             finalize: () => finalizer.finalize(),
             delay,
         });
 
         timer.start();
 
-        finalizer = xnew(snapshot.unit, (self) => {
+        finalizer = xnew((self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -933,9 +924,9 @@
     function interval(callback, delay) {
         let finalizer = null;
 
-        const snapshot = UnitScope.snapshot;
+        const snapshot = UnitScope.snapshot();
         const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
+            timeout: () => UnitScope.execute(snapshot, callback),
             finalize: () => finalizer.finalize(),
             delay,
             loop: true,
@@ -943,7 +934,7 @@
 
         timer.start();
 
-        finalizer = xnew(snapshot.unit, (self) => {
+        finalizer = xnew((self) => {
             return {
                 finalize() {
                     timer.clear();
@@ -958,9 +949,9 @@
         let finalizer = null;
         let updater = null;
 
-        const snapshot = UnitScope.snapshot;
+        const snapshot = UnitScope.snapshot();
         const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
+            timeout: () => UnitScope.execute(snapshot, callback, { progress: 1.0 }),
             finalize: () => finalizer.finalize(),
             delay: interval,
         });
@@ -970,20 +961,20 @@
 
         timer.start();
 
-        UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
+        UnitScope.execute(snapshot, callback, { progress: 0.0 });
 
         updater = xnew(null, (self) => {
             return {
                 update() {
                     const progress = timer.elapsed() / interval;
                     if (progress < 1.0) {
-                        UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress });
+                        UnitScope.execute(snapshot, callback, { progress });
                     }
                 },
             }
         });
 
-        finalizer = xnew(snapshot.unit, (self) => {
+        finalizer = xnew((self) => {
             return {
                 finalize() {
                     timer.clear();

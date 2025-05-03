@@ -1,9 +1,9 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 
 export class UnitScope {
     static current = null;
 
-    static execute(unit, context, func, ...args) {
+    static execute({ unit, context }, func, ...args) {
         const stack = [UnitScope.current, UnitScope.context(unit)];
 
         try {
@@ -32,8 +32,8 @@ export class UnitScope {
         }
     }
 
-    static get snapshot() {
-        return { unit: UnitScope.current, context: UnitScope.context(UnitScope.current) };
+    static snapshot(unit = UnitScope.current) {
+        return { unit, context: UnitScope.context(unit) };
     }
 
     static clear(unit) {
@@ -63,20 +63,20 @@ export class ScopedPromise {
         this.promise = new Promise(excutor);
     }
     then(callback) {
-        const snapshot = UnitScope.snapshot;
-        this.promise.then((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        const snapshot = UnitScope.snapshot();
+        this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
         return this;
     }
 
     catch(callback) {
-        const snapshot = UnitScope.snapshot;
-        this.promise.catch((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        const snapshot = UnitScope.snapshot();
+        this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
         return this;
     }
 
     finally(callback) {
-        const snapshot = UnitScope.snapshot;
-        this.promise.finally((...args) => UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args));
+        const snapshot = UnitScope.snapshot();
+        this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
         return this;
     }
 }

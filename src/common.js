@@ -17,13 +17,3 @@ export function isNumber(value) {
 export function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
-
-//----------------------------------------------------------------------------------------------------
-// error 
-//----------------------------------------------------------------------------------------------------
-
-export function error(name, text, target = undefined) {
-    const message = name + (target !== undefined ? ` [${target}]` : '') + ': ' + text;
-    console.error(message);
-}
-

@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 
 //----------------------------------------------------------------------------------------------------
 // create element from attributes

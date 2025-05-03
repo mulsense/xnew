@@ -1,7 +1,7 @@
-import { isObject, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 
 export class Timer {
-    constructor({ timeout, finalize = null, delay = 0, loop = false }) {
+    constructor({ timeout, finalize = null, delay = 1, loop = false }) {
         this.timeout = timeout;
         this.finalize = finalize;
         this.delay = delay;
@@ -13,10 +13,8 @@ export class Timer {
 
         this.status = 0;
 
-        this.listener = (event) => {
-            document.hidden === false ? this._start() : this._stop();
-        };
         if (document !== undefined) {
+            this.listener = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.listener);
         }
     }

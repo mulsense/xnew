@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 import { MapSet, MapMap, MapMapMap } from './map';
 import { UnitScope } from './scope';
 
@@ -11,7 +11,7 @@ export class UnitEvent {
 
     static on(unit, type, listener, options) {
         const listeners = UnitEvent.unitToListeners.get(unit);
-        const snapshot = UnitScope.snapshot;
+        const snapshot = UnitScope.snapshot();
 
         type.trim().split(/\s+/).forEach((type) => internal(type, listener));
         function internal(type, listener) {

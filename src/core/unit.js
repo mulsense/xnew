@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 import { createElement } from './element';
 import { Ticker } from './ticker';
 import { UnitEvent } from './event';
@@ -64,9 +64,9 @@ export class Unit {
 
     on(type, listener, options) {
         if (isString(type) === false || type.trim() === '') {
-            error('unit on', 'The argument is invalid.', 'type');
+            console.error(`unit.on: The argument [type] is invalid.`);
         } else if (isFunction(listener) === false) {
-            error('unit on', 'The argument is invalid.', 'listener');
+            console.error(`unit.on: The argument [listener] is invalid.`);
         } else {
             UnitEvent.on(this, type, listener, options);
         }
@@ -74,9 +74,9 @@ export class Unit {
 
     off(type, listener) {
         if (type !== undefined && (isString(type) === false || type.trim() === '')) {
-            error('unit off', 'The argument is invalid.', 'type');
+            console.error(`unit.off: The argument [type] is invalid.`);
         } else if (listener !== undefined && isFunction(listener) === false) {
-            error('unit off', 'The argument is invalid.', 'listener');
+            console.error(`unit.off: The argument [listener] is invalid.`);
         } else {
             UnitEvent.off(this, type, listener);
         }
@@ -110,7 +110,7 @@ export class Unit {
 
             // setup component
             if (isFunction(component) === true) {
-                UnitScope.execute(this, undefined, () => Unit.extend.call(this, component, ...args));
+                UnitScope.execute({ unit: this }, () => Unit.extend.call(this, component, ...args));
             } else if (isObject(this._.target) === true && isString(component) === true) {
                 this.element.innerHTML = component;
             }
@@ -144,27 +144,27 @@ export class Unit {
                         this._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 } else {
-                    error('unit extend', 'The property is invalid.', key);
+                    console.error(`unit.extend: The property [${key}] is invalid.`);
                 }
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
-                const context = UnitScope.context(this);
+                const snapshot = UnitScope.snapshot(this);
                 if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => UnitScope.execute(this, context, descripter.value, ...args);
+                    dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.writable = true;
                     dest.value = descripter.value;
                 }
                 if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => UnitScope.execute(this, context, descripter.get, ...args);
+                    dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
                 }
                 if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => UnitScope.execute(this, context, descripter.set, ...args);
+                    dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
             } else {
-                error('unit extend', 'The property already exists.', key);
+                console.error(`unit.extend: The property [${key}] already exists.`);
             }
         });
     }
@@ -175,7 +175,7 @@ export class Unit {
             this._.state = 'running';
             this._.children.forEach((unit) => Unit.start.call(unit, time));
             if (isFunction(this._.props.start) === true) {
-                UnitScope.execute(this, UnitScope.context(this), this._.props.start);
+                UnitScope.execute(UnitScope.snapshot(this), this._.props.start);
             }
         } else if (['running'].includes(this._.state) === true) {
             this._.children.forEach((unit) => Unit.start.call(unit, time));
@@ -188,7 +188,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.stop.call(unit));
 
             if (isFunction(this._.props.stop)) {
-                UnitScope.execute(this, UnitScope.context(this), this._.props.stop);
+                UnitScope.execute(UnitScope.snapshot(this), this._.props.stop);
             }
         }
     }
@@ -198,7 +198,7 @@ export class Unit {
             this._.children.forEach((unit) => Unit.update.call(unit, time));
 
             if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                UnitScope.execute(this, UnitScope.context(this), this._.props.update, this._.upcount++);
+                UnitScope.execute(UnitScope.snapshot(this), this._.props.update, this._.upcount++);
             }
         }
     }
@@ -211,7 +211,7 @@ export class Unit {
             this._.children.clear();
 
             if (isFunction(this._.props.finalize)) {
-                UnitScope.execute(this, UnitScope.context(this), this._.props.finalize);
+                UnitScope.execute(UnitScope.snapshot(this), this._.props.finalize);
             }
             UnitComponent.clear(this);
 

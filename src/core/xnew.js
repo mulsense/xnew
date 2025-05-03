@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 import { Unit } from './unit';
 import { Timer } from './timer';
 import { UnitComponent } from './component';
@@ -10,12 +10,13 @@ export function xnew(...args) {
     if (isFunction(args[0]) === false && args[0] instanceof Unit) {
         parent = args.shift();
     } else if (args[0] === null) {
+        // root unit
         parent = args.shift();
     } else if (args[0] === undefined) {
         parent = args.shift();
-        parent = UnitScope.current
+        parent = UnitScope.current;
     } else {
-        parent = UnitScope.current
+        parent = UnitScope.current;
     }
 
     // input target
@@ -28,7 +29,7 @@ export function xnew(...args) {
         const name = args.shift();
         target = document.querySelector(name);
         if (target == null) {
-            error('xnew', `'${name}' can not be found.`, 'target');
+            console.error(`xnew: '${name}' can not be found.`);
         }
     } else if (isObject(args[0]) === true) {
         // an attributes for a new html element
@@ -41,18 +42,18 @@ export function xnew(...args) {
     }
 
     if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
-        error('xnew', 'The argument is invalid.', 'component');
+        console.error(`xnew: The argument [component] is invalid.`);
     } else {
         return new Unit(parent, target, ...args);
     }
 }
 
-Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
-
 Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
 Object.defineProperty(xnew, 'parent', { enumerable: true, get: () => UnitScope.current?._.parent });
 Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
+
+Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
+Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
 
 Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
 Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
@@ -67,11 +68,11 @@ Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition 
 
 function nest(attributes) {
     if (UnitScope.current.element instanceof Window || UnitScope.current.element instanceof Document) {
-        error('xnew.nest', 'No elements are added to window or document.');
+        console.error(`xnew.nest: No elements are added to window or document.`);
     } else if (isObject(attributes) === false) {
-        error('xnew.nest', 'The argument is invalid.', 'attributes');
+        console.error(`xnew.nest: The argument [attributes] is invalid.`);
     } else if (UnitScope.current._.state !== 'pending') {
-        error('xnew.nest', 'This function can not be called after initialized.');
+        console.error(`xnew.nest: This function can not be called after initialized.`);
     } else {
         return Unit.nest.call(UnitScope.current, attributes);
     }
@@ -79,9 +80,9 @@ function nest(attributes) {
 
 function extend(component, ...args) {
     if (isFunction(component) === false) {
-        error('xnew.extend', 'The argument is invalid.', 'component');
+        console.error(`xnew.extend: The argument [component] is invalid.`);
     } else if (UnitScope.current._.state !== 'pending') {
-        error('xnew.extend', 'This function can not be called after initialized.');
+        console.error(`xnew.extend: This function can not be called after initialized.`);
     }  else {
         return Unit.extend.call(UnitScope.current, component, ...args);
     }
@@ -89,7 +90,7 @@ function extend(component, ...args) {
 
 function context(key, value = undefined) {
     if (isString(key) === false) {
-        error('context', 'The argument is invalid.', 'key');
+        console.error(`xnew.context: The argument [key] is invalid.`);
     } else {
         if (value !== undefined) {
             UnitScope.next(key, value);
@@ -106,11 +107,12 @@ function promise(data) {
     } else if (data instanceof Unit) {
         promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
     } else {
-        error('unit promise', 'The property is invalid.', data);
+        console.error(`xnew.promise: The argument is invalid.`);
     }
     if (promise) {
         const scopedpromise = new ScopedPromise((resolve, reject) => {
-            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            promise.then((...args) => resolve(...args));
+            promise.catch((...args) => reject(...args));
         });
         UnitScope.current._.promises.push(promise);
         return scopedpromise;
@@ -125,7 +127,7 @@ function find(...args) {
     const component = args[0];
 
     if (isFunction(component) === false) {
-        error('xnew.find', 'The argument is invalid.', 'component');
+        console.error(`xnew.find: The argument [component] is invalid.`);
     } else if (isFunction(component) === true) {
         return UnitComponent.find(base, component);
     }
@@ -134,34 +136,34 @@ function find(...args) {
 function emit(type, ...args) {
     const unit = UnitScope.current;
     if (isString(type) === false) {
-        error('xnew.emit', 'The argument is invalid.', 'type');
+        console.error(`xnew.emit: The argument [type] is invalid.`);
     } else if (unit?._.state === 'finalized') {
-        error('xnew.emit', 'This function can not be called after finalized.');
+        console.error(`xnew.emit: This function can not be called after finalized.`);
     } else {
         UnitEvent.emit(unit, type, ...args);
     }
 }
 
 function scope(callback) {
-    const snapshot = UnitScope.snapshot;
+    const snapshot = UnitScope.snapshot();
     return (...args) => {
-        UnitScope.execute(snapshot.unit, snapshot.context, callback, ...args);
+        UnitScope.execute(snapshot, callback, ...args);
     };
 }
 
 function timer(callback, delay) {
     let finalizer = null;
 
-    const snapshot = UnitScope.snapshot;
+    const snapshot = UnitScope.snapshot();
     const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
+        timeout: () => UnitScope.execute(snapshot, callback),
         finalize: () => finalizer.finalize(),
         delay,
     });
 
     timer.start();
 
-    finalizer = xnew(snapshot.unit, (self) => {
+    finalizer = xnew((self) => {
         return {
             finalize() {
                 timer.clear();
@@ -175,9 +177,9 @@ function timer(callback, delay) {
 function interval(callback, delay) {
     let finalizer = null;
 
-    const snapshot = UnitScope.snapshot;
+    const snapshot = UnitScope.snapshot();
     const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback),
+        timeout: () => UnitScope.execute(snapshot, callback),
         finalize: () => finalizer.finalize(),
         delay,
         loop: true,
@@ -185,7 +187,7 @@ function interval(callback, delay) {
 
     timer.start();
 
-    finalizer = xnew(snapshot.unit, (self) => {
+    finalizer = xnew((self) => {
         return {
             finalize() {
                 timer.clear();
@@ -200,9 +202,9 @@ function transition(callback, interval) {
     let finalizer = null;
     let updater = null;
 
-    const snapshot = UnitScope.snapshot;
+    const snapshot = UnitScope.snapshot();
     const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 1.0 }),
+        timeout: () => UnitScope.execute(snapshot, callback, { progress: 1.0 }),
         finalize: () => finalizer.finalize(),
         delay: interval,
     });
@@ -212,20 +214,20 @@ function transition(callback, interval) {
 
     timer.start();
 
-    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress: 0.0 });
+    UnitScope.execute(snapshot, callback, { progress: 0.0 });
 
     updater = xnew(null, (self) => {
         return {
             update() {
                 const progress = timer.elapsed() / interval;
                 if (progress < 1.0) {
-                    UnitScope.execute(snapshot.unit, snapshot.context, callback, { progress });
+                    UnitScope.execute(snapshot, callback, { progress });
                 }
             },
         }
     });
 
-    finalizer = xnew(snapshot.unit, (self) => {
+    finalizer = xnew((self) => {
         return {
             finalize() {
                 timer.clear();
