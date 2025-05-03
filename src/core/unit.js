@@ -37,10 +37,6 @@ export class Unit {
     // base system 
     //----------------------------------------------------------------------------------------------------
 
-    get parent() {
-        return this._.parent;
-    }
-
     get element() {
         return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
     }
@@ -102,7 +98,7 @@ export class Unit {
 
         UnitScope.context(this, this._.baseContext);
 
-        if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
+        if (this._.parent !== null && ['finalized'].includes(this._.parent._.state)) {
             this._.state = 'finalized';
         } else {
             this._.tostart = true;

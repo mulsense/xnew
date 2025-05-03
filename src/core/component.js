@@ -21,7 +21,7 @@ export class UnitComponent {
     static find(base, component) {
         if (base !== null) {
             return [...UnitComponent.componentToUnits.get(component)].filter((unit) => {
-                for (let temp = unit; temp !== null; temp = temp.parent) {
+                for (let temp = unit; temp !== null; temp = temp._.parent) {
                     if (temp === base) {
                         return true;
                     }

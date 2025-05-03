@@ -59,8 +59,8 @@ export class UnitScope {
 }
 
 export class ScopedPromise {
-    constructor(promise) {
-        this.promise = promise;
+    constructor(excutor) {
+        this.promise = new Promise(excutor);
     }
     then(callback) {
         const snapshot = UnitScope.snapshot;

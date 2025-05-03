@@ -109,11 +109,10 @@ function promise(data) {
         error('unit promise', 'The property is invalid.', data);
     }
     if (promise) {
-        const scopedpromise = new ScopedPromise(new Promise((resolve, reject) => {
+        const scopedpromise = new ScopedPromise((resolve, reject) => {
             promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-        }));
-        const unit = UnitScope.current;
-        unit._.promises.push(promise);
+        });
+        UnitScope.current._.promises.push(promise);
         return scopedpromise;
     }
 }

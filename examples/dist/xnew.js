@@ -309,8 +309,8 @@
     }
 
     class ScopedPromise {
-        constructor(promise) {
-            this.promise = promise;
+        constructor(excutor) {
+            this.promise = new Promise(excutor);
         }
         then(callback) {
             const snapshot = UnitScope.snapshot;
@@ -431,7 +431,7 @@
         static find(base, component) {
             if (base !== null) {
                 return [...UnitComponent.componentToUnits.get(component)].filter((unit) => {
-                    for (let temp = unit; temp !== null; temp = temp.parent) {
+                    for (let temp = unit; temp !== null; temp = temp._.parent) {
                         if (temp === base) {
                             return true;
                         }
@@ -475,10 +475,6 @@
         //----------------------------------------------------------------------------------------------------
         // base system 
         //----------------------------------------------------------------------------------------------------
-
-        get parent() {
-            return this._.parent;
-        }
 
         get element() {
             return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
@@ -541,7 +537,7 @@
 
             UnitScope.context(this, this._.baseContext);
 
-            if (this.parent !== null && ['finalized'].includes(this.parent._.state)) {
+            if (this._.parent !== null && ['finalized'].includes(this._.parent._.state)) {
                 this._.state = 'finalized';
             } else {
                 this._.tostart = true;
@@ -871,11 +867,10 @@
             error('unit promise', 'The property is invalid.', data);
         }
         if (promise) {
-            const scopedpromise = new ScopedPromise(new Promise((resolve, reject) => {
+            const scopedpromise = new ScopedPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-            }));
-            const unit = UnitScope.current;
-            unit._.promises.push(promise);
+            });
+            UnitScope.current._.promises.push(promise);
             return scopedpromise;
         }
     }
