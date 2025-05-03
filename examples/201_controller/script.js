@@ -7,7 +7,7 @@ xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width: 800, height: 400 });
-  xpixi.initalize();
+  xpixi.initialize();
 
   xnew(Box, { x: 800 / 2, y: 400 / 2, size: 100, color: 0xEA1E63 });
   xnew(Controller);

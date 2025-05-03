@@ -10,7 +10,7 @@ xnew('#main', Main);
 
 function Main(self) {
   xnew(xnew.Screen, { width, height });
-  xpixi.initalize();
+  xpixi.initialize();
 
   xnew(Background);
   xnew(TitleScene);
