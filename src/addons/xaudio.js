@@ -1,5 +1,5 @@
 import { isObject, isNumber, isString, isFunction, error } from '../common';
-import xnew from 'xnew';
+import xnew from '@mulsense/xnew';
 
 export default function xaudio() {
 }

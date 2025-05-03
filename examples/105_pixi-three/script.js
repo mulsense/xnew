@@ -1,6 +1,6 @@
-import xnew from 'xnew';
-import xpixi from 'xnew/addons/xpixi';
-import xthree from 'xnew/addons/xthree';
+import xnew from '@mulsense/xnew';
+import xpixi from '@mulsense/xnew/addons/xpixi';
+import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 

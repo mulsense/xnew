@@ -1,4 +1,4 @@
-import xnew from 'xnew';
+import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js';
 
 function xpixi() {

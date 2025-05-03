@@ -1,6 +1,6 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew')) :
-    typeof define === 'function' && define.amd ? define(['xnew'], factory) :
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('@mulsense/xnew')) :
+    typeof define === 'function' && define.amd ? define(['@mulsense/xnew'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xaudio = factory());
 })(this, (function () { 'use strict';
 
