@@ -341,7 +341,7 @@
                         const execute = (...args) => {
                             const eventbackup = UnitEvent.event;
                             UnitEvent.event = { type };
-                            UnitScope.execute(snapshot.unit, snapshot.context, listener, ...args);
+                            UnitScope.execute(snapshot, listener, ...args);
                             UnitEvent.event = eventbackup;
                         };
                         listeners.set(type, listener, [element, execute]);
@@ -349,7 +349,7 @@
                         const execute = (...args) => {
                             const eventbackup = UnitEvent.event;
                             UnitEvent.event = { type: args[0]?.type ?? null };
-                            UnitScope.execute(snapshot.unit, snapshot.context, listener, ...args);
+                            UnitScope.execute(snapshot, listener, ...args);
                             UnitEvent.event = eventbackup;
                         };
                         listeners.set(type, listener, [element, execute]);
