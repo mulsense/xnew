@@ -18,13 +18,14 @@ function Main(self) {
 }
 
 function Contents(self) {
-  self.on('+reset', () => self.reboot());
   xmatter.initialize();
 
   xnew(Circle, { x: 350, y: 50, r: 40, color: 0xFF0000 });
   xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
   xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
   xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888 }, { isStatic: true });
+
+  self.on('+reset', () => self.reboot());
 }
 
 function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {

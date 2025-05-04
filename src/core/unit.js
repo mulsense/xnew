@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction } from '../common';
+import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { createElement } from './element';
 import { Ticker } from './ticker';
 import { UnitEvent } from './event';
@@ -7,6 +7,16 @@ import { UnitComponent } from './component';
 
 export class Unit {
     constructor(parent, target, component, ...args) {
+        if (!(parent === null || parent instanceof Unit)) {
+            error(`unit constructor: The argument [parent] is invalid.`);
+        }
+        if (!(target === null || isObject(target) === true || target instanceof Element || target instanceof Window || target instanceof Document)) {
+            error(`unit constructor: The argument [target] is invalid.`);
+        }
+        if (!(component === undefined || isFunction(component) === true || (isObject(target) === true && isString(component) === true))) {
+            error(`unit constructor: The argument [component] is invalid.`);
+        }
+        
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseElement = target;

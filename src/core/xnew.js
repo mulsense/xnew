@@ -1,78 +1,76 @@
-import { isObject, isNumber, isString, isFunction } from '../common';
+import { isObject, isNumber, isString, isFunction, error } from '../common';
 import { Unit } from './unit';
 import { Timer } from './timer';
 import { UnitComponent } from './component';
 import { UnitEvent } from './event';
 import { UnitScope, ScopedPromise } from './scope';
 
+//----------------------------------------------------------------------------------------------------
+// xnew main
+//----------------------------------------------------------------------------------------------------
+
 export function xnew(...args) {
-    let parent = undefined;
+    let parent = UnitScope.current;
     if (isFunction(args[0]) === false && args[0] instanceof Unit) {
         parent = args.shift();
     } else if (args[0] === null) {
-        // root unit
         parent = args.shift();
     } else if (args[0] === undefined) {
-        parent = args.shift();
-        parent = UnitScope.current;
-    } else {
-        parent = UnitScope.current;
+        args.shift();
     }
 
     // input target
-    let target = undefined;
+    let target = null;
     if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
         // an existing html element
         target = args.shift();
     } else if (isString(args[0]) === true) {
         // a string for an existing html element
-        const name = args.shift();
-        target = document.querySelector(name);
+        const key = args.shift();
+        target = document.querySelector(key);
         if (target == null) {
-            console.error(`xnew: '${name}' can not be found.`);
+            console.error(`xnew: '${key}' can not be found.`);
         }
     } else if (isObject(args[0]) === true) {
         // an attributes for a new html element
         target = args.shift();
     } else if (args[0] === null || args[0] === undefined) {
-        target = args.shift();
-        target = null;
-    } else {
-        target = undefined;
+        args.shift();
     }
 
-    if (args.length > 0 && isObject(target) === false && isString(args[0]) === true) {
-        console.error(`xnew: The argument [component] is invalid.`);
-    } else {
-        return new Unit(parent, target, ...args);
-    }
+    return new Unit(parent, target, ...args);
 }
 
-Object.defineProperty(xnew, 'root', { enumerable: true, get: () => UnitScope.current?._.root });
-Object.defineProperty(xnew, 'parent', { enumerable: true, get: () => UnitScope.current?._.parent });
-Object.defineProperty(xnew, 'current', { enumerable: true, get: () => UnitScope.current });
+//----------------------------------------------------------------------------------------------------
+// members
+//----------------------------------------------------------------------------------------------------
 
-Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
+Object.defineProperty(xnew, 'root', { get: () => UnitScope.current?._.root });
+Object.defineProperty(xnew, 'parent', { get: () => UnitScope.current?._.parent });
+Object.defineProperty(xnew, 'current', { get: () => UnitScope.current });
 
-Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
-Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
-Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
-Object.defineProperty(xnew, 'event', { enumerable: true, get: () => UnitEvent.event });
-Object.defineProperty(xnew, 'emit', { enumerable: true, value: emit });
-Object.defineProperty(xnew, 'scope', { enumerable: true, value: scope });
+Object.defineProperty(xnew, 'nest', { value: nest });
+Object.defineProperty(xnew, 'extend', { value: extend });
 
-Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
-Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
-Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
+Object.defineProperty(xnew, 'context', { value: context });
+Object.defineProperty(xnew, 'promise', { value: promise });
+Object.defineProperty(xnew, 'find', { value: find });
+Object.defineProperty(xnew, 'event', { get: () => UnitEvent.event });
+Object.defineProperty(xnew, 'emit', { value: emit });
+Object.defineProperty(xnew, 'scope', { value: scope });
+
+Object.defineProperty(xnew, 'timer', { value: timer });
+Object.defineProperty(xnew, 'interval', { value: interval });
+Object.defineProperty(xnew, 'transition', { value: transition });
+
 
 function nest(attributes) {
     if (UnitScope.current.element instanceof Window || UnitScope.current.element instanceof Document) {
-        console.error(`xnew.nest: No elements are added to window or document.`);
+        error(`xnew.nest(attributes): No elements are added to window or document.`);
     } else if (isObject(attributes) === false) {
-        console.error(`xnew.nest: The argument [attributes] is invalid.`);
+        error(`xnew.nest(attributes): The argument [attributes] is invalid.`);
     } else if (UnitScope.current._.state !== 'pending') {
-        console.error(`xnew.nest: This function can not be called after initialized.`);
+        error(`xnew.nest(attributes): This function can not be called after initialized.`);
     } else {
         return Unit.nest.call(UnitScope.current, attributes);
     }
@@ -80,9 +78,9 @@ function nest(attributes) {
 
 function extend(component, ...args) {
     if (isFunction(component) === false) {
-        console.error(`xnew.extend: The argument [component] is invalid.`);
+        error(`xnew.extend(component, ...args): The argument [component] is invalid.`);
     } else if (UnitScope.current._.state !== 'pending') {
-        console.error(`xnew.extend: This function can not be called after initialized.`);
+        error(`xnew.extend(component, ...args): This function can not be called after initialized.`);
     }  else {
         return Unit.extend.call(UnitScope.current, component, ...args);
     }
@@ -90,7 +88,7 @@ function extend(component, ...args) {
 
 function context(key, value = undefined) {
     if (isString(key) === false) {
-        console.error(`xnew.context: The argument [key] is invalid.`);
+        error(`xnew.context(key, value?): The argument [key] is invalid.`);
     } else {
         if (value !== undefined) {
             UnitScope.next(key, value);
@@ -107,7 +105,7 @@ function promise(data) {
     } else if (data instanceof Unit) {
         promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
     } else {
-        console.error(`xnew.promise: The argument is invalid.`);
+        error(`xnew.promise(data): The argument is invalid.`);
     }
     if (promise) {
         const scopedpromise = new ScopedPromise((resolve, reject) => {
@@ -119,26 +117,20 @@ function promise(data) {
     }
 }
 
-function find(...args) {
-    let base = null;
-    if (args[0] === null || args[0] instanceof Unit) {
-        base = args.shift();
-    }
-    const component = args[0];
-
+function find(component) {
     if (isFunction(component) === false) {
-        console.error(`xnew.find: The argument [component] is invalid.`);
+        error(`xnew.find: The argument [component] is invalid.`);
     } else if (isFunction(component) === true) {
-        return UnitComponent.find(base, component);
+        return UnitComponent.find(component);
     }
 }
 
 function emit(type, ...args) {
     const unit = UnitScope.current;
     if (isString(type) === false) {
-        console.error(`xnew.emit: The argument [type] is invalid.`);
+        error(`xnew.emit: The argument [type] is invalid.`);
     } else if (unit?._.state === 'finalized') {
-        console.error(`xnew.emit: This function can not be called after finalized.`);
+        error(`xnew.emit: This function can not be called after finalized.`);
     } else {
         UnitEvent.emit(unit, type, ...args);
     }

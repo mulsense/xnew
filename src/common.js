@@ -17,3 +17,12 @@ export function isNumber(value) {
 export function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
+
+//----------------------------------------------------------------------------------------------------
+// error check
+//----------------------------------------------------------------------------------------------------
+
+export function error(message) {
+    console.error(message);
+    throw new Error(message);
+}
