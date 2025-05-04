@@ -44,19 +44,16 @@ export class UnitScope {
 
     static next(key, value) {
         const unit = UnitScope.current;
-        UnitScope.map.set(unit, [UnitScope.map.get(unit), key, value]);
+        UnitScope.map.set(unit, { previous: UnitScope.map.get(unit), key, value });
     }
 
     static trace(key) {
         const unit = UnitScope.current;
-        let ret = undefined;
-        for (let context = UnitScope.map.get(unit); context !== null; context = context[0]) {
-            if (context[1] === key) {
-                ret = context[2];
-                break;
+        for (let context = UnitScope.map.get(unit); context !== null; context = context.previous) {
+            if (context.key === key) {
+                return context.value;
             }
         }
-        return ret;
     }
 }
 

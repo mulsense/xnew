@@ -60,11 +60,11 @@ function GameScene(self) {
 
 function Controller(self) {
   const screen = xnew.find(xnew.Screen)[0];
-  const pointer = xnew(screen.canvas, xnew.PointerEvent);
-  pointer.on('-pointermove -pointerdown', ({ position }) => {
+  const user = xnew(screen.canvas, xnew.UserEvent);
+  user.on('-pointermove -pointerdown', ({ position }) => {
     xnew.emit('+move', { x: position.x * screen.scale.x });
   });
-  pointer.on('-pointerdown', () => xnew.emit('+action'));
+  user.on('-pointerdown', () => xnew.emit('+action'));
 }
 
 function ScoreText(self) {

@@ -17,11 +17,7 @@
     //----------------------------------------------------------------------------------------------------
 
     function AnalogStick(self,
-        {
-            size = 130,
-            fill = '#FFF', fillOpacity = 0.8,
-            stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round'
-        } = {}
+        { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
     ) {
         strokeWidth /= (size / 100);
 
@@ -62,36 +58,40 @@
         `
         );
 
-        const drag = xnew(xnew.DragEvent);
+        const user = xnew(xnew.UserEvent);
 
-        drag.on('-down -move', ({ event, position }) => {
+        user.on('-dragstart -dragmove', ({ event, position }) => {
             target.element.style.filter = 'brightness(90%)';
             const x = position.x - size / 2;
             const y = position.y - size / 2;
             const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
             const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
             const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-            xnew.emit(xnew.event.type, { vector });
+            if (xnew.event.type === '-dragstart') {
+                xnew.emit('-down', { vector });
+            } else {
+                xnew.emit('-move', { vector });
+            }
             target.element.style.left = vector.x * size / 4 + 'px';
             target.element.style.top = vector.y * size / 4 + 'px';
         });
 
-        drag.on('-up -cancel', ({ event }) => {
+        user.on('-dragend -dragcancel', ({ event }) => {
             target.element.style.filter = '';
 
             const vector = { x: 0, y: 0 };
-            xnew.emit(xnew.event.type, { vector });
+            if (xnew.event.type === '-dragend') {
+                xnew.emit('-up', { vector });
+            } else {
+                xnew.emit('-cancel', { vector });
+            }
             target.element.style.left = vector.x * size / 4 + 'px';
             target.element.style.top = vector.y * size / 4 + 'px';
         });
     }
 
     function DPad(self,
-        {
-            size = 130,
-            fill = '#FFF', fillOpacity = 0.8,
-            stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round'
-        } = {}
+        { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
     ) {
         strokeWidth /= (size / 100);
 
@@ -142,9 +142,9 @@
         `
         );
 
-        const drag = xnew(xnew.DragEvent);
+        const user = xnew(xnew.UserEvent);
 
-        drag.on('-down -move', ({ event, position }) => {
+        user.on('-dragstart -dragmove', ({ event, position }) => {
             const x = position.x - size / 2;
             const y = position.y - size / 2;
             const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
@@ -157,25 +157,29 @@
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
             targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-            xnew.emit(xnew.event.type, { vector });
+            if (xnew.event.type === '-dragstart') {
+                xnew.emit('-down', { vector });
+            } else {
+                xnew.emit('-move', { vector });
+            }
         });
 
-        drag.on('-up -cancel', ({ event }) => {
+        user.on('-dragend -dragcancel', ({ event }) => {
             const vector = { x: 0, y: 0 };
             targets[0].element.style.filter = '';
             targets[1].element.style.filter = '';
             targets[2].element.style.filter = '';
             targets[3].element.style.filter = '';
-            xnew.emit(xnew.event.type, { vector });
+            if (xnew.event.type === '-dragend') {
+                xnew.emit('-up', { vector });
+            } else {
+                xnew.emit('-cancel', { vector });
+            }
         });
     }
 
     function CircleButton(self,
-        {
-            size = 80,
-            fill = '#FFF', fillOpacity = 0.8,
-            stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round'
-        } = {}
+        { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
     ) {
         strokeWidth /= (size / 100);
         xnew.nest({
@@ -199,13 +203,13 @@
         `
         );
 
-        const drag = xnew(xnew.DragEvent);
+        const user = xnew(xnew.UserEvent);
 
-        drag.on('-down', (event) => {
-            // target.element.style.filter = 'brightness(90%)';
+        user.on('-dragstart', (event) => {
+            target.element.style.filter = 'brightness(90%)';
             xnew.emit('-down', event);
         });
-        drag.on('-up', (event) => {
+        user.on('-dragend', (event) => {
             target.element.style.filter = '';
             xnew.emit('-up', event);
         });

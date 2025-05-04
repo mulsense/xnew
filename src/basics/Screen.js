@@ -1,6 +1,5 @@
 import { xnew } from '../core/xnew';
 import { ResizeEvent } from './ResizeEvent';
-import { PointerEvent } from './PointerEvent';
 
 export function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
     const wrapper = xnew.nest({

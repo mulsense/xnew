@@ -294,19 +294,16 @@
 
         static next(key, value) {
             const unit = UnitScope.current;
-            UnitScope.map.set(unit, [UnitScope.map.get(unit), key, value]);
+            UnitScope.map.set(unit, { previous: UnitScope.map.get(unit), key, value });
         }
 
         static trace(key) {
             const unit = UnitScope.current;
-            let ret = undefined;
-            for (let context = UnitScope.map.get(unit); context !== null; context = context[0]) {
-                if (context[1] === key) {
-                    ret = context[2];
-                    break;
+            for (let context = UnitScope.map.get(unit); context !== null; context = context.previous) {
+                if (context.key === key) {
+                    return context.value;
                 }
             }
-            return ret;
         }
     }
 
@@ -595,17 +592,15 @@
                 } else if (this[key] === undefined) {
                     const dest = { configurable: true, enumerable: true };
                     const snapshot = UnitScope.snapshot(this);
-                    if (isFunction(descripter.value) === true) {
+                    if (isFunction(descripter.get) === true) {
+                        dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
+                    } else if (isFunction(descripter.set) === true) {
+                        dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
+                    } else if (isFunction(descripter.value) === true) {
                         dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
                     } else if (descripter.value !== undefined) {
                         dest.writable = true;
                         dest.value = descripter.value;
-                    }
-                    if (isFunction(descripter.get) === true) {
-                        dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
-                    }
-                    if (isFunction(descripter.set) === true) {
-                        dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
                     }
                     Object.defineProperty(this._.props, key, dest);
                     Object.defineProperty(this, key, dest);
@@ -973,99 +968,6 @@
         return { clear: () => unit.finalize() };
     }
 
-    function DragEvent$1(self) {
-        xnew().on('pointerdown', (event) => {
-            const id = event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            let previous = position;
-
-            const win = xnew(window);
-
-            win.on('pointermove', (event) => {
-                if (event.pointerId === id) {
-                    const position = getPosition(event, rect);
-                    const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                    xnew.emit('-move', { event, position, movement });
-                    previous = position;
-                }
-            });
-
-            win.on('pointerup pointercancel', (event) => {
-                if (event.pointerId === id) {
-                    const position = getPosition(event, rect);
-
-                    if (event.type === 'pointerup') {
-                        xnew.emit('-up', { event, position, });
-                    } else if (event.type === 'pointercancel') {
-                        xnew.emit('-cancel', { event, position, });
-                    }
-                    win.finalize();
-                }
-            });
-
-            xnew.emit('-down', { event, position });
-        });
-
-        function getPosition(event, rect) {
-            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        }
-    }
-
-    function GestureEvent$1(self) {
-        const drag = xnew(DragEvent$1);
-
-        let isActive = false;
-        const map = new Map();
-
-        drag.on('-down', ({ event, position }) => {
-            map.set(event.pointerId, { ...position });
-
-            isActive = map.size === 2 ? true : false;
-            if (isActive === true) {
-                xnew.emit('-down', {});
-            }
-        });
-
-        drag.on('-move', ({ event, position, movement }) => {
-            if (isActive === true) {
-                const a = map.get(event.pointerId);
-                const b = getOthers(event.pointerId)[0];
-
-                let scale = 0.0;
-                {
-                    const v = { x: a.x - b.x, y: a.y - b.y };
-                    const s = v.x * v.x + v.y * v.y;
-                    scale = 1 + (s > 0.0 ? (v.x * movement.x + v.y * movement.y) / s : 0);
-                }
-                {
-                    const c = { x: a.x + movement.x, y: a.y + movement.y };
-                    ({ x: a.x - b.x, y: a.y - b.y });
-                    ({ x: c.x - b.x, y: c.y - b.y });
-                }
-
-                xnew.emit('-move', { scale });
-            }
-            map.set(event.pointerId, position);
-        });
-
-        drag.on('-up -cancel', ({ event }) => {
-            if (isActive === true) {
-                xnew.emit('-up', {});
-            }
-            isActive = false;
-            map.delete(event.pointerId);
-        });
-
-        function getOthers(id) {
-            const backup = map.get(id);
-            map.delete(id);
-            const others = [...map.values()];
-            map.set(id, backup);
-            return others;
-        }
-    }
-
     function ResizeEvent(self) {
         const observer = new ResizeObserver(xnew.scope((entries) => {
             for (const entry of entries) {
@@ -1086,149 +988,63 @@
         }
     }
 
-    function PointerEvent(self) {
-
-        const unit = xnew();
-        unit.on('pointermove', (event) => {
-            event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            xnew.emit('-pointermove', { event, position });
-        });
-        unit.on('wheel', (event) => {
-            const delta = { x: event.wheelDeltaY, y: event.wheelDeltaY };
-            xnew.emit('-wheel', { event, delta });
-        });
-        unit.on('pointerdown', (event) => {
-            event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            xnew.emit('-pointerdown', { event, position });
-        });
-        unit.on('pointerup', (event) => {
-            event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            xnew.emit('-pointerup', { event, position });
-        });
-        const gesture = xnew(GestureEvent$1);
-        gesture.on('-down', (...args) => {
-            xnew.emit('-gesturestart', ...args);
-        });
-        gesture.on('-move', (...args) => {
-            xnew.emit('-gesturemove', ...args);
-        });
-        gesture.on('-up', (...args) => {
-            xnew.emit('-gestureend', ...args);
-        });
-        gesture.on('-cancel', (...args) => {
-            xnew.emit('-gesturecancel', ...args);
-        });  
-
-        const drag = xnew(DragEvent$1);
-        drag.on('-down', (...args) => xnew.emit('-dragstart', ...args));
-        drag.on('-move', (...args) => xnew.emit('-dragmove', ...args));
-        drag.on('-up', (...args) => xnew.emit('-dragend', ...args));
-        drag.on('-cancel', (...args) => xnew.emit('-dragcancel', ...args));
-
-        function getPosition(event, rect) {
-            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        }
-    }
-
     function UserEvent(self) {
-
         const unit = xnew();
-        unit.on('pointermove', (event) => {
-            event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            xnew.emit('-pointermove', { event, position });
-        });
-        unit.on('wheel', (event) => {
-            const delta = { x: event.wheelDeltaY, y: event.wheelDeltaY };
-            xnew.emit('-wheel', { event, delta });
-        });
-        unit.on('pointerdown', (event) => {
-            event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            xnew.emit('-pointerdown', { event, position });
-        });
-        unit.on('pointerup', (event) => {
-            event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
-            xnew.emit('-pointerup', { event, position });
-        });
-        const gesture = xnew(GestureEvent);
-        gesture.on('-down', (...args) => {
-            xnew.emit('-gesturestart', ...args);
-        });
-        gesture.on('-move', (...args) => {
-            xnew.emit('-gesturemove', ...args);
-        });
-        gesture.on('-up', (...args) => {
-            xnew.emit('-gestureend', ...args);
-        });
-        gesture.on('-cancel', (...args) => {
-            xnew.emit('-gesturecancel', ...args);
-        });  
+        unit.on('pointerdown', (event) => xnew.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
+        unit.on('pointermove', (event) => xnew.emit('-pointermove', { event, position: getPosition(self.element, event) }));
+        unit.on('pointerup', (event) => xnew.emit('-pointerup', { event, position: getPosition(self.element, event) }));
+        unit.on('wheel', (event) => xnew.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
 
         const drag = xnew(DragEvent);
-        drag.on('-down', (...args) => xnew.emit('-dragstart', ...args));
-        drag.on('-move', (...args) => xnew.emit('-dragmove', ...args));
-        drag.on('-up', (...args) => xnew.emit('-dragend', ...args));
-        drag.on('-cancel', (...args) => xnew.emit('-dragcancel', ...args));
+        drag.on('-dragstart', (...args) => xnew.emit('-dragstart', ...args));
+        drag.on('-dragmove', (...args) => xnew.emit('-dragmove', ...args));
+        drag.on('-dragend', (...args) => xnew.emit('-dragend', ...args));
+        drag.on('-dragcancel', (...args) => xnew.emit('-dragcancel', ...args));
 
-        function getPosition(event, rect) {
-            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        }
-
-        const keyborad = xnew(Keyboard$1);
+        const keyborad = xnew(Keyboard);
         keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
         keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
         keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
         keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
+
+        const gesture = xnew(GestureEvent);
+        gesture.on('-gesturestart', (...args) => xnew.emit('-gesturestart', ...args));
+        gesture.on('-gesturemove', (...args) => xnew.emit('-gesturemove', ...args));
+        gesture.on('-gestureend', (...args) => xnew.emit('-gestureend', ...args));
+        gesture.on('-gesturecancel', (...args) => xnew.emit('-gesturecancel', ...args));  
     }
 
     function DragEvent(self) {
         xnew().on('pointerdown', (event) => {
             const id = event.pointerId;
-            const rect = self.element.getBoundingClientRect();
-            const position = getPosition(event, rect);
+            const position = getPosition(self.element, event);
             let previous = position;
 
             const win = xnew(window);
-
             win.on('pointermove', (event) => {
                 if (event.pointerId === id) {
-                    const position = getPosition(event, rect);
+                    const position = getPosition(self.element, event);
                     const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                    xnew.emit('-move', { event, position, movement });
+                    xnew.emit('-dragmove', { event, position, movement });
                     previous = position;
                 }
             });
-
-            win.on('pointerup pointercancel', (event) => {
+            win.on('pointerup', (event) => {
                 if (event.pointerId === id) {
-                    const position = getPosition(event, rect);
-
-                    if (event.type === 'pointerup') {
-                        xnew.emit('-up', { event, position, });
-                    } else if (event.type === 'pointercancel') {
-                        xnew.emit('-cancel', { event, position, });
-                    }
+                    const position = getPosition(self.element, event);
+                    xnew.emit('-dragend', { event, position, });
                     win.finalize();
                 }
             });
-
-            xnew.emit('-down', { event, position });
+            win.on('pointercancel', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    xnew.emit('-dragcancel', { event, position, });
+                    win.finalize();
+                }
+            });
+            xnew.emit('-dragstart', { event, position });
         });
-
-        function getPosition(event, rect) {
-            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        }
     }
 
     function GestureEvent(self) {
@@ -1237,16 +1053,16 @@
         let isActive = false;
         const map = new Map();
 
-        drag.on('-down', ({ event, position }) => {
+        drag.on('-dragstart', ({ event, position }) => {
             map.set(event.pointerId, { ...position });
 
             isActive = map.size === 2 ? true : false;
             if (isActive === true) {
-                xnew.emit('-down', {});
+                xnew.emit('-gesturestart', {});
             }
         });
 
-        drag.on('-move', ({ event, position, movement }) => {
+        drag.on('-dragmove', ({ event, position, movement }) => {
             if (isActive === true) {
                 const a = map.get(event.pointerId);
                 const b = getOthers(event.pointerId)[0];
@@ -1263,14 +1079,22 @@
                     ({ x: c.x - b.x, y: c.y - b.y });
                 }
 
-                xnew.emit('-move', { scale });
+                xnew.emit('-gesturemove', { scale });
             }
             map.set(event.pointerId, position);
         });
 
-        drag.on('-up -cancel', ({ event }) => {
+        drag.on('-dragend', ({ event }) => {
             if (isActive === true) {
-                xnew.emit('-up', {});
+                xnew.emit('-gesturemend', {});
+            }
+            isActive = false;
+            map.delete(event.pointerId);
+        });
+
+        drag.on('-dragcancel', ({ event }) => {
+            if (isActive === true) {
+                xnew.emit('-gesturecancel', {});
             }
             isActive = false;
             map.delete(event.pointerId);
@@ -1285,7 +1109,7 @@
         }
     }
 
-    function Keyboard$1(self) {
+    function Keyboard(self) {
         const state = {};
 
         const win = xnew(window);
@@ -1316,6 +1140,11 @@
                 y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
             };
         }
+    }
+
+    function getPosition(element, event) {
+        const rect = element.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
 
     function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
@@ -1392,64 +1221,10 @@
         });
     }
 
-    function Keyboard(self) {
-        const win = xnew(window);
-        const state = {};
-
-        win.on('keydown', (event) => {
-            if (event.repeat === true) return;
-            state[event.code] = 1;
-            xnew.emit('-keydown', { code: event.code });
-        });
-
-        win.on('keyup', (event) => {
-            if (state[event.code]) state[event.code] = 0;
-            xnew.emit('-keyup', { code: event.code });
-        });
-
-        win.on('keydown', (event) => {
-            if (event.repeat === true) return;
-            xnew.emit('-arrowkeydown', { code: event.code, vector: getVector() });
-        });
-
-        win.on('keyup', (event) => {
-            if (event.repeat === true) return;
-            xnew.emit('-arrowkeyup', { code: event.code, vector: getVector() });
-        });
-
-        function getVector() {
-            return {
-                x: (getKey('ArrowLeft') ? -1 : 0) + (getKey('ArrowRight') ? +1 : 0),
-                y: (getKey('ArrowUp') ? -1 : 0) + (getKey('ArrowDown') ? +1 : 0)
-            };
-        }
-        function getKey(code) {
-            return state[code] ? true : false;
-        }
-        // return {
-        //     getKey(code) {
-        //         if (isString(code) === false) return false;
-        //         return (state[code] && state[code].up === null) ? true : false;
-        //     },
-        //     getKeyDown(code) {
-        //         if (isString(code) === false) return false;
-        //         return (state[code] && state[code].down === ticker.counter) ? true : false;
-        //     },
-        //     getKeyUp(code) {
-        //         if (isString(code) === false) return false;
-        //         return (state[code] && state[code].up === ticker.counter) ? true : false;
-        //     },
-        // };
-    }
-
     Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
-    Object.defineProperty(xnew, 'DragEvent', { enumerable: true, value: DragEvent$1 });
-    Object.defineProperty(xnew, 'GestureEvent', { enumerable: true, value: GestureEvent$1 });
-    Object.defineProperty(xnew, 'PointerEvent', { enumerable: true, value: PointerEvent });
     Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
     Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
     Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
-    Object.defineProperty(xnew, 'Keyboard', { enumerable: true, value: Keyboard });
 
     return xnew;
 

@@ -164,17 +164,15 @@ export class Unit {
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
                 const snapshot = UnitScope.snapshot(this);
-                if (isFunction(descripter.value) === true) {
+                if (isFunction(descripter.get) === true) {
+                    dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
+                } else if (isFunction(descripter.set) === true) {
+                    dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
+                } else if (isFunction(descripter.value) === true) {
                     dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
                 } else if (descripter.value !== undefined) {
                     dest.writable = true;
                     dest.value = descripter.value;
-                }
-                if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
-                }
-                if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
                 }
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);

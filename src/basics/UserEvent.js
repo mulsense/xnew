@@ -1,103 +1,62 @@
 import { xnew } from '../core/xnew';
 
 export function UserEvent(self) {
-
     const unit = xnew();
-    unit.on('pointermove', (event) => {
-        const id = event.pointerId;
-        const rect = self.element.getBoundingClientRect();
-        const position = getPosition(event, rect);
-        xnew.emit('-pointermove', { event, position });
-    });
-    unit.on('wheel', (event) => {
-        const delta = { x: event.wheelDeltaY, y: event.wheelDeltaY };
-        xnew.emit('-wheel', { event, delta });
-    });
-    unit.on('pointerdown', (event) => {
-        const id = event.pointerId;
-        const rect = self.element.getBoundingClientRect();
-        const position = getPosition(event, rect);
-        xnew.emit('-pointerdown', { event, position });
-    });
-    unit.on('pointerup', (event) => {
-        const id = event.pointerId;
-        const rect = self.element.getBoundingClientRect();
-        const position = getPosition(event, rect);
-        xnew.emit('-pointerup', { event, position });
-    });
-
-    let isActive = false;
-    const gesture = xnew(GestureEvent);
-    gesture.on('-down', (...args) => {
-        isActive = true;
-        xnew.emit('-gesturestart', ...args);
-    });
-    gesture.on('-move', (...args) => {
-        xnew.emit('-gesturemove', ...args);
-    });
-    gesture.on('-up', (...args) => {
-        isActive = false;
-        xnew.emit('-gestureend', ...args);
-    });
-    gesture.on('-cancel', (...args) => {
-        isActive = false;
-        xnew.emit('-gesturecancel', ...args);
-    });  
+    unit.on('pointerdown', (event) => xnew.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
+    unit.on('pointermove', (event) => xnew.emit('-pointermove', { event, position: getPosition(self.element, event) }));
+    unit.on('pointerup', (event) => xnew.emit('-pointerup', { event, position: getPosition(self.element, event) }));
+    unit.on('wheel', (event) => xnew.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
 
     const drag = xnew(DragEvent);
-    drag.on('-down', (...args) => xnew.emit('-dragstart', ...args));
-    drag.on('-move', (...args) => xnew.emit('-dragmove', ...args));
-    drag.on('-up', (...args) => xnew.emit('-dragend', ...args));
-    drag.on('-cancel', (...args) => xnew.emit('-dragcancel', ...args));
-
-    function getPosition(event, rect) {
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    }
+    drag.on('-dragstart', (...args) => xnew.emit('-dragstart', ...args));
+    drag.on('-dragmove', (...args) => xnew.emit('-dragmove', ...args));
+    drag.on('-dragend', (...args) => xnew.emit('-dragend', ...args));
+    drag.on('-dragcancel', (...args) => xnew.emit('-dragcancel', ...args));
 
     const keyborad = xnew(Keyboard);
     keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
     keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
     keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
     keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
+
+    const gesture = xnew(GestureEvent);
+    gesture.on('-gesturestart', (...args) => xnew.emit('-gesturestart', ...args));
+    gesture.on('-gesturemove', (...args) => xnew.emit('-gesturemove', ...args));
+    gesture.on('-gestureend', (...args) => xnew.emit('-gestureend', ...args));
+    gesture.on('-gesturecancel', (...args) => xnew.emit('-gesturecancel', ...args));  
 }
 
 function DragEvent(self) {
     xnew().on('pointerdown', (event) => {
         const id = event.pointerId;
-        const rect = self.element.getBoundingClientRect();
-        const position = getPosition(event, rect);
+        const position = getPosition(self.element, event);
         let previous = position;
 
         const win = xnew(window);
-
         win.on('pointermove', (event) => {
             if (event.pointerId === id) {
-                const position = getPosition(event, rect);
+                const position = getPosition(self.element, event);
                 const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew.emit('-move', { event, position, movement });
+                xnew.emit('-dragmove', { event, position, movement });
                 previous = position;
             }
         });
-
-        win.on('pointerup pointercancel', (event) => {
+        win.on('pointerup', (event) => {
             if (event.pointerId === id) {
-                const position = getPosition(event, rect);
-
-                if (event.type === 'pointerup') {
-                    xnew.emit('-up', { event, position, });
-                } else if (event.type === 'pointercancel') {
-                    xnew.emit('-cancel', { event, position, });
-                }
+                const position = getPosition(self.element, event);
+                xnew.emit('-dragend', { event, position, });
                 win.finalize();
             }
         });
-
-        xnew.emit('-down', { event, position });
+        win.on('pointercancel', (event) => {
+            if (event.pointerId === id) {
+                const position = getPosition(self.element, event);
+                xnew.emit('-dragcancel', { event, position, });
+                win.finalize();
+            }
+        });
+        xnew.emit('-dragstart', { event, position });
     });
-
-    function getPosition(event, rect) {
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    }
 }
 
 function GestureEvent(self) {
@@ -106,16 +65,16 @@ function GestureEvent(self) {
     let isActive = false;
     const map = new Map();
 
-    drag.on('-down', ({ event, position }) => {
+    drag.on('-dragstart', ({ event, position }) => {
         map.set(event.pointerId, { ...position });
 
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            xnew.emit('-down', {});
+            xnew.emit('-gesturestart', {});
         }
     });
 
-    drag.on('-move', ({ event, position, movement }) => {
+    drag.on('-dragmove', ({ event, position, movement }) => {
         if (isActive === true) {
             const a = map.get(event.pointerId);
             const b = getOthers(event.pointerId)[0];
@@ -141,14 +100,22 @@ function GestureEvent(self) {
                 }
             }
 
-            xnew.emit('-move', { scale });
+            xnew.emit('-gesturemove', { scale });
         }
         map.set(event.pointerId, position);
     });
 
-    drag.on('-up -cancel', ({ event }) => {
+    drag.on('-dragend', ({ event }) => {
         if (isActive === true) {
-            xnew.emit('-up', {});
+            xnew.emit('-gesturemend', {});
+        }
+        isActive = false;
+        map.delete(event.pointerId);
+    });
+
+    drag.on('-dragcancel', ({ event }) => {
+        if (isActive === true) {
+            xnew.emit('-gesturecancel', {});
         }
         isActive = false;
         map.delete(event.pointerId);
@@ -194,4 +161,9 @@ function Keyboard(self) {
             y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
         };
     }
+}
+
+function getPosition(element, event) {
+    const rect = element.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
