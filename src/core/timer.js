@@ -17,6 +17,8 @@ export class Timer {
             this.listener = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.listener);
         }
+
+        this.start();
     }
 
     clear() {
@@ -53,11 +55,7 @@ export class Timer {
                 this.time = null;
                 this.offset = 0.0;
 
-                if (this.loop) {
-                    this.start();
-                } else {
-                    this.finalize?.();
-                }
+                this.loop ? this.start() : this.finalize?.();
             }, this.delay - this.offset);
             this.time = Date.now();
         }

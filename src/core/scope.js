@@ -3,21 +3,23 @@ import { isObject, isNumber, isString, isFunction } from '../common';
 export class UnitScope {
     static current = null;
 
-    static execute({ unit, context }, func, ...args) {
-        const stack = [UnitScope.current, UnitScope.context(unit)];
+    static execute(snapshot, func, ...args) {
+        const backup = { unit: null, context: null };
 
         try {
-            UnitScope.current = unit;
-            if (unit && context !== undefined) {
-                UnitScope.context(unit, context);
+            backup.unit = UnitScope.current;
+            UnitScope.current = snapshot.unit;
+            if (snapshot.unit && snapshot.context !== undefined) {
+                backup.context = UnitScope.context(snapshot.unit);
+                UnitScope.context(snapshot.unit, snapshot.context);
             }
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
-            UnitScope.current = stack[0];
-            if (unit && context !== undefined) {
-                UnitScope.context(unit, stack[1]);
+            UnitScope.current = backup.unit;
+            if (snapshot.unit && snapshot.context !== undefined) {
+                UnitScope.context(snapshot.unit, backup.context);
             }
         }
     }
@@ -62,6 +64,7 @@ export class ScopedPromise {
     constructor(excutor) {
         this.promise = new Promise(excutor);
     }
+
     then(callback) {
         const snapshot = UnitScope.snapshot();
         this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));

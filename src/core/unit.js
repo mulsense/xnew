@@ -16,7 +16,10 @@ export class Unit {
         if (!(component === undefined || isFunction(component) === true || (isObject(target) === true && isString(component) === true))) {
             error(`unit constructor: The argument [component] is invalid.`);
         }
-        
+
+        const id = Unit.autoincrement++;
+        const root = parent?._.root ?? this;
+
         let baseElement = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseElement = target;
@@ -27,9 +30,9 @@ export class Unit {
         }
 
         const baseContext = UnitScope.context(parent);
-        const root = parent?._.root ?? this;
 
         this._ = {
+            id,             // unit id
             root,           // root unit
             parent,         // parent unit
             target,         // target info
@@ -74,9 +77,9 @@ export class Unit {
 
     on(type, listener, options) {
         if (isString(type) === false || type.trim() === '') {
-            console.error(`unit.on: The argument [type] is invalid.`);
+            error(`unit.on: The argument [type] is invalid.`);
         } else if (isFunction(listener) === false) {
-            console.error(`unit.on: The argument [listener] is invalid.`);
+            error(`unit.on: The argument [listener] is invalid.`);
         } else {
             UnitEvent.on(this, type, listener, options);
         }
@@ -84,14 +87,16 @@ export class Unit {
 
     off(type, listener) {
         if (type !== undefined && (isString(type) === false || type.trim() === '')) {
-            console.error(`unit.off: The argument [type] is invalid.`);
+            error(`unit.off: The argument [type] is invalid.`);
         } else if (listener !== undefined && isFunction(listener) === false) {
-            console.error(`unit.off: The argument [listener] is invalid.`);
+            error(`unit.off: The argument [listener] is invalid.`);
         } else {
             UnitEvent.off(this, type, listener);
         }
     }
 
+    static autoincrement = 0; // auto increment id
+    
     static roots = new Set();   // root units
 
     static initialize(component, ...args) {
@@ -154,7 +159,7 @@ export class Unit {
                         this._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 } else {
-                    console.error(`unit.extend: The property [${key}] is invalid.`);
+                    error(`unit.extend: The property [${key}] is invalid.`);
                 }
             } else if (this[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
@@ -174,7 +179,7 @@ export class Unit {
                 Object.defineProperty(this._.props, key, dest);
                 Object.defineProperty(this, key, dest);
             } else {
-                console.error(`unit.extend: The property [${key}] already exists.`);
+                error(`unit.extend: The property [${key}] already exists.`);
             }
         });
     }
@@ -249,7 +254,7 @@ export class Unit {
 
         Ticker.clear();
         Ticker.start();
-        Ticker.push((time) => {
+        Ticker.add((time) => {
             Unit.roots.forEach((unit) => {
                 Unit.start.call(unit, time);
                 Unit.update.call(unit, time);
@@ -257,5 +262,5 @@ export class Unit {
         });
     }
 }
-Unit.reset();
 
+Unit.reset();

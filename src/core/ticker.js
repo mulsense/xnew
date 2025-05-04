@@ -1,4 +1,4 @@
-import { isObject, isNumber, isString, isFunction } from '../common';
+import { isObject, isNumber, isString, isFunction, error } from '../common';
 
 export class Ticker {
     static animation = null;
@@ -10,7 +10,7 @@ export class Ticker {
         Ticker.previous = Date.now();
     }
 
-    static push(callback) {
+    static add(callback) {
         Ticker.callbacks.push(callback);
     }
 

@@ -19,7 +19,6 @@ export function xnew(...args) {
         args.shift();
     }
 
-    // input target
     let target = null;
     if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
         // an existing html element
@@ -65,24 +64,26 @@ Object.defineProperty(xnew, 'transition', { value: transition });
 
 
 function nest(attributes) {
-    if (UnitScope.current.element instanceof Window || UnitScope.current.element instanceof Document) {
+    const current = UnitScope.current;
+    if (current.element instanceof Window || current.element instanceof Document) {
         error(`xnew.nest(attributes): No elements are added to window or document.`);
     } else if (isObject(attributes) === false) {
         error(`xnew.nest(attributes): The argument [attributes] is invalid.`);
-    } else if (UnitScope.current._.state !== 'pending') {
+    } else if (current._.state !== 'pending') {
         error(`xnew.nest(attributes): This function can not be called after initialized.`);
     } else {
-        return Unit.nest.call(UnitScope.current, attributes);
+        return Unit.nest.call(current, attributes);
     }
 }
 
 function extend(component, ...args) {
+    const current = UnitScope.current;
     if (isFunction(component) === false) {
         error(`xnew.extend(component, ...args): The argument [component] is invalid.`);
-    } else if (UnitScope.current._.state !== 'pending') {
+    } else if (current._.state !== 'pending') {
         error(`xnew.extend(component, ...args): This function can not be called after initialized.`);
     }  else {
-        return Unit.extend.call(UnitScope.current, component, ...args);
+        return Unit.extend.call(current, component, ...args);
     }
 }
 
@@ -144,90 +145,68 @@ function scope(callback) {
 }
 
 function timer(callback, delay) {
-    let finalizer = null;
-
     const snapshot = UnitScope.snapshot();
-    const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot, callback),
-        finalize: () => finalizer.finalize(),
-        delay,
-    });
-
-    timer.start();
-
-    finalizer = xnew((self) => {
+    const unit = xnew((self) => {
+        const timer = new Timer({
+            timeout: () => UnitScope.execute(snapshot, callback),
+            finalize: () => self.finalize(),
+            delay,
+        });
         return {
             finalize() {
                 timer.clear();
             }
-        }
+        };
     });
-
-    return { clear: () => timer.clear() };
+    return { clear: () => unit.finalize() };
 }
 
 function interval(callback, delay) {
-    let finalizer = null;
-
     const snapshot = UnitScope.snapshot();
-    const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot, callback),
-        finalize: () => finalizer.finalize(),
-        delay,
-        loop: true,
-    });
-
-    timer.start();
-
-    finalizer = xnew((self) => {
+    const unit = xnew((self) => {
+        const timer = new Timer({
+            timeout: () => UnitScope.execute(snapshot, callback),
+            finalize: () => self.finalize(),
+            delay,
+            loop: true,
+        });
         return {
             finalize() {
                 timer.clear();
             }
-        }
+        };
     });
-
-    return { clear: () => timer.clear() };
+    return { clear: () => unit.finalize() };
 }
 
 function transition(callback, interval) {
-    let finalizer = null;
-    let updater = null;
-
     const snapshot = UnitScope.snapshot();
-    const timer = new Timer({
-        timeout: () => UnitScope.execute(snapshot, callback, { progress: 1.0 }),
-        finalize: () => finalizer.finalize(),
-        delay: interval,
-    });
-    const clear = function () {
-        timer.clear();
-    }
+    const unit = xnew((self) => {
+        const timer = new Timer({
+            timeout: () => UnitScope.execute(snapshot, callback, { progress: 1.0 }),
+            finalize: () => self.finalize(),
+            delay: interval,
+        });
 
-    timer.start();
+        UnitScope.execute(snapshot, callback, { progress: 0.0 });
 
-    UnitScope.execute(snapshot, callback, { progress: 0.0 });
-
-    updater = xnew(null, (self) => {
-        return {
-            update() {
-                const progress = timer.elapsed() / interval;
-                if (progress < 1.0) {
-                    UnitScope.execute(snapshot, callback, { progress });
-                }
-            },
-        }
-    });
-
-    finalizer = xnew((self) => {
+        const updater = xnew(null, (self) => {
+            return {
+                update() {
+                    const progress = timer.elapsed() / interval;
+                    if (progress < 1.0) {
+                        UnitScope.execute(snapshot, callback, { progress });
+                    }
+                },
+            }
+        });
         return {
             finalize() {
                 timer.clear();
                 updater.finalize();
             }
-        }
+        };
     });
 
-    return { clear };
+    return { clear: () => unit.finalize() };
 }
-
