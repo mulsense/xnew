@@ -64,14 +64,14 @@
     }
 
     function Console(self) {
-      xnew.nest({ style: { border: 'solid 1px #AAA', overflow: 'auto' }});
+      xnew.nest({ style: { margin: '16px 0', border: 'solid 1px #AAA', overflow: 'auto' }});
       xnew({ tagName: 'div', style: { background: '#DDD' } }, 'console');
       
       const list = [];
       let autoincrement = 0;
       self.on('+console', (text) => {
         list.push(xnew({ tagName: 'div' }, autoincrement++ + ': ' + text));
-        if (list.length > 7) {
+        if (list.length > 6) {
           list.shift().finalize();
         }
       });

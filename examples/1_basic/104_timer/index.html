@@ -21,9 +21,9 @@
       box.style.top = (Math.random() * 300 - 15) + 'px';
 
       // fade in
-      xnew.transition((progress) => self.element.style.opacity = progress, 1000);
+      xnew.transition((progress) => box.style.opacity = progress, 1000);
 
-      // remodeve after 2 seconds
+      // remove after 2 seconds
       xnew.timer(() => self.finalize(), 2000);
 
       return {

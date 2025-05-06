@@ -22,7 +22,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
     "imports": {
-        "xnew": "https://unpkg.com/@mulsense/xnew@2.6.x/dist/xnew.module.js"
+        "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@2.6.x/dist/xnew.module.js"
     }
 }
 </script>
