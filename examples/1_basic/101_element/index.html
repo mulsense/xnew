@@ -17,13 +17,13 @@
       xnew(Div4);
     });
 
-    function BaseDiv(self, name) {
+    function Base(self, name) {
       xnew.nest({ style: { margin: '8px', padding: '8px', border: 'solid 1px #222'} });
       xnew({ tagName: 'p' }, name);
     }
 
     function Div1(self) {
-      xnew.extend(BaseDiv, 'my div');
+      xnew.extend(Base, 'my div');
 
       xnew({ style: { display: 'flex' } }, () => {
         xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
@@ -33,7 +33,7 @@
     }
 
     function Div2(self) {
-      xnew.extend(BaseDiv, 'my button');
+      xnew.extend(Base, 'my button');
 
       const button = xnew({ tagName: 'button' }, 'click me');
 
@@ -44,7 +44,7 @@
     }
 
     function Div3(self) {
-      xnew.extend(BaseDiv, 'my input text');
+      xnew.extend(Base, 'my input text');
 
       const input = xnew({ tagName: 'input', type: 'text' });
       const span = xnew({ tagName: 'span', style: { margin: '0 8px' } });
@@ -55,7 +55,7 @@
     }
 
     function Div4(self) {
-      xnew.extend(BaseDiv, 'my select');
+      xnew.extend(Base, 'my select');
 
       const select = xnew({ tagName: 'select' }, () => {
         xnew({ tagName: 'option', value: 'one' }, 'one');

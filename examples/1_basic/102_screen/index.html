@@ -21,7 +21,7 @@
       xnew.nest({ style: { margin: '8px auto' } });
       xnew({ tagName: 'p' }, `screen fit: ${fit}`);
 
-      xnew.nest({ style: { width: '160px', height: '120px', border: '1px solid #A0A' } });
+      xnew.nest({ style: { width: '180px', height: '180px', border: '1px solid #A0A' } });
       const screen = xnew(xnew.Screen, { width: 400, height: 200, fit });
       
       const size = 80;
@@ -30,7 +30,6 @@
 
       context.fillStyle = 'rgb(0,0,0)';
       context.fillRect(0, 0, screen.canvas.width, screen.canvas.height);
-
       context.fillStyle = 'rgb(200,0,100)';
       context.fillRect(cx - 0.6 * cx - size / 2, cy - size / 2, size, size);
       context.fillStyle = 'rgb(100,200,0)';
