@@ -27,7 +27,7 @@ function HtmlMain(self) {
 function Plane(self, id) {
   let opacity = id === state.id ? 0.80 : 0.20;
   self.on('+planefade', () => {
-    xnew.transition(({ progress }) => {
+    xnew.transition((progress) => {
       opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
     }, 700);
   });
@@ -55,7 +55,7 @@ function Event(self) {
         state.id = (state.id + direction + 4) % 4;
         state.moving = true;
         const backup = { ...transform };
-        xnew.transition(({ progress }) => {
+        xnew.transition((progress) => {
           const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
           transform.ry = backup.ry - direction * 90 * p;
           transform.ty = backup.ty * (1.0 - p);
