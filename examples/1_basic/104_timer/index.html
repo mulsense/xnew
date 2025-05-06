@@ -19,7 +19,7 @@
       const top = (Math.random() * 300 - 15) + 'px';
       xnew.nest({ style: { position: 'absolute', top, left, width: '30px', height: '30px', background: '#F80' }});
 
-      xnew.transition(({ progress }) => self.element.style.opacity = progress, 1000);
+      xnew.transition((progress) => self.element.style.opacity = progress, 1000);
       xnew.timer(() => self.finalize(), 2000);
 
       return {
