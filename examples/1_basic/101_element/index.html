@@ -18,7 +18,7 @@
     });
 
     function BaseDiv(self, name) {
-      xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222'} });
+      xnew.nest({ style: { margin: '8px', padding: '8px', border: 'solid 1px #222'} });
       xnew({ tagName: 'p' }, name);
     }
 
@@ -47,7 +47,7 @@
       xnew.extend(BaseDiv, 'my input text');
 
       const input = xnew({ tagName: 'input', type: 'text' });
-      const span = xnew({ tagName: 'span' });
+      const span = xnew({ tagName: 'span', style: { margin: '0 8px' } });
 
       input.on('change input', () => {
         span.element.textContent = input.element.value;
@@ -55,26 +55,19 @@
     }
 
     function Div4(self) {
-      xnew.extend(BaseDiv, 'my canvas');
+      xnew.extend(BaseDiv, 'my select');
 
-      const canvas = xnew({ tagName: 'canvas', width: 200, height: 100 });
-      
-      const ctx = canvas.element.getContext('2d');
-      const cx = canvas.element.width / 2;
-      const cy = canvas.element.height / 2;
-      const s = Math.min(cx, cy) * 0.5;
+      const select = xnew({ tagName: 'select' }, () => {
+        xnew({ tagName: 'option', value: 'one' }, 'one');
+        xnew({ tagName: 'option', value: 'two' }, 'two');
+        xnew({ tagName: 'option', value: 'three' }, 'three');
+      });
 
-      ctx.fillStyle = "rgb(0,0,0)";
-      ctx.fillRect(0, 0, canvas.element.width, canvas.element.height);
+      const text = xnew({ tagName: 'span', style: { margin: '0 8px' } }, 'one');
 
-      ctx.fillStyle = "rgb(200,0,100)";
-      ctx.fillRect(cx - 0.6 * cx - s, cy - s, s * 2, s * 2);
-
-      ctx.fillStyle = "rgb(100,200,0)";
-      ctx.fillRect(cx + 0.0 * cx - s, cy - s, s * 2, s * 2);
-
-      ctx.fillStyle = "rgb(0,100,200)";
-      ctx.fillRect(cx + 0.6 * cx - s, cy - s, s * 2, s * 2);
+      select.on('change', (event) => {
+        text.element.textContent = event.target.value;
+      });
     }
 
   </script>
