@@ -64,7 +64,7 @@ unit.element; // Access the created element
 ### Example 1: Creating HTML Elements
 Use `xnew` and `xnew.nest` to create HTML elements.
 
-<iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/getstart.html" ></iframe>
+<iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/element.html" ></iframe>
 
 ```html
 <!DOCTYPE html>
