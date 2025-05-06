@@ -14,7 +14,7 @@
       
       xnew.interval(() => xnew(Box), 10);
     });
-
+    
     function Box(self) {
       const box = xnew.nest({ style: { position: 'absolute', width: '30px', height: '30px', background: '#F80' }});
       box.style.left = (Math.random() * 400 - 15) + 'px';
@@ -28,7 +28,7 @@
 
       return {
         update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
+          box.style.transform = `rotate(${count}deg)`;
         },
       };
     }

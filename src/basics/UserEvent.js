@@ -13,17 +13,17 @@ export function UserEvent(self) {
     drag.on('-dragend', (...args) => xnew.emit('-dragend', ...args));
     drag.on('-dragcancel', (...args) => xnew.emit('-dragcancel', ...args));
 
-    const keyborad = xnew(Keyboard);
-    keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
-    keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
-    keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
-    keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
-
     const gesture = xnew(GestureEvent);
     gesture.on('-gesturestart', (...args) => xnew.emit('-gesturestart', ...args));
     gesture.on('-gesturemove', (...args) => xnew.emit('-gesturemove', ...args));
     gesture.on('-gestureend', (...args) => xnew.emit('-gestureend', ...args));
     gesture.on('-gesturecancel', (...args) => xnew.emit('-gesturecancel', ...args));  
+    
+    const keyborad = xnew(Keyboard);
+    keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
+    keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
+    keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
+    keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
 }
 
 function DragEvent(self) {
@@ -100,14 +100,14 @@ function GestureEvent(self) {
                 }
             }
 
-            xnew.emit('-gesturemove', { scale });
+            xnew.emit('-gesturemove', { event, position, movement, scale });
         }
         map.set(event.pointerId, position);
     });
 
     drag.on('-dragend', ({ event }) => {
         if (isActive === true) {
-            xnew.emit('-gesturemend', {});
+            xnew.emit('-gesturemend', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
@@ -115,7 +115,7 @@ function GestureEvent(self) {
 
     drag.on('-dragcancel', ({ event }) => {
         if (isActive === true) {
-            xnew.emit('-gesturecancel', {});
+            xnew.emit('-gesturecancel', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
@@ -135,24 +135,18 @@ function Keyboard(self) {
 
     const win = xnew(window);
     win.on('keydown', (event) => {
-        if (event.repeat === true) return;
         state[event.code] = 1;
-        xnew.emit('-keydown', { code: event.code });
+        xnew.emit('-keydown', { event, code: event.code });
     });
-
     win.on('keyup', (event) => {
-        if (state[event.code]) state[event.code] = 0;
-        xnew.emit('-keyup', { code: event.code });
+        state[event.code] = 0;
+        xnew.emit('-keyup', { event, code: event.code });
     });
-
     win.on('keydown', (event) => {
-        if (event.repeat === true) return;
-        xnew.emit('-arrowkeydown', { code: event.code, vector: getVector() });
+        xnew.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
-
     win.on('keyup', (event) => {
-        if (event.repeat === true) return;
-        xnew.emit('-arrowkeyup', { code: event.code, vector: getVector() });
+        xnew.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
 
     function getVector() {

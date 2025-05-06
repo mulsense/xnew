@@ -5,7 +5,7 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const width = 800, height = 400;
+const width = 1200, height = 600;
 
 let currentBaseAction = 'idle';
 const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
@@ -93,8 +93,7 @@ function Model(self, gltf) {
       additiveActions[animation.name].action = action;
     }
     if (action) {
-      const clip = action.getClip();
-      const settings = baseActions[clip.name] || additiveActions[clip.name];
+      const settings = baseActions[animation.name] || additiveActions[animation.name];
       setWeight(action, settings.weight);
       action.play();
       actions.push(action);
@@ -143,13 +142,12 @@ function Model(self, gltf) {
 
   return {
     update() {
-      for (let i = 0; i < animations.length; i++) {
-        const action = actions[i];
-        const clip = action.getClip();
-        const settings = baseActions[clip.name] || additiveActions[clip.name];
-        settings.weight = action.getEffectiveWeight();
-        console.log(settings.weight)
-      }
+      // for (let i = 0; i < animations.length; i++) {
+      //   const action = actions[i];
+      //   const clip = action.getClip();
+      //   const settings = baseActions[clip.name] || additiveActions[clip.name];
+      //   settings.weight = action.getEffectiveWeight();
+      // }
 
       mixer.update(clock.getDelta());
     }
