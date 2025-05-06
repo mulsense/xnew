@@ -11,15 +11,19 @@
   <script>
     xnew('#main', (self) => {
       xnew.nest({ style: { position: 'absolute', width: '400px', height: '300px', inset: 0, margin: 'auto', background: '#000', overflow: 'hidden' }});
-      xnew.interval(() => xnew(Cube), 10);
+      
+      xnew.interval(() => xnew(Box), 10);
     });
 
-    function Cube(self) {
-      const left = (Math.random() * 400 - 15) + 'px';
-      const top = (Math.random() * 300 - 15) + 'px';
-      xnew.nest({ style: { position: 'absolute', top, left, width: '30px', height: '30px', background: '#F80' }});
+    function Box(self) {
+      const box = xnew.nest({ style: { position: 'absolute', width: '30px', height: '30px', background: '#F80' }});
+      box.style.left = (Math.random() * 400 - 15) + 'px';
+      box.style.top = (Math.random() * 300 - 15) + 'px';
 
+      // fade in
       xnew.transition((progress) => self.element.style.opacity = progress, 1000);
+
+      // remodeve after 2 seconds
       xnew.timer(() => self.finalize(), 2000);
 
       return {
