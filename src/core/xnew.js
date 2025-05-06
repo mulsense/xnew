@@ -185,19 +185,19 @@ function transition(callback, interval) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
         const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback, { progress: 1.0 }),
+            timeout: () => UnitScope.execute(snapshot, callback, 1.0),
             finalize: () => self.finalize(),
             delay: interval,
         });
 
-        UnitScope.execute(snapshot, callback, { progress: 0.0 });
+        UnitScope.execute(snapshot, callback, 0.0);
 
         const updater = xnew(null, (self) => {
             return {
                 update() {
                     const progress = timer.elapsed() / interval;
                     if (progress < 1.0) {
-                        UnitScope.execute(snapshot, callback, { progress });
+                        UnitScope.execute(snapshot, callback, progress);
                     }
                 },
             }

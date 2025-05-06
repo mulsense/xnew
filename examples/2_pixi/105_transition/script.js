@@ -42,7 +42,7 @@ function Box(self, { x, y, size, color }) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
   
-  xnew.transition(({ progress }) => object.alpha = progress, 2000);
+  xnew.transition((progress) => object.alpha = progress, 2000);
 
   return {
     update() {

@@ -14,8 +14,8 @@ xnew.transition(callback, delay);
 
 ```js
 xnew((self) => {
-  const transition = xnew.transition(({ progress }) => {
-    // This variable ({ progress }) transitions from 0.0 to 1.0 in 5000[ms].
+  const transition = xnew.transition((progress) => {
+    // This variable (progress) transitions from 0.0 to 1.0 in 5000[ms].
     // The callback is executed within the current xnew scope.
   }, 5000);
 

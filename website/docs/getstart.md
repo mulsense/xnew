@@ -10,7 +10,7 @@ sidebar_position: 1
 ### Via CDN
 Include the following script in your HTML file:
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@2.5.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@2.6.x/dist/xnew.js"></script>
 ```
 
 ### Via CDN (ESM)
@@ -19,7 +19,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/@mulsense/xnew@2.5.x/dist/xnew.module.js"
+    "xnew": "https://unpkg.com/@mulsense/xnew@2.6.x/dist/xnew.module.js"
   }
 }
 </script>
@@ -34,7 +34,7 @@ import xnew from 'xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install @mulsense/xnew@2.5.x
+npm install @mulsense/xnew@2.6.x
 ```
 
 Then import it in your JavaScript file:
@@ -72,7 +72,7 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@2.5.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@2.6.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>

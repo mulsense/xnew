@@ -100,7 +100,7 @@ function Queue(self) {
     circle1.color = hueToCol(balls[3]);
     circle2.color = hueToCol(balls[2]);
     circle3.color = hueToCol(balls[1]);
-    xnew.transition(({ progress }) => {
+    xnew.transition((progress) => {
       object.x = 30 * progress - 50;
       if (progress === 1.0) {
         xnew.emit('+reloadcomplete', balls[0]);
