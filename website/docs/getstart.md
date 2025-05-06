@@ -64,7 +64,7 @@ unit.element; // Access the created element
 ### Example 1: Creating HTML Elements
 Use `xnew` and `xnew.nest` to create HTML elements.
 
-<iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/001_getstart/getstart.html" ></iframe>
+<iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/getstart.html" ></iframe>
 
 ```html
 <!DOCTYPE html>
@@ -100,7 +100,7 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 ### Example 2: Adding Events and Animations
 You can implement event listeners and animations in the component function.
 
-<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/001_getstart/box.html" ></iframe>
+<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/box.html" ></iframe>
 
 ```html
 <body>
@@ -139,7 +139,7 @@ You can implement event listeners and animations in the component function.
 When `xnew` is called inside a component function, a parent-child relationship is established.  
 Connected units work together. For example, stopping the parent component also stops its children.
 
-<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/001_getstart/boxinbox.html" ></iframe>
+<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/boxinbox.html" ></iframe>
 
 ```html
 <body>

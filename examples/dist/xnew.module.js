@@ -850,14 +850,16 @@ function context(key, value = undefined) {
     }
 }
 
-function promise(data) {
+function promise(mix) {
     let promise = null;
-    if (data instanceof Promise) {
-        promise = data;
-    } else if (data instanceof Unit) {
-        promise = data._.promises.length > 0 ? Promise.all(data._.promises) : Promise.resolve();
+    if (mix instanceof Promise) {
+        promise = mix;
+    } else if (isFunction(mix) === true) {
+        promise = new Promise(mix);
+    } else if (mix instanceof Unit) {
+        promise = mix._.promises.length > 0 ? Promise.all(mix._.promises) : Promise.resolve();
     } else {
-        error(`xnew.promise(data): The argument is invalid.`);
+        error(`xnew.promise(mix): The argument [mix] is invalid.`);
     }
     if (promise) {
         const scopedpromise = new ScopedPromise((resolve, reject) => {

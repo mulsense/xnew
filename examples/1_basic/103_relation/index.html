@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+  <p>Click on the parent or child to start/stop.</p>
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  <script>
+    xnew('#main', Parent);
+    xnew('#main', Console);
+
+    function Parent(self) {
+      xnew.nest({ style: { padding: '8px', background: '#08F' }});
+      const text = xnew({ tagName: 'span' });
+      xnew(Child);
+
+      let isRunning = false;
+      self.on('click', () => {
+        isRunning ? self.stop() : self.start();
+      });
+
+      return {
+        start() {
+          isRunning = true;
+          xnew.emit('+console', 'parent start');
+        },
+        update(count) {
+          text.element.textContent = `parent count ${count}`;
+        },
+        stop() {
+          isRunning = false;
+          xnew.emit('+console', 'parent stop');
+        },
+      };
+    }
+
+    function Child(self) {
+      xnew.nest({ style: { margin: '8px', padding: '8px', background: '#F80' }});
+      const text = xnew({ tagName: 'span' });
+
+      let isRunning = false;
+      self.on('click', (event) => {
+        event.stopPropagation(); // cancel propagation to the parent element
+        isRunning ? self.stop() : self.start();
+      });
+
+      return {
+        start() {
+          isRunning = true;
+          xnew.emit('+console', 'child start');
+        },
+        update(count) {
+          text.element.textContent = `child count ${count}`;
+        },
+        stop() {
+          isRunning = false;
+          xnew.emit('+console', 'child stop');
+        },
+      };
+    }
+
+    function Console(self) {
+      xnew.nest({ style: { border: 'solid 1px #AAA', overflow: 'auto' }});
+      xnew({ tagName: 'div', style: { background: '#DDD' } }, 'console');
+      
+      const list = [];
+      let autoincrement = 0;
+      self.on('+console', (text) => {
+        list.push(xnew({ tagName: 'div' }, autoincrement++ + ': ' + text));
+        if (list.length > 7) {
+          list.shift().finalize();
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
