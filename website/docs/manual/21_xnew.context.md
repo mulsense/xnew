@@ -1,7 +1,3 @@
----
-sidebar_position: 204
----
-
 # xnew.context
 
 The `xnew.context` function allows you to set and retrieve context properties that can be accessed across nested units.

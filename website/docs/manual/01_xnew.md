@@ -1,14 +1,9 @@
----
-sidebar_position: 101
----
-
 # xnew
 `xnew` simplifies component-oriented programming by providing a flexible and intuitive API.
 
 ## Basic Usage
 ### Arguments
 `xnew` accepts the following arguments:
-
 ```js
 // target:    1. [an existing HTML element] or 
 //            2. [attributes to create a new HTML element]  
@@ -17,6 +12,8 @@ sidebar_position: 101
 // ...args:   1. [arguments for the component function]
 const unit = xnew(target, component, ...args);
 ```
+
+There is no need to understand the details here.
 
 All arguments are optional:
 ```js

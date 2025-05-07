@@ -1,7 +1,3 @@
----
-sidebar_position: 205
----
-
 # xnew.find
 
 `xnew.find` retrieves all units created using a specific component function.

@@ -1,7 +1,3 @@
----
-sidebar_position: 202
----
-
 # xnew.interval
 
 `xnew.interval` creates an interval function that repeatedly calls a callback function at a specified time interval. The callback function is executed within the current `xnew` scope, ensuring it operates in the same context as other `xnew` operations.

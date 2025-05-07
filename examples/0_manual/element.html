@@ -10,21 +10,27 @@
 
 <body>
   <script>
-    xnew(Div);
+    // Create first component.
+    xnew(Component);
 
-    function Div(self) {
-      xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222' } });
-
-      xnew({ tagName: 'p' }, 'my div');
-      xnew(Divs);
+    function Component(self) {
+      // Pattern 1: Create new HTML element.
+      xnew({ tagName: 'p' }, 'Create new HTML elements.');
+    
+      // Pattern 2: Create child component.
+      xnew(ChildComponent);
     }
 
-    function Divs(self) {
+    function ChildComponent(self) {
+       // If tagName is omitted, tagName: 'div' is set as default.
+
+      // Pattern 3: Create new HTML element and nest the following elements.
       xnew.nest({ style: { display: 'flex' } });
 
-      xnew({ style: { width: '160px', height: '36px', background: '#d66'} }, '1');
-      xnew({ style: { width: '160px', height: '36px', background: '#6d6'} }, '2');
-      xnew({ style: { width: '160px', height: '36px', background: '#66d'} }, '3');
+      // The following elements are nested.
+      xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
+      xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
+      xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
     }
   </script>
 </body>

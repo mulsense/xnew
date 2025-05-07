@@ -1,7 +1,3 @@
----
-sidebar_position: 103
----
-
 # xnew.extend
 `xnew.extend` allows you to extend a component function by combining it with another one.
 

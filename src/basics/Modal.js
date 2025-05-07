@@ -16,4 +16,10 @@ export function Modal(self, {} = {}) {
     xnew().on('click', (event) => {
         event.stopPropagation(); 
     });
+
+    return {
+        close() {
+            self.finalize();
+        }
+    }
 }

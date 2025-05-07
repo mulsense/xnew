@@ -1,7 +1,3 @@
----
-sidebar_position: 102
----
-
 # xnew.nest
 
 `xnew.nest` creates a new element as a child of the current element and replaces `unit.element`.

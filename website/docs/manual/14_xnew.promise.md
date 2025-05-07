@@ -1,7 +1,3 @@
----
-sidebar_position: 206
----
-
 # xnew.promise
 
 The `xnew.promise` function allows you to handle asynchronous operations within the current `xnew` scope. Unlike a standard `Promise`, where the `then` or `catch` handlers execute independently of the `xnew` scope, using `xnew.promise` ensures that these handlers are executed within the current `xnew` context.

@@ -72,7 +72,7 @@ function nest(attributes) {
     } else if (current._.state !== 'pending') {
         error(`xnew.nest(attributes): This function can not be called after initialized.`);
     } else {
-        return Unit.nest.call(current, attributes);
+        return Unit.nest(current, attributes);
     }
 }
 
@@ -83,7 +83,7 @@ function extend(component, ...args) {
     } else if (current._.state !== 'pending') {
         error(`xnew.extend(component, ...args): This function can not be called after initialized.`);
     }  else {
-        return Unit.extend.call(current, component, ...args);
+        return Unit.extend(current, component, ...args);
     }
 }
 
@@ -141,9 +141,7 @@ function emit(type, ...args) {
 
 function scope(callback) {
     const snapshot = UnitScope.snapshot();
-    return (...args) => {
-        UnitScope.execute(snapshot, callback, ...args);
-    };
+    return (...args) => UnitScope.execute(snapshot, callback, ...args);
 }
 
 function timer(callback, delay) {

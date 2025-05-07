@@ -1,7 +1,3 @@
----
-sidebar_position: 203
----
-
 # xnew.transition
 
 `xnew.transition` executes repetitive processing for a specified period of time. The callback function is executed within the current `xnew` scope, ensuring it operates in the same context as other `xnew` operations.

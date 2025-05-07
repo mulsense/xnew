@@ -1,7 +1,3 @@
----
-sidebar_position: 201
----
-
 # xnew.timer
 
 `xnew.timer` creates a timer that executes a callback function after a specified delay. The callback function is executed within the current `xnew` scope, ensuring that it has access to the same context as other `xnew` operations.

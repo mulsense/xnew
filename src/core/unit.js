@@ -43,7 +43,7 @@ export class Unit {
         };
 
         (parent?._.children ?? Unit.roots).add(this);
-        Unit.initialize.call(this, component, ...args);
+        Unit.initialize(this, component, ...args);
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -60,19 +60,19 @@ export class Unit {
 
     stop() {
         this._.tostart = false;
-        Unit.stop.call(this);
+        Unit.stop(this);
     }
 
     finalize() {
-        Unit.stop.call(this);
-        Unit.finalize.call(this);
+        Unit.stop(this);
+        Unit.finalize(this);
         (this._.parent?._.children ?? Unit.roots).delete(this);
     }
 
     reboot() {
-        Unit.stop.call(this);
-        Unit.finalize.call(this);
-        Unit.initialize.call(this, this._.component, ...this._.args);
+        Unit.stop(this);
+        Unit.finalize(this);
+        Unit.initialize(this, this._.component, ...this._.args);
     }
 
     on(type, listener, options) {
@@ -99,8 +99,8 @@ export class Unit {
     
     static roots = new Set();   // root units
 
-    static initialize(component, ...args) {
-        this._ = Object.assign(this._, {
+    static initialize(unit, component, ...args) {
+        unit._ = Object.assign(unit._, {
             children: new Set(),       // children units
             nestElements: [],          // nest elements
             state: 'pending',          // [pending -> running <-> stopped -> finalized]
@@ -111,59 +111,59 @@ export class Unit {
             props: {},                 // properties in the component function
         });
 
-        UnitScope.context(this, this._.baseContext);
+        UnitScope.context(unit, unit._.baseContext);
 
-        if (this._.parent !== null && ['finalized'].includes(this._.parent._.state)) {
-            this._.state = 'finalized';
+        if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state)) {
+            unit._.state = 'finalized';
         } else {
-            this._.tostart = true;
+            unit._.tostart = true;
 
             // nest html element
-            if (isObject(this._.target) === true && this.element instanceof Element) {
-                Unit.nest.call(this, this._.target);
+            if (isObject(unit._.target) === true && unit.element instanceof Element) {
+                Unit.nest(unit, unit._.target);
             }
 
             // setup component
             if (isFunction(component) === true) {
-                UnitScope.execute({ unit: this }, () => Unit.extend.call(this, component, ...args));
-            } else if (isObject(this._.target) === true && isString(component) === true) {
-                this.element.innerHTML = component;
+                UnitScope.execute({ unit }, () => Unit.extend(unit, component, ...args));
+            } else if (isObject(unit._.target) === true && isString(component) === true) {
+                unit.element.innerHTML = component;
             }
 
             // whether the unit promise was resolved
-            const promise = this._.promises.length > 0 ? Promise.all(this._.promises) : Promise.resolve();
-            promise.then((response) => { this._.resolved = true; return response; });
+            const promise = unit._.promises.length > 0 ? Promise.all(unit._.promises) : Promise.resolve();
+            promise.then((response) => { unit._.resolved = true; return response; });
         }
     }
 
-    static nest(attributes) {
-        const element = createElement(attributes, this.element);
-        this.element.append(element);
-        this._.nestElements.push(element);
+    static nest(unit, attributes) {
+        const element = createElement(attributes, unit.element);
+        unit.element.append(element);
+        unit._.nestElements.push(element);
         return element;
     }
 
-    static extend(component, ...args) {
-        UnitComponent.add(this, component);
+    static extend(unit, component, ...args) {
+        UnitComponent.add(unit, component);
 
-        const props = component(this, ...args) ?? {};
+        const props = component(unit, ...args) ?? {};
 
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
             if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                 if (isFunction(descripter.value)) {
-                    const previous = this._.props[key];
+                    const previous = unit._.props[key];
                     if (previous !== undefined) {
-                        this._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
+                        unit._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
                     } else {
-                        this._.props[key] = (...args) => { descripter.value(...args); };
+                        unit._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 } else {
                     error(`unit.extend: The property [${key}] is invalid.`);
                 }
-            } else if (this[key] === undefined) {
+            } else if (unit[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
-                const snapshot = UnitScope.snapshot(this);
+                const snapshot = UnitScope.snapshot(unit);
                 if (isFunction(descripter.get) === true) {
                     dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
                 } else if (isFunction(descripter.set) === true) {
@@ -174,74 +174,74 @@ export class Unit {
                     dest.writable = true;
                     dest.value = descripter.value;
                 }
-                Object.defineProperty(this._.props, key, dest);
-                Object.defineProperty(this, key, dest);
+                Object.defineProperty(unit._.props, key, dest);
+                Object.defineProperty(unit, key, dest);
             } else {
                 error(`unit.extend: The property [${key}] already exists.`);
             }
         });
     }
 
-    static start(time) {
-        if (this._.resolved === false || this._.tostart === false) {
-        } else if (['pending', 'stopped'].includes(this._.state) === true) {
-            this._.state = 'running';
-            this._.children.forEach((unit) => Unit.start.call(unit, time));
-            if (isFunction(this._.props.start) === true) {
-                UnitScope.execute(UnitScope.snapshot(this), this._.props.start);
+    static start(unit, time) {
+        if (unit._.resolved === false || unit._.tostart === false) {
+        } else if (['pending', 'stopped'].includes(unit._.state) === true) {
+            unit._.state = 'running';
+            unit._.children.forEach((unit) => Unit.start(unit, time));
+            if (isFunction(unit._.props.start) === true) {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
             }
-        } else if (['running'].includes(this._.state) === true) {
-            this._.children.forEach((unit) => Unit.start.call(unit, time));
+        } else if (['running'].includes(unit._.state) === true) {
+            unit._.children.forEach((unit) => Unit.start(unit, time));
         }
     }
 
-    static stop() {
-        if (['running'].includes(this._.state) === true) {
-            this._.state = 'stopped';
-            this._.children.forEach((unit) => Unit.stop.call(unit));
+    static stop(unit) {
+        if (['running'].includes(unit._.state) === true) {
+            unit._.state = 'stopped';
+            unit._.children.forEach((unit) => Unit.stop(unit));
 
-            if (isFunction(this._.props.stop)) {
-                UnitScope.execute(UnitScope.snapshot(this), this._.props.stop);
-            }
-        }
-    }
-
-    static update(time) {
-        if (['running'].includes(this._.state) === true) {
-            this._.children.forEach((unit) => Unit.update.call(unit, time));
-
-            if (['running'].includes(this._.state) && isFunction(this._.props.update) === true) {
-                UnitScope.execute(UnitScope.snapshot(this), this._.props.update, this._.upcount++);
+            if (isFunction(unit._.props.stop)) {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
             }
         }
     }
 
-    static finalize() {
-        if (['finalized'].includes(this._.state) === false) {
-            this._.state = 'finalized';
+    static update(unit, time) {
+        if (['running'].includes(unit._.state) === true) {
+            unit._.children.forEach((unit) => Unit.update(unit, time));
 
-            [...this._.children].forEach((unit) => unit.finalize());
-            this._.children.clear();
-
-            if (isFunction(this._.props.finalize)) {
-                UnitScope.execute(UnitScope.snapshot(this), this._.props.finalize);
+            if (['running'].includes(unit._.state) && isFunction(unit._.props.update) === true) {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
             }
-            UnitComponent.clear(this);
+        }
+    }
+
+    static finalize(unit) {
+        if (['finalized'].includes(unit._.state) === false) {
+            unit._.state = 'finalized';
+
+            [...unit._.children].forEach((unit) => unit.finalize());
+            unit._.children.clear();
+
+            if (isFunction(unit._.props.finalize)) {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
+            }
+            UnitComponent.clear(unit);
 
             // reset props
-            Object.keys(this._.props).forEach((key) => {
+            Object.keys(unit._.props).forEach((key) => {
                 if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
-                    delete this[key];
+                    delete unit[key];
                 }
             });
-            this._.props = {};
+            unit._.props = {};
 
-            this.off();
-            UnitScope.clear(this)
+            unit.off();
+            UnitScope.clear(unit)
 
-            if (this._.nestElements.length > 0) {
-                this._.baseElement.removeChild(this._.nestElements[0]);
-                this._.nestElements = [];
+            if (unit._.nestElements.length > 0) {
+                unit._.baseElement.removeChild(unit._.nestElements[0]);
+                unit._.nestElements = [];
             }
         }
     }
@@ -254,8 +254,8 @@ export class Unit {
         Ticker.start();
         Ticker.add((time) => {
             Unit.roots.forEach((unit) => {
-                Unit.start.call(unit, time);
-                Unit.update.call(unit, time);
+                Unit.start(unit, time);
+                Unit.update(unit, time);
             });
         });
     }

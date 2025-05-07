@@ -14,6 +14,7 @@ export class UnitEvent {
         const snapshot = UnitScope.snapshot();
 
         type.trim().split(/\s+/).forEach((type) => internal(type, listener));
+
         function internal(type, listener) {
             if (listeners.has(type, listener) === false) {
                 const element = unit.element;
@@ -46,14 +47,14 @@ export class UnitEvent {
         const listeners = UnitEvent.unitToListeners.get(unit);
        
         if (isString(type) === true && listener !== undefined) {
-            type.trim().split(/\s+/).forEach((type) => internal.call(unit, type, listener));
+            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
         } else if (isString(type) === true && listener === undefined) {
             type.trim().split(/\s+/).forEach((type) => {
-                listeners.get(type)?.forEach((_, listener) => internal.call(unit, type, listener));
+                listeners.get(type)?.forEach((_, listener) => internal(type, listener));
             });
-        } else if (type === undefined) {
+        } else if (type === undefined && listener === undefined) {
             listeners.forEach((map, type) => {
-                map.forEach((_, listener) => internal.call(unit, type, listener));
+                map.forEach((_, listener) => internal(type, listener));
             });
         }
 

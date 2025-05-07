@@ -76,18 +76,24 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 </head>
 <body>
   <script>
-    xnew(Div);
+    // Create first component.
+    xnew(Component);
 
-    function Div(self) {
-      xnew.nest({ style: { margin: '4px', padding: '4px', border: 'solid 1px #222' } });
-
-      xnew({ tagName: 'p' }, 'my div');
-      xnew(Divs);
+    function Component(self) {
+      // Pattern 1: Create new HTML element.
+      xnew({ tagName: 'p' }, 'Create new HTML elements.');
+    
+      // Pattern 2: Create child component.
+      xnew(ChildComponent);
     }
 
-    function Divs(self) {
+    function ChildComponent(self) {
+       // If tagName is omitted, tagName: 'div' is set as default.
+
+      // Pattern 3: Create new HTML element and nest the following elements.
       xnew.nest({ style: { display: 'flex' } });
 
+      // The following elements are nested.
       xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
       xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
       xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
@@ -97,9 +103,23 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 </html>
 ```
 
-### Example 2: Adding Events and Animations
-You can implement event listeners and animations in the component function.
+The above program will generate the following HTML elements:
 
+```html
+<body>
+  <p>my div</p>
+  <div style="display: flex;">
+    <div style="width: 160px; height: 36px; background: #d66;">1</div>
+    <div style="width: 160px; height: 36px; background: #6d6;">2</div>
+    <div style="width: 160px; height: 36px; background: #66d;">3</div>
+  </div>
+</body>
+```
+
+### Example 2: Adding Events and Animations
+You can implement event listeners and animations in the component function.  
+In the demo program below, a box is animated.
+Clicking on the box will toggle it start / stop.
 <iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/box.html" ></iframe>
 
 ```html
@@ -135,8 +155,8 @@ You can implement event listeners and animations in the component function.
 </body>
 ```
 
-### Example 3: Parent-Child Relationship
-When `xnew` is called inside a component function, a parent-child relationship is established.  
+### Example 3: Parent-Child Relation
+When `xnew` is called inside a component function, a parent-child relation is established.  
 Connected units work together. For example, stopping the parent component also stops its children.
 
 <iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/boxinbox.html" ></iframe>
@@ -144,14 +164,14 @@ Connected units work together. For example, stopping the parent component also s
 ```html
 <body>
   <script>
-    xnew(Parent);
+    xnew(Component);
 
-    function Parent(self) {
+    function Component(self) {
       xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
 
       const text = xnew({ tagName: 'span' });
 
-      xnew(Child);
+      xnew(ChildComponent);
 
       let isRunning = false;
       self.on('click', () => {
@@ -173,7 +193,7 @@ Connected units work together. For example, stopping the parent component also s
       };
     }
 
-    function Child(self) {
+    function ChildComponent(self) {
       xnew.nest({ style: { position: 'absolute', width: '100px', height: '100px', inset: 0, margin: 'auto', background: '#F80' } });
 
       const text = xnew({ tagName: 'span' });
