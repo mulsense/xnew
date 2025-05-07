@@ -25,7 +25,7 @@ Use the ES module version with an import map:
 </script>
 
 <script type="module">
-import xnew from 'xnew';
+import xnew from '@mulsense/xnew';
 
 // Your code here
 </script>
@@ -39,7 +39,7 @@ npm install @mulsense/xnew@2.6.x
 
 Then import it in your JavaScript file:
 ```js
-import xnew from 'xnew';
+import xnew from '@mulsense/xnew';
 ```
 
 ## Tutorial
