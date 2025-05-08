@@ -1,49 +1,51 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
-import { createElement } from './element';
+import { isObject, isNumber, isString, isFunction } from '../common';
 import { Ticker } from './ticker';
-import { UnitEvent } from './event';
-import { UnitScope } from './scope';
-import { UnitComponent } from './component';
+import { UnitElement, UnitComponent, UnitEvent, UnitScope, UnitPromise } from './unitex';
 
 export class Unit {
     constructor(parent, target, component, ...args) {
-        if (!(parent === null || parent instanceof Unit)) {
-            error(`unit constructor: The argument [parent] is invalid.`);
+        try {
+            if (!(parent === null || parent instanceof Unit)) {
+                throw new Error(`The argument [parent] is invalid.`);
+            }
+            if (!(target === null || isObject(target) === true || target instanceof Element || target instanceof Window || target instanceof Document)) {
+                throw new Error(`The argument [target] is invalid.`);
+            }
+            if (!(component === undefined || isFunction(component) === true || (isObject(target) === true && isString(component) === true))) {
+                throw new Error(`The argument [component] is invalid.`);
+            }
+    
+            const id = Unit.autoincrement++;
+            const root = parent?._.root ?? this;
+    
+            let baseElement = null;
+            if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                baseElement = target;
+            } else if (parent !== null) {
+                baseElement = parent.element;
+            } else if (document instanceof Document) {
+                baseElement = document.currentScript?.parentElement ?? document.body;
+            }
+    
+            const baseContext = UnitScope.context(parent);
+    
+            this._ = {
+                id,             // unit id
+                root,           // root unit
+                parent,         // parent unit
+                target,         // target info
+                component,      // component function
+                args,           // component arguments
+                baseElement,    // base element
+                baseContext,    // base context
+            };
+    
+            (parent?._.children ?? Unit.roots).add(this);
+            Unit.initialize(this, component, ...args);
+
+        } catch (error) {
+            console.error(`unit constructor: ${error.message}`);
         }
-        if (!(target === null || isObject(target) === true || target instanceof Element || target instanceof Window || target instanceof Document)) {
-            error(`unit constructor: The argument [target] is invalid.`);
-        }
-        if (!(component === undefined || isFunction(component) === true || (isObject(target) === true && isString(component) === true))) {
-            error(`unit constructor: The argument [component] is invalid.`);
-        }
-
-        const id = Unit.autoincrement++;
-        const root = parent?._.root ?? this;
-
-        let baseElement = null;
-        if (target instanceof Element || target instanceof Window || target instanceof Document) {
-            baseElement = target;
-        } else if (parent !== null) {
-            baseElement = parent.element;
-        } else if (document instanceof Document) {
-            baseElement = document.currentScript?.parentElement ?? document.body;
-        }
-
-        const baseContext = UnitScope.context(parent);
-
-        this._ = {
-            id,             // unit id
-            root,           // root unit
-            parent,         // parent unit
-            target,         // target info
-            component,      // component function
-            args,           // component arguments
-            baseElement,    // base element
-            baseContext,    // base context
-        };
-
-        (parent?._.children ?? Unit.roots).add(this);
-        Unit.initialize(this, component, ...args);
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -51,7 +53,7 @@ export class Unit {
     //----------------------------------------------------------------------------------------------------
 
     get element() {
-        return this._.nestElements.slice(-1)[0] ?? this._.baseElement;
+        return UnitElement.get(this);
     }
 
     start() {
@@ -76,22 +78,18 @@ export class Unit {
     }
 
     on(type, listener, options) {
-        if (isString(type) === false || type.trim() === '') {
-            error(`unit.on: The argument [type] is invalid.`);
-        } else if (isFunction(listener) === false) {
-            error(`unit.on: The argument [listener] is invalid.`);
-        } else {
+        try {
             UnitEvent.on(this, type, listener, options);
+        } catch (error) {
+            console.error(`unit.on(type, listener, options): ${error.message}`);
         }
     }
 
     off(type, listener) {
-        if (type !== undefined && (isString(type) === false || type.trim() === '')) {
-            error(`unit.off: The argument [type] is invalid.`);
-        } else if (listener !== undefined && isFunction(listener) === false) {
-            error(`unit.off: The argument [listener] is invalid.`);
-        } else {
+        try {
             UnitEvent.off(this, type, listener);
+        } catch (error) {
+            console.error(`unit.off(type, listener): ${error.message}`);
         }
     }
 
@@ -102,15 +100,14 @@ export class Unit {
     static initialize(unit, component, ...args) {
         unit._ = Object.assign(unit._, {
             children: new Set(),       // children units
-            nestElements: [],          // nest elements
             state: 'pending',          // [pending -> running <-> stopped -> finalized]
             tostart: false,            // flag for start
             upcount: 0,                // update count    
-            promises: [],              // promises
             resolved: false,           // promise check
             props: {},                 // properties in the component function
         });
 
+        UnitElement.initialize(unit, unit._.baseElement);
         UnitScope.context(unit, unit._.baseContext);
 
         if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state)) {
@@ -120,7 +117,7 @@ export class Unit {
 
             // nest html element
             if (isObject(unit._.target) === true && unit.element instanceof Element) {
-                Unit.nest(unit, unit._.target);
+                UnitElement.nest(unit, unit._.target);
             }
 
             // setup component
@@ -131,19 +128,14 @@ export class Unit {
             }
 
             // whether the unit promise was resolved
-            const promise = unit._.promises.length > 0 ? Promise.all(unit._.promises) : Promise.resolve();
-            promise.then((response) => { unit._.resolved = true; return response; });
+            UnitPromise.execute(unit).then((response) => { unit._.resolved = true; });
         }
     }
 
-    static nest(unit, attributes) {
-        const element = createElement(attributes, unit.element);
-        unit.element.append(element);
-        unit._.nestElements.push(element);
-        return element;
-    }
-
     static extend(unit, component, ...args) {
+        if (isFunction(component) === false) {
+            throw new Error(`The argument [component] is invalid.`);
+        } 
         UnitComponent.add(unit, component);
 
         const props = component(unit, ...args) ?? {};
@@ -159,7 +151,7 @@ export class Unit {
                         unit._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 } else {
-                    error(`unit.extend: The property [${key}] is invalid.`);
+                    console.error(`unit.extend: The property [${key}] is invalid.`);
                 }
             } else if (unit[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
@@ -177,7 +169,7 @@ export class Unit {
                 Object.defineProperty(unit._.props, key, dest);
                 Object.defineProperty(unit, key, dest);
             } else {
-                error(`unit.extend: The property [${key}] already exists.`);
+                console.error(`unit.extend: The property [${key}] already exists.`);
             }
         });
     }
@@ -226,6 +218,9 @@ export class Unit {
             if (isFunction(unit._.props.finalize)) {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
             }
+
+            unit.off();
+            UnitElement.clear(unit);
             UnitComponent.clear(unit);
 
             // reset props
@@ -236,13 +231,7 @@ export class Unit {
             });
             unit._.props = {};
 
-            unit.off();
             UnitScope.clear(unit)
-
-            if (unit._.nestElements.length > 0) {
-                unit._.baseElement.removeChild(unit._.nestElements[0]);
-                unit._.nestElements = [];
-            }
         }
     }
 

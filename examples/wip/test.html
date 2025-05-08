@@ -9,16 +9,24 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
+
     xnew('#main', () => {
-      xnew(xnew.Accordion, {}, 
-      (self) => {
-        const text = xnew({ tagName: 'p', }, 'Hello World');
-        text.on('click', () => {
-          self.close();
-        });
-      },
-      (self) => {
+      const text = xnew((self) => {
+        const text = xnew({ tagName: 'span', }, 'Hello World');
+      });
+      const accordion = xnew((self) => {
+        xnew.extend(xnew.Accordion);
+        xnew.nest({ style: { background: '#AAA'} });
         xnew({ tagName: 'p', }, 'test');
+        xnew({ tagName: 'p', }, 'test');
+        xnew({ tagName: 'p', }, 'test');
+      });
+      accordion.on('-transition', (progress) => {
+
+      });
+
+      text.on('click', () => {
+        accordion.toggle();
       });
     });
 

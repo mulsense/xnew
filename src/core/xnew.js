@@ -1,9 +1,7 @@
-import { isObject, isNumber, isString, isFunction, error } from '../common';
+import { isObject, isNumber, isString, isFunction } from '../common';
 import { Unit } from './unit';
+import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unitex';
 import { Timer } from './timer';
-import { UnitComponent } from './component';
-import { UnitEvent } from './event';
-import { UnitScope, ScopedPromise } from './scope';
 
 //----------------------------------------------------------------------------------------------------
 // xnew main
@@ -37,7 +35,11 @@ export function xnew(...args) {
         args.shift();
     }
 
-    return new Unit(parent, target, ...args);
+    try {
+        return new Unit(parent, target, ...args);
+    } catch (error) {
+        console.error(`xnew: ${error.message}`);
+    }
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -62,37 +64,38 @@ Object.defineProperty(xnew, 'timer', { value: timer });
 Object.defineProperty(xnew, 'interval', { value: interval });
 Object.defineProperty(xnew, 'transition', { value: transition });
 
-
 function nest(attributes) {
-    const current = UnitScope.current;
-    if (current.element instanceof Window || current.element instanceof Document) {
-        error(`xnew.nest(attributes): No elements are added to window or document.`);
-    } else if (isObject(attributes) === false) {
-        error(`xnew.nest(attributes): The argument [attributes] is invalid.`);
-    } else if (current._.state !== 'pending') {
-        error(`xnew.nest(attributes): This function can not be called after initialized.`);
-    } else {
-        return Unit.nest(current, attributes);
+    try {
+        const current = UnitScope.current;
+        if (current._.state === 'pending') {
+            return UnitElement.nest(current, attributes);
+        } else {
+            throw new Error(`This function can not be called after initialized.`);
+        }
+    } catch (error) {
+        console.error(`xnew.nest(attributes): ${error.message}`);
     }
 }
 
 function extend(component, ...args) {
-    const current = UnitScope.current;
-    if (isFunction(component) === false) {
-        error(`xnew.extend(component, ...args): The argument [component] is invalid.`);
-    } else if (current._.state !== 'pending') {
-        error(`xnew.extend(component, ...args): This function can not be called after initialized.`);
-    }  else {
-        return Unit.extend(current, component, ...args);
+    try {
+        const current = UnitScope.current;
+        if (current._.state === 'pending') {
+            return Unit.extend(current, component, ...args);
+        } else {
+            throw new Error(`This function can not be called after initialized.`);
+        }
+    } catch (error) {
+        console.error(`xnew.extend(component, ...args): ${error.message}`);
     }
 }
 
 function context(key, value = undefined) {
     if (isString(key) === false) {
-        error(`xnew.context(key, value?): The argument [key] is invalid.`);
+        console.error(`xnew.context(key, value?): The argument [key] is invalid.`);
     } else {
         if (value !== undefined) {
-            UnitScope.next(key, value);
+            UnitScope.push(key, value);
         } else {
             return UnitScope.trace(key);
         }
@@ -100,29 +103,16 @@ function context(key, value = undefined) {
 }
 
 function promise(mix) {
-    let promise = null;
-    if (mix instanceof Promise) {
-        promise = mix;
-    } else if (isFunction(mix) === true) {
-        promise = new Promise(mix);
-    } else if (mix instanceof Unit) {
-        promise = mix._.promises.length > 0 ? Promise.all(mix._.promises) : Promise.resolve();
-    } else {
-        error(`xnew.promise(mix): The argument [mix] is invalid.`);
-    }
-    if (promise) {
-        const scopedpromise = new ScopedPromise((resolve, reject) => {
-            promise.then((...args) => resolve(...args));
-            promise.catch((...args) => reject(...args));
-        });
-        UnitScope.current._.promises.push(promise);
-        return scopedpromise;
+    try {
+        return UnitPromise.execute(mix);
+    } catch (error) {
+        console.error(`xnew.promise(mix): ${error.message}`);
     }
 }
 
 function find(component) {
     if (isFunction(component) === false) {
-        error(`xnew.find: The argument [component] is invalid.`);
+        console.error(`xnew.find: The argument [component] is invalid.`);
     } else if (isFunction(component) === true) {
         return UnitComponent.find(component);
     }
@@ -131,9 +121,9 @@ function find(component) {
 function emit(type, ...args) {
     const unit = UnitScope.current;
     if (isString(type) === false) {
-        error(`xnew.emit: The argument [type] is invalid.`);
+        console.error(`xnew.emit: The argument [type] is invalid.`);
     } else if (unit?._.state === 'finalized') {
-        error(`xnew.emit: This function can not be called after finalized.`);
+        console.error(`xnew.emit: This function can not be called after finalized.`);
     } else {
         UnitEvent.emit(unit, type, ...args);
     }
