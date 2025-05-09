@@ -1,4 +1,4 @@
-import xnew from '@mulsense/xnew';
+import xnew from 'xnew';
 import * as THREE from 'three';
 
 function xthree() {

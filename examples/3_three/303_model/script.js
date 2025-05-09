@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import xnew from '@mulsense/xnew';
-import xthree from '@mulsense/xnew/addons/xthree';
+import xnew from 'xnew';
+import xthree from 'xnew/addons/xthree';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';

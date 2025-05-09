@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
-import xutil from '@mulsense/xnew/addons/xutil';
+import xnew from 'xnew';
+import xpixi from 'xnew/addons/xpixi';
+import xutil from 'xnew/addons/xutil';
 
 xnew('#main', Main);
 

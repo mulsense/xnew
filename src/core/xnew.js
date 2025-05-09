@@ -155,7 +155,7 @@ function interval(callback, delay) {
     const unit = xnew((self) => {
         const timer = new Timer(() => {
             UnitScope.execute(snapshot, callback);
-        }, delay, loop);
+        }, delay, true);
         return {
             finalize() {
                 timer.clear();

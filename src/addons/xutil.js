@@ -1,4 +1,4 @@
-import xnew from '@mulsense/xnew';
+import xnew from 'xnew';
 
 export default function xutil() {
 }

@@ -1,5 +1,5 @@
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
+import xnew from 'xnew';
+import xpixi from 'xnew/addons/xpixi';
 // import xmatter from 'xnew/addons/xmatter';
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';

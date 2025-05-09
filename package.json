@@ -14,7 +14,7 @@
     },
     "./addons/*": {
       "import": "./dist/addons/*.mjs",
-      "require": "./dist/*.js"
+      "require": "./dist/addons/*.js"
     }
   },
   "files": [
@@ -37,14 +37,13 @@
     "@babel/preset-env": "^7.26.0",
     "@rollup/plugin-commonjs": "^28.0.2",
     "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
     "babel-jest": "^29.7.0",
     "cpx": "^1.2.1",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
-    "matter-js": "^0.20.0",
-    "pixi.js": "^8.9.1",
     "rollup": "^3.3.0",
-    "three": "^0.175.0"
+    "typescript": "^5.8.3"
   }
 }

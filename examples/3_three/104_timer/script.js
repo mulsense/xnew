@@ -1,5 +1,5 @@
-import xnew from '@mulsense/xnew';
-import xthree from '@mulsense/xnew/addons/xthree';
+import xnew from 'xnew';
+import xthree from 'xnew/addons/xthree';
 import * as THREE from 'three';
 
 xnew('#main', Main);
