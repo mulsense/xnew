@@ -1,5 +1,4 @@
 import { isObject, isNumber, isString, isFunction } from '../common';
-import { Ticker } from './ticker';
 import { UnitElement, UnitComponent, UnitEvent, UnitScope, UnitPromise } from './unitex';
 
 export class Unit {
@@ -235,19 +234,46 @@ export class Unit {
         }
     }
 
+    static animation = null;
+    static ticker = null;
+    static previous = null;
+
     static reset() {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
+       
+        if (isFunction(requestAnimationFrame) === true && isFunction(cancelAnimationFrame) === true) {
+            if (Unit.animation !== null) {
+                cancelAnimationFrame(Unit.animation);
+                Unit.animation = null;
+            }
 
-        Ticker.clear();
-        Ticker.start();
-        Ticker.add((time) => {
-            Unit.roots.forEach((unit) => {
-                Unit.start(unit, time);
-                Unit.update(unit, time);
-            });
-        });
+            Unit.previous = Date.now();
+
+            Unit.ticker = function () {
+                const interval = 1000 / 60;
+                const time = Date.now();
+                if (time - Unit.previous > interval * 0.8) {
+                    Unit.roots.forEach((unit) => {
+                        Unit.start(unit, time);
+                        Unit.update(unit, time);
+                    });
+                    Unit.previous = time;
+                }
+                Unit.animation = requestAnimationFrame(Unit.ticker);
+            }
+
+            Unit.animation = requestAnimationFrame(Unit.ticker);
+        }
     }
+
+    static stop() {
+        if (isFunction(cancelAnimationFrame) === true && Unit.animation !== null) {
+            Unit.animation = null;
+        }
+    }
+
+
 }
 
 Unit.reset();

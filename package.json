@@ -1,19 +1,19 @@
 {
-  "name": "@mulsense/xnew",
+  "name": "xnew",
   "description": "JavaScript Library for Component-Oriented Programming.",
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "2.6.1",
+  "version": "2.6.2",
   "main": "dist/xnew.js",
-  "module": "./dist/xnew.module.js",
+  "module": "./dist/xnew.mjs",
   "exports": {
     ".": {
-      "import": "./dist/xnew.module.js",
+      "import": "./dist/xnew.mjs",
       "require": "./dist/xnew.js"
     },
     "./addons/*": {
-      "import": "./dist/addons/*.module.js",
+      "import": "./dist/addons/*.mjs",
       "require": "./dist/*.js"
     }
   },

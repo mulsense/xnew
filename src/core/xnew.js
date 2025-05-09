@@ -1,7 +1,7 @@
 import { isObject, isNumber, isString, isFunction } from '../common';
+import { Timer } from './timer';
 import { Unit } from './unit';
 import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unitex';
-import { Timer } from './timer';
 
 //----------------------------------------------------------------------------------------------------
 // xnew main
@@ -137,11 +137,10 @@ function scope(callback) {
 function timer(callback, delay) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
-        const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback),
-            finalize: () => self.finalize(),
-            delay,
-        });
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback);
+            self.finalize();
+        }, delay);
         return {
             finalize() {
                 timer.clear();
@@ -154,12 +153,9 @@ function timer(callback, delay) {
 function interval(callback, delay) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
-        const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback),
-            finalize: () => self.finalize(),
-            delay,
-            loop: true,
-        });
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback);
+        }, delay, loop);
         return {
             finalize() {
                 timer.clear();
@@ -172,11 +168,10 @@ function interval(callback, delay) {
 function transition(callback, interval) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
-        const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback, 1.0),
-            finalize: () => self.finalize(),
-            delay: interval,
-        });
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback, 1.0);
+            self.finalize();
+        }, interval);
 
         UnitScope.execute(snapshot, callback, 0.0);
 

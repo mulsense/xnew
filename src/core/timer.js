@@ -1,9 +1,10 @@
-import { isObject, isNumber, isString, isFunction } from '../common';
+//----------------------------------------------------------------------------------------------------
+// timer
+//----------------------------------------------------------------------------------------------------
 
 export class Timer {
-    constructor({ timeout, finalize = null, delay = 1, loop = false }) {
+    constructor(timeout, delay, loop = false) {
         this.timeout = timeout;
-        this.finalize = finalize;
         this.delay = delay;
         this.loop = loop;
 
@@ -14,8 +15,8 @@ export class Timer {
         this.status = 0;
 
         if (document !== undefined) {
-            this.listener = () => document.hidden === false ? this._start() : this._stop();
-            document.addEventListener('visibilitychange', this.listener);
+            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+            document.addEventListener('visibilitychange', this.visibilitychange);
         }
 
         this.start();
@@ -25,10 +26,9 @@ export class Timer {
         if (this.id !== null) {
             clearTimeout(this.id);
             this.id = null;
-            this.finalize?.();
         }
         if (document !== undefined) {
-            document.removeEventListener('visibilitychange', this.listener);
+            document.removeEventListener('visibilitychange', this.visibilitychange);
         }
     }
 
@@ -55,7 +55,9 @@ export class Timer {
                 this.time = null;
                 this.offset = 0.0;
 
-                this.loop ? this.start() : this.finalize?.();
+                if (this.loop) {
+                    this.start();
+                }
             }, this.delay - this.offset);
             this.time = Date.now();
         }

@@ -277,7 +277,7 @@ export class UnitElement {
         }
         UnitElement.unitToElements.delete(unit);
     }
-    
+
     static create(attributes, parentElement = null) {
         const tagName = (attributes.tagName ?? 'div').toLowerCase();
         let element = null;

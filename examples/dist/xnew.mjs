@@ -14,41 +14,79 @@ function isObject(value) {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
-class Ticker {
-    static animation = null;
-    static callbacks = [];
-    static previous = Date.now();
+//----------------------------------------------------------------------------------------------------
+// timer
+//----------------------------------------------------------------------------------------------------
 
-    static clear() {
-        Ticker.callbacks = [];
-        Ticker.previous = Date.now();
+class Timer {
+    constructor(timeout, delay, loop = false) {
+        this.timeout = timeout;
+        this.delay = delay;
+        this.loop = loop;
+
+        this.id = null;
+        this.time = null;
+        this.offset = 0.0;
+
+        this.status = 0;
+
+        if (document !== undefined) {
+            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+            document.addEventListener('visibilitychange', this.visibilitychange);
+        }
+
+        this.start();
     }
 
-    static add(callback) {
-        Ticker.callbacks.push(callback);
-    }
-
-    static start() {
-        if (isFunction(requestAnimationFrame) === true && Ticker.animation === null) {
-            Ticker.animation = requestAnimationFrame(Ticker.execute);
+    clear() {
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
+        }
+        if (document !== undefined) {
+            document.removeEventListener('visibilitychange', this.visibilitychange);
         }
     }
 
-    static stop() {
-        if (isFunction(cancelAnimationFrame) === true && Ticker.animation !== null) {
-            cancelAnimationFrame(Ticker.animation);
-            Ticker.animation = null;
+    elapsed() {
+        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+    }
+
+    start() {
+        this.status = 1;
+        this._start();
+    }
+
+    stop() {
+        this._stop();
+        this.status = 0;
+    }
+
+    _start() {
+        if (this.status === 1 && this.id === null) {
+            this.id = setTimeout(() => {
+                this.timeout();
+
+                this.id = null;
+                this.time = null;
+                this.offset = 0.0;
+
+                if (this.loop) {
+                    this.start();
+                }
+            }, this.delay - this.offset);
+            this.time = Date.now();
         }
     }
 
-    static execute() {
-        const interval = 1000 / 60;
-        const time = Date.now();
-        if (time - Ticker.previous > interval * 0.8) {
-            Ticker.callbacks.forEach((callback) => callback(time));
-            Ticker.previous = time;
+    _stop() {
+        if (this.status === 1 && this.id !== null) {
+            this.offset = this.offset + Date.now() - this.time;
+            clearTimeout(this.id);
+
+            this.id = null;
+            this.time = null;
         }
-        Ticker.animation = requestAnimationFrame(Ticker.execute);
     }
 }
 
@@ -450,7 +488,7 @@ class UnitElement {
         }
         UnitElement.unitToElements.delete(unit);
     }
-    
+
     static create(attributes, parentElement = null) {
         const tagName = (attributes.tagName ?? 'div').toLowerCase();
         let element = null;
@@ -740,94 +778,49 @@ class Unit {
         }
     }
 
+    static animation = null;
+    static ticker = null;
+    static previous = null;
+
     static reset() {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
+       
+        if (isFunction(requestAnimationFrame) === true && isFunction(cancelAnimationFrame) === true) {
+            if (Unit.animation !== null) {
+                cancelAnimationFrame(Unit.animation);
+                Unit.animation = null;
+            }
 
-        Ticker.clear();
-        Ticker.start();
-        Ticker.add((time) => {
-            Unit.roots.forEach((unit) => {
-                Unit.start(unit, time);
-                Unit.update(unit, time);
-            });
-        });
+            Unit.previous = Date.now();
+
+            Unit.ticker = function () {
+                const interval = 1000 / 60;
+                const time = Date.now();
+                if (time - Unit.previous > interval * 0.8) {
+                    Unit.roots.forEach((unit) => {
+                        Unit.start(unit, time);
+                        Unit.update(unit, time);
+                    });
+                    Unit.previous = time;
+                }
+                Unit.animation = requestAnimationFrame(Unit.ticker);
+            };
+
+            Unit.animation = requestAnimationFrame(Unit.ticker);
+        }
     }
+
+    static stop() {
+        if (isFunction(cancelAnimationFrame) === true && Unit.animation !== null) {
+            Unit.animation = null;
+        }
+    }
+
+
 }
 
 Unit.reset();
-
-class Timer {
-    constructor({ timeout, finalize = null, delay = 1, loop = false }) {
-        this.timeout = timeout;
-        this.finalize = finalize;
-        this.delay = delay;
-        this.loop = loop;
-
-        this.id = null;
-        this.time = null;
-        this.offset = 0.0;
-
-        this.status = 0;
-
-        if (document !== undefined) {
-            this.listener = () => document.hidden === false ? this._start() : this._stop();
-            document.addEventListener('visibilitychange', this.listener);
-        }
-
-        this.start();
-    }
-
-    clear() {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
-            this.finalize?.();
-        }
-        if (document !== undefined) {
-            document.removeEventListener('visibilitychange', this.listener);
-        }
-    }
-
-    elapsed() {
-        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
-    }
-
-    start() {
-        this.status = 1;
-        this._start();
-    }
-
-    stop() {
-        this._stop();
-        this.status = 0;
-    }
-
-    _start() {
-        if (this.status === 1 && this.id === null) {
-            this.id = setTimeout(() => {
-                this.timeout();
-
-                this.id = null;
-                this.time = null;
-                this.offset = 0.0;
-
-                this.loop ? this.start() : this.finalize?.();
-            }, this.delay - this.offset);
-            this.time = Date.now();
-        }
-    }
-
-    _stop() {
-        if (this.status === 1 && this.id !== null) {
-            this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.id);
-
-            this.id = null;
-            this.time = null;
-        }
-    }
-}
 
 //----------------------------------------------------------------------------------------------------
 // xnew main
@@ -963,11 +956,10 @@ function scope(callback) {
 function timer(callback, delay) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
-        const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback),
-            finalize: () => self.finalize(),
-            delay,
-        });
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback);
+            self.finalize();
+        }, delay);
         return {
             finalize() {
                 timer.clear();
@@ -980,12 +972,9 @@ function timer(callback, delay) {
 function interval(callback, delay) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
-        const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback),
-            finalize: () => self.finalize(),
-            delay,
-            loop: true,
-        });
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback);
+        }, delay, loop);
         return {
             finalize() {
                 timer.clear();
@@ -998,11 +987,10 @@ function interval(callback, delay) {
 function transition(callback, interval) {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self) => {
-        const timer = new Timer({
-            timeout: () => UnitScope.execute(snapshot, callback, 1.0),
-            finalize: () => self.finalize(),
-            delay: interval,
-        });
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback, 1.0);
+            self.finalize();
+        }, interval);
 
         UnitScope.execute(snapshot, callback, 0.0);
 
