@@ -3,16 +3,27 @@
 //----------------------------------------------------------------------------------------------------
 
 export class Timer {
-    constructor(timeout, delay, loop = false) {
+    private timeout: Function;
+    private delay: number;
+    private loop: boolean;
+    private id: NodeJS.Timeout | null;
+
+    private time: number;
+    private offset: number;
+    private status: 0 | 1;
+    private visibilitychange: ((this: Document, event: Event) => any) | null;
+
+    constructor(timeout: Function, delay: number, loop: boolean = false) {
         this.timeout = timeout;
         this.delay = delay;
         this.loop = loop;
 
         this.id = null;
-        this.time = null;
+        this.time = 0.0;
         this.offset = 0.0;
 
         this.status = 0;
+        this.visibilitychange = null;
 
         if (document !== undefined) {
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
@@ -22,37 +33,37 @@ export class Timer {
         this.start();
     }
 
-    clear() {
+    public clear(): void {
         if (this.id !== null) {
             clearTimeout(this.id);
             this.id = null;
         }
-        if (document !== undefined) {
+        if (document !== undefined && this.visibilitychange !== null) {
             document.removeEventListener('visibilitychange', this.visibilitychange);
         }
     }
 
-    elapsed() {
+    public elapsed(): number {
         return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
     }
 
-    start() {
+    public start(): void {
         this.status = 1;
         this._start();
     }
 
-    stop() {
+    public stop(): void {
         this._stop();
         this.status = 0;
     }
 
-    _start() {
+    private _start(): void {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
                 this.timeout();
 
                 this.id = null;
-                this.time = null;
+                this.time = 0.0;
                 this.offset = 0.0;
 
                 if (this.loop) {
@@ -63,13 +74,13 @@ export class Timer {
         }
     }
 
-    _stop() {
+    private _stop(): void {
         if (this.status === 1 && this.id !== null) {
             this.offset = this.offset + Date.now() - this.time;
             clearTimeout(this.id);
 
             this.id = null;
-            this.time = null;
+            this.time = 0.0;
         }
     }
 }

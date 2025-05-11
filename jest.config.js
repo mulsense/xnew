@@ -1,7 +1,8 @@
 module.exports = {
+    preset: "ts-jest",
     verbose: true ,
     testMatch: [
-        "**/test/**/*.test.js"
+        "**/test/**/*.test.ts"
     ],
     testEnvironment: "jest-environment-jsdom",
 };

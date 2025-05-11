@@ -1,23 +1,17 @@
-import { isObject, isNumber, isString, isFunction } from '../common';
-import { UnitElement, UnitComponent, UnitEvent, UnitScope, UnitPromise } from './unitex';
+import { UnitComponent, UnitElement, UnitEvent, UnitScope, UnitPromise } from './unitex';
 
 export class Unit {
-    constructor(parent, target, component, ...args) {
+    public _: { [key: string]: any } = {};
+
+    static autoincrement: number = 0; // auto increment id
+ 
+    constructor(parent: Unit | null, target: Element | Window | Document | null, component?: Function | string, ...args: any[]) {
         try {
-            if (!(parent === null || parent instanceof Unit)) {
-                throw new Error(`The argument [parent] is invalid.`);
-            }
-            if (!(target === null || isObject(target) === true || target instanceof Element || target instanceof Window || target instanceof Document)) {
-                throw new Error(`The argument [target] is invalid.`);
-            }
-            if (!(component === undefined || isFunction(component) === true || (isObject(target) === true && isString(component) === true))) {
-                throw new Error(`The argument [component] is invalid.`);
-            }
-    
             const id = Unit.autoincrement++;
             const root = parent?._.root ?? this;
-    
-            let baseElement = null;
+
+            let baseElement: Element | Window | Document | null = null;
+
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
                 baseElement = target;
             } else if (parent !== null) {
@@ -25,10 +19,10 @@ export class Unit {
             } else if (document instanceof Document) {
                 baseElement = document.currentScript?.parentElement ?? document.body;
             }
-    
-            const baseContext = UnitScope.context(parent);
-    
-            this._ = {
+
+            const baseContext = UnitScope.get(parent);
+
+            this._ = Object.assign(this._, {
                 id,             // unit id
                 root,           // root unit
                 parent,         // parent unit
@@ -37,13 +31,15 @@ export class Unit {
                 args,           // component arguments
                 baseElement,    // base element
                 baseContext,    // base context
-            };
-    
+            });
+
             (parent?._.children ?? Unit.roots).add(this);
             Unit.initialize(this, component, ...args);
 
         } catch (error) {
-            console.error(`unit constructor: ${error.message}`);
+            if (error instanceof Error) {
+                console.error('unit constructor: ', error.message);
+            }
         }
     }
 
@@ -51,88 +47,91 @@ export class Unit {
     // base system 
     //----------------------------------------------------------------------------------------------------
 
-    get element() {
+    get element(): Element | null {
         return UnitElement.get(this);
     }
 
-    start() {
+    start(): void {
         this._.tostart = true;
     }
 
-    stop() {
+    stop(): void {
         this._.tostart = false;
         Unit.stop(this);
     }
 
-    finalize() {
+    finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
         (this._.parent?._.children ?? Unit.roots).delete(this);
     }
 
-    reboot() {
+    reboot(): void {
         Unit.stop(this);
         Unit.finalize(this);
         Unit.initialize(this, this._.component, ...this._.args);
     }
 
-    on(type, listener, options) {
+    on(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void {
         try {
             UnitEvent.on(this, type, listener, options);
         } catch (error) {
-            console.error(`unit.on(type, listener, options): ${error.message}`);
+            if (error instanceof Error) {
+                console.error('unit.on(type, listener, option?): ', error.message);
+            }
         }
     }
 
-    off(type, listener) {
+    off(type?: string, listener?: EventListener): void {
         try {
             UnitEvent.off(this, type, listener);
-        } catch (error) {
-            console.error(`unit.off(type, listener): ${error.message}`);
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                console.error('unit.off(type, listener): ', error.message);
+            }
         }
     }
 
-    static autoincrement = 0; // auto increment id
     
-    static roots = new Set();   // root units
+    static roots = new Set<Unit>();   // root units
 
-    static initialize(unit, component, ...args) {
+    static initialize(unit: Unit, component?: Function | string, ...args: any[]): void {
         unit._ = Object.assign(unit._, {
-            children: new Set(),       // children units
-            state: 'pending',          // [pending -> running <-> stopped -> finalized]
-            tostart: false,            // flag for start
-            upcount: 0,                // update count    
-            resolved: false,           // promise check
-            props: {},                 // properties in the component function
+            children: new Set<Unit>(),       // children units
+            state: 'pending',                // [pending -> running <-> stopped -> finalized]
+            tostart: false,                  // flag for start
+            upcount: 0,                      // update count    
+            resolved: false,                 // promise check
+            props: {},                       // properties in the component function
         });
 
         UnitElement.initialize(unit, unit._.baseElement);
-        UnitScope.context(unit, unit._.baseContext);
+        UnitScope.set(unit, unit._.baseContext);
 
-        if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state)) {
+        if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state ?? '')) {
             unit._.state = 'finalized';
         } else {
             unit._.tostart = true;
 
             // nest html element
-            if (isObject(unit._.target) === true && unit.element instanceof Element) {
+            if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
                 UnitElement.nest(unit, unit._.target);
             }
 
             // setup component
-            if (isFunction(component) === true) {
+            if (typeof component === 'function') {
                 UnitScope.execute({ unit }, () => Unit.extend(unit, component, ...args));
-            } else if (isObject(unit._.target) === true && isString(component) === true) {
-                unit.element.innerHTML = component;
+            } else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
+                unit.element!.innerHTML = component;
             }
-
+            unit._.resolved = true;
             // whether the unit promise was resolved
-            UnitPromise.execute(unit).then((response) => { unit._.resolved = true; });
+            // UnitPromise.execute(unit).then(() => { unit._.resolved = true; });
         }
     }
 
-    static extend(unit, component, ...args) {
-        if (isFunction(component) === false) {
+    static extend(unit: Unit, component: Function | any, ...args: any[]): void {
+        if (typeof component !== 'function') {
             throw new Error(`The argument [component] is invalid.`);
         } 
         UnitComponent.add(unit, component);
@@ -142,26 +141,26 @@ export class Unit {
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
             if (['start', 'update', 'stop', 'finalize'].includes(key)) {
-                if (isFunction(descripter.value)) {
+                if (typeof descripter?.value === 'function') {
                     const previous = unit._.props[key];
                     if (previous !== undefined) {
-                        unit._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
+                        unit._.props[key] = (...args: any[]) => { previous(...args); descripter.value(...args); };
                     } else {
-                        unit._.props[key] = (...args) => { descripter.value(...args); };
+                        unit._.props[key] = (...args: any[]) => { descripter.value(...args); };
                     }
                 } else {
                     console.error(`unit.extend: The property [${key}] is invalid.`);
                 }
-            } else if (unit[key] === undefined) {
-                const dest = { configurable: true, enumerable: true };
+            } else if (unit[key as keyof Unit] === undefined) {
+                const dest: PropertyDescriptor = { configurable: true, enumerable: true };
                 const snapshot = UnitScope.snapshot(unit);
-                if (isFunction(descripter.get) === true) {
-                    dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
-                } else if (isFunction(descripter.set) === true) {
-                    dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
-                } else if (isFunction(descripter.value) === true) {
-                    dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
-                } else if (descripter.value !== undefined) {
+                if (typeof descripter?.get === 'function') {
+                    dest.get = (...args: any[]) => UnitScope.execute(snapshot, descripter.get!, ...args);
+                } else if (typeof descripter?.set === 'function') {
+                    dest.set = (...args: any[]) => UnitScope.execute(snapshot, descripter.set!, ...args);
+                } else if (typeof descripter?.value === 'function') {
+                    dest.value = (...args: any[]) => UnitScope.execute(snapshot, descripter.value!, ...args);
+                } else if (descripter?.value !== undefined) {
                     dest.writable = true;
                     dest.value = descripter.value;
                 }
@@ -173,48 +172,48 @@ export class Unit {
         });
     }
 
-    static start(unit, time) {
+    static start(unit: Unit, time: number): void {
         if (unit._.resolved === false || unit._.tostart === false) {
         } else if (['pending', 'stopped'].includes(unit._.state) === true) {
             unit._.state = 'running';
-            unit._.children.forEach((unit) => Unit.start(unit, time));
-            if (isFunction(unit._.props.start) === true) {
+            unit._.children.forEach((unit: Unit) => Unit.start(unit, time));
+            if (typeof unit._.props.start === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
             }
         } else if (['running'].includes(unit._.state) === true) {
-            unit._.children.forEach((unit) => Unit.start(unit, time));
+            unit._.children.forEach((unit: Unit) => Unit.start(unit, time));
         }
     }
 
-    static stop(unit) {
+    static stop(unit: Unit): void {
         if (['running'].includes(unit._.state) === true) {
             unit._.state = 'stopped';
-            unit._.children.forEach((unit) => Unit.stop(unit));
+            unit._.children.forEach((unit: Unit) => Unit.stop(unit));
 
-            if (isFunction(unit._.props.stop)) {
+            if (typeof unit._.props.stop === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
             }
         }
     }
 
-    static update(unit, time) {
+    static update(unit: Unit, time: number): void {
         if (['running'].includes(unit._.state) === true) {
-            unit._.children.forEach((unit) => Unit.update(unit, time));
+            unit._.children.forEach((unit: Unit) => Unit.update(unit, time));
 
-            if (['running'].includes(unit._.state) && isFunction(unit._.props.update) === true) {
+            if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
             }
         }
     }
 
-    static finalize(unit) {
+    static finalize(unit: Unit): void {
         if (['finalized'].includes(unit._.state) === false) {
             unit._.state = 'finalized';
 
-            [...unit._.children].forEach((unit) => unit.finalize());
+            [...unit._.children].forEach((unit: Unit) => unit.finalize());
             unit._.children.clear();
 
-            if (isFunction(unit._.props.finalize)) {
+            if (typeof unit._.props.finalize === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
             }
 
@@ -225,7 +224,7 @@ export class Unit {
             // reset props
             Object.keys(unit._.props).forEach((key) => {
                 if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
-                    delete unit[key];
+                    delete unit[key as keyof Unit];
                 }
             });
             unit._.props = {};
@@ -234,20 +233,20 @@ export class Unit {
         }
     }
 
-    static animation = null;
-    static ticker = null;
-    static previous = null;
+    static animation: number | null = null;
+    static ticker: (() => void) | null = null;
+    static previous: number = 0.0;
 
-    static reset() {
+    static reset(): void {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
        
-        if (isFunction(requestAnimationFrame) === true && isFunction(cancelAnimationFrame) === true) {
+        if (typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
             if (Unit.animation !== null) {
                 cancelAnimationFrame(Unit.animation);
                 Unit.animation = null;
             }
-
+            console.log('test');
             Unit.previous = Date.now();
 
             Unit.ticker = function () {
@@ -260,19 +259,12 @@ export class Unit {
                     });
                     Unit.previous = time;
                 }
-                Unit.animation = requestAnimationFrame(Unit.ticker);
+                Unit.animation = requestAnimationFrame(Unit.ticker!);
             }
 
             Unit.animation = requestAnimationFrame(Unit.ticker);
         }
     }
-
-    static stop() {
-        if (isFunction(cancelAnimationFrame) === true && Unit.animation !== null) {
-            Unit.animation = null;
-        }
-    }
-
 
 }
 

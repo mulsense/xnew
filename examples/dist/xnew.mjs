@@ -1,502 +1,257 @@
 //----------------------------------------------------------------------------------------------------
-// type check
-//----------------------------------------------------------------------------------------------------
-
-function isString(value) {
-    return typeof value === 'string';
-}
-
-function isFunction(value) {
-    return typeof value === 'function';
-}
-
-function isObject(value) {
-    return value !== null && typeof value === 'object' && value.constructor === Object;
-}
-
-//----------------------------------------------------------------------------------------------------
-// timer
-//----------------------------------------------------------------------------------------------------
-
-class Timer {
-    constructor(timeout, delay, loop = false) {
-        this.timeout = timeout;
-        this.delay = delay;
-        this.loop = loop;
-
-        this.id = null;
-        this.time = null;
-        this.offset = 0.0;
-
-        this.status = 0;
-
-        if (document !== undefined) {
-            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-            document.addEventListener('visibilitychange', this.visibilitychange);
-        }
-
-        this.start();
-    }
-
-    clear() {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
-        }
-        if (document !== undefined) {
-            document.removeEventListener('visibilitychange', this.visibilitychange);
-        }
-    }
-
-    elapsed() {
-        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
-    }
-
-    start() {
-        this.status = 1;
-        this._start();
-    }
-
-    stop() {
-        this._stop();
-        this.status = 0;
-    }
-
-    _start() {
-        if (this.status === 1 && this.id === null) {
-            this.id = setTimeout(() => {
-                this.timeout();
-
-                this.id = null;
-                this.time = null;
-                this.offset = 0.0;
-
-                if (this.loop) {
-                    this.start();
-                }
-            }, this.delay - this.offset);
-            this.time = Date.now();
-        }
-    }
-
-    _stop() {
-        if (this.status === 1 && this.id !== null) {
-            this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.id);
-
-            this.id = null;
-            this.time = null;
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
 // map set
 //----------------------------------------------------------------------------------------------------
-
-class MapSet extends Map {
+class MapSet {
+    constructor() {
+        this.map = new Map;
+    }
+    get size() {
+        return this.map.size;
+    }
     has(key, value) {
+        var _a, _b;
         if (value === undefined) {
-            return super.has(key);
-        } else {
-            return super.has(key) && super.get(key).has(value);
+            return this.map.has(key);
+        }
+        else {
+            return (_b = (_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
         }
     }
-
     get(key) {
-        if (this.has(key) === false) {
-            return new Set();
-        } else {
-            return super.get(key);
-        }
+        return this.map.get(key);
     }
-
     add(key, value) {
-        if (this.has(key) === false) {
-            this.set(key, new Set());
-        }
-        this.get(key).add(value);
+        var _a;
+        this.map.set(key, ((_a = this.map.get(key)) !== null && _a !== void 0 ? _a : new Set).add(value));
+        return this;
     }
-
     delete(key, value) {
-        if (this.has(key, value) === false) {
-            return;
+        var _a, _b, _c, _d;
+        let ret = false;
+        if (value === undefined) {
+            ret = (((_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key) : false;
         }
-        this.get(key).delete(value);
-        if (this.get(key).size === 0) {
-            super.delete(key);
+        else {
+            ret = (_c = (_b = this.map.get(key)) === null || _b === void 0 ? void 0 : _b.delete(value)) !== null && _c !== void 0 ? _c : false;
+            (((_d = this.map.get(key)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key);
         }
+        return ret;
     }
 }
-
 //----------------------------------------------------------------------------------------------------
 // map map
 //----------------------------------------------------------------------------------------------------
-
-class MapMap extends Map {
+class MapMap {
+    constructor() {
+        this.map = new Map;
+    }
+    get size() {
+        return this.map.size;
+    }
     has(key1, key2) {
+        var _a, _b;
         if (key2 === undefined) {
-            return super.has(key1);
-        } else {
-            return super.has(key1) && super.get(key1).has(key2);
+            return this.map.has(key1);
+        }
+        else {
+            return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2)) !== null && _b !== void 0 ? _b : false;
         }
     }
-
     set(key1, key2, value) {
-        if (super.has(key1) === false) {
-            super.set(key1, new Map());
-        }
-        super.get(key1).set(key2, value);
+        var _a;
+        this.map.set(key1, ((_a = this.map.get(key1)) !== null && _a !== void 0 ? _a : new Map).set(key2, value));
+        return this;
     }
-
     get(key1, key2) {
-        if (super.has(key1) === false) {
-            super.set(key1, new Map());
-        }
+        var _a;
         if (key2 === undefined) {
-            return super.get(key1);
-        } else {
-            return super.get(key1).get(key2);
+            return this.map.get(key1);
+        }
+        else {
+            return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
         }
     }
-
     delete(key1, key2) {
-        if (super.has(key1) === false) {
-            return;
+        var _a, _b, _c, _d;
+        let ret = false;
+        if (key2 === undefined) {
+            ret = (((_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key1) : false;
         }
-        super.get(key1).delete(key2);
-        if (super.get(key1).size === 0) {
-            super.delete(key1);
+        else {
+            ret = (_c = (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2)) !== null && _c !== void 0 ? _c : false;
+            (((_d = this.map.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key1);
         }
+        return ret;
     }
 }
-
 //----------------------------------------------------------------------------------------------------
 // map map map
 //----------------------------------------------------------------------------------------------------
-
-class MapMapMap extends Map {
+class MapMapMap {
+    constructor() {
+        this.map = new Map;
+    }
+    get size() {
+        return this.map.size;
+    }
     has(key1, key2, key3) {
+        var _a, _b;
         if (key2 === undefined) {
-            return super.has(key1);
-        } else {
-            return super.has(key1) && super.get(key1).has(key2, key3);
+            return this.map.has(key1);
+        }
+        else {
+            return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2, key3)) !== null && _b !== void 0 ? _b : false;
         }
     }
-
     set(key1, key2, key3, value) {
-        if (super.has(key1) === false) {
-            super.set(key1, new MapMap());
-        }
-        super.get(key1).set(key2, key3, value);
+        var _a;
+        this.map.set(key1, ((_a = this.map.get(key1)) !== null && _a !== void 0 ? _a : new MapMap).set(key2, key3, value));
+        return this;
     }
-
     get(key1, key2, key3) {
-        if (super.has(key1) === false) {
-            super.set(key1, new MapMap());
-        }
+        var _a;
         if (key2 === undefined) {
-            return super.get(key1);
-        } else {
-            return super.get(key1).get(key2, key3);
+            return this.map.get(key1);
+        }
+        else {
+            return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2, key3);
         }
     }
-
     delete(key1, key2, key3) {
-        if (super.has(key1) === false) {
-            return;
+        var _a, _b, _c, _d;
+        let ret = false;
+        if (key2 === undefined) {
+            ret = (((_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key1) : false;
         }
-        super.get(key1).delete(key2, key3);
-        if (super.get(key1).size === 0) {
-            super.delete(key1);
+        else {
+            ret = (_c = (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2, key3)) !== null && _c !== void 0 ? _c : false;
+            (((_d = this.map.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key1);
         }
+        return ret;
     }
 }
 
 //----------------------------------------------------------------------------------------------------
 // unit scope
 //----------------------------------------------------------------------------------------------------
-
 class UnitScope {
-    static current = null;
-
-    static unitToContext = new Map();
-   
     static execute(snapshot, func, ...args) {
         const backup = { unit: null, context: null };
-
         try {
             backup.unit = UnitScope.current;
             UnitScope.current = snapshot.unit;
-            if (snapshot.unit && snapshot.context !== undefined) {
-                backup.context = UnitScope.context(snapshot.unit);
-                UnitScope.context(snapshot.unit, snapshot.context);
+            if (snapshot.unit !== null && snapshot.context !== undefined) {
+                backup.context = UnitScope.get(snapshot.unit);
+                UnitScope.set(snapshot.unit, snapshot.context);
             }
             return func(...args);
-        } catch (error) {
+        }
+        catch (error) {
             throw error;
-        } finally {
+        }
+        finally {
             UnitScope.current = backup.unit;
-            if (snapshot.unit && snapshot.context !== undefined) {
-                UnitScope.context(snapshot.unit, backup.context);
+            if (snapshot.unit !== null && snapshot.context !== undefined) {
+                UnitScope.set(snapshot.unit, backup.context);
             }
         }
     }
-    
-    static context(unit, context = undefined) {
-        if (context !== undefined) {
-            UnitScope.unitToContext.set(unit, context);
-        } else {
-            return UnitScope.unitToContext.get(unit) ?? null;
-        }
+    static set(unit, context) {
+        UnitScope.unitToContext.set(unit, context);
     }
-
+    static get(unit) {
+        return UnitScope.unitToContext.get(unit);
+    }
     static snapshot(unit = UnitScope.current) {
-        return { unit, context: UnitScope.context(unit) };
+        return { unit, context: UnitScope.get(unit) };
     }
-
     static clear(unit) {
         UnitScope.unitToContext.delete(unit);
     }
-
     static push(key, value) {
         const unit = UnitScope.current;
-        UnitScope.unitToContext.set(unit, { previous: UnitScope.unitToContext.get(unit), key, value });
+        if (unit) {
+            UnitScope.unitToContext.set(unit, { previous: UnitScope.get(unit), key, value });
+        }
     }
-
     static trace(key) {
         const unit = UnitScope.current;
-        for (let context = UnitScope.unitToContext.get(unit); context !== null; context = context.previous) {
-            if (context.key === key) {
-                return context.value;
+        if (unit) {
+            for (let context = UnitScope.get(unit); context !== null; context = context.previous) {
+                if (context.key === key) {
+                    return context.value;
+                }
             }
         }
     }
 }
-
+UnitScope.current = null;
+UnitScope.unitToContext = new Map();
 //----------------------------------------------------------------------------------------------------
 // unit component
 //----------------------------------------------------------------------------------------------------
-
 class UnitComponent {
-    static unitToComponents = new MapSet();
-    static componentToUnits = new MapSet();
-
     static add(unit, component) {
         UnitComponent.unitToComponents.add(unit, component);
         UnitComponent.componentToUnits.add(component, unit);
     }
-    
     static clear(unit) {
-        UnitComponent.unitToComponents.get(unit).forEach((component) => {
+        var _a;
+        (_a = UnitComponent.unitToComponents.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((component) => {
             UnitComponent.componentToUnits.delete(component, unit);
         });
         UnitComponent.unitToComponents.delete(unit);
     }
-
     static find(component) {
-        return [...UnitComponent.componentToUnits.get(component)];
+        var _a;
+        return [...((_a = UnitComponent.componentToUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
     }
 }
-
-//----------------------------------------------------------------------------------------------------
-// unit event
-//----------------------------------------------------------------------------------------------------
-
-class UnitEvent {
-    static event = null;
-
-    static typeToUnits = new MapSet();
-
-    static unitToListeners = new MapMapMap();
-
-    static on(unit, type, listener, options) {
-        if (isString(type) === false || type.trim() === '') {
-            throw new Error(`The argument [type] is invalid.`);
-        } else if (isFunction(listener) === false) {
-            throw new Error(`The argument [listener] is invalid.`);
-        }
-
-        const listeners = UnitEvent.unitToListeners.get(unit);
-        const snapshot = UnitScope.snapshot();
-
-        type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-
-        function internal(type, listener) {
-            if (listeners.has(type, listener) === false) {
-                const element = unit.element;
-                if (type[0] === '-' || type[0] === '+') {
-                    const execute = (...args) => {
-                        const eventbackup = UnitEvent.event;
-                        UnitEvent.event = { type };
-                        UnitScope.execute(snapshot, listener, ...args);
-                        UnitEvent.event = eventbackup;
-                    };
-                    listeners.set(type, listener, [element, execute]);
-                } else {
-                    const execute = (...args) => {
-                        const eventbackup = UnitEvent.event;
-                        UnitEvent.event = { type: args[0]?.type ?? null };
-                        UnitScope.execute(snapshot, listener, ...args);
-                        UnitEvent.event = eventbackup;
-                    };
-                    listeners.set(type, listener, [element, execute]);
-                    element.addEventListener(type, execute, options);
-                }
-            }
-            if (listeners.has(type) === true) {
-                UnitEvent.typeToUnits.add(type, unit);
-            }
-        }
-    }
-    
-    static off(unit, type, listener) {
-        if (type !== undefined && (isString(type) === false || type.trim() === '')) {
-            throw new Error(`The argument [type] is invalid.`);
-        } else if (listener !== undefined && isFunction(listener) === false) {
-            throw new Error(`The argument [listener] is invalid.`);
-        }
-
-        const listeners = UnitEvent.unitToListeners.get(unit);
-       
-        if (isString(type) === true && listener !== undefined) {
-            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-        } else if (isString(type) === true && listener === undefined) {
-            type.trim().split(/\s+/).forEach((type) => {
-                listeners.get(type)?.forEach((_, listener) => internal(type, listener));
-            });
-        } else if (type === undefined && listener === undefined) {
-            listeners.forEach((map, type) => {
-                map.forEach((_, listener) => internal(type, listener));
-            });
-        }
-
-        function internal(type, listener) {
-
-            if (listeners.has(type, listener) === true) {
-                const [element, execute] = listeners.get(type, listener);
-                listeners.delete(type, listener);
-                element.removeEventListener(type, execute);
-            }
-            if (listeners.has(type) === false) {
-                UnitEvent.typeToUnits.delete(type, unit);
-            }
-        }
-    }
-    
-    static emit(unit, type, ...args) {
-        if (type[0] === '+') {
-            UnitEvent.typeToUnits.get(type)?.forEach((unit) => {
-                const listeners = UnitEvent.unitToListeners.get(unit);
-                listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-            });
-        } else if (type[0] === '-') {
-            const listeners = UnitEvent.unitToListeners.get(unit);
-            listeners.get(type)?.forEach(([element, execute]) => execute(...args));
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
-// unit promise
-//----------------------------------------------------------------------------------------------------
-
-class UnitPromise {
-    constructor(excutor) {
-        this.promise = new Promise(excutor);
-    }
-
-    then(callback) {
-        const snapshot = UnitScope.snapshot();
-        this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
-        return this;
-    }
-
-    catch(callback) {
-        const snapshot = UnitScope.snapshot();
-        this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
-        return this;
-    }
-
-    finally(callback) {
-        const snapshot = UnitScope.snapshot();
-        this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
-        return this;
-    }
-
-    static unitToPromises = new MapSet();
-   
-    static execute(mix) {
-        const unit = UnitScope.current;
-        
-        let promise = null;
-        if (mix instanceof Promise) {
-            promise = mix;
-        } else if (isFunction(mix) === true) {
-            promise = new Promise(mix);
-        } else if (mix instanceof Unit) {
-            const promises = UnitPromise.unitToPromises.get(mix);
-            promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
-        } else {
-            throw new Error(`The argument [mix] is invalid.`);
-        }
-        if (promise) {
-            const scopedpromise = new UnitPromise((resolve, reject) => {
-                promise.then((...args) => resolve(...args));
-                promise.catch((...args) => reject(...args));
-            });
-            UnitPromise.unitToPromises.add(unit, promise);
-            return scopedpromise;
-        }
-    }
-}
-
+UnitComponent.unitToComponents = new MapSet();
+UnitComponent.componentToUnits = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // unit element
 //----------------------------------------------------------------------------------------------------
-
 class UnitElement {
-
-    static unitToElements = new Map();
-
     static initialize(unit, baseElement) {
         UnitElement.unitToElements.set(unit, [baseElement]);
     }
-
     static nest(unit, attributes) {
+        var _a;
         const current = UnitElement.get(unit);
         if (current instanceof Window || current instanceof Document) {
             throw new Error(`No elements are added to window or document.`);
-        } else if (isObject(attributes) === false) {
+        }
+        else if (typeof attributes !== 'object') {
             throw new Error(`The argument [attributes] is invalid.`);
-        } else {
+        }
+        else {
             const element = UnitElement.create(attributes, current);
             current.append(element);
-            UnitElement.unitToElements.get(unit).push(element);
+            (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
             return element;
         }
     }
-
     static get(unit) {
-        return UnitElement.unitToElements.get(unit).slice(-1)[0];
+        var _a;
+        return (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.slice(-1)[0];
     }
-
     static clear(unit) {
         const elements = UnitElement.unitToElements.get(unit);
-        if (elements.length > 1) {
+        if (elements && elements.length > 1) {
             elements[0].removeChild(elements[1]);
         }
         UnitElement.unitToElements.delete(unit);
     }
-
     static create(attributes, parentElement = null) {
-        const tagName = (attributes.tagName ?? 'div').toLowerCase();
-        let element = null;
-    
+        var _a;
+        const tagName = ((_a = attributes.tagName) !== null && _a !== void 0 ? _a : 'div').toLowerCase();
+        let element;
         let nsmode = false;
         if (tagName === 'svg') {
             nsmode = true;
-        } else {
+        }
+        else {
             while (parentElement) {
                 if (parentElement.tagName.toLowerCase() === 'svg') {
                     nsmode = true;
@@ -505,267 +260,378 @@ class UnitElement {
                 parentElement = parentElement.parentElement;
             }
         }
-    
-        if (nsmode === true) {
+        if (nsmode) {
             element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
-        } else {
+        }
+        else {
             element = document.createElement(tagName);
         }
-    
         Object.keys(attributes).forEach((key) => {
             const value = attributes[key];
-            if (key === 'tagName') ; else if (key === 'insert') ; else if (key === 'className') {
-                if (isString(value) === true && value !== '') {
+            if (key === 'tagName') ;
+            else if (key === 'insert') ;
+            else if (key === 'className') {
+                if (typeof value === 'string' && value !== '') {
                     element.classList.add(...value.trim().split(/\s+/));
                 }
-            } else if (key === 'style') {
-                if (isString(value) === true) {
-                    element.style = value;
-                } else if (isObject(value) === true) {
+            }
+            else if (key === 'style') {
+                if (typeof value === 'string') {
+                    element.style.cssText = value;
+                }
+                else if (typeof value !== null && typeof value === 'object') {
                     Object.assign(element.style, value);
                 }
-            } else {
+            }
+            else {
                 key.replace(/([A-Z])/g, '-$1').toLowerCase();
                 if (element[key] === true || element[key] === false) {
                     element[key] = value;
-                } else {
+                }
+                else {
                     setAttribute(element, key, value);
                 }
-    
                 function setAttribute(element, key, value) {
-                    if (nsmode === true) {
+                    if (nsmode) {
                         element.setAttributeNS(null, key, value);
-                    } else {
+                    }
+                    else {
                         element.setAttribute(key, value);
                     }
                 }
             }
         });
-    
         return element;
     }
 }
+UnitElement.unitToElements = new Map();
+//----------------------------------------------------------------------------------------------------
+// unit event
+//----------------------------------------------------------------------------------------------------
+class UnitEvent {
+    static on(unit, type, listener, options) {
+        if (typeof type !== 'string' || type.trim() === '') {
+            throw new Error(`The argument [type] is invalid.`);
+        }
+        else if (typeof listener !== 'function') {
+            throw new Error(`The argument [listener] is invalid.`);
+        }
+        const snapshot = UnitScope.snapshot();
+        type.trim().split(/\s+/).forEach((type) => internal(type, listener));
+        function internal(type, listener) {
+            if (!UnitEvent.unitToListeners.has(unit, type, listener)) {
+                const element = unit.element;
+                if (type[0] === '-' || type[0] === '+') {
+                    const execute = (...args) => {
+                        const eventbackup = UnitEvent.event;
+                        UnitEvent.event = { type };
+                        UnitScope.execute(snapshot, listener, ...args);
+                        UnitEvent.event = eventbackup;
+                    };
+                    UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
+                }
+                else {
+                    const execute = (...args) => {
+                        var _a, _b;
+                        const eventbackup = UnitEvent.event;
+                        UnitEvent.event = { type: (_b = (_a = args[0]) === null || _a === void 0 ? void 0 : _a.type) !== null && _b !== void 0 ? _b : null };
+                        UnitScope.execute(snapshot, listener, ...args);
+                        UnitEvent.event = eventbackup;
+                    };
+                    UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
+                    element === null || element === void 0 ? void 0 : element.addEventListener(type, execute, options);
+                }
+            }
+            if (UnitEvent.unitToListeners.has(unit, type)) {
+                UnitEvent.typeToUnits.add(type, unit);
+            }
+        }
+    }
+    static off(unit, type, listener) {
+        var _a;
+        if (type !== undefined && (typeof type !== 'string' || type.trim() === '')) {
+            throw new Error(`The argument [type] is invalid.`);
+        }
+        else if (listener !== undefined && typeof listener !== 'function') {
+            throw new Error(`The argument [listener] is invalid.`);
+        }
+        if (typeof type === 'string' && listener !== undefined) {
+            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
+        }
+        else if (typeof type === 'string' && listener === undefined) {
+            type.trim().split(/\s+/).forEach((type) => {
+                var _a;
+                (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach((_, listener) => internal(type, listener));
+            });
+        }
+        else if (type === undefined && listener === undefined) {
+            (_a = UnitEvent.unitToListeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((map, type) => {
+                map.forEach((_, listener) => internal(type, listener));
+            });
+        }
+        function internal(type, listener) {
+            if (UnitEvent.unitToListeners.has(unit, type, listener)) {
+                const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
+                UnitEvent.unitToListeners.delete(unit, type, listener);
+                element.removeEventListener(type, execute);
+            }
+            if (!UnitEvent.unitToListeners.has(unit, type)) {
+                UnitEvent.typeToUnits.delete(type, unit);
+            }
+        }
+    }
+    static emit(unit, type, ...args) {
+        var _a, _b;
+        if (type[0] === '+') {
+            (_a = UnitEvent.typeToUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+                var _a;
+                (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
+            });
+        }
+        else if (type[0] === '-') {
+            (_b = UnitEvent.unitToListeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([element, execute]) => execute(...args));
+        }
+    }
+}
+UnitEvent.event = null;
+UnitEvent.typeToUnits = new MapSet();
+UnitEvent.unitToListeners = new MapMapMap();
+//----------------------------------------------------------------------------------------------------
+// unit promise
+//----------------------------------------------------------------------------------------------------
+class UnitPromise {
+    constructor(executor) {
+        this.promise = new Promise(executor);
+    }
+    then(callback) {
+        const snapshot = UnitScope.snapshot();
+        this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
+        return this;
+    }
+    catch(callback) {
+        const snapshot = UnitScope.snapshot();
+        this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
+        return this;
+    }
+    finally(callback) {
+        const snapshot = UnitScope.snapshot();
+        this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
+        return this;
+    }
+    static execute(promise) {
+        const unit = UnitScope.current;
+        const scopedpromise = new UnitPromise((resolve, reject) => {
+            promise.then((...args) => resolve(...args));
+            promise.catch((...args) => reject(...args));
+        });
+        UnitPromise.unitToPromises.add(unit, promise);
+        return scopedpromise;
+    }
+}
+UnitPromise.unitToPromises = new MapSet();
 
 class Unit {
     constructor(parent, target, component, ...args) {
+        var _a, _b, _c, _d;
+        this._ = {};
         try {
-            if (!(parent === null || parent instanceof Unit)) {
-                throw new Error(`The argument [parent] is invalid.`);
-            }
-            if (!(target === null || isObject(target) === true || target instanceof Element || target instanceof Window || target instanceof Document)) {
-                throw new Error(`The argument [target] is invalid.`);
-            }
-            if (!(component === undefined || isFunction(component) === true || (isObject(target) === true && isString(component) === true))) {
-                throw new Error(`The argument [component] is invalid.`);
-            }
-    
             const id = Unit.autoincrement++;
-            const root = parent?._.root ?? this;
-    
+            const root = (_a = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _a !== void 0 ? _a : this;
             let baseElement = null;
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
                 baseElement = target;
-            } else if (parent !== null) {
-                baseElement = parent.element;
-            } else if (document instanceof Document) {
-                baseElement = document.currentScript?.parentElement ?? document.body;
             }
-    
-            const baseContext = UnitScope.context(parent);
-    
-            this._ = {
-                id,             // unit id
-                root,           // root unit
-                parent,         // parent unit
-                target,         // target info
-                component,      // component function
-                args,           // component arguments
-                baseElement,    // base element
-                baseContext,    // base context
-            };
-    
-            (parent?._.children ?? Unit.roots).add(this);
+            else if (parent !== null) {
+                baseElement = parent.element;
+            }
+            else if (document instanceof Document) {
+                baseElement = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
+            }
+            const baseContext = UnitScope.get(parent);
+            this._ = Object.assign(this._, {
+                id, // unit id
+                root, // root unit
+                parent, // parent unit
+                target, // target info
+                component, // component function
+                args, // component arguments
+                baseElement, // base element
+                baseContext, // base context
+            });
+            ((_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots).add(this);
             Unit.initialize(this, component, ...args);
-
-        } catch (error) {
-            console.error(`unit constructor: ${error.message}`);
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('unit constructor: ', error.message);
+            }
         }
     }
-
     //----------------------------------------------------------------------------------------------------
     // base system 
     //----------------------------------------------------------------------------------------------------
-
     get element() {
         return UnitElement.get(this);
     }
-
     start() {
         this._.tostart = true;
     }
-
     stop() {
         this._.tostart = false;
         Unit.stop(this);
     }
-
     finalize() {
+        var _a, _b;
         Unit.stop(this);
         Unit.finalize(this);
-        (this._.parent?._.children ?? Unit.roots).delete(this);
+        ((_b = (_a = this._.parent) === null || _a === void 0 ? void 0 : _a._.children) !== null && _b !== void 0 ? _b : Unit.roots).delete(this);
     }
-
     reboot() {
         Unit.stop(this);
         Unit.finalize(this);
         Unit.initialize(this, this._.component, ...this._.args);
     }
-
     on(type, listener, options) {
         try {
             UnitEvent.on(this, type, listener, options);
-        } catch (error) {
-            console.error(`unit.on(type, listener, options): ${error.message}`);
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('unit.on(type, listener, option?): ', error.message);
+            }
         }
     }
-
     off(type, listener) {
         try {
             UnitEvent.off(this, type, listener);
-        } catch (error) {
-            console.error(`unit.off(type, listener): ${error.message}`);
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('unit.off(type, listener): ', error.message);
+            }
         }
     }
-
-    static autoincrement = 0; // auto increment id
-    
-    static roots = new Set();   // root units
-
     static initialize(unit, component, ...args) {
+        var _a;
         unit._ = Object.assign(unit._, {
-            children: new Set(),       // children units
-            state: 'pending',          // [pending -> running <-> stopped -> finalized]
-            tostart: false,            // flag for start
-            upcount: 0,                // update count    
-            resolved: false,           // promise check
-            props: {},                 // properties in the component function
+            children: new Set(), // children units
+            state: 'pending', // [pending -> running <-> stopped -> finalized]
+            tostart: false, // flag for start
+            upcount: 0, // update count    
+            resolved: false, // promise check
+            props: {}, // properties in the component function
         });
-
         UnitElement.initialize(unit, unit._.baseElement);
-        UnitScope.context(unit, unit._.baseContext);
-
-        if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state)) {
+        UnitScope.set(unit, unit._.baseContext);
+        if (unit._.parent !== null && ['finalized'].includes((_a = unit._.parent._.state) !== null && _a !== void 0 ? _a : '')) {
             unit._.state = 'finalized';
-        } else {
+        }
+        else {
             unit._.tostart = true;
-
             // nest html element
-            if (isObject(unit._.target) === true && unit.element instanceof Element) {
+            if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
                 UnitElement.nest(unit, unit._.target);
             }
-
             // setup component
-            if (isFunction(component) === true) {
+            if (typeof component === 'function') {
                 UnitScope.execute({ unit }, () => Unit.extend(unit, component, ...args));
-            } else if (isObject(unit._.target) === true && isString(component) === true) {
+            }
+            else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
                 unit.element.innerHTML = component;
             }
-
+            unit._.resolved = true;
             // whether the unit promise was resolved
-            UnitPromise.execute(unit).then((response) => { unit._.resolved = true; });
+            // UnitPromise.execute(unit).then(() => { unit._.resolved = true; });
         }
     }
-
     static extend(unit, component, ...args) {
-        if (isFunction(component) === false) {
+        var _a;
+        if (typeof component !== 'function') {
             throw new Error(`The argument [component] is invalid.`);
-        } 
+        }
         UnitComponent.add(unit, component);
-
-        const props = component(unit, ...args) ?? {};
-
+        const props = (_a = component(unit, ...args)) !== null && _a !== void 0 ? _a : {};
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
             if (['start', 'update', 'stop', 'finalize'].includes(key)) {
-                if (isFunction(descripter.value)) {
+                if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                     const previous = unit._.props[key];
                     if (previous !== undefined) {
                         unit._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
-                    } else {
+                    }
+                    else {
                         unit._.props[key] = (...args) => { descripter.value(...args); };
                     }
-                } else {
+                }
+                else {
                     console.error(`unit.extend: The property [${key}] is invalid.`);
                 }
-            } else if (unit[key] === undefined) {
+            }
+            else if (unit[key] === undefined) {
                 const dest = { configurable: true, enumerable: true };
                 const snapshot = UnitScope.snapshot(unit);
-                if (isFunction(descripter.get) === true) {
+                if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.get) === 'function') {
                     dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
-                } else if (isFunction(descripter.set) === true) {
+                }
+                else if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.set) === 'function') {
                     dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
-                } else if (isFunction(descripter.value) === true) {
+                }
+                else if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                     dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
-                } else if (descripter.value !== undefined) {
+                }
+                else if ((descripter === null || descripter === void 0 ? void 0 : descripter.value) !== undefined) {
                     dest.writable = true;
                     dest.value = descripter.value;
                 }
                 Object.defineProperty(unit._.props, key, dest);
                 Object.defineProperty(unit, key, dest);
-            } else {
+            }
+            else {
                 console.error(`unit.extend: The property [${key}] already exists.`);
             }
         });
     }
-
     static start(unit, time) {
-        if (unit._.resolved === false || unit._.tostart === false) ; else if (['pending', 'stopped'].includes(unit._.state) === true) {
+        if (unit._.resolved === false || unit._.tostart === false) ;
+        else if (['pending', 'stopped'].includes(unit._.state) === true) {
             unit._.state = 'running';
             unit._.children.forEach((unit) => Unit.start(unit, time));
-            if (isFunction(unit._.props.start) === true) {
+            if (typeof unit._.props.start === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
             }
-        } else if (['running'].includes(unit._.state) === true) {
+        }
+        else if (['running'].includes(unit._.state) === true) {
             unit._.children.forEach((unit) => Unit.start(unit, time));
         }
     }
-
     static stop(unit) {
         if (['running'].includes(unit._.state) === true) {
             unit._.state = 'stopped';
             unit._.children.forEach((unit) => Unit.stop(unit));
-
-            if (isFunction(unit._.props.stop)) {
+            if (typeof unit._.props.stop === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
             }
         }
     }
-
     static update(unit, time) {
         if (['running'].includes(unit._.state) === true) {
             unit._.children.forEach((unit) => Unit.update(unit, time));
-
-            if (['running'].includes(unit._.state) && isFunction(unit._.props.update) === true) {
+            if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
             }
         }
     }
-
     static finalize(unit) {
         if (['finalized'].includes(unit._.state) === false) {
             unit._.state = 'finalized';
-
             [...unit._.children].forEach((unit) => unit.finalize());
             unit._.children.clear();
-
-            if (isFunction(unit._.props.finalize)) {
+            if (typeof unit._.props.finalize === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
             }
-
             unit.off();
             UnitElement.clear(unit);
             UnitComponent.clear(unit);
-
             // reset props
             Object.keys(unit._.props).forEach((key) => {
                 if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
@@ -773,27 +639,19 @@ class Unit {
                 }
             });
             unit._.props = {};
-
             UnitScope.clear(unit);
         }
     }
-
-    static animation = null;
-    static ticker = null;
-    static previous = null;
-
     static reset() {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots.clear();
-       
-        if (isFunction(requestAnimationFrame) === true && isFunction(cancelAnimationFrame) === true) {
+        if (typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
             if (Unit.animation !== null) {
                 cancelAnimationFrame(Unit.animation);
                 Unit.animation = null;
             }
-
+            console.log('test');
             Unit.previous = Date.now();
-
             Unit.ticker = function () {
                 const interval = 1000 / 60;
                 const time = Date.now();
@@ -806,214 +664,251 @@ class Unit {
                 }
                 Unit.animation = requestAnimationFrame(Unit.ticker);
             };
-
             Unit.animation = requestAnimationFrame(Unit.ticker);
         }
     }
-
-    static stop() {
-        if (isFunction(cancelAnimationFrame) === true && Unit.animation !== null) {
-            Unit.animation = null;
-        }
-    }
-
-
 }
-
+Unit.autoincrement = 0; // auto increment id
+Unit.roots = new Set(); // root units
+Unit.animation = null;
+Unit.ticker = null;
+Unit.previous = 0.0;
 Unit.reset();
 
 //----------------------------------------------------------------------------------------------------
 // xnew main
 //----------------------------------------------------------------------------------------------------
-
-function xnew(...args) {
+const xnew = Object.assign(function (...args) {
     let parent = UnitScope.current;
-    if (isFunction(args[0]) === false && args[0] instanceof Unit) {
+    if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
         parent = args.shift();
-    } else if (args[0] === null) {
+    }
+    else if (args[0] === null) {
         parent = args.shift();
-    } else if (args[0] === undefined) {
+    }
+    else if (args[0] === undefined) {
         args.shift();
     }
-
     let target = null;
     if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
         // an existing html element
         target = args.shift();
-    } else if (isString(args[0]) === true) {
+    }
+    else if (typeof args[0] === 'string') {
         // a string for an existing html element
         const key = args.shift();
         target = document.querySelector(key);
         if (target == null) {
             console.error(`xnew: '${key}' can not be found.`);
         }
-    } else if (isObject(args[0]) === true) {
+    }
+    else if (typeof args[0] !== null && typeof args[0] === 'object') {
         // an attributes for a new html element
         target = args.shift();
-    } else if (args[0] === null || args[0] === undefined) {
+    }
+    else if (args[0] === null || args[0] === undefined) {
         args.shift();
     }
-
+    // if (!(parent === null || parent instanceof Unit)) {
+    //     throw new Error(`The argument [parent] is invalid.`);
+    // }
+    // if (!(target === null || (target !== null && typeof target === 'object') || target instanceof Element || target instanceof Window || target instanceof Document)) {
+    //     throw new Error(`The argument [target] is invalid.`);
+    // }
+    // if (!(component === undefined || typeof component === 'function' || ((target !== null && typeof target === 'object') && typeof component === 'string'))) {
+    //     throw new Error(`The argument [component] is invalid.`);
+    // }
     try {
         return new Unit(parent, target, ...args);
-    } catch (error) {
-        console.error(`xnew: ${error.message}`);
     }
-}
-
+    catch (error) {
+        if (error instanceof Error) {
+            console.error('xnew: ', error.message);
+        }
+    }
+}, {
+    get root() {
+        var _a;
+        return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
+    },
+    get parent() {
+        var _a;
+        return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
+    },
+    get current() {
+        return UnitScope.current;
+    },
+    nest(attributes) {
+        try {
+            const current = UnitScope.current;
+            if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
+                return UnitElement.nest(current, attributes);
+            }
+            else {
+                throw new Error(`This function can not be called after initialized.`);
+            }
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('xnew.nest(attributes): ', error.message);
+            }
+        }
+    },
+    extend(component, ...args) {
+        try {
+            const current = UnitScope.current;
+            if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
+                return Unit.extend(current, component, ...args);
+            }
+            else {
+                throw new Error('This function can not be called after initialized.');
+            }
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('xnew.extend(component, ...args): ', error.message);
+            }
+        }
+    },
+    context(key, value = undefined) {
+        try {
+            if (typeof key !== 'string') {
+                throw new Error('The argument [key] is invalid.');
+            }
+            else {
+                if (value !== undefined) {
+                    UnitScope.push(key, value);
+                }
+                else {
+                    return UnitScope.trace(key);
+                }
+            }
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('xnew.context(key, value?): ', error.message);
+            }
+        }
+    },
+    promise(mix) {
+        try {
+            let promise = null;
+            if (mix instanceof Promise) {
+                promise = mix;
+            }
+            else if (typeof mix === 'function') {
+                promise = new Promise(mix);
+            }
+            else if (mix instanceof Unit) {
+                const promises = UnitPromise.unitToPromises.get(mix);
+                promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+            }
+            else {
+                throw new Error(`The argument [mix] is invalid.`);
+            }
+            return UnitPromise.execute(promise);
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('xnew.promise(mix): ', error.message);
+            }
+        }
+    },
+    emit(type, ...args) {
+        try {
+            const unit = UnitScope.current;
+            if (typeof type !== 'string') {
+                throw new Error('The argument [type] is invalid.');
+            }
+            else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === 'finalized') {
+                throw new Error('This function can not be called after finalized.');
+            }
+            else {
+                UnitEvent.emit(unit, type, ...args);
+            }
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                console.error('xnew.emit(type, ...args): ', error.message);
+            }
+        }
+    },
+    scope(callback) {
+        const snapshot = UnitScope.snapshot();
+        return (...args) => UnitScope.execute(snapshot, callback, ...args);
+    },
+});
 //----------------------------------------------------------------------------------------------------
 // members
 //----------------------------------------------------------------------------------------------------
-
-Object.defineProperty(xnew, 'root', { get: () => UnitScope.current?._.root });
-Object.defineProperty(xnew, 'parent', { get: () => UnitScope.current?._.parent });
-Object.defineProperty(xnew, 'current', { get: () => UnitScope.current });
-
-Object.defineProperty(xnew, 'nest', { value: nest });
-Object.defineProperty(xnew, 'extend', { value: extend });
-
-Object.defineProperty(xnew, 'context', { value: context });
-Object.defineProperty(xnew, 'promise', { value: promise });
-Object.defineProperty(xnew, 'find', { value: find });
-Object.defineProperty(xnew, 'event', { get: () => UnitEvent.event });
-Object.defineProperty(xnew, 'emit', { value: emit });
-Object.defineProperty(xnew, 'scope', { value: scope });
-
-Object.defineProperty(xnew, 'timer', { value: timer });
-Object.defineProperty(xnew, 'interval', { value: interval });
-Object.defineProperty(xnew, 'transition', { value: transition });
-
-function nest(attributes) {
-    try {
-        const current = UnitScope.current;
-        if (current._.state === 'pending') {
-            return UnitElement.nest(current, attributes);
-        } else {
-            throw new Error(`This function can not be called after initialized.`);
-        }
-    } catch (error) {
-        console.error(`xnew.nest(attributes): ${error.message}`);
-    }
-}
-
-function extend(component, ...args) {
-    try {
-        const current = UnitScope.current;
-        if (current._.state === 'pending') {
-            return Unit.extend(current, component, ...args);
-        } else {
-            throw new Error(`This function can not be called after initialized.`);
-        }
-    } catch (error) {
-        console.error(`xnew.extend(component, ...args): ${error.message}`);
-    }
-}
-
-function context(key, value = undefined) {
-    if (isString(key) === false) {
-        console.error(`xnew.context(key, value?): The argument [key] is invalid.`);
-    } else {
-        if (value !== undefined) {
-            UnitScope.push(key, value);
-        } else {
-            return UnitScope.trace(key);
-        }
-    }
-}
-
-function promise(mix) {
-    try {
-        return UnitPromise.execute(mix);
-    } catch (error) {
-        console.error(`xnew.promise(mix): ${error.message}`);
-    }
-}
-
-function find(component) {
-    if (isFunction(component) === false) {
-        console.error(`xnew.find: The argument [component] is invalid.`);
-    } else if (isFunction(component) === true) {
-        return UnitComponent.find(component);
-    }
-}
-
-function emit(type, ...args) {
-    const unit = UnitScope.current;
-    if (isString(type) === false) {
-        console.error(`xnew.emit: The argument [type] is invalid.`);
-    } else if (unit?._.state === 'finalized') {
-        console.error(`xnew.emit: This function can not be called after finalized.`);
-    } else {
-        UnitEvent.emit(unit, type, ...args);
-    }
-}
-
-function scope(callback) {
-    const snapshot = UnitScope.snapshot();
-    return (...args) => UnitScope.execute(snapshot, callback, ...args);
-}
-
-function timer(callback, delay) {
-    const snapshot = UnitScope.snapshot();
-    const unit = xnew((self) => {
-        const timer = new Timer(() => {
-            UnitScope.execute(snapshot, callback);
-            self.finalize();
-        }, delay);
-        return {
-            finalize() {
-                timer.clear();
-            }
-        };
-    });
-    return { clear: () => unit.finalize() };
-}
-
-function interval(callback, delay) {
-    const snapshot = UnitScope.snapshot();
-    const unit = xnew((self) => {
-        const timer = new Timer(() => {
-            UnitScope.execute(snapshot, callback);
-        }, delay, true);
-        return {
-            finalize() {
-                timer.clear();
-            }
-        };
-    });
-    return { clear: () => unit.finalize() };
-}
-
-function transition(callback, interval) {
-    const snapshot = UnitScope.snapshot();
-    const unit = xnew((self) => {
-        const timer = new Timer(() => {
-            UnitScope.execute(snapshot, callback, 1.0);
-            self.finalize();
-        }, interval);
-
-        UnitScope.execute(snapshot, callback, 0.0);
-
-        const updater = xnew(null, (self) => {
-            return {
-                update() {
-                    const progress = timer.elapsed() / interval;
-                    if (progress < 1.0) {
-                        UnitScope.execute(snapshot, callback, progress);
-                    }
-                },
-            }
-        });
-        return {
-            finalize() {
-                timer.clear();
-                updater.finalize();
-            }
-        };
-    });
-
-    return { clear: () => unit.finalize() };
-}
+// Object.defineProperty(xnew, 'event', { get: () => UnitEvent.event });
+// Object.defineProperty(xnew, 'scope', { value: scope });
+// Object.defineProperty(xnew, 'timer', { value: timer });
+// Object.defineProperty(xnew, 'interval', { value: interval });
+// Object.defineProperty(xnew, 'transition', { value: transition });
+// function find(component) {
+//     if (isFunction(component) === false) {
+//         console.error(`xnew.find: The argument [component] is invalid.`);
+//     } else if (isFunction(component) === true) {
+//         return UnitComponent.find(component);
+//     }
+// }
+// function timer(callback, delay) {
+//     const snapshot = UnitScope.snapshot();
+//     const unit = xnew((self) => {
+//         const timer = new Timer(() => {
+//             UnitScope.execute(snapshot, callback);
+//             self.finalize();
+//         }, delay);
+//         return {
+//             finalize() {
+//                 timer.clear();
+//             }
+//         };
+//     });
+//     return { clear: () => unit.finalize() };
+// }
+// function interval(callback, delay) {
+//     const snapshot = UnitScope.snapshot();
+//     const unit = xnew((self) => {
+//         const timer = new Timer(() => {
+//             UnitScope.execute(snapshot, callback);
+//         }, delay, true);
+//         return {
+//             finalize() {
+//                 timer.clear();
+//             }
+//         };
+//     });
+//     return { clear: () => unit.finalize() };
+// }
+// function transition(callback, interval) {
+//     const snapshot = UnitScope.snapshot();
+//     const unit = xnew((self) => {
+//         const timer = new Timer(() => {
+//             UnitScope.execute(snapshot, callback, 1.0);
+//             self.finalize();
+//         }, interval);
+//         UnitScope.execute(snapshot, callback, 0.0);
+//         const updater = xnew(null, (self) => {
+//             return {
+//                 update() {
+//                     const progress = timer.elapsed() / interval;
+//                     if (progress < 1.0) {
+//                         UnitScope.execute(snapshot, callback, progress);
+//                     }
+//                 },
+//             }
+//         });
+//         return {
+//             finalize() {
+//                 timer.clear();
+//                 updater.finalize();
+//             }
+//         };
+//     });
+//     return { clear: () => unit.finalize() };
+// }
 
 function ResizeEvent(self) {
     const observer = new ResizeObserver(xnew.scope((entries) => {
@@ -1022,7 +917,6 @@ function ResizeEvent(self) {
             break;
         }
     }));
-
     if (self.element) {
         observer.observe(self.element);
     }
@@ -1032,160 +926,7 @@ function ResizeEvent(self) {
                 observer.unobserve(self.element);
             }
         }
-    }
-}
-
-function UserEvent(self) {
-    const unit = xnew();
-    unit.on('pointerdown', (event) => xnew.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
-    unit.on('pointermove', (event) => xnew.emit('-pointermove', { event, position: getPosition(self.element, event) }));
-    unit.on('pointerup', (event) => xnew.emit('-pointerup', { event, position: getPosition(self.element, event) }));
-    unit.on('wheel', (event) => xnew.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
-
-    const drag = xnew(DragEvent);
-    drag.on('-dragstart', (...args) => xnew.emit('-dragstart', ...args));
-    drag.on('-dragmove', (...args) => xnew.emit('-dragmove', ...args));
-    drag.on('-dragend', (...args) => xnew.emit('-dragend', ...args));
-    drag.on('-dragcancel', (...args) => xnew.emit('-dragcancel', ...args));
-
-    const gesture = xnew(GestureEvent);
-    gesture.on('-gesturestart', (...args) => xnew.emit('-gesturestart', ...args));
-    gesture.on('-gesturemove', (...args) => xnew.emit('-gesturemove', ...args));
-    gesture.on('-gestureend', (...args) => xnew.emit('-gestureend', ...args));
-    gesture.on('-gesturecancel', (...args) => xnew.emit('-gesturecancel', ...args));  
-    
-    const keyborad = xnew(Keyboard);
-    keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
-    keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
-    keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
-    keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
-}
-
-function DragEvent(self) {
-    xnew().on('pointerdown', (event) => {
-        const id = event.pointerId;
-        const position = getPosition(self.element, event);
-        let previous = position;
-
-        const win = xnew(window);
-        win.on('pointermove', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew.emit('-dragmove', { event, position, movement });
-                previous = position;
-            }
-        });
-        win.on('pointerup', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                xnew.emit('-dragend', { event, position, });
-                win.finalize();
-            }
-        });
-        win.on('pointercancel', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                xnew.emit('-dragcancel', { event, position, });
-                win.finalize();
-            }
-        });
-        xnew.emit('-dragstart', { event, position });
-    });
-}
-
-function GestureEvent(self) {
-    const drag = xnew(DragEvent);
-
-    let isActive = false;
-    const map = new Map();
-
-    drag.on('-dragstart', ({ event, position }) => {
-        map.set(event.pointerId, { ...position });
-
-        isActive = map.size === 2 ? true : false;
-        if (isActive === true) {
-            xnew.emit('-gesturestart', {});
-        }
-    });
-
-    drag.on('-dragmove', ({ event, position, movement }) => {
-        if (isActive === true) {
-            const a = map.get(event.pointerId);
-            const b = getOthers(event.pointerId)[0];
-
-            let scale = 0.0;
-            {
-                const v = { x: a.x - b.x, y: a.y - b.y };
-                const s = v.x * v.x + v.y * v.y;
-                scale = 1 + (s > 0.0 ? (v.x * movement.x + v.y * movement.y) / s : 0);
-            }
-            {
-                const c = { x: a.x + movement.x, y: a.y + movement.y };
-                ({ x: a.x - b.x, y: a.y - b.y });
-                ({ x: c.x - b.x, y: c.y - b.y });
-            }
-
-            xnew.emit('-gesturemove', { event, position, movement, scale });
-        }
-        map.set(event.pointerId, position);
-    });
-
-    drag.on('-dragend', ({ event }) => {
-        if (isActive === true) {
-            xnew.emit('-gesturemend', { event });
-        }
-        isActive = false;
-        map.delete(event.pointerId);
-    });
-
-    drag.on('-dragcancel', ({ event }) => {
-        if (isActive === true) {
-            xnew.emit('-gesturecancel', { event });
-        }
-        isActive = false;
-        map.delete(event.pointerId);
-    });
-
-    function getOthers(id) {
-        const backup = map.get(id);
-        map.delete(id);
-        const others = [...map.values()];
-        map.set(id, backup);
-        return others;
-    }
-}
-
-function Keyboard(self) {
-    const state = {};
-
-    const win = xnew(window);
-    win.on('keydown', (event) => {
-        state[event.code] = 1;
-        xnew.emit('-keydown', { event, code: event.code });
-    });
-    win.on('keyup', (event) => {
-        state[event.code] = 0;
-        xnew.emit('-keyup', { event, code: event.code });
-    });
-    win.on('keydown', (event) => {
-        xnew.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
-    });
-    win.on('keyup', (event) => {
-        xnew.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
-    });
-
-    function getVector() {
-        return {
-            x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
-            y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
-        };
-    }
-}
-
-function getPosition(element, event) {
-    const rect = element.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
 }
 
 function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
@@ -1193,42 +934,41 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
         style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
     });
     const absolute = xnew.nest({
-        style: { position: 'absolute', margin: 'auto' } 
+        style: { position: 'absolute', margin: 'auto' }
     });
-
     const canvas = xnew({
         tagName: 'canvas', width, height,
         style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
     });
-
     const observer = xnew(wrapper, ResizeEvent);
     observer.on('-resize', resize);
     resize();
-
     function resize() {
         const aspect = canvas.element.width / canvas.element.height;
         const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
-        
         if (fit === 'contain') {
             if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
                 style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
-            } else {
+            }
+            else {
                 style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
             }
-        } else if (fit === 'cover') {
+        }
+        else if (fit === 'cover') {
             if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
                 style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
                 style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
                 style.right = 'auto';
-            } else {
+            }
+            else {
                 style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
                 style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
                 style.bottom = 'auto';
             }
-        } else ;
+        }
+        else ;
         Object.assign(absolute.style, style);
     }
-
     return {
         get canvas() {
             return canvas.element;
@@ -1241,93 +981,15 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
         get scale() {
             return { x: canvas.element.width / canvas.element.clientWidth, y: canvas.element.height / canvas.element.clientHeight };
         }
-    }
-}
-
-function Modal(self, {} = {}) {
-    xnew.nest({
-        style: {
-            position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        },
-    });
-    
-    xnew().on('click', () => {
-        self.close();
-    });
-
-    xnew.nest({});
-
-    xnew().on('click', (event) => {
-        event.stopPropagation(); 
-    });
-
-    return {
-        close() {
-            self.finalize();
-        }
-    }
-}
-
-function Accordion(self, { status = 'open', duration = 200, easing = 'ease-in-out' } = {}) {
-    const outer = xnew.nest({ style: { display: status === 'open' ? 'block' : 'none', overflow: 'hidden', }});
-    const inner = xnew.nest({ style: { padding: 0, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' } });
-     
-    let transition = false;
-    return {
-        get status() {
-            return status;
-        },
-        open() {
-            if (transition === false) {
-                transition = true;
-                status = 'open';
-                outer.style.display = 'block';
-                xnew.transition((progress) => {
-                    outer.style.height = inner.offsetHeight * process(progress) + 'px';
-                    outer.style.opacity = process(progress);
-                    if (progress === 1) {
-                        outer.style.height = 'auto';
-                        transition = false;
-                    }
-                }, duration);
-            }
-        },
-        close() {
-            if (transition === false) {
-                transition = true;
-                xnew.transition((progress) => {
-                    outer.style.height = inner.offsetHeight * (1 - process(progress)) + 'px';
-                    outer.style.opacity = 1 - process(progress);
-                    if (progress === 1) {
-                        status = 'closed';
-                        outer.style.display = 'none';
-                        outer.style.height = '0px';
-                        transition = false;
-                    }
-                }, duration);
-            }
-        },
-        toggle() {
-            status === 'open' ? self.close() : self.open();
-        },
     };
-    function process(progress) {
-        if (easing === 'ease-out') {
-            return Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
-        } else if (easing === 'ease-in') {
-            return Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
-        } else if (easing === 'ease-in-out') {
-            return - (Math.cos(progress * Math.PI) - 1.0) / 2.0;
-        } else {
-            return progress;
-        }
-    }
 }
 
+// // import { Modal } from './basics/Modal';
+// // // import { Accordion } from './basics/Accordion';
 Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
-Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
+// // Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
 Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
-Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
-Object.defineProperty(xnew, 'Accordion', { enumerable: true, value: Accordion });
+// // Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
+// // Object.defineProperty(xnew, 'Accordion', { enumerable: true, value: Accordion });
 
 export { xnew as default };

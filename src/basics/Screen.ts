@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 import { ResizeEvent } from './ResizeEvent';
 
-export function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
+export function Screen(self: any, { width = 640, height = 480, fit = 'contain' } = {}) {
     const wrapper = xnew.nest({
         style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
     });
@@ -20,7 +20,7 @@ export function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}
 
     function resize() {
         const aspect = canvas.element.width / canvas.element.height;
-        const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
+        const style: any = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
         
         if (fit === 'contain') {
             if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
@@ -47,7 +47,7 @@ export function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}
         get canvas() {
             return canvas.element;
         },
-        resize(width, height) {
+        resize(width: number, height: number): void{
             canvas.element.width = width;
             canvas.element.height = height;
             resize();

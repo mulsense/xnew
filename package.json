@@ -4,7 +4,7 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "2.6.2",
+  "version": "2.6.3",
   "main": "dist/xnew.js",
   "module": "./dist/xnew.mjs",
   "exports": {
@@ -30,7 +30,9 @@
   "scripts": {
     "test": "jest",
     "build": "npx rollup --config --bundleConfigAsCjs",
-    "dev": "npx rollup --config --watch --bundleConfigAsCjs"
+    "dev": "npx rollup --config --watch --bundleConfigAsCjs",
+    "cp": "node -e \"require('fs').cpSync('./dist', './examples/dist', {recursive: true})\"",
+    "watch:cp": "onchange \"./dist/*\" -- npm run cp"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -40,10 +42,13 @@
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
     "babel-jest": "^29.7.0",
-    "cpx": "^1.2.1",
+    "cpx": "^1.5.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "onchange": "^7.1.0",
     "rollup": "^3.3.0",
+    "ts-jest": "^29.3.2",
+    "tslib": "^2.8.1",
     "typescript": "^5.8.3"
   }
 }
