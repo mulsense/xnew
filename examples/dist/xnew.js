@@ -142,11 +142,11 @@
     //----------------------------------------------------------------------------------------------------
     class UnitScope {
         static execute(snapshot, func, ...args) {
-            const backup = { unit: null, context: null };
+            const backup = { unit: null, context: undefined };
             try {
                 backup.unit = UnitScope.current;
                 UnitScope.current = snapshot.unit;
-                if (snapshot.unit !== null && snapshot.context !== undefined) {
+                if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
                     backup.context = UnitScope.get(snapshot.unit);
                     UnitScope.set(snapshot.unit, snapshot.context);
                 }
@@ -157,7 +157,7 @@
             }
             finally {
                 UnitScope.current = backup.unit;
-                if (snapshot.unit !== null && snapshot.context !== undefined) {
+                if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
                     UnitScope.set(snapshot.unit, backup.context);
                 }
             }
@@ -166,7 +166,8 @@
             UnitScope.unitToContext.set(unit, context);
         }
         static get(unit) {
-            return UnitScope.unitToContext.get(unit);
+            var _a;
+            return (_a = UnitScope.unitToContext.get(unit)) !== null && _a !== void 0 ? _a : null;
         }
         static snapshot(unit = UnitScope.current) {
             return { unit, context: UnitScope.get(unit) };
@@ -183,7 +184,7 @@
         static trace(key) {
             const unit = UnitScope.current;
             if (unit) {
-                for (let context = UnitScope.get(unit); context !== null; context = context.previous) {
+                for (let context = UnitScope.unitToContext.get(unit); context !== null; context = context.previous) {
                     if (context.key === key) {
                         return context.value;
                     }

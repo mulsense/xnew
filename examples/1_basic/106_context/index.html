@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+    <div id="main" style="width: 100%; height: 100%;"></div>
+    <script>
+        xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+        xnew((self) => {
+            xnew.nest({ style: { border: '1px solid #000', padding: '8px' } });
+            // Set a context property
+            xnew.context('hoge', 1);
+            xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+
+            xnew((self) => {
+                xnew.nest({ style: { border: '1px solid #000', padding: '8px' } });
+                // Retrieve the context property from the parent unit
+                xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+
+                xnew((self) => {
+                    xnew.nest({ style: { border: '1px solid #000', padding: '8px' } });
+                    // Override the context property in the current unit
+                    xnew.context('hoge', 2);
+                    xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+
+                    xnew(() => {
+                        xnew.nest({ style: { border: '1px solid #000', padding: '8px' } });
+                        // Retrieve the overridden context property
+                        xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+                    });
+                    xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+                });
+
+                // Context property reverts to the parent unit's value
+                xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+            });
+        });
+        xnew({ tagName: 'p'}, `${xnew.context('hoge')}`);
+    </script>
+</body>
+
+</html>

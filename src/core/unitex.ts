@@ -4,17 +4,17 @@ import { MapSet, MapMap, MapMapMap } from './map';
 // types
 //----------------------------------------------------------------------------------------------------
 
-type Unit = any; // Placeholder for the actual Unit type
+type Unit = any; 
+
+interface Context {
+    previous: Context | null;
+    key: string;
+    value: any;
+}
 
 interface Snapshot {
     unit: Unit | null;
-    context: ContextData | null;
-}
-
-interface ContextData {
-    previous: ContextData | null;
-    key: string;
-    value: any;
+    context?: Context;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -24,16 +24,16 @@ interface ContextData {
 export class UnitScope {
     static current: Unit | null = null;
 
-    static unitToContext: Map<Unit | null, ContextData> = new Map();
+    static unitToContext: Map<Unit | null, Context> = new Map();
    
     static execute(snapshot: Snapshot, func: Function, ...args: any[]): any {
-        const backup: Snapshot = { unit: null, context: null };
+        const backup: Snapshot = { unit: null, context: undefined };
 
         try {
             backup.unit = UnitScope.current;
             UnitScope.current = snapshot.unit;
 
-            if (snapshot.unit !== null && snapshot.context !== undefined) {
+            if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
                 backup.context = UnitScope.get(snapshot.unit);
                 UnitScope.set(snapshot.unit, snapshot.context);
             }
@@ -43,17 +43,18 @@ export class UnitScope {
             throw error;
         } finally {
             UnitScope.current = backup.unit;
-            if (snapshot.unit !== null && snapshot.context !== undefined) {
+            if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
                 UnitScope.set(snapshot.unit, backup.context);
             }
         }
     }
-    static set(unit: Unit | null, context: ContextData): void {
+
+    static set(unit: Unit | null, context: Context): any {
         UnitScope.unitToContext.set(unit, context);
     }
 
-    static get(unit: Unit | null): ContextData | undefined {
-        return UnitScope.unitToContext.get(unit);
+    static get(unit: Unit | null): any {
+        return UnitScope.unitToContext.get(unit) ?? null;
     }
 
     static snapshot(unit: Unit | null = UnitScope.current): Snapshot {
@@ -74,7 +75,7 @@ export class UnitScope {
     static trace(key: string): any {
         const unit = UnitScope.current;
         if (unit) {
-            for (let context: any = UnitScope.get(unit); context !== null; context = context.previous) {
+            for (let context: any = UnitScope.unitToContext.get(unit); context !== null; context = context.previous) {
                 if (context.key === key) {
                     return context.value;
                 }

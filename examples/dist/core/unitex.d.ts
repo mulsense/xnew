@@ -1,20 +1,20 @@
 import { MapSet, MapMapMap } from './map';
 type Unit = any;
-interface Snapshot {
-    unit: Unit | null;
-    context: ContextData | null;
-}
-interface ContextData {
-    previous: ContextData | null;
+interface Context {
+    previous: Context | null;
     key: string;
     value: any;
 }
+interface Snapshot {
+    unit: Unit | null;
+    context?: Context;
+}
 export declare class UnitScope {
     static current: Unit | null;
-    static unitToContext: Map<Unit | null, ContextData>;
+    static unitToContext: Map<Unit | null, Context>;
     static execute(snapshot: Snapshot, func: Function, ...args: any[]): any;
-    static set(unit: Unit | null, context: ContextData): void;
-    static get(unit: Unit | null): ContextData | undefined;
+    static set(unit: Unit | null, context: Context): any;
+    static get(unit: Unit | null): any;
     static snapshot(unit?: Unit | null): Snapshot;
     static clear(unit: Unit): void;
     static push(key: string, value: any): void;
