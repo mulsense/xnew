@@ -14,5 +14,5 @@
         "forceConsistentCasingInFileNames": true,
         "lib": ["es2015", "dom"]
     },
-    "include": ["./src/**/*.ts"],
+    "include": ["./src/addons/*.ts"],
 }

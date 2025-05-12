@@ -42,7 +42,7 @@ export default [
     //             freeze: false
     //         },
     //     ],
-    //     external: ['xnew', 'pixi.js'],
+    //     external: ['xnew', 'pixi.js', '../index'],
     //     plugins: [
     //         typescript({ tsconfig: 'tsconfig.addons.json' })
     //     ],
