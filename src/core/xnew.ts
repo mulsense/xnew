@@ -89,16 +89,19 @@ export const xnew: any = Object.assign(function(...args: any[]): Unit | undefine
             }
         }
     },
-    context(key: string, value: any = undefined) {
+    context(key: string, value: any = undefined): any {
         try {
+            const unit = UnitScope.current;
             if (typeof key !== 'string') {
                 throw new Error('The argument [key] is invalid.');
-            } else {
+            } else if (unit !== null) {
                 if (value !== undefined) {
-                    UnitScope.push(key, value);
+                    UnitScope.push(unit, key, value);
                 } else {
-                    return UnitScope.trace(key);
+                    return UnitScope.trace(unit, key);
                 }
+            } else {
+                return undefined;
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -150,6 +153,10 @@ export const xnew: any = Object.assign(function(...args: any[]): Unit | undefine
     },
     
 });
+
+export namespace xnew {
+    export type Unit = InstanceType<typeof Unit>;
+}
 
 //----------------------------------------------------------------------------------------------------
 // members

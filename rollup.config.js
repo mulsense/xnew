@@ -2,7 +2,7 @@ import typescript from '@rollup/plugin-typescript';
 
 export default [
     {
-        input: 'src/index.ts',
+        input: 'src/xnew.ts',
         output: [
             {
                 file: 'dist/xnew.js',
@@ -21,6 +21,30 @@ export default [
         ],
         plugins: [
             typescript()
+        ],
+    },
+    {
+        input: 'src/addons/xpixi.ts',
+        output: [
+            {
+                file: 'dist/addons/xpixi.js',
+                format: 'umd',
+                extend: true,
+                name: 'xpixi',
+                freeze: false,
+                // globals: { 'xnew': 'xnew', 'pixi.js': 'PIXI' },
+            },
+            {
+                file: 'dist/addons/xpixi.mjs',
+                format: 'esm',
+                extend: true,
+                name: 'xpixi',
+                freeze: false
+            },
+        ],
+        external: ['xnew', 'pixi.js'],
+        plugins: [
+            typescript({ tsconfig: 'tsconfig.addons.json' })
         ],
     },
 ];

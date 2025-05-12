@@ -142,13 +142,14 @@
     //----------------------------------------------------------------------------------------------------
     class UnitScope {
         static execute(snapshot, func, ...args) {
-            const backup = { unit: null, context: undefined };
+            var _a;
+            const backup = { unit: null, data: null };
             try {
                 backup.unit = UnitScope.current;
                 UnitScope.current = snapshot.unit;
-                if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
-                    backup.context = UnitScope.get(snapshot.unit);
-                    UnitScope.set(snapshot.unit, snapshot.context);
+                if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
+                    backup.data = (_a = UnitScope.get(snapshot.unit)) !== null && _a !== void 0 ? _a : null;
+                    UnitScope.set(snapshot.unit, snapshot.data);
                 }
                 return func(...args);
             }
@@ -157,43 +158,37 @@
             }
             finally {
                 UnitScope.current = backup.unit;
-                if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
-                    UnitScope.set(snapshot.unit, backup.context);
+                if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
+                    UnitScope.set(snapshot.unit, backup.data);
                 }
             }
         }
-        static set(unit, context) {
-            UnitScope.unitToContext.set(unit, context);
+        static set(unit, data) {
+            UnitScope.unitToData.set(unit, data);
         }
         static get(unit) {
             var _a;
-            return (_a = UnitScope.unitToContext.get(unit)) !== null && _a !== void 0 ? _a : null;
+            return (_a = UnitScope.unitToData.get(unit)) !== null && _a !== void 0 ? _a : null;
         }
         static snapshot(unit = UnitScope.current) {
-            return { unit, context: UnitScope.get(unit) };
+            return { unit, data: UnitScope.get(unit) };
         }
         static clear(unit) {
-            UnitScope.unitToContext.delete(unit);
+            UnitScope.unitToData.delete(unit);
         }
-        static push(key, value) {
-            const unit = UnitScope.current;
-            if (unit) {
-                UnitScope.unitToContext.set(unit, { previous: UnitScope.get(unit), key, value });
-            }
+        static push(unit, key, value) {
+            UnitScope.unitToData.set(unit, { stack: UnitScope.get(unit), key, value });
         }
-        static trace(key) {
-            const unit = UnitScope.current;
-            if (unit) {
-                for (let context = UnitScope.unitToContext.get(unit); context !== null; context = context.previous) {
-                    if (context.key === key) {
-                        return context.value;
-                    }
+        static trace(unit, key) {
+            for (let data = UnitScope.get(unit); data !== null; data = data.stack) {
+                if (data.key === key) {
+                    return data.value;
                 }
             }
         }
     }
     UnitScope.current = null;
-    UnitScope.unitToContext = new Map();
+    UnitScope.unitToData = new Map();
     //----------------------------------------------------------------------------------------------------
     // unit component
     //----------------------------------------------------------------------------------------------------
@@ -427,12 +422,12 @@
         }
         static execute(promise) {
             const unit = UnitScope.current;
-            const scopedpromise = new UnitPromise((resolve, reject) => {
+            const unitpromise = new UnitPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args));
                 promise.catch((...args) => reject(...args));
             });
             UnitPromise.unitToPromises.add(unit, promise);
-            return scopedpromise;
+            return unitpromise;
         }
     }
     UnitPromise.unitToPromises = new MapSet();
@@ -469,9 +464,7 @@
                 Unit.initialize(this, component, ...args);
             }
             catch (error) {
-                if (error instanceof Error) {
-                    console.error('unit constructor: ', error.message);
-                }
+                console.error('unit constructor: ', error);
             }
         }
         //----------------------------------------------------------------------------------------------------
@@ -503,9 +496,7 @@
                 UnitEvent.on(this, type, listener, options);
             }
             catch (error) {
-                if (error instanceof Error) {
-                    console.error('unit.on(type, listener, option?): ', error.message);
-                }
+                console.error('unit.on(type, listener, option?): ', error);
             }
         }
         off(type, listener) {
@@ -513,9 +504,7 @@
                 UnitEvent.off(this, type, listener);
             }
             catch (error) {
-                if (error instanceof Error) {
-                    console.error('unit.off(type, listener): ', error.message);
-                }
+                console.error('unit.off(type, listener): ', error);
             }
         }
         static initialize(unit, component, ...args) {
@@ -541,14 +530,15 @@
                 }
                 // setup component
                 if (typeof component === 'function') {
-                    UnitScope.execute({ unit }, () => Unit.extend(unit, component, ...args));
+                    UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
                 }
                 else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
                     unit.element.innerHTML = component;
                 }
-                unit._.resolved = true;
                 // whether the unit promise was resolved
-                // UnitPromise.execute(unit).then(() => { unit._.resolved = true; });
+                const promises = UnitPromise.unitToPromises.get(unit);
+                const promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+                UnitPromise.execute(promise).then(() => { unit._.resolved = true; });
             }
         }
         static extend(unit, component, ...args) {
@@ -779,16 +769,20 @@
         },
         context(key, value = undefined) {
             try {
+                const unit = UnitScope.current;
                 if (typeof key !== 'string') {
                     throw new Error('The argument [key] is invalid.');
                 }
-                else {
+                else if (unit !== null) {
                     if (value !== undefined) {
-                        UnitScope.push(key, value);
+                        UnitScope.push(unit, key, value);
                     }
                     else {
-                        return UnitScope.trace(key);
+                        return UnitScope.trace(unit, key);
                     }
+                }
+                else {
+                    return undefined;
                 }
             }
             catch (error) {
@@ -936,6 +930,140 @@
         };
     }
 
+    function UserEvent(self) {
+        const unit = xnew();
+        unit.on('pointerdown', (event) => xnew.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
+        unit.on('pointermove', (event) => xnew.emit('-pointermove', { event, position: getPosition(self.element, event) }));
+        unit.on('pointerup', (event) => xnew.emit('-pointerup', { event, position: getPosition(self.element, event) }));
+        unit.on('wheel', (event) => xnew.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
+        const drag = xnew(DragEvent);
+        drag.on('-dragstart', (...args) => xnew.emit('-dragstart', ...args));
+        drag.on('-dragmove', (...args) => xnew.emit('-dragmove', ...args));
+        drag.on('-dragend', (...args) => xnew.emit('-dragend', ...args));
+        drag.on('-dragcancel', (...args) => xnew.emit('-dragcancel', ...args));
+        const gesture = xnew(GestureEvent);
+        gesture.on('-gesturestart', (...args) => xnew.emit('-gesturestart', ...args));
+        gesture.on('-gesturemove', (...args) => xnew.emit('-gesturemove', ...args));
+        gesture.on('-gestureend', (...args) => xnew.emit('-gestureend', ...args));
+        gesture.on('-gesturecancel', (...args) => xnew.emit('-gesturecancel', ...args));
+        const keyborad = xnew(Keyboard);
+        keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
+        keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
+        keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
+        keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
+    }
+    function DragEvent(self) {
+        xnew().on('pointerdown', (event) => {
+            const id = event.pointerId;
+            const position = getPosition(self.element, event);
+            let previous = position;
+            const win = xnew(window);
+            win.on('pointermove', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    const movement = { x: position.x - previous.x, y: position.y - previous.y };
+                    xnew.emit('-dragmove', { event, position, movement });
+                    previous = position;
+                }
+            });
+            win.on('pointerup', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    xnew.emit('-dragend', { event, position, });
+                    win.finalize();
+                }
+            });
+            win.on('pointercancel', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    xnew.emit('-dragcancel', { event, position, });
+                    win.finalize();
+                }
+            });
+            xnew.emit('-dragstart', { event, position });
+        });
+    }
+    function GestureEvent(self) {
+        const drag = xnew(DragEvent);
+        let isActive = false;
+        const map = new Map();
+        drag.on('-dragstart', ({ event, position }) => {
+            map.set(event.pointerId, Object.assign({}, position));
+            isActive = map.size === 2 ? true : false;
+            if (isActive === true) {
+                xnew.emit('-gesturestart', {});
+            }
+        });
+        drag.on('-dragmove', ({ event, position, movement }) => {
+            if (isActive === true) {
+                const a = map.get(event.pointerId);
+                const b = getOthers(event.pointerId)[0];
+                let scale = 0.0;
+                {
+                    const v = { x: a.x - b.x, y: a.y - b.y };
+                    const s = v.x * v.x + v.y * v.y;
+                    scale = 1 + (s > 0.0 ? (v.x * movement.x + v.y * movement.y) / s : 0);
+                }
+                {
+                    const c = { x: a.x + movement.x, y: a.y + movement.y };
+                    ({ x: a.x - b.x, y: a.y - b.y });
+                    ({ x: c.x - b.x, y: c.y - b.y });
+                }
+                xnew.emit('-gesturemove', { event, position, movement, scale });
+            }
+            map.set(event.pointerId, position);
+        });
+        drag.on('-dragend', ({ event }) => {
+            if (isActive === true) {
+                xnew.emit('-gesturemend', { event });
+            }
+            isActive = false;
+            map.delete(event.pointerId);
+        });
+        drag.on('-dragcancel', ({ event }) => {
+            if (isActive === true) {
+                xnew.emit('-gesturecancel', { event });
+            }
+            isActive = false;
+            map.delete(event.pointerId);
+        });
+        function getOthers(id) {
+            const backup = map.get(id);
+            map.delete(id);
+            const others = [...map.values()];
+            map.set(id, backup);
+            return others;
+        }
+    }
+    function Keyboard(self) {
+        const state = {};
+        const win = xnew(window);
+        win.on('keydown', (event) => {
+            state[event.code] = 1;
+            xnew.emit('-keydown', { event, code: event.code });
+        });
+        win.on('keyup', (event) => {
+            state[event.code] = 0;
+            xnew.emit('-keyup', { event, code: event.code });
+        });
+        win.on('keydown', (event) => {
+            xnew.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
+        });
+        win.on('keyup', (event) => {
+            xnew.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
+        });
+        function getVector() {
+            return {
+                x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
+                y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
+            };
+        }
+    }
+    function getPosition(element, event) {
+        const rect = element.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
     function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
         const wrapper = xnew.nest({
             style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
@@ -994,7 +1122,7 @@
     // // import { Modal } from './basics/Modal';
     // // // import { Accordion } from './basics/Accordion';
     Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
-    // // Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
+    Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
     Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
     // // Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
     // // Object.defineProperty(xnew, 'Accordion', { enumerable: true, value: Accordion });

@@ -4,17 +4,17 @@ import { MapSet, MapMap, MapMapMap } from './map';
 // types
 //----------------------------------------------------------------------------------------------------
 
-type Unit = any; 
+type Unit = any; // Placeholder for the Unit type
 
-interface Context {
-    previous: Context | null;
-    key: string;
-    value: any;
+interface UnitContext {
+    unit: Unit | null;
+    data: UnitData | null;
 }
 
-interface Snapshot {
-    unit: Unit | null;
-    context?: Context;
+interface UnitData {
+    stack: UnitData | null;
+    key: string;
+    value: any;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -24,61 +24,54 @@ interface Snapshot {
 export class UnitScope {
     static current: Unit | null = null;
 
-    static unitToContext: Map<Unit | null, Context> = new Map();
+    static unitToData: Map<Unit | null, UnitData> = new Map();
    
-    static execute(snapshot: Snapshot, func: Function, ...args: any[]): any {
-        const backup: Snapshot = { unit: null, context: undefined };
+    static execute(snapshot: UnitContext, func: Function, ...args: any[]): any {
+        const backup: UnitContext = { unit: null, data: null };
 
         try {
             backup.unit = UnitScope.current;
             UnitScope.current = snapshot.unit;
 
-            if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
-                backup.context = UnitScope.get(snapshot.unit);
-                UnitScope.set(snapshot.unit, snapshot.context);
+            if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
+                backup.data = UnitScope.get(snapshot.unit) ?? null;
+                UnitScope.set(snapshot.unit, snapshot.data);
             }
-
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
             UnitScope.current = backup.unit;
-            if (snapshot.unit !== null && snapshot.context !== undefined && backup.context !== undefined) {
-                UnitScope.set(snapshot.unit, backup.context);
+            if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
+                UnitScope.set(snapshot.unit, backup.data);
             }
         }
     }
 
-    static set(unit: Unit | null, context: Context): any {
-        UnitScope.unitToContext.set(unit, context);
+    static set(unit: Unit | null, data: UnitData): void {
+        UnitScope.unitToData.set(unit, data);
     }
 
-    static get(unit: Unit | null): any {
-        return UnitScope.unitToContext.get(unit) ?? null;
+    static get(unit: Unit | null): UnitData | null {
+        return UnitScope.unitToData.get(unit) ?? null;
     }
 
-    static snapshot(unit: Unit | null = UnitScope.current): Snapshot {
-        return { unit, context: UnitScope.get(unit) };
+    static snapshot(unit: Unit | null = UnitScope.current): UnitContext {
+        return { unit, data: UnitScope.get(unit) };
     }
 
     static clear(unit: Unit): void {
-        UnitScope.unitToContext.delete(unit);
+        UnitScope.unitToData.delete(unit);
     }
 
-    static push(key: string, value: any): void {
-        const unit = UnitScope.current;
-        if (unit) {
-            UnitScope.unitToContext.set(unit, { previous: UnitScope.get(unit), key, value });
-        }
+    static push(unit: Unit, key: string, value: any): void {
+        UnitScope.unitToData.set(unit, { stack: UnitScope.get(unit), key, value });
     }
 
-    static trace(key: string): any {
-        const unit = UnitScope.current;
-        if (unit) {
-            for (let context: any = UnitScope.unitToContext.get(unit); context !== null; context = context.previous) {
-                if (context.key === key) {
-                    return context.value;
-                }
+    static trace(unit: Unit, key: string): any {
+        for (let data: UnitData | null = UnitScope.get(unit); data !== null; data = data.stack) {
+            if (data.key === key) {
+                return data.value;
             }
         }
     }
@@ -333,11 +326,11 @@ export class UnitPromise {
     static execute(promise: Promise<any>): UnitPromise {
         const unit = UnitScope.current;
         
-        const scopedpromise = new UnitPromise((resolve, reject) => {
+        const unitpromise = new UnitPromise((resolve, reject) => {
             promise!.then((...args) => resolve(...args));
             promise!.catch((...args) => reject(...args));
         });
         UnitPromise.unitToPromises.add(unit!, promise);
-        return scopedpromise;
+        return unitpromise;
     }
 }

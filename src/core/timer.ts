@@ -11,7 +11,7 @@ export class Timer {
     private time: number;
     private offset: number;
     private status: 0 | 1;
-    private visibilitychange: ((this: Document, event: Event) => any) | null;
+    private visibilitychange?: ((this: Document, event: Event) => any);
 
     constructor(timeout: Function, delay: number, loop: boolean = false) {
         this.timeout = timeout;
@@ -23,7 +23,6 @@ export class Timer {
         this.offset = 0.0;
 
         this.status = 0;
-        this.visibilitychange = null;
 
         if (document !== undefined) {
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
@@ -38,7 +37,7 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        if (document !== undefined && this.visibilitychange !== null) {
+        if (document !== undefined && this.visibilitychange !== undefined) {
             document.removeEventListener('visibilitychange', this.visibilitychange);
         }
     }

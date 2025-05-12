@@ -37,9 +37,7 @@ export class Unit {
             Unit.initialize(this, component, ...args);
 
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('unit constructor: ', error.message);
-            }
+            console.error('unit constructor: ', error);
         }
     }
 
@@ -76,9 +74,7 @@ export class Unit {
         try {
             UnitEvent.on(this, type, listener, options);
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('unit.on(type, listener, option?): ', error.message);
-            }
+            console.error('unit.on(type, listener, option?): ', error);
         }
     }
 
@@ -86,9 +82,7 @@ export class Unit {
         try {
             UnitEvent.off(this, type, listener);
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                console.error('unit.off(type, listener): ', error.message);
-            }
+            console.error('unit.off(type, listener): ', error);
         }
     }
 
@@ -120,13 +114,15 @@ export class Unit {
 
             // setup component
             if (typeof component === 'function') {
-                UnitScope.execute({ unit }, () => Unit.extend(unit, component, ...args));
+                UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
             } else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
                 unit.element!.innerHTML = component;
             }
-            unit._.resolved = true;
+
             // whether the unit promise was resolved
-            // UnitPromise.execute(unit).then(() => { unit._.resolved = true; });
+            const promises: any = UnitPromise.unitToPromises.get(unit);
+            const promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+            UnitPromise.execute(promise).then(() => { unit._.resolved = true; });
         }
     }
 
