@@ -116,9 +116,7 @@ export class UnitElement {
 
     static nest(unit: Unit, attributes: Record<string, any>): Element {
         const current = UnitElement.get(unit);
-        if (current instanceof Window || current instanceof Document) {
-            throw new Error(`No elements are added to window or document.`);
-        } else if (typeof attributes !== 'object') {
+        if (typeof attributes !== 'object') {
             throw new Error(`The argument [attributes] is invalid.`);
         } else {
             const element = UnitElement.create(attributes, current);
@@ -204,7 +202,9 @@ export class UnitElement {
 //----------------------------------------------------------------------------------------------------
 // unit event
 //----------------------------------------------------------------------------------------------------
-
+interface HTMLElementEvent<T extends HTMLElement> extends Event {
+	target: T;
+}
 export class UnitEvent {
     static event: { type: string | null } | null = null;
 
@@ -241,7 +241,13 @@ export class UnitEvent {
                         UnitEvent.event = eventbackup;
                     };
                     UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                    element?.addEventListener(type, execute, options);
+
+                    if (element instanceof Element) {
+                        function handle(event: any) {
+                            execute(event);
+                        }
+                        element.addEventListener(type, handle, options);
+                    }
                 }
             }
             if (UnitEvent.unitToListeners.has(unit, type)) {
@@ -273,7 +279,9 @@ export class UnitEvent {
             if (UnitEvent.unitToListeners.has(unit, type, listener)) {
                 const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
                 UnitEvent.unitToListeners.delete(unit, type, listener);
-                element.removeEventListener(type, execute);
+                if (element instanceof Element) {
+                    element.removeEventListener(type, execute);
+                }
             }
             if (!UnitEvent.unitToListeners.has(unit, type)) {
                 UnitEvent.typeToUnits.delete(type, unit);

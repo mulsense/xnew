@@ -5,6 +5,7 @@
         "moduleResolution": "bundler",
         "esModuleInterop": true,
         "strict": true,
+        "strictFunctionTypes": false,
         "skipLibCheck": true,
         "declaration": true,
         "emitDeclarationOnly": false,

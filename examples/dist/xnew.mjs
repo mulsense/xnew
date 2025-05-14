@@ -1,4 +1,66 @@
 //----------------------------------------------------------------------------------------------------
+// timer
+//----------------------------------------------------------------------------------------------------
+class Timer {
+    constructor(timeout, delay, loop = false) {
+        this.timeout = timeout;
+        this.delay = delay;
+        this.loop = loop;
+        this.id = null;
+        this.time = 0.0;
+        this.offset = 0.0;
+        this.status = 0;
+        if (document !== undefined) {
+            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+            document.addEventListener('visibilitychange', this.visibilitychange);
+        }
+        this.start();
+    }
+    clear() {
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
+        }
+        if (document !== undefined && this.visibilitychange !== undefined) {
+            document.removeEventListener('visibilitychange', this.visibilitychange);
+        }
+    }
+    elapsed() {
+        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+    }
+    start() {
+        this.status = 1;
+        this._start();
+    }
+    stop() {
+        this._stop();
+        this.status = 0;
+    }
+    _start() {
+        if (this.status === 1 && this.id === null) {
+            this.id = setTimeout(() => {
+                this.timeout();
+                this.id = null;
+                this.time = 0.0;
+                this.offset = 0.0;
+                if (this.loop) {
+                    this.start();
+                }
+            }, this.delay - this.offset);
+            this.time = Date.now();
+        }
+    }
+    _stop() {
+        if (this.status === 1 && this.id !== null) {
+            this.offset = this.offset + Date.now() - this.time;
+            clearTimeout(this.id);
+            this.id = null;
+            this.time = 0.0;
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
 // map set
 //----------------------------------------------------------------------------------------------------
 class MapSet {
@@ -531,7 +593,7 @@ class Unit {
             }
             // whether the unit promise was resolved
             const promises = UnitPromise.unitToPromises.get(unit);
-            const promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+            const promise = (promises === null || promises === void 0 ? void 0 : promises.size) > 0 ? Promise.all([...promises]) : Promise.resolve();
             UnitPromise.execute(promise).then(() => { unit._.resolved = true; });
         }
     }
@@ -666,10 +728,7 @@ Unit.ticker = null;
 Unit.previous = 0.0;
 Unit.reset();
 
-//----------------------------------------------------------------------------------------------------
-// xnew main
-//----------------------------------------------------------------------------------------------------
-const xnew = Object.assign(function (...args) {
+const xnew$1 = Object.assign(function (...args) {
     let parent = UnitScope.current;
     if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
         parent = args.shift();
@@ -796,7 +855,7 @@ const xnew = Object.assign(function (...args) {
             }
             else if (mix instanceof Unit) {
                 const promises = UnitPromise.unitToPromises.get(mix);
-                promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+                promise = (promises === null || promises === void 0 ? void 0 : promises.size) > 0 ? Promise.all([...promises]) : Promise.resolve();
             }
             else {
                 throw new Error(`The argument [mix] is invalid.`);
@@ -804,9 +863,7 @@ const xnew = Object.assign(function (...args) {
             return UnitPromise.execute(promise);
         }
         catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.promise(mix): ', error.message);
-            }
+            console.error('xnew.promise(mix): ', error);
         }
     },
     emit(type, ...args) {
@@ -823,92 +880,88 @@ const xnew = Object.assign(function (...args) {
             }
         }
         catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.emit(type, ...args): ', error.message);
-            }
+            console.error('xnew.emit(type, ...args): ', error);
         }
     },
     scope(callback) {
         const snapshot = UnitScope.snapshot();
         return (...args) => UnitScope.execute(snapshot, callback, ...args);
     },
+    find(component) {
+        try {
+            if (typeof component !== 'function') {
+                throw new Error(`The argument [component] is invalid.`);
+            }
+            else {
+                return UnitComponent.find(component);
+            }
+        }
+        catch (error) {
+            console.error('xnew.find(component): ', error);
+        }
+    },
+    timer(callback, delay) {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew$1((self) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback);
+                self.finalize();
+            }, delay);
+            return {
+                finalize() {
+                    timer.clear();
+                }
+            };
+        });
+        return { clear: () => unit.finalize() };
+    },
+    interval(callback, delay) {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew$1((self) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback);
+            }, delay, true);
+            return {
+                finalize() {
+                    timer.clear();
+                }
+            };
+        });
+        return { clear: () => unit.finalize() };
+    },
+    transition(callback, interval) {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew$1((self) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback, 1.0);
+                self.finalize();
+            }, interval);
+            UnitScope.execute(snapshot, callback, 0.0);
+            const updater = xnew$1(null, (self) => {
+                return {
+                    update() {
+                        const progress = timer.elapsed() / interval;
+                        if (progress < 1.0) {
+                            UnitScope.execute(snapshot, callback, progress);
+                        }
+                    },
+                };
+            });
+            return {
+                finalize() {
+                    timer.clear();
+                    updater.finalize();
+                }
+            };
+        });
+        return { clear: () => unit.finalize() };
+    }
 });
-//----------------------------------------------------------------------------------------------------
-// members
-//----------------------------------------------------------------------------------------------------
-// Object.defineProperty(xnew, 'event', { get: () => UnitEvent.event });
-// Object.defineProperty(xnew, 'scope', { value: scope });
-// Object.defineProperty(xnew, 'timer', { value: timer });
-// Object.defineProperty(xnew, 'interval', { value: interval });
-// Object.defineProperty(xnew, 'transition', { value: transition });
-// function find(component) {
-//     if (isFunction(component) === false) {
-//         console.error(`xnew.find: The argument [component] is invalid.`);
-//     } else if (isFunction(component) === true) {
-//         return UnitComponent.find(component);
-//     }
-// }
-// function timer(callback, delay) {
-//     const snapshot = UnitScope.snapshot();
-//     const unit = xnew((self) => {
-//         const timer = new Timer(() => {
-//             UnitScope.execute(snapshot, callback);
-//             self.finalize();
-//         }, delay);
-//         return {
-//             finalize() {
-//                 timer.clear();
-//             }
-//         };
-//     });
-//     return { clear: () => unit.finalize() };
-// }
-// function interval(callback, delay) {
-//     const snapshot = UnitScope.snapshot();
-//     const unit = xnew((self) => {
-//         const timer = new Timer(() => {
-//             UnitScope.execute(snapshot, callback);
-//         }, delay, true);
-//         return {
-//             finalize() {
-//                 timer.clear();
-//             }
-//         };
-//     });
-//     return { clear: () => unit.finalize() };
-// }
-// function transition(callback, interval) {
-//     const snapshot = UnitScope.snapshot();
-//     const unit = xnew((self) => {
-//         const timer = new Timer(() => {
-//             UnitScope.execute(snapshot, callback, 1.0);
-//             self.finalize();
-//         }, interval);
-//         UnitScope.execute(snapshot, callback, 0.0);
-//         const updater = xnew(null, (self) => {
-//             return {
-//                 update() {
-//                     const progress = timer.elapsed() / interval;
-//                     if (progress < 1.0) {
-//                         UnitScope.execute(snapshot, callback, progress);
-//                     }
-//                 },
-//             }
-//         });
-//         return {
-//             finalize() {
-//                 timer.clear();
-//                 updater.finalize();
-//             }
-//         };
-//     });
-//     return { clear: () => unit.finalize() };
-// }
 
 function ResizeEvent(self) {
-    const observer = new ResizeObserver(xnew.scope((entries) => {
+    const observer = new ResizeObserver(xnew$1.scope((entries) => {
         for (const entry of entries) {
-            xnew.emit('-resize');
+            xnew$1.emit('-resize');
             break;
         }
     }));
@@ -925,67 +978,67 @@ function ResizeEvent(self) {
 }
 
 function UserEvent(self) {
-    const unit = xnew();
-    unit.on('pointerdown', (event) => xnew.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
-    unit.on('pointermove', (event) => xnew.emit('-pointermove', { event, position: getPosition(self.element, event) }));
-    unit.on('pointerup', (event) => xnew.emit('-pointerup', { event, position: getPosition(self.element, event) }));
-    unit.on('wheel', (event) => xnew.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
-    const drag = xnew(DragEvent);
-    drag.on('-dragstart', (...args) => xnew.emit('-dragstart', ...args));
-    drag.on('-dragmove', (...args) => xnew.emit('-dragmove', ...args));
-    drag.on('-dragend', (...args) => xnew.emit('-dragend', ...args));
-    drag.on('-dragcancel', (...args) => xnew.emit('-dragcancel', ...args));
-    const gesture = xnew(GestureEvent);
-    gesture.on('-gesturestart', (...args) => xnew.emit('-gesturestart', ...args));
-    gesture.on('-gesturemove', (...args) => xnew.emit('-gesturemove', ...args));
-    gesture.on('-gestureend', (...args) => xnew.emit('-gestureend', ...args));
-    gesture.on('-gesturecancel', (...args) => xnew.emit('-gesturecancel', ...args));
-    const keyborad = xnew(Keyboard);
-    keyborad.on('-keydown', (...args) => xnew.emit('-keydown', ...args));
-    keyborad.on('-keyup', (...args) => xnew.emit('-keyup', ...args));
-    keyborad.on('-arrowkeydown', (...args) => xnew.emit('-arrowkeydown', ...args));
-    keyborad.on('-arrowkeyup', (...args) => xnew.emit('-arrowkeyup', ...args));
+    const unit = xnew$1();
+    unit.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
+    unit.on('pointermove', (event) => xnew$1.emit('-pointermove', { event, position: getPosition(self.element, event) }));
+    unit.on('pointerup', (event) => xnew$1.emit('-pointerup', { event, position: getPosition(self.element, event) }));
+    unit.on('wheel', (event) => xnew$1.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
+    const drag = xnew$1(DragEvent);
+    drag.on('-dragstart', (...args) => xnew$1.emit('-dragstart', ...args));
+    drag.on('-dragmove', (...args) => xnew$1.emit('-dragmove', ...args));
+    drag.on('-dragend', (...args) => xnew$1.emit('-dragend', ...args));
+    drag.on('-dragcancel', (...args) => xnew$1.emit('-dragcancel', ...args));
+    const gesture = xnew$1(GestureEvent);
+    gesture.on('-gesturestart', (...args) => xnew$1.emit('-gesturestart', ...args));
+    gesture.on('-gesturemove', (...args) => xnew$1.emit('-gesturemove', ...args));
+    gesture.on('-gestureend', (...args) => xnew$1.emit('-gestureend', ...args));
+    gesture.on('-gesturecancel', (...args) => xnew$1.emit('-gesturecancel', ...args));
+    const keyborad = xnew$1(Keyboard);
+    keyborad.on('-keydown', (...args) => xnew$1.emit('-keydown', ...args));
+    keyborad.on('-keyup', (...args) => xnew$1.emit('-keyup', ...args));
+    keyborad.on('-arrowkeydown', (...args) => xnew$1.emit('-arrowkeydown', ...args));
+    keyborad.on('-arrowkeyup', (...args) => xnew$1.emit('-arrowkeyup', ...args));
 }
 function DragEvent(self) {
-    xnew().on('pointerdown', (event) => {
+    xnew$1().on('pointerdown', (event) => {
         const id = event.pointerId;
         const position = getPosition(self.element, event);
         let previous = position;
-        const win = xnew(window);
+        const win = xnew$1(window);
         win.on('pointermove', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew.emit('-dragmove', { event, position, movement });
+                xnew$1.emit('-dragmove', { event, position, movement });
                 previous = position;
             }
         });
         win.on('pointerup', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
-                xnew.emit('-dragend', { event, position, });
+                xnew$1.emit('-dragend', { event, position, });
                 win.finalize();
             }
         });
         win.on('pointercancel', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
-                xnew.emit('-dragcancel', { event, position, });
+                xnew$1.emit('-dragcancel', { event, position, });
                 win.finalize();
             }
         });
-        xnew.emit('-dragstart', { event, position });
+        xnew$1.emit('-dragstart', { event, position });
     });
 }
 function GestureEvent(self) {
-    const drag = xnew(DragEvent);
+    const drag = xnew$1(DragEvent);
     let isActive = false;
     const map = new Map();
     drag.on('-dragstart', ({ event, position }) => {
         map.set(event.pointerId, Object.assign({}, position));
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            xnew.emit('-gesturestart', {});
+            xnew$1.emit('-gesturestart', {});
         }
     });
     drag.on('-dragmove', ({ event, position, movement }) => {
@@ -1003,20 +1056,20 @@ function GestureEvent(self) {
                 ({ x: a.x - b.x, y: a.y - b.y });
                 ({ x: c.x - b.x, y: c.y - b.y });
             }
-            xnew.emit('-gesturemove', { event, position, movement, scale });
+            xnew$1.emit('-gesturemove', { event, position, movement, scale });
         }
         map.set(event.pointerId, position);
     });
     drag.on('-dragend', ({ event }) => {
         if (isActive === true) {
-            xnew.emit('-gesturemend', { event });
+            xnew$1.emit('-gesturemend', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
     });
     drag.on('-dragcancel', ({ event }) => {
         if (isActive === true) {
-            xnew.emit('-gesturecancel', { event });
+            xnew$1.emit('-gesturecancel', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
@@ -1031,20 +1084,20 @@ function GestureEvent(self) {
 }
 function Keyboard(self) {
     const state = {};
-    const win = xnew(window);
+    const win = xnew$1(window);
     win.on('keydown', (event) => {
         state[event.code] = 1;
-        xnew.emit('-keydown', { event, code: event.code });
+        xnew$1.emit('-keydown', { event, code: event.code });
     });
     win.on('keyup', (event) => {
         state[event.code] = 0;
-        xnew.emit('-keyup', { event, code: event.code });
+        xnew$1.emit('-keyup', { event, code: event.code });
     });
     win.on('keydown', (event) => {
-        xnew.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
+        xnew$1.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
     win.on('keyup', (event) => {
-        xnew.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
+        xnew$1.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
     function getVector() {
         return {
@@ -1059,17 +1112,17 @@ function getPosition(element, event) {
 }
 
 function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
-    const wrapper = xnew.nest({
+    const wrapper = xnew$1.nest({
         style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
     });
-    const absolute = xnew.nest({
+    const absolute = xnew$1.nest({
         style: { position: 'absolute', margin: 'auto' }
     });
-    const canvas = xnew({
+    const canvas = xnew$1({
         tagName: 'canvas', width, height,
         style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
     });
-    const observer = xnew(wrapper, ResizeEvent);
+    const observer = xnew$1(wrapper, ResizeEvent);
     observer.on('-resize', resize);
     resize();
     function resize() {
@@ -1113,12 +1166,10 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
     };
 }
 
-// // import { Modal } from './basics/Modal';
-// // // import { Accordion } from './basics/Accordion';
-Object.defineProperty(xnew, 'Screen', { enumerable: true, value: Screen });
-Object.defineProperty(xnew, 'UserEvent', { enumerable: true, value: UserEvent });
-Object.defineProperty(xnew, 'ResizeEvent', { enumerable: true, value: ResizeEvent });
-// // Object.defineProperty(xnew, 'Modal', { enumerable: true, value: Modal });
-// // Object.defineProperty(xnew, 'Accordion', { enumerable: true, value: Accordion });
+const xnew = Object.assign(xnew$1, {
+    Screen,
+    UserEvent,
+    ResizeEvent,
+});
 
 export { xnew as default };

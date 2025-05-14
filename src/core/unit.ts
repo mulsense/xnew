@@ -46,7 +46,11 @@ export class Unit {
     //----------------------------------------------------------------------------------------------------
 
     get element(): Element | null {
-        return UnitElement.get(this);
+        if (this._.baseElement instanceof Element) {
+            return UnitElement.get(this);
+        } else {
+            return null;
+        }
     }
 
     start(): void {
@@ -121,7 +125,7 @@ export class Unit {
 
             // whether the unit promise was resolved
             const promises: any = UnitPromise.unitToPromises.get(unit);
-            const promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+            const promise = promises?.size > 0 ? Promise.all([...promises]) : Promise.resolve();
             UnitPromise.execute(promise).then(() => { unit._.resolved = true; });
         }
     }

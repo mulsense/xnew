@@ -4,17 +4,50 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "3.0.1",
+  "version": "3.0.6",
   "main": "dist/xnew.js",
-  "module": "./dist/xnew.mjs",
+  "module": "dist/xnew.mjs",
+  "types": "dist/xnew.d.ts",
+  "typesVersions": {
+    "*": {
+      "dist/addons/*": [
+        "./dist/addons/*.d.ts"
+      ],
+      "*": [
+        "./dist/*.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
+      "types": "./dist/xnew.d.ts",
       "import": "./dist/xnew.mjs",
       "require": "./dist/xnew.js"
     },
-    "./addons/*": {
-      "import": "./dist/addons/*.mjs",
-      "require": "./dist/addons/*.js"
+    "./addons/xaudio": {
+      "types": "./dist/addons/xaudio.d.ts",
+      "import": "./dist/addons/xaudio.mjs",
+      "require": "./dist/addons/xaudio.js"
+    },
+    "./addons/xmatter": {
+      "types": "./dist/addons/xmatter.d.ts",
+      "import": "./dist/addons/xmatter.mjs",
+      "require": "./dist/addons/xmatter.js"
+    },
+    "./addons/xpixi": {
+      "types": "./dist/addons/xpixi.d.ts",
+      "import": "./dist/addons/xpixi.mjs",
+      "require": "./dist/addons/xpixi.js"
+    },
+    "./addons/xthree": {
+      "types": "./dist/addons/xthree.d.ts",
+      "import": "./dist/addons/xthree.mjs",
+      "require": "./dist/addons/xthree.js"
+    },
+    "./addons/xutil": {
+      "types": "./dist/addons/xutil.d.ts",
+      "import": "./dist/addons/xutil.mjs",
+      "require": "./dist/addons/xutil.js"
     }
   },
   "files": [
@@ -37,20 +70,21 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
-    "@rollup/plugin-commonjs": "^28.0.2",
-    "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.15.17",
+    "@types/pixi.js": "^4.8.9",
     "babel-jest": "^29.7.0",
-    "cpx": "^1.5.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "onchange": "^7.1.0",
     "rollup": "^3.3.0",
     "ts-jest": "^29.3.2",
     "tslib": "^2.8.1",
-    "typescript": "^5.8.3",
-    "xnew": "^3.0.0"
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "pixi.js": "^8.9.2",
+    "xnew": "^3.0.2"
   }
 }

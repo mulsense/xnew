@@ -2,7 +2,7 @@ import typescript from '@rollup/plugin-typescript';
 
 export default [
     {
-        input: 'src/index.ts',
+        input: 'src/xnew.ts',
         output: [
             {
                 file: 'dist/xnew.js',
@@ -13,7 +13,7 @@ export default [
             },
             {
                 file: 'dist/xnew.mjs',
-                format: 'esm',
+                format: 'es',
                 extend: true,
                 name: 'xnew',
                 freeze: false

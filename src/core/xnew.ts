@@ -3,9 +3,9 @@ import { Timer } from './timer';
 import { Unit } from './unit';
 import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unitex';
 
-//----------------------------------------------------------------------------------------------------
-// xnew main
-//----------------------------------------------------------------------------------------------------
+export namespace xnew {
+    export type Unit = InstanceType<typeof Unit>;
+}
 
 export const xnew: any = Object.assign(function(...args: any[]): Unit | undefined {
     let parent = UnitScope.current;
@@ -118,15 +118,13 @@ export const xnew: any = Object.assign(function(...args: any[]): Unit | undefine
                 promise = new Promise(mix);
             } else if (mix instanceof Unit) {
                 const promises: any = UnitPromise.unitToPromises.get(mix);
-                promise = promises.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+                promise = promises?.size > 0 ? Promise.all([...promises]) : Promise.resolve();
             } else {
                 throw new Error(`The argument [mix] is invalid.`);
             }
             return UnitPromise.execute(promise);
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.promise(mix): ', error.message);
-            }
+            console.error('xnew.promise(mix): ', error);
         }
     },
 
@@ -141,9 +139,7 @@ export const xnew: any = Object.assign(function(...args: any[]): Unit | undefine
                 UnitEvent.emit(unit, type, ...args);
             }
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.emit(type, ...args): ', error.message);
-            }
+            console.error('xnew.emit(type, ...args): ', error);
         }
     },
     
@@ -151,93 +147,80 @@ export const xnew: any = Object.assign(function(...args: any[]): Unit | undefine
         const snapshot = UnitScope.snapshot();
         return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
     },
-    
+
+    find(component: Function): Unit[] | undefined {
+        try {
+            if (typeof component !== 'function') {
+                throw new Error(`The argument [component] is invalid.`);
+            } else {
+                return UnitComponent.find(component);
+            }
+        } catch (error) {
+            console.error('xnew.find(component): ', error);
+        }
+    },
+
+
+    timer(callback: Function, delay: number): { clear: () => void } {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew((self: Unit) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback);
+                self.finalize();
+            }, delay);
+            return {
+                finalize() {
+                    timer.clear();
+                }
+            };
+        });
+        return { clear: () => unit.finalize() };
+    },
+
+    interval(callback: Function, delay: number): { clear: () => void } {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew((self: Unit) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback);
+            }, delay, true);
+            return {
+                finalize() {
+                    timer.clear();
+                }
+            };
+        });
+        return { clear: () => unit.finalize() };
+    },
+
+    transition(callback: Function, interval: number): { clear: () => void } {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew((self: Unit) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback, 1.0);
+                self.finalize();
+            }, interval);
+
+            UnitScope.execute(snapshot, callback, 0.0);
+
+            const updater = xnew(null, (self: Unit) => {
+                return {
+                    update() {
+                        const progress = timer.elapsed() / interval;
+                        if (progress < 1.0) {
+                            UnitScope.execute(snapshot, callback, progress);
+                        }
+                    },
+                }
+            });
+            return {
+                finalize() {
+                    timer.clear();
+                    updater.finalize();
+                }
+            };
+        });
+
+        return { clear: () => unit.finalize() };
+    }
+
 });
-
-export namespace xnew {
-    export type Unit = InstanceType<typeof Unit>;
-}
-
-//----------------------------------------------------------------------------------------------------
-// members
-//----------------------------------------------------------------------------------------------------
-
-
-// Object.defineProperty(xnew, 'event', { get: () => UnitEvent.event });
-// Object.defineProperty(xnew, 'scope', { value: scope });
-
-// Object.defineProperty(xnew, 'timer', { value: timer });
-// Object.defineProperty(xnew, 'interval', { value: interval });
-// Object.defineProperty(xnew, 'transition', { value: transition });
-
-
-// function find(component) {
-//     if (isFunction(component) === false) {
-//         console.error(`xnew.find: The argument [component] is invalid.`);
-//     } else if (isFunction(component) === true) {
-//         return UnitComponent.find(component);
-//     }
-// }
-
-
-// function timer(callback, delay) {
-//     const snapshot = UnitScope.snapshot();
-//     const unit = xnew((self) => {
-//         const timer = new Timer(() => {
-//             UnitScope.execute(snapshot, callback);
-//             self.finalize();
-//         }, delay);
-//         return {
-//             finalize() {
-//                 timer.clear();
-//             }
-//         };
-//     });
-//     return { clear: () => unit.finalize() };
-// }
-
-// function interval(callback, delay) {
-//     const snapshot = UnitScope.snapshot();
-//     const unit = xnew((self) => {
-//         const timer = new Timer(() => {
-//             UnitScope.execute(snapshot, callback);
-//         }, delay, true);
-//         return {
-//             finalize() {
-//                 timer.clear();
-//             }
-//         };
-//     });
-//     return { clear: () => unit.finalize() };
-// }
-
-// function transition(callback, interval) {
-//     const snapshot = UnitScope.snapshot();
-//     const unit = xnew((self) => {
-//         const timer = new Timer(() => {
-//             UnitScope.execute(snapshot, callback, 1.0);
-//             self.finalize();
-//         }, interval);
-
-//         UnitScope.execute(snapshot, callback, 0.0);
-
-//         const updater = xnew(null, (self) => {
-//             return {
-//                 update() {
-//                     const progress = timer.elapsed() / interval;
-//                     if (progress < 1.0) {
-//                         UnitScope.execute(snapshot, callback, progress);
-//                     }
-//                 },
-//             }
-//         });
-//         return {
-//             finalize() {
-//                 timer.clear();
-//                 updater.finalize();
-//             }
-//         };
-//     });
-
-//     return { clear: () => unit.finalize() };
-// }
