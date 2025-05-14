@@ -3,7 +3,7 @@ import { UnitComponent, UnitElement, UnitEvent, UnitScope, UnitPromise } from '.
 export class Unit {
     public _: { [key: string]: any } = {};
 
-    static autoincrement: number = 0; // auto increment id
+    static autoincrement: number = 0;
  
     constructor(parent: Unit | null, target: Element | Window | Document | null, component?: Function | string, ...args: any[]) {
         try {

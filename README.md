@@ -13,7 +13,7 @@ It allows you to structure your code as a collection of simple, reusable compone
 ### Via CDN
 Include the following script in your HTML file:
 ```html
-<script src="https://unpkg.com/xnew@2.6.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@3.0.x/dist/xnew.js"></script>
 ```
 
 ### Via CDN (ESM)
@@ -22,7 +22,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
     "imports": {
-        "xnew": "https://unpkg.com/xnew@2.6.x/dist/xnew.module.js"
+        "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.module.js"
     }
 }
 </script>
@@ -37,7 +37,7 @@ import xnew from 'xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install xnew@2.6.x
+npm install xnew@3.0.x
 ```
 
 Then import it in your JavaScript file:

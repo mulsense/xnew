@@ -1,4 +1,4 @@
-import { xnew } from '../core/xnew';
+import { xnew } from '../core/base';
 
 export function UserEvent(self: xnew.Unit) {
     const unit = xnew();

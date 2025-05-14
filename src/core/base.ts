@@ -1,61 +1,58 @@
-import { MapSet } from './map';
 import { Timer } from './timer';
 import { Unit } from './unit';
 import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unitex';
+
+export interface xnewtype extends Function {
+    [key: string]: any;
+    readonly root: HTMLElement | null;
+}
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-export const xnew: any = Object.assign(function(...args: any[]): Unit | undefined {
-    let parent = UnitScope.current;
-    if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
-        parent = args.shift();
-    } else if (args[0] === null) {
-        parent = args.shift();
-    } else if (args[0] === undefined) {
-        args.shift();
-    }
-
-    let target = null;
-    if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
-        // an existing html element
-        target = args.shift();
-    } else if (typeof args[0] === 'string') {
-        // a string for an existing html element
-        const key = args.shift();
-        target = document.querySelector(key);
-        if (target == null) {
-            console.error(`xnew: '${key}' can not be found.`);
-        }
-    } else if (typeof args[0] !== null && typeof args[0] === 'object') {
-        // an attributes for a new html element
-        target = args.shift();
-    } else if (args[0] === null || args[0] === undefined) {
-        args.shift();
-    }
-    // if (!(parent === null || parent instanceof Unit)) {
-    //     throw new Error(`The argument [parent] is invalid.`);
-    // }
-    // if (!(target === null || (target !== null && typeof target === 'object') || target instanceof Element || target instanceof Window || target instanceof Document)) {
-    //     throw new Error(`The argument [target] is invalid.`);
-    // }
-    // if (!(component === undefined || typeof component === 'function' || ((target !== null && typeof target === 'object') && typeof component === 'string'))) {
-    //     throw new Error(`The argument [component] is invalid.`);
-    // }
+export const xnew: xnewtype = Object.assign(function(...args: any[]): Unit | undefined {
     try {
+        let parent = UnitScope.current;
+        if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
+            parent = args.shift();
+        } else if (args[0] === null) {
+            parent = args.shift();
+        } else if (args[0] === undefined) {
+            args.shift();
+        }
+
+        let target = null;
+        if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
+            // an existing html element
+            target = args.shift();
+        } else if (typeof args[0] === 'string') {
+            // a string for an existing html element
+            const key = args.shift();
+            target = document.querySelector(key);
+            if (target == null) {
+                throw new Error(`'${key}' can not be found.`);
+            }
+        } else if (typeof args[0] !== null && typeof args[0] === 'object') {
+            // an attributes for a new html element
+            target = args.shift();
+        } else if (args[0] === null || args[0] === undefined) {
+            args.shift();
+        }
+
+        if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && typeof target === 'object') && typeof args[0] === 'string'))) {
+            throw new Error('The argument [parent, target, component] is invalid.');
+        }
         return new Unit(parent, target, ...args);
     } catch (error) {
-        if (error instanceof Error) {
-            console.error('xnew: ', error.message);
-        }
+        console.error('xnew: ', error);
     }
 }, {
     get root() {
         return UnitScope.current?._.root
     },
     get parent() {
-        return UnitScope.current?._.root;
+        return UnitScope.current?._.parent;
     },
     get current() {
         return UnitScope.current;

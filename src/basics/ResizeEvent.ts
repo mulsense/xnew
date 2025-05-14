@@ -1,4 +1,4 @@
-import { xnew } from '../core/xnew';
+import { xnew } from '../core/base';
 
 export function ResizeEvent(self: any) {
     const observer = new ResizeObserver(xnew.scope((entries: any) => {

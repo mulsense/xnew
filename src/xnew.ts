@@ -5,16 +5,19 @@ import { Screen } from './basics/Screen';
 // import { Accordion } from './basics/Accordion';
 
 import { Unit } from './core/unit';
-import { xnew as base } from './core/xnew';
+import { xnew as base, xnewtype as basetype } from './core/base';
 
-interface xnew extends Function {
-    [key: string]: any;
+interface xnewtype extends basetype {
+    Screen: Function;
+    UserEvent: Function;
+    ResizeEvent: Function;
 }
+
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-const xnew: xnew = Object.assign(base, {
+const xnew: xnewtype = Object.assign(base, {
     Screen,
     UserEvent,
     ResizeEvent,
