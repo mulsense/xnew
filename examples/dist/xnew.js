@@ -741,7 +741,7 @@
     Unit.previous = 0.0;
     Unit.reset();
 
-    const xnew$1 = Object.assign(function (...args) {
+    const xnew$1 = function (...args) {
         try {
             let parent = UnitScope.current;
             if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
@@ -781,19 +781,19 @@
         catch (error) {
             console.error('xnew: ', error);
         }
-    }, {
-        get root() {
+    };
+    Object.defineProperty(xnew$1, 'root', { enumerable: true, get: function () {
             var _a;
             return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
-        },
-        get parent() {
+        } });
+    Object.defineProperty(xnew$1, 'parent', { enumerable: true, get: function () {
             var _a;
             return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.parent;
-        },
-        get current() {
+        } });
+    Object.defineProperty(xnew$1, 'parent', { enumerable: true, get: function () {
             return UnitScope.current;
-        },
-        nest(attributes) {
+        } });
+    Object.defineProperty(xnew$1, 'nest', { enumerable: true, value: function (attributes) {
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
@@ -808,8 +808,8 @@
                     console.error('xnew.nest(attributes): ', error.message);
                 }
             }
-        },
-        extend(component, ...args) {
+        } });
+    Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: function (component, ...args) {
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
@@ -822,8 +822,8 @@
             catch (error) {
                 console.error('xnew.extend(component, ...args): ', error);
             }
-        },
-        context(key, value = undefined) {
+        } });
+    Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: function (key, value = undefined) {
             try {
                 const unit = UnitScope.current;
                 if (typeof key !== 'string') {
@@ -844,8 +844,8 @@
             catch (error) {
                 console.error('xnew.context(key, value?): ', error);
             }
-        },
-        promise(mix) {
+        } });
+    Object.defineProperty(xnew$1, 'promise', { enumerable: true, value: function (mix) {
             try {
                 let promise = null;
                 if (mix instanceof Promise) {
@@ -866,8 +866,8 @@
             catch (error) {
                 console.error('xnew.promise(mix): ', error);
             }
-        },
-        emit(type, ...args) {
+        } });
+    Object.defineProperty(xnew$1, 'emit', { enumerable: true, value: function (type, ...args) {
             try {
                 const unit = UnitScope.current;
                 if (typeof type !== 'string') {
@@ -883,12 +883,12 @@
             catch (error) {
                 console.error('xnew.emit(type, ...args): ', error);
             }
-        },
-        scope(callback) {
+        } });
+    Object.defineProperty(xnew$1, 'scope', { enumerable: true, value: function (callback) {
             const snapshot = UnitScope.snapshot();
             return (...args) => UnitScope.execute(snapshot, callback, ...args);
-        },
-        find(component) {
+        } });
+    Object.defineProperty(xnew$1, 'find', { enumerable: true, value: function (component) {
             try {
                 if (typeof component !== 'function') {
                     throw new Error(`The argument [component] is invalid.`);
@@ -900,8 +900,8 @@
             catch (error) {
                 console.error('xnew.find(component): ', error);
             }
-        },
-        timer(callback, delay) {
+        } });
+    Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: function (callback, delay) {
             const snapshot = UnitScope.snapshot();
             const unit = xnew$1((self) => {
                 const timer = new Timer(() => {
@@ -915,8 +915,8 @@
                 };
             });
             return { clear: () => unit.finalize() };
-        },
-        interval(callback, delay) {
+        } });
+    Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: function (callback, delay) {
             const snapshot = UnitScope.snapshot();
             const unit = xnew$1((self) => {
                 const timer = new Timer(() => {
@@ -929,8 +929,8 @@
                 };
             });
             return { clear: () => unit.finalize() };
-        },
-        transition(callback, interval) {
+        } });
+    Object.defineProperty(xnew$1, 'transition', { enumerable: true, value: function (callback, interval) {
             const snapshot = UnitScope.snapshot();
             const unit = xnew$1((self) => {
                 const timer = new Timer(() => {
@@ -956,8 +956,7 @@
                 };
             });
             return { clear: () => unit.finalize() };
-        }
-    });
+        } });
 
     function ResizeEvent(self) {
         const observer = new ResizeObserver(xnew$1.scope((entries) => {

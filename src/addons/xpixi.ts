@@ -2,16 +2,13 @@ import xnew from 'xnew';
 import * as PIXI from 'pixi.js'
 
 const xpixi: any = Object.assign(function() {}, {
-    setup({ renderer = null } = {}) {
-        xnew.extend(Root, { renderer });
-    },
     initialize({ renderer = null }: any = {}) {
         xnew.extend(Root, { renderer });
     },
-    renderer() {
+    get renderer() {
         return xnew.context('xpixi.root')?.renderer;
     },
-    scene() {
+    get scene() {
         return xnew.context('xpixi.root')?.scene;
     },
     nest(object: any) {

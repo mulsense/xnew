@@ -4,14 +4,14 @@ import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from '.
 
 export interface xnewtype extends Function {
     [key: string]: any;
-    readonly root: HTMLElement | null;
+    readonly root?: HTMLElement | null;
 }
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-export const xnew: xnewtype = Object.assign(function(...args: any[]): Unit | undefined {
+export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
     try {
         let parent = UnitScope.current;
         if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
@@ -47,173 +47,175 @@ export const xnew: xnewtype = Object.assign(function(...args: any[]): Unit | und
     } catch (error) {
         console.error('xnew: ', error);
     }
-}, {
-    get root() {
-        return UnitScope.current?._.root
-    },
-    get parent() {
-        return UnitScope.current?._.parent;
-    },
-    get current() {
-        return UnitScope.current;
-    },
+}
 
-    nest(attributes: object) {
-        try {
-            const current = UnitScope.current;
-            if (current?._.state === 'pending') {
-                return UnitElement.nest(current, attributes);
-            } else {
-                throw new Error(`This function can not be called after initialized.`);
-            }
-        } catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.nest(attributes): ', error.message);
-            }
+Object.defineProperty(xnew, 'root', { enumerable: true, get: function () {
+    return UnitScope.current?._.root
+}});
+
+Object.defineProperty(xnew, 'parent', { enumerable: true, get: function () {
+    return UnitScope.current?._.parent;
+}});
+
+Object.defineProperty(xnew, 'parent', { enumerable: true, get: function () {
+    return UnitScope.current;
+}});
+
+Object.defineProperty(xnew, 'nest', { enumerable: true, value: function (attributes: object) {
+    try {
+        const current = UnitScope.current;
+        if (current?._.state === 'pending') {
+            return UnitElement.nest(current, attributes);
+        } else {
+            throw new Error(`This function can not be called after initialized.`);
         }
-    },
-    extend(component: Function, ...args: any[]) {
-        try {
-            const current = UnitScope.current;
-            if (current?._.state === 'pending') {
-                return Unit.extend(current, component, ...args);
-            } else {
-                throw new Error('This function can not be called after initialized.');
-            }
-        } catch (error) {
-            console.error('xnew.extend(component, ...args): ', error);
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error('xnew.nest(attributes): ', error.message);
         }
-    },
-    context(key: string, value: any = undefined): any {
-        try {
-            const unit = UnitScope.current;
-            if (typeof key !== 'string') {
-                throw new Error('The argument [key] is invalid.');
-            } else if (unit !== null) {
-                if (value !== undefined) {
-                    UnitScope.push(unit, key, value);
-                } else {
-                    return UnitScope.trace(unit, key);
-                }
-            } else {
-                return undefined;
-            }
-        } catch (error) {
-            console.error('xnew.context(key, value?): ', error);
-        }
-    },
-    promise(mix: any) {
-        try {
-            let promise: Promise<any> | null = null;
-            if (mix instanceof Promise) {
-                promise = mix;
-            } else if (typeof mix === 'function') {
-                promise = new Promise(mix);
-            } else if (mix instanceof Unit) {
-                const promises: any = UnitPromise.unitToPromises.get(mix);
-                promise = promises?.size > 0 ? Promise.all([...promises]) : Promise.resolve();
-            } else {
-                throw new Error(`The argument [mix] is invalid.`);
-            }
-            return UnitPromise.execute(promise);
-        } catch (error) {
-            console.error('xnew.promise(mix): ', error);
-        }
-    },
-
-    emit(type: string, ...args: any[]) {
-        try {
-            const unit = UnitScope.current;
-            if (typeof type !== 'string') {
-                throw new Error('The argument [type] is invalid.');
-            } else if (unit?._.state === 'finalized') {
-                throw new Error('This function can not be called after finalized.');
-            } else {
-                UnitEvent.emit(unit, type, ...args);
-            }
-        } catch (error) {
-            console.error('xnew.emit(type, ...args): ', error);
-        }
-    },
-    
-    scope(callback: any): any {
-        const snapshot = UnitScope.snapshot();
-        return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
-    },
-
-    find(component: Function): Unit[] | undefined {
-        try {
-            if (typeof component !== 'function') {
-                throw new Error(`The argument [component] is invalid.`);
-            } else {
-                return UnitComponent.find(component);
-            }
-        } catch (error) {
-            console.error('xnew.find(component): ', error);
-        }
-    },
-
-
-    timer(callback: Function, delay: number): { clear: () => void } {
-        const snapshot = UnitScope.snapshot();
-        const unit = xnew((self: Unit) => {
-            const timer = new Timer(() => {
-                UnitScope.execute(snapshot, callback);
-                self.finalize();
-            }, delay);
-            return {
-                finalize() {
-                    timer.clear();
-                }
-            };
-        });
-        return { clear: () => unit.finalize() };
-    },
-
-    interval(callback: Function, delay: number): { clear: () => void } {
-        const snapshot = UnitScope.snapshot();
-        const unit = xnew((self: Unit) => {
-            const timer = new Timer(() => {
-                UnitScope.execute(snapshot, callback);
-            }, delay, true);
-            return {
-                finalize() {
-                    timer.clear();
-                }
-            };
-        });
-        return { clear: () => unit.finalize() };
-    },
-
-    transition(callback: Function, interval: number): { clear: () => void } {
-        const snapshot = UnitScope.snapshot();
-        const unit = xnew((self: Unit) => {
-            const timer = new Timer(() => {
-                UnitScope.execute(snapshot, callback, 1.0);
-                self.finalize();
-            }, interval);
-
-            UnitScope.execute(snapshot, callback, 0.0);
-
-            const updater = xnew(null, (self: Unit) => {
-                return {
-                    update() {
-                        const progress = timer.elapsed() / interval;
-                        if (progress < 1.0) {
-                            UnitScope.execute(snapshot, callback, progress);
-                        }
-                    },
-                }
-            });
-            return {
-                finalize() {
-                    timer.clear();
-                    updater.finalize();
-                }
-            };
-        });
-
-        return { clear: () => unit.finalize() };
     }
+}});
+Object.defineProperty(xnew, 'extend', { enumerable: true, value: function (component: Function, ...args: any[]) {
+    try {
+        const current = UnitScope.current;
+        if (current?._.state === 'pending') {
+            return Unit.extend(current, component, ...args);
+        } else {
+            throw new Error('This function can not be called after initialized.');
+        }
+    } catch (error) {
+        console.error('xnew.extend(component, ...args): ', error);
+    }
+}});
+Object.defineProperty(xnew, 'extend', { enumerable: true, value: function (key: string, value: any = undefined): any{
+    try {
+        const unit = UnitScope.current;
+        if (typeof key !== 'string') {
+            throw new Error('The argument [key] is invalid.');
+        } else if (unit !== null) {
+            if (value !== undefined) {
+                UnitScope.push(unit, key, value);
+            } else {
+                return UnitScope.trace(unit, key);
+            }
+        } else {
+            return undefined;
+        }
+    } catch (error) {
+        console.error('xnew.context(key, value?): ', error);
+    }
+}});
+        
+Object.defineProperty(xnew, 'promise', { enumerable: true, value: function (mix: any) {
+    try {
+        let promise: Promise<any> | null = null;
+        if (mix instanceof Promise) {
+            promise = mix;
+        } else if (typeof mix === 'function') {
+            promise = new Promise(mix);
+        } else if (mix instanceof Unit) {
+            const promises: any = UnitPromise.unitToPromises.get(mix);
+            promise = promises?.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+        } else {
+            throw new Error(`The argument [mix] is invalid.`);
+        }
+        return UnitPromise.execute(promise);
+    } catch (error) {
+        console.error('xnew.promise(mix): ', error);
+    }
+}});
 
-});
+Object.defineProperty(xnew, 'emit', { enumerable: true, value: function (type: string, ...args: any[]) {
+    try {
+        const unit = UnitScope.current;
+        if (typeof type !== 'string') {
+            throw new Error('The argument [type] is invalid.');
+        } else if (unit?._.state === 'finalized') {
+            throw new Error('This function can not be called after finalized.');
+        } else {
+            UnitEvent.emit(unit, type, ...args);
+        }
+    } catch (error) {
+        console.error('xnew.emit(type, ...args): ', error);
+    }
+}});
+    
+Object.defineProperty(xnew, 'scope', { enumerable: true, value: function (callback: any): any {
+    const snapshot = UnitScope.snapshot();
+    return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
+}});
+
+Object.defineProperty(xnew, 'find', { enumerable: true, value: function (component: Function): Unit[] | undefined {
+    try {
+        if (typeof component !== 'function') {
+            throw new Error(`The argument [component] is invalid.`);
+        } else {
+            return UnitComponent.find(component);
+        }
+    } catch (error) {
+        console.error('xnew.find(component): ', error);
+    }
+}});
+
+Object.defineProperty(xnew, 'timer', { enumerable: true, value: function (callback: Function, delay: number): { clear: () => void } {
+
+    const snapshot = UnitScope.snapshot();
+    const unit = xnew((self: Unit) => {
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback);
+            self.finalize();
+        }, delay);
+        return {
+            finalize() {
+                timer.clear();
+            }
+        };
+    });
+    return { clear: () => unit.finalize() };
+}});
+
+Object.defineProperty(xnew, 'timer', { enumerable: true, value: function (callback: Function, delay: number): { clear: () => void } {
+    const snapshot = UnitScope.snapshot();
+    const unit = xnew((self: Unit) => {
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback);
+        }, delay, true);
+        return {
+            finalize() {
+                timer.clear();
+            }
+        };
+    });
+    return { clear: () => unit.finalize() };
+}});
+
+Object.defineProperty(xnew, 'transition', { enumerable: true, value: function (callback: Function, interval: number): { clear: () => void } {
+    const snapshot = UnitScope.snapshot();
+    const unit = xnew((self: Unit) => {
+        const timer = new Timer(() => {
+            UnitScope.execute(snapshot, callback, 1.0);
+            self.finalize();
+        }, interval);
+
+        UnitScope.execute(snapshot, callback, 0.0);
+
+        const updater = xnew(null, (self: Unit) => {
+            return {
+                update() {
+                    const progress = timer.elapsed() / interval;
+                    if (progress < 1.0) {
+                        UnitScope.execute(snapshot, callback, progress);
+                    }
+                },
+            }
+        });
+        return {
+            finalize() {
+                timer.clear();
+                updater.finalize();
+            }
+        };
+    });
+
+    return { clear: () => unit.finalize() };
+}});

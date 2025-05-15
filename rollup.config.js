@@ -5,7 +5,7 @@ import { rmSync, cpSync } from 'fs';
 function cleanup(target) {
     return {
         name: 'cleanup', 
-        buildEnd() {
+        writeBundle() {
             rmSync(target, { recursive: true, force: true });
         },
     };
@@ -14,7 +14,7 @@ function cleanup(target) {
 function copyto(src, dst) {
     return {
         name: 'copyto',
-        buildEnd() {
+        writeBundle() {
             cpSync(src, dst, { recursive: true, force: true });
         },
     };
@@ -71,10 +71,30 @@ export default [
         external: ['xnew', 'pixi.js'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
-            copyto('./dist/addons', './examples/dist/addons'),
+            copyto('./dist/addons/xpixi.js', './examples/dist/addons/xpixi.js'),
+            copyto('./dist/addons/xpixi.mjs', './examples/dist/addons/xpixi.mjs'),
         ],
-        watch: {
-            include: ['/src/addons/**/*.ts'],
-        },
+    },
+    {
+        input: './src/addons/xthree.ts',
+        output: [
+            {
+                file: './dist/addons/xthree.js',
+                format: 'umd',
+                extend: true,
+                name: 'xthree',
+                globals: { 'xnew': 'xnew', 'three': 'THREE' },
+            },
+            {
+                file: './dist/addons/xthree.mjs',
+                format: 'es',
+            },
+        ],
+        external: ['xnew', 'three'],
+        plugins: [
+            typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xthree.js', './examples/dist/addons/xthree.js'),
+            copyto('./dist/addons/xthree.mjs', './examples/dist/addons/xthree.mjs'),
+        ],
     }
 ];
