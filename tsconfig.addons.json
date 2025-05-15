@@ -3,6 +3,7 @@
         "rootDir": "./src",
         "target": "ES6",
         "strict": true,
+        "esModuleInterop": true,
         "skipLibCheck": true,
         "declaration": true,
         "pretty": true,

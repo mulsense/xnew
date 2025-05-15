@@ -5,6 +5,8 @@ import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from '.
 export interface xnewtype extends Function {
     [key: string]: any;
     readonly root?: HTMLElement | null;
+    readonly parent?: HTMLElement | null;
+    readonly current?: HTMLElement | null;
 }
 
 export namespace xnew {
@@ -57,7 +59,7 @@ Object.defineProperty(xnew, 'parent', { enumerable: true, get: function () {
     return UnitScope.current?._.parent;
 }});
 
-Object.defineProperty(xnew, 'parent', { enumerable: true, get: function () {
+Object.defineProperty(xnew, 'current', { enumerable: true, get: function () {
     return UnitScope.current;
 }});
 
@@ -87,7 +89,7 @@ Object.defineProperty(xnew, 'extend', { enumerable: true, value: function (compo
         console.error('xnew.extend(component, ...args): ', error);
     }
 }});
-Object.defineProperty(xnew, 'extend', { enumerable: true, value: function (key: string, value: any = undefined): any{
+Object.defineProperty(xnew, 'context', { enumerable: true, value: function (key: string, value: any = undefined): any{
     try {
         const unit = UnitScope.current;
         if (typeof key !== 'string') {
@@ -174,7 +176,7 @@ Object.defineProperty(xnew, 'timer', { enumerable: true, value: function (callba
     return { clear: () => unit.finalize() };
 }});
 
-Object.defineProperty(xnew, 'timer', { enumerable: true, value: function (callback: Function, delay: number): { clear: () => void } {
+Object.defineProperty(xnew, 'interval', { enumerable: true, value: function (callback: Function, delay: number): { clear: () => void } {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self: Unit) => {
         const timer = new Timer(() => {

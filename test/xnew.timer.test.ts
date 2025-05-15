@@ -7,11 +7,11 @@ beforeEach(() => {
 
 describe('unit timer', () => {
     it('basic', () => {
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             let state = 0;
             let start = Date.now();
             const margin = 100;
-            xnew((self) => {
+            xnew((self: xnew.Unit) => {
                 xnew.timer(() => {
                     const d = Date.now() - start;
                     expect(d).toBeGreaterThan(500 - margin);

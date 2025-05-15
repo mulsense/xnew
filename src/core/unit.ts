@@ -2,12 +2,12 @@ import { UnitComponent, UnitElement, UnitEvent, UnitScope, UnitPromise } from '.
 
 interface UnitType {
     _: { [key: string]: any };
+    [key: string]: any;
 }
-class Test implements UnitType {
-    public _ = {};
-}
+
 export class Unit {
     public _: { [key: string]: any } = {};
+    [key: string]: any;
 
     static autoincrement: number = 0;
  

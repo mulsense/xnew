@@ -784,7 +784,7 @@ Object.defineProperty(xnew$1, 'parent', { enumerable: true, get: function () {
         var _a;
         return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.parent;
     } });
-Object.defineProperty(xnew$1, 'parent', { enumerable: true, get: function () {
+Object.defineProperty(xnew$1, 'current', { enumerable: true, get: function () {
         return UnitScope.current;
     } });
 Object.defineProperty(xnew$1, 'nest', { enumerable: true, value: function (attributes) {
@@ -817,7 +817,7 @@ Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: function (com
             console.error('xnew.extend(component, ...args): ', error);
         }
     } });
-Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: function (key, value = undefined) {
+Object.defineProperty(xnew$1, 'context', { enumerable: true, value: function (key, value = undefined) {
         try {
             const unit = UnitScope.current;
             if (typeof key !== 'string') {
@@ -910,7 +910,7 @@ Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: function (call
         });
         return { clear: () => unit.finalize() };
     } });
-Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: function (callback, delay) {
+Object.defineProperty(xnew$1, 'interval', { enumerable: true, value: function (callback, delay) {
         const snapshot = UnitScope.snapshot();
         const unit = xnew$1((self) => {
             const timer = new Timer(() => {

@@ -1,4 +1,4 @@
-import { MapSet, MapMap, MapMapMap } from '../dist/core/map';
+import { MapSet, MapMap, MapMapMap } from '../src/core/map';
 
 describe('map set', () => {
     it('add', () => {

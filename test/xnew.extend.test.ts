@@ -10,7 +10,7 @@ describe('unit extend', () => {
     it('basic', () => {
         const unit = xnew(Derived);
 
-        function Base(self) {
+        function Base(self: xnew.Unit) {
             return {
                 test1() {
                     return 1;
@@ -18,7 +18,7 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self) {
+        function Derived(self: xnew.Unit) {
             xnew.extend(Base);
             return {
                 test2() {

@@ -1,6 +1,6 @@
 interface xnewtype$1 extends Function {
     [key: string]: any;
-    readonly root: HTMLElement | null;
+    readonly root?: HTMLElement | null;
 }
 
 interface xnewtype extends xnewtype$1 {
