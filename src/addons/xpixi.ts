@@ -1,5 +1,5 @@
 import xnew from 'xnew';
-// import * as PIXI from 'pixi.js'
+import * as PIXI from 'pixi.js'
 
 const xpixi: any = Object.assign(function() {}, {
     setup({ renderer = null } = {}) {
@@ -20,7 +20,7 @@ const xpixi: any = Object.assign(function() {}, {
     },
 });
 
-default export xpixi;
+export default xpixi;
 
 function Root(self: xnew.Unit, { renderer }) {
     const root: any = {};

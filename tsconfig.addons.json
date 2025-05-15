@@ -1,19 +1,15 @@
 {
     "compilerOptions": {
         "rootDir": "./src",
-        "target": "es6",
-        "moduleResolution": "bundler",
-        "esModuleInterop": true,
+        "target": "ES6",
         "strict": true,
-        "strictFunctionTypes": false,
         "skipLibCheck": true,
         "declaration": true,
-        "emitDeclarationOnly": false,
+        "declarationDir": "./dist/addons",
         "pretty": true,
         "newLine": "lf",
-        "outDir": "dist/addons",
-        "forceConsistentCasingInFileNames": true,
-        "lib": ["es2015", "dom"]
+        "outDir": "./dist/addons",
+        "lib": ["ES6", "DOM"]
     },
     "include": ["./src/addons/*.ts"],
 }

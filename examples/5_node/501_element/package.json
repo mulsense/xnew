@@ -1,6 +1,5 @@
 {
   "scripts": {
-    "build": "npx rollup --config --bundleConfigAsCjs",
     "dev": "npx rollup --config --watch --bundleConfigAsCjs"
   },
   "devDependencies": {
@@ -9,6 +8,6 @@
     "rollup": "^4.40.2",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3",
-    "xnew": "^3.0.6"
+    "xnew": "^3.0.7"
   }
 }

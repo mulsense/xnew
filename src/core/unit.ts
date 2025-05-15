@@ -1,5 +1,11 @@
 import { UnitComponent, UnitElement, UnitEvent, UnitScope, UnitPromise } from './unitex';
 
+interface UnitType {
+    _: { [key: string]: any };
+}
+class Test implements UnitType {
+    public _ = {};
+}
 export class Unit {
     public _: { [key: string]: any } = {};
 

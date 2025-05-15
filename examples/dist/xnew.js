@@ -283,10 +283,7 @@
         static nest(unit, attributes) {
             var _a;
             const current = UnitElement.get(unit);
-            if (current instanceof Window || current instanceof Document) {
-                throw new Error(`No elements are added to window or document.`);
-            }
-            else if (typeof attributes !== 'object') {
+            if (typeof attributes !== 'object') {
                 throw new Error(`The argument [attributes] is invalid.`);
             }
             else {
@@ -369,9 +366,6 @@
         }
     }
     UnitElement.unitToElements = new Map();
-    //----------------------------------------------------------------------------------------------------
-    // unit event
-    //----------------------------------------------------------------------------------------------------
     class UnitEvent {
         static on(unit, type, listener, options) {
             if (typeof type !== 'string' || type.trim() === '') {
@@ -403,7 +397,12 @@
                             UnitEvent.event = eventbackup;
                         };
                         UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                        element === null || element === void 0 ? void 0 : element.addEventListener(type, execute, options);
+                        if (element instanceof Element) {
+                            function handle(event) {
+                                execute(event);
+                            }
+                            element.addEventListener(type, handle, options);
+                        }
                     }
                 }
                 if (UnitEvent.unitToListeners.has(unit, type)) {
@@ -437,7 +436,9 @@
                 if (UnitEvent.unitToListeners.has(unit, type, listener)) {
                     const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
                     UnitEvent.unitToListeners.delete(unit, type, listener);
-                    element.removeEventListener(type, execute);
+                    if (element instanceof Element) {
+                        element.removeEventListener(type, execute);
+                    }
                 }
                 if (!UnitEvent.unitToListeners.has(unit, type)) {
                     UnitEvent.typeToUnits.delete(type, unit);
@@ -533,7 +534,12 @@
         // base system 
         //----------------------------------------------------------------------------------------------------
         get element() {
-            return UnitElement.get(this);
+            if (this._.baseElement instanceof Element) {
+                return UnitElement.get(this);
+            }
+            else {
+                return null;
+            }
         }
         start() {
             this._.tostart = true;
@@ -727,7 +733,7 @@
             }
         }
     }
-    Unit.autoincrement = 0; // auto increment id
+    Unit.autoincrement = 0;
     Unit.roots = new Set(); // root units
     Unit.animation = null;
     Unit.ticker = null;
@@ -735,52 +741,44 @@
     Unit.reset();
 
     const xnew$1 = Object.assign(function (...args) {
-        let parent = UnitScope.current;
-        if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
-            parent = args.shift();
-        }
-        else if (args[0] === null) {
-            parent = args.shift();
-        }
-        else if (args[0] === undefined) {
-            args.shift();
-        }
-        let target = null;
-        if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
-            // an existing html element
-            target = args.shift();
-        }
-        else if (typeof args[0] === 'string') {
-            // a string for an existing html element
-            const key = args.shift();
-            target = document.querySelector(key);
-            if (target == null) {
-                console.error(`xnew: '${key}' can not be found.`);
-            }
-        }
-        else if (typeof args[0] !== null && typeof args[0] === 'object') {
-            // an attributes for a new html element
-            target = args.shift();
-        }
-        else if (args[0] === null || args[0] === undefined) {
-            args.shift();
-        }
-        // if (!(parent === null || parent instanceof Unit)) {
-        //     throw new Error(`The argument [parent] is invalid.`);
-        // }
-        // if (!(target === null || (target !== null && typeof target === 'object') || target instanceof Element || target instanceof Window || target instanceof Document)) {
-        //     throw new Error(`The argument [target] is invalid.`);
-        // }
-        // if (!(component === undefined || typeof component === 'function' || ((target !== null && typeof target === 'object') && typeof component === 'string'))) {
-        //     throw new Error(`The argument [component] is invalid.`);
-        // }
         try {
+            let parent = UnitScope.current;
+            if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
+                parent = args.shift();
+            }
+            else if (args[0] === null) {
+                parent = args.shift();
+            }
+            else if (args[0] === undefined) {
+                args.shift();
+            }
+            let target = null;
+            if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
+                // an existing html element
+                target = args.shift();
+            }
+            else if (typeof args[0] === 'string') {
+                // a string for an existing html element
+                const key = args.shift();
+                target = document.querySelector(key);
+                if (target == null) {
+                    throw new Error(`'${key}' can not be found.`);
+                }
+            }
+            else if (typeof args[0] !== null && typeof args[0] === 'object') {
+                // an attributes for a new html element
+                target = args.shift();
+            }
+            else if (args[0] === null || args[0] === undefined) {
+                args.shift();
+            }
+            if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && typeof target === 'object') && typeof args[0] === 'string'))) {
+                throw new Error('The argument [parent, target, component] is invalid.');
+            }
             return new Unit(parent, target, ...args);
         }
         catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew: ', error.message);
-            }
+            console.error('xnew: ', error);
         }
     }, {
         get root() {
@@ -789,7 +787,7 @@
         },
         get parent() {
             var _a;
-            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
+            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.parent;
         },
         get current() {
             return UnitScope.current;

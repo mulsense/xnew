@@ -1,9 +1,16 @@
-import { Unit } from './core/unit';
-interface xnew extends Function {
+interface xnewtype$1 extends Function {
     [key: string]: any;
+    readonly root: HTMLElement | null;
 }
-export declare namespace xnew {
+
+interface xnewtype extends xnewtype$1 {
+    Screen: Function;
+    UserEvent: Function;
+    ResizeEvent: Function;
+}
+declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
-declare const xnew: xnew;
-export default xnew;
+declare const xnew: xnewtype;
+
+export { xnew as default };
