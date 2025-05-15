@@ -17,7 +17,6 @@ export class Unit {
             const root = parent?._.root ?? this;
 
             let baseElement: Element | Window | Document | null = null;
-
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
                 baseElement = target;
             } else if (parent !== null) {
@@ -116,10 +115,11 @@ export class Unit {
             unit._.state = 'finalized';
         } else {
             unit._.tostart = true;
-
             // nest html element
-            if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
-                UnitElement.nest(unit, unit._.target);
+            if (!(unit._.target instanceof Element || unit._.target instanceof Window || unit._.target instanceof Document)) {
+                if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
+                    UnitElement.nest(unit, unit._.target);
+                }
             }
 
             // setup component
@@ -252,7 +252,6 @@ export class Unit {
                 cancelAnimationFrame(Unit.animation);
                 Unit.animation = null;
             }
-            console.log('test');
             Unit.previous = Date.now();
 
             Unit.ticker = function () {

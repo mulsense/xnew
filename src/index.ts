@@ -5,7 +5,7 @@ import { Screen } from './basics/Screen';
 // import { Accordion } from './basics/Accordion';
 
 import { Unit } from './core/unit';
-import { xnew as base, xnewtype as basetype } from './core/base';
+import { xnew as base, xnewtype as basetype } from './core/xnew';
 
 interface xnewtype extends basetype {
     Screen: Function;

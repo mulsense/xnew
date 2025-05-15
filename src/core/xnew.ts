@@ -81,9 +81,7 @@ export const xnew: xnewtype = Object.assign(function(...args: any[]): Unit | und
                 throw new Error('This function can not be called after initialized.');
             }
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.extend(component, ...args): ', error.message);
-            }
+            console.error('xnew.extend(component, ...args): ', error);
         }
     },
     context(key: string, value: any = undefined): any {
@@ -101,9 +99,7 @@ export const xnew: xnewtype = Object.assign(function(...args: any[]): Unit | und
                 return undefined;
             }
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.context(key, value?): ', error.message);
-            }
+            console.error('xnew.context(key, value?): ', error);
         }
     },
     promise(mix: any) {

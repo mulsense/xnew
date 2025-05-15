@@ -11,5 +11,6 @@
         "outDir": "./dist",
         "lib": ["ES6", "DOM"]
     },
+    "include": ["src/**/*.ts"],
     "exclude": ["src/addons/*.ts"]
 }

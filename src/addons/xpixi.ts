@@ -5,7 +5,7 @@ const xpixi: any = Object.assign(function() {}, {
     setup({ renderer = null } = {}) {
         xnew.extend(Root, { renderer });
     },
-    initialize({ renderer = null } = {}) {
+    initialize({ renderer = null }: any = {}) {
         xnew.extend(Root, { renderer });
     },
     renderer() {
@@ -14,7 +14,7 @@ const xpixi: any = Object.assign(function() {}, {
     scene() {
         return xnew.context('xpixi.root')?.scene;
     },
-    nest(object) {
+    nest(object: any) {
         xnew.extend(Connect, object);
         return object;
     },
@@ -22,7 +22,7 @@ const xpixi: any = Object.assign(function() {}, {
 
 export default xpixi;
 
-function Root(self: xnew.Unit, { renderer }) {
+function Root(self: xnew.Unit, { renderer }: any) {
     const root: any = {};
     xnew.context('xpixi.root', root);
     
@@ -32,7 +32,7 @@ function Root(self: xnew.Unit, { renderer }) {
             const screen = screens.slice(-1)[0]; // last screen
             renderer = PIXI.autoDetectRenderer({
                 width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas,
-                backgroundAlpha: 0.0, antialias: true,
+                antialias: true,
             });
         } else {
             renderer = PIXI.autoDetectRenderer({});
@@ -41,7 +41,7 @@ function Root(self: xnew.Unit, { renderer }) {
     root.renderer = null;
 
     if (renderer instanceof Promise) {
-        xnew.promise(renderer).then((renderer) => root.renderer = renderer);
+        xnew.promise(renderer).then((renderer: any) => root.renderer = renderer);
     }
 
     root.scene = new PIXI.Container();
@@ -55,7 +55,7 @@ function Root(self: xnew.Unit, { renderer }) {
     }
 }
 
-function Connect(self: xnew.Unit, object) {
+function Connect(self: xnew.Unit, object: any) {
     const parent = xnew.context('xpixi.object');
     xnew.context('xpixi.object', object);
 

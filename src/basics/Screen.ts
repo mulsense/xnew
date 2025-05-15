@@ -1,4 +1,4 @@
-import { xnew } from '../core/base';
+import { xnew } from '../core/xnew';
 import { ResizeEvent } from './ResizeEvent';
 
 export function Screen(self: any, { width = 640, height = 480, fit = 'contain' } = {}) {

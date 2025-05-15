@@ -593,8 +593,10 @@
             else {
                 unit._.tostart = true;
                 // nest html element
-                if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
-                    UnitElement.nest(unit, unit._.target);
+                if (!(unit._.target instanceof Element || unit._.target instanceof Window || unit._.target instanceof Document)) {
+                    if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
+                        UnitElement.nest(unit, unit._.target);
+                    }
                 }
                 // setup component
                 if (typeof component === 'function') {
@@ -715,7 +717,6 @@
                     cancelAnimationFrame(Unit.animation);
                     Unit.animation = null;
                 }
-                console.log('test');
                 Unit.previous = Date.now();
                 Unit.ticker = function () {
                     const interval = 1000 / 60;
@@ -819,9 +820,7 @@
                 }
             }
             catch (error) {
-                if (error instanceof Error) {
-                    console.error('xnew.extend(component, ...args): ', error.message);
-                }
+                console.error('xnew.extend(component, ...args): ', error);
             }
         },
         context(key, value = undefined) {
@@ -843,9 +842,7 @@
                 }
             }
             catch (error) {
-                if (error instanceof Error) {
-                    console.error('xnew.context(key, value?): ', error.message);
-                }
+                console.error('xnew.context(key, value?): ', error);
             }
         },
         promise(mix) {

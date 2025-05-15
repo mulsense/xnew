@@ -15,60 +15,66 @@ function copyto(src, dst) {
     return {
         name: 'copyto',
         buildEnd() {
-            cpSync(src, dst, { recursive: true });
+            cpSync(src, dst, { recursive: true, force: true });
         },
     };
 }
 
 export default [
     {
-        input: 'src/index.ts',
+        input: './src/index.ts',
         output: [
             {
-                file: 'dist/xnew.js',
+                file: './dist/xnew.js',
                 format: 'umd',
                 extend: true,
                 name: 'xnew',
             },
             {
-                file: 'dist/xnew.mjs',
+                file: './dist/xnew.mjs',
                 format: 'es',
             }
         ],
         plugins: [
-            typescript()
+            typescript(),
+            copyto('./dist/xnew.js', './examples/dist/xnew.js'),
+            copyto('./dist/xnew.mjs', './examples/dist/xnew.mjs'),
         ],
     },
     {
-        input: 'dist/types/index.d.ts',
+        input: './dist/types/index.d.ts',
         output: {
-            file: 'dist/xnew.d.ts',
+            file: './dist/xnew.d.ts',
             format: 'es',
         },
         plugins: [
             dts(),
             cleanup('./dist/types'),
-            copyto('./dist', './examples/dist'),
+            copyto('./dist/xnew.d.ts', './examples/dist/xnew.d.ts'),
         ],
     },
     {
-        input: 'src/addons/xpixi.ts',
+        input: './src/addons/xpixi.ts',
         output: [
             {
-                file: 'dist/addons/xpixi.js',
+                file: './dist/addons/xpixi.js',
                 format: 'umd',
                 extend: true,
                 name: 'xpixi',
                 globals: { 'xnew': 'xnew', 'pixi.js': 'PIXI' },
             },
             {
-                file: 'dist/addons/xpixi.mjs',
+                file: './dist/addons/xpixi.mjs',
                 format: 'es',
             },
         ],
         external: ['xnew', 'pixi.js'],
         plugins: [
-            typescript({ tsconfig: 'tsconfig.addons.json' })
+            typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons', './examples/dist/addons'),
         ],
+        watch: {
+            include: ['/src/addons/**/*.ts'],
+        },
     }
 ];

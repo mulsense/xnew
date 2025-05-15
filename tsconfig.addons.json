@@ -5,10 +5,9 @@
         "strict": true,
         "skipLibCheck": true,
         "declaration": true,
-        "declarationDir": "./dist/addons",
         "pretty": true,
         "newLine": "lf",
-        "outDir": "./dist/addons",
+        "outDir": "./dist",
         "lib": ["ES6", "DOM"]
     },
     "include": ["./src/addons/*.ts"],

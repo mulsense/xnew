@@ -6,7 +6,7 @@ const width = 800, height = 400;
 xnew('#main', Main);
 
 function Main(self) {
-  xnew(xnew.Screen, { width, height });
+  xnew(xnew.Screen, { width, height, fit: 'contain' });
   xpixi.initialize();
 
   xnew(Boxes);
