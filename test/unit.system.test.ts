@@ -7,13 +7,13 @@ beforeEach(() => {
 
 describe('unit system', () => {
     it('basic', () => {
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             let state = 0;
             let start = Date.now();
             const margin = 100;
           
-            xnew((self) => {
-                xnew.promise(new Promise((resolve, reject) => {
+            xnew((self: xnew.Unit) => {
+                xnew.promise(new Promise<void>((resolve, reject) => {
                     setTimeout(() => resolve(), 500);
                 }));
                 return {

@@ -1,30 +1,27 @@
 import xnew from 'xnew';
 import * as THREE from 'three';
 
-const xthree: any = Object.assign(function() {}, {
-    initialize({ renderer = null, camera = null }: any = {}) {
+export default {
+    initialize ({ renderer = null, camera = null }: any = {}) {
         xnew.extend(Root, { renderer, camera });
     },
-
+    nest (object: any) {
+        xnew.extend(Connect, object);
+        return object;
+    },
     get renderer() {
         return xnew.context('xthree.root')?.renderer;
+    },
+    get camera() {
+        return xnew.context('xthree.root')?.camera;
     },
     get scene() {
         return xnew.context('xthree.root')?.scene;
     },
-    nest(object: any) {
-        xnew.extend(Connect, object);
-        return object;
-    },
-});
-Object.defineProperty(xthree, 'camera', { enumerable: true, get: () => {
-    return xnew.context('xthree.root')?.camera;
-}});
-
-export default xthree;
+};
 
 function Root(self: xnew.Unit, { renderer, camera }: any) {
-    const root: any = {};
+    const root: { [key: string]: any } = {};
     xnew.context('xthree.root', root);
 
     if (renderer !== null) {

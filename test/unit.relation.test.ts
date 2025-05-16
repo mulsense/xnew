@@ -14,7 +14,7 @@ describe('unit relation', () => {
     });
 
     it('nest', () => {
-        xnew((self) => {
+        xnew((self: xnew.Unit) => {
             const unit2 = xnew();
             expect(self._.parent).toBe(null);
             expect(unit2._.parent).toBe(self);
@@ -22,7 +22,7 @@ describe('unit relation', () => {
     });
 
     it('delete', () => {
-        xnew((self) => {
+        xnew((self: xnew.Unit) => {
             const unit2 = xnew();
             expect(self._.parent).toBe(null);
             expect(unit2._.parent).toBe(self);

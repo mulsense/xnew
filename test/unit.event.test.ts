@@ -8,21 +8,21 @@ beforeEach(() => {
 describe('unit event', () => {
     it('basic', () => {
         let state = 0;
-        xnew((self) => {
+        xnew((self: xnew.Unit) => {
             self.on('-countup', () => state++);
             xnew.emit('-countup');
-            xnew((self) => xnew.emit('-countup'));
+            xnew((self: xnew.Unit) => xnew.emit('-countup'));
         });
-        xnew((self) => xnew.emit('-countup'));
+        xnew((self: xnew.Unit) => xnew.emit('-countup'));
         expect(state).toBe(1);
     });
 
     it('broadcast +', () => {
         let state = 0;
-        xnew((self) => {
+        xnew((self: xnew.Unit) => {
             self.on('+myevent', () => state++);
             xnew.emit('+myevent');
-            xnew((self) => xnew.emit('+myevent'));
+            xnew((self: xnew.Unit) => xnew.emit('+myevent'));
         });
         expect(state).toBe(2);
     });

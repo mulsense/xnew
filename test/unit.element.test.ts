@@ -8,7 +8,7 @@ beforeEach(() => {
 describe('unit element', () => {
 
     it('basic', () => {
-        xnew((self) => {
+        xnew((self: xnew.Unit) => {
             const unit2 = xnew();
             expect(self.element).toBe(document.body);
             expect(unit2.element).toBe(document.body);
@@ -16,17 +16,17 @@ describe('unit element', () => {
     });
 
     it('create', () => {
-        xnew((self) => {
+        xnew((self: xnew.Unit) => {
             xnew.nest({ tagName: 'div', name: 'A' });
             expect(self.element).toBe(document.querySelector('div[name=A]'));
         })
-        xnew({ tagName: 'div', name: 'B' }, (self) => {
+        xnew({ tagName: 'div', name: 'B' }, (self: xnew.Unit) => {
             expect(self.element).toBe(document.querySelector('div[name=B]'));
         })
     });
 
     it('nest', () => {
-        const unit1 = xnew((self) => {
+        const unit1 = xnew((self: xnew.Unit) => {
             xnew.nest({ tagName: 'div', name: 'test' });
             const unit2 = xnew();
             expect(self.element).toBe(document.querySelector('div[name=test]'));
@@ -36,7 +36,7 @@ describe('unit element', () => {
     });
 
     it('delete', () => {
-        const unit1 = xnew((self) => {
+        const unit1 = xnew((self: xnew.Unit) => {
             xnew.nest({ tagName: 'div', name: 'test' });
         });
  

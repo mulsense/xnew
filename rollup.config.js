@@ -49,7 +49,7 @@ export default [
         },
         plugins: [
             dts(),
-            cleanup('./dist/types'),
+            // cleanup('./dist/types'),
             copyto('./dist/xnew.d.ts', './examples/dist/xnew.d.ts'),
         ],
     },

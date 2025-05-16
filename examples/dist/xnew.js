@@ -199,302 +199,6 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // unit scope
-    //----------------------------------------------------------------------------------------------------
-    class UnitScope {
-        static execute(snapshot, func, ...args) {
-            var _a;
-            const backup = { unit: null, data: null };
-            try {
-                backup.unit = UnitScope.current;
-                UnitScope.current = snapshot.unit;
-                if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                    backup.data = (_a = UnitScope.get(snapshot.unit)) !== null && _a !== void 0 ? _a : null;
-                    UnitScope.set(snapshot.unit, snapshot.data);
-                }
-                return func(...args);
-            }
-            catch (error) {
-                throw error;
-            }
-            finally {
-                UnitScope.current = backup.unit;
-                if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                    UnitScope.set(snapshot.unit, backup.data);
-                }
-            }
-        }
-        static set(unit, data) {
-            UnitScope.unitToData.set(unit, data);
-        }
-        static get(unit) {
-            var _a;
-            return (_a = UnitScope.unitToData.get(unit)) !== null && _a !== void 0 ? _a : null;
-        }
-        static snapshot(unit = UnitScope.current) {
-            return { unit, data: UnitScope.get(unit) };
-        }
-        static clear(unit) {
-            UnitScope.unitToData.delete(unit);
-        }
-        static push(unit, key, value) {
-            UnitScope.unitToData.set(unit, { stack: UnitScope.get(unit), key, value });
-        }
-        static trace(unit, key) {
-            for (let data = UnitScope.get(unit); data !== null; data = data.stack) {
-                if (data.key === key) {
-                    return data.value;
-                }
-            }
-        }
-    }
-    UnitScope.current = null;
-    UnitScope.unitToData = new Map();
-    //----------------------------------------------------------------------------------------------------
-    // unit component
-    //----------------------------------------------------------------------------------------------------
-    class UnitComponent {
-        static add(unit, component) {
-            UnitComponent.unitToComponents.add(unit, component);
-            UnitComponent.componentToUnits.add(component, unit);
-        }
-        static clear(unit) {
-            var _a;
-            (_a = UnitComponent.unitToComponents.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((component) => {
-                UnitComponent.componentToUnits.delete(component, unit);
-            });
-            UnitComponent.unitToComponents.delete(unit);
-        }
-        static find(component) {
-            var _a;
-            return [...((_a = UnitComponent.componentToUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
-        }
-    }
-    UnitComponent.unitToComponents = new MapSet();
-    UnitComponent.componentToUnits = new MapSet();
-    //----------------------------------------------------------------------------------------------------
-    // unit element
-    //----------------------------------------------------------------------------------------------------
-    class UnitElement {
-        static initialize(unit, baseElement) {
-            UnitElement.unitToElements.set(unit, [baseElement]);
-        }
-        static nest(unit, attributes) {
-            var _a;
-            const current = UnitElement.get(unit);
-            if (typeof attributes !== 'object') {
-                throw new Error(`The argument [attributes] is invalid.`);
-            }
-            else {
-                const element = UnitElement.create(attributes, current);
-                current.append(element);
-                (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
-                return element;
-            }
-        }
-        static get(unit) {
-            var _a;
-            return (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.slice(-1)[0];
-        }
-        static clear(unit) {
-            const elements = UnitElement.unitToElements.get(unit);
-            if (elements && elements.length > 1) {
-                elements[0].removeChild(elements[1]);
-            }
-            UnitElement.unitToElements.delete(unit);
-        }
-        static create(attributes, parentElement = null) {
-            var _a;
-            const tagName = ((_a = attributes.tagName) !== null && _a !== void 0 ? _a : 'div').toLowerCase();
-            let element;
-            let nsmode = false;
-            if (tagName === 'svg') {
-                nsmode = true;
-            }
-            else {
-                while (parentElement) {
-                    if (parentElement.tagName.toLowerCase() === 'svg') {
-                        nsmode = true;
-                        break;
-                    }
-                    parentElement = parentElement.parentElement;
-                }
-            }
-            if (nsmode) {
-                element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
-            }
-            else {
-                element = document.createElement(tagName);
-            }
-            Object.keys(attributes).forEach((key) => {
-                const value = attributes[key];
-                if (key === 'tagName') ;
-                else if (key === 'insert') ;
-                else if (key === 'className') {
-                    if (typeof value === 'string' && value !== '') {
-                        element.classList.add(...value.trim().split(/\s+/));
-                    }
-                }
-                else if (key === 'style') {
-                    if (typeof value === 'string') {
-                        element.style.cssText = value;
-                    }
-                    else if (typeof value !== null && typeof value === 'object') {
-                        Object.assign(element.style, value);
-                    }
-                }
-                else {
-                    key.replace(/([A-Z])/g, '-$1').toLowerCase();
-                    if (element[key] === true || element[key] === false) {
-                        element[key] = value;
-                    }
-                    else {
-                        setAttribute(element, key, value);
-                    }
-                    function setAttribute(element, key, value) {
-                        if (nsmode) {
-                            element.setAttributeNS(null, key, value);
-                        }
-                        else {
-                            element.setAttribute(key, value);
-                        }
-                    }
-                }
-            });
-            return element;
-        }
-    }
-    UnitElement.unitToElements = new Map();
-    class UnitEvent {
-        static on(unit, type, listener, options) {
-            if (typeof type !== 'string' || type.trim() === '') {
-                throw new Error(`The argument [type] is invalid.`);
-            }
-            else if (typeof listener !== 'function') {
-                throw new Error(`The argument [listener] is invalid.`);
-            }
-            const snapshot = UnitScope.snapshot();
-            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-            function internal(type, listener) {
-                if (!UnitEvent.unitToListeners.has(unit, type, listener)) {
-                    const element = unit.element;
-                    if (type[0] === '-' || type[0] === '+') {
-                        const execute = (...args) => {
-                            const eventbackup = UnitEvent.event;
-                            UnitEvent.event = { type };
-                            UnitScope.execute(snapshot, listener, ...args);
-                            UnitEvent.event = eventbackup;
-                        };
-                        UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                    }
-                    else {
-                        const execute = (...args) => {
-                            var _a, _b;
-                            const eventbackup = UnitEvent.event;
-                            UnitEvent.event = { type: (_b = (_a = args[0]) === null || _a === void 0 ? void 0 : _a.type) !== null && _b !== void 0 ? _b : null };
-                            UnitScope.execute(snapshot, listener, ...args);
-                            UnitEvent.event = eventbackup;
-                        };
-                        UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                        if (element instanceof Element) {
-                            function handle(event) {
-                                execute(event);
-                            }
-                            element.addEventListener(type, handle, options);
-                        }
-                    }
-                }
-                if (UnitEvent.unitToListeners.has(unit, type)) {
-                    UnitEvent.typeToUnits.add(type, unit);
-                }
-            }
-        }
-        static off(unit, type, listener) {
-            var _a;
-            if (type !== undefined && (typeof type !== 'string' || type.trim() === '')) {
-                throw new Error(`The argument [type] is invalid.`);
-            }
-            else if (listener !== undefined && typeof listener !== 'function') {
-                throw new Error(`The argument [listener] is invalid.`);
-            }
-            if (typeof type === 'string' && listener !== undefined) {
-                type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-            }
-            else if (typeof type === 'string' && listener === undefined) {
-                type.trim().split(/\s+/).forEach((type) => {
-                    var _a;
-                    (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach((_, listener) => internal(type, listener));
-                });
-            }
-            else if (type === undefined && listener === undefined) {
-                (_a = UnitEvent.unitToListeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((map, type) => {
-                    map.forEach((_, listener) => internal(type, listener));
-                });
-            }
-            function internal(type, listener) {
-                if (UnitEvent.unitToListeners.has(unit, type, listener)) {
-                    const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
-                    UnitEvent.unitToListeners.delete(unit, type, listener);
-                    if (element instanceof Element) {
-                        element.removeEventListener(type, execute);
-                    }
-                }
-                if (!UnitEvent.unitToListeners.has(unit, type)) {
-                    UnitEvent.typeToUnits.delete(type, unit);
-                }
-            }
-        }
-        static emit(unit, type, ...args) {
-            var _a, _b;
-            if (type[0] === '+') {
-                (_a = UnitEvent.typeToUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
-                    var _a;
-                    (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
-                });
-            }
-            else if (type[0] === '-') {
-                (_b = UnitEvent.unitToListeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([element, execute]) => execute(...args));
-            }
-        }
-    }
-    UnitEvent.event = null;
-    UnitEvent.typeToUnits = new MapSet();
-    UnitEvent.unitToListeners = new MapMapMap();
-    //----------------------------------------------------------------------------------------------------
-    // unit promise
-    //----------------------------------------------------------------------------------------------------
-    class UnitPromise {
-        constructor(executor) {
-            this.promise = new Promise(executor);
-        }
-        then(callback) {
-            const snapshot = UnitScope.snapshot();
-            this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
-            return this;
-        }
-        catch(callback) {
-            const snapshot = UnitScope.snapshot();
-            this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
-            return this;
-        }
-        finally(callback) {
-            const snapshot = UnitScope.snapshot();
-            this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
-            return this;
-        }
-        static execute(promise) {
-            const unit = UnitScope.current;
-            const unitpromise = new UnitPromise((resolve, reject) => {
-                promise.then((...args) => resolve(...args));
-                promise.catch((...args) => reject(...args));
-            });
-            UnitPromise.unitToPromises.add(unit, promise);
-            return unitpromise;
-        }
-    }
-    UnitPromise.unitToPromises = new MapSet();
-
     class Unit {
         constructor(parent, target, component, ...args) {
             var _a, _b, _c, _d;
@@ -740,8 +444,306 @@
     Unit.ticker = null;
     Unit.previous = 0.0;
     Unit.reset();
+    //----------------------------------------------------------------------------------------------------
+    // unit scope
+    //----------------------------------------------------------------------------------------------------
+    class UnitScope {
+        static execute(snapshot, func, ...args) {
+            var _a;
+            const backup = { unit: null, data: null };
+            try {
+                backup.unit = UnitScope.current;
+                UnitScope.current = snapshot.unit;
+                if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
+                    backup.data = (_a = UnitScope.get(snapshot.unit)) !== null && _a !== void 0 ? _a : null;
+                    UnitScope.set(snapshot.unit, snapshot.data);
+                }
+                return func(...args);
+            }
+            catch (error) {
+                throw error;
+            }
+            finally {
+                UnitScope.current = backup.unit;
+                if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
+                    UnitScope.set(snapshot.unit, backup.data);
+                }
+            }
+        }
+        static set(unit, data) {
+            UnitScope.unitToData.set(unit, data);
+        }
+        static get(unit) {
+            var _a;
+            return (_a = UnitScope.unitToData.get(unit)) !== null && _a !== void 0 ? _a : null;
+        }
+        static snapshot(unit = UnitScope.current) {
+            return { unit, data: UnitScope.get(unit) };
+        }
+        static clear(unit) {
+            UnitScope.unitToData.delete(unit);
+        }
+        static push(unit, key, value) {
+            UnitScope.unitToData.set(unit, { stack: UnitScope.get(unit), key, value });
+        }
+        static trace(unit, key) {
+            for (let data = UnitScope.get(unit); data !== null; data = data.stack) {
+                if (data.key === key) {
+                    return data.value;
+                }
+            }
+        }
+    }
+    UnitScope.current = null;
+    UnitScope.unitToData = new Map();
+    //----------------------------------------------------------------------------------------------------
+    // unit component
+    //----------------------------------------------------------------------------------------------------
+    class UnitComponent {
+        static add(unit, component) {
+            UnitComponent.unitToComponents.add(unit, component);
+            UnitComponent.componentToUnits.add(component, unit);
+        }
+        static clear(unit) {
+            var _a;
+            (_a = UnitComponent.unitToComponents.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((component) => {
+                UnitComponent.componentToUnits.delete(component, unit);
+            });
+            UnitComponent.unitToComponents.delete(unit);
+        }
+        static find(component) {
+            var _a;
+            return [...((_a = UnitComponent.componentToUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
+        }
+    }
+    UnitComponent.unitToComponents = new MapSet();
+    UnitComponent.componentToUnits = new MapSet();
+    //----------------------------------------------------------------------------------------------------
+    // unit element
+    //----------------------------------------------------------------------------------------------------
+    class UnitElement {
+        static initialize(unit, baseElement) {
+            UnitElement.unitToElements.set(unit, [baseElement]);
+        }
+        static nest(unit, attributes) {
+            var _a;
+            const current = UnitElement.get(unit);
+            if (typeof attributes !== 'object') {
+                throw new Error(`The argument [attributes] is invalid.`);
+            }
+            else {
+                const element = UnitElement.create(attributes, current);
+                current.append(element);
+                (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
+                return element;
+            }
+        }
+        static get(unit) {
+            var _a;
+            return (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.slice(-1)[0];
+        }
+        static clear(unit) {
+            const elements = UnitElement.unitToElements.get(unit);
+            if (elements && elements.length > 1) {
+                elements[0].removeChild(elements[1]);
+            }
+            UnitElement.unitToElements.delete(unit);
+        }
+        static create(attributes, parentElement = null) {
+            var _a;
+            const tagName = ((_a = attributes.tagName) !== null && _a !== void 0 ? _a : 'div').toLowerCase();
+            let element;
+            let nsmode = false;
+            if (tagName === 'svg') {
+                nsmode = true;
+            }
+            else {
+                while (parentElement) {
+                    if (parentElement.tagName.toLowerCase() === 'svg') {
+                        nsmode = true;
+                        break;
+                    }
+                    parentElement = parentElement.parentElement;
+                }
+            }
+            if (nsmode) {
+                element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+            }
+            else {
+                element = document.createElement(tagName);
+            }
+            Object.keys(attributes).forEach((key) => {
+                const value = attributes[key];
+                if (key === 'tagName') ;
+                else if (key === 'insert') ;
+                else if (key === 'className') {
+                    if (typeof value === 'string' && value !== '') {
+                        element.classList.add(...value.trim().split(/\s+/));
+                    }
+                }
+                else if (key === 'style') {
+                    if (typeof value === 'string') {
+                        element.style.cssText = value;
+                    }
+                    else if (typeof value !== null && typeof value === 'object') {
+                        Object.assign(element.style, value);
+                    }
+                }
+                else {
+                    key.replace(/([A-Z])/g, '-$1').toLowerCase();
+                    if (element[key] === true || element[key] === false) {
+                        element[key] = value;
+                    }
+                    else {
+                        setAttribute(element, key, value);
+                    }
+                    function setAttribute(element, key, value) {
+                        if (nsmode) {
+                            element.setAttributeNS(null, key, value);
+                        }
+                        else {
+                            element.setAttribute(key, value);
+                        }
+                    }
+                }
+            });
+            return element;
+        }
+    }
+    UnitElement.unitToElements = new Map();
+    //----------------------------------------------------------------------------------------------------
+    // unit event
+    //----------------------------------------------------------------------------------------------------
+    class UnitEvent {
+        static on(unit, type, listener, options) {
+            if (typeof type !== 'string' || type.trim() === '') {
+                throw new Error(`The argument [type] is invalid.`);
+            }
+            else if (typeof listener !== 'function') {
+                throw new Error(`The argument [listener] is invalid.`);
+            }
+            const snapshot = UnitScope.snapshot();
+            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
+            function internal(type, listener) {
+                if (!UnitEvent.unitToListeners.has(unit, type, listener)) {
+                    const element = unit.element;
+                    if (type[0] === '-' || type[0] === '+') {
+                        const execute = (...args) => {
+                            const eventbackup = UnitEvent.event;
+                            UnitEvent.event = { type };
+                            UnitScope.execute(snapshot, listener, ...args);
+                            UnitEvent.event = eventbackup;
+                        };
+                        UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
+                    }
+                    else {
+                        const execute = (...args) => {
+                            var _a, _b;
+                            const eventbackup = UnitEvent.event;
+                            UnitEvent.event = { type: (_b = (_a = args[0]) === null || _a === void 0 ? void 0 : _a.type) !== null && _b !== void 0 ? _b : null };
+                            UnitScope.execute(snapshot, listener, ...args);
+                            UnitEvent.event = eventbackup;
+                        };
+                        UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
+                        if (element instanceof Element) {
+                            function handle(event) {
+                                execute(event);
+                            }
+                            element.addEventListener(type, handle, options);
+                        }
+                    }
+                }
+                if (UnitEvent.unitToListeners.has(unit, type)) {
+                    UnitEvent.typeToUnits.add(type, unit);
+                }
+            }
+        }
+        static off(unit, type, listener) {
+            var _a;
+            if (type !== undefined && (typeof type !== 'string' || type.trim() === '')) {
+                throw new Error(`The argument [type] is invalid.`);
+            }
+            else if (listener !== undefined && typeof listener !== 'function') {
+                throw new Error(`The argument [listener] is invalid.`);
+            }
+            if (typeof type === 'string' && listener !== undefined) {
+                type.trim().split(/\s+/).forEach((type) => internal(type, listener));
+            }
+            else if (typeof type === 'string' && listener === undefined) {
+                type.trim().split(/\s+/).forEach((type) => {
+                    var _a;
+                    (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach((_, listener) => internal(type, listener));
+                });
+            }
+            else if (type === undefined && listener === undefined) {
+                (_a = UnitEvent.unitToListeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((map, type) => {
+                    map.forEach((_, listener) => internal(type, listener));
+                });
+            }
+            function internal(type, listener) {
+                if (UnitEvent.unitToListeners.has(unit, type, listener)) {
+                    const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
+                    UnitEvent.unitToListeners.delete(unit, type, listener);
+                    if (element instanceof Element) {
+                        element.removeEventListener(type, execute);
+                    }
+                }
+                if (!UnitEvent.unitToListeners.has(unit, type)) {
+                    UnitEvent.typeToUnits.delete(type, unit);
+                }
+            }
+        }
+        static emit(unit, type, ...args) {
+            var _a, _b;
+            if (type[0] === '+') {
+                (_a = UnitEvent.typeToUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+                    var _a;
+                    (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
+                });
+            }
+            else if (type[0] === '-') {
+                (_b = UnitEvent.unitToListeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([element, execute]) => execute(...args));
+            }
+        }
+    }
+    UnitEvent.event = null;
+    UnitEvent.typeToUnits = new MapSet();
+    UnitEvent.unitToListeners = new MapMapMap();
+    //----------------------------------------------------------------------------------------------------
+    // unit promise
+    //----------------------------------------------------------------------------------------------------
+    class UnitPromise {
+        constructor(executor) {
+            this.promise = new Promise(executor);
+        }
+        then(callback) {
+            const snapshot = UnitScope.snapshot();
+            this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
+            return this;
+        }
+        catch(callback) {
+            const snapshot = UnitScope.snapshot();
+            this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
+            return this;
+        }
+        finally(callback) {
+            const snapshot = UnitScope.snapshot();
+            this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
+            return this;
+        }
+        static execute(promise) {
+            const unit = UnitScope.current;
+            const unitpromise = new UnitPromise((resolve, reject) => {
+                promise.then((...args) => resolve(...args));
+                promise.catch((...args) => reject(...args));
+            });
+            UnitPromise.unitToPromises.add(unit, promise);
+            return unitpromise;
+        }
+    }
+    UnitPromise.unitToPromises = new MapSet();
 
-    const xnew$1 = function (...args) {
+    const xnew$1 = Object.assign(function (...args) {
         try {
             let parent = UnitScope.current;
             if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
@@ -781,19 +783,8 @@
         catch (error) {
             console.error('xnew: ', error);
         }
-    };
-    Object.defineProperty(xnew$1, 'root', { enumerable: true, get: function () {
-            var _a;
-            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
-        } });
-    Object.defineProperty(xnew$1, 'parent', { enumerable: true, get: function () {
-            var _a;
-            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.parent;
-        } });
-    Object.defineProperty(xnew$1, 'current', { enumerable: true, get: function () {
-            return UnitScope.current;
-        } });
-    Object.defineProperty(xnew$1, 'nest', { enumerable: true, value: function (attributes) {
+    }, {
+        nest(attributes) {
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
@@ -808,8 +799,8 @@
                     console.error('xnew.nest(attributes): ', error.message);
                 }
             }
-        } });
-    Object.defineProperty(xnew$1, 'extend', { enumerable: true, value: function (component, ...args) {
+        },
+        extend(component, ...args) {
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
@@ -822,8 +813,31 @@
             catch (error) {
                 console.error('xnew.extend(component, ...args): ', error);
             }
-        } });
-    Object.defineProperty(xnew$1, 'context', { enumerable: true, value: function (key, value = undefined) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'root', {
+        enumerable: true,
+        get: function () {
+            var _a;
+            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
+        }
+    });
+    Object.defineProperty(xnew$1, 'parent', {
+        enumerable: true,
+        get: function () {
+            var _a;
+            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.parent;
+        }
+    });
+    Object.defineProperty(xnew$1, 'current', {
+        enumerable: true,
+        get: function () {
+            return UnitScope.current;
+        }
+    });
+    Object.defineProperty(xnew$1, 'context', {
+        enumerable: true,
+        value: function (key, value = undefined) {
             try {
                 const unit = UnitScope.current;
                 if (typeof key !== 'string') {
@@ -844,8 +858,11 @@
             catch (error) {
                 console.error('xnew.context(key, value?): ', error);
             }
-        } });
-    Object.defineProperty(xnew$1, 'promise', { enumerable: true, value: function (mix) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'promise', {
+        enumerable: true,
+        value: function (mix) {
             try {
                 let promise = null;
                 if (mix instanceof Promise) {
@@ -866,8 +883,11 @@
             catch (error) {
                 console.error('xnew.promise(mix): ', error);
             }
-        } });
-    Object.defineProperty(xnew$1, 'emit', { enumerable: true, value: function (type, ...args) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'emit', {
+        enumerable: true,
+        value: function (type, ...args) {
             try {
                 const unit = UnitScope.current;
                 if (typeof type !== 'string') {
@@ -876,19 +896,25 @@
                 else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === 'finalized') {
                     throw new Error('This function can not be called after finalized.');
                 }
-                else {
+                else if (unit instanceof Unit) {
                     UnitEvent.emit(unit, type, ...args);
                 }
             }
             catch (error) {
                 console.error('xnew.emit(type, ...args): ', error);
             }
-        } });
-    Object.defineProperty(xnew$1, 'scope', { enumerable: true, value: function (callback) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'scope', {
+        enumerable: true,
+        value: function (callback) {
             const snapshot = UnitScope.snapshot();
             return (...args) => UnitScope.execute(snapshot, callback, ...args);
-        } });
-    Object.defineProperty(xnew$1, 'find', { enumerable: true, value: function (component) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'find', {
+        enumerable: true,
+        value: function (component) {
             try {
                 if (typeof component !== 'function') {
                     throw new Error(`The argument [component] is invalid.`);
@@ -900,8 +926,11 @@
             catch (error) {
                 console.error('xnew.find(component): ', error);
             }
-        } });
-    Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: function (callback, delay) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'timer', {
+        enumerable: true,
+        value: function (callback, delay) {
             const snapshot = UnitScope.snapshot();
             const unit = xnew$1((self) => {
                 const timer = new Timer(() => {
@@ -915,8 +944,11 @@
                 };
             });
             return { clear: () => unit.finalize() };
-        } });
-    Object.defineProperty(xnew$1, 'interval', { enumerable: true, value: function (callback, delay) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'interval', {
+        enumerable: true,
+        value: function (callback, delay) {
             const snapshot = UnitScope.snapshot();
             const unit = xnew$1((self) => {
                 const timer = new Timer(() => {
@@ -929,8 +961,11 @@
                 };
             });
             return { clear: () => unit.finalize() };
-        } });
-    Object.defineProperty(xnew$1, 'transition', { enumerable: true, value: function (callback, interval) {
+        }
+    });
+    Object.defineProperty(xnew$1, 'transition', {
+        enumerable: true,
+        value: function (callback, interval) {
             const snapshot = UnitScope.snapshot();
             const unit = xnew$1((self) => {
                 const timer = new Timer(() => {
@@ -956,7 +991,8 @@
                 };
             });
             return { clear: () => unit.finalize() };
-        } });
+        }
+    });
 
     function ResizeEvent(self) {
         const observer = new ResizeObserver(xnew$1.scope((entries) => {

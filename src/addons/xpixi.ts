@@ -1,9 +1,13 @@
 import xnew from 'xnew';
 import * as PIXI from 'pixi.js'
 
-const xpixi: any = Object.assign(function() {}, {
-    initialize({ renderer = null }: any = {}) {
+export default {
+    initialize ({ renderer = null }: any = {}) {
         xnew.extend(Root, { renderer });
+    },
+    nest (object: any) {
+        xnew.extend(Connect, object);
+        return object;
     },
     get renderer() {
         return xnew.context('xpixi.root')?.renderer;
@@ -11,34 +15,31 @@ const xpixi: any = Object.assign(function() {}, {
     get scene() {
         return xnew.context('xpixi.root')?.scene;
     },
-    nest(object: any) {
-        xnew.extend(Connect, object);
-        return object;
-    },
-});
+};
 
-export default xpixi;
-
-function Root(self: xnew.Unit, { renderer }: any) {
-    const root: any = {};
+function Root(self: xnew.Unit, { renderer = null }: any) {
+    const root: { [key: string]: any } = {};
     xnew.context('xpixi.root', root);
     
+    let data: any;
     if (renderer === null) {
         const screens = xnew.find(xnew.Screen);
         if (screens.length > 0) {
             const screen = screens.slice(-1)[0]; // last screen
-            renderer = PIXI.autoDetectRenderer({
+            data = PIXI.autoDetectRenderer({
                 width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas,
                 antialias: true,
             });
         } else {
-            renderer = PIXI.autoDetectRenderer({});
+            data = PIXI.autoDetectRenderer({});
         }
     }
     root.renderer = null;
 
-    if (renderer instanceof Promise) {
-        xnew.promise(renderer).then((renderer: any) => root.renderer = renderer);
+    if (data instanceof Promise) {
+        xnew.promise(data).then((renderer: any) => root.renderer = renderer);
+    } else if (data instanceof PIXI.WebGLRenderer || data instanceof PIXI.CanvasRenderer) {
+        root.renderer = data;
     }
 
     root.scene = new PIXI.Container();
