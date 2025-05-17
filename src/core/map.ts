@@ -1,13 +1,24 @@
 //----------------------------------------------------------------------------------------------------
-// map set
+// map ex
 //----------------------------------------------------------------------------------------------------
 
-export class MapSet<Key, Value> {
-    private map: Map<Key, Set<Value>> = new Map;
+class MapEx<Key, Value> {
+    protected map: Map<Key, Value> = new Map;
 
     public get size(): number {
         return this.map.size;
     }
+    
+    public forEach(callback: () => (value: Value, key: Key, map: Map<Key, Value>) => any): void {
+        this.map.forEach(callback);
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// map set
+//----------------------------------------------------------------------------------------------------
+
+export class MapSet<Key, Value> extends MapEx<Key, Set<Value>> {
 
     public has(key: Key, value?: Value): boolean {
         if (value === undefined) {
@@ -42,12 +53,7 @@ export class MapSet<Key, Value> {
 // map map
 //----------------------------------------------------------------------------------------------------
 
-export class MapMap<Key1, Key2, Value> {
-    private map: Map<Key1, Map<Key2, Value>> = new Map;
-
-    public get size(): number {
-        return this.map.size;
-    }
+export class MapMap<Key1, Key2, Value> extends MapEx<Key1, Map<Key2, Value>> {
 
     public has(key1: Key1, key2?: Key2): boolean {
         if (key2 === undefined) {
@@ -86,12 +92,7 @@ export class MapMap<Key1, Key2, Value> {
 // map map map
 //----------------------------------------------------------------------------------------------------
 
-export class MapMapMap<Key1, Key2, Key3, Value> {
-    private map: Map<Key1, MapMap<Key2, Key3, Value>> = new Map;
-
-    public get size(): number {
-        return this.map.size;
-    }
+export class MapMapMap<Key1, Key2, Key3, Value> extends MapEx<Key1, MapMap<Key2, Key3, Value>> {
 
     has(key1: Key1, key2?: Key2, key3?: Key3): boolean {
         if (key2 === undefined) {

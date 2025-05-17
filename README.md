@@ -1,6 +1,7 @@
 # xnew
-`xnew` is a JavaScript library for component-oriented programming.  
-It allows you to structure your code as a collection of simple, reusable components.
+`xnew` is a JavaScript library for component-oriented programming,
+providing a flexible architecture well-suited for applications with dynamic scenes and games.
+
 
 [**Visit the xnew website**](https://mulsense.github.io/xnew)
 

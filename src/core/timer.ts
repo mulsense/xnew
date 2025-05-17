@@ -24,7 +24,7 @@ export class Timer {
 
         this.status = 0;
 
-        if (document !== undefined) {
+        if (document instanceof Document) {
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.visibilitychange);
         }
@@ -37,7 +37,7 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        if (document !== undefined && this.visibilitychange !== undefined) {
+        if (document instanceof Document && this.visibilitychange !== undefined) {
             document.removeEventListener('visibilitychange', this.visibilitychange);
         }
     }

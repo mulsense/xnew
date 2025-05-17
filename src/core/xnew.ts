@@ -83,9 +83,7 @@ Object.defineProperty(xnew, 'nest', {
                 throw new Error(`This function can not be called after initialized.`);
             }
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('xnew.nest(attributes): ', error.message);
-            }
+            console.error('xnew.nest(attributes): ', error);
         }
     }
 });
@@ -115,7 +113,7 @@ Object.defineProperty(xnew, 'context', {
                 throw new Error('The argument [key] is invalid.');
             } else if (unit !== null) {
                 if (value !== undefined) {
-                    UnitScope.push(unit, key, value);
+                    UnitScope.stack(unit, key, value);
                 } else {
                     return UnitScope.trace(unit, key);
                 }
@@ -130,20 +128,9 @@ Object.defineProperty(xnew, 'context', {
         
 Object.defineProperty(xnew, 'promise', { 
     enumerable: true, 
-    value: function (mix: any) {
+    value: function (mix: Promise<any> | Function | Unit): UnitPromise | undefined {
         try {
-            let promise: Promise<any> | null = null;
-            if (mix instanceof Promise) {
-                promise = mix;
-            } else if (typeof mix === 'function') {
-                promise = new Promise(mix);
-            } else if (mix instanceof Unit) {
-                const promises: any = UnitPromise.unitToPromises.get(mix);
-                promise = promises?.size > 0 ? Promise.all([...promises]) : Promise.resolve();
-            } else {
-                throw new Error(`The argument [mix] is invalid.`);
-            }
-            return UnitPromise.execute(promise);
+            return UnitPromise.execute(mix);
         } catch (error) {
             console.error('xnew.promise(mix): ', error);
         }

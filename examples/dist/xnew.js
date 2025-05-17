@@ -16,7 +16,7 @@
             this.time = 0.0;
             this.offset = 0.0;
             this.status = 0;
-            if (document !== undefined) {
+            if (document instanceof Document) {
                 this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
                 document.addEventListener('visibilitychange', this.visibilitychange);
             }
@@ -27,7 +27,7 @@
                 clearTimeout(this.id);
                 this.id = null;
             }
-            if (document !== undefined && this.visibilitychange !== undefined) {
+            if (document instanceof Document && this.visibilitychange !== undefined) {
                 document.removeEventListener('visibilitychange', this.visibilitychange);
             }
         }
@@ -67,15 +67,23 @@
     }
 
     //----------------------------------------------------------------------------------------------------
-    // map set
+    // map ex
     //----------------------------------------------------------------------------------------------------
-    class MapSet {
+    class MapEx {
         constructor() {
             this.map = new Map;
         }
         get size() {
             return this.map.size;
         }
+        forEach(callback) {
+            this.map.forEach(callback);
+        }
+    }
+    //----------------------------------------------------------------------------------------------------
+    // map set
+    //----------------------------------------------------------------------------------------------------
+    class MapSet extends MapEx {
         has(key, value) {
             var _a, _b;
             if (value === undefined) {
@@ -109,13 +117,7 @@
     //----------------------------------------------------------------------------------------------------
     // map map
     //----------------------------------------------------------------------------------------------------
-    class MapMap {
-        constructor() {
-            this.map = new Map;
-        }
-        get size() {
-            return this.map.size;
-        }
+    class MapMap extends MapEx {
         has(key1, key2) {
             var _a, _b;
             if (key2 === undefined) {
@@ -155,13 +157,7 @@
     //----------------------------------------------------------------------------------------------------
     // map map map
     //----------------------------------------------------------------------------------------------------
-    class MapMapMap {
-        constructor() {
-            this.map = new Map;
-        }
-        get size() {
-            return this.map.size;
-        }
+    class MapMapMap extends MapEx {
         has(key1, key2, key3) {
             var _a, _b;
             if (key2 === undefined) {
@@ -199,6 +195,9 @@
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // unit main
+    //----------------------------------------------------------------------------------------------------
     class Unit {
         constructor(parent, target, component, ...args) {
             var _a, _b, _c, _d;
@@ -227,7 +226,7 @@
                     baseElement, // base element
                     baseContext, // base context
                 });
-                ((_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots).add(this);
+                ((_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots).push(this);
                 Unit.initialize(this, component, ...args);
             }
             catch (error) {
@@ -238,7 +237,7 @@
         // base system 
         //----------------------------------------------------------------------------------------------------
         get element() {
-            if (this._.baseElement instanceof Element) {
+            if (this._.baseElement instanceof Element || this._.baseElement instanceof Window || this._.baseElement instanceof Document) {
                 return UnitElement.get(this);
             }
             else {
@@ -256,7 +255,7 @@
             var _a, _b;
             Unit.stop(this);
             Unit.finalize(this);
-            ((_b = (_a = this._.parent) === null || _a === void 0 ? void 0 : _a._.children) !== null && _b !== void 0 ? _b : Unit.roots).delete(this);
+            ((_b = (_a = this._.parent) === null || _a === void 0 ? void 0 : _a._.children) !== null && _b !== void 0 ? _b : Unit.roots).filter((unit) => unit !== this);
         }
         reboot() {
             Unit.stop(this);
@@ -280,17 +279,17 @@
             }
         }
         static initialize(unit, component, ...args) {
-            var _a;
+            var _a, _b;
             unit._ = Object.assign(unit._, {
-                children: new Set(), // children units
+                children: [], // children units
                 state: 'pending', // [pending -> running <-> stopped -> finalized]
                 tostart: false, // flag for start
                 upcount: 0, // update count    
                 resolved: false, // promise check
                 props: {}, // properties in the component function
             });
+            UnitScope.initialize(unit, unit._.baseContext);
             UnitElement.initialize(unit, unit._.baseElement);
-            UnitScope.set(unit, unit._.baseContext);
             if (unit._.parent !== null && ['finalized'].includes((_a = unit._.parent._.state) !== null && _a !== void 0 ? _a : '')) {
                 unit._.state = 'finalized';
             }
@@ -307,12 +306,12 @@
                     UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
                 }
                 else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
-                    unit.element.innerHTML = component;
+                    if (unit.element instanceof Element) {
+                        unit.element.innerHTML = component;
+                    }
                 }
                 // whether the unit promise was resolved
-                const promises = UnitPromise.unitToPromises.get(unit);
-                const promise = (promises === null || promises === void 0 ? void 0 : promises.size) > 0 ? Promise.all([...promises]) : Promise.resolve();
-                UnitPromise.execute(promise).then(() => { unit._.resolved = true; });
+                (_b = UnitPromise.execute(unit)) === null || _b === void 0 ? void 0 : _b.then(() => { unit._.resolved = true; });
             }
         }
         static extend(unit, component, ...args) {
@@ -395,14 +394,15 @@
         static finalize(unit) {
             if (['finalized'].includes(unit._.state) === false) {
                 unit._.state = 'finalized';
-                [...unit._.children].forEach((unit) => unit.finalize());
-                unit._.children.clear();
+                unit._.children.forEach((unit) => unit.finalize());
+                unit._.children = [];
                 if (typeof unit._.props.finalize === 'function') {
                     UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
                 }
-                unit.off();
-                UnitElement.clear(unit);
-                UnitComponent.clear(unit);
+                UnitEvent.off(unit);
+                UnitScope.finalize(unit);
+                UnitElement.finalize(unit);
+                UnitComponent.finalize(unit);
                 // reset props
                 Object.keys(unit._.props).forEach((key) => {
                     if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
@@ -410,19 +410,18 @@
                     }
                 });
                 unit._.props = {};
-                UnitScope.clear(unit);
             }
         }
         static reset() {
             Unit.roots.forEach((unit) => unit.finalize());
-            Unit.roots.clear();
+            Unit.roots = [];
             if (typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
+                Unit.previous = Date.now();
                 if (Unit.animation !== null) {
                     cancelAnimationFrame(Unit.animation);
-                    Unit.animation = null;
                 }
-                Unit.previous = Date.now();
-                Unit.ticker = function () {
+                Unit.animation = requestAnimationFrame(ticker);
+                function ticker() {
                     const interval = 1000 / 60;
                     const time = Date.now();
                     if (time - Unit.previous > interval * 0.8) {
@@ -432,31 +431,41 @@
                         });
                         Unit.previous = time;
                     }
-                    Unit.animation = requestAnimationFrame(Unit.ticker);
-                };
-                Unit.animation = requestAnimationFrame(Unit.ticker);
+                    Unit.animation = requestAnimationFrame(ticker);
+                }
             }
         }
     }
     Unit.autoincrement = 0;
-    Unit.roots = new Set(); // root units
+    Unit.roots = []; // root units
     Unit.animation = null;
-    Unit.ticker = null;
     Unit.previous = 0.0;
     Unit.reset();
     //----------------------------------------------------------------------------------------------------
     // unit scope
     //----------------------------------------------------------------------------------------------------
     class UnitScope {
-        static execute(snapshot, func, ...args) {
+        static initialize(unit, data) {
+            UnitScope.data.set(unit, data);
+        }
+        static finalize(unit) {
+            UnitScope.data.delete(unit);
+        }
+        static set(unit, data) {
+            UnitScope.data.set(unit, data);
+        }
+        static get(unit) {
             var _a;
+            return (_a = UnitScope.data.get(unit)) !== null && _a !== void 0 ? _a : null;
+        }
+        static execute(snapshot, func, ...args) {
             const backup = { unit: null, data: null };
             try {
                 backup.unit = UnitScope.current;
                 UnitScope.current = snapshot.unit;
                 if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                    backup.data = (_a = UnitScope.get(snapshot.unit)) !== null && _a !== void 0 ? _a : null;
-                    UnitScope.set(snapshot.unit, snapshot.data);
+                    backup.data = UnitScope.get(snapshot.unit);
+                    UnitScope.data.set(snapshot.unit, snapshot.data);
                 }
                 return func(...args);
             }
@@ -466,25 +475,15 @@
             finally {
                 UnitScope.current = backup.unit;
                 if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                    UnitScope.set(snapshot.unit, backup.data);
+                    UnitScope.data.set(snapshot.unit, backup.data);
                 }
             }
-        }
-        static set(unit, data) {
-            UnitScope.unitToData.set(unit, data);
-        }
-        static get(unit) {
-            var _a;
-            return (_a = UnitScope.unitToData.get(unit)) !== null && _a !== void 0 ? _a : null;
         }
         static snapshot(unit = UnitScope.current) {
             return { unit, data: UnitScope.get(unit) };
         }
-        static clear(unit) {
-            UnitScope.unitToData.delete(unit);
-        }
-        static push(unit, key, value) {
-            UnitScope.unitToData.set(unit, { stack: UnitScope.get(unit), key, value });
+        static stack(unit, key, value) {
+            UnitScope.data.set(unit, { stack: UnitScope.get(unit), key, value });
         }
         static trace(unit, key) {
             for (let data = UnitScope.get(unit); data !== null; data = data.stack) {
@@ -495,21 +494,23 @@
         }
     }
     UnitScope.current = null;
-    UnitScope.unitToData = new Map();
+    UnitScope.data = new Map();
     //----------------------------------------------------------------------------------------------------
     // unit component
     //----------------------------------------------------------------------------------------------------
     class UnitComponent {
-        static add(unit, component) {
-            UnitComponent.unitToComponents.add(unit, component);
-            UnitComponent.componentToUnits.add(component, unit);
+        static initialize(unit) {
         }
-        static clear(unit) {
+        static finalize(unit) {
             var _a;
             (_a = UnitComponent.unitToComponents.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((component) => {
                 UnitComponent.componentToUnits.delete(component, unit);
             });
             UnitComponent.unitToComponents.delete(unit);
+        }
+        static add(unit, component) {
+            UnitComponent.unitToComponents.add(unit, component);
+            UnitComponent.componentToUnits.add(component, unit);
         }
         static find(component) {
             var _a;
@@ -523,7 +524,14 @@
     //----------------------------------------------------------------------------------------------------
     class UnitElement {
         static initialize(unit, baseElement) {
-            UnitElement.unitToElements.set(unit, [baseElement]);
+            UnitElement.elements.set(unit, [baseElement]);
+        }
+        static finalize(unit) {
+            const elements = UnitElement.elements.get(unit);
+            if (elements && elements.length > 1) {
+                elements[0].removeChild(elements[1]);
+            }
+            UnitElement.elements.delete(unit);
         }
         static nest(unit, attributes) {
             var _a;
@@ -532,41 +540,32 @@
                 throw new Error(`The argument [attributes] is invalid.`);
             }
             else {
-                const element = UnitElement.create(attributes, current);
-                current.append(element);
-                (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
+                const element = UnitElement.append(current, attributes);
+                (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
                 return element;
             }
         }
         static get(unit) {
             var _a;
-            return (_a = UnitElement.unitToElements.get(unit)) === null || _a === void 0 ? void 0 : _a.slice(-1)[0];
+            return (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.slice(-1)[0];
         }
-        static clear(unit) {
-            const elements = UnitElement.unitToElements.get(unit);
-            if (elements && elements.length > 1) {
-                elements[0].removeChild(elements[1]);
-            }
-            UnitElement.unitToElements.delete(unit);
-        }
-        static create(attributes, parentElement = null) {
+        static append(parentElement, attributes) {
             var _a;
             const tagName = ((_a = attributes.tagName) !== null && _a !== void 0 ? _a : 'div').toLowerCase();
-            let element;
-            let nsmode = false;
+            let isNS = false;
             if (tagName === 'svg') {
-                nsmode = true;
+                isNS = true;
             }
             else {
-                while (parentElement) {
-                    if (parentElement.tagName.toLowerCase() === 'svg') {
-                        nsmode = true;
+                for (let parent = parentElement; parent !== null; parent = parent.parentElement) {
+                    if (parent.tagName.toLowerCase() === 'svg') {
+                        isNS = true;
                         break;
                     }
-                    parentElement = parentElement.parentElement;
                 }
             }
-            if (nsmode) {
+            let element;
+            if (isNS) {
                 element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
             }
             else {
@@ -574,8 +573,7 @@
             }
             Object.keys(attributes).forEach((key) => {
                 const value = attributes[key];
-                if (key === 'tagName') ;
-                else if (key === 'insert') ;
+                if (key === 'tagName' || key === 'class') ;
                 else if (key === 'className') {
                     if (typeof value === 'string' && value !== '') {
                         element.classList.add(...value.trim().split(/\s+/));
@@ -595,10 +593,7 @@
                         element[key] = value;
                     }
                     else {
-                        setAttribute(element, key, value);
-                    }
-                    function setAttribute(element, key, value) {
-                        if (nsmode) {
+                        if (isNS) {
                             element.setAttributeNS(null, key, value);
                         }
                         else {
@@ -607,10 +602,11 @@
                     }
                 }
             });
+            parentElement.append(element);
             return element;
         }
     }
-    UnitElement.unitToElements = new Map();
+    UnitElement.elements = new Map();
     //----------------------------------------------------------------------------------------------------
     // unit event
     //----------------------------------------------------------------------------------------------------
@@ -627,29 +623,13 @@
             function internal(type, listener) {
                 if (!UnitEvent.unitToListeners.has(unit, type, listener)) {
                     const element = unit.element;
-                    if (type[0] === '-' || type[0] === '+') {
-                        const execute = (...args) => {
-                            const eventbackup = UnitEvent.event;
-                            UnitEvent.event = { type };
-                            UnitScope.execute(snapshot, listener, ...args);
-                            UnitEvent.event = eventbackup;
-                        };
-                        UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                    }
-                    else {
-                        const execute = (...args) => {
-                            var _a, _b;
-                            const eventbackup = UnitEvent.event;
-                            UnitEvent.event = { type: (_b = (_a = args[0]) === null || _a === void 0 ? void 0 : _a.type) !== null && _b !== void 0 ? _b : null };
-                            UnitScope.execute(snapshot, listener, ...args);
-                            UnitEvent.event = eventbackup;
-                        };
-                        UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                        if (element instanceof Element) {
-                            function handle(event) {
-                                execute(event);
-                            }
-                            element.addEventListener(type, handle, options);
+                    const execute = (...args) => {
+                        UnitScope.execute(snapshot, listener, ...args);
+                    };
+                    UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
+                    if (/^[A-Za-z]/.test(type[0])) {
+                        if (element instanceof Element || element instanceof Window || element instanceof Document) {
+                            element.addEventListener(type, execute, options);
                         }
                     }
                 }
@@ -677,14 +657,14 @@
             }
             else if (type === undefined && listener === undefined) {
                 (_a = UnitEvent.unitToListeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((map, type) => {
-                    map.forEach((_, listener) => internal(type, listener));
+                    map === null || map === void 0 ? void 0 : map.forEach((_, listener) => internal(type, listener));
                 });
             }
             function internal(type, listener) {
                 if (UnitEvent.unitToListeners.has(unit, type, listener)) {
                     const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
                     UnitEvent.unitToListeners.delete(unit, type, listener);
-                    if (element instanceof Element) {
+                    if (element instanceof Element || element instanceof Window || element instanceof Document) {
                         element.removeEventListener(type, execute);
                     }
                 }
@@ -706,7 +686,6 @@
             }
         }
     }
-    UnitEvent.event = null;
     UnitEvent.typeToUnits = new MapSet();
     UnitEvent.unitToListeners = new MapMapMap();
     //----------------------------------------------------------------------------------------------------
@@ -731,19 +710,34 @@
             this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
             return this;
         }
-        static execute(promise) {
-            const unit = UnitScope.current;
+        static execute(mix) {
+            let promise = null;
+            if (mix instanceof Promise) {
+                promise = mix;
+            }
+            else if (typeof mix === 'function') {
+                promise = new Promise(mix);
+            }
+            else if (mix instanceof Unit) {
+                const promises = UnitPromise.unitToPromises.get(mix);
+                promise = (promises === null || promises === void 0 ? void 0 : promises.size) > 0 ? Promise.all([...promises]) : Promise.resolve();
+            }
+            else {
+                throw new Error(`The argument [mix] is invalid.`);
+            }
             const unitpromise = new UnitPromise((resolve, reject) => {
                 promise.then((...args) => resolve(...args));
                 promise.catch((...args) => reject(...args));
             });
-            UnitPromise.unitToPromises.add(unit, promise);
+            if (UnitScope.current !== null) {
+                UnitPromise.unitToPromises.add(UnitScope.current, promise);
+            }
             return unitpromise;
         }
     }
     UnitPromise.unitToPromises = new MapSet();
 
-    const xnew$1 = Object.assign(function (...args) {
+    const xnew$1 = function (...args) {
         try {
             let parent = UnitScope.current;
             if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
@@ -783,38 +777,7 @@
         catch (error) {
             console.error('xnew: ', error);
         }
-    }, {
-        nest(attributes) {
-            try {
-                const current = UnitScope.current;
-                if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
-                    return UnitElement.nest(current, attributes);
-                }
-                else {
-                    throw new Error(`This function can not be called after initialized.`);
-                }
-            }
-            catch (error) {
-                if (error instanceof Error) {
-                    console.error('xnew.nest(attributes): ', error.message);
-                }
-            }
-        },
-        extend(component, ...args) {
-            try {
-                const current = UnitScope.current;
-                if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
-                    return Unit.extend(current, component, ...args);
-                }
-                else {
-                    throw new Error('This function can not be called after initialized.');
-                }
-            }
-            catch (error) {
-                console.error('xnew.extend(component, ...args): ', error);
-            }
-        }
-    });
+    };
     Object.defineProperty(xnew$1, 'root', {
         enumerable: true,
         get: function () {
@@ -835,6 +798,40 @@
             return UnitScope.current;
         }
     });
+    Object.defineProperty(xnew$1, 'nest', {
+        enumerable: true,
+        value: function (attributes) {
+            try {
+                const current = UnitScope.current;
+                if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
+                    return UnitElement.nest(current, attributes);
+                }
+                else {
+                    throw new Error(`This function can not be called after initialized.`);
+                }
+            }
+            catch (error) {
+                console.error('xnew.nest(attributes): ', error);
+            }
+        }
+    });
+    Object.defineProperty(xnew$1, 'extend', {
+        enumerable: true,
+        value: function (component, ...args) {
+            try {
+                const current = UnitScope.current;
+                if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
+                    return Unit.extend(current, component, ...args);
+                }
+                else {
+                    throw new Error('This function can not be called after initialized.');
+                }
+            }
+            catch (error) {
+                console.error('xnew.extend(component, ...args): ', error);
+            }
+        }
+    });
     Object.defineProperty(xnew$1, 'context', {
         enumerable: true,
         value: function (key, value = undefined) {
@@ -845,7 +842,7 @@
                 }
                 else if (unit !== null) {
                     if (value !== undefined) {
-                        UnitScope.push(unit, key, value);
+                        UnitScope.stack(unit, key, value);
                     }
                     else {
                         return UnitScope.trace(unit, key);
@@ -864,21 +861,7 @@
         enumerable: true,
         value: function (mix) {
             try {
-                let promise = null;
-                if (mix instanceof Promise) {
-                    promise = mix;
-                }
-                else if (typeof mix === 'function') {
-                    promise = new Promise(mix);
-                }
-                else if (mix instanceof Unit) {
-                    const promises = UnitPromise.unitToPromises.get(mix);
-                    promise = (promises === null || promises === void 0 ? void 0 : promises.size) > 0 ? Promise.all([...promises]) : Promise.resolve();
-                }
-                else {
-                    throw new Error(`The argument [mix] is invalid.`);
-                }
-                return UnitPromise.execute(promise);
+                return UnitPromise.execute(mix);
             }
             catch (error) {
                 console.error('xnew.promise(mix): ', error);
