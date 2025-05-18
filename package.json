@@ -52,7 +52,8 @@
   "homepage": "https://github.com/mulsense/xnew#readme",
   "scripts": {
     "test": "jest",
-    "dev": "npx rollup --config --watch --bundleConfigAsCjs"
+    "dev": "npx rollup --config rollup.config.js --watch --bundleConfigAsCjs",
+    "dev:addons": "npx rollup --config rollup.addons.config.js --watch --bundleConfigAsCjs"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

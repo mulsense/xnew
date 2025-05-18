@@ -1,30 +1,11 @@
 import { MapSet, MapMap, MapMapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------
-// unit types
-//----------------------------------------------------------------------------------------------------
-
-interface UnitContext {
-    unit: Unit | null;
-    data: UnitContextData | null;
-}
-
-interface UnitContextData {
-    stack: UnitContextData | null;
-    key: string;
-    value: any;
-}
-
-interface UnitInternal {
-    [key: string]: any;
-}
-
-//----------------------------------------------------------------------------------------------------
 // unit main
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
-    public _: UnitInternal = {};
+    public _: { [key: string]: any } = {};
     [key: string]: any;
 
     static autoincrement: number = 0;
@@ -34,13 +15,13 @@ export class Unit {
             const id = Unit.autoincrement++;
             const root = parent?._.root ?? this;
 
-            let baseElement: Element | Window | Document | null = null;
+            let baseTarget: Element | Window | Document | null = null;
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
-                baseElement = target;
+                baseTarget = target;
             } else if (parent !== null) {
-                baseElement = parent.element;
+                baseTarget = parent.element;
             } else if (document instanceof Document) {
-                baseElement = document.currentScript?.parentElement ?? document.body;
+                baseTarget = document.currentScript?.parentElement ?? document.body;
             }
             const baseContext = UnitScope.get(parent);
 
@@ -51,7 +32,7 @@ export class Unit {
                 target,         // target info
                 component,      // component function
                 args,           // component arguments
-                baseElement,    // base element
+                baseTarget,     // base target
                 baseContext,    // base context
             });
 
@@ -67,8 +48,8 @@ export class Unit {
     // base system 
     //----------------------------------------------------------------------------------------------------
 
-    get element(): Element | Window | Document | null {
-        if (this._.baseElement instanceof Element || this._.baseElement instanceof Window || this._.baseElement instanceof Document) {
+    get element(): Element | null {
+        if (this._.baseTarget instanceof Element) {
             return UnitElement.get(this);
         } else {
             return null;
@@ -116,16 +97,16 @@ export class Unit {
 
     static initialize(unit: Unit, component?: Function | string, ...args: any[]): void {
         unit._ = Object.assign(unit._, {
-            children: [],                    // children units
-            state: 'pending',                // [pending -> running <-> stopped -> finalized]
-            tostart: false,                  // flag for start
-            upcount: 0,                      // update count    
-            resolved: false,                 // promise check
-            props: {},                       // properties in the component function
+            children: [],       // children units
+            state: 'pending',   // [pending -> running <-> stopped -> finalized]
+            tostart: false,     // flag for start
+            upcount: 0,         // update count    
+            resolved: false,    // promise check
+            props: {},          // properties in the component function
         });
 
         UnitScope.initialize(unit, unit._.baseContext);
-        UnitElement.initialize(unit, unit._.baseElement);
+        UnitElement.initialize(unit, unit._.baseTarget);
         UnitComponent.initialize(unit);
 
         if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state ?? '')) {
@@ -149,7 +130,7 @@ export class Unit {
             }
 
             // whether the unit promise was resolved
-            UnitPromise.execute(unit)?.then(() => { unit._.resolved = true; });
+            UnitPromise.execute(unit, unit)?.then(() => { unit._.resolved = true; });
         }
     }
 
@@ -291,6 +272,17 @@ Unit.reset();
 // unit scope
 //----------------------------------------------------------------------------------------------------
 
+interface UnitContext {
+    unit: Unit | null;
+    data: UnitContextData | null;
+}
+
+interface UnitContextData {
+    stack: UnitContextData | null;
+    key: string;
+    value: any;
+}
+
 export class UnitScope {
     static current: Unit | null = null;
 
@@ -387,8 +379,8 @@ export class UnitElement {
 
     static elements: Map<Unit, Element[]> = new Map();
 
-    static initialize(unit: Unit, baseElement: Element): void {
-        UnitElement.elements.set(unit, [baseElement]);
+    static initialize(unit: Unit, baseTarget: Element): void {
+        UnitElement.elements.set(unit, [baseTarget]);
     }
 
     static finalize(unit: Unit): void {
@@ -400,10 +392,10 @@ export class UnitElement {
     }
 
     static nest(unit: Unit, attributes: Record<string, any>): Element {
-        const current = UnitElement.get(unit);
         if (typeof attributes !== 'object') {
             throw new Error(`The argument [attributes] is invalid.`);
         } else {
+            const current = UnitElement.get(unit);
             const element = UnitElement.append(current, attributes);
             UnitElement.elements.get(unit)?.push(element);
             return element;
@@ -475,78 +467,84 @@ export class UnitElement {
 export class UnitEvent {
     static typeToUnits: MapSet<string, Unit> = new MapSet();
 
-    static unitToListeners: MapMapMap<Unit, string, Function, any> = new MapMapMap();
+    static listeners: MapMapMap<Unit, string, Function, [Element | Window | Document | null, (...args: any[]) => void]> = new MapMapMap();
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        if (typeof type !== 'string' || type.trim() === '') {
-            throw new Error(`The argument [type] is invalid.`);
+        if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
+            throw new Error(`"type" is invalid.`);
         } else if (typeof listener !== 'function') {
-            throw new Error(`The argument [listener] is invalid.`);
+            throw new Error(`"listener" is invalid.`);
+        }
+        type.trim().split(/\s+/).forEach((type) => UnitEvent.add(unit, type, listener, options));
+    }
+
+    static off(unit: Unit, type?: string, listener?: Function): void {
+        if (typeof type === 'string' && type.trim() === '') {
+            throw new Error(`"type" is invalid.`);
+        } else if (listener !== undefined && typeof listener !== 'function') {
+            throw new Error(`"listener" is invalid.`);
+        }
+
+        if (typeof type === 'string') {
+            type.trim().split(/\s+/).forEach((type) => {
+                if (listener !== undefined) {
+                    UnitEvent.remove(unit, type, listener);
+                } else {
+                    UnitEvent.listeners.get(unit, type)?.forEach((_: any, listener: Function) => UnitEvent.remove(unit, type, listener));
+                }
+            });
+        } else {
+            UnitEvent.listeners.get(unit)?.forEach((value: any, key: string, _map: any) => {
+                value?.forEach((_: any, listener: Function) => UnitEvent.remove(unit, key, listener));
+            });
+        }
+    }
+
+    static add(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        if (UnitEvent.listeners.has(unit, type, listener) === true) {
+            return;
         }
         const snapshot = UnitScope.snapshot();
-
-        type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-
-        function internal(type: string, listener: Function): void {
-            if (!UnitEvent.unitToListeners.has(unit, type, listener)) {
-                const element = unit.element;
-                const execute = (...args: any[]) => {
-                    UnitScope.execute(snapshot, listener, ...args);
-                };
-                UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                if (/^[A-Za-z]/.test(type[0])) {
-                    if (element instanceof Element || element instanceof Window || element instanceof Document) {
-                        element.addEventListener(type, execute, options);
-                    }
-                }
-            }
-            if (UnitEvent.unitToListeners.has(unit, type)) {
-                UnitEvent.typeToUnits.add(type, unit);
-            }
+        let target: Element | Window | Document | null = null;
+        if (unit.element instanceof Element) {
+            target = unit.element;
+        } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
+            target = unit._.baseTarget;
+        }
+        const execute = (...args: any[]) => {
+            UnitScope.execute(snapshot, listener, ...args);
+        };
+        UnitEvent.listeners.set(unit, type, listener, [target, execute]);
+        UnitEvent.typeToUnits.add(type, unit);
+        if (/^[A-Za-z]/.test(type[0])) {
+            target?.addEventListener(type, execute, options);
         }
     }
     
-    static off(unit: Unit, type?: string, listener?: Function): void {
-        if (type !== undefined && (typeof type !== 'string' || type.trim() === '')) {
-            throw new Error(`The argument [type] is invalid.`);
-        } else if (listener !== undefined && typeof listener !== 'function') {
-            throw new Error(`The argument [listener] is invalid.`);
+    static remove(unit: Unit, type: string, listener: Function): void {
+        if (UnitEvent.listeners.has(unit, type, listener) === false) {
+            return;
         }
-       
-        if (typeof type === 'string' && listener !== undefined) {
-            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-        } else if (typeof type === 'string' && listener === undefined) {
-            type.trim().split(/\s+/).forEach((type) => {
-                UnitEvent.unitToListeners.get(unit, type)?.forEach((_: any, listener: Function) => internal(type, listener));
-            });
-        } else if (type === undefined && listener === undefined) {
-            UnitEvent.unitToListeners.get(unit)?.forEach((map: any, type: string) => {
-                map?.forEach((_: any, listener: Function) => internal(type, listener));
-            });
+        const value = UnitEvent.listeners.get(unit, type, listener);
+        if (value !== undefined) {
+            const [target, execute] = value;
+            UnitEvent.listeners.delete(unit, type, listener);
+            if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                target.removeEventListener(type, execute);
+            }
         }
-
-        function internal(type: string, listener: Function): void {
-            if (UnitEvent.unitToListeners.has(unit, type, listener)) {
-                const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
-                UnitEvent.unitToListeners.delete(unit, type, listener);
-                if (element instanceof Element || element instanceof Window || element instanceof Document) {
-                    
-                    element.removeEventListener(type, execute);
-                }
-            }
-            if (!UnitEvent.unitToListeners.has(unit, type)) {
-                UnitEvent.typeToUnits.delete(type, unit);
-            }
+        if (UnitEvent.listeners.has(unit, type) === false) {
+            UnitEvent.typeToUnits.delete(type, unit);
         }
     }
     
     static emit(unit: Unit, type: string, ...args: any[]): void {
         if (type[0] === '+') {
             UnitEvent.typeToUnits.get(type)?.forEach((unit) => {
-                UnitEvent.unitToListeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
+                UnitEvent.listeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
             });
         } else if (type[0] === '-') {
-            UnitEvent.unitToListeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
+            UnitEvent.listeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
         }
     }
 }
@@ -580,28 +578,24 @@ export class UnitPromise {
         return this;
     }
 
-    static unitToPromises: MapSet<Unit, Promise<any>> = new MapSet();
+    static promises: MapSet<Unit, Promise<any>> = new MapSet();
    
-    static execute(mix: Promise<any> | Function | Unit | any): UnitPromise | undefined {
+    static execute(unit: Unit | null, mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {
         let promise: Promise<any> | null = null;
         if (mix instanceof Promise) {
             promise = mix;
         } else if (typeof mix === 'function') {
             promise = new Promise(mix);
         } else if (mix instanceof Unit) {
-            const promises: any = UnitPromise.unitToPromises.get(mix);
-            promise = promises?.size > 0 ? Promise.all([...promises]) : Promise.resolve();
+            promise = Promise.all([...(UnitPromise.promises.get(mix) ?? [])]);
         } else {
-            throw new Error(`The argument [mix] is invalid.`);
+            throw new Error('"mix" is invalid.');
         }
-        
-        const unitpromise = new UnitPromise((resolve, reject) => {
-            promise.then((...args) => resolve(...args));
-            promise.catch((...args) => reject(...args));
+        if (unit !== null && unit !== mix) {
+            UnitPromise.promises.add(unit, promise);
+        }
+        return new UnitPromise((resolve, reject) => {
+            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
         });
-        if (UnitScope.current !== null) {
-            UnitPromise.unitToPromises.add(UnitScope.current, promise);
-        }
-        return unitpromise;
     }
 }

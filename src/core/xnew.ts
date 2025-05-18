@@ -128,11 +128,12 @@ Object.defineProperty(xnew, 'context', {
         
 Object.defineProperty(xnew, 'promise', { 
     enumerable: true, 
-    value: function (mix: Promise<any> | Function | Unit): UnitPromise | undefined {
+    value: function (mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {
         try {
-            return UnitPromise.execute(mix);
+            return UnitPromise.execute(UnitScope.current, mix);
         } catch (error) {
             console.error('xnew.promise(mix): ', error);
+            throw error;
         }
     }
 });

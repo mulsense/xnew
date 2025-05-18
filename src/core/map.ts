@@ -8,8 +8,8 @@ class MapEx<Key, Value> {
     public get size(): number {
         return this.map.size;
     }
-    
-    public forEach(callback: () => (value: Value, key: Key, map: Map<Key, Value>) => any): void {
+
+    public forEach(callback: (value: Value, key: Key, map: Map<Key, Value>) => any): void {
         this.map.forEach(callback);
     }
 }
@@ -68,6 +68,8 @@ export class MapMap<Key1, Key2, Value> extends MapEx<Key1, Map<Key2, Value>> {
         return this;
     }
 
+    public get(key1: Key1): Map<Key2, Value> | undefined;
+    public get(key1: Key1, key2: Key2): Value | undefined;
     public get(key1: Key1, key2?: Key2): Map<Key2, Value> | Value | undefined {
         if (key2 === undefined) {
             return this.map.get(key1);
@@ -107,9 +109,14 @@ export class MapMapMap<Key1, Key2, Key3, Value> extends MapEx<Key1, MapMap<Key2,
         return this;
     }
 
+    public get(key1: Key1): MapMap<Key2, Key3, Value> | undefined;
+    public get(key1: Key1, key2: Key2): Map<Key3, Value> | undefined;
+    public get(key1: Key1, key2: Key2, key3: Key3): Value | undefined;
     public get(key1: Key1, key2?: Key2, key3?: Key3): MapMap<Key2, Key3, Value> | Map<Key3, Value> | Value | undefined {
         if (key2 === undefined) {
             return this.map.get(key1);
+        } else if (key3 === undefined) {
+            return this.map.get(key1)?.get(key2);
         } else {
             return this.map.get(key1)?.get(key2, key3);
         }

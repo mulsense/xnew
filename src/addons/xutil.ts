@@ -55,7 +55,6 @@ function AnalogStick(self: xnew.Unit,
     const user = xnew(xnew.UserEvent);
 
     user.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
-        console.log('dragstart', position);
         const vector = getVector(position);
         target.element.style.filter = 'brightness(90%)';
         target.element.style.left = vector.x * size / 4 + 'px';
@@ -63,7 +62,6 @@ function AnalogStick(self: xnew.Unit,
         xnew.emit('-down', { vector });
     });
     user.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
-        console.log('dragmove', position);
         const vector = getVector(position);
         target.element.style.filter = 'brightness(90%)';
         target.element.style.left = vector.x * size / 4 + 'px';

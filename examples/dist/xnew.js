@@ -173,12 +173,15 @@
             return this;
         }
         get(key1, key2, key3) {
-            var _a;
+            var _a, _b;
             if (key2 === undefined) {
                 return this.map.get(key1);
             }
+            else if (key3 === undefined) {
+                return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
+            }
             else {
-                return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2, key3);
+                return (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.get(key2, key3);
             }
         }
         delete(key1, key2, key3) {
@@ -205,15 +208,15 @@
             try {
                 const id = Unit.autoincrement++;
                 const root = (_a = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _a !== void 0 ? _a : this;
-                let baseElement = null;
+                let baseTarget = null;
                 if (target instanceof Element || target instanceof Window || target instanceof Document) {
-                    baseElement = target;
+                    baseTarget = target;
                 }
                 else if (parent !== null) {
-                    baseElement = parent.element;
+                    baseTarget = parent.element;
                 }
                 else if (document instanceof Document) {
-                    baseElement = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
+                    baseTarget = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
                 }
                 const baseContext = UnitScope.get(parent);
                 this._ = Object.assign(this._, {
@@ -223,7 +226,7 @@
                     target, // target info
                     component, // component function
                     args, // component arguments
-                    baseElement, // base element
+                    baseTarget, // base target
                     baseContext, // base context
                 });
                 ((_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots).push(this);
@@ -237,7 +240,7 @@
         // base system 
         //----------------------------------------------------------------------------------------------------
         get element() {
-            if (this._.baseElement instanceof Element || this._.baseElement instanceof Window || this._.baseElement instanceof Document) {
+            if (this._.baseTarget instanceof Element) {
                 return UnitElement.get(this);
             }
             else {
@@ -289,7 +292,7 @@
                 props: {}, // properties in the component function
             });
             UnitScope.initialize(unit, unit._.baseContext);
-            UnitElement.initialize(unit, unit._.baseElement);
+            UnitElement.initialize(unit, unit._.baseTarget);
             if (unit._.parent !== null && ['finalized'].includes((_a = unit._.parent._.state) !== null && _a !== void 0 ? _a : '')) {
                 unit._.state = 'finalized';
             }
@@ -311,7 +314,7 @@
                     }
                 }
                 // whether the unit promise was resolved
-                (_b = UnitPromise.execute(unit)) === null || _b === void 0 ? void 0 : _b.then(() => { unit._.resolved = true; });
+                (_b = UnitPromise.execute(unit, unit)) === null || _b === void 0 ? void 0 : _b.then(() => { unit._.resolved = true; });
             }
         }
         static extend(unit, component, ...args) {
@@ -523,8 +526,8 @@
     // unit element
     //----------------------------------------------------------------------------------------------------
     class UnitElement {
-        static initialize(unit, baseElement) {
-            UnitElement.elements.set(unit, [baseElement]);
+        static initialize(unit, baseTarget) {
+            UnitElement.elements.set(unit, [baseTarget]);
         }
         static finalize(unit) {
             const elements = UnitElement.elements.get(unit);
@@ -535,11 +538,11 @@
         }
         static nest(unit, attributes) {
             var _a;
-            const current = UnitElement.get(unit);
             if (typeof attributes !== 'object') {
                 throw new Error(`The argument [attributes] is invalid.`);
             }
             else {
+                const current = UnitElement.get(unit);
                 const element = UnitElement.append(current, attributes);
                 (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
                 return element;
@@ -612,65 +615,70 @@
     //----------------------------------------------------------------------------------------------------
     class UnitEvent {
         static on(unit, type, listener, options) {
-            if (typeof type !== 'string' || type.trim() === '') {
-                throw new Error(`The argument [type] is invalid.`);
+            if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
+                throw new Error(`The argument "type" is invalid.`);
             }
             else if (typeof listener !== 'function') {
-                throw new Error(`The argument [listener] is invalid.`);
+                throw new Error(`The argument "listener" is invalid.`);
             }
-            const snapshot = UnitScope.snapshot();
-            type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-            function internal(type, listener) {
-                if (!UnitEvent.unitToListeners.has(unit, type, listener)) {
-                    const element = unit.element;
-                    const execute = (...args) => {
-                        UnitScope.execute(snapshot, listener, ...args);
-                    };
-                    UnitEvent.unitToListeners.set(unit, type, listener, [element, execute]);
-                    if (/^[A-Za-z]/.test(type[0])) {
-                        if (element instanceof Element || element instanceof Window || element instanceof Document) {
-                            element.addEventListener(type, execute, options);
-                        }
-                    }
-                }
-                if (UnitEvent.unitToListeners.has(unit, type)) {
-                    UnitEvent.typeToUnits.add(type, unit);
-                }
-            }
+            type.trim().split(/\s+/).forEach((type) => UnitEvent.add(unit, type, listener, options));
         }
         static off(unit, type, listener) {
             var _a;
-            if (type !== undefined && (typeof type !== 'string' || type.trim() === '')) {
-                throw new Error(`The argument [type] is invalid.`);
+            if (typeof type === 'string' && type.trim() === '') {
+                throw new Error(`The argument "type" is invalid.`);
             }
             else if (listener !== undefined && typeof listener !== 'function') {
-                throw new Error(`The argument [listener] is invalid.`);
+                throw new Error(`The argument "listener" is invalid.`);
             }
-            if (typeof type === 'string' && listener !== undefined) {
-                type.trim().split(/\s+/).forEach((type) => internal(type, listener));
-            }
-            else if (typeof type === 'string' && listener === undefined) {
+            if (typeof type === 'string') {
                 type.trim().split(/\s+/).forEach((type) => {
                     var _a;
-                    (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach((_, listener) => internal(type, listener));
-                });
-            }
-            else if (type === undefined && listener === undefined) {
-                (_a = UnitEvent.unitToListeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((map, type) => {
-                    map === null || map === void 0 ? void 0 : map.forEach((_, listener) => internal(type, listener));
-                });
-            }
-            function internal(type, listener) {
-                if (UnitEvent.unitToListeners.has(unit, type, listener)) {
-                    const [element, execute] = UnitEvent.unitToListeners.get(unit, type, listener);
-                    UnitEvent.unitToListeners.delete(unit, type, listener);
-                    if (element instanceof Element || element instanceof Window || element instanceof Document) {
-                        element.removeEventListener(type, execute);
+                    if (listener !== undefined) {
+                        UnitEvent.remove(unit, type, listener);
                     }
+                    else {
+                        (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach((_, listener) => UnitEvent.remove(unit, type, listener));
+                    }
+                });
+            }
+            else {
+                (_a = UnitEvent.listeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((value, key, _map) => {
+                    value === null || value === void 0 ? void 0 : value.forEach((_, listener) => UnitEvent.remove(unit, key, listener));
+                });
+            }
+        }
+        static add(unit, type, listener, options) {
+            if (UnitEvent.listeners.has(unit, type, listener)) {
+                return;
+            }
+            const snapshot = UnitScope.snapshot();
+            let target = null;
+            if (unit.element instanceof Element) {
+                target = unit.element;
+            }
+            else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
+                target = unit._.baseTarget;
+            }
+            const execute = (...args) => {
+                UnitScope.execute(snapshot, listener, ...args);
+            };
+            UnitEvent.listeners.set(unit, type, listener, [target, execute]);
+            UnitEvent.typeToUnits.add(type, unit);
+            if (/^[A-Za-z]/.test(type[0])) {
+                target === null || target === void 0 ? void 0 : target.addEventListener(type, execute, options);
+            }
+        }
+        static remove(unit, type, listener) {
+            if (UnitEvent.listeners.has(unit, type, listener)) {
+                const [target, execute] = UnitEvent.listeners.get(unit, type, listener);
+                UnitEvent.listeners.delete(unit, type, listener);
+                if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                    target.removeEventListener(type, execute);
                 }
-                if (!UnitEvent.unitToListeners.has(unit, type)) {
-                    UnitEvent.typeToUnits.delete(type, unit);
-                }
+            }
+            if (UnitEvent.listeners.has(unit, type) === false) {
+                UnitEvent.typeToUnits.delete(type, unit);
             }
         }
         static emit(unit, type, ...args) {
@@ -678,16 +686,16 @@
             if (type[0] === '+') {
                 (_a = UnitEvent.typeToUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                     var _a;
-                    (_a = UnitEvent.unitToListeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
+                    (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
                 });
             }
             else if (type[0] === '-') {
-                (_b = UnitEvent.unitToListeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([element, execute]) => execute(...args));
+                (_b = UnitEvent.listeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([element, execute]) => execute(...args));
             }
         }
     }
     UnitEvent.typeToUnits = new MapSet();
-    UnitEvent.unitToListeners = new MapMapMap();
+    UnitEvent.listeners = new MapMapMap();
     //----------------------------------------------------------------------------------------------------
     // unit promise
     //----------------------------------------------------------------------------------------------------
@@ -710,7 +718,8 @@
             this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
             return this;
         }
-        static execute(mix) {
+        static execute(unit, mix) {
+            var _a;
             let promise = null;
             if (mix instanceof Promise) {
                 promise = mix;
@@ -719,23 +728,20 @@
                 promise = new Promise(mix);
             }
             else if (mix instanceof Unit) {
-                const promises = UnitPromise.unitToPromises.get(mix);
-                promise = (promises === null || promises === void 0 ? void 0 : promises.size) > 0 ? Promise.all([...promises]) : Promise.resolve();
+                promise = Promise.all([...((_a = UnitPromise.promises.get(mix)) !== null && _a !== void 0 ? _a : [])]);
             }
             else {
-                throw new Error(`The argument [mix] is invalid.`);
+                throw new Error('The argument "mix" is invalid.');
             }
-            const unitpromise = new UnitPromise((resolve, reject) => {
-                promise.then((...args) => resolve(...args));
-                promise.catch((...args) => reject(...args));
+            if (unit !== null && unit !== mix) {
+                UnitPromise.promises.add(unit, promise);
+            }
+            return new UnitPromise((resolve, reject) => {
+                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
             });
-            if (UnitScope.current !== null) {
-                UnitPromise.unitToPromises.add(UnitScope.current, promise);
-            }
-            return unitpromise;
         }
     }
-    UnitPromise.unitToPromises = new MapSet();
+    UnitPromise.promises = new MapSet();
 
     const xnew$1 = function (...args) {
         try {
@@ -861,10 +867,11 @@
         enumerable: true,
         value: function (mix) {
             try {
-                return UnitPromise.execute(mix);
+                return UnitPromise.execute(UnitScope.current, mix);
             }
             catch (error) {
                 console.error('xnew.promise(mix): ', error);
+                throw error;
             }
         }
     });
