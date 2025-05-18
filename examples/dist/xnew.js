@@ -236,9 +236,6 @@
                 console.error('unit constructor: ', error);
             }
         }
-        //----------------------------------------------------------------------------------------------------
-        // base system 
-        //----------------------------------------------------------------------------------------------------
         get element() {
             if (this._.baseTarget instanceof Element) {
                 return UnitElement.get(this);
@@ -282,45 +279,41 @@
             }
         }
         static initialize(unit, component, ...args) {
-            var _a, _b;
+            var _a;
             unit._ = Object.assign(unit._, {
                 children: [], // children units
                 state: 'pending', // [pending -> running <-> stopped -> finalized]
-                tostart: false, // flag for start
+                tostart: true, // flag for start
                 upcount: 0, // update count    
                 resolved: false, // promise check
                 props: {}, // properties in the component function
             });
             UnitScope.initialize(unit, unit._.baseContext);
             UnitElement.initialize(unit, unit._.baseTarget);
-            if (unit._.parent !== null && ['finalized'].includes((_a = unit._.parent._.state) !== null && _a !== void 0 ? _a : '')) {
-                unit._.state = 'finalized';
+            const nest = unit._.baseTarget instanceof Element && (unit._.target !== null && typeof unit._.target === 'object');
+            // nest html element
+            // if (nest) {
+            //     UnitElement.nest(unit, unit._.target);
+            // }
+            if (!(unit._.target instanceof Element)) {
+                if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
+                    UnitElement.nest(unit, unit._.target);
+                }
             }
-            else {
-                unit._.tostart = true;
-                // nest html element
-                if (!(unit._.target instanceof Element || unit._.target instanceof Window || unit._.target instanceof Document)) {
-                    if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
-                        UnitElement.nest(unit, unit._.target);
-                    }
-                }
-                // setup component
-                if (typeof component === 'function') {
-                    UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
-                }
-                else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
-                    if (unit.element instanceof Element) {
-                        unit.element.innerHTML = component;
-                    }
-                }
-                // whether the unit promise was resolved
-                (_b = UnitPromise.execute(unit, unit)) === null || _b === void 0 ? void 0 : _b.then(() => { unit._.resolved = true; });
+            // setup component
+            if (typeof component === 'function') {
+                UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
             }
+            else if (nest && typeof component === 'string') {
+                unit.element.innerHTML = component;
+            }
+            // whether the unit promise was resolved
+            (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
         }
         static extend(unit, component, ...args) {
             var _a;
             if (typeof component !== 'function') {
-                throw new Error(`The argument [component] is invalid.`);
+                throw new Error('"component" is invalid.');
             }
             UnitComponent.add(unit, component);
             const props = (_a = component(unit, ...args)) !== null && _a !== void 0 ? _a : {};
@@ -440,13 +433,13 @@
         }
     }
     Unit.autoincrement = 0;
+    //----------------------------------------------------------------------------------------------------
+    // internal
+    //----------------------------------------------------------------------------------------------------
     Unit.roots = []; // root units
     Unit.animation = null;
     Unit.previous = 0.0;
     Unit.reset();
-    //----------------------------------------------------------------------------------------------------
-    // unit scope
-    //----------------------------------------------------------------------------------------------------
     class UnitScope {
         static initialize(unit, data) {
             UnitScope.data.set(unit, data);
@@ -616,20 +609,20 @@
     class UnitEvent {
         static on(unit, type, listener, options) {
             if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
-                throw new Error(`The argument "type" is invalid.`);
+                throw new Error(`"type" is invalid.`);
             }
             else if (typeof listener !== 'function') {
-                throw new Error(`The argument "listener" is invalid.`);
+                throw new Error(`"listener" is invalid.`);
             }
             type.trim().split(/\s+/).forEach((type) => UnitEvent.add(unit, type, listener, options));
         }
         static off(unit, type, listener) {
             var _a;
             if (typeof type === 'string' && type.trim() === '') {
-                throw new Error(`The argument "type" is invalid.`);
+                throw new Error(`"type" is invalid.`);
             }
             else if (listener !== undefined && typeof listener !== 'function') {
-                throw new Error(`The argument "listener" is invalid.`);
+                throw new Error(`"listener" is invalid.`);
             }
             if (typeof type === 'string') {
                 type.trim().split(/\s+/).forEach((type) => {
@@ -649,7 +642,7 @@
             }
         }
         static add(unit, type, listener, options) {
-            if (UnitEvent.listeners.has(unit, type, listener)) {
+            if (UnitEvent.listeners.has(unit, type, listener) === true) {
                 return;
             }
             const snapshot = UnitScope.snapshot();
@@ -670,8 +663,12 @@
             }
         }
         static remove(unit, type, listener) {
-            if (UnitEvent.listeners.has(unit, type, listener)) {
-                const [target, execute] = UnitEvent.listeners.get(unit, type, listener);
+            if (UnitEvent.listeners.has(unit, type, listener) === false) {
+                return;
+            }
+            const value = UnitEvent.listeners.get(unit, type, listener);
+            if (value !== undefined) {
+                const [target, execute] = value;
                 UnitEvent.listeners.delete(unit, type, listener);
                 if (target instanceof Element || target instanceof Window || target instanceof Document) {
                     target.removeEventListener(type, execute);
@@ -718,8 +715,11 @@
             this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
             return this;
         }
-        static execute(unit, mix) {
+        static get(unit) {
             var _a;
+            return Promise.all([...((_a = UnitPromise.promises.get(unit)) !== null && _a !== void 0 ? _a : [])]);
+        }
+        static execute(unit, mix) {
             let promise = null;
             if (mix instanceof Promise) {
                 promise = mix;
@@ -728,10 +728,10 @@
                 promise = new Promise(mix);
             }
             else if (mix instanceof Unit) {
-                promise = Promise.all([...((_a = UnitPromise.promises.get(mix)) !== null && _a !== void 0 ? _a : [])]);
+                promise = UnitPromise.get(mix);
             }
             else {
-                throw new Error('The argument "mix" is invalid.');
+                throw new Error('"mix" is invalid.');
             }
             if (unit !== null && unit !== mix) {
                 UnitPromise.promises.add(unit, promise);

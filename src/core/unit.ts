@@ -5,8 +5,9 @@ import { MapSet, MapMap, MapMapMap } from './map';
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
-    public _: { [key: string]: any } = {};
     [key: string]: any;
+    
+    public _: { [key: string]: any } = {};
 
     static autoincrement: number = 0;
  
@@ -38,15 +39,10 @@ export class Unit {
 
             (parent?._.children ?? Unit.roots).push(this);
             Unit.initialize(this, component, ...args);
-
         } catch (error) {
             console.error('unit constructor: ', error);
         }
     }
-
-    //----------------------------------------------------------------------------------------------------
-    // base system 
-    //----------------------------------------------------------------------------------------------------
 
     get element(): Element | null {
         if (this._.baseTarget instanceof Element) {
@@ -93,13 +89,17 @@ export class Unit {
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // internal
+    //----------------------------------------------------------------------------------------------------
+
     static roots: Unit[] = [];   // root units
 
     static initialize(unit: Unit, component?: Function | string, ...args: any[]): void {
         unit._ = Object.assign(unit._, {
             children: [],       // children units
             state: 'pending',   // [pending -> running <-> stopped -> finalized]
-            tostart: false,     // flag for start
+            tostart: true,      // flag for start
             upcount: 0,         // update count    
             resolved: false,    // promise check
             props: {},          // properties in the component function
@@ -109,34 +109,27 @@ export class Unit {
         UnitElement.initialize(unit, unit._.baseTarget);
         UnitComponent.initialize(unit);
 
-        if (unit._.parent !== null && ['finalized'].includes(unit._.parent._.state ?? '')) {
-            unit._.state = 'finalized';
-        } else {
-            unit._.tostart = true;
-            // nest html element
-            if (!(unit._.target instanceof Element || unit._.target instanceof Window || unit._.target instanceof Document)) {
-                if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
-                    UnitElement.nest(unit, unit._.target);
-                }
-            }
-
-            // setup component
-            if (typeof component === 'function') {
-                UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
-            } else if ((unit._.target !== null && typeof unit._.target === 'object') && typeof component === 'string') {
-                if (unit.element instanceof Element) {
-                    unit.element!.innerHTML = component;
-                }
-            }
-
-            // whether the unit promise was resolved
-            UnitPromise.execute(unit, unit)?.then(() => { unit._.resolved = true; });
+        const nest = unit._.baseTarget instanceof Element === false && (unit._.target !== null && typeof unit._.target === 'object');
+        
+        // nest html element
+        if (nest) {
+            UnitElement.nest(unit, unit._.target);
         }
+
+        // setup component
+        if (typeof component === 'function') {
+            UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
+        } else if (nest && typeof component === 'string') {
+            unit.element!.innerHTML = component;
+        }
+
+        // whether the unit promise was resolved
+        UnitPromise.get(unit)?.then(() => { unit._.resolved = true; });
     }
 
     static extend(unit: Unit, component: Function | any, ...args: any[]): void {
         if (typeof component !== 'function') {
-            throw new Error(`The argument [component] is invalid.`);
+            throw new Error('"component" is invalid.');
         } 
         UnitComponent.add(unit, component);
 
@@ -580,6 +573,10 @@ export class UnitPromise {
 
     static promises: MapSet<Unit, Promise<any>> = new MapSet();
    
+    static get(unit: Unit) {
+        return Promise.all([...(UnitPromise.promises.get(unit) ?? [])]);
+    }
+
     static execute(unit: Unit | null, mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {
         let promise: Promise<any> | null = null;
         if (mix instanceof Promise) {
@@ -587,7 +584,7 @@ export class UnitPromise {
         } else if (typeof mix === 'function') {
             promise = new Promise(mix);
         } else if (mix instanceof Unit) {
-            promise = Promise.all([...(UnitPromise.promises.get(mix) ?? [])]);
+            promise = UnitPromise.get(mix);
         } else {
             throw new Error('"mix" is invalid.');
         }
