@@ -19,7 +19,7 @@
       
       let isRunning = false;
       self.on('click', (event) => {
-        isRunning ? self.stop() : self.start();
+        self.stop();
       });
 
       return {

@@ -811,13 +811,6 @@ class Unit {
         }
     }
 
-    static stop() {
-        if (isFunction(cancelAnimationFrame) === true && Unit.animation !== null) {
-            Unit.animation = null;
-        }
-    }
-
-
 }
 
 Unit.reset();
