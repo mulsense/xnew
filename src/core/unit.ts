@@ -1,3 +1,4 @@
+import { isPlaneObject } from '../common';
 import { MapSet, MapMap, MapMapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------
@@ -11,7 +12,9 @@ export class Unit {
 
     static autoincrement: number = 0;
  
-    constructor(parent: Unit | null, target: Element | Window | Document | null, component?: Function | string, ...args: any[]) {
+    static roots: Unit[] = [];   // root units
+
+    constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
         try {
             const id = Unit.autoincrement++;
             const root = parent?._.root ?? this;
@@ -45,11 +48,7 @@ export class Unit {
     }
 
     get element(): Element | null {
-        if (this._.baseTarget instanceof Element) {
-            return UnitElement.get(this);
-        } else {
-            return null;
-        }
+        return this._.baseTarget instanceof Element ? UnitElement.get(this) : null;
     }
 
     start(): void {
@@ -93,8 +92,6 @@ export class Unit {
     // internal
     //----------------------------------------------------------------------------------------------------
 
-    static roots: Unit[] = [];   // root units
-
     static initialize(unit: Unit, component?: Function | string, ...args: any[]): void {
         unit._ = Object.assign(unit._, {
             children: [],       // children units
@@ -109,17 +106,15 @@ export class Unit {
         UnitElement.initialize(unit, unit._.baseTarget);
         UnitComponent.initialize(unit);
 
-        const nest = unit._.baseTarget instanceof Element === false && (unit._.target !== null && typeof unit._.target === 'object');
-        
         // nest html element
-        if (nest) {
+        if (isPlaneObject(unit._.target)) {
             UnitElement.nest(unit, unit._.target);
         }
 
         // setup component
         if (typeof component === 'function') {
             UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
-        } else if (nest && typeof component === 'string') {
+        } else if (isPlaneObject(unit._.target) && typeof component === 'string') {
             unit.element!.innerHTML = component;
         }
 
@@ -132,7 +127,6 @@ export class Unit {
             throw new Error('"component" is invalid.');
         } 
         UnitComponent.add(unit, component);
-
         const props = component(unit, ...args) ?? {};
 
         Object.keys(props).forEach((key) => {
@@ -385,7 +379,7 @@ export class UnitElement {
     }
 
     static nest(unit: Unit, attributes: Record<string, any>): Element {
-        if (typeof attributes !== 'object') {
+        if (isPlaneObject(typeof attributes) !== false) {
             throw new Error(`The argument [attributes] is invalid.`);
         } else {
             const current = UnitElement.get(unit);
@@ -432,7 +426,7 @@ export class UnitElement {
             } else if (key === 'style') {
                 if (typeof value === 'string') {
                     (element as HTMLElement).style.cssText = value;
-                } else if (typeof value !== null && typeof value === 'object') {
+                } else if (isPlaneObject(value) === true) {
                     Object.assign((element as HTMLElement).style, value);
                 }
             } else {
@@ -464,33 +458,26 @@ export class UnitEvent {
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
-            throw new Error(`"type" is invalid.`);
+            throw new Error('"type" is invalid.');
         } else if (typeof listener !== 'function') {
-            throw new Error(`"listener" is invalid.`);
+            throw new Error('"listener" is invalid.');
         }
         type.trim().split(/\s+/).forEach((type) => UnitEvent.add(unit, type, listener, options));
     }
 
     static off(unit: Unit, type?: string, listener?: Function): void {
         if (typeof type === 'string' && type.trim() === '') {
-            throw new Error(`"type" is invalid.`);
+            throw new Error('"type" is invalid.');
         } else if (listener !== undefined && typeof listener !== 'function') {
-            throw new Error(`"listener" is invalid.`);
+            throw new Error('"listener" is invalid.');
         }
 
-        if (typeof type === 'string') {
-            type.trim().split(/\s+/).forEach((type) => {
-                if (listener !== undefined) {
-                    UnitEvent.remove(unit, type, listener);
-                } else {
-                    UnitEvent.listeners.get(unit, type)?.forEach((_: any, listener: Function) => UnitEvent.remove(unit, type, listener));
-                }
-            });
-        } else {
-            UnitEvent.listeners.get(unit)?.forEach((value: any, key: string, _map: any) => {
-                value?.forEach((_: any, listener: Function) => UnitEvent.remove(unit, key, listener));
-            });
-        }
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...(UnitEvent.listeners.get(unit)?.keys() ?? [])];
+     
+        types.forEach((type) => {
+            const listners = listener === Function ? [listener] : [...(UnitEvent.listeners.get(unit, type)?.keys() ?? [])];
+            listners.forEach((listener) => UnitEvent.remove(unit, type, listener));
+        });
     }
 
     static add(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {

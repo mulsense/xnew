@@ -61,6 +61,13 @@ class Timer {
 }
 
 //----------------------------------------------------------------------------------------------------
+// type check
+//----------------------------------------------------------------------------------------------------
+function isPlaneObject(value) {
+    return value !== null && typeof value === 'object' && value.constructor === Object;
+}
+
+//----------------------------------------------------------------------------------------------------
 // map ex
 //----------------------------------------------------------------------------------------------------
 class MapEx {
@@ -69,6 +76,9 @@ class MapEx {
     }
     get size() {
         return this.map.size;
+    }
+    keys() {
+        return this.map.keys();
     }
     forEach(callback) {
         this.map.forEach(callback);
@@ -284,21 +294,15 @@ class Unit {
         });
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
-        const nest = unit._.baseTarget instanceof Element && (unit._.target !== null && typeof unit._.target === 'object');
         // nest html element
-        // if (nest) {
-        //     UnitElement.nest(unit, unit._.target);
-        // }
-        if (!(unit._.target instanceof Element)) {
-            if ((unit._.target !== null && typeof unit._.target === 'object') && unit.element instanceof Element) {
-                UnitElement.nest(unit, unit._.target);
-            }
+        if (isPlaneObject(unit._.target)) {
+            UnitElement.nest(unit, unit._.target);
         }
         // setup component
         if (typeof component === 'function') {
             UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
         }
-        else if (nest && typeof component === 'string') {
+        else if (isPlaneObject(unit._.target) && typeof component === 'string') {
             unit.element.innerHTML = component;
         }
         // whether the unit promise was resolved

@@ -9,6 +9,10 @@ class MapEx<Key, Value> {
         return this.map.size;
     }
 
+    public keys(): IterableIterator<Key> {
+        return this.map.keys();
+    }
+
     public forEach(callback: (value: Value, key: Key, map: Map<Key, Value>) => any): void {
         this.map.forEach(callback);
     }
