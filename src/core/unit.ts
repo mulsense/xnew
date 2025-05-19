@@ -10,41 +10,39 @@ export class Unit {
     
     public _: { [key: string]: any } = {};
 
-    static autoincrement: number = 0;
+    static increment: number = 0;
  
     static roots: Unit[] = [];   // root units
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
-        try {
-            const id = Unit.autoincrement++;
-            const root = parent?._.root ?? this;
+        const id = Unit.increment++;
+        const root = parent?._.root ?? this;
+        const affiliation: Unit[] = parent?._.children ?? Unit.roots;
 
-            let baseTarget: Element | Window | Document | null = null;
-            if (target instanceof Element || target instanceof Window || target instanceof Document) {
-                baseTarget = target;
-            } else if (parent !== null) {
-                baseTarget = parent.element;
-            } else if (document instanceof Document) {
-                baseTarget = document.currentScript?.parentElement ?? document.body;
-            }
-            const baseContext = UnitScope.get(parent);
-
-            this._ = Object.assign(this._, {
-                id,             // unit id
-                root,           // root unit
-                parent,         // parent unit
-                target,         // target info
-                component,      // component function
-                args,           // component arguments
-                baseTarget,     // base target
-                baseContext,    // base context
-            });
-
-            (parent?._.children ?? Unit.roots).push(this);
-            Unit.initialize(this, component, ...args);
-        } catch (error) {
-            console.error('unit constructor: ', error);
+        let baseTarget: Element | Window | Document | null = null;
+        if (target instanceof Element || target instanceof Window || target instanceof Document) {
+            baseTarget = target;
+        } else if (parent !== null) {
+            baseTarget = parent.element;
+        } else if (document instanceof Document) {
+            baseTarget = document.currentScript?.parentElement ?? document.body;
         }
+        const baseContext = UnitScope.get(parent);
+
+        this._ = Object.assign(this._, {
+            id,             // unit id
+            root,           // root unit
+            affiliation,    // unit affiliation
+            parent,         // parent unit
+            target,         // target info
+            component,      // component function
+            args,           // component arguments
+            baseTarget,     // base target
+            baseContext,    // base context
+        });
+
+        this._.affiliation.push(this);
+        Unit.initialize(this, component, ...args);
     }
 
     get element(): Element | null {
@@ -63,7 +61,7 @@ export class Unit {
     finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
-        (this._.parent?._.children ?? Unit.roots).filter((unit: Unit) => unit !== this);
+        this._.affiliation = this._.affiliation.filter((unit: Unit) => unit !== this);
     }
 
     reboot(): void {
@@ -104,7 +102,6 @@ export class Unit {
 
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
-        UnitComponent.initialize(unit);
 
         // nest html element
         if (isPlaneObject(unit._.target)) {
@@ -125,13 +122,15 @@ export class Unit {
     static extend(unit: Unit, component: Function | any, ...args: any[]): void {
         if (typeof component !== 'function') {
             throw new Error('"component" is invalid.');
-        } 
+        }
         UnitComponent.add(unit, component);
+
         const props = component(unit, ...args) ?? {};
+        const snapshot = UnitScope.snapshot(unit);
 
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-            if (['start', 'update', 'stop', 'finalize'].includes(key)) {
+            if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof descripter?.value === 'function') {
                 if (typeof descripter?.value === 'function') {
                     const previous = unit._.props[key];
                     if (previous !== undefined) {
@@ -140,25 +139,24 @@ export class Unit {
                         unit._.props[key] = (...args: any[]) => { descripter.value(...args); };
                     }
                 } else {
-                    console.error(`unit.extend: The property [${key}] is invalid.`);
+                    throw new Error(`The property "${key}" is invalid.`);
                 }
             } else if (unit[key as keyof Unit] === undefined) {
-                const dest: PropertyDescriptor = { configurable: true, enumerable: true };
-                const snapshot = UnitScope.snapshot(unit);
+                const descriptor: PropertyDescriptor = { configurable: true, enumerable: true };
                 if (typeof descripter?.get === 'function') {
-                    dest.get = (...args: any[]) => UnitScope.execute(snapshot, descripter.get!, ...args);
+                    descriptor.get = (...args: any[]) => UnitScope.execute(snapshot, descripter.get!, ...args);
                 } else if (typeof descripter?.set === 'function') {
-                    dest.set = (...args: any[]) => UnitScope.execute(snapshot, descripter.set!, ...args);
+                    descriptor.set = (...args: any[]) => UnitScope.execute(snapshot, descripter.set!, ...args);
                 } else if (typeof descripter?.value === 'function') {
-                    dest.value = (...args: any[]) => UnitScope.execute(snapshot, descripter.value!, ...args);
+                    descriptor.value = (...args: any[]) => UnitScope.execute(snapshot, descripter.value!, ...args);
                 } else if (descripter?.value !== undefined) {
-                    dest.writable = true;
-                    dest.value = descripter.value;
+                    descriptor.writable = true;
+                    descriptor.value = descripter.value;
                 }
-                Object.defineProperty(unit._.props, key, dest);
-                Object.defineProperty(unit, key, dest);
+                Object.defineProperty(unit._.props, key, descriptor);
+                Object.defineProperty(unit, key, descriptor);
             } else {
-                console.error(`unit.extend: The property [${key}] already exists.`);
+                throw new Error(`The property "${key}" already exists.`);
             }
         });
     }
@@ -335,26 +333,23 @@ export class UnitScope {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitComponent {
-    static unitToComponents: MapSet<Unit | null, any> = new MapSet();
-    static componentToUnits: MapSet<any, Unit | null> = new MapSet();
+    static components: MapSet<Unit, Function> = new MapSet();
+    static units: MapSet<Function, Unit> = new MapSet();
   
-    static initialize(unit: Unit | null): void {
-    }
-
     static finalize(unit: Unit): void {
-        UnitComponent.unitToComponents.get(unit)?.forEach((component) => {
-            UnitComponent.componentToUnits.delete(component, unit);
+        UnitComponent.components.get(unit)?.forEach((component) => {
+            UnitComponent.units.delete(component, unit);
         });
-        UnitComponent.unitToComponents.delete(unit);
+        UnitComponent.components.delete(unit);
     }
 
-    static add(unit: Unit, component: any): void {
-        UnitComponent.unitToComponents.add(unit, component);
-        UnitComponent.componentToUnits.add(component, unit);
+    static add(unit: Unit, component: Function): void {
+        UnitComponent.components.add(unit, component);
+        UnitComponent.units.add(component, unit);
     }
     
-    static find(component: any): any[] {
-        return [...(UnitComponent.componentToUnits.get(component) ?? [])];
+    static find(component: Function): Unit[] {
+        return [...(UnitComponent.units.get(component) ?? [])];
     }
 }
 
@@ -363,7 +358,6 @@ export class UnitComponent {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitElement {
-
     static elements: Map<Unit, Element[]> = new Map();
 
     static initialize(unit: Unit, baseTarget: Element): void {
@@ -452,7 +446,7 @@ export class UnitElement {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitEvent {
-    static typeToUnits: MapSet<string, Unit> = new MapSet();
+    static units: MapSet<string, Unit> = new MapSet();
 
     static listeners: MapMapMap<Unit, string, Function, [Element | Window | Document | null, (...args: any[]) => void]> = new MapMapMap();
 
@@ -462,7 +456,28 @@ export class UnitEvent {
         } else if (typeof listener !== 'function') {
             throw new Error('"listener" is invalid.');
         }
-        type.trim().split(/\s+/).forEach((type) => UnitEvent.add(unit, type, listener, options));
+        
+        const snapshot = UnitScope.snapshot();
+        let target: Element | Window | Document | null = null;
+        if (unit.element instanceof Element) {
+            target = unit.element;
+        } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
+            target = unit._.baseTarget;
+        }
+
+        const types = type.trim().split(/\s+/);
+        types.forEach((type) => {
+            if (UnitEvent.listeners.has(unit, type, listener) === false) {
+                const execute = (...args: any[]) => {
+                    UnitScope.execute(snapshot, listener, ...args);
+                };
+                UnitEvent.listeners.set(unit, type, listener, [target, execute]);
+                UnitEvent.units.add(type, unit);
+                if (/^[A-Za-z]/.test(type[0])) {
+                    target?.addEventListener(type, execute, options);
+                }
+            }
+        });
     }
 
     static off(unit: Unit, type?: string, listener?: Function): void {
@@ -472,55 +487,28 @@ export class UnitEvent {
             throw new Error('"listener" is invalid.');
         }
 
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...(UnitEvent.listeners.get(unit)?.keys() ?? [])];
-     
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.listeners.keys(unit)];
         types.forEach((type) => {
-            const listners = listener === Function ? [listener] : [...(UnitEvent.listeners.get(unit, type)?.keys() ?? [])];
-            listners.forEach((listener) => UnitEvent.remove(unit, type, listener));
+            const listners = listener === Function ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
+            listners.forEach((listener) => {
+                const value = UnitEvent.listeners.get(unit, type, listener);
+                if (value !== undefined) {
+                    const [target, execute] = value;
+                    UnitEvent.listeners.delete(unit, type, listener);
+                    if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                        target.removeEventListener(type, execute);
+                    }
+                }
+            });
+            if (UnitEvent.listeners.has(unit, type) === false) {
+                UnitEvent.units.delete(type, unit);
+            }
         });
     }
 
-    static add(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        if (UnitEvent.listeners.has(unit, type, listener) === true) {
-            return;
-        }
-        const snapshot = UnitScope.snapshot();
-        let target: Element | Window | Document | null = null;
-        if (unit.element instanceof Element) {
-            target = unit.element;
-        } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
-            target = unit._.baseTarget;
-        }
-        const execute = (...args: any[]) => {
-            UnitScope.execute(snapshot, listener, ...args);
-        };
-        UnitEvent.listeners.set(unit, type, listener, [target, execute]);
-        UnitEvent.typeToUnits.add(type, unit);
-        if (/^[A-Za-z]/.test(type[0])) {
-            target?.addEventListener(type, execute, options);
-        }
-    }
-    
-    static remove(unit: Unit, type: string, listener: Function): void {
-        if (UnitEvent.listeners.has(unit, type, listener) === false) {
-            return;
-        }
-        const value = UnitEvent.listeners.get(unit, type, listener);
-        if (value !== undefined) {
-            const [target, execute] = value;
-            UnitEvent.listeners.delete(unit, type, listener);
-            if (target instanceof Element || target instanceof Window || target instanceof Document) {
-                target.removeEventListener(type, execute);
-            }
-        }
-        if (UnitEvent.listeners.has(unit, type) === false) {
-            UnitEvent.typeToUnits.delete(type, unit);
-        }
-    }
-    
     static emit(unit: Unit, type: string, ...args: any[]): void {
         if (type[0] === '+') {
-            UnitEvent.typeToUnits.get(type)?.forEach((unit) => {
+            UnitEvent.units.get(type)?.forEach((unit) => {
                 UnitEvent.listeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
             });
         } else if (type[0] === '-') {

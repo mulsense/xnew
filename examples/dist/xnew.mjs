@@ -77,9 +77,6 @@ class MapEx {
     get size() {
         return this.map.size;
     }
-    keys() {
-        return this.map.keys();
-    }
     forEach(callback) {
         this.map.forEach(callback);
     }
@@ -99,6 +96,9 @@ class MapSet extends MapEx {
     }
     get(key) {
         return this.map.get(key);
+    }
+    keys() {
+        return this.map.keys();
     }
     add(key, value) {
         var _a;
@@ -145,6 +145,15 @@ class MapMap extends MapEx {
             return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
         }
     }
+    keys(key1) {
+        var _a, _b;
+        if (key1 === undefined) {
+            return this.map.keys();
+        }
+        else {
+            return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.keys()) !== null && _b !== void 0 ? _b : (function* () { })();
+        }
+    }
     delete(key1, key2) {
         var _a, _b, _c, _d;
         let ret = false;
@@ -188,6 +197,18 @@ class MapMapMap extends MapEx {
             return (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.get(key2, key3);
         }
     }
+    keys(key1, key2) {
+        var _a, _b, _c, _d, _e;
+        if (key1 === undefined) {
+            return this.map.keys();
+        }
+        else if (key2 === undefined) {
+            return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.keys()) !== null && _b !== void 0 ? _b : (function* () { })();
+        }
+        else {
+            return (_e = (_d = (_c = this.map.get(key1)) === null || _c === void 0 ? void 0 : _c.get(key2)) === null || _d === void 0 ? void 0 : _d.keys()) !== null && _e !== void 0 ? _e : (function* () { })();
+        }
+    }
     delete(key1, key2, key3) {
         var _a, _b, _c, _d;
         let ret = false;
@@ -209,44 +230,36 @@ class Unit {
     constructor(parent, target, component, ...args) {
         var _a, _b, _c, _d;
         this._ = {};
-        try {
-            const id = Unit.autoincrement++;
-            const root = (_a = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _a !== void 0 ? _a : this;
-            let baseTarget = null;
-            if (target instanceof Element || target instanceof Window || target instanceof Document) {
-                baseTarget = target;
-            }
-            else if (parent !== null) {
-                baseTarget = parent.element;
-            }
-            else if (document instanceof Document) {
-                baseTarget = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
-            }
-            const baseContext = UnitScope.get(parent);
-            this._ = Object.assign(this._, {
-                id, // unit id
-                root, // root unit
-                parent, // parent unit
-                target, // target info
-                component, // component function
-                args, // component arguments
-                baseTarget, // base target
-                baseContext, // base context
-            });
-            ((_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots).push(this);
-            Unit.initialize(this, component, ...args);
+        const id = Unit.increment++;
+        const root = (_a = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _a !== void 0 ? _a : this;
+        const affiliation = (_b = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _b !== void 0 ? _b : Unit.roots;
+        let baseTarget = null;
+        if (target instanceof Element || target instanceof Window || target instanceof Document) {
+            baseTarget = target;
         }
-        catch (error) {
-            console.error('unit constructor: ', error);
+        else if (parent !== null) {
+            baseTarget = parent.element;
         }
+        else if (document instanceof Document) {
+            baseTarget = (_d = (_c = document.currentScript) === null || _c === void 0 ? void 0 : _c.parentElement) !== null && _d !== void 0 ? _d : document.body;
+        }
+        const baseContext = UnitScope.get(parent);
+        this._ = Object.assign(this._, {
+            id, // unit id
+            root, // root unit
+            affiliation, // unit affiliation
+            parent, // parent unit
+            target, // target info
+            component, // component function
+            args, // component arguments
+            baseTarget, // base target
+            baseContext, // base context
+        });
+        this._.affiliation.push(this);
+        Unit.initialize(this, component, ...args);
     }
     get element() {
-        if (this._.baseTarget instanceof Element) {
-            return UnitElement.get(this);
-        }
-        else {
-            return null;
-        }
+        return this._.baseTarget instanceof Element ? UnitElement.get(this) : null;
     }
     start() {
         this._.tostart = true;
@@ -256,10 +269,9 @@ class Unit {
         Unit.stop(this);
     }
     finalize() {
-        var _a, _b;
         Unit.stop(this);
         Unit.finalize(this);
-        ((_b = (_a = this._.parent) === null || _a === void 0 ? void 0 : _a._.children) !== null && _b !== void 0 ? _b : Unit.roots).filter((unit) => unit !== this);
+        this._.affiliation = this._.affiliation.filter((unit) => unit !== this);
     }
     reboot() {
         Unit.stop(this);
@@ -282,6 +294,9 @@ class Unit {
             console.error('unit.off(type, listener): ', error);
         }
     }
+    //----------------------------------------------------------------------------------------------------
+    // internal
+    //----------------------------------------------------------------------------------------------------
     static initialize(unit, component, ...args) {
         var _a;
         unit._ = Object.assign(unit._, {
@@ -315,9 +330,10 @@ class Unit {
         }
         UnitComponent.add(unit, component);
         const props = (_a = component(unit, ...args)) !== null && _a !== void 0 ? _a : {};
+        const snapshot = UnitScope.snapshot(unit);
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-            if (['start', 'update', 'stop', 'finalize'].includes(key)) {
+            if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                 if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                     const previous = unit._.props[key];
                     if (previous !== undefined) {
@@ -328,30 +344,29 @@ class Unit {
                     }
                 }
                 else {
-                    console.error(`unit.extend: The property [${key}] is invalid.`);
+                    throw new Error(`The property "${key}" is invalid.`);
                 }
             }
             else if (unit[key] === undefined) {
-                const dest = { configurable: true, enumerable: true };
-                const snapshot = UnitScope.snapshot(unit);
+                const descriptor = { configurable: true, enumerable: true };
                 if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.get) === 'function') {
-                    dest.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
+                    descriptor.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
                 }
                 else if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.set) === 'function') {
-                    dest.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
+                    descriptor.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
                 }
                 else if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
-                    dest.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
+                    descriptor.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
                 }
                 else if ((descripter === null || descripter === void 0 ? void 0 : descripter.value) !== undefined) {
-                    dest.writable = true;
-                    dest.value = descripter.value;
+                    descriptor.writable = true;
+                    descriptor.value = descripter.value;
                 }
-                Object.defineProperty(unit._.props, key, dest);
-                Object.defineProperty(unit, key, dest);
+                Object.defineProperty(unit._.props, key, descriptor);
+                Object.defineProperty(unit, key, descriptor);
             }
             else {
-                console.error(`unit.extend: The property [${key}] already exists.`);
+                throw new Error(`The property "${key}" already exists.`);
             }
         });
     }
@@ -430,10 +445,7 @@ class Unit {
         }
     }
 }
-Unit.autoincrement = 0;
-//----------------------------------------------------------------------------------------------------
-// internal
-//----------------------------------------------------------------------------------------------------
+Unit.increment = 0;
 Unit.roots = []; // root units
 Unit.animation = null;
 Unit.previous = 0.0;
@@ -493,26 +505,24 @@ UnitScope.data = new Map();
 // unit component
 //----------------------------------------------------------------------------------------------------
 class UnitComponent {
-    static initialize(unit) {
-    }
     static finalize(unit) {
         var _a;
-        (_a = UnitComponent.unitToComponents.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((component) => {
-            UnitComponent.componentToUnits.delete(component, unit);
+        (_a = UnitComponent.components.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((component) => {
+            UnitComponent.units.delete(component, unit);
         });
-        UnitComponent.unitToComponents.delete(unit);
+        UnitComponent.components.delete(unit);
     }
     static add(unit, component) {
-        UnitComponent.unitToComponents.add(unit, component);
-        UnitComponent.componentToUnits.add(component, unit);
+        UnitComponent.components.add(unit, component);
+        UnitComponent.units.add(component, unit);
     }
     static find(component) {
         var _a;
-        return [...((_a = UnitComponent.componentToUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
+        return [...((_a = UnitComponent.units.get(component)) !== null && _a !== void 0 ? _a : [])];
     }
 }
-UnitComponent.unitToComponents = new MapSet();
-UnitComponent.componentToUnits = new MapSet();
+UnitComponent.components = new MapSet();
+UnitComponent.units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // unit element
 //----------------------------------------------------------------------------------------------------
@@ -529,7 +539,7 @@ class UnitElement {
     }
     static nest(unit, attributes) {
         var _a;
-        if (typeof attributes !== 'object') {
+        if (isPlaneObject(typeof attributes) !== false) {
             throw new Error(`The argument [attributes] is invalid.`);
         }
         else {
@@ -577,7 +587,7 @@ class UnitElement {
                 if (typeof value === 'string') {
                     element.style.cssText = value;
                 }
-                else if (typeof value !== null && typeof value === 'object') {
+                else if (isPlaneObject(value) === true) {
                     Object.assign(element.style, value);
                 }
             }
@@ -607,41 +617,10 @@ UnitElement.elements = new Map();
 class UnitEvent {
     static on(unit, type, listener, options) {
         if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
-            throw new Error(`"type" is invalid.`);
+            throw new Error('"type" is invalid.');
         }
         else if (typeof listener !== 'function') {
-            throw new Error(`"listener" is invalid.`);
-        }
-        type.trim().split(/\s+/).forEach((type) => UnitEvent.add(unit, type, listener, options));
-    }
-    static off(unit, type, listener) {
-        var _a;
-        if (typeof type === 'string' && type.trim() === '') {
-            throw new Error(`"type" is invalid.`);
-        }
-        else if (listener !== undefined && typeof listener !== 'function') {
-            throw new Error(`"listener" is invalid.`);
-        }
-        if (typeof type === 'string') {
-            type.trim().split(/\s+/).forEach((type) => {
-                var _a;
-                if (listener !== undefined) {
-                    UnitEvent.remove(unit, type, listener);
-                }
-                else {
-                    (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach((_, listener) => UnitEvent.remove(unit, type, listener));
-                }
-            });
-        }
-        else {
-            (_a = UnitEvent.listeners.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((value, key, _map) => {
-                value === null || value === void 0 ? void 0 : value.forEach((_, listener) => UnitEvent.remove(unit, key, listener));
-            });
-        }
-    }
-    static add(unit, type, listener, options) {
-        if (UnitEvent.listeners.has(unit, type, listener) === true) {
-            return;
+            throw new Error('"listener" is invalid.');
         }
         const snapshot = UnitScope.snapshot();
         let target = null;
@@ -651,35 +630,49 @@ class UnitEvent {
         else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
             target = unit._.baseTarget;
         }
-        const execute = (...args) => {
-            UnitScope.execute(snapshot, listener, ...args);
-        };
-        UnitEvent.listeners.set(unit, type, listener, [target, execute]);
-        UnitEvent.typeToUnits.add(type, unit);
-        if (/^[A-Za-z]/.test(type[0])) {
-            target === null || target === void 0 ? void 0 : target.addEventListener(type, execute, options);
-        }
-    }
-    static remove(unit, type, listener) {
-        if (UnitEvent.listeners.has(unit, type, listener) === false) {
-            return;
-        }
-        const value = UnitEvent.listeners.get(unit, type, listener);
-        if (value !== undefined) {
-            const [target, execute] = value;
-            UnitEvent.listeners.delete(unit, type, listener);
-            if (target instanceof Element || target instanceof Window || target instanceof Document) {
-                target.removeEventListener(type, execute);
+        const types = type.trim().split(/\s+/);
+        types.forEach((type) => {
+            if (UnitEvent.listeners.has(unit, type, listener) === false) {
+                const execute = (...args) => {
+                    UnitScope.execute(snapshot, listener, ...args);
+                };
+                UnitEvent.listeners.set(unit, type, listener, [target, execute]);
+                UnitEvent.units.add(type, unit);
+                if (/^[A-Za-z]/.test(type[0])) {
+                    target === null || target === void 0 ? void 0 : target.addEventListener(type, execute, options);
+                }
             }
+        });
+    }
+    static off(unit, type, listener) {
+        if (typeof type === 'string' && type.trim() === '') {
+            throw new Error('"type" is invalid.');
         }
-        if (UnitEvent.listeners.has(unit, type) === false) {
-            UnitEvent.typeToUnits.delete(type, unit);
+        else if (listener !== undefined && typeof listener !== 'function') {
+            throw new Error('"listener" is invalid.');
         }
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.listeners.keys(unit)];
+        types.forEach((type) => {
+            const listners = listener === Function ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
+            listners.forEach((listener) => {
+                const value = UnitEvent.listeners.get(unit, type, listener);
+                if (value !== undefined) {
+                    const [target, execute] = value;
+                    UnitEvent.listeners.delete(unit, type, listener);
+                    if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                        target.removeEventListener(type, execute);
+                    }
+                }
+            });
+            if (UnitEvent.listeners.has(unit, type) === false) {
+                UnitEvent.units.delete(type, unit);
+            }
+        });
     }
     static emit(unit, type, ...args) {
         var _a, _b;
         if (type[0] === '+') {
-            (_a = UnitEvent.typeToUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+            (_a = UnitEvent.units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
                 (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
             });
@@ -689,7 +682,7 @@ class UnitEvent {
         }
     }
 }
-UnitEvent.typeToUnits = new MapSet();
+UnitEvent.units = new MapSet();
 UnitEvent.listeners = new MapMapMap();
 //----------------------------------------------------------------------------------------------------
 // unit promise
@@ -743,8 +736,8 @@ UnitPromise.promises = new MapSet();
 
 const xnew$1 = function (...args) {
     try {
-        let parent = UnitScope.current;
-        if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
+        let parent;
+        if (args[0] instanceof Unit) {
             parent = args.shift();
         }
         else if (args[0] === null) {
@@ -752,26 +745,31 @@ const xnew$1 = function (...args) {
         }
         else if (args[0] === undefined) {
             args.shift();
+            parent = UnitScope.current;
         }
-        let target = null;
+        else {
+            parent = UnitScope.current;
+        }
+        let target;
         if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
-            // an existing html element
-            target = args.shift();
+            target = args.shift(); // an existing html element
         }
         else if (typeof args[0] === 'string') {
-            // a string for an existing html element
-            const key = args.shift();
-            target = document.querySelector(key);
+            const selector = args.shift(); // a selector for an existing html element
+            target = document.querySelector(selector);
             if (target == null) {
-                throw new Error(`'${key}' can not be found.`);
+                throw new Error(`'${selector}' can not be found.`);
             }
         }
         else if (typeof args[0] !== null && typeof args[0] === 'object') {
-            // an attributes for a new html element
-            target = args.shift();
+            target = args.shift(); // an attributes for a new html element
         }
         else if (args[0] === null || args[0] === undefined) {
             args.shift();
+            target = null;
+        }
+        else {
+            target = null;
         }
         if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && typeof target === 'object') && typeof args[0] === 'string'))) {
             throw new Error('The argument [parent, target, component] is invalid.');

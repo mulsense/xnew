@@ -15,31 +15,34 @@ export namespace xnew {
 
 export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
     try {
-        let parent = UnitScope.current;
-        if (typeof args[0] !== 'function' && args[0] instanceof Unit) {
+        let parent;
+        if (args[0] instanceof Unit) {
             parent = args.shift();
         } else if (args[0] === null) {
             parent = args.shift();
         } else if (args[0] === undefined) {
             args.shift();
+            parent = UnitScope.current
+        } else {
+            parent = UnitScope.current
         }
 
-        let target = null;
+        let target;
         if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
-            // an existing html element
-            target = args.shift();
+            target = args.shift(); // an existing html element
         } else if (typeof args[0] === 'string') {
-            // a string for an existing html element
-            const key = args.shift();
-            target = document.querySelector(key);
+            const selector = args.shift(); // a selector for an existing html element
+            target = document.querySelector(selector); 
             if (target == null) {
-                throw new Error(`'${key}' can not be found.`);
+                throw new Error(`'${selector}' can not be found.`);
             }
         } else if (typeof args[0] !== null && typeof args[0] === 'object') {
-            // an attributes for a new html element
-            target = args.shift();
+            target = args.shift(); // an attributes for a new html element
         } else if (args[0] === null || args[0] === undefined) {
             args.shift();
+            target = null;
+        } else {
+            target = null;
         }
 
         if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && typeof target === 'object') && typeof args[0] === 'string'))) {

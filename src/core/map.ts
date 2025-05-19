@@ -9,10 +9,6 @@ class MapEx<Key, Value> {
         return this.map.size;
     }
 
-    public keys(): IterableIterator<Key> {
-        return this.map.keys();
-    }
-
     public forEach(callback: (value: Value, key: Key, map: Map<Key, Value>) => any): void {
         this.map.forEach(callback);
     }
@@ -34,6 +30,10 @@ export class MapSet<Key, Value> extends MapEx<Key, Set<Value>> {
 
     public get(key: Key): Set<Value> | undefined {
         return this.map.get(key);
+    }
+
+    public keys(): IterableIterator<Key> {
+        return this.map.keys();
     }
 
     public add(key: Key, value: Value): MapSet<Key, Value> {
@@ -82,6 +82,16 @@ export class MapMap<Key1, Key2, Value> extends MapEx<Key1, Map<Key2, Value>> {
         }
     }
 
+    public keys(): IterableIterator<Key1>;
+    public keys(key1: Key1): IterableIterator<Key2>;
+    public keys(key1?: Key1): IterableIterator<Key1> | IterableIterator<Key2> {
+        if (key1 === undefined) {
+            return this.map.keys();
+        } else {
+            return this.map.get(key1)?.keys() ?? (function*() {})();
+        }
+    }
+    
     public delete(key1: Key1, key2?: Key2): boolean {
         let ret: boolean = false;
         if (key2 === undefined) {
@@ -123,6 +133,19 @@ export class MapMapMap<Key1, Key2, Key3, Value> extends MapEx<Key1, MapMap<Key2,
             return this.map.get(key1)?.get(key2);
         } else {
             return this.map.get(key1)?.get(key2, key3);
+        }
+    }
+
+    public keys(): IterableIterator<Key1>;
+    public keys(key1: Key1): IterableIterator<Key2>;
+    public keys(key1: Key1, key2: Key2): IterableIterator<Key3>;
+    public keys(key1?: Key1, key2?: Key2): IterableIterator<Key1> | IterableIterator<Key2> | IterableIterator<Key3> {
+        if (key1 === undefined) {
+            return this.map.keys();
+        } else if (key2 === undefined) {
+            return this.map.get(key1)?.keys() ?? (function*() {})();
+        } else {
+            return this.map.get(key1)?.get(key2)?.keys() ?? (function*() {})();
         }
     }
 
