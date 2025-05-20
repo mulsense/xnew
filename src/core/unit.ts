@@ -2,6 +2,23 @@ import { isPlaneObject } from '../common';
 import { MapSet, MapMap, MapMapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------
+// types
+//----------------------------------------------------------------------------------------------------
+
+type UnitTarget = Element | Window | Document | null;
+
+interface UnitContext {
+    unit: Unit | null;
+    data: UnitContextData | null;
+}
+
+interface UnitContextData {
+    stack: UnitContextData | null;
+    key: string;
+    value: any;
+}
+
+//----------------------------------------------------------------------------------------------------
 // unit main
 //----------------------------------------------------------------------------------------------------
 
@@ -19,7 +36,7 @@ export class Unit {
         const root = parent?._.root ?? this;
         const affiliation: Unit[] = parent?._.children ?? Unit.roots;
 
-        let baseTarget: Element | Window | Document | null = null;
+        let baseTarget: UnitTarget = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
         } else if (parent !== null) {
@@ -257,17 +274,6 @@ Unit.reset();
 // unit scope
 //----------------------------------------------------------------------------------------------------
 
-interface UnitContext {
-    unit: Unit | null;
-    data: UnitContextData | null;
-}
-
-interface UnitContextData {
-    stack: UnitContextData | null;
-    key: string;
-    value: any;
-}
-
 export class UnitScope {
     static current: Unit | null = null;
 
@@ -448,7 +454,7 @@ export class UnitElement {
 export class UnitEvent {
     static units: MapSet<string, Unit> = new MapSet();
 
-    static listeners: MapMapMap<Unit, string, Function, [Element | Window | Document | null, (...args: any[]) => void]> = new MapMapMap();
+    static listeners: MapMapMap<Unit, string, Function, [UnitTarget, (...args: any[]) => void]> = new MapMapMap();
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
@@ -458,7 +464,7 @@ export class UnitEvent {
         }
         
         const snapshot = UnitScope.snapshot();
-        let target: Element | Window | Document | null = null;
+        let target: UnitTarget = null;
         if (unit.element instanceof Element) {
             target = unit.element;
         } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
@@ -509,10 +515,10 @@ export class UnitEvent {
     static emit(unit: Unit, type: string, ...args: any[]): void {
         if (type[0] === '+') {
             UnitEvent.units.get(type)?.forEach((unit) => {
-                UnitEvent.listeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
+                UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
             });
         } else if (type[0] === '-') {
-            UnitEvent.listeners.get(unit, type)?.forEach(([element, execute]: any) => execute(...args));
+            UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
         }
     }
 }
