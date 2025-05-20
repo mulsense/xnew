@@ -61,13 +61,6 @@ class Timer {
 }
 
 //----------------------------------------------------------------------------------------------------
-// type check
-//----------------------------------------------------------------------------------------------------
-function isPlaneObject(value) {
-    return value !== null && typeof value === 'object' && value.constructor === Object;
-}
-
-//----------------------------------------------------------------------------------------------------
 // map ex
 //----------------------------------------------------------------------------------------------------
 class MapEx {
@@ -223,6 +216,9 @@ class MapMapMap extends MapEx {
     }
 }
 
+function isPlaneObject(value) {
+    return value !== null && typeof value === 'object' && value.constructor === Object;
+}
 //----------------------------------------------------------------------------------------------------
 // unit main
 //----------------------------------------------------------------------------------------------------
@@ -232,7 +228,7 @@ class Unit {
         this._ = {};
         const id = Unit.increment++;
         const root = (_a = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _a !== void 0 ? _a : this;
-        const affiliation = (_b = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _b !== void 0 ? _b : Unit.roots;
+        const list = (_b = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _b !== void 0 ? _b : Unit.roots;
         let baseTarget = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
@@ -243,11 +239,15 @@ class Unit {
         else if (document instanceof Document) {
             baseTarget = (_d = (_c = document.currentScript) === null || _c === void 0 ? void 0 : _c.parentElement) !== null && _d !== void 0 ? _d : document.body;
         }
+        // nest html element
+        if (isPlaneObject(unit._.target)) {
+            UnitElement.nest(unit, unit._.target);
+        }
         const baseContext = UnitScope.get(parent);
         this._ = Object.assign(this._, {
             id, // unit id
             root, // root unit
-            affiliation, // unit affiliation
+            list, // unit list
             parent, // parent unit
             target, // target info
             component, // component function
@@ -271,7 +271,7 @@ class Unit {
     finalize() {
         Unit.stop(this);
         Unit.finalize(this);
-        this._.affiliation = this._.affiliation.filter((unit) => unit !== this);
+        this._.list = this._.list.filter((unit) => unit !== this);
     }
     reboot() {
         Unit.stop(this);
@@ -309,10 +309,6 @@ class Unit {
         });
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
-        // nest html element
-        if (isPlaneObject(unit._.target)) {
-            UnitElement.nest(unit, unit._.target);
-        }
         // setup component
         if (typeof component === 'function') {
             UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
@@ -450,6 +446,9 @@ Unit.roots = []; // root units
 Unit.animation = null;
 Unit.previous = 0.0;
 Unit.reset();
+//----------------------------------------------------------------------------------------------------
+// unit scope
+//----------------------------------------------------------------------------------------------------
 class UnitScope {
     static initialize(unit, data) {
         UnitScope.data.set(unit, data);
@@ -674,11 +673,11 @@ class UnitEvent {
         if (type[0] === '+') {
             (_a = UnitEvent.units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
-                (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([element, execute]) => execute(...args));
+                (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
             });
         }
         else if (type[0] === '-') {
-            (_b = UnitEvent.listeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([element, execute]) => execute(...args));
+            (_b = UnitEvent.listeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
         }
     }
 }

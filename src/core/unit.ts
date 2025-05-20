@@ -1,11 +1,10 @@
-import { isPlaneObject } from '../common';
 import { MapSet, MapMap, MapMapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------
 // types
 //----------------------------------------------------------------------------------------------------
 
-type UnitTarget = Element | Window | Document | null;
+type UnitTarget = Element | Window | Document;
 
 interface UnitContext {
     unit: Unit | null;
@@ -16,6 +15,10 @@ interface UnitContextData {
     stack: UnitContextData | null;
     key: string;
     value: any;
+}
+
+function isPlaneObject(value: any): boolean {
+    return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -34,9 +37,9 @@ export class Unit {
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
         const id = Unit.increment++;
         const root = parent?._.root ?? this;
-        const affiliation: Unit[] = parent?._.children ?? Unit.roots;
+        const list: Unit[] = parent?._.children ?? Unit.roots;
 
-        let baseTarget: UnitTarget = null;
+        let baseTarget: UnitTarget | null = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
         } else if (parent !== null) {
@@ -49,7 +52,7 @@ export class Unit {
         this._ = Object.assign(this._, {
             id,             // unit id
             root,           // root unit
-            affiliation,    // unit affiliation
+            list,           // unit list
             parent,         // parent unit
             target,         // target info
             component,      // component function
@@ -78,7 +81,7 @@ export class Unit {
     finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
-        this._.affiliation = this._.affiliation.filter((unit: Unit) => unit !== this);
+        this._.list = this._.list.filter((unit: Unit) => unit !== this);
     }
 
     reboot(): void {
@@ -136,10 +139,33 @@ export class Unit {
         UnitPromise.get(unit)?.then(() => { unit._.resolved = true; });
     }
 
-    static extend(unit: Unit, component: Function | any, ...args: any[]): void {
-        if (typeof component !== 'function') {
-            throw new Error('"component" is invalid.');
+    static finalize(unit: Unit): void {
+        if (['finalized'].includes(unit._.state) === false) {
+            unit._.state = 'finalized';
+
+            unit._.children.forEach((unit: Unit) => unit.finalize());
+            unit._.children = [];
+
+            if (typeof unit._.props.finalize === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
+            }
+
+            UnitEvent.off(unit);
+            UnitScope.finalize(unit)
+            UnitElement.finalize(unit);
+            UnitComponent.finalize(unit);
+
+            // reset props
+            Object.keys(unit._.props).forEach((key) => {
+                if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
+                    delete unit[key as keyof Unit];
+                }
+            });
+            unit._.props = {};
         }
+    }
+
+    static extend(unit: Unit, component: Function, ...args: any[]): void {
         UnitComponent.add(unit, component);
 
         const props = component(unit, ...args) ?? {};
@@ -209,32 +235,6 @@ export class Unit {
             if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
             }
-        }
-    }
-
-    static finalize(unit: Unit): void {
-        if (['finalized'].includes(unit._.state) === false) {
-            unit._.state = 'finalized';
-
-            unit._.children.forEach((unit: Unit) => unit.finalize());
-            unit._.children = [];
-
-            if (typeof unit._.props.finalize === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
-            }
-
-            UnitEvent.off(unit);
-            UnitScope.finalize(unit)
-            UnitElement.finalize(unit);
-            UnitComponent.finalize(unit);
-
-            // reset props
-            Object.keys(unit._.props).forEach((key) => {
-                if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
-                    delete unit[key as keyof Unit];
-                }
-            });
-            unit._.props = {};
         }
     }
 
@@ -454,7 +454,7 @@ export class UnitElement {
 export class UnitEvent {
     static units: MapSet<string, Unit> = new MapSet();
 
-    static listeners: MapMapMap<Unit, string, Function, [UnitTarget, (...args: any[]) => void]> = new MapMapMap();
+    static listeners: MapMapMap<Unit, string, Function, [UnitTarget | null, (...args: any[]) => void]> = new MapMapMap();
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
@@ -464,7 +464,7 @@ export class UnitEvent {
         }
         
         const snapshot = UnitScope.snapshot();
-        let target: UnitTarget = null;
+        let target: UnitTarget | null = null;
         if (unit.element instanceof Element) {
             target = unit.element;
         } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
