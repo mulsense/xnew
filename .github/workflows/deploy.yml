@@ -13,11 +13,6 @@ jobs:
         with:
           node-version: 20
       - run: |
-          mkdir dist
-          npm ci
-      - run: |
-          npm run build
-      - run: |
           cd website
           npm ci
       - run: |
