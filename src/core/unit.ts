@@ -6,18 +6,10 @@ import { MapSet, MapMap, MapMapMap } from './map';
 
 type UnitTarget = Element | Window | Document;
 
-interface UnitContext {
-    unit: Unit | null;
-    data: UnitContextData | null;
-}
+interface UnitContext { unit: Unit | null; data: UnitContextData | null; }
+interface UnitContextData { stack: UnitContextData | null; key: string; value: any; }
 
-interface UnitContextData {
-    stack: UnitContextData | null;
-    key: string;
-    value: any;
-}
-
-function isPlaneObject(value: any): boolean {
+function isPlainObject(value: any): boolean {
     return value !== null && typeof value === 'object' && value.constructor === Object;
 }
 
@@ -31,14 +23,9 @@ export class Unit {
     public _: { [key: string]: any } = {};
 
     static increment: number = 0;
- 
-    static roots: Unit[] = [];   // root units
+    static roots: Unit[] = [];
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
-        const id = Unit.increment++;
-        const root = parent?._.root ?? this;
-        const list: Unit[] = parent?._.children ?? Unit.roots;
-
         let baseTarget: UnitTarget | null = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
@@ -47,21 +34,20 @@ export class Unit {
         } else if (document instanceof Document) {
             baseTarget = document.currentScript?.parentElement ?? document.body;
         }
-        const baseContext = UnitScope.get(parent);
 
         this._ = Object.assign(this._, {
-            id,             // unit id
-            root,           // root unit
-            list,           // unit list
-            parent,         // parent unit
-            target,         // target info
-            component,      // component function
-            args,           // component arguments
-            baseTarget,     // base target
-            baseContext,    // base context
+            id: Unit.increment++,
+            root: parent?._.root ?? this,
+            list: parent?._.children ?? Unit.roots,
+            parent,
+            target,
+            component,
+            args,
+            baseTarget,
+            baseContext: UnitScope.get(parent),
         });
 
-        this._.affiliation.push(this);
+        this._.list.push(this);
         Unit.initialize(this, component, ...args);
     }
 
@@ -124,14 +110,14 @@ export class Unit {
         UnitElement.initialize(unit, unit._.baseTarget);
 
         // nest html element
-        if (isPlaneObject(unit._.target)) {
+        if (isPlainObject(unit._.target)) {
             UnitElement.nest(unit, unit._.target);
         }
 
         // setup component
         if (typeof component === 'function') {
             UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
-        } else if (isPlaneObject(unit._.target) && typeof component === 'string') {
+        } else if (isPlainObject(unit._.target) && typeof component === 'string') {
             unit.element!.innerHTML = component;
         }
 
@@ -144,7 +130,6 @@ export class Unit {
             unit._.state = 'finalized';
 
             unit._.children.forEach((unit: Unit) => unit.finalize());
-            unit._.children = [];
 
             if (typeof unit._.props.finalize === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
@@ -205,23 +190,22 @@ export class Unit {
     }
 
     static start(unit: Unit, time: number): void {
-        if (unit._.resolved === false || unit._.tostart === false) {
-        } else if (['pending', 'stopped'].includes(unit._.state) === true) {
+        if (unit._.resolved === false || unit._.tostart === false) return;
+        if (['pending', 'stopped'].includes(unit._.state)) {
             unit._.state = 'running';
-            unit._.children.forEach((unit: Unit) => Unit.start(unit, time));
+            unit._.children.forEach((child: Unit) => Unit.start(child, time));
             if (typeof unit._.props.start === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
             }
-        } else if (['running'].includes(unit._.state) === true) {
-            unit._.children.forEach((unit: Unit) => Unit.start(unit, time));
+        } else if (unit._.state === 'running') {
+            unit._.children.forEach((child: Unit) => Unit.start(child, time));
         }
     }
 
     static stop(unit: Unit): void {
-        if (['running'].includes(unit._.state) === true) {
+        if (unit._.state === 'running') {
             unit._.state = 'stopped';
-            unit._.children.forEach((unit: Unit) => Unit.stop(unit));
-
+            unit._.children.forEach((child: Unit) => Unit.stop(child));
             if (typeof unit._.props.stop === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
             }
@@ -379,14 +363,13 @@ export class UnitElement {
     }
 
     static nest(unit: Unit, attributes: Record<string, any>): Element {
-        if (isPlaneObject(typeof attributes) !== false) {
+        if (isPlainObject(attributes) === false) {
             throw new Error(`The argument [attributes] is invalid.`);
-        } else {
-            const current = UnitElement.get(unit);
-            const element = UnitElement.append(current, attributes);
-            UnitElement.elements.get(unit)?.push(element);
-            return element;
-         }
+        }
+        const current = UnitElement.get(unit);
+        const element = UnitElement.append(current, attributes);
+        UnitElement.elements.get(unit)?.push(element);
+        return element;
     }
 
     static get(unit: Unit): Element {
@@ -426,7 +409,7 @@ export class UnitElement {
             } else if (key === 'style') {
                 if (typeof value === 'string') {
                     (element as HTMLElement).style.cssText = value;
-                } else if (isPlaneObject(value) === true) {
+                } else if (isPlainObject(value) === true) {
                     Object.assign((element as HTMLElement).style, value);
                 }
             } else {
@@ -453,7 +436,6 @@ export class UnitElement {
 
 export class UnitEvent {
     static units: MapSet<string, Unit> = new MapSet();
-
     static listeners: MapMapMap<Unit, string, Function, [UnitTarget | null, (...args: any[]) => void]> = new MapMapMap();
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
@@ -495,12 +477,12 @@ export class UnitEvent {
 
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.listeners.keys(unit)];
         types.forEach((type) => {
-            const listners = listener === Function ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
-            listners.forEach((listener) => {
-                const value = UnitEvent.listeners.get(unit, type, listener);
+            const listeners = listener ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
+            listeners.forEach((l) => {
+                const value = UnitEvent.listeners.get(unit, type, l);
                 if (value !== undefined) {
                     const [target, execute] = value;
-                    UnitEvent.listeners.delete(unit, type, listener);
+                    UnitEvent.listeners.delete(unit, type, l);
                     if (target instanceof Element || target instanceof Window || target instanceof Document) {
                         target.removeEventListener(type, execute);
                     }
@@ -556,6 +538,10 @@ export class UnitPromise {
    
     static get(unit: Unit) {
         return Promise.all([...(UnitPromise.promises.get(unit) ?? [])]);
+    }
+
+    static finalize() {
+
     }
 
     static execute(unit: Unit | null, mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {

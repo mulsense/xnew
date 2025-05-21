@@ -22,13 +22,15 @@ function Root(self: xnew.Unit, { renderer = null }: any) {
     xnew.context('xpixi.root', root);
     
     let data: any;
-    if (renderer === null) {
+    if (renderer !== null) {
+        data = renderer;
+    } else {
         const screens = xnew.find(xnew.Screen);
         if (screens.length > 0) {
             const screen = screens.slice(-1)[0]; // last screen
             data = PIXI.autoDetectRenderer({
                 width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas,
-                antialias: true,
+                antialias: true, backgroundAlpha: 0,
             });
         } else {
             data = PIXI.autoDetectRenderer({});
@@ -38,7 +40,10 @@ function Root(self: xnew.Unit, { renderer = null }: any) {
 
     if (data instanceof Promise) {
         xnew.promise(data).then((renderer: any) => root.renderer = renderer);
-    } else if (data instanceof PIXI.WebGLRenderer || data instanceof PIXI.CanvasRenderer) {
+    } else if (
+        (PIXI.WebGPURenderer && data instanceof PIXI.WebGPURenderer) ||
+        (PIXI.WebGLRenderer && data instanceof PIXI.WebGLRenderer)
+    ) {
         root.renderer = data;
     }
 

@@ -7,7 +7,7 @@ const offset = { rx: 0, ry: 11, rz: 0, tx: 120, ty: 0, tz: 0 };
 const transform = { rx: 0, ry: 0, rz: 0, tx: 0, ty: 0, tz: 0 };
 const state = { id: 0, moving: false };
 
-xnew('#main', Main);
+xnew(Main);
 
 function Main(self) {
   xnew(HtmlMain);

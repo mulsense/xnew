@@ -49,7 +49,7 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
             throw new Error('The argument [parent, target, component] is invalid.');
         }
         return new Unit(parent, target, ...args);
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('xnew: ', error);
     }
 }
@@ -85,7 +85,7 @@ Object.defineProperty(xnew, 'nest', {
             } else {
                 throw new Error(`This function can not be called after initialized.`);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('xnew.nest(attributes): ', error);
         }
     }
@@ -101,7 +101,7 @@ Object.defineProperty(xnew, 'extend', {
             } else {
                 throw new Error('This function can not be called after initialized.');
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('xnew.extend(component, ...args): ', error);
         }
     }
@@ -123,7 +123,7 @@ Object.defineProperty(xnew, 'context', {
             } else {
                 return undefined;
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('xnew.context(key, value?): ', error);
         }
     }
@@ -134,7 +134,7 @@ Object.defineProperty(xnew, 'promise', {
     value: function (mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {
         try {
             return UnitPromise.execute(UnitScope.current, mix);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('xnew.promise(mix): ', error);
             throw error;
         }
@@ -153,7 +153,7 @@ Object.defineProperty(xnew, 'emit', {
             } else if (unit instanceof Unit) {
                 UnitEvent.emit(unit, type, ...args);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('xnew.emit(type, ...args): ', error);
         }
     }
@@ -176,7 +176,7 @@ Object.defineProperty(xnew, 'find', {
             } else {
                 return UnitComponent.find(component);
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('xnew.find(component): ', error);
         }
     }
