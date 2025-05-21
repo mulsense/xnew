@@ -29,6 +29,7 @@ export default [
         external: ['xnew', 'pixi.js'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xpixi.d.ts', './examples/dist/addons/xpixi.d.ts'),
             copyto('./dist/addons/xpixi.js', './examples/dist/addons/xpixi.js'),
             copyto('./dist/addons/xpixi.mjs', './examples/dist/addons/xpixi.mjs'),
         ],
@@ -51,6 +52,7 @@ export default [
         external: ['xnew', 'three'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xthree.d.ts', './examples/dist/addons/xthree.d.ts'),
             copyto('./dist/addons/xthree.js', './examples/dist/addons/xthree.js'),
             copyto('./dist/addons/xthree.mjs', './examples/dist/addons/xthree.mjs'),
         ],
@@ -73,6 +75,7 @@ export default [
         external: ['xnew', 'matter-js'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xmatter.d.ts', './examples/dist/addons/xthree.d.ts'),
             copyto('./dist/addons/xmatter.js', './examples/dist/addons/xmatter.js'),
             copyto('./dist/addons/xmatter.mjs', './examples/dist/addons/xmatter.mjs'),
         ],
@@ -95,6 +98,7 @@ export default [
         external: ['xnew'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xutil.d.ts', './examples/dist/addons/xutil.d.ts'),
             copyto('./dist/addons/xutil.js', './examples/dist/addons/xutil.js'),
             copyto('./dist/addons/xutil.mjs', './examples/dist/addons/xutil.mjs'),
         ],
@@ -117,6 +121,7 @@ export default [
         external: ['xnew'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xaudio.d.ts', './examples/dist/addons/xaudio.d.ts'),
             copyto('./dist/addons/xaudio.js', './examples/dist/addons/xaudio.js'),
             copyto('./dist/addons/xaudio.mjs', './examples/dist/addons/xaudio.mjs'),
         ],
