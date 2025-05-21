@@ -79,12 +79,7 @@ Object.defineProperty(xnew, 'nest', {
     enumerable: true,
     value: function (attributes: object) {
         try {
-            const current = UnitScope.current;
-            if (current?._.state === 'pending') {
-                return UnitElement.nest(current, attributes);
-            } else {
-                throw new Error(`This function can not be called after initialized.`);
-            }
+            return UnitElement.nest(attributes);
         } catch (error: unknown) {
             console.error('xnew.nest(attributes): ', error);
         }
@@ -145,14 +140,7 @@ Object.defineProperty(xnew, 'emit', {
     enumerable: true, 
     value: function (type: string, ...args: any[]) {
         try {
-            const unit = UnitScope.current;
-            if (typeof type !== 'string') {
-                throw new Error('The argument [type] is invalid.');
-            } else if (unit?._.state === 'finalized') {
-                throw new Error('This function can not be called after finalized.');
-            } else if (unit instanceof Unit) {
-                UnitEvent.emit(unit, type, ...args);
-            }
+            UnitEvent.emit(type, ...args);
         } catch (error: unknown) {
             console.error('xnew.emit(type, ...args): ', error);
         }

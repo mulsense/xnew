@@ -126,7 +126,7 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (['finalized'].includes(unit._.state) === false) {
+        if (unit._.state !== 'finalized') {
             unit._.state = 'finalized';
 
             unit._.children.forEach((unit: Unit) => unit.finalize());
@@ -139,6 +139,7 @@ export class Unit {
             UnitScope.finalize(unit)
             UnitElement.finalize(unit);
             UnitComponent.finalize(unit);
+            UnitPromise.finalize(unit);
 
             // reset props
             Object.keys(unit._.props).forEach((key) => {
@@ -191,7 +192,7 @@ export class Unit {
 
     static start(unit: Unit, time: number): void {
         if (unit._.resolved === false || unit._.tostart === false) return;
-        if (['pending', 'stopped'].includes(unit._.state)) {
+        if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
             if (typeof unit._.props.start === 'function') {
@@ -362,11 +363,17 @@ export class UnitElement {
         UnitElement.elements.delete(unit);
     }
 
-    static nest(unit: Unit, attributes: Record<string, any>): Element {
-        if (isPlainObject(attributes) === false) {
-            throw new Error(`The argument [attributes] is invalid.`);
+    static nest(attributes: Record<string, any>): Element {
+        const unit = UnitScope.current;
+        if (unit === null) {
+            throw new Error(`This function can not be called outside xnew.`);
         }
         const current = UnitElement.get(unit);
+        if (isPlainObject(attributes) === false) {
+            throw new Error(`The argument [attributes] is invalid.`);
+        } else if (unit._.state !== 'pending') {
+            throw new Error(`This function can not be called after initialized.`);
+        }
         const element = UnitElement.append(current, attributes);
         UnitElement.elements.get(unit)?.push(element);
         return element;
@@ -478,11 +485,11 @@ export class UnitEvent {
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.listeners.keys(unit)];
         types.forEach((type) => {
             const listeners = listener ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
-            listeners.forEach((l) => {
-                const value = UnitEvent.listeners.get(unit, type, l);
-                if (value !== undefined) {
-                    const [target, execute] = value;
-                    UnitEvent.listeners.delete(unit, type, l);
+            listeners.forEach((lis) => {
+                const tupple = UnitEvent.listeners.get(unit, type, lis);
+                if (tupple !== undefined) {
+                    const [target, execute] = tupple;
+                    UnitEvent.listeners.delete(unit, type, lis);
                     if (target instanceof Element || target instanceof Window || target instanceof Document) {
                         target.removeEventListener(type, execute);
                     }
@@ -494,7 +501,13 @@ export class UnitEvent {
         });
     }
 
-    static emit(unit: Unit, type: string, ...args: any[]): void {
+    static emit(type: string, ...args: any[]): void {
+        const unit = UnitScope.current;
+        if (typeof type !== 'string') {
+            throw new Error('The argument [type] is invalid.');
+        } else if (unit?._.state === 'finalized') {
+            throw new Error('This function can not be called after finalized.');
+        }
         if (type[0] === '+') {
             UnitEvent.units.get(type)?.forEach((unit) => {
                 UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
@@ -540,8 +553,8 @@ export class UnitPromise {
         return Promise.all([...(UnitPromise.promises.get(unit) ?? [])]);
     }
 
-    static finalize() {
-
+    static finalize(unit: Unit) {
+        UnitPromise.promises.delete(unit)
     }
 
     static execute(unit: Unit | null, mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {

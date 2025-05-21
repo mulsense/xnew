@@ -316,10 +316,9 @@ class Unit {
         (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
     }
     static finalize(unit) {
-        if (['finalized'].includes(unit._.state) === false) {
+        if (unit._.state !== 'finalized') {
             unit._.state = 'finalized';
             unit._.children.forEach((unit) => unit.finalize());
-            unit._.children = [];
             if (typeof unit._.props.finalize === 'function') {
                 UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
             }
@@ -327,6 +326,7 @@ class Unit {
             UnitScope.finalize(unit);
             UnitElement.finalize(unit);
             UnitComponent.finalize(unit);
+            UnitPromise.finalize(unit);
             // reset props
             Object.keys(unit._.props).forEach((key) => {
                 if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
@@ -383,7 +383,7 @@ class Unit {
     static start(unit, time) {
         if (unit._.resolved === false || unit._.tostart === false)
             return;
-        if (['pending', 'stopped'].includes(unit._.state)) {
+        if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child) => Unit.start(child, time));
             if (typeof unit._.props.start === 'function') {
@@ -532,10 +532,16 @@ class UnitElement {
     }
     static nest(unit, attributes) {
         var _a;
+        if (unit === null) {
+            throw new Error(`This function can not be called outside xnew.`);
+        }
+        const current = UnitElement.get(unit);
         if (isPlainObject(attributes) === false) {
             throw new Error(`The argument [attributes] is invalid.`);
         }
-        const current = UnitElement.get(unit);
+        else if (unit._.state !== 'pending') {
+            throw new Error(`This function can not be called after initialized.`);
+        }
         const element = UnitElement.append(current, attributes);
         (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
         return element;
@@ -645,11 +651,11 @@ class UnitEvent {
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.listeners.keys(unit)];
         types.forEach((type) => {
             const listeners = listener ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
-            listeners.forEach((l) => {
-                const value = UnitEvent.listeners.get(unit, type, l);
-                if (value !== undefined) {
-                    const [target, execute] = value;
-                    UnitEvent.listeners.delete(unit, type, l);
+            listeners.forEach((lis) => {
+                const tupple = UnitEvent.listeners.get(unit, type, lis);
+                if (tupple !== undefined) {
+                    const [target, execute] = tupple;
+                    UnitEvent.listeners.delete(unit, type, lis);
                     if (target instanceof Element || target instanceof Window || target instanceof Document) {
                         target.removeEventListener(type, execute);
                     }
@@ -660,8 +666,15 @@ class UnitEvent {
             }
         });
     }
-    static emit(unit, type, ...args) {
+    static emit(type, ...args) {
         var _a, _b;
+        const unit = UnitScope.current;
+        if (typeof type !== 'string') {
+            throw new Error('The argument [type] is invalid.');
+        }
+        else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === 'finalized') {
+            throw new Error('This function can not be called after finalized.');
+        }
         if (type[0] === '+') {
             (_a = UnitEvent.units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
@@ -701,7 +714,8 @@ class UnitPromise {
         var _a;
         return Promise.all([...((_a = UnitPromise.promises.get(unit)) !== null && _a !== void 0 ? _a : [])]);
     }
-    static finalize() {
+    static finalize(unit) {
+        UnitPromise.promises.delete(unit);
     }
     static execute(unit, mix) {
         let promise = null;
@@ -797,13 +811,7 @@ Object.defineProperty(xnew$1, 'nest', {
     enumerable: true,
     value: function (attributes) {
         try {
-            const current = UnitScope.current;
-            if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
-                return UnitElement.nest(current, attributes);
-            }
-            else {
-                throw new Error(`This function can not be called after initialized.`);
-            }
+            return UnitElement.nest(attributes);
         }
         catch (error) {
             console.error('xnew.nest(attributes): ', error);
@@ -868,16 +876,7 @@ Object.defineProperty(xnew$1, 'emit', {
     enumerable: true,
     value: function (type, ...args) {
         try {
-            const unit = UnitScope.current;
-            if (typeof type !== 'string') {
-                throw new Error('The argument [type] is invalid.');
-            }
-            else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === 'finalized') {
-                throw new Error('This function can not be called after finalized.');
-            }
-            else if (unit instanceof Unit) {
-                UnitEvent.emit(unit, type, ...args);
-            }
+            UnitEvent.emit(type, ...args);
         }
         catch (error) {
             console.error('xnew.emit(type, ...args): ', error);
