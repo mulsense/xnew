@@ -7,8 +7,8 @@ sidebar_position: 501
 ## setup
 ### via cdn
 ```html
-<script src="https://unpkg.com/xnew@2.6.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/xnew@2.6.x/dist/addons/xthree.js"></script>
+<script src="https://unpkg.com/xnew@3.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@3.0.x/dist/addons/xthree.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -16,8 +16,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@2.6.x/dist/xnew.module.js",
-    "xnew/addons/xthree": "https://unpkg.com/xnew@2.6.x/dist/addons/xthree.module.js"
+    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.module.js",
+    "xnew/addons/xthree": "https://unpkg.com/xnew@3.0.x/dist/addons/xthree.module.js"
   }
 }
 </script>
@@ -32,7 +32,7 @@ import xthree from 'xnew/addons/xthree'
 
 ### via npm
 ```bash
-npm install xnew@2.6.x
+npm install xnew@3.0.x
 ```
 ```js
 import xnew from 'xnew'
