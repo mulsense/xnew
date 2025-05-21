@@ -303,7 +303,7 @@ class Unit {
         UnitElement.initialize(unit, unit._.baseTarget);
         // nest html element
         if (isPlainObject(unit._.target)) {
-            UnitElement.nest(unit, unit._.target);
+            UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.target));
         }
         // setup component
         if (typeof component === 'function') {
@@ -530,8 +530,9 @@ class UnitElement {
         }
         UnitElement.elements.delete(unit);
     }
-    static nest(unit, attributes) {
+    static nest(attributes) {
         var _a;
+        const unit = UnitScope.current;
         if (unit === null) {
             throw new Error(`This function can not be called outside xnew.`);
         }

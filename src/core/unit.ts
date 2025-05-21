@@ -111,7 +111,7 @@ export class Unit {
 
         // nest html element
         if (isPlainObject(unit._.target)) {
-            UnitElement.nest(unit, unit._.target);
+            UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.target));
         }
 
         // setup component
