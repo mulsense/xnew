@@ -16,8 +16,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.module.js",
-    "xnew/addons/xpixi": "https://unpkg.com/xnew@3.0.x/dist/addons/xpixi.module.js"
+    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs",
+    "xnew/addons/xpixi": "https://unpkg.com/xnew@3.0.x/dist/addons/xpixi.mjs"
   }
 }
 </script>

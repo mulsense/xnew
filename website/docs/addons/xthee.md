@@ -16,8 +16,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.module.js",
-    "xnew/addons/xthree": "https://unpkg.com/xnew@3.0.x/dist/addons/xthree.module.js"
+    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs",
+    "xnew/addons/xthree": "https://unpkg.com/xnew@3.0.x/dist/addons/xthree.mjs"
   }
 }
 </script>

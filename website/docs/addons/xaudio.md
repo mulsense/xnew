@@ -20,8 +20,8 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.module.js",
-    "xnew/addons/xaudio": "https://unpkg.com/xnew@3.0.x/dist/addons/xaudio.module.js"
+    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs",
+    "xnew/addons/xaudio": "https://unpkg.com/xnew@3.0.x/dist/addons/xaudio.mjs"
   }
 }
 </script>

@@ -19,7 +19,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.module.js"
+    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs"
   }
 }
 </script>
