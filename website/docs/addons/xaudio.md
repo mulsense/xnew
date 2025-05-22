@@ -48,4 +48,4 @@ import xaudio from 'xnew/addons/xaudio';
 
 ## synthesizer
 
-<iframe style={{width:'100%',height:'900px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/5_others/501_synthesizer/index.html" ></iframe>
+<iframe style={{width:'100%',height:'900px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/6_others/602_synthesizer/index.html" ></iframe>
