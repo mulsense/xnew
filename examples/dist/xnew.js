@@ -246,10 +246,7 @@
                 id: Unit.increment++,
                 root: (_c = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _c !== void 0 ? _c : this,
                 list: (_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots,
-                parent,
-                target,
-                component,
-                args,
+                input: { parent, target, component, args },
                 baseTarget,
                 baseContext: UnitScope.get(parent),
             });
@@ -274,7 +271,7 @@
         reboot() {
             Unit.stop(this);
             Unit.finalize(this);
-            Unit.initialize(this, this._.component, ...this._.args);
+            Unit.initialize(this, this._.input.component, ...this._.input.args);
         }
         on(type, listener, options) {
             try {
@@ -308,14 +305,14 @@
             UnitScope.initialize(unit, unit._.baseContext);
             UnitElement.initialize(unit, unit._.baseTarget);
             // nest html element
-            if (isPlainObject(unit._.target)) {
-                UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.target));
+            if (isPlainObject(unit._.input.target)) {
+                UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.input.target));
             }
             // setup component
             if (typeof component === 'function') {
                 UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
             }
-            else if (isPlainObject(unit._.target) && typeof component === 'string') {
+            else if (isPlainObject(unit._.input.target) && typeof component === 'string') {
                 unit.element.innerHTML = component;
             }
             // whether the unit promise was resolved
@@ -565,8 +562,8 @@
                 isNS = true;
             }
             else {
-                for (let parent = parentElement; parent !== null; parent = parent.parentElement) {
-                    if (parent.tagName.toLowerCase() === 'svg') {
+                for (let e = parentElement; e !== null; e = e.parentElement) {
+                    if (e.tagName.toLowerCase() === 'svg') {
                         isNS = true;
                         break;
                     }
@@ -688,7 +685,7 @@
                     (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
                 });
             }
-            else if (type[0] === '-') {
+            else if (type[0] === '-' && unit !== null) {
                 (_b = UnitEvent.listeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
             }
         }
@@ -794,26 +791,6 @@
             console.error('xnew: ', error);
         }
     };
-    Object.defineProperty(xnew$1, 'root', {
-        enumerable: true,
-        get: function () {
-            var _a;
-            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.root;
-        }
-    });
-    Object.defineProperty(xnew$1, 'parent', {
-        enumerable: true,
-        get: function () {
-            var _a;
-            return (_a = UnitScope.current) === null || _a === void 0 ? void 0 : _a._.parent;
-        }
-    });
-    Object.defineProperty(xnew$1, 'current', {
-        enumerable: true,
-        get: function () {
-            return UnitScope.current;
-        }
-    });
     Object.defineProperty(xnew$1, 'nest', {
         enumerable: true,
         value: function (attributes) {

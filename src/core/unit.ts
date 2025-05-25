@@ -39,16 +39,13 @@ export class Unit {
             id: Unit.increment++,
             root: parent?._.root ?? this,
             list: parent?._.children ?? Unit.roots,
-            parent,
-            target,
-            component,
-            args,
+            input: { parent, target, component, args }, 
             baseTarget,
             baseContext: UnitScope.get(parent),
         });
 
         this._.list.push(this);
-        Unit.initialize(this, component, ...args);
+        Unit.initialize(this);
     }
 
     get element(): Element | null {
@@ -73,7 +70,7 @@ export class Unit {
     reboot(): void {
         Unit.stop(this);
         Unit.finalize(this);
-        Unit.initialize(this, this._.component, ...this._.args);
+        Unit.initialize(this);
     }
 
     on(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void {
@@ -96,7 +93,7 @@ export class Unit {
     // internal
     //----------------------------------------------------------------------------------------------------
 
-    static initialize(unit: Unit, component?: Function | string, ...args: any[]): void {
+    static initialize(unit: Unit): void {
         unit._ = Object.assign(unit._, {
             children: [],       // children units
             state: 'pending',   // [pending -> running <-> stopped -> finalized]
@@ -110,15 +107,15 @@ export class Unit {
         UnitElement.initialize(unit, unit._.baseTarget);
 
         // nest html element
-        if (isPlainObject(unit._.target)) {
-            UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.target));
+        if (isPlainObject(unit._.input.target)) {
+            UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.input.target));
         }
 
         // setup component
-        if (typeof component === 'function') {
-            UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
-        } else if (isPlainObject(unit._.target) && typeof component === 'string') {
-            unit.element!.innerHTML = component;
+        if (typeof unit._.input.component === 'function') {
+            UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, unit._.input.component, ...unit._.input.args));
+        } else if (isPlainObject(unit._.input.target) && typeof unit._.input.component === 'string') {
+            unit.element!.innerHTML = unit._.input.component;
         }
 
         // whether the unit promise was resolved
@@ -390,8 +387,8 @@ export class UnitElement {
         if (tagName === 'svg') {
             isNS = true;
         } else {
-            for (let parent: Element | null = parentElement; parent !== null; parent = parent.parentElement) {
-                if (parent.tagName.toLowerCase() === 'svg') {
+            for (let e: Element | null = parentElement; e !== null; e = e.parentElement) {
+                if (e.tagName.toLowerCase() === 'svg') {
                     isNS = true;
                     break;
                 }
@@ -512,7 +509,7 @@ export class UnitEvent {
             UnitEvent.units.get(type)?.forEach((unit) => {
                 UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
             });
-        } else if (type[0] === '-') {
+        } else if (type[0] === '-' && unit !== null) {
             UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
         }
     }

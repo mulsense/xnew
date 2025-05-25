@@ -4,9 +4,6 @@ import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from '.
 
 export interface xnewtype extends Function {
     [key: string]: any;
-    readonly root?: HTMLElement | null;
-    readonly parent?: HTMLElement | null;
-    readonly current?: HTMLElement | null;
 }
 
 export namespace xnew {
@@ -53,27 +50,6 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
         console.error('xnew: ', error);
     }
 }
-
-Object.defineProperty(xnew, 'root', {
-    enumerable: true,
-    get: function () {
-        return UnitScope.current?._.root
-    }
-});
-
-Object.defineProperty(xnew, 'parent', {
-    enumerable: true,
-    get: function () {
-        return UnitScope.current?._.parent;
-    }
-});
-
-Object.defineProperty(xnew, 'current', {
-    enumerable: true,
-    get: function () {
-        return UnitScope.current;
-    }
-});
 
 Object.defineProperty(xnew, 'nest', {
     enumerable: true,
