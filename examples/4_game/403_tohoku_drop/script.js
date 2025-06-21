@@ -44,7 +44,7 @@ function Main(self) {
   loader.load('./kiritan.vrm', () => {});
   loader.load('./metan.vrm', () => {});
   loader.load('./zunko.vrm', () => {});
-  loader.load('./zundamon.vrm', () => {});
+  loader.load('./itako.vrm', () => {});
 }
 
 function ThreeMain(self) {
