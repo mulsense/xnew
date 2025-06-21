@@ -41,6 +41,7 @@ function Main(self) {
   });
   loader.load('./zundamon.vrm');
   loader.load('./usagi.vrm');
+  loader.load('./sora.vrm');
   loader.load('./metan.vrm');
   loader.load('./zunko.vrm');
   loader.load('./zundamon.vrm');
