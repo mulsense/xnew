@@ -39,12 +39,12 @@ function Main(self) {
   loader.register((parser) => {
     return new VRMLoaderPlugin(parser);
   });
-  loader.load('./zundamon.vrm');
-  loader.load('./usagi.vrm');
-  loader.load('./sora.vrm');
-  loader.load('./metan.vrm');
-  loader.load('./zunko.vrm');
-  loader.load('./zundamon.vrm');
+  loader.load('./zundamon.vrm', () => {});
+  loader.load('./usagi.vrm', () => {});
+  loader.load('./sora.vrm', () => {});
+  loader.load('./metan.vrm', () => {});
+  loader.load('./zunko.vrm', () => {});
+  loader.load('./zundamon.vrm', () => {});
 }
 
 function ThreeMain(self) {
