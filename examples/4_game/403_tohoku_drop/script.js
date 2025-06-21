@@ -41,7 +41,7 @@ function Main(self) {
   });
   loader.load('./zundamon.vrm', () => {});
   loader.load('./usagi.vrm', () => {});
-  loader.load('./sora.vrm', () => {});
+  loader.load('./kiritan.vrm', () => {});
   loader.load('./metan.vrm', () => {});
   loader.load('./zunko.vrm', () => {});
   loader.load('./zundamon.vrm', () => {});
@@ -60,7 +60,7 @@ function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
   if (size === 2) {
     path = './usagi.vrm';
   } else if (size === 3) {
-    path = './sora.vrm';
+    path = './kiritan.vrm';
   } else if (size === 4) {
     path = './metan.vrm';
   } else if (size === 5) {
