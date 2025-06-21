@@ -15,6 +15,7 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../thirdparty/matter/matter.min.js', 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0');
     code = code.replace('../../thirdparty/three/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.176.0');
     code = code.replace('../../thirdparty/pixi/pixi.min.js', 'https://pixijs.download/v7.0.5/pixi.min.js');
+    code = code.replace('../../thirdparty/three-vrm/three-vrm.module.min.js', 'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js');
 
     code = code.replace('../../dist/xnew.js', 'https://unpkg.com/xnew@3.0.x/dist/xnew.js');
     code = code.replace('../../dist/addons/xpixi.js', 'https://unpkg.com/xnew@3.0.x/dist/addons/xpixi.js');
