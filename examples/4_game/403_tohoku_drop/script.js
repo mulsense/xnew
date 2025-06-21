@@ -34,7 +34,16 @@ function Main(self) {
   xnew(TitleScene);
   self.on('+nextscene', xnew);
 
-
+  // pre load
+  const loader = new GLTFLoader();
+  loader.register((parser) => {
+    return new VRMLoaderPlugin(parser);
+  });
+  loader.load('./zundamon.vrm');
+  loader.load('./usagi.vrm');
+  loader.load('./metan.vrm');
+  loader.load('./zunko.vrm');
+  loader.load('./zundamon.vrm');
 }
 
 function ThreeMain(self) {
