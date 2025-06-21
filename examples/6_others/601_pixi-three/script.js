@@ -8,21 +8,33 @@ const width = 800, height = 400;
 xnew('#main', Main);
 
 function Main(self) {
+  const oscanvas = new OffscreenCanvas(width, height);
 
   // three 
   xnew((self) => {
-    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xthree.initialize();
+    const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
+    renderer.setClearColor(0x000000, 0);
+    xthree.initialize({ renderer });
     xthree.camera.position.set(0, 0, +100);
     xnew(Cubes);
   });
 
   // pixi
   xnew((self) => {
-    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+    xnew(xnew.Screen, { width, height });
     xpixi.initialize();
+    xnew(ThreeTexture, PIXI.Texture.from(oscanvas));
     xnew(Boxes);
   });
+}
+
+function ThreeTexture(self, texture) {
+  const object = xpixi.nest(new PIXI.Sprite(texture));
+  return {
+    update() {
+          object.texture.source.update()
+    },
+  };
 }
 
 function Boxes(self) {
