@@ -7,21 +7,35 @@
 </head>
 
 <body>
-  <p>Click on the parent or child to start/stop.</p>
-  <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', Parent);
-    xnew('#main', Console);
+    xnew((self) => {
+      const reset = xnew(Button, 'reset');
+      let parent = xnew(Parent);
+      let console = xnew(Console);
+      reset.on('click', () => {
+        parent.finalize();
+        console.finalize();
+        parent = xnew(Parent);
+        console = xnew(Console);
+      });
+    });
 
     function Parent(self) {
-      xnew.nest({ style: { padding: '8px', background: '#08F' }});
-      const text = xnew({ tagName: 'span' });
-      xnew(Child);
+      xnew.nest({ style: { padding: '6px', background: '#08F' }});
+      xnew({ tagName: 'span' }, 'parent');
+
+      const button1 = xnew(Button, 'stop');
+      const button2 = xnew(Button, 'finalize');
+      const text = xnew({ tagName: 'div' });
 
       let isRunning = false;
-      self.on('click', () => {
+      button1.on('click', () => {
+        button1.element.textContent = isRunning ? 'start' : 'stop';
         isRunning ? self.stop() : self.start();
       });
+      button2.on('click', (event) => self.finalize());
+
+      xnew(Child);
 
       return {
         start() {
@@ -29,24 +43,32 @@
           xnew.emit('+console', 'parent start');
         },
         update(count) {
-          text.element.textContent = `parent count ${count}`;
+          text.element.textContent = `count ${count}`;
         },
         stop() {
           isRunning = false;
           xnew.emit('+console', 'parent stop');
         },
+        finalize() {
+          xnew.emit('+console', 'parent finalize');
+        },
       };
     }
 
     function Child(self) {
-      xnew.nest({ style: { margin: '8px', padding: '8px', background: '#F80' }});
-      const text = xnew({ tagName: 'span' });
+      xnew.nest({ style: { padding: '6px', background: '#F80' }});
+      xnew({ tagName: 'span' }, 'child');
+
+      const button1 = xnew(Button, 'stop');
+      const button2 = xnew(Button, 'finalize');
+      const text = xnew({ tagName: 'div' });
 
       let isRunning = false;
-      self.on('click', (event) => {
-        event.stopPropagation(); // cancel propagation to the parent element
+      button1.on('click', (event) => {
+        button1.element.textContent = isRunning ? 'start' : 'stop';
         isRunning ? self.stop() : self.start();
       });
+      button2.on('click', (event) => self.finalize());
 
       return {
         start() {
@@ -54,17 +76,25 @@
           xnew.emit('+console', 'child start');
         },
         update(count) {
-          text.element.textContent = `child count ${count}`;
+          text.element.textContent = `count ${count}`;
         },
         stop() {
           isRunning = false;
           xnew.emit('+console', 'child stop');
         },
+        finalize() {
+          xnew.emit('+console', 'child finalize');
+        },
       };
     }
 
+    function Button(self, text) {
+      xnew.nest({ tagName: 'button', style: { width: '60px', margin: '6px' }});
+      self.element.textContent = text;
+    }
+
     function Console(self) {
-      xnew.nest({ style: { margin: '16px 0', border: 'solid 1px #AAA', overflow: 'auto' }});
+      xnew.nest({ style: { margin: '16px 0', border: 'solid 1px #AAA' }});
       xnew({ tagName: 'div', style: { background: '#DDD' } }, 'console');
       
       const list = [];

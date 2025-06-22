@@ -123,8 +123,8 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized') {
-            unit._.state = 'finalized';
+        if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
+            unit._.state = 'pre finalized';
 
             unit._.children.forEach((unit: Unit) => unit.finalize());
 
@@ -145,6 +145,7 @@ export class Unit {
                 }
             });
             unit._.props = {};
+            unit._.state = 'finalized';
         }
     }
 

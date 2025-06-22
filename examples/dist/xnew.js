@@ -251,7 +251,7 @@
                 baseContext: UnitScope.get(parent),
             });
             this._.list.push(this);
-            Unit.initialize(this, component, ...args);
+            Unit.initialize(this);
         }
         get element() {
             return this._.baseTarget instanceof Element ? UnitElement.get(this) : null;
@@ -271,7 +271,7 @@
         reboot() {
             Unit.stop(this);
             Unit.finalize(this);
-            Unit.initialize(this, this._.input.component, ...this._.input.args);
+            Unit.initialize(this);
         }
         on(type, listener, options) {
             try {
@@ -292,7 +292,7 @@
         //----------------------------------------------------------------------------------------------------
         // internal
         //----------------------------------------------------------------------------------------------------
-        static initialize(unit, component, ...args) {
+        static initialize(unit) {
             var _a;
             unit._ = Object.assign(unit._, {
                 children: [], // children units
@@ -309,18 +309,18 @@
                 UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.input.target));
             }
             // setup component
-            if (typeof component === 'function') {
-                UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, component, ...args));
+            if (typeof unit._.input.component === 'function') {
+                UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, unit._.input.component, ...unit._.input.args));
             }
-            else if (isPlainObject(unit._.input.target) && typeof component === 'string') {
-                unit.element.innerHTML = component;
+            else if (isPlainObject(unit._.input.target) && typeof unit._.input.component === 'string') {
+                unit.element.innerHTML = unit._.input.component;
             }
             // whether the unit promise was resolved
             (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
         }
         static finalize(unit) {
-            if (unit._.state !== 'finalized') {
-                unit._.state = 'finalized';
+            if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
+                unit._.state = 'pre finalized';
                 unit._.children.forEach((unit) => unit.finalize());
                 if (typeof unit._.props.finalize === 'function') {
                     UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
@@ -337,6 +337,7 @@
                     }
                 });
                 unit._.props = {};
+                unit._.state = 'finalized';
             }
         }
         static extend(unit, component, ...args) {

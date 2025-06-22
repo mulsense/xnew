@@ -24,7 +24,6 @@ function Main(self) {
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -0 / 180 * Math.PI
-  xnew(ThreeMain);
 
   // pixi
   xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
@@ -34,7 +33,6 @@ function Main(self) {
   xnew(TitleScene);
   self.on('+nextscene', xnew);
 
-  // pre load
   const loader = new GLTFLoader();
   loader.register((parser) => {
     return new VRMLoaderPlugin(parser);
@@ -45,11 +43,6 @@ function Main(self) {
   loader.load('./metan.vrm', () => {});
   loader.load('./zunko.vrm', () => {});
   loader.load('./itako.vrm', () => {});
-}
-
-function ThreeMain(self) {
-  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
-  xnew(AmbientLight);
 }
 
 function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
@@ -163,7 +156,6 @@ function TitleText(self) {
 function ThreeTexture(self) {
   const texture = PIXI.Texture.from(oscanvas);
   const object = xpixi.nest(new PIXI.Sprite(texture));
-
   return {
     update() {
           object.texture.source.update()
@@ -173,7 +165,10 @@ function ThreeTexture(self) {
 
 function GameScene(self) {
   xmatter.initialize();
- 
+
+  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
+  xnew(AmbientLight);
+
   xnew(Controller);
   xnew(ScoreText);
   xnew(Bowl);

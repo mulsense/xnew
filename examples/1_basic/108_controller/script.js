@@ -1,15 +1,10 @@
-import * as PIXI from 'pixi.js';
 import xnew from 'xnew';
-import xpixi from 'xnew/addons/xpixi';
 import xutil from 'xnew/addons/xutil';
 
 xnew('#main', Main);
 
 function Main(self) {
-  xnew(xnew.Screen, { width: 800, height: 400 });
-  xpixi.initialize();
-
-  xnew(Box, { x: 800 / 2, y: 400 / 2, size: 100, color: 0xEA1E63 });
+  xnew(Box);
   xnew(Controller);
 }
 
@@ -40,11 +35,10 @@ function Controller(self) {
   });
 }
 
-function Box(self, { x, y, size, color }) {
-  const object = xpixi.nest(new PIXI.Container());
-  object.position.set(x, y);
-  object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
+function Box(self) {
+  xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
 
+  let current = { x: 0, y: 0, r: 0 };
   let move = { x: 0, y: 0 };
   let direction = +1;
   self.on('+move', ({ vector }) => move = vector);
@@ -52,9 +46,12 @@ function Box(self, { x, y, size, color }) {
 
   return {
     update() {
-      object.x += move.x * 5;
-      object.y += move.y * 5;
-      object.rotation += 0.01 * direction;
+      current.x += move.x * 10;
+      current.y += move.y * 10;
+      current.r += direction;
+      self.element.style.left = current.x + 'px';
+      self.element.style.top = current.y + 'px';
+      self.element.style.transform = `rotate(${current.r}deg)`;
     },
   };
 }

@@ -1,6 +1,6 @@
 import xnew from 'xnew';
 
-// 型定義
+// types
 type AudioNodeMap = { [key: string]: AudioNode & { [key: string]: any } };
 type Envelope = {
     amount: number;
