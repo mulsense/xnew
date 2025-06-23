@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  
+  <script>
+    xnew('#main', (self) => {
+      xnew((self) => {
+        xnew.css({
+          '.test': [
+            'margin: 8px; padding: 8px; border: solid 1px #222;',
+            {
+              
+            }
+          ]
+        });
+        // self.finalize();
+      });
+      xnew(Div1);
+    });
+
+    function Base(self, name) {
+      xnew.nest({ className: 'test' });
+      xnew({ tagName: 'p' }, name);
+    }
+
+    function Div1(self) {
+      xnew.extend(Base, 'my div');
+
+      xnew({ style: { display: 'flex' } }, () => {
+        xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
+        xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
+        xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
+      });
+    }
+
+  </script>
+</body>
+
+</html>

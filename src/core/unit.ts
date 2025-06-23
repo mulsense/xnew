@@ -73,20 +73,22 @@ export class Unit {
         Unit.initialize(this);
     }
 
-    on(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void {
+    on(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): Unit {
         try {
             UnitEvent.on(this, type, listener, options);
         } catch (error) {
             console.error('unit.on(type, listener, option?): ', error);
         }
+        return this;
     }
 
-    off(type?: string, listener?: EventListener): void {
+    off(type?: string, listener?: EventListener): Unit {
         try {
             UnitEvent.off(this, type, listener);
         } catch (error) {
             console.error('unit.off(type, listener): ', error);
         }
+        return this;
     }
 
     //----------------------------------------------------------------------------------------------------

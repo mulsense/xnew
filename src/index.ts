@@ -1,7 +1,7 @@
 import { ResizeEvent } from './basics/ResizeEvent';
 import { UserEvent } from './basics/UserEvent';
 import { Screen } from './basics/Screen';
-// import { Modal } from './basics/Modal';
+import { Modal } from './basics/Modal';
 // import { Accordion } from './basics/Accordion';
 
 import { Unit } from './core/unit';
@@ -11,6 +11,7 @@ interface xnewtype extends basetype {
     Screen: Function;
     UserEvent: Function;
     ResizeEvent: Function;
+    Modal: Function;
 }
 
 namespace xnew {
@@ -21,6 +22,7 @@ const xnew: xnewtype = Object.assign(base, {
     Screen,
     UserEvent,
     ResizeEvent,
+    Modal,
 });
 
 export default xnew;

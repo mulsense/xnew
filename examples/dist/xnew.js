@@ -280,6 +280,7 @@
             catch (error) {
                 console.error('unit.on(type, listener, option?): ', error);
             }
+            return this;
         }
         off(type, listener) {
             try {
@@ -288,6 +289,7 @@
             catch (error) {
                 console.error('unit.off(type, listener): ', error);
             }
+            return this;
         }
         //----------------------------------------------------------------------------------------------------
         // internal
@@ -956,6 +958,27 @@
             return { clear: () => unit.finalize() };
         }
     });
+    // Object.defineProperty(xnew, 'css', { 
+    //     enumerable: true, 
+    //     value: function (label: string, style: { [key: string]: any }): void {
+    //         xnew((self: xnew.Unit) => {
+    //             const element = document.createElement('style');
+    //             let text = '';
+    //             Object.keys(style).forEach((key) => {
+    //                 const value = style[key];
+    //                 const snake = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+    //                 text += `${snake}: ${value};`;
+    //             });
+    //             element.textContent = `${label}{ ${text} }`;
+    //             document.head.appendChild(element);
+    //             return {
+    //                 finalize() {
+    //                     document.head.removeChild(element);
+    //                 }
+    //             }
+    //         });
+    //     }
+    // });
 
     function ResizeEvent(self) {
         const observer = new ResizeObserver(xnew$1.scope((entries) => {
@@ -1165,10 +1188,32 @@
         };
     }
 
+    function Modal(self, options = {}) {
+        var _a;
+        const local = options;
+        local.style = Object.assign((_a = local.style) !== null && _a !== void 0 ? _a : {}, { position: 'fixed', inset: 0, });
+        const fixed = xnew$1.nest(local);
+        xnew$1().on('click', (event) => {
+            if (fixed === event.target) {
+                if (self.close) {
+                    self.close();
+                }
+                else {
+                    self.finalize();
+                }
+            }
+        });
+        // xnew.nest({});
+        // xnew().on('click', (event: Event) => {
+        //     event.stopPropagation(); 
+        // });
+    }
+
     const xnew = Object.assign(xnew$1, {
         Screen,
         UserEvent,
         ResizeEvent,
+        Modal,
     });
 
     return xnew;

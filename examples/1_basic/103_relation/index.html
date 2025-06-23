@@ -8,6 +8,7 @@
 
 <body>
   <script>
+    // reset button
     xnew((self) => {
       const reset = xnew(Button, 'reset');
       let parent = xnew(Parent);
@@ -20,6 +21,7 @@
       });
     });
 
+    // parent component
     function Parent(self) {
       xnew.nest({ style: { padding: '6px', background: '#08F' }});
       xnew({ tagName: 'span' }, 'parent');
@@ -55,6 +57,7 @@
       };
     }
 
+    // child component
     function Child(self) {
       xnew.nest({ style: { padding: '6px', background: '#F80' }});
       xnew({ tagName: 'span' }, 'child');

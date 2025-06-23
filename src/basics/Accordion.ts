@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 
-export function UserEvent(self: xnew.Unit) {
-
+// export function UserEvent(self: xnew.Unit) {
+// }
 // export function Accordion(self, { status = 'open', duration = 200, easing = 'ease-in-out' } = {}) {
 //     const outer = xnew.nest({ style: { display: status === 'open' ? 'block' : 'none', overflow: 'hidden', }});
 //     const inner = xnew.nest({ style: { padding: 0, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' } });

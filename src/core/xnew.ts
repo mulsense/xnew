@@ -216,3 +216,26 @@ Object.defineProperty(xnew, 'transition', {
         return { clear: () => unit.finalize() };
     }
 });
+
+// Object.defineProperty(xnew, 'css', { 
+//     enumerable: true, 
+//     value: function (label: string, style: { [key: string]: any }): void {
+//         xnew((self: xnew.Unit) => {
+//             const element = document.createElement('style');
+
+//             let text = '';
+//             Object.keys(style).forEach((key) => {
+//                 const value = style[key];
+//                 const snake = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+//                 text += `${snake}: ${value};`;
+//             });
+//             element.textContent = `${label}{ ${text} }`;
+//             document.head.appendChild(element);
+//             return {
+//                 finalize() {
+//                     document.head.removeChild(element);
+//                 }
+//             }
+//         });
+//     }
+// });

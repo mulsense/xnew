@@ -1,25 +1,24 @@
-// import { xnew } from '../core/xnew';
+import { xnew } from '../core/xnew';
 
-// export function Modal(self, {} = {}) {
-//     xnew.nest({
-//         style: {
-//             position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-//         },
-//     });
+export function Modal(self: xnew.Unit, options: any = {}) {
+    const local = options;
+    local.style = Object.assign(local.style ?? {}, { position: 'fixed', inset: 0, });
+
+    const fixed = xnew.nest(local);
     
-//     xnew().on('click', () => {
-//         self.close();
-//     });
+    xnew().on('click', (event: Event) => {
+        if (fixed === event.target) {
+            if (self.close) {
+                self.close();
+            } else {
+                self.finalize();
+            }
+        }
+    });
 
-//     xnew.nest({});
+    // xnew.nest({});
 
-//     xnew().on('click', (event) => {
-//         event.stopPropagation(); 
-//     });
-
-//     return {
-//         close() {
-//             self.finalize();
-//         }
-//     }
-// }
+    // xnew().on('click', (event: Event) => {
+    //     event.stopPropagation(); 
+    // });
+}
