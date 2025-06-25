@@ -1,9 +1,42 @@
 //----------------------------------------------------------------------------------------------------
+// ticker
+//----------------------------------------------------------------------------------------------------
+
+export class Ticker {
+    static animation: number | null = null;
+    static callbacks = new Set<Function>;
+    static previous: number = 0.0;
+
+    static ticker() {
+        const time = Date.now();
+        const interval = 1000 / 60;
+        if (time - Ticker.previous > interval * 0.8) {
+            Ticker.callbacks.forEach((callback) => callback(time));
+            Ticker.previous = time;
+        }
+        Ticker.animation = requestAnimationFrame(Ticker.ticker);
+    }
+
+    static set(callback: (time: number) => void) : void {
+        if (Ticker.animation === null && typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
+            Ticker.previous = Date.now();
+            Ticker.animation = requestAnimationFrame(Ticker.ticker);
+        }
+        Ticker.callbacks.add(callback);
+    }
+
+    static clear(callback: (time: number) => void): void {
+        Ticker.callbacks.delete(callback);
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
 // timer
 //----------------------------------------------------------------------------------------------------
 
 export class Timer {
     private timeout: Function;
+    private transition: Function | null;
     private delay: number;
     private loop: boolean;
     private id: NodeJS.Timeout | null;
@@ -12,9 +45,11 @@ export class Timer {
     private offset: number;
     private status: 0 | 1;
     private visibilitychange?: ((this: Document, event: Event) => any);
+    private ticker: (time: number) => void;
 
-    constructor(timeout: Function, delay: number, loop: boolean = false) {
+    constructor(timeout: Function, transition: Function | null, delay: number, loop: boolean = false) {
         this.timeout = timeout;
+        this.transition = transition;
         this.delay = delay;
         this.loop = loop;
 
@@ -30,6 +65,17 @@ export class Timer {
         }
 
         this.start();
+
+        this.ticker = (time: number): void => {
+            if (this.transition !== null) {
+                const progress = this.elapsed() / this.delay;
+                this.transition(progress);
+            }
+        };
+        if (this.transition !== null) {
+            this.transition(0.0);
+            Ticker.set(this.ticker);
+        }
     }
 
     public clear(): void {
@@ -39,6 +85,9 @@ export class Timer {
         }
         if (document instanceof Document && this.visibilitychange !== undefined) {
             document.removeEventListener('visibilitychange', this.visibilitychange);
+        }
+        if (this.transition !== null) {
+            Ticker.clear(this.ticker);
         }
     }
 
@@ -83,3 +132,4 @@ export class Timer {
         }
     }
 }
+

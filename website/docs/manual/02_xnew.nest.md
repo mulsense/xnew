@@ -12,21 +12,21 @@ xnew((self) => {
 
 ## Example
 ```js
-xnew({ tagName: 'div', name: 'A'}, (self) =>{
+xnew({ tag: 'div', name: 'A'}, (self) =>{
 self.element; // div A
 });
 
 xnew((self) => {
-  xnew.nest({ tagName: 'div', name: 'B' });
+  xnew.nest({ tag: 'div', name: 'B' });
   self.element; // div B
 }
 
-xnew({ tagName: 'div', name: 'C' }, (self) => {
-  xnew.nest({ tagName: 'div', name: 'D' }); // inner div
+xnew({ tag: 'div', name: 'C' }, (self) => {
+  xnew.nest({ tag: 'div', name: 'D' }); // inner div
   self.element; // div D
 }
 
-const unit4 = xnew({ tagName: 'div', name: 'E' }, 'aaa');
+const unit4 = xnew({ tag: 'div', name: 'E' }, 'aaa');
 unit4.element; // div E
 
 ```

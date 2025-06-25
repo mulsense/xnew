@@ -1,4 +1,5 @@
 import { MapSet, MapMap, MapMapMap } from './map';
+import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
 // types
@@ -223,33 +224,18 @@ export class Unit {
         }
     }
 
-    static animation: number | null = null;
-    static previous: number = 0.0;
+    static ticker(time: number) {
+        Unit.roots.forEach((unit) => {
+            Unit.start(unit, time);
+            Unit.update(unit, time);
+        });
+    }
 
     static reset(): void {
         Unit.roots.forEach((unit) => unit.finalize());
         Unit.roots = [];
-       
-        if (typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
-            Unit.previous = Date.now();
-            if (Unit.animation !== null) {
-                cancelAnimationFrame(Unit.animation);
-            }
-            Unit.animation = requestAnimationFrame(ticker);
-
-            function ticker () {
-                const interval = 1000 / 60;
-                const time = Date.now();
-                if (time - Unit.previous > interval * 0.8) {
-                    Unit.roots.forEach((unit) => {
-                        Unit.start(unit, time);
-                        Unit.update(unit, time);
-                    });
-                    Unit.previous = time;
-                }
-                Unit.animation = requestAnimationFrame(ticker);
-            }
-        }
+        Ticker.clear(Unit.ticker)
+        Ticker.set(Unit.ticker)
     }
 }
 
@@ -384,7 +370,7 @@ export class UnitElement {
     }
 
     static append(parentElement: Element, attributes: Record<string, any>): Element {
-        const tagName = (attributes.tagName ?? 'div').toLowerCase();
+        const tagName = (attributes.tag ?? attributes.tagName ?? 'div').toLowerCase();
 
         let isNS = false;
         if (tagName === 'svg') {

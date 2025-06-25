@@ -8,7 +8,6 @@
 
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
-  
   <script>
     xnew('#main', (self) => {
       xnew(Div1);
@@ -19,7 +18,7 @@
 
     function Base(self, name) {
       xnew.nest({ style: { margin: '8px', padding: '8px', border: 'solid 1px #222'} });
-      xnew({ tagName: 'p' }, name);
+      xnew({ tag: 'p' }, name);
     }
 
     function Div1(self) {
@@ -35,7 +34,7 @@
     function Div2(self) {
       xnew.extend(Base, 'my button');
 
-      const button = xnew({ tagName: 'button' }, 'click me');
+      const button = xnew({ tag: 'button' }, 'click me');
 
       let count = 0;
       button.on('click', () => {
@@ -46,8 +45,8 @@
     function Div3(self) {
       xnew.extend(Base, 'my input text');
 
-      const input = xnew({ tagName: 'input', type: 'text' });
-      const span = xnew({ tagName: 'span', style: { margin: '0 8px' } });
+      const input = xnew({ tag: 'input', type: 'text' });
+      const span = xnew({ tag: 'span', style: { margin: '0 8px' } });
 
       input.on('change input', () => {
         span.element.textContent = input.element.value;
@@ -57,13 +56,13 @@
     function Div4(self) {
       xnew.extend(Base, 'my select');
 
-      const select = xnew({ tagName: 'select' }, () => {
-        xnew({ tagName: 'option', value: 'one' }, 'one');
-        xnew({ tagName: 'option', value: 'two' }, 'two');
-        xnew({ tagName: 'option', value: 'three' }, 'three');
+      const select = xnew({ tag: 'select' }, () => {
+        xnew({ tag: 'option', value: 'one' }, 'one');
+        xnew({ tag: 'option', value: 'two' }, 'two');
+        xnew({ tag: 'option', value: 'three' }, 'three');
       });
 
-      const text = xnew({ tagName: 'span', style: { margin: '0 8px' } }, 'one');
+      const text = xnew({ tag: 'span', style: { margin: '0 8px' } }, 'one');
 
       select.on('change', (event) => {
         text.element.textContent = event.target.value;

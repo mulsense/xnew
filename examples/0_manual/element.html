@@ -15,14 +15,14 @@
 
     function Component(self) {
       // Pattern 1: Create new HTML element.
-      xnew({ tagName: 'p' }, 'Create new HTML elements.');
+      xnew({ tag: 'p' }, 'Create new HTML elements.');
     
       // Pattern 2: Create child component.
       xnew(ChildComponent);
     }
 
     function ChildComponent(self) {
-       // If tagName is omitted, tagName: 'div' is set as default.
+       // If tag is omitted, tag: 'div' is set as default.
 
       // Pattern 3: Create new HTML element and nest the following elements.
       xnew.nest({ style: { display: 'flex' } });

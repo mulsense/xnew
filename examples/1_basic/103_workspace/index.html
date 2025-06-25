@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+</head>
+
+<body style="margin: 0; height: 100vh;">
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  <script>
+    xnew("#main", (main) => {
+      xnew((self) => {
+        xnew.extend(xnew.WorkSpace, {
+          style: {
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '16px',
+            boxSizing: 'border-box',
+            background: '#AAA',
+            userSelect: 'none',
+          }
+        });
+        const ws = xnew.context('workspace');
+        ws.set({ position: { x: 0, y: 0 }, scale: 1 });
+        xnew({ tag: 'span', style: {
+          background: '#FFF',
+        } }, 'Workspace Example');
+
+      });
+    });
+
+    
+  </script>
+</body>
+
+</html>

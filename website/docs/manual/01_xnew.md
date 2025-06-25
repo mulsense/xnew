@@ -67,7 +67,7 @@ The `target` specifies the HTML element for the new unit. Access it via `unit.el
 ```html
 <body>
   <script>
-    xnew({ tagName: 'div', id: 'hoge' }, (self) => {
+    xnew({ tag: 'div', id: 'hoge' }, (self) => {
       self.element; // element (id = hoge)
     });
   </script>
@@ -75,10 +75,10 @@ The `target` specifies the HTML element for the new unit. Access it via `unit.el
 ```
 
 :::note Variations
-- `xnew({ tagName: 'div', className: 'aaa', style: 'bbb' }, ...)`
+- `xnew({ tag: 'div', className: 'aaa', style: 'bbb' }, ...)`
 :::
 
-If `tagName` is omitted, it defaults to `'div'`.
+If `tag` is omitted, it defaults to `'div'`.
 
 #### Inheriting Parent Elements
 If `target` is omitted, the parent unit's element or the current scope's parent element is used.
@@ -97,7 +97,7 @@ If `target` is omitted, the parent unit's element or the current scope's parent 
       // self.element: (id=hoge)
     });
 
-    xnew({ tagName: 'div', id: 'fuga' }, (self) => {
+    xnew({ tag: 'div', id: 'fuga' }, (self) => {
       // self.element: (id=fuga)
     });
   });
@@ -116,7 +116,7 @@ If `target` is omitted, the parent unit's element or the current scope's parent 
 If `Component` is a string, it is set as the `innerHTML` of the created element.
 
 ```js
-xnew({ tagName: 'p', id: 'hoge' }, 'aaa');
+xnew({ tag: 'p', id: 'hoge' }, 'aaa');
 ```
 
 ```html

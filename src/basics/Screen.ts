@@ -10,7 +10,7 @@ export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'cont
     });
 
     const canvas = xnew({
-        tagName: 'canvas', width, height,
+        tag: 'canvas', width, height,
         style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
     });
 

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  <script>
+    xnew("#main", (self) => {
+      xnew({ style: { border: 'solid 1px #000', borderRadius: '8px' }}, (self) => {
+
+        const header = xnew({ style: { margin: '8px' } }, 'Accordion')
+        const accordion = xnew((self) => {
+          xnew.extend(xnew.Accordion);
+
+          xnew({ style: { padding: '8px', borderTop: 'solid 1px #000' }}, (self) => {
+            xnew({ tag: 'span' }, 'Content');
+            xnew({ tag: 'ul' }, () => {
+              xnew({ tag: 'li', }, '1st item');
+              xnew({ tag: 'li', }, '2nd item');
+              xnew({ tag: 'li', }, '3rd item');
+            });
+          });
+        });
+        header.on('click', () => accordion.toggle());
+      });
+    });
+  </script>
+</body>
+
+</html>

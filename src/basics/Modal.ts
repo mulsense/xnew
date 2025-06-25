@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 
-export function Modal(self: xnew.Unit, options: any = {}) {
-    const local = options;
+export function Modal(self: xnew.Unit, attributes: any = {}) {
+    const local = attributes;
     local.style = Object.assign(local.style ?? {}, { position: 'fixed', inset: 0, });
 
     const fixed = xnew.nest(local);
@@ -15,10 +15,4 @@ export function Modal(self: xnew.Unit, options: any = {}) {
             }
         }
     });
-
-    // xnew.nest({});
-
-    // xnew().on('click', (event: Event) => {
-    //     event.stopPropagation(); 
-    // });
 }

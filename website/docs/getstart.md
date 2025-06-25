@@ -81,14 +81,14 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 
     function Component(self) {
       // Pattern 1: Create new HTML element.
-      xnew({ tagName: 'p' }, 'Create new HTML elements.');
+      xnew({ tag: 'p' }, 'Create new HTML elements.');
     
       // Pattern 2: Create child component.
       xnew(ChildComponent);
     }
 
     function ChildComponent(self) {
-       // If tagName is omitted, tagName: 'div' is set as default.
+       // If tag is omitted, tag: 'div' is set as default.
 
       // Pattern 3: Create new HTML element and nest the following elements.
       xnew.nest({ style: { display: 'flex' } });
@@ -130,7 +130,7 @@ Clicking on the box will toggle it start / stop.
     function Component(self) {
       xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
 
-      const text = xnew({ tagName: 'span' });
+      const text = xnew({ tag: 'span' });
 
       let isRunning = false;
       self.on('click', (event) => {
@@ -169,7 +169,7 @@ Connected units work together. For example, stopping the parent component also s
     function Component(self) {
       xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
 
-      const text = xnew({ tagName: 'span' });
+      const text = xnew({ tag: 'span' });
 
       xnew(ChildComponent);
 
@@ -196,7 +196,7 @@ Connected units work together. For example, stopping the parent component also s
     function ChildComponent(self) {
       xnew.nest({ style: { position: 'absolute', width: '100px', height: '100px', inset: 0, margin: 'auto', background: '#F80' } });
 
-      const text = xnew({ tagName: 'span' });
+      const text = xnew({ tag: 'span' });
 
       let isRunning = false;
       self.on('click', (event) => {
