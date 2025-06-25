@@ -1,4 +1,4 @@
-import { Timer } from '../src/core/timer';
+import { Timer } from '../src/core/time';
 
 describe('timer', () => {
     it('timer loop = false', () => {
@@ -11,7 +11,7 @@ describe('timer', () => {
                 const d = Date.now() - start;
                 expect(d).toBeGreaterThan(500 - margin);
                 expect(d).toBeLessThan(500 + margin);
-            }, 500);
+            }, null, 500);
             setTimeout(() => count === 1 ? resolve() : reject(), 500 + margin);
         });
     });
@@ -26,7 +26,7 @@ describe('timer', () => {
                 const d = Date.now() - start;
                 expect(d).toBeGreaterThan(500 * count - margin);
                 expect(d).toBeLessThan(500 * count + margin);
-            }, 500, true);
+            }, null, 500, true);
             setTimeout(() => count === 2 ? resolve() : reject(), 1000 + margin);
         });
     });
