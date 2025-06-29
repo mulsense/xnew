@@ -6,25 +6,28 @@
   <script src="../../dist/xnew.js"></script>
 </head>
 
-<body style="margin: 0; height: 100vh;">
-  <div id="main" style="width: 100%; height: 100%;"></div>
+<body style="margin: 0; height: 100vh; overflow: hidden;">
+  <div id="main" style="width: 100%; height: 100%; overflow: hidden;"></div>
   <script>
     xnew("#main", (main) => {
       xnew((self) => {
-        xnew.extend(xnew.WorkSpace, {
+        xnew.extend(WorkSpace, {
           style: {
-            width: '100%',
-            height: '100%',
+            position: 'relative',
+            width: '80%',
+            height: '80%',
+            maxHeight: '100%',
             display: 'flex',
             flexDirection: 'column',
             padding: '16px',
             boxSizing: 'border-box',
             background: '#AAA',
             userSelect: 'none',
+            overflow: 'hidden',
           }
         });
-        const ws = xnew.context('workspace');
-        ws.set({ position: { x: 0, y: 0 }, scale: 1 });
+        const ws = xnew.context('xnew.WorkSpace');
+        ws.move({ position: { x: 0, y: 0 }, scale: 1 });
         xnew({ tag: 'span', style: {
           background: '#FFF',
         } }, 'Workspace Example');
@@ -32,6 +35,120 @@
       });
     });
 
+function WorkSpace(self, attributes = {}) {
+    xnew.context('xnew.WorkSpace', self);
+
+    const current = {
+        position : { x: 0, y: 0 },
+        rotation: 0,
+        scale: 1
+    }
+
+    const fix = xnew.nest(attributes);
+    fix.style.overflow = 'hidden';
+
+    xnew(Controller);
+    xnew(Grid);
+
+    const base = xnew.nest({ style: { position: 'absolute', top: '50%', left: '50%' } });
+    xnew.nest({ style: { position: 'absolute' } });
+    return {
+        get transform() {
+            return current;
+        },
+        move(transform) {
+            if (transform.position) {
+                current.position = transform.position;
+            }
+            if (transform.rotation) {
+                current.rotation = transform.rotation;
+            }
+            if (transform.scale) {
+                current.scale = transform.scale;
+            }
+        },
+        update() {
+            let text = '';
+            if (current.position) {
+                text += `translate(${current.position.x}px, ${current.position.y}px) `;
+            }
+            if (current.rotation) {
+                text += `rotate(${current.rotation}deg) `;
+            }
+            if (current.scale) {
+                text += `scale(${current.scale}) `;
+            }
+            base.style.transform = text;
+        }
+    }
+}
+function Controller(self) {
+    const ws = xnew.context('xnew.WorkSpace');
+    self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+    self.on('+scale', (scale) => {
+        if (self.element) {
+            const s = 0.2 * (scale - 1);
+            ws.move({
+                position: {
+                    x: ws.transform.position.x - (self.element.clientWidth / 2) * 0,
+                    y: ws.transform.position.y - (self.element.clientHeight / 2) * 0,
+                },
+                scale: ws.transform.scale + s,
+            });
+        }
+    });
+    self.on('+translate', (delta) => {
+        ws.move({
+            position: {
+                x: ws.transform.position.x - delta.x,
+                y: ws.transform.position.y + delta.y
+            }
+        });
+    });
+    self.on('+rotate', (delta) => {
+        // scene.rotation.x += delta.y * 0.01;
+        // xthree.scene.rotation.z += delta.x * 0.01;
+    });
+    const user = xnew(xnew.UserEvent);
+
+    user.on('-dragmove', ({ event, delta }) => {
+        if (event.target == user.element || 1) {
+            if (event.buttons & 1 || !event.buttons) {
+                xnew.emit('+rotate', { x: +delta.x, y: +delta.y });
+            }
+            if (event.buttons & 1) {
+                xnew.emit('+translate', { x: -delta.x, y: +delta.y });
+            }
+        }
+    });
+
+    user.on('-wheel', ({ delta } ) => xnew.emit('+scale', 1 + 0.001 * delta.y));
+}
+
+function Grid(self) {
+    const ws = xnew.context('xnew.WorkSpace');
+    const grid = xnew.nest({ style: { position: 'relative', width: '100%', height: '100%' } });
+    const size = 100;
+    const count = 10;
+    xnew({ style : { position: 'absolute', width: '300px', border: 'solid 1px #000' } }, (self) => {
+    });
+    // for (let i = -count; i <= count; i++) {
+    //     const lineX = xnew.nest({ style: { position: 'absolute', width: '1px', height: `${size * count}px`, backgroundColor: '#ccc' } });
+    //     lineX.style.left = `${i * size}px`;
+    //     grid.append(lineX);
+
+    //     const lineY = xnew.nest({ style: { position: 'absolute', width: `${size * count}px`, height: '1px', backgroundColor: '#ccc' } });
+    //     lineY.style.top = `${i * size}px`;
+    //     grid.append(lineY);
+    // }
+
+    return {
+        update() {
+
+        }
+    }
+  
+}
     
   </script>
 </body>

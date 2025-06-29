@@ -136,7 +136,7 @@ const unit = xnew((self) => {
     start() {
       // Called before the first update
     },
-    update(count) {
+    update() {
       // Called repeatedly at rendering speed
     },
     stop() {

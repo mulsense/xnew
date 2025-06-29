@@ -52,9 +52,9 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
 }
 
 Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-function nest(attributes: object) {
+function nest(attributes: object, text?: string): UnitElement | undefined {
     try {
-        return UnitElement.nest(attributes);
+        return UnitElement.nest(attributes, text);
     } catch (error: unknown) {
         console.error('xnew.nest(attributes): ', error);
     }

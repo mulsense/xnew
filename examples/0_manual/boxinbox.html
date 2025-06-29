@@ -23,13 +23,14 @@
         isRunning ? self.stop() : self.start();
       });
 
+      let count = 0;
       return {
         start() {
           isRunning = true;
           text.element.textContent = 'parent: start';
         },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
+        update() {
+          self.element.style.transform = `rotate(${count++}deg)`;
         },
         stop() {
           isRunning = false;
@@ -49,13 +50,14 @@
         isRunning ? self.stop() : self.start();
       });
 
+      let count = 0;
       return {
         start() {
           isRunning = true;
           text.element.textContent = 'child: start';
         },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
+        update() {
+          self.element.style.transform = `rotate(${count++}deg)`;
         },
         stop() {
           isRunning = false;

@@ -23,7 +23,7 @@ function AnalogStick(self: xnew.Unit,
     });
 
     xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%', userSelect: 'none',
             fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin,
@@ -39,7 +39,7 @@ function AnalogStick(self: xnew.Unit,
     );
 
     const target = xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%',
             userSelect: 'none',
@@ -105,7 +105,7 @@ function DPad(self: xnew.Unit,
 
     const targets = polygons.map((polygon) => {
         return xnew({
-            tagName: 'svg',
+            tag: 'svg',
             style: {
                 position: 'absolute', width: '100%', height: '100%',
                 userSelect: 'none',
@@ -116,7 +116,7 @@ function DPad(self: xnew.Unit,
     });
 
     xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%',
             userSelect: 'none',
@@ -186,7 +186,7 @@ function CircleButton(self: xnew.Unit,
     });
 
     const target = xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             width: '100%', height: '100%', cursor: 'pointer',
             userSelect: 'none',

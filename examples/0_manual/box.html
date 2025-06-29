@@ -22,13 +22,14 @@
         isRunning ? self.stop() : self.start();
       });
 
+      let count = 0;
       return {
         start() {
           isRunning = true;
           self.element.textContent = 'start';
         },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
+        update() {
+          self.element.style.transform = `rotate(${count++}deg)`;
         },
         stop() {
           isRunning = false;

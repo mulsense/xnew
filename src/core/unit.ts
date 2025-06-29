@@ -105,6 +105,11 @@ export class Unit {
             resolved: false,    // promise check
             props: {},          // properties in the component function
         });
+        
+        unit._.props.start = { value: null, count: 0 };
+        unit._.props.stop = { value: null, count: 0 };
+        unit._.props.update = { value: null, count: 0 };
+        unit._.props.finalize = { value: null, count: 0 };
 
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
@@ -123,6 +128,9 @@ export class Unit {
 
         // whether the unit promise was resolved
         UnitPromise.get(unit)?.then(() => { unit._.resolved = true; });
+
+                        let current = unit;
+                        do { current._.props[key].count++; } while (current = current._.input.parent);
     }
 
     static finalize(unit: Unit): void {
@@ -131,8 +139,15 @@ export class Unit {
 
             unit._.children.forEach((unit: Unit) => unit.finalize());
 
-            if (typeof unit._.props.finalize === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
+            ['start', 'update', 'stop', 'finalize'].forEach((key) => {
+                if (unit._.props[key].value !== null) {
+                    let current = unit;
+                    do { current._.props[key].count--; } while (current = current._.input.parent);
+                }
+            });
+
+            if (typeof unit._.props.finalize.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize.value);
             }
 
             UnitEvent.off(unit);
@@ -162,11 +177,14 @@ export class Unit {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
             if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof descripter?.value === 'function') {
                 if (typeof descripter?.value === 'function') {
-                    const previous = unit._.props[key];
-                    if (previous !== undefined) {
-                        unit._.props[key] = (...args: any[]) => { previous(...args); descripter.value(...args); };
+                    const previous = unit._.props[key].value;
+                    if (previous !== null) {
+                        unit._.props[key].value = (...args: any[]) => { previous(...args); descripter.value(...args); };
                     } else {
-                        unit._.props[key] = (...args: any[]) => { descripter.value(...args); };
+                        unit._.props[key].value = (...args: any[]) => { descripter.value(...args); };
+                        
+                        let current = unit;
+                        do { current._.props[key].count++; } while (current = current._.input.parent);
                     }
                 } else {
                     throw new Error(`The property "${key}" is invalid.`);
@@ -196,8 +214,8 @@ export class Unit {
         if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
-            if (typeof unit._.props.start === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
+            if (typeof unit._.props.start.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start.value);
             }
         } else if (unit._.state === 'running') {
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
@@ -208,25 +226,24 @@ export class Unit {
         if (unit._.state === 'running') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
-            if (typeof unit._.props.stop === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
+            if (typeof unit._.props.stop.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop.value);
             }
         }
     }
 
     static update(unit: Unit, time: number): void {
-        if (['running'].includes(unit._.state) === true) {
+        if (unit._.state === 'running') {
             unit._.children.forEach((unit: Unit) => Unit.update(unit, time));
 
-            if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
+            if (unit._.state === 'running' && typeof unit._.props.update.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update.value, unit._.upcount++);
             }
         }
     }
 
     static ticker(time: number) {
         Unit.roots.forEach((unit) => {
-            Unit.start(unit, time);
             Unit.update(unit, time);
         });
     }
@@ -349,7 +366,7 @@ export class UnitElement {
         UnitElement.elements.delete(unit);
     }
 
-    static nest(attributes: Record<string, any>): Element {
+    static nest(attributes: Record<string, any>, text?: string): Element {
         const unit = UnitScope.current;
         if (unit === null) {
             throw new Error(`This function can not be called outside xnew.`);
@@ -361,6 +378,9 @@ export class UnitElement {
             throw new Error(`This function can not be called after initialized.`);
         }
         const element = UnitElement.append(current, attributes);
+        if (text !== undefined && typeof text === 'string') {
+            element.textContent = text;
+        }
         UnitElement.elements.get(unit)?.push(element);
         return element;
     }

@@ -36,8 +36,8 @@ function DragEvent(self: xnew.Unit) {
         win.on('pointermove', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
-                const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew.emit('-dragmove', { event, position, movement });
+                const delta = { x: position.x - previous.x, y: position.y - previous.y };
+                xnew.emit('-dragmove', { event, position, delta });
                 previous = position;
             }
         });
@@ -74,7 +74,7 @@ function GestureEvent(self: xnew.Unit) {
         }
     });
 
-    drag.on('-dragmove', ({ event, position, movement }: any) => {
+    drag.on('-dragmove', ({ event, position, delta }: any) => {
         if (isActive === true) {
             const a = map.get(event.pointerId);
             const b = getOthers(event.pointerId)[0];
@@ -83,11 +83,11 @@ function GestureEvent(self: xnew.Unit) {
             {
                 const v = { x: a.x - b.x, y: a.y - b.y };
                 const s = v.x * v.x + v.y * v.y;
-                scale = 1 + (s > 0.0 ? (v.x * movement.x + v.y * movement.y) / s : 0);
+                scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
             }
             let rotate = 0.0;
             {
-                const c = { x: a.x + movement.x, y: a.y + movement.y };
+                const c = { x: a.x + delta.x, y: a.y + delta.y };
                 const v1 = { x: a.x - b.x, y: a.y - b.y };
                 const v2 = { x: c.x - b.x, y: c.y - b.y };
                 const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
@@ -100,7 +100,7 @@ function GestureEvent(self: xnew.Unit) {
                 }
             }
 
-            xnew.emit('-gesturemove', { event, position, movement, scale });
+            xnew.emit('-gesturemove', { event, position, delta, scale });
         }
         map.set(event.pointerId, position);
     });

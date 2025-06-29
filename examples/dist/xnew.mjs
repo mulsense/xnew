@@ -339,6 +339,10 @@ class Unit {
             resolved: false, // promise check
             props: {}, // properties in the component function
         });
+        unit._.props.start = { value: null, stacks: 0 };
+        unit._.props.update = { value: null, stacks: 0 };
+        unit._.props.stop = { value: null, stacks: 0 };
+        unit._.props.finalize = { value: null, stacks: 0 };
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
         // nest html element
@@ -359,8 +363,16 @@ class Unit {
         if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
             unit._.state = 'pre finalized';
             unit._.children.forEach((unit) => unit.finalize());
-            if (typeof unit._.props.finalize === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
+            ['start', 'update', 'stop', 'finalize'].forEach((key) => {
+                if (unit._.props[key].value !== null) {
+                    let current = unit;
+                    do {
+                        current._.props[key].stacks--;
+                    } while (current = current._.input.parent);
+                }
+            });
+            if (typeof unit._.props.finalize.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize.value);
             }
             UnitEvent.off(unit);
             UnitScope.finalize(unit);
@@ -386,12 +398,16 @@ class Unit {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
             if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                 if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
-                    const previous = unit._.props[key];
-                    if (previous !== undefined) {
-                        unit._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
+                    const previous = unit._.props[key].value;
+                    if (previous !== null) {
+                        unit._.props[key].value = (...args) => { previous(...args); descripter.value(...args); };
                     }
                     else {
-                        unit._.props[key] = (...args) => { descripter.value(...args); };
+                        unit._.props[key].value = (...args) => { descripter.value(...args); };
+                        let current = unit;
+                        do {
+                            current._.props[key].stacks++;
+                        } while (current = current._.input.parent);
                     }
                 }
                 else {
@@ -427,28 +443,36 @@ class Unit {
         if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child) => Unit.start(child, time));
-            if (typeof unit._.props.start === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
+            if (unit._.props.start.stacks > 0) {
+                if (typeof unit._.props.start.value === 'function') {
+                    UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start.value);
+                }
             }
         }
         else if (unit._.state === 'running') {
-            unit._.children.forEach((child) => Unit.start(child, time));
+            if (unit._.props.start.stacks > 0) {
+                unit._.children.forEach((child) => Unit.start(child, time));
+            }
         }
     }
     static stop(unit) {
         if (unit._.state === 'running') {
             unit._.state = 'stopped';
-            unit._.children.forEach((child) => Unit.stop(child));
-            if (typeof unit._.props.stop === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
+            if (unit._.props.stop.stacks > 0) {
+                unit._.children.forEach((child) => Unit.stop(child));
+                if (typeof unit._.props.stop.value === 'function') {
+                    UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop.value);
+                }
             }
         }
     }
     static update(unit, time) {
-        if (['running'].includes(unit._.state) === true) {
-            unit._.children.forEach((unit) => Unit.update(unit, time));
-            if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
+        if (unit._.state === 'running') {
+            if (unit._.props.update.stacks > 0) {
+                unit._.children.forEach((unit) => Unit.update(unit, time));
+                if (unit._.state === 'running' && typeof unit._.props.update.value === 'function') {
+                    UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update.value, unit._.upcount++);
+                }
             }
         }
     }
@@ -558,7 +582,7 @@ class UnitElement {
         }
         UnitElement.elements.delete(unit);
     }
-    static nest(attributes) {
+    static nest(attributes, text) {
         var _a;
         const unit = UnitScope.current;
         if (unit === null) {
@@ -572,6 +596,9 @@ class UnitElement {
             throw new Error(`This function can not be called after initialized.`);
         }
         const element = UnitElement.append(current, attributes);
+        if (text !== undefined && typeof text === 'string') {
+            element.textContent = text;
+        }
         (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
         return element;
     }
@@ -817,9 +844,9 @@ const xnew$1 = function (...args) {
     }
 };
 Object.defineProperty(xnew$1, 'nest', { enumerable: true, value: nest });
-function nest(attributes) {
+function nest(attributes, text) {
     try {
-        return UnitElement.nest(attributes);
+        return UnitElement.nest(attributes, text);
     }
     catch (error) {
         console.error('xnew.nest(attributes): ', error);
@@ -1036,8 +1063,8 @@ function DragEvent(self) {
         win.on('pointermove', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
-                const movement = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew$1.emit('-dragmove', { event, position, movement });
+                const delta = { x: position.x - previous.x, y: position.y - previous.y };
+                xnew$1.emit('-dragmove', { event, position, delta });
                 previous = position;
             }
         });
@@ -1069,7 +1096,7 @@ function GestureEvent(self) {
             xnew$1.emit('-gesturestart', {});
         }
     });
-    drag.on('-dragmove', ({ event, position, movement }) => {
+    drag.on('-dragmove', ({ event, position, delta }) => {
         if (isActive === true) {
             const a = map.get(event.pointerId);
             const b = getOthers(event.pointerId)[0];
@@ -1077,14 +1104,14 @@ function GestureEvent(self) {
             {
                 const v = { x: a.x - b.x, y: a.y - b.y };
                 const s = v.x * v.x + v.y * v.y;
-                scale = 1 + (s > 0.0 ? (v.x * movement.x + v.y * movement.y) / s : 0);
+                scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
             }
             {
-                const c = { x: a.x + movement.x, y: a.y + movement.y };
+                const c = { x: a.x + delta.x, y: a.y + delta.y };
                 ({ x: a.x - b.x, y: a.y - b.y });
                 ({ x: c.x - b.x, y: c.y - b.y });
             }
-            xnew$1.emit('-gesturemove', { event, position, movement, scale });
+            xnew$1.emit('-gesturemove', { event, position, delta, scale });
         }
         map.set(event.pointerId, position);
     });
@@ -1223,12 +1250,13 @@ function WorkSpace(self, attributes = {}) {
     local.style = Object.assign((_a = local.style) !== null && _a !== void 0 ? _a : {}, { overflow: 'hidden', });
     xnew$1.nest(local);
     xnew$1(Controller);
-    const base = xnew$1.nest({});
+    const base = xnew$1.nest({ style: { position: 'absolute', top: '0px', left: '0px' } });
+    xnew$1(Grid);
     return {
         get transform() {
             return current;
         },
-        set(transform) {
+        move(transform) {
             if (transform.position) {
                 current.position = transform.position;
             }
@@ -1255,46 +1283,60 @@ function WorkSpace(self, attributes = {}) {
     };
 }
 function Controller(self) {
-    var _a;
     const ws = xnew$1.context('workspace');
     self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-    console.log((_a = self.element) === null || _a === void 0 ? void 0 : _a.clientWidth);
     self.on('+scale', (scale) => {
         if (self.element) {
             const s = 0.2 * (scale - 1);
-            ws.set({
+            ws.move({
                 position: {
-                    x: ws.transform.position.x + (ws.transform.position.x) * s,
-                    y: ws.transform.position.y + (ws.transform.position.y - self.element.clientHeight / 2) * s,
+                    x: ws.transform.position.x - (ws.transform.position.x + self.element.clientWidth / 2) * s,
+                    y: ws.transform.position.y - (ws.transform.position.y + self.element.clientHeight / 2) * s,
                 },
                 scale: ws.transform.scale + s,
             });
         }
     });
-    self.on('+translate', (movement) => {
-        ws.set({
+    self.on('+translate', (delta) => {
+        ws.move({
             position: {
-                x: ws.transform.position.x - movement.x,
-                y: ws.transform.position.y + movement.y
+                x: ws.transform.position.x - delta.x,
+                y: ws.transform.position.y + delta.y
             }
         });
     });
-    self.on('+rotate', (movement) => {
-        // scene.rotation.x += movement.y * 0.01;
-        // xthree.scene.rotation.z += movement.x * 0.01;
+    self.on('+rotate', (delta) => {
+        // scene.rotation.x += delta.y * 0.01;
+        // xthree.scene.rotation.z += delta.x * 0.01;
     });
-    const user = xnew$1(xnew$1.UserEvent);
-    user.on('-dragmove', ({ event, movement }) => {
+    const user = xnew$1(UserEvent);
+    user.on('-dragmove', ({ event, delta }) => {
         if (event.target == user.element) {
             if (event.buttons & 1 || !event.buttons) {
-                xnew$1.emit('+rotate', { x: +movement.x, y: +movement.y });
+                xnew$1.emit('+rotate', { x: +delta.x, y: +delta.y });
             }
             if (event.buttons & 1) {
-                xnew$1.emit('+translate', { x: -movement.x, y: +movement.y });
+                xnew$1.emit('+translate', { x: -delta.x, y: +delta.y });
             }
         }
     });
     user.on('-wheel', ({ delta }) => xnew$1.emit('+scale', 1 + 0.001 * delta.y));
+}
+function Grid(self) {
+    xnew$1.context('workspace');
+    xnew$1.nest({ style: { position: 'absolute', top: '0px', left: '0px', pointerEvents: 'none' } });
+    // for (let i = -count; i <= count; i++) {
+    //     const lineX = xnew.nest({ style: { position: 'absolute', width: '1px', height: `${size * count}px`, backgroundColor: '#ccc' } });
+    //     lineX.style.left = `${i * size}px`;
+    //     grid.append(lineX);
+    //     const lineY = xnew.nest({ style: { position: 'absolute', width: `${size * count}px`, height: '1px', backgroundColor: '#ccc' } });
+    //     lineY.style.top = `${i * size}px`;
+    //     grid.append(lineY);
+    // }
+    return {
+        update() {
+        }
+    };
 }
 
 const xnew = Object.assign(xnew$1, {
