@@ -390,15 +390,10 @@
             const snapshot = UnitScope.snapshot(unit);
             Object.keys(props).forEach((key) => {
                 const descripter = Object.getOwnPropertyDescriptor(props, key);
-                if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
+                if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                     if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                         const previous = unit._.props[key];
-                        if (previous !== undefined) {
-                            unit._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
-                        }
-                        else {
-                            unit._.props[key] = (...args) => { descripter.value(...args); };
-                        }
+                        unit._.props[key] = (...args) => { previous === null || previous === void 0 ? void 0 : previous(...args); descripter.value(...args); };
                     }
                     else {
                         throw new Error(`The property "${key}" is invalid.`);
@@ -1203,13 +1198,10 @@
         };
     }
 
-    function Modal(self, attributes = {}) {
-        var _a;
-        const local = attributes;
-        local.style = Object.assign((_a = local.style) !== null && _a !== void 0 ? _a : {}, { position: 'fixed', inset: 0, });
-        const fixed = xnew$1.nest(local);
+    function Modal(self, options = {}) {
+        const absolute = xnew$1.nest({ position: 'absolute', inset: 0 });
         xnew$1().on('click', (event) => {
-            if (fixed === event.target) {
+            if (absolute === event.target) {
                 if (self.close) {
                     self.close();
                 }

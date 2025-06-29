@@ -160,14 +160,10 @@ export class Unit {
 
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-            if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof descripter?.value === 'function') {
+            if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                 if (typeof descripter?.value === 'function') {
                     const previous = unit._.props[key];
-                    if (previous !== undefined) {
-                        unit._.props[key] = (...args: any[]) => { previous(...args); descripter.value(...args); };
-                    } else {
-                        unit._.props[key] = (...args: any[]) => { descripter.value(...args); };
-                    }
+                    unit._.props[key] = (...args: any[]) => { previous?.(...args); descripter.value(...args); };
                 } else {
                     throw new Error(`The property "${key}" is invalid.`);
                 }

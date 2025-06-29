@@ -17,13 +17,8 @@
             width: '80%',
             height: '80%',
             maxHeight: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '16px',
-            boxSizing: 'border-box',
-            background: '#AAA',
+            // background: '#AAA',
             userSelect: 'none',
-            overflow: 'hidden',
           }
         });
         const ws = xnew.context('xnew.WorkSpace');
@@ -128,10 +123,12 @@ function Controller(self) {
 function Grid(self) {
     const ws = xnew.context('xnew.WorkSpace');
     const grid = xnew.nest({ style: { position: 'relative', width: '100%', height: '100%' } });
-    const size = 100;
-    const count = 10;
-    xnew({ style : { position: 'absolute', width: '300px', border: 'solid 1px #000' } }, (self) => {
-    });
+    const size = 20;
+    const offset = { x: 0, y: 0 };
+    grid.style.backgroundImage = 'radial-gradient(circle, #06b6d4 1.5px, transparent 1.5px)';
+    grid.style.backgroundPosition = `${offset.x}px ${offset.y}px`;
+    grid.style.backgroundSize = `${size}px ${size}px`;
+
     // for (let i = -count; i <= count; i++) {
     //     const lineX = xnew.nest({ style: { position: 'absolute', width: '1px', height: `${size * count}px`, backgroundColor: '#ccc' } });
     //     lineX.style.left = `${i * size}px`;
@@ -144,6 +141,8 @@ function Grid(self) {
 
     return {
         update() {
+          const s = size * ws.transform.scale;
+          grid.style.backgroundSize = `${s}px ${s}px`;
 
         }
     }
