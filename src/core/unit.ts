@@ -129,8 +129,6 @@ export class Unit {
         // whether the unit promise was resolved
         UnitPromise.get(unit)?.then(() => { unit._.resolved = true; });
 
-                        let current = unit;
-                        do { current._.props[key].count++; } while (current = current._.input.parent);
     }
 
     static finalize(unit: Unit): void {

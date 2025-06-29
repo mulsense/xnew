@@ -339,10 +339,10 @@ class Unit {
             resolved: false, // promise check
             props: {}, // properties in the component function
         });
-        unit._.props.start = { value: null, stacks: 0 };
-        unit._.props.update = { value: null, stacks: 0 };
-        unit._.props.stop = { value: null, stacks: 0 };
-        unit._.props.finalize = { value: null, stacks: 0 };
+        unit._.props.start = { value: null, count: 0 };
+        unit._.props.stop = { value: null, count: 0 };
+        unit._.props.update = { value: null, count: 0 };
+        unit._.props.finalize = { value: null, count: 0 };
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
         // nest html element
@@ -358,6 +358,10 @@ class Unit {
         }
         // whether the unit promise was resolved
         (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
+        let current = unit;
+        do {
+            current._.props[key].count++;
+        } while (current = current._.input.parent);
     }
     static finalize(unit) {
         if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
@@ -367,7 +371,7 @@ class Unit {
                 if (unit._.props[key].value !== null) {
                     let current = unit;
                     do {
-                        current._.props[key].stacks--;
+                        current._.props[key].count--;
                     } while (current = current._.input.parent);
                 }
             });
@@ -406,7 +410,7 @@ class Unit {
                         unit._.props[key].value = (...args) => { descripter.value(...args); };
                         let current = unit;
                         do {
-                            current._.props[key].stacks++;
+                            current._.props[key].count++;
                         } while (current = current._.input.parent);
                     }
                 }
@@ -443,42 +447,33 @@ class Unit {
         if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child) => Unit.start(child, time));
-            if (unit._.props.start.stacks > 0) {
-                if (typeof unit._.props.start.value === 'function') {
-                    UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start.value);
-                }
+            if (typeof unit._.props.start.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start.value);
             }
         }
         else if (unit._.state === 'running') {
-            if (unit._.props.start.stacks > 0) {
-                unit._.children.forEach((child) => Unit.start(child, time));
-            }
+            unit._.children.forEach((child) => Unit.start(child, time));
         }
     }
     static stop(unit) {
         if (unit._.state === 'running') {
             unit._.state = 'stopped';
-            if (unit._.props.stop.stacks > 0) {
-                unit._.children.forEach((child) => Unit.stop(child));
-                if (typeof unit._.props.stop.value === 'function') {
-                    UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop.value);
-                }
+            unit._.children.forEach((child) => Unit.stop(child));
+            if (typeof unit._.props.stop.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop.value);
             }
         }
     }
     static update(unit, time) {
         if (unit._.state === 'running') {
-            if (unit._.props.update.stacks > 0) {
-                unit._.children.forEach((unit) => Unit.update(unit, time));
-                if (unit._.state === 'running' && typeof unit._.props.update.value === 'function') {
-                    UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update.value, unit._.upcount++);
-                }
+            unit._.children.forEach((unit) => Unit.update(unit, time));
+            if (unit._.state === 'running' && typeof unit._.props.update.value === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update.value, unit._.upcount++);
             }
         }
     }
     static ticker(time) {
         Unit.roots.forEach((unit) => {
-            Unit.start(unit, time);
             Unit.update(unit, time);
         });
     }
