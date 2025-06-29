@@ -339,10 +339,6 @@ class Unit {
             resolved: false, // promise check
             props: {}, // properties in the component function
         });
-        unit._.props.start = { value: null, count: 0 };
-        unit._.props.stop = { value: null, count: 0 };
-        unit._.props.update = { value: null, count: 0 };
-        unit._.props.finalize = { value: null, count: 0 };
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
         // nest html element
@@ -358,25 +354,13 @@ class Unit {
         }
         // whether the unit promise was resolved
         (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
-        let current = unit;
-        do {
-            current._.props[key].count++;
-        } while (current = current._.input.parent);
     }
     static finalize(unit) {
         if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
             unit._.state = 'pre finalized';
             unit._.children.forEach((unit) => unit.finalize());
-            ['start', 'update', 'stop', 'finalize'].forEach((key) => {
-                if (unit._.props[key].value !== null) {
-                    let current = unit;
-                    do {
-                        current._.props[key].count--;
-                    } while (current = current._.input.parent);
-                }
-            });
-            if (typeof unit._.props.finalize.value === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize.value);
+            if (typeof unit._.props.finalize === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
             }
             UnitEvent.off(unit);
             UnitScope.finalize(unit);
@@ -402,16 +386,12 @@ class Unit {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
             if (['start', 'update', 'stop', 'finalize'].includes(key) && typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
                 if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
-                    const previous = unit._.props[key].value;
-                    if (previous !== null) {
-                        unit._.props[key].value = (...args) => { previous(...args); descripter.value(...args); };
+                    const previous = unit._.props[key];
+                    if (previous !== undefined) {
+                        unit._.props[key] = (...args) => { previous(...args); descripter.value(...args); };
                     }
                     else {
-                        unit._.props[key].value = (...args) => { descripter.value(...args); };
-                        let current = unit;
-                        do {
-                            current._.props[key].count++;
-                        } while (current = current._.input.parent);
+                        unit._.props[key] = (...args) => { descripter.value(...args); };
                     }
                 }
                 else {
@@ -447,8 +427,8 @@ class Unit {
         if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child) => Unit.start(child, time));
-            if (typeof unit._.props.start.value === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start.value);
+            if (typeof unit._.props.start === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
             }
         }
         else if (unit._.state === 'running') {
@@ -459,21 +439,22 @@ class Unit {
         if (unit._.state === 'running') {
             unit._.state = 'stopped';
             unit._.children.forEach((child) => Unit.stop(child));
-            if (typeof unit._.props.stop.value === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop.value);
+            if (typeof unit._.props.stop === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
             }
         }
     }
     static update(unit, time) {
-        if (unit._.state === 'running') {
+        if (['running'].includes(unit._.state) === true) {
             unit._.children.forEach((unit) => Unit.update(unit, time));
-            if (unit._.state === 'running' && typeof unit._.props.update.value === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update.value, unit._.upcount++);
+            if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
+                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
             }
         }
     }
     static ticker(time) {
         Unit.roots.forEach((unit) => {
+            Unit.start(unit, time);
             Unit.update(unit, time);
         });
     }
