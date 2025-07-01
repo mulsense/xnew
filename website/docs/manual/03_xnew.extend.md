@@ -33,7 +33,7 @@ const unit = xnew((self) => {
     update() {
       console.log('derived update');
     },
-    // Uncommenting the following will override the base 'hoge' method
+    // error
     // hoge() {
     //   console.log('derived hoge');
     // },

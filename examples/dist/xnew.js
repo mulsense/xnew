@@ -1198,10 +1198,10 @@
         };
     }
 
-    function Modal(self, options = {}) {
-        const absolute = xnew$1.nest({ position: 'absolute', inset: 0 });
+    function Modal(self) {
+        const fixed = xnew$1.nest({ style: { position: 'fixed', inset: 0 } });
         xnew$1().on('click', (event) => {
-            if (absolute === event.target) {
+            if (fixed === event.target) {
                 if (self.close) {
                     self.close();
                 }

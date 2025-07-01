@@ -23,6 +23,10 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../dist/addons/xmatter.js', 'https://unpkg.com/xnew@3.0.x/dist/addons/xmatter.js');
     code = code.replace('../../dist/addons/xutil.js', 'https://unpkg.com/xnew@3.0.x/dist/addons/xutil.js');
     code = code.replace('../../dist/addons/xaudio.js', 'https://unpkg.com/xnew@3.0.x/dist/addons/xaudio.js');
+ 
+    code = code.replace('../../thirdparty/tailwindcss/playcdn.js', 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4');
+ 
+ 
     return (
         <>
             <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/' + name} ></iframe>

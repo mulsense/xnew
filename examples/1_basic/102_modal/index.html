@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../dist/xnew.js"></script>
+  
 </head>
 
 <body>
@@ -15,7 +16,8 @@
     });
 
     function Modal(modal) {
-      xnew.extend(xnew.Modal, { style: { background: 'rgba(0, 0, 0, 0.1)' }});
+      xnew.extend(xnew.Modal);
+      modal.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
       xnew.transition((progress) => {
         modal.element.style.opacity = progress;
@@ -24,9 +26,9 @@
       xnew({ style: {
         position: 'absolute',
         inset: 0,
+        margin: 'auto',
         width: '400px',
         height: 'max-content',
-        margin: 'auto',
         border: 'solid 1px #000',
         borderRadius: '8px',
         background: '#fff',
