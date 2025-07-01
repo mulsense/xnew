@@ -59,21 +59,21 @@ export class Timer {
 
         this.status = 0;
 
-        if (document instanceof Document) {
-            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-            document.addEventListener('visibilitychange', this.visibilitychange);
-        }
-
-        this.start();
-
         this.ticker = (time: number): void => {
-            if (this.transition !== null) {
-                const progress = this.elapsed() / this.delay;
-                this.transition(progress);
-            }
+            this.transition?.(this.elapsed() / this.delay);
         };
-        if (this.transition !== null) {
-            this.transition(0.0);
+
+        this.transition?.(0.0);
+
+        if (this.delay <= 0) {
+            timeout();
+            this.transition?.(1.0);
+        } else {
+            if (document instanceof Document) {
+                this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+                document.addEventListener('visibilitychange', this.visibilitychange);
+            }
+            this.start();
             Ticker.set(this.ticker);
         }
     }
@@ -86,9 +86,7 @@ export class Timer {
         if (document instanceof Document && this.visibilitychange !== undefined) {
             document.removeEventListener('visibilitychange', this.visibilitychange);
         }
-        if (this.transition !== null) {
-            Ticker.clear(this.ticker);
-        }
+        Ticker.clear(this.ticker);
     }
 
     public elapsed(): number {

@@ -132,8 +132,9 @@ function find(component: Function): Unit[] | undefined {
     }
 }
 
-Object.defineProperty(xnew, 'timer', { enumerable: true, value: timer });
-function timer(callback: Function, delay: number): { clear: () => void } {
+Object.defineProperty(xnew, 'timer', { enumerable: true, value: timeout });
+Object.defineProperty(xnew, 'timeout', { enumerable: true, value: timeout });
+function timeout(callback: Function, delay: number): any {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self: Unit) => {
         const timer = new Timer(() => {
@@ -150,7 +151,7 @@ function timer(callback: Function, delay: number): { clear: () => void } {
 }
 
 Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
-function interval(callback: Function, delay: number): { clear: () => void } {
+function interval(callback: Function, delay: number): any {
     const snapshot = UnitScope.snapshot();
     const unit = xnew((self: Unit) => {
         const timer = new Timer(() => {
@@ -166,9 +167,14 @@ function interval(callback: Function, delay: number): { clear: () => void } {
 }
 
 Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
-function transition(callback: Function, interval: number, easing: string = 'linear'): { clear: () => void } {
+function transition(callback: Function, interval: number, easing: string = 'linear'): any {
     const snapshot = UnitScope.snapshot();
-    const unit = xnew((self: Unit) => {
+
+    let stacks: any = [];
+    let unit = xnew(Local, callback, interval, easing);
+    let isRunning = true;
+
+    function Local(self: Unit, callback: Function, interval: number, easing: string) {
         const timer = new Timer(() => {
             UnitScope.execute(snapshot, callback, 1.0);
             self.finalize();
@@ -190,11 +196,34 @@ function transition(callback: Function, interval: number, easing: string = 'line
         return {
             finalize() {
                 timer.clear();
+                isRunning = false;
+                execute();
             }
         };
-    });
+    }
+    
+    let timer: any = null;
 
-    return { clear: () => unit.finalize() };
+    function execute() {
+        if (isRunning === false && stacks.length > 0) {
+            const args: any = stacks.shift();
+            unit = xnew(Local, ...args);
+            isRunning = true;
+        }
+    }
+
+    function clear() {
+        stacks = [];
+        unit.finalize();
+    }
+
+    function next(callback: Function, interval: number, easing: string = 'linear'): any {
+        stacks.push([callback, interval, easing]);
+        execute();
+        return timer;
+    }
+    timer = { clear, next };
+    return timer;
 }
 
 // Object.defineProperty(xnew, 'css', { 

@@ -36,6 +36,7 @@
     //----------------------------------------------------------------------------------------------------
     class Timer {
         constructor(timeout, transition, delay, loop = false) {
+            var _a, _b;
             this.timeout = timeout;
             this.transition = transition;
             this.delay = delay;
@@ -44,19 +45,21 @@
             this.time = 0.0;
             this.offset = 0.0;
             this.status = 0;
-            if (document instanceof Document) {
-                this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-                document.addEventListener('visibilitychange', this.visibilitychange);
-            }
-            this.start();
             this.ticker = (time) => {
-                if (this.transition !== null) {
-                    const progress = this.elapsed() / this.delay;
-                    this.transition(progress);
-                }
+                var _a;
+                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay);
             };
-            if (this.transition !== null) {
-                this.transition(0.0);
+            (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
+            if (this.delay <= 0) {
+                timeout();
+                (_b = this.transition) === null || _b === void 0 ? void 0 : _b.call(this, 1.0);
+            }
+            else {
+                if (document instanceof Document) {
+                    this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+                    document.addEventListener('visibilitychange', this.visibilitychange);
+                }
+                this.start();
                 Ticker.set(this.ticker);
             }
         }
@@ -68,9 +71,7 @@
             if (document instanceof Document && this.visibilitychange !== undefined) {
                 document.removeEventListener('visibilitychange', this.visibilitychange);
             }
-            if (this.transition !== null) {
-                Ticker.clear(this.ticker);
-            }
+            Ticker.clear(this.ticker);
         }
         elapsed() {
             return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
@@ -905,8 +906,9 @@
             console.error('xnew.find(component): ', error);
         }
     }
-    Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: timer });
-    function timer(callback, delay) {
+    Object.defineProperty(xnew$1, 'timer', { enumerable: true, value: timeout });
+    Object.defineProperty(xnew$1, 'timeout', { enumerable: true, value: timeout });
+    function timeout(callback, delay) {
         const snapshot = UnitScope.snapshot();
         const unit = xnew$1((self) => {
             const timer = new Timer(() => {
@@ -939,7 +941,10 @@
     Object.defineProperty(xnew$1, 'transition', { enumerable: true, value: transition });
     function transition(callback, interval, easing = 'linear') {
         const snapshot = UnitScope.snapshot();
-        const unit = xnew$1((self) => {
+        let stacks = [];
+        let unit = xnew$1(Local, callback, interval, easing);
+        let isRunning = true;
+        function Local(self, callback, interval, easing) {
             const timer = new Timer(() => {
                 UnitScope.execute(snapshot, callback, 1.0);
                 self.finalize();
@@ -963,10 +968,30 @@
             return {
                 finalize() {
                     timer.clear();
+                    isRunning = false;
+                    execute();
                 }
             };
-        });
-        return { clear: () => unit.finalize() };
+        }
+        let timer = null;
+        function execute() {
+            if (isRunning === false && stacks.length > 0) {
+                const args = stacks.shift();
+                unit = xnew$1(Local, ...args);
+                isRunning = true;
+            }
+        }
+        function clear() {
+            stacks = [];
+            unit.finalize();
+        }
+        function next(callback, interval, easing = 'linear') {
+            stacks.push([callback, interval, easing]);
+            execute();
+            return timer;
+        }
+        timer = { clear, next };
+        return timer;
     }
     // Object.defineProperty(xnew, 'css', { 
     //     enumerable: true, 

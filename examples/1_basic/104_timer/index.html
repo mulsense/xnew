@@ -24,7 +24,7 @@
       xnew.transition((progress) => box.style.opacity = progress, 1000);
 
       // remove after 2 seconds
-      xnew.timer(() => self.finalize(), 2000);
+      xnew.timeout(() => self.finalize(), 2000);
 
       return {
         update(count) {

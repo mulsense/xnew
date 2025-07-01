@@ -19,27 +19,19 @@
       xnew.extend(xnew.Modal);
       modal.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
-      xnew.transition((progress) => {
-        modal.element.style.opacity = progress;
+      xnew.transition((x) => {
+        modal.element.style.opacity = x;
       }, 500, 'ease');
 
       xnew({ style: {
-        position: 'absolute',
-        inset: 0,
-        margin: 'auto',
-        width: '400px',
-        height: 'max-content',
-        border: 'solid 1px #000',
-        borderRadius: '8px',
-        background: '#fff',
+        position: 'absolute', inset: 0, margin: 'auto', width: '400px', height: 'max-content',
+        border: 'solid 1px #000', borderRadius: '8px', background: '#fff',
       }}, (self) => {
 
         // Title Bar
         xnew({ style: {
-          display: 'flex',
-          padding: '8px',
-          justifyContent: 'space-between',
-          borderBottom: 'solid 1px #000',
+          padding: '8px', borderBottom: 'solid 1px #000',
+          display: 'flex', justifyContent: 'space-between',
         }}, (self) => {
           xnew({ tag: 'span' }, 'Title');
           xnew({ tag: 'button' }, 'Close').on('click', () => modal.close());
@@ -60,8 +52,9 @@
         close() {
           xnew.transition((progress) => {
             modal.element.style.opacity = 1 - progress;
-            if (progress === 1) modal.finalize();
-          }, 500, 'ease');
+          }, 500, 'ease').next(() => {
+            modal.finalize();
+          });
         }
       }
     }
