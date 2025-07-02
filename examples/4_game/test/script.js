@@ -17,7 +17,7 @@ function Main(self) {
   oscanvas = new OffscreenCanvas(width, height);
 
   // three 
-  xnew((self) => {
+  {
     const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
     renderer.setClearColor(0x000000, 0);
     xthree.initialize({ renderer });
@@ -25,26 +25,15 @@ function Main(self) {
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);
     xthree.scene.rotation.x = -0 / 180 * Math.PI
+    
+  }
 
-    xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
-    xnew(AmbientLight);
+  // pixi
+  xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+  xpixi.initialize();
 
-    const model = xnew(Model, { size: 1, scale: 1 });
-    model.setPosition(70, 60, 0);
-    //xnew(Bowl);
-    // xnew(Cursor);
-    //xnew(Queue);
-  })
-
-  xnew((self) => {
-    // pixi
-    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xpixi.initialize();
-    xnew(ScoreText);
-    xnew(ThreeTexture);
-  });
   // xnew(Background);
-  //xnew(GameScene);
+  xnew(GameScene);
   self.on('+nextscene', xnew);
 
   const loader = new GLTFLoader();
