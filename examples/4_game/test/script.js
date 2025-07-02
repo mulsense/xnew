@@ -11,7 +11,40 @@ import xmatter from 'xnew/addons/xmatter';
 const width = 800, height = 600;
 let oscanvas = null;
 
-xnew('#main', Main);
+xnew('#main', Main2);
+
+function Main2(self) {
+  const oscanvas = new OffscreenCanvas(width, height);
+
+  // three 
+  xnew((self) => {
+    const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
+    renderer.setClearColor(0x000000, 0);
+    xthree.initialize({ renderer });
+    xthree.camera.position.set(0, 0, +10);
+    xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
+    xnew(AmbientLight);
+
+    const model = xnew(Model, { size: 1, scale: 1 });
+    model.setPosition(70, 60, 0);
+  });
+
+  // pixi
+  xnew((self) => {
+    xnew(xnew.Screen, { width, height });
+    xpixi.initialize();
+    xnew(ThreeTextureX, PIXI.Texture.from(oscanvas));
+  });
+}
+
+function ThreeTextureX(self, texture) {
+  const object = xpixi.nest(new PIXI.Sprite(texture));
+  return {
+    update() {
+          object.texture.source.update()
+    },
+  };
+}
 
 function Main(self) {
   oscanvas = new OffscreenCanvas(width, height);
