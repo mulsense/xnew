@@ -21,7 +21,7 @@
             }
         });
         xnew({
-            tagName: 'svg',
+            tag: 'svg',
             style: {
                 position: 'absolute', width: '100%', height: '100%', userSelect: 'none',
                 fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin,
@@ -34,7 +34,7 @@
         <polygon points="93 50 83 40 83 60"></polygon>
         `);
         const target = xnew({
-            tagName: 'svg',
+            tag: 'svg',
             style: {
                 position: 'absolute', width: '100%', height: '100%',
                 userSelect: 'none',
@@ -90,7 +90,7 @@
         ];
         const targets = polygons.map((polygon) => {
             return xnew({
-                tagName: 'svg',
+                tag: 'svg',
                 style: {
                     position: 'absolute', width: '100%', height: '100%',
                     userSelect: 'none',
@@ -100,7 +100,7 @@
             }, polygon);
         });
         xnew({
-            tagName: 'svg',
+            tag: 'svg',
             style: {
                 position: 'absolute', width: '100%', height: '100%',
                 userSelect: 'none',
@@ -162,7 +162,7 @@
             }
         });
         const target = xnew({
-            tagName: 'svg',
+            tag: 'svg',
             style: {
                 width: '100%', height: '100%', cursor: 'pointer',
                 userSelect: 'none',

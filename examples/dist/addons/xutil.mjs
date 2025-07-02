@@ -17,7 +17,7 @@ function AnalogStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, strok
         }
     });
     xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%', userSelect: 'none',
             fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin,
@@ -30,7 +30,7 @@ function AnalogStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, strok
         <polygon points="93 50 83 40 83 60"></polygon>
         `);
     const target = xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%',
             userSelect: 'none',
@@ -86,7 +86,7 @@ function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#0
     ];
     const targets = polygons.map((polygon) => {
         return xnew({
-            tagName: 'svg',
+            tag: 'svg',
             style: {
                 position: 'absolute', width: '100%', height: '100%',
                 userSelect: 'none',
@@ -96,7 +96,7 @@ function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#0
         }, polygon);
     });
     xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             position: 'absolute', width: '100%', height: '100%',
             userSelect: 'none',
@@ -158,7 +158,7 @@ function CircleButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, strok
         }
     });
     const target = xnew({
-        tagName: 'svg',
+        tag: 'svg',
         style: {
             width: '100%', height: '100%', cursor: 'pointer',
             userSelect: 'none',

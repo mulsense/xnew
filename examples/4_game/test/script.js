@@ -189,7 +189,8 @@ function GameScene(self) {
   //xnew(Bowl);
   // xnew(Cursor);
   //xnew(Queue);
-  xnew(ThreeTexture);
+  xpixi.canvas(oscanvas);
+  // xnew(ThreeTexture);
   // self.on('+addobject', xnew);
 
   // self.on('+gameover', () => {

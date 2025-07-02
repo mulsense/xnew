@@ -2,12 +2,20 @@ import xnew from 'xnew';
 import * as PIXI from 'pixi.js'
 
 export default {
-    initialize ({ renderer = null }: any = {}) {
+    initialize({ renderer = null }: any = {}) {
         xnew.extend(Root, { renderer });
     },
-    nest (object: any) {
+    nest(object: any) {
         xnew.extend(Connect, object);
         return object;
+    },
+    canvas(canvas: any) {
+        const texture = PIXI.Texture.from(canvas);
+        const object = new PIXI.Sprite(texture);
+        xnew.extend(Connect, object);
+        xnew(PreUpdate, () => {
+            object.texture.source.update();
+        });
     },
     get renderer() {
         return xnew.context('xpixi.root')?.renderer;
@@ -47,10 +55,15 @@ function Root(self: xnew.Unit, { renderer = null }: any) {
         root.renderer = data;
     }
 
+    root.updates = [];
+
     root.scene = new PIXI.Container();
     xnew.extend(Connect, root.scene);
     return {
         update() {
+            root.updates.forEach((update: any) => {
+                update();
+            });
             if (root.renderer && root.scene) {
                 root.renderer.render(root.scene);
             }
@@ -69,5 +82,16 @@ function Connect(self: xnew.Unit, object: any) {
                 parent.removeChild(object);
             },
         }
+    }
+}
+
+function PreUpdate(self: xnew.Unit, callback: any) {
+    const root = xnew.context('xpixi.root');
+
+    root.updates.push(callback);
+    return {
+        finalize() {
+            root.updates = root.updates.filter((update: any) => update !== callback);
+        },
     }
 }

@@ -9,6 +9,14 @@ var xpixi = {
         xnew.extend(Connect, object);
         return object;
     },
+    canvas(canvas) {
+        const texture = PIXI.Texture.from(canvas);
+        const object = new PIXI.Sprite(texture);
+        xnew.extend(Connect, object);
+        xnew(PreUpdate, () => {
+            object.texture.source.update();
+        });
+    },
     get renderer() {
         var _a;
         return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.renderer;
@@ -46,10 +54,14 @@ function Root(self, { renderer = null }) {
         (PIXI.WebGLRenderer && data instanceof PIXI.WebGLRenderer)) {
         root.renderer = data;
     }
+    root.updates = [];
     root.scene = new PIXI.Container();
     xnew.extend(Connect, root.scene);
     return {
         update() {
+            root.updates.forEach((update) => {
+                update();
+            });
             if (root.renderer && root.scene) {
                 root.renderer.render(root.scene);
             }
@@ -67,6 +79,15 @@ function Connect(self, object) {
             },
         };
     }
+}
+function PreUpdate(self, callback) {
+    const root = xnew.context('xpixi.root');
+    root.updates.push(callback);
+    return {
+        finalize() {
+            root.updates = root.updates.filter((update) => update !== callback);
+        },
+    };
 }
 
 export { xpixi as default };
