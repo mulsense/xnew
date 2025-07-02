@@ -29,8 +29,8 @@ function Main(self) {
     xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
     xnew(AmbientLight);
 
-    // const model = xnew(Model, { size: 1, scale: 1 });
-    // model.setPosition(70, 60, 0);
+    const model = xnew(Model, { size: 1, scale: 1 });
+    model.setPosition(70, 60, 0);
     //xnew(Bowl);
     // xnew(Cursor);
     //xnew(Queue);
@@ -185,8 +185,8 @@ function GameScene(self) {
 
   // xnew(Controller);
   xnew(ScoreText);
-  const model = xnew(Model, { size: 1, scale: 1 });
-  model.setPosition(70, 60, 0);
+  // const model = xnew(Model, { size: 1, scale: 1 });
+  // model.setPosition(70, 60, 0);
   //xnew(Bowl);
   // xnew(Cursor);
   //xnew(Queue);
