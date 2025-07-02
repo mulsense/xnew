@@ -14,21 +14,20 @@ let oscanvas = null;
 xnew('#main', Main);
 
 function Main(self) {
-  //oscanvas = new OffscreenCanvas(width, height);
+  oscanvas = new OffscreenCanvas(width, height);
 
   // three 
-  xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-  // const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
-  // renderer.setClearColor(0x000000, 0);
-  xthree.initialize({  });
+  const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  xthree.initialize({ renderer });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -0 / 180 * Math.PI
 
   // pixi
-  // xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-  // xpixi.initialize();
+  xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+  xpixi.initialize();
 
   // xnew(Background);
   xnew(GameScene);
