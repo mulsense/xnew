@@ -16,6 +16,13 @@ xnew('#main', Main);
 function Main(self) {
   oscanvas = new OffscreenCanvas(width, height);
 
+  {
+    // pixi
+    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+    xpixi.initialize();
+    // xnew(ScoreText);
+    //xnew(ThreeTexture);
+  }
   // three 
   {
     const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
@@ -36,13 +43,6 @@ function Main(self) {
     //xnew(Queue);
   }
 
-  {
-    // pixi
-    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xpixi.initialize();
-    // xnew(ScoreText);
-    //xnew(ThreeTexture);
-  }
   // xnew(Background);
   xnew(GameScene);
   // self.on('+nextscene', xnew);
