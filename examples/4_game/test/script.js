@@ -25,37 +25,22 @@ function Main(self) {
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -0 / 180 * Math.PI
-
-  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
-  xnew(AmbientLight);
-
-  const model = xnew(Model, { size: 1, scale: 1 });
-  model.setPosition(70, 60, 0);
-  //xnew(Bowl);
-  // xnew(Cursor);
-  //xnew(Queue);
-
-  {
-    // pixi
-    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xpixi.initialize();
-    // xnew(ScoreText);
-    //xnew(ThreeTexture);
-  }
-  // xnew(Background);
+  // pixi
+  xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+  xpixi.initialize();
   xnew(GameScene);
-  // self.on('+nextscene', xnew);
+  self.on('+nextscene', xnew);
 
-  // const loader = new GLTFLoader();
-  // loader.register((parser) => {
-  //   return new VRMLoaderPlugin(parser);
-  // });
-  // loader.load('./zundamon.vrm', () => {});
-  // loader.load('./usagi.vrm', () => {});
-  // loader.load('./kiritan.vrm', () => {});
-  // loader.load('./metan.vrm', () => {});
-  // loader.load('./zunko.vrm', () => {});
-  // loader.load('./itako.vrm', () => {});
+  const loader = new GLTFLoader();
+  loader.register((parser) => {
+    return new VRMLoaderPlugin(parser);
+  });
+  loader.load('./zundamon.vrm', () => {});
+  loader.load('./usagi.vrm', () => {});
+  loader.load('./kiritan.vrm', () => {});
+  loader.load('./metan.vrm', () => {});
+  loader.load('./zunko.vrm', () => {});
+  loader.load('./itako.vrm', () => {});
 }
 
 function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
@@ -179,13 +164,13 @@ function ThreeTexture(self) {
 function GameScene(self) {
   xmatter.initialize();
 
-  // xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
-  // xnew(AmbientLight);
+  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
+  xnew(AmbientLight);
 
-  // xnew(Controller);
+  xnew(Controller);
   xnew(ScoreText);
-  // const model = xnew(Model, { size: 1, scale: 1 });
-  // model.setPosition(70, 60, 0);
+  const model = xnew(Model, { size: 1, scale: 1 });
+  model.setPosition(70, 60, 0);
   //xnew(Bowl);
   // xnew(Cursor);
   //xnew(Queue);
