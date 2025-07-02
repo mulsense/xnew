@@ -54,13 +54,16 @@ function Main(self) {
     const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
     renderer.setClearColor(0x000000, 0);
     xthree.initialize({ renderer });
+    xthree.renderer.shadowMap.enabled = true;
+    xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);
+    xthree.scene.rotation.x = -0 / 180 * Math.PI
+
     xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
     xnew(AmbientLight);
 
     const model = xnew(Model, { size: 1, scale: 1 });
     model.setPosition(70, 60, 0);
-
     //xnew(Bowl);
     // xnew(Cursor);
     //xnew(Queue);
@@ -87,15 +90,6 @@ function Main(self) {
   // loader.load('./metan.vrm', () => {});
   // loader.load('./zunko.vrm', () => {});
   // loader.load('./itako.vrm', () => {});
-}
-function ThreeTexture(self) {
-  const texture = PIXI.Texture.from(oscanvas);
-  const object = xpixi.nest(new PIXI.Sprite(texture));
-  return {
-    update() {
-          object.texture.source.update()
-    },
-  };
 }
 
 function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
@@ -206,6 +200,15 @@ function TitleText(self) {
   object.anchor.set(0.5);
 }
 
+function ThreeTexture(self) {
+  const texture = PIXI.Texture.from(oscanvas);
+  const object = xpixi.nest(new PIXI.Sprite(texture));
+  return {
+    update() {
+          object.texture.source.update()
+    },
+  };
+}
 
 function GameScene(self) {
   xmatter.initialize();
