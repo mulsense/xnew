@@ -11,7 +11,7 @@ import xmatter from 'xnew/addons/xmatter';
 const width = 800, height = 600;
 let oscanvas = null;
 
-xnew('#main', Main2);
+xnew('#main', Main);
 
 function Main2(self) {
   const oscanvas = new OffscreenCanvas(width, height);
@@ -54,16 +54,13 @@ function Main(self) {
     const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
     renderer.setClearColor(0x000000, 0);
     xthree.initialize({ renderer });
-    xthree.renderer.shadowMap.enabled = true;
-    xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);
-    xthree.scene.rotation.x = -0 / 180 * Math.PI
-
     xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
     xnew(AmbientLight);
 
     const model = xnew(Model, { size: 1, scale: 1 });
     model.setPosition(70, 60, 0);
+
     //xnew(Bowl);
     // xnew(Cursor);
     //xnew(Queue);
@@ -78,18 +75,27 @@ function Main(self) {
   });
   // xnew(Background);
   //xnew(GameScene);
-  self.on('+nextscene', xnew);
+  // self.on('+nextscene', xnew);
 
-  const loader = new GLTFLoader();
-  loader.register((parser) => {
-    return new VRMLoaderPlugin(parser);
-  });
+  // const loader = new GLTFLoader();
+  // loader.register((parser) => {
+  //   return new VRMLoaderPlugin(parser);
+  // });
   // loader.load('./zundamon.vrm', () => {});
   // loader.load('./usagi.vrm', () => {});
   // loader.load('./kiritan.vrm', () => {});
   // loader.load('./metan.vrm', () => {});
   // loader.load('./zunko.vrm', () => {});
   // loader.load('./itako.vrm', () => {});
+}
+function ThreeTexture(self) {
+  const texture = PIXI.Texture.from(oscanvas);
+  const object = xpixi.nest(new PIXI.Sprite(texture));
+  return {
+    update() {
+          object.texture.source.update()
+    },
+  };
 }
 
 function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
@@ -200,15 +206,6 @@ function TitleText(self) {
   object.anchor.set(0.5);
 }
 
-function ThreeTexture(self) {
-  const texture = PIXI.Texture.from(oscanvas);
-  const object = xpixi.nest(new PIXI.Sprite(texture));
-  return {
-    update() {
-          object.texture.source.update()
-    },
-  };
-}
 
 function GameScene(self) {
   xmatter.initialize();
