@@ -28,7 +28,7 @@ function Main(self) {
   // pixi
   xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
   xpixi.initialize();
-  xnew(GameScene);
+  xnew(TitleScene);
   self.on('+nextscene', xnew);
 
   const loader = new GLTFLoader();
@@ -149,16 +149,6 @@ function TitleText(self) {
   const object = xpixi.nest(new PIXI.Text('tohoku drop', { fontSize: 32, fill: 0x000000 }));
   object.position.set(width / 2, height / 2);
   object.anchor.set(0.5);
-}
-
-function ThreeTexture(self) {
-  const texture = PIXI.Texture.from(oscanvas);
-  const object = xpixi.nest(new PIXI.Sprite(texture));
-  return {
-    update() {
-          object.texture.source.update()
-    },
-  };
 }
 
 function GameScene(self) {
