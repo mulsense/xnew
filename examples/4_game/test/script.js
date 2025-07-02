@@ -10,6 +10,7 @@ import xmatter from 'xnew/addons/xmatter';
 
 const width = 800, height = 600;
 let oscanvas = null;
+let txobject = null;
 
 xnew('#main', Main);
 
@@ -57,6 +58,11 @@ function Main(self) {
   // loader.load('./metan.vrm', () => {});
   // loader.load('./zunko.vrm', () => {});
   // loader.load('./itako.vrm', () => {});
+  return {
+    update() {
+      txobject?.texture.source.update()
+    }
+  }
 }
 
 function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
@@ -170,9 +176,10 @@ function TitleText(self) {
 function ThreeTexture(self) {
   const texture = PIXI.Texture.from(oscanvas);
   const object = xpixi.nest(new PIXI.Sprite(texture));
+  txobject = object;;
   return {
     update() {
-          object.texture.source.update()
+          // object.texture.source.update()
     },
   };
 }
