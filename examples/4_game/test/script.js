@@ -45,12 +45,12 @@ function Main(self) {
   });
   // xnew(Background);
   //xnew(GameScene);
-  // self.on('+nextscene', xnew);
+  self.on('+nextscene', xnew);
 
-  // const loader = new GLTFLoader();
-  // loader.register((parser) => {
-  //   return new VRMLoaderPlugin(parser);
-  // });
+  const loader = new GLTFLoader();
+  loader.register((parser) => {
+    return new VRMLoaderPlugin(parser);
+  });
   // loader.load('./zundamon.vrm', () => {});
   // loader.load('./usagi.vrm', () => {});
   // loader.load('./kiritan.vrm', () => {});
