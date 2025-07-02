@@ -153,16 +153,6 @@ function TitleText(self) {
   object.anchor.set(0.5);
 }
 
-function ThreeTexture(self) {
-  const texture = PIXI.Texture.from(oscanvas);
-  const object = xpixi.nest(new PIXI.Sprite(texture));
-  return {
-    update() {
-          object.texture.source.update()
-    },
-  };
-}
-
 function GameScene(self) {
   xmatter.initialize();
 
@@ -174,7 +164,7 @@ function GameScene(self) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xnew(ThreeTexture);
+  xpixi.insert(oscanvas);
   self.on('+addobject', xnew);
 
   self.on('+gameover', () => {
