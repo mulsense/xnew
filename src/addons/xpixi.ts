@@ -9,7 +9,7 @@ export default {
         xnew.extend(Connect, object);
         return object;
     },
-    canvas(canvas: any) {
+    insert(canvas: any) {
         const texture = PIXI.Texture.from(canvas);
         const object = new PIXI.Sprite(texture);
         xnew.extend(Connect, object);
