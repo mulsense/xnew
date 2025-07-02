@@ -17,15 +17,8 @@ xnew('#main', Main);
 function Main(self) {
   oscanvas = new OffscreenCanvas(width, height);
 
-  {
-    // pixi
-    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
-    xpixi.initialize();
-    // xnew(ScoreText);
-    //xnew(ThreeTexture);
-  }
   // three 
-  {
+  xnew((self) => {
     const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
     renderer.setClearColor(0x000000, 0);
     xthree.initialize({ renderer });
@@ -42,8 +35,15 @@ function Main(self) {
     //xnew(Bowl);
     // xnew(Cursor);
     //xnew(Queue);
-  }
+  });
 
+  {
+    // pixi
+    xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+    xpixi.initialize();
+    // xnew(ScoreText);
+    //xnew(ThreeTexture);
+  }
   // xnew(Background);
   xnew(GameScene);
   // self.on('+nextscene', xnew);
