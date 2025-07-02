@@ -31,7 +31,7 @@
             xnew.extend(Connect, object);
             return object;
         },
-        canvas(canvas) {
+        insert(canvas) {
             const texture = PIXI__namespace.Texture.from(canvas);
             const object = new PIXI__namespace.Sprite(texture);
             xnew.extend(Connect, object);
