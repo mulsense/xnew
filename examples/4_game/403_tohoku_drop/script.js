@@ -57,8 +57,8 @@ function TitleScene(self) {
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
-    const model = xnew(Model, { size: i + 1, scale: 1.2 });
-    model.setPosition(200 + i * 70, 400, 0);
+    const model = xnew(Model, { size: i + 1, scale: 1.4 });
+    model.setPosition(170 + i * 80, 400, 0);
     model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
     model.object.rotation.x = 10 / 180 * Math.PI;
   }
@@ -95,7 +95,7 @@ function GameScene(self) {
   });
 }
 function DirectionaLight(self, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2));
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2.5));
   object.position.set(x, y, z);
 
   const s = object.position.length();
@@ -112,7 +112,7 @@ function DirectionaLight(self, { x, y, z }) {
 }
 
 function AmbientLight(self) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 2));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.5));
 }
 
 function Controller(self) {
@@ -274,7 +274,7 @@ function Cursor(self) {
 
 function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
   const scale = [1.0, 1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.9, 4.2][size];
-  const r = 40 + Math.pow(3.0, scale);
+  const r = 36 + Math.pow(3.0, scale);
 
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
