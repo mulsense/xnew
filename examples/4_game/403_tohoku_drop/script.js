@@ -67,7 +67,7 @@ function TitleScene(self) {
     }
   });
 
-  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
+  xnew(DirectionaLight, { x: 2, y: 12, z: 20 });
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
