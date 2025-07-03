@@ -40,7 +40,7 @@ function Background(self) {
 
       const geometry = new THREE.PlaneGeometry(16, 14);
       const shadowMaterial = new THREE.ShadowMaterial();
-      shadowMaterial.opacity = 0.5;
+      shadowMaterial.opacity = 0.25;
       const plane = xthree.nest(new THREE.Mesh(geometry, shadowMaterial));
       plane.receiveShadow = true;
       plane.rotation.x = -1 * Math.PI / 2;
