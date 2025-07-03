@@ -9,7 +9,6 @@ import xthree from 'xnew/addons/xthree';
 import xmatter from 'xnew/addons/xmatter';
 
 const width = 800, height = 600;
-
 xnew('#main', (self) => {
   // three 
   const oscanvas = new OffscreenCanvas(width, height);
@@ -23,17 +22,8 @@ xnew('#main', (self) => {
   xnew(xnew.Screen, { width, height });
   xpixi.initialize();
 
-  // xnew(Background);
   xnew(TitleScene);
   self.on('+nextscene', xnew);
-
-  // pre fetch
-  fetch('./zundamon.vrm');
-  fetch('./usagi.vrm');
-  fetch('./kiritan.vrm');
-  fetch('./metan.vrm');
-  fetch('./zunko.vrm');
-  fetch('./itako.vrm');
 });
 
 function TitleScene(self) {
@@ -70,7 +60,6 @@ function TitleScene(self) {
   });
 }
 
-
 function GameScene(self) {
   xmatter.initialize();
 
@@ -94,25 +83,18 @@ function GameScene(self) {
     });
   });
 }
-function DirectionaLight(self, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2.5));
-  object.position.set(x, y, z);
 
-  const s = object.position.length();
+function DirectionaLight(self, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
+  object.position.set(x, y, z);
   object.castShadow = true;
-  object.shadow.mapSize.width = 1024;
-  object.shadow.mapSize.height = 1024;
-  object.shadow.camera.left = -s * 1;
-  object.shadow.camera.right = +s * 1;
-  object.shadow.camera.top = -s * 1;
-  object.shadow.camera.bottom = +s * 1;
-  object.shadow.camera.near = +s * 0.1;
-  object.shadow.camera.far = +s * 10.0;
+  object.shadow.camera.near = 0.1;
+  object.shadow.camera.far = 100.0;
   object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(self) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.5));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
 }
 
 function Controller(self) {
@@ -275,11 +257,9 @@ function Cursor(self) {
 function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
   const scale = [1.0, 1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.9, 4.2][size];
   const r = 36 + Math.pow(3.0, scale);
-
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
   const model = xnew(Model, { r, size, scale });
-
   xnew.emit('+scoreup', score);
   
   return {
@@ -294,17 +274,13 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
         if (self.mergeCheck(target)) {
           const score = self.score + target.score;
           const size = self.size + 1;
-          const hue = 0;
           const x = (self.object.x + target.object.x) / 2;
           const y = (self.object.y + target.object.y) / 2;
           const a = (self.object.rotation + target.object.rotation) / 2;
-          xnew.timeout(() => {
-            xnew.emit('+addobject', ModelBall, { x, y, a, size, score });
-            self.finalize();
-            target.finalize();
-          });
-          self.isMearged = true;
-          target.isMearged = true;
+          xnew.emit('+addobject', ModelBall, { x, y, a, size, score });
+          self.finalize();
+          target.finalize();
+          break;
         }
       }
     },
