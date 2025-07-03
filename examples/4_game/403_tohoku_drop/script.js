@@ -255,8 +255,8 @@ function Cursor(self) {
 }
 
 function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
-  const scale = [1.0, 1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.9, 4.2][size];
-  const r = 36 + Math.pow(3.0, scale);
+  const scale = [1.0, 1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.8, 3.8, 3.8][size];
+  const r = 35 + Math.pow(3.0, scale);
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
   const model = xnew(Model, { r, size, scale });
