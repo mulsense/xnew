@@ -36,101 +36,33 @@ xnew('#main', (self) => {
   fetch('./itako.vrm');
 });
 
-function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
-  const object = xthree.nest(new THREE.Object3D());
-  object.rotation.z = -r;
-
-  let path = null;
-  if (size === 2) {
-    path = './usagi.vrm';
-  } else if (size === 3) {
-    path = './kiritan.vrm';
-  } else if (size === 4) {
-    path = './metan.vrm';
-  } else if (size === 5) {
-    path = './zunko.vrm';
-  } else if (size === 6) {
-    path = './itako.vrm';
-  } else {
-    path = './zundamon.vrm';
-  }
-
-  let vrm = null;
-  xnew.promise((resolve) => {
-    const loader = new GLTFLoader();
-    loader.register((parser) => {
-      return new VRMLoaderPlugin(parser);
-    });
-    loader.load(path, (gltf) => resolve(gltf));
-  }).then((gltf) => {
-    vrm = gltf.userData.vrm;
-    vrm.scene.traverse((object) => {
-      if (object.isMesh) object.castShadow = true;
-      if (object.isMesh) object.receiveShadow = true;
-    });
-    vrm.scene.position.y = -scale * 0.5;
-    vrm.scene.scale.set(scale * 0.5, scale * 0.5, scale * 0.5);
-    object.add(vrm.scene);
+function TitleScene(self) {
+  xnew(() => {
+    const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
+    object.position.set(width / 2, height / 2 - 100);
+    object.anchor.set(0.5);
+  });
+  xnew(() => {
+    const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
+    object.position.set(width / 2, height / 2);
+    object.anchor.set(0.5);
+    return {
+      update(count) {
+        object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
+      }
+    }
   });
 
-  return {
-    object,
-    update(counter) {
-      const neck = vrm.humanoid.getNormalizedBoneNode('neck');
-      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
-      const hips = vrm.humanoid.getNormalizedBoneNode('hips');
-      const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-      const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-      const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
-      const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
-      const t = counter * 0.03;
-      neck.rotation.x = Math.sin(t * 6) * +0.1;
-      chest.rotation.x = Math.sin(t * 12) * +0.1;
-      hips.position.z = Math.sin(t * 12) * 0.1;
-      leftUpperArm.rotation.z = Math.sin(t * 12) * +0.7;
-      leftUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
-      rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
-      rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
-      leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
-      leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.8;
-      rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
-      rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.8;
-      vrm.update(t);
-    },
-    setPosition(x, y, r) {
-      const cx = width / 2;
-      const cy = height / 2;
-      const X = (x - cx) / 70;
-      const Y = - (y - cy) / 70;
-      object.position.set(X, Y, 0);
-      object.rotation.z = -r;
-    },
+  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
+  xnew(AmbientLight);
+
+  for (let i = 0; i < 7; i++) {
+    const model = xnew(Model, { size: i + 1, scale: 1.2 });
+    model.setPosition(200 + i * 70, 400, 0);
+    model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
+    model.object.rotation.x = 10 / 180 * Math.PI;
   }
-}
-
-function DirectionaLight(self, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2));
-  object.position.set(x, y, z);
-
-  const s = object.position.length();
-  object.castShadow = true;
-  object.shadow.mapSize.width = 1024;
-  object.shadow.mapSize.height = 1024;
-  object.shadow.camera.left = -s * 1;
-  object.shadow.camera.right = +s * 1;
-  object.shadow.camera.top = -s * 1;
-  object.shadow.camera.bottom = +s * 1;
-  object.shadow.camera.near = +s * 0.1;
-  object.shadow.camera.far = +s * 10.0;
-  object.shadow.camera.updateProjectionMatrix();
-}
-
-function AmbientLight(self) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 2));
-}
-
-function TitleScene(self) {
-  xnew(TitleText);
+  xpixi.connect(xthree.renderer.domElement);
 
   xnew(window).on('keydown pointerdown', () => {
     xnew.emit('+nextscene', GameScene);
@@ -138,11 +70,6 @@ function TitleScene(self) {
   });
 }
 
-function TitleText(self) {
-  const object = xpixi.nest(new PIXI.Text('tohoku drop', { fontSize: 32, fill: 0x000000 }));
-  object.position.set(width / 2, height / 2);
-  object.anchor.set(0.5);
-}
 
 function GameScene(self) {
   xmatter.initialize();
@@ -166,6 +93,26 @@ function GameScene(self) {
       self.finalize();
     });
   });
+}
+function DirectionaLight(self, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2));
+  object.position.set(x, y, z);
+
+  const s = object.position.length();
+  object.castShadow = true;
+  object.shadow.mapSize.width = 1024;
+  object.shadow.mapSize.height = 1024;
+  object.shadow.camera.left = -s * 1;
+  object.shadow.camera.right = +s * 1;
+  object.shadow.camera.top = -s * 1;
+  object.shadow.camera.bottom = +s * 1;
+  object.shadow.camera.near = +s * 0.1;
+  object.shadow.camera.far = +s * 10.0;
+  object.shadow.camera.updateProjectionMatrix();
+}
+
+function AmbientLight(self) {
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 2));
 }
 
 function Controller(self) {
@@ -221,6 +168,67 @@ function Queue(self) {
   });
 }
 
+function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
+  const object = xthree.nest(new THREE.Object3D());
+  object.rotation.z = -r;
+
+  const list = ['./zundamon.vrm', './usagi.vrm', './kiritan.vrm', './metan.vrm', './sora.vrm', './zunko.vrm', './itako.vrm'];
+  const path = size < 8 ? list[size - 1] : list[0];
+
+  let vrm = null;
+  xnew.promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.register((parser) => {
+      return new VRMLoaderPlugin(parser);
+    });
+    loader.load(path, (gltf) => resolve(gltf));
+  }).then((gltf) => {
+    vrm = gltf.userData.vrm;
+    vrm.scene.traverse((object) => {
+      if (object.isMesh) object.castShadow = true;
+      if (object.isMesh) object.receiveShadow = true;
+    });
+    vrm.scene.position.y = -scale * 0.5;
+    vrm.scene.scale.set(scale * 0.5, scale * 0.5, scale * 0.5);
+    object.add(vrm.scene);
+  });
+
+  const offset = Math.random() * 10;
+  return {
+    object,
+    update(counter) {
+      const neck = vrm.humanoid.getNormalizedBoneNode('neck');
+      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+      const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+      const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+      const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+      const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
+      const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
+      const t = (counter + offset) * 0.03;
+      neck.rotation.x = Math.sin(t * 6) * +0.1;
+      chest.rotation.x = Math.sin(t * 12) * +0.1;
+      hips.position.z = Math.sin(t * 12) * 0.1;
+      leftUpperArm.rotation.z = Math.sin(t * 12 + offset) * +0.7;
+      leftUpperArm.rotation.x = Math.sin(t * 6 + offset) * +0.8;
+      rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
+      rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
+      leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
+      leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.7;
+      rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
+      rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
+      vrm.update(t);
+    },
+    setPosition(x, y, r) {
+      const cx = width / 2;
+      const cy = height / 2;
+      const X = (x - cx) / 70;
+      const Y = - (y - cy) / 70;
+      object.position.set(X, Y, 0);
+      object.rotation.z = -r;
+    },
+  }
+}
+
 function Cursor(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 40);
@@ -265,10 +273,12 @@ function Cursor(self) {
 }
 
 function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
-  const r = 26 + Math.pow(size, 2.6);
+  const scale = [1.0, 1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.9, 4.2][size];
+  const r = 40 + Math.pow(3.0, scale);
+
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
-  const model = xnew(Model, { r, size, scale: Math.pow(size, 0.8) });
+  const model = xnew(Model, { r, size, scale });
 
   xnew.emit('+scoreup', score);
   
@@ -288,7 +298,7 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
           const x = (self.object.x + target.object.x) / 2;
           const y = (self.object.y + target.object.y) / 2;
           const a = (self.object.rotation + target.object.rotation) / 2;
-          xnew.timer(() => {
+          xnew.timeout(() => {
             xnew.emit('+addobject', ModelBall, { x, y, a, size, score });
             self.finalize();
             target.finalize();

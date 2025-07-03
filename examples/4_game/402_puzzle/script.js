@@ -167,7 +167,7 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
           const hue = meanHue(self.hue, target.hue);
           const x = (self.object.x * self.score + target.object.x * target.score) / score;
           const y = (self.object.y * self.score + target.object.y * target.score) / score;
-          xnew.timer(() => {
+          xnew.timeout(() => {
             xnew.emit('+addobject', ColorBall, { x, y, hue, score });
             self.finalize();
             target.finalize();
