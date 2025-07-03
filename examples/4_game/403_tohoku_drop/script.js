@@ -22,19 +22,43 @@ xnew('#main', (self) => {
   xnew(xnew.Screen, { width, height });
   xpixi.initialize();
 
+  xnew(Background);
   xnew(TitleScene);
   self.on('+nextscene', xnew);
 });
 
+function Background(self) {
+  const object = xpixi.nest(new PIXI.Container());
+
+  xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
+    const sprite = new PIXI.Sprite(texture);
+    sprite.anchor.set(0);
+    sprite.scale.set(1 / 1.4);
+    object.addChild(sprite);
+    xnew((self) => {
+      const object = xthree.nest(new THREE.Object3D());
+
+      const geometry = new THREE.PlaneGeometry(16, 14);
+      const shadowMaterial = new THREE.ShadowMaterial();
+      shadowMaterial.opacity = 0.5;
+      const plane = xthree.nest(new THREE.Mesh(geometry, shadowMaterial));
+      plane.receiveShadow = true;
+      plane.rotation.x = -1 * Math.PI / 2;
+      plane.position.y = -2.9;
+      plane.position.z = -2;
+      object.add(plane);
+    });
+  });
+}
 function TitleScene(self) {
   xnew(() => {
     const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
-    object.position.set(width / 2, height / 2 - 100);
+    object.position.set(width / 2, height / 2 - 150);
     object.anchor.set(0.5);
   });
   xnew(() => {
     const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
-    object.position.set(width / 2, height / 2);
+    object.position.set(width / 2, height / 2 - 50);
     object.anchor.set(0.5);
     return {
       update(count) {
@@ -48,7 +72,7 @@ function TitleScene(self) {
 
   for (let i = 0; i < 7; i++) {
     const model = xnew(Model, { size: i + 1, scale: 1.4 });
-    model.setPosition(170 + i * 80, 400, 0);
+    model.setPosition(140 + i * 90, 450, 0);
     model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
     model.object.rotation.x = 10 / 180 * Math.PI;
   }
