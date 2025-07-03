@@ -1,7 +1,7 @@
 declare const _default: {
-    initialize({ renderer }?: any): void;
+    initialize({ renderer, canvas }?: any): void;
     nest(object: any): any;
-    insert(canvas: any): void;
+    connect(canvas: any): void;
     readonly renderer: any;
     readonly scene: any;
 };

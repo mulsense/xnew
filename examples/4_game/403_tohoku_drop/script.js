@@ -9,41 +9,32 @@ import xthree from 'xnew/addons/xthree';
 import xmatter from 'xnew/addons/xmatter';
 
 const width = 800, height = 600;
-let oscanvas = null;
 
-xnew('#main', Main);
-
-function Main(self) {
-  oscanvas = new OffscreenCanvas(width, height);
-
+xnew('#main', (self) => {
   // three 
-  const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
-  renderer.setClearColor(0x000000, 0);
-  xthree.initialize({ renderer });
+  const oscanvas = new OffscreenCanvas(width, height);
+  xthree.initialize({ canvas: oscanvas });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -0 / 180 * Math.PI
 
   // pixi
-  xnew({ style: { position: 'absolute', inset: '0' } }, xnew.Screen, { width, height });
+  xnew(xnew.Screen, { width, height });
   xpixi.initialize();
 
   // xnew(Background);
   xnew(TitleScene);
   self.on('+nextscene', xnew);
 
-  const loader = new GLTFLoader();
-  loader.register((parser) => {
-    return new VRMLoaderPlugin(parser);
-  });
-  loader.load('./zundamon.vrm', () => {});
-  loader.load('./usagi.vrm', () => {});
-  loader.load('./kiritan.vrm', () => {});
-  loader.load('./metan.vrm', () => {});
-  loader.load('./zunko.vrm', () => {});
-  loader.load('./itako.vrm', () => {});
-}
+  // pre fetch
+  fetch('./zundamon.vrm');
+  fetch('./usagi.vrm');
+  fetch('./kiritan.vrm');
+  fetch('./metan.vrm');
+  fetch('./zunko.vrm');
+  fetch('./itako.vrm');
+});
 
 function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
   const object = xthree.nest(new THREE.Object3D());
@@ -164,7 +155,7 @@ function GameScene(self) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xpixi.insert(oscanvas);
+  xpixi.connect(xthree.renderer.domElement);
   self.on('+addobject', xnew);
 
   self.on('+gameover', () => {
@@ -280,7 +271,6 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
   const model = xnew(Model, { r, size, scale: Math.pow(size, 0.8) });
 
   xnew.emit('+scoreup', score);
-  xnew(ColorBallText, { score });
   
   return {
     r, score, size, isMearged: false,
@@ -318,11 +308,6 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
       return true;
     }
   }
-}
-
-function ColorBallText(self, { score }) {
-  const object = xpixi.nest(new PIXI.Text(score, { fontSize: 34 + 6 * score, fill: 0xffffff }));
-  object.anchor.set(0.5);
 }
 
 function GameOverText(self) {

@@ -8,33 +8,18 @@ const width = 800, height = 400;
 xnew('#main', Main);
 
 function Main(self) {
-  const oscanvas = new OffscreenCanvas(width, height);
-
   // three 
-  xnew((self) => {
-    const renderer = new THREE.WebGLRenderer({ canvas: oscanvas, alpha: true });
-    renderer.setClearColor(0x000000, 0);
-    xthree.initialize({ renderer });
-    xthree.camera.position.set(0, 0, +100);
-    xnew(Cubes);
-  });
+  const oscanvas = new OffscreenCanvas(width, height);
+  xthree.initialize({ canvas: oscanvas });
+  xthree.camera.position.set(0, 0, +100);
 
   // pixi
-  xnew((self) => {
-    xnew(xnew.Screen, { width, height });
-    xpixi.initialize();
-    xnew(ThreeTexture, PIXI.Texture.from(oscanvas));
-    xnew(Boxes);
-  });
-}
+  xnew(xnew.Screen, { width, height });
+  xpixi.initialize();
+  xpixi.connect(oscanvas);
 
-function ThreeTexture(self, texture) {
-  const object = xpixi.nest(new PIXI.Sprite(texture));
-  return {
-    update() {
-          object.texture.source.update()
-    },
-  };
+  xnew(Cubes);
+  xnew(Boxes);
 }
 
 function Boxes(self) {

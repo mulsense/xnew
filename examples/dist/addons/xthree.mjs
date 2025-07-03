@@ -2,8 +2,8 @@ import xnew from 'xnew';
 import * as THREE from 'three';
 
 var xthree = {
-    initialize({ renderer = null, camera = null } = {}) {
-        xnew.extend(Root, { renderer, camera });
+    initialize({ renderer = null, canvas = null, camera = null } = {}) {
+        xnew.extend(Root, { renderer, canvas, camera });
     },
     nest(object) {
         xnew.extend(Connect, object);
@@ -22,11 +22,15 @@ var xthree = {
         return (_a = xnew.context('xthree.root')) === null || _a === void 0 ? void 0 : _a.scene;
     },
 };
-function Root(self, { renderer, camera }) {
+function Root(self, { renderer, canvas, camera }) {
     const root = {};
     xnew.context('xthree.root', root);
     if (renderer !== null) {
         root.renderer = renderer;
+    }
+    else if (canvas !== null) {
+        root.renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+        root.renderer.setClearColor(0x000000, 0);
     }
     else {
         const screens = xnew.find(xnew.Screen);

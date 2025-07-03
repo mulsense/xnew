@@ -24,17 +24,17 @@
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
     var xpixi = {
-        initialize({ renderer = null } = {}) {
-            xnew.extend(Root, { renderer });
+        initialize({ renderer = null, canvas = null } = {}) {
+            xnew.extend(Root, { renderer, canvas });
         },
         nest(object) {
-            xnew.extend(Connect, object);
+            xnew.extend(Nest, object);
             return object;
         },
-        insert(canvas) {
+        connect(canvas) {
             const texture = PIXI__namespace.Texture.from(canvas);
             const object = new PIXI__namespace.Sprite(texture);
-            xnew.extend(Connect, object);
+            xnew(Nest, object);
             xnew(PreUpdate, () => {
                 object.texture.source.update();
             });
@@ -48,12 +48,18 @@
             return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.scene;
         },
     };
-    function Root(self, { renderer = null }) {
+    function Root(self, { renderer, canvas }) {
         const root = {};
         xnew.context('xpixi.root', root);
         let data;
         if (renderer !== null) {
             data = renderer;
+        }
+        else if (canvas !== null) {
+            data = PIXI__namespace.autoDetectRenderer({
+                width: canvas.width, height: canvas.height, view: canvas,
+                antialias: true, backgroundAlpha: 0,
+            });
         }
         else {
             const screens = xnew.find(xnew.Screen);
@@ -78,7 +84,7 @@
         }
         root.updates = [];
         root.scene = new PIXI__namespace.Container();
-        xnew.extend(Connect, root.scene);
+        xnew.extend(Nest, root.scene);
         return {
             update() {
                 root.updates.forEach((update) => {
@@ -90,7 +96,7 @@
             },
         };
     }
-    function Connect(self, object) {
+    function Nest(self, object) {
         const parent = xnew.context('xpixi.object');
         xnew.context('xpixi.object', object);
         if (parent) {

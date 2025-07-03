@@ -2,17 +2,17 @@ import xnew from 'xnew';
 import * as PIXI from 'pixi.js'
 
 export default {
-    initialize({ renderer = null }: any = {}) {
-        xnew.extend(Root, { renderer });
+    initialize({ renderer = null, canvas = null }: any = {}) {
+        xnew.extend(Root, { renderer, canvas });
     },
     nest(object: any) {
-        xnew.extend(Connect, object);
+        xnew.extend(Nest, object);
         return object;
     },
-    insert(canvas: any) {
+    connect(canvas: any) {
         const texture = PIXI.Texture.from(canvas);
         const object = new PIXI.Sprite(texture);
-        xnew.extend(Connect, object);
+        xnew(Nest, object);
         xnew(PreUpdate, () => {
             object.texture.source.update();
         });
@@ -25,13 +25,19 @@ export default {
     },
 };
 
-function Root(self: xnew.Unit, { renderer = null }: any) {
+function Root(self: xnew.Unit, { renderer, canvas }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xpixi.root', root);
     
     let data: any;
     if (renderer !== null) {
         data = renderer;
+    } else if (canvas !== null) {
+        data = PIXI.autoDetectRenderer({
+            width: canvas.width, height: canvas.height, view: canvas,
+            antialias: true, backgroundAlpha: 0,
+        });
+        
     } else {
         const screens = xnew.find(xnew.Screen);
         if (screens.length > 0) {
@@ -58,7 +64,7 @@ function Root(self: xnew.Unit, { renderer = null }: any) {
     root.updates = [];
 
     root.scene = new PIXI.Container();
-    xnew.extend(Connect, root.scene);
+    xnew.extend(Nest, root.scene);
     return {
         update() {
             root.updates.forEach((update: any) => {
@@ -71,7 +77,7 @@ function Root(self: xnew.Unit, { renderer = null }: any) {
     }
 }
 
-function Connect(self: xnew.Unit, object: any) {
+function Nest(self: xnew.Unit, object: any) {
     const parent = xnew.context('xpixi.object');
     xnew.context('xpixi.object', object);
 
