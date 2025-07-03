@@ -2,13 +2,8 @@ import { MapSet, MapMap, MapMapMap } from './map';
 import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
-// types
+// internal
 //----------------------------------------------------------------------------------------------------
-
-type UnitTarget = Element | Window | Document;
-
-interface UnitContext { unit: Unit | null; data: UnitContextData | null; }
-interface UnitContextData { stack: UnitContextData | null; key: string; value: any; }
 
 function isPlainObject(value: any): boolean {
     return value !== null && typeof value === 'object' && value.constructor === Object;
@@ -27,7 +22,7 @@ export class Unit {
     static roots: Unit[] = [];
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
-        let baseTarget: UnitTarget | null = null;
+        let baseTarget: Element | Window | Document | null = null;
         if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
         } else if (parent !== null) {
@@ -36,14 +31,14 @@ export class Unit {
             baseTarget = document.currentScript?.parentElement ?? document.body;
         }
 
-        this._ = Object.assign(this._, {
+        this._ = {
             id: Unit.increment++,
             root: parent?._.root ?? this,
             list: parent?._.children ?? Unit.roots,
             input: { parent, target, component, args }, 
             baseTarget,
             baseContext: UnitScope.get(parent),
-        });
+        };
 
         this._.list.push(this);
         Unit.initialize(this);
@@ -241,6 +236,9 @@ Unit.reset();
 // unit scope
 //----------------------------------------------------------------------------------------------------
 
+interface UnitContext { unit: Unit | null; data: UnitContextData | null; }
+interface UnitContextData { stack: UnitContextData | null; key: string; value: any; }
+
 export class UnitScope {
     static current: Unit | null = null;
 
@@ -428,7 +426,7 @@ export class UnitElement {
 
 export class UnitEvent {
     static units: MapSet<string, Unit> = new MapSet();
-    static listeners: MapMapMap<Unit, string, Function, [UnitTarget | null, (...args: any[]) => void]> = new MapMapMap();
+    static listeners: MapMapMap<Unit, string, Function, [Element | Window | Document | null, (...args: any[]) => void]> = new MapMapMap();
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
@@ -438,7 +436,7 @@ export class UnitEvent {
         }
         
         const snapshot = UnitScope.snapshot();
-        let target: UnitTarget | null = null;
+        let target: Element | Window | Document | null = null;
         if (unit.element instanceof Element) {
             target = unit.element;
         } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {

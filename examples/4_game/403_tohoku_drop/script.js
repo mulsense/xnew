@@ -30,7 +30,6 @@ xnew('#main', (self) => {
 function Background(self) {
   xnew((self) => {
     const object = xpixi.nest(new PIXI.Container());
-
     xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
       const sprite = new PIXI.Sprite(texture);
       sprite.anchor.set(0);
@@ -40,25 +39,23 @@ function Background(self) {
   });
   xnew((self) => {
     const object = xthree.nest(new THREE.Object3D());
-
     const geometry = new THREE.PlaneGeometry(16, 14);
-    const material = new THREE.ShadowMaterial();
-    material.opacity = 0.25;
+    const material = new THREE.ShadowMaterial({ opacity: 0.25 });
     const plane = xthree.nest(new THREE.Mesh(geometry, material));
     plane.receiveShadow = true;
     plane.rotation.x = -1 * Math.PI / 2;
-    plane.position.y = -2.9;
-    plane.position.z = -2;
+    plane.position.set(0.0, -2.9, -2.0);
     object.add(plane);
   });
 }
+
 function TitleScene(self) {
-  xnew(() => {
+  xnew((self) => {
     const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
     object.position.set(width / 2, height / 2 - 150);
     object.anchor.set(0.5);
   });
-  xnew(() => {
+  xnew((self) => {
     const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
     object.position.set(width / 2, height / 2 - 50);
     object.anchor.set(0.5);
