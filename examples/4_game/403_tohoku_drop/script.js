@@ -28,26 +28,28 @@ xnew('#main', (self) => {
 });
 
 function Background(self) {
-  const object = xpixi.nest(new PIXI.Container());
+  xnew((self) => {
+    const object = xpixi.nest(new PIXI.Container());
 
-  xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
-    const sprite = new PIXI.Sprite(texture);
-    sprite.anchor.set(0);
-    sprite.scale.set(1 / 1.4);
-    object.addChild(sprite);
-    xnew((self) => {
-      const object = xthree.nest(new THREE.Object3D());
-
-      const geometry = new THREE.PlaneGeometry(16, 14);
-      const shadowMaterial = new THREE.ShadowMaterial();
-      shadowMaterial.opacity = 0.25;
-      const plane = xthree.nest(new THREE.Mesh(geometry, shadowMaterial));
-      plane.receiveShadow = true;
-      plane.rotation.x = -1 * Math.PI / 2;
-      plane.position.y = -2.9;
-      plane.position.z = -2;
-      object.add(plane);
+    xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
+      const sprite = new PIXI.Sprite(texture);
+      sprite.anchor.set(0);
+      sprite.scale.set(1 / 1.4);
+      object.addChild(sprite);
     });
+  });
+  xnew((self) => {
+    const object = xthree.nest(new THREE.Object3D());
+
+    const geometry = new THREE.PlaneGeometry(16, 14);
+    const material = new THREE.ShadowMaterial();
+    material.opacity = 0.25;
+    const plane = xthree.nest(new THREE.Mesh(geometry, material));
+    plane.receiveShadow = true;
+    plane.rotation.x = -1 * Math.PI / 2;
+    plane.position.y = -2.9;
+    plane.position.z = -2;
+    object.add(plane);
   });
 }
 function TitleScene(self) {
