@@ -244,7 +244,7 @@ function CrashText(self, x, y, score) {
   object.anchor.set(0.5);
 
   // remove this unit after 1 second
-  xnew.timer(() => self.finalize(), 1000);
+  xnew.timeout(() => self.finalize(), 1000);
 
   return {
     update(count) {
@@ -265,7 +265,7 @@ function Crash(self, x, y, score) {
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
 
   // remove this unit after 800ms
-  xnew.timer(() => self.finalize(), 800);
+  xnew.timeout(() => self.finalize(), 800);
 
   return {
     update(count) {
