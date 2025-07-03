@@ -37,13 +37,13 @@ function Controller(self) {
   user.on('-gestureend', () => isActive = false);
   user.on('-gesturemove', ({ scale }) => xnew.emit('+scale', scale));
   
-  user.on('-dragmove', ({ event, movement }) => {
+  user.on('-dragmove', ({ event, delta }) => {
     if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
-      xnew.emit('+rotate', { x: +movement.x, y: +movement.y });
+      xnew.emit('+rotate', { x: +delta.x, y: +delta.y });
     }
     if (event.buttons & 2) {
-      xnew.emit('+translate', { x: -movement.x, y: +movement.y });
+      xnew.emit('+translate', { x: -delta.x, y: +delta.y });
     }
   });
 
