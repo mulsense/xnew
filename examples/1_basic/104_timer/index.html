@@ -20,11 +20,14 @@
       box.style.left = (Math.random() * 400 - 15) + 'px';
       box.style.top = (Math.random() * 300 - 15) + 'px';
 
-      // fade in
-      xnew.transition((progress) => box.style.opacity = progress, 1000);
-
-      // remove after 2 seconds
-      xnew.timeout(() => self.finalize(), 2000);
+      // fade in -> fade out -> finalize
+      xnew.transition((x) => {
+        box.style.opacity = x;
+      }, 1000).next((x) => {
+        box.style.opacity = 1.0 - x;
+      }, 1000).next(() => {
+        self.finalize();
+      });
 
       return {
         update(count) {
