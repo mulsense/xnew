@@ -83,27 +83,30 @@ function TitleScene(self) {
   });
 }
 
-function GameScene(self) {
+function GameScene(scene) {
   xmatter.initialize();
 
   xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
   xnew(AmbientLight);
 
-  xnew(Controller);
+  const controller = xnew(Controller);
   xnew(ScoreText);
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
   xpixi.connect(xthree.renderer.domElement);
-  self.on('+addobject', xnew);
+  scene.on('+addobject', xnew);
 
-  self.on('+gameover', () => {
+  scene.on('+gameover', () => {
     xnew(GameOverText);
+    controller.finalize();
 
-    xnew(window).on('keydown pointerdown', () => {
-      xnew.emit('+nextscene', TitleScene);
-      self.finalize();
-    });
+    xnew.timeout(() => {
+      xnew(window).on('keydown pointerdown', () => {
+        xnew.emit('+nextscene', TitleScene);
+        scene.finalize();
+      });
+    }, 1000);
   });
 }
 
@@ -292,6 +295,8 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
 
       if (self.object.y > height - 10) {
         xnew.emit('+gameover');
+        self.finalize();
+        return;
       }
       for (const target of xnew.find(ModelBall)) {
         if (self.mergeCheck(target)) {

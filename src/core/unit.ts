@@ -18,7 +18,6 @@ export class Unit {
     
     public _: { [key: string]: any } = {};
 
-    static increment: number = 0;
     static roots: Unit[] = [];
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
@@ -32,7 +31,6 @@ export class Unit {
         }
 
         this._ = {
-            id: Unit.increment++,
             root: parent?._.root ?? this,
             list: parent?._.children ?? Unit.roots,
             input: { parent, target, component, args }, 
