@@ -2,7 +2,6 @@
 `xnew` is a JavaScript library for component-oriented programming,
 providing a flexible architecture well-suited for applications with dynamic scenes and games.
 
-
 [**Visit the xnew website**](https://mulsense.github.io/xnew)
 
 <div>
