@@ -29,11 +29,9 @@
         self.finalize();
       });
 
-      return {
-        update(count) {
-          box.style.transform = `rotate(${count}deg)`;
-        },
-      };
+      self.on('update', (count) => {
+        box.style.transform = `rotate(${count}deg)`;
+      });
     }
   </script>
 </body>

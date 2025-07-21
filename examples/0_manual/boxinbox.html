@@ -23,19 +23,19 @@
         isRunning ? self.stop() : self.start();
       });
 
-      return {
-        start() {
-          isRunning = true;
-          text.element.textContent = 'parent: start';
-        },
-        update() {
-          self.element.style.transform = `rotate(${count}deg)`;
-        },
-        stop() {
-          isRunning = false;
-          text.element.textContent = 'parent: stop';
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        text.element.textContent = 'parent: start';
+      });
+
+      self.on('update', (count) => {
+        self.element.style.transform = `rotate(${count}deg)`;
+      });
+      
+      self.on('stop', () => {
+        isRunning = false;
+        text.element.textContent = 'parent: stop';
+      });
     }
 
     function Child(self) {
@@ -49,19 +49,19 @@
         isRunning ? self.stop() : self.start();
       });
 
-      return {
-        start() {
-          isRunning = true;
-          text.element.textContent = 'child: start';
-        },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
-        },
-        stop() {
-          isRunning = false;
-          text.element.textContent = 'child: stop';
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        text.element.textContent = 'child: start';
+      });
+
+      self.on('update', (count) => {
+        self.element.style.transform = `rotate(${count}deg)`;
+      });
+      
+      self.on('stop', () => {
+        isRunning = false;
+        text.element.textContent = 'child: stop';
+      });
     }
   </script>
 </body>

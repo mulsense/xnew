@@ -11,11 +11,9 @@ export function ResizeEvent(self: any) {
     if (self.element) {
         observer.observe(self.element);
     }
-    return {
-        finalize() {
-            if (self.element) {
-                observer.unobserve(self.element);
-            }
+    self.on('finalize', () => {
+        if (self.element) {
+            observer.unobserve(self.element);
         }
-    }
+    });
 }

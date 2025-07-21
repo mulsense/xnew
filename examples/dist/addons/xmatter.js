@@ -31,24 +31,20 @@
         root.isActive = true;
         root.engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
         xnew.extend(Connect, root.engine.world);
-        return {
-            update() {
-                if (root.isActive) {
-                    Matter.Engine.update(root.engine);
-                }
-            },
-        };
+        self.on('update', () => {
+            if (root.isActive) {
+                Matter.Engine.update(root.engine);
+            }
+        });
     }
     function Connect(self, object) {
         const parent = xnew.context('xmatter.object');
         xnew.context('xmatter.object', object);
         if (parent) {
             Matter.Composite.add(parent, object);
-            return {
-                finalize() {
-                    Matter.Composite.remove(parent, object);
-                },
-            };
+            self.on('finalize', () => {
+                Matter.Composite.remove(parent, object);
+            });
         }
     }
 

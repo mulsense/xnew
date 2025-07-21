@@ -12,10 +12,11 @@ Here is an example demonstrating how to use `xnew.extend`:
 ```js
 // Base component function
 function Base(self) {
+  self.on('update', () => {
+    console.log('base update');
+  });
+
   return {
-    update() {
-      console.log('base update');
-    },
     hoge() {
       console.log('base hoge');
     },
@@ -28,11 +29,11 @@ function Base(self) {
 const unit = xnew((self) => {
   // Extend the current component with the Base component
   xnew.extend(Base);
+  self.on('update', () => {
+    console.log('derived update');
+  });
 
   return {
-    update() {
-      console.log('derived update');
-    },
     // error
     // hoge() {
     //   console.log('derived hoge');

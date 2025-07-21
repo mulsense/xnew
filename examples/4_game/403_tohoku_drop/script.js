@@ -202,30 +202,32 @@ function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
   });
 
   const offset = Math.random() * 10;
+
+  self.on('update', (count) => {
+    const neck = vrm.humanoid.getNormalizedBoneNode('neck');
+    const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+    const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+    const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+    const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+    const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
+    const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
+    const t = (count + offset) * 0.03;
+    neck.rotation.x = Math.sin(t * 6) * +0.1;
+    chest.rotation.x = Math.sin(t * 12) * +0.1;
+    hips.position.z = Math.sin(t * 12) * 0.1;
+    leftUpperArm.rotation.z = Math.sin(t * 12 + offset) * +0.7;
+    leftUpperArm.rotation.x = Math.sin(t * 6 + offset) * +0.8;
+    rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
+    rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
+    leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
+    leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.7;
+    rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
+    rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
+    vrm.update(t);
+  });
+
   return {
     object,
-    update(counter) {
-      const neck = vrm.humanoid.getNormalizedBoneNode('neck');
-      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
-      const hips = vrm.humanoid.getNormalizedBoneNode('hips');
-      const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-      const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-      const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
-      const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
-      const t = (counter + offset) * 0.03;
-      neck.rotation.x = Math.sin(t * 6) * +0.1;
-      chest.rotation.x = Math.sin(t * 12) * +0.1;
-      hips.position.z = Math.sin(t * 12) * 0.1;
-      leftUpperArm.rotation.z = Math.sin(t * 12 + offset) * +0.7;
-      leftUpperArm.rotation.x = Math.sin(t * 6 + offset) * +0.8;
-      rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
-      rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
-      leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
-      leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.7;
-      rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
-      rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
-      vrm.update(t);
-    },
     setPosition(x, y, r) {
       const cx = width / 2;
       const cy = height / 2;
@@ -270,14 +272,12 @@ function Cursor(self) {
     } 
   });
 
-  return {
-    update() {
-      object.rotation += 0.02;
-      if (model) {
-        model.setPosition(object.x, object.y + offset, 0);
-      }
+  self.on('update', () => {
+    object.rotation += 0.02;
+    if (model) {
+      model.setPosition(object.x, object.y + offset, 0);
     }
-  }
+  });
 }
 
 function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
@@ -288,30 +288,29 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
   const model = xnew(Model, { r, size, scale });
   xnew.emit('+scoreup', score);
   
+  self.on('update', () => {
+    model.setPosition(self.object.x, self.object.y, self.object.rotation);
+    if (self.object.y > height - 10) {
+      xnew.emit('+gameover');
+      self.finalize();
+      return;
+    }
+    for (const target of xnew.find(ModelBall)) {
+      if (self.mergeCheck(target)) {
+        const score = self.score + target.score;
+        const size = self.size + 1;
+        const x = (self.object.x + target.object.x) / 2;
+        const y = (self.object.y + target.object.y) / 2;
+        const a = (self.object.rotation + target.object.rotation) / 2;
+        xnew.emit('+addobject', ModelBall, { x, y, a, size, score });
+        self.finalize();
+        target.finalize();
+        break;
+      }
+    }
+  });
   return {
     r, score, size, isMearged: false,
-    update() {
-      model.setPosition(self.object.x, self.object.y, self.object.rotation);
-
-      if (self.object.y > height - 10) {
-        xnew.emit('+gameover');
-        self.finalize();
-        return;
-      }
-      for (const target of xnew.find(ModelBall)) {
-        if (self.mergeCheck(target)) {
-          const score = self.score + target.score;
-          const size = self.size + 1;
-          const x = (self.object.x + target.object.x) / 2;
-          const y = (self.object.y + target.object.y) / 2;
-          const a = (self.object.rotation + target.object.rotation) / 2;
-          xnew.emit('+addobject', ModelBall, { x, y, a, size, score });
-          self.finalize();
-          target.finalize();
-          break;
-        }
-      }
-    },
     mergeCheck(target) {
       if (self === target || self.score !== target.score) return false;
       if (self.isMearged === true || target.isMearged === true) return false;
@@ -338,12 +337,12 @@ function Circle(self, { x, y, r, color = 0xFFFFFF, alpha = 1.0 }, options = {}) 
   object.addChild(graphics);
   object.alpha = alpha;
 
+  self.on('update', () => {
+    object.rotation = pyshics.angle;
+    object.position.set(pyshics.position.x, pyshics.position.y);
+  });
   return {
     object,
-    update() {
-      object.rotation = pyshics.angle;
-      object.position.set(pyshics.position.x, pyshics.position.y);
-    },
     set color(color) {
       graphics.clear().circle(0, 0, r).fill(color);
     },

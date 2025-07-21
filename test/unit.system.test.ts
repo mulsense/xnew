@@ -16,14 +16,12 @@ describe('unit system', () => {
                 xnew.promise(new Promise<void>((resolve, reject) => {
                     setTimeout(() => resolve(), 500);
                 }));
-                return {
-                    start() {
-                        const d = Date.now() - start;
-                        expect(d).toBeGreaterThan(500 - margin);
-                        expect(d).toBeLessThan(500 + margin);
-                        state++;
-                    }
-                }
+                self.on('start', () => {
+                    const d = Date.now() - start;
+                    expect(d).toBeGreaterThan(500 - margin);
+                    expect(d).toBeLessThan(500 + margin);
+                    state++;
+                });
             });
             
             setTimeout(() => state === 1 ? resolve() : reject(), 500 + margin);

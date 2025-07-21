@@ -1,8 +1,8 @@
 declare const _default: {
-    initialize({ renderer, canvas, camera }?: any): void;
+    initialize({ engine }?: any): void;
     nest(object: any): any;
-    readonly renderer: any;
-    readonly camera: any;
-    readonly scene: any;
+    start(): void;
+    stop(): void;
+    readonly engine: any;
 };
 export default _default;

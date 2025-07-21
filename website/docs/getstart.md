@@ -10,7 +10,7 @@ sidebar_position: 1
 ### Via CDN
 Include the following script in your HTML file:
 ```html
-<script src="https://unpkg.com/xnew@3.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@4.0.x/dist/xnew.js"></script>
 ```
 
 ### Via CDN (ESM)
@@ -19,7 +19,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs"
+    "xnew": "https://unpkg.com/xnew@4.0.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -34,7 +34,7 @@ import xnew from 'xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install xnew@3.0.x
+npm install xnew@4.0.x
 ```
 
 Then import it in your JavaScript file:
@@ -137,19 +137,19 @@ Clicking on the box will toggle it start / stop.
         isRunning ? self.stop() : self.start();
       });
 
-      return {
-        start() {
-          isRunning = true;
-          text.element.textContent = 'start';
-        },
-        update(count) {
-          text.element.style.transform = `rotate(${count}deg)`;
-        },
-        stop() {
-          isRunning = false;
-          text.element.textContent = 'stop';
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        self.element.textContent = 'start';
+      });
+
+      self.on('update', (count) => {
+        self.element.style.transform = `rotate(${count}deg)`;
+      });
+      
+      self.on('stop', () => {
+        isRunning = false;
+        self.element.textContent = 'stop';
+      });
     }
   </script>
 </body>
@@ -178,19 +178,19 @@ Connected units work together. For example, stopping the parent component also s
         isRunning ? self.stop() : self.start();
       });
 
-      return {
-        start() {
-          isRunning = true;
-          text.element.textContent = 'parent: start';
-        },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
-        },
-        stop() {
-          isRunning = false;
-          text.element.textContent = 'parent: stop';
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        text.element.textContent = 'parent: start';
+      });
+
+      self.on('update', (count) => {
+        self.element.style.transform = `rotate(${count}deg)`;
+      });
+      
+      self.on('stop', () => {
+        isRunning = false;
+        text.element.textContent = 'parent: stop';
+      });
     }
 
     function ChildComponent(self) {
@@ -204,19 +204,19 @@ Connected units work together. For example, stopping the parent component also s
         isRunning ? self.stop() : self.start();
       });
 
-      return {
-        start() {
-          isRunning = true;
-          text.element.textContent = 'child: start';
-        },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
-        },
-        stop() {
-          isRunning = false;
-          text.element.textContent = 'child: stop';
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        text.element.textContent = 'child: start';
+      });
+
+      self.on('update', (count) => {
+        self.element.style.transform = `rotate(${count}deg)`;
+      });
+      
+      self.on('stop', () => {
+        isRunning = false;
+        text.element.textContent = 'child: stop';
+      });
     }
   </script>
 </body>

@@ -32,17 +32,15 @@ function Plane(self, id) {
     }, 700);
   });
 
-  return {
-    update() {
-      self.element.style.opacity = opacity;
-      self.element.style.transform = `
-            translateZ(${perspective}px) 
-            translateX(${(transform.tx + offset.tx)}px) translateY(${(transform.ty + offset.ty)}px)
-            rotateX(${transform.rx + offset.rx}deg) rotateY(${transform.ry + offset.ry + id * 90}deg) 
-            translateZ(${-perspective}px)
-          `;
-    }
-  }
+  self.on('update', () => {
+    self.element.style.opacity = opacity;
+    self.element.style.transform = `
+          translateZ(${perspective}px) 
+          translateX(${(transform.tx + offset.tx)}px) translateY(${(transform.ty + offset.ty)}px)
+          rotateX(${transform.rx + offset.rx}deg) rotateY(${transform.ry + offset.ry + id * 90}deg) 
+          translateZ(${-perspective}px)
+        `;
+  });
 }
 
 function Event(self) {
@@ -92,14 +90,12 @@ function ThreeMain(self) {
 
   xnew(ThreeContents);
   xnew(() => {
-    return {
-      update() {
-        xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
-        xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
-        xthree.camera.position.x = -(transform.tx + offset.tx);
-        xthree.camera.position.y = +(transform.ty + offset.ty);
-      },
-    }
+    self.on('update', () => {
+      xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
+      xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
+      xthree.camera.position.x = -(transform.tx + offset.tx);
+      xthree.camera.position.y = +(transform.ty + offset.ty);
+    });
   });
 }
 

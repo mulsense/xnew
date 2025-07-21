@@ -124,33 +124,51 @@ xnew({ tag: 'p', id: 'hoge' }, 'aaa');
   <p id="hoge">aaa</p>
 </body>
 ```
+## Event Listener
+Use `unit.on` to add event listeners and `unit.off` to remove them.
 
-## System Properties
+#### `unit.on`
+Adds an event listener.
+```js
+unit.on(type, listener);
+```
+
+#### `unit.off`
+Removes event listeners.
+
+```js
+unit.off();                // Removes all listeners
+unit.off(type);            // Removes listeners of a specific type
+unit.off(type, listener);  // Removes a specific listener
+```
+
+### System Events
 `unit` provides system properties for basic control. These are defined in the return value of the component function.
 
 ```js
 const unit = xnew((self) => {
   // Initialization
 
-  return {
-    start() {
-      // Called before the first update
-    },
-    update(count) {
-      // Called repeatedly at rendering speed
-    },
-    stop() {
-      // Called when unit.stop() is invoked
-    },
-    finalize() {
-      // Called when unit.finalize() is invoked
-      // Automatically called when the parent unit finalizes
-    },
-  };
+  self.on('start', () => {
+    // Called before the first update
+  });
+
+  self.on('update', (count) => {
+    // Called repeatedly at rendering speed
+  });
+
+  self.on('stop', () => {
+    // Called when unit.stop() is invoked
+  });
+
+  self.on('finalize', () => {
+    // Called when unit.finalize() is invoked
+    // Automatically called when the parent unit finalizes
+  });
 });
 ```
 
-### `unit.start`
+#### `unit.start`
 Starts the update loop. By default, `unit.start()` is called automatically.  
 To prevent this, call `unit.stop()` inside the component function.
 
@@ -158,25 +176,25 @@ To prevent this, call `unit.stop()` inside the component function.
 unit.start();
 ```
 
-### `unit.stop`
+#### `unit.stop`
 Stops the update loop.
 ```js
 unit.stop();
 ```
 
-### `unit.finalize`
+#### `unit.finalize`
 Finalizes the unit and its children. Associated elements are removed, and updates stop.
 ```js
 unit.finalize();
 ```
 
-### `unit.reboot`
+#### `unit.reboot`
 Reboots the unit using the component function.
 ```js
 unit.reboot();
 ```
 
-### Calling Order
+#### Calling Order
 The methods `start`, `update`, `stop`, and `finalize` are called in a specific order:  
 Child units are processed before their parent unit.
 
@@ -187,30 +205,24 @@ function Parent(self) {
   xnew(Child1);
   xnew(Child2);
 
-  return {
-    start() { console.log('Parent start'); },
-    update() { console.log('Parent update'); },
-    stop() { console.log('Parent stop'); },
-    finalize() { console.log('Parent finalize'); },
-  };
+  self.on('start', () => console.log('Parent start'));
+  self.on('update', () => console.log('Parent update'));
+  self.on('stop', () => console.log('Parent stop'));
+  self.on('finalize', () => console.log('Parent finalize'));
 }
 
 function Child1(self) {
-  return {
-    start() { console.log('Child1 start'); },
-    update() { console.log('Child1 update'); },
-    stop() { console.log('Child1 stop'); },
-    finalize() { console.log('Child1 finalize'); },
-  };
+  self.on('start', () => console.log('Child1 start'));
+  self.on('update', () => console.log('Child1 update'));
+  self.on('stop', () => console.log('Child1 stop'));
+  self.on('finalize', () => console.log('Child1 finalize'));
 }
 
 function Child2(self) {
-  return {
-    start() { console.log('Child2 start'); },
-    update() { console.log('Child2 update'); },
-    stop() { console.log('Child2 stop'); },
-    finalize() { console.log('Child2 finalize'); },
-  };
+  self.on('start', () => console.log('Child2 start'));
+  self.on('update', () => console.log('Child2 update'));
+  self.on('stop', () => console.log('Child2 stop'));
+  self.on('finalize', () => console.log('Child2 finalize'));
 }
 ```
 
@@ -234,50 +246,6 @@ parent.finalize();
 // Child1 finalize
 // Child2 finalize
 // Parent finalize
-```
-
-## Custom Properties
-You can define custom properties unless they conflict with system properties. Reserved names include:
-- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `_`
-
-```js
-const unit = xnew((self) => {
-  let count = 0;
-
-  return {
-    countup() {
-      count++;
-    },
-    set count(value) { // Setter
-      count = value;
-    },
-    get count() { // Getter
-      return count;
-    },
-  };
-});
-
-unit.countup();       // 0 -> 1
-unit.count = 2;       // Setter
-const x = unit.count; // Getter
-```
-
-## Event Listener
-Use `unit.on` to add event listeners and `unit.off` to remove them.
-
-### `unit.on`
-Adds an event listener.
-```js
-unit.on(type, listener);
-```
-
-### `unit.off`
-Removes event listeners.
-
-```js
-unit.off();                // Removes all listeners
-unit.off(type);            // Removes listeners of a specific type
-unit.off(type, listener);  // Removes a specific listener
 ```
 
 ### HTML Events
@@ -335,5 +303,31 @@ Use the `-` prefix to listen for events emitted within the component function.
     }, 1000);
   }
 </script>
+```
+
+## Custom Properties
+You can define custom properties unless they conflict with system properties. Reserved names include:
+- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `_`
+
+```js
+const unit = xnew((self) => {
+  let count = 0;
+
+  return {
+    countup() {
+      count++;
+    },
+    set count(value) { // Setter
+      count = value;
+    },
+    get count() { // Getter
+      return count;
+    },
+  };
+});
+
+unit.countup();       // 0 -> 1
+unit.count = 2;       // Setter
+const x = unit.count; // Getter
 ```
 

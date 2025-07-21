@@ -23,12 +23,10 @@ function Cubes(self) {
       }
     }
   }
-  return {
-    update() {
-      object.rotation.y += 0.01;
-      object.rotation.z += 0.01;
-    },
-  };
+  self.on('update', () => {
+    object.rotation.y += 0.01;
+    object.rotation.z += 0.01;
+  });
 }
 
 function Cube(self, { x, y, z, size }) {
@@ -36,11 +34,9 @@ function Cube(self, { x, y, z, size }) {
   const material = new THREE.MeshNormalMaterial();
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
-
-  return {
-    update() {
-      object.rotation.x += 0.01;
-      object.rotation.y += 0.01;
-    },
-  };
+  
+  self.on('update', () => {
+    object.rotation.x += 0.01;
+    object.rotation.y += 0.01;
+  });
 }

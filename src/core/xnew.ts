@@ -141,11 +141,9 @@ function timeout(callback: Function, delay: number): any {
             UnitScope.execute(snapshot, callback);
             self.finalize();
         }, null, delay);
-        return {
-            finalize() {
-                timer.clear();
-            }
-        };
+        self.on('finalize', () => {
+            timer.clear();
+        });
     });
     return { clear: () => unit.finalize() };
 }
@@ -157,11 +155,9 @@ function interval(callback: Function, delay: number): any {
         const timer = new Timer(() => {
             UnitScope.execute(snapshot, callback);
         }, null, delay, true);
-        return {
-            finalize() {
-                timer.clear();
-            }
-        };
+        self.on('finalize', () => {
+            timer.clear();
+        });
     });
     return { clear: () => unit.finalize() };
 }
@@ -192,14 +188,11 @@ function transition(callback: Function, interval: number, easing: string = 'line
                 UnitScope.execute(snapshot, callback, progress);
             }
         }, interval);
-
-        return {
-            finalize() {
-                timer.clear();
-                isRunning = false;
-                execute();
-            }
-        };
+        self.on('finalize', () => {
+            timer.clear();
+            isRunning = false;
+            execute();
+        });
     }
     
     let timer: any = null;

@@ -85,37 +85,31 @@
         root.updates = [];
         root.scene = new PIXI__namespace.Container();
         xnew.extend(Nest, root.scene);
-        return {
-            update() {
-                root.updates.forEach((update) => {
-                    update();
-                });
-                if (root.renderer && root.scene) {
-                    root.renderer.render(root.scene);
-                }
-            },
-        };
+        self.on('update', () => {
+            root.updates.forEach((update) => {
+                update();
+            });
+            if (root.renderer && root.scene) {
+                root.renderer.render(root.scene);
+            }
+        });
     }
     function Nest(self, object) {
         const parent = xnew.context('xpixi.object');
         xnew.context('xpixi.object', object);
         if (parent) {
             parent.addChild(object);
-            return {
-                finalize() {
-                    parent.removeChild(object);
-                },
-            };
+            self.on('finalize', () => {
+                parent.removeChild(object);
+            });
         }
     }
     function PreUpdate(self, callback) {
         const root = xnew.context('xpixi.root');
         root.updates.push(callback);
-        return {
-            finalize() {
-                root.updates = root.updates.filter((update) => update !== callback);
-            },
-        };
+        self.on('finalize', () => {
+            root.updates = root.updates.filter((update) => update !== callback);
+        });
     }
 
     return xpixi;

@@ -13,7 +13,7 @@ xnew((self) => {
 ## Example
 ```js
 xnew({ tag: 'div', name: 'A'}, (self) =>{
-self.element; // div A
+  self.element; // div A
 });
 
 xnew((self) => {

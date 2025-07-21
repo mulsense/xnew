@@ -22,19 +22,19 @@
         isRunning ? self.stop() : self.start();
       });
 
-      return {
-        start() {
-          isRunning = true;
-          self.element.textContent = 'start';
-        },
-        update(count) {
-          self.element.style.transform = `rotate(${count}deg)`;
-        },
-        stop() {
-          isRunning = false;
-          self.element.textContent = 'stop';
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        self.element.textContent = 'start';
+      });
+
+      self.on('update', (count) => {
+        self.element.style.transform = `rotate(${count}deg)`;
+      });
+      
+      self.on('stop', () => {
+        isRunning = false;
+        self.element.textContent = 'stop';
+      });
     }
   </script>
 </body>

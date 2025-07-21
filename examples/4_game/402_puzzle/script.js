@@ -140,12 +140,9 @@ function Cursor(self) {
       next = null;
     } 
   });
-
-  return {
-    update() {
-      object.rotation += 0.02;
-    }
-  }
+  self.on('update', () => {
+    object.rotation += 0.02;
+  });
 }
 
 function ColorBall(self, { x, y, hue = 0, score = 1 }) {
@@ -155,28 +152,29 @@ function ColorBall(self, { x, y, hue = 0, score = 1 }) {
   xnew.emit('+scoreup', score);
   xnew(ColorBallText, { hue, score });
   
+  self.on('update', () => {
+    if (self.object.y > height - 10) {
+      xnew.emit('+gameover');
+    }
+    for (const target of xnew.find(ColorBall)) {
+      if (self.mergeCheck(target)) {
+        const score = self.score + target.score;
+        const hue = meanHue(self.hue, target.hue);
+        const x = (self.object.x * self.score + target.object.x * target.score) / score;
+        const y = (self.object.y * self.score + target.object.y * target.score) / score;
+        xnew.timeout(() => {
+          xnew.emit('+addobject', ColorBall, { x, y, hue, score });
+          self.finalize();
+          target.finalize();
+        });
+        self.isMearged = true;
+        target.isMearged = true;
+      }
+    }
+  });
+
   return {
     r, hue, score, isMearged: false,
-    update() {
-      if (self.object.y > height - 10) {
-        xnew.emit('+gameover');
-      }
-      for (const target of xnew.find(ColorBall)) {
-        if (self.mergeCheck(target)) {
-          const score = self.score + target.score;
-          const hue = meanHue(self.hue, target.hue);
-          const x = (self.object.x * self.score + target.object.x * target.score) / score;
-          const y = (self.object.y * self.score + target.object.y * target.score) / score;
-          xnew.timeout(() => {
-            xnew.emit('+addobject', ColorBall, { x, y, hue, score });
-            self.finalize();
-            target.finalize();
-          });
-          self.isMearged = true;
-          target.isMearged = true;
-        }
-      }
-    },
     mergeCheck(target) {
       if (self === target || self.score !== target.score) return false;
       if (self.isMearged === true || target.isMearged === true) return false;
@@ -207,12 +205,13 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
   const graphics = new PIXI.Graphics().circle(0, 0, r).fill(color);
   object.position.set(x, y);
   object.addChild(graphics);
+
+  self.on('update', () => {
+    object.rotation = pyshics.angle;
+    object.position.set(pyshics.position.x, pyshics.position.y);
+  });
   return {
     object,
-    update() {
-      object.rotation = pyshics.angle;
-      object.position.set(pyshics.position.x, pyshics.position.y);
-    },
     set color(color) {
       graphics.clear().circle(0, 0, r).fill(color);
     },

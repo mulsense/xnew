@@ -29,14 +29,11 @@ function Root(self: xnew.Unit, { engine }: any) {
     root.isActive = true;
     root.engine = engine ?? Matter.Engine.create();
     xnew.extend(Connect, root.engine.world);
-
-    return {
-        update() {
-            if (root.isActive) {
-                Matter.Engine.update(root.engine);
-            }
-        },
-    }
+    self.on('update', () => {
+        if (root.isActive) {
+            Matter.Engine.update(root.engine);
+        }
+    });
 }
 
 function Connect(self: xnew.Unit, object: any) {
@@ -45,10 +42,8 @@ function Connect(self: xnew.Unit, object: any) {
 
     if (parent) {
         Matter.Composite.add(parent, object);
-        return {
-            finalize() {
-                Matter.Composite.remove(parent, object);
-            },
-        }
+        self.on('finalize', () => {
+            Matter.Composite.remove(parent, object);
+        });
     }
 }

@@ -43,12 +43,9 @@ function Root(self: xnew.Unit, { renderer, canvas, camera }: any) {
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
     xnew.extend(Connect, root.scene);
-
-    return {
-        update() {
-            root.renderer.render(root.scene, root.camera);
-        },
-    }
+    self.on('update', () => {
+        root.renderer.render(root.scene, root.camera);
+    });
 }
 
 function Connect(self: xnew.Unit, object: any) {
@@ -57,10 +54,8 @@ function Connect(self: xnew.Unit, object: any) {
 
     if (parent) {
         parent?.add(object);
-        return {
-            finalize() {
-                parent?.remove(object);
-            },
-        }
+        self.on('finalize', () => {
+            parent?.remove(object);
+        });
     }
 }

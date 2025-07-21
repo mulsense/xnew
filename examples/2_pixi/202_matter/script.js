@@ -33,12 +33,14 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().circle(0, 0, r).fill(color));
+
+  self.on('update', () => {
+    object.rotation = pyshics.angle;
+    object.position.set(pyshics.position.x, pyshics.position.y);
+  });
+
   return {
     object,
-    update() {
-      object.rotation = pyshics.angle;
-      object.position.set(pyshics.position.x, pyshics.position.y);
-    },
   };
 }
 
@@ -47,12 +49,14 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF }, options = {}) {
   const pyshics = xmatter.nest(Matter.Bodies.rectangle(x, y, w, h, options));
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-w / 2, -h / 2, w, h).fill(color));
+
+  self.on('update', () => {
+    object.rotation = pyshics.angle;
+    object.position.set(pyshics.position.x, pyshics.position.y);
+  });
+
   return {
     object,
-    update() {
-      object.rotation = pyshics.angle;
-      object.position.set(pyshics.position.x, pyshics.position.y);
-    },
   };
 }
 
@@ -65,10 +69,9 @@ function Polygon(self, { x, y, s, r, color = 0xFFFFFF }, options = {}) {
     points.push(Math.cos(i * Math.PI / 180) * r, Math.sin(i * Math.PI / 180) * r);
   }
   object.addChild(new PIXI.Graphics().regularPoly(0, 0, r, s).fill(color));
-  return {
-    update() {
+
+  self.on('update', () => {
       object.rotation = pyshics.angle;
       object.position.set(pyshics.position.x, pyshics.position.y);
-    },
-  };
+  });
 }

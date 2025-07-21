@@ -44,14 +44,12 @@ function Box(self) {
   self.on('+move', ({ vector }) => move = vector);
   self.on('+action', () => direction *= -1);
 
-  return {
-    update() {
-      current.x += move.x * 10;
-      current.y += move.y * 10;
-      current.r += direction;
-      self.element.style.left = current.x + 'px';
-      self.element.style.top = current.y + 'px';
-      self.element.style.transform = `rotate(${current.r}deg)`;
-    },
-  };
+  self.on('update', () => {
+    current.x += move.x * 10;
+    current.y += move.y * 10;
+    current.r += direction;
+    self.element.style.left = current.x + 'px';
+    self.element.style.top = current.y + 'px';
+    self.element.style.transform = `rotate(${current.r}deg)`;
+  });
 }

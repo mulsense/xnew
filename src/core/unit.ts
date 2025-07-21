@@ -69,6 +69,14 @@ export class Unit {
 
     on(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): Unit {
         try {
+            if (typeof type === 'string') {
+                const list = ['start', 'update', 'stop', 'finalize'];
+                const filtered = type.trim().split(/\s+/).filter((type) => list.includes(type));
+                filtered.forEach((type) => {
+                    this._.system[type].push(listener);
+                });
+            }
+
             UnitEvent.on(this, type, listener, options);
         } catch (error) {
             console.error('unit.on(type, listener, option?): ', error);
@@ -78,6 +86,20 @@ export class Unit {
 
     off(type?: string, listener?: EventListener): Unit {
         try {
+            if (typeof type == undefined) {
+                this._.system = { start: [], update: [], stop: [], finalize: [] };
+            } else if (typeof type === 'string') {
+                const list = ['start', 'update', 'stop', 'finalize'];
+                const filtered = type.trim().split(/\s+/).filter((type) => list.includes(type));
+                filtered.forEach((type) => {
+                    if (listener === undefined) {
+                        this._.system[type] = [];
+                    } else {
+                        this._.system[type] = this._.system[type].filter((l: EventListener) => l !== listener);
+                    }
+                });
+            }
+
             UnitEvent.off(this, type, listener);
         } catch (error) {
             console.error('unit.off(type, listener): ', error);
@@ -97,7 +119,10 @@ export class Unit {
             upcount: 0,         // update count    
             resolved: false,    // promise check
             props: {},          // properties in the component function
+            system: {},         // system properties
         });
+        
+        unit._.system = { start: [], update: [], stop: [], finalize: [] };
 
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
@@ -123,11 +148,9 @@ export class Unit {
             unit._.state = 'pre finalized';
 
             unit._.children.forEach((unit: Unit) => unit.finalize());
-
-            if (typeof unit._.props.finalize === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.finalize);
-            }
-
+            unit._.system.finalize.forEach((listener: Function) => {
+                UnitScope.execute(UnitScope.snapshot(unit), listener);
+            });
             UnitEvent.off(unit);
             UnitScope.finalize(unit)
             UnitElement.finalize(unit);
@@ -153,14 +176,7 @@ export class Unit {
 
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-            if (['start', 'update', 'stop', 'finalize'].includes(key)) {
-                if (typeof descripter?.value === 'function') {
-                    const previous = unit._.props[key];
-                    unit._.props[key] = (...args: any[]) => { previous?.(...args); descripter.value(...args); };
-                } else {
-                    throw new Error(`The property "${key}" is invalid.`);
-                }
-            } else if (unit[key as keyof Unit] === undefined) {
+            if (unit[key as keyof Unit] === undefined) {
                 const descriptor: PropertyDescriptor = { configurable: true, enumerable: true };
                 if (typeof descripter?.get === 'function') {
                     descriptor.get = (...args: any[]) => UnitScope.execute(snapshot, descripter.get!, ...args);
@@ -185,9 +201,9 @@ export class Unit {
         if (unit._.state === 'pending' || unit._.state === 'stopped') {
             unit._.state = 'running';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
-            if (typeof unit._.props.start === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.start);
-            }
+            unit._.system.start.forEach((listener: Function) => {
+                UnitScope.execute(UnitScope.snapshot(unit), listener);
+            });
         } else if (unit._.state === 'running') {
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
         }
@@ -197,9 +213,9 @@ export class Unit {
         if (unit._.state === 'running') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
-            if (typeof unit._.props.stop === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.stop);
-            }
+            unit._.system.stop.forEach((listener: Function) => {
+                UnitScope.execute(UnitScope.snapshot(unit), listener);
+            });
         }
     }
 
@@ -207,8 +223,11 @@ export class Unit {
         if (['running'].includes(unit._.state) === true) {
             unit._.children.forEach((unit: Unit) => Unit.update(unit, time));
 
-            if (['running'].includes(unit._.state) && typeof unit._.props.update === 'function') {
-                UnitScope.execute(UnitScope.snapshot(unit), unit._.props.update, unit._.upcount++);
+            if (['running'].includes(unit._.state)) {
+                unit._.system.update.forEach((listener: Function) => {
+                    UnitScope.execute(UnitScope.snapshot(unit), listener, unit._.upcount);
+                });
+                unit._.upcount++;
             }
         }
     }
