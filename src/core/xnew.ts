@@ -1,6 +1,5 @@
 import { Timer } from './time';
-import { Unit } from './unit';
-import { UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unit';
+import { Unit, UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unit';
 
 export interface xnewtype extends Function {
     [key: string]: any;
@@ -51,173 +50,205 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
     }
 }
 
-Object.defineProperty(xnew, 'nest', { enumerable: true, value: nest });
-function nest(attributes: object, text?: string): UnitElement | undefined {
-    try {
-        return UnitElement.nest(attributes, text);
-    } catch (error: unknown) {
-        console.error('xnew.nest(attributes): ', error);
-    }
-}
-
-Object.defineProperty(xnew, 'extend', { enumerable: true, value: extend });
-function extend(component: Function, ...args: any[]) {
-    try {
-        const current = UnitScope.current;
-        if (current?._.state === 'pending') {
-            return Unit.extend(current, component, ...args);
-        } else {
-            throw new Error('This function can not be called after initialized.');
+Object.defineProperty(xnew, 'nest', {
+    enumerable: true,
+    value: (attributes: object, text?: string): UnitElement | undefined => {
+        try {
+            return UnitElement.nest(attributes, text);
+        } catch (error: unknown) {
+            console.error('xnew.nest(attributes): ', error);
         }
-    } catch (error: unknown) {
-        console.error('xnew.extend(component, ...args): ', error);
     }
-}
+});
 
-Object.defineProperty(xnew, 'context', { enumerable: true, value: context });
-function context(key: string, value: any = undefined): any{
-    try {
-        const unit = UnitScope.current;
-        if (typeof key !== 'string') {
-            throw new Error('The argument [key] is invalid.');
-        } else if (unit !== null) {
-            if (value !== undefined) {
-                UnitScope.stack(unit, key, value);
+Object.defineProperty(xnew, 'extend', {
+    enumerable: true,
+    value: (component: Function, ...args: any[]): any => {
+        try {
+            const current = UnitScope.current;
+            if (current?._.state === 'pending') {
+                return Unit.extend(current, component, ...args);
             } else {
-                return UnitScope.trace(unit, key);
+                throw new Error('This function can not be called after initialized.');
             }
-        } else {
-            return undefined;
+        } catch (error: unknown) {
+            console.error('xnew.extend(component, ...args): ', error);
         }
-    } catch (error: unknown) {
-        console.error('xnew.context(key, value?): ', error);
     }
-}
-        
-Object.defineProperty(xnew, 'promise', { enumerable: true, value: promise });
-function promise(mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise {
-    try {
-        return UnitPromise.execute(UnitScope.current, mix);
-    } catch (error: unknown) {
-        console.error('xnew.promise(mix): ', error);
-        throw error;
-    }
-}
+});
 
-Object.defineProperty(xnew, 'emit', { enumerable: true, value: emit });
-function emit(type: string, ...args: any[]) {
-    try {
-        UnitEvent.emit(type, ...args);
-    } catch (error: unknown) {
-        console.error('xnew.emit(type, ...args): ', error);
-    }
-}
-    
-Object.defineProperty(xnew, 'scope', { enumerable: true, value: scope });
-function scope(callback: any): any {
-    const snapshot = UnitScope.snapshot();
-    return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
-}
-
-Object.defineProperty(xnew, 'find', { enumerable: true, value: find });
-function find(component: Function): Unit[] | undefined {
-    try {
-        if (typeof component !== 'function') {
-            throw new Error(`The argument [component] is invalid.`);
-        } else {
-            return UnitComponent.find(component);
-        }
-    } catch (error: unknown) {
-        console.error('xnew.find(component): ', error);
-    }
-}
-
-Object.defineProperty(xnew, 'timer', { enumerable: true, value: timeout });
-Object.defineProperty(xnew, 'timeout', { enumerable: true, value: timeout });
-function timeout(callback: Function, delay: number): any {
-    const snapshot = UnitScope.snapshot();
-    const unit = xnew((self: Unit) => {
-        const timer = new Timer(() => {
-            UnitScope.execute(snapshot, callback);
-            self.finalize();
-        }, null, delay);
-        self.on('finalize', () => {
-            timer.clear();
-        });
-    });
-    return { clear: () => unit.finalize() };
-}
-
-Object.defineProperty(xnew, 'interval', { enumerable: true, value: interval });
-function interval(callback: Function, delay: number): any {
-    const snapshot = UnitScope.snapshot();
-    const unit = xnew((self: Unit) => {
-        const timer = new Timer(() => {
-            UnitScope.execute(snapshot, callback);
-        }, null, delay, true);
-        self.on('finalize', () => {
-            timer.clear();
-        });
-    });
-    return { clear: () => unit.finalize() };
-}
-
-Object.defineProperty(xnew, 'transition', { enumerable: true, value: transition });
-function transition(callback: Function, interval: number, easing: string = 'linear'): any {
-    const snapshot = UnitScope.snapshot();
-
-    let stacks: any = [];
-    let unit = xnew(Local, callback, interval, easing);
-    let isRunning = true;
-
-    function Local(self: Unit, callback: Function, interval: number, easing: string) {
-        const timer = new Timer(() => {
-            UnitScope.execute(snapshot, callback, 1.0);
-            self.finalize();
-        }, (progress: number) => {
-            if (progress < 1.0) {
-                if (easing === 'ease-out') {
-                    progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
-                } else if (easing === 'ease-in') {
-                    progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
-                } else if (easing === 'ease') {
-                    progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
-                } else if (easing === 'ease-in-out') {
-                    progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+Object.defineProperty(xnew, 'context', {
+    enumerable: true,
+    value: (key: string, value: any = undefined): any => {
+        try {
+            const unit = UnitScope.current;
+            if (typeof key !== 'string') {
+                throw new Error('The argument [key] is invalid.');
+            } else if (unit !== null) {
+                if (value !== undefined) {
+                    UnitScope.stack(unit, key, value);
+                } else {
+                    return UnitScope.trace(unit, key);
                 }
-                UnitScope.execute(snapshot, callback, progress);
+            } else {
+                return undefined;
             }
-        }, interval);
-        self.on('finalize', () => {
-            timer.clear();
-            isRunning = false;
-            execute();
-        });
-    }
-    
-    let timer: any = null;
-
-    function execute() {
-        if (isRunning === false && stacks.length > 0) {
-            const args: any = stacks.shift();
-            unit = xnew(Local, ...args);
-            isRunning = true;
+        } catch (error: unknown) {
+            console.error('xnew.context(key, value?): ', error);
         }
     }
-
-    function clear() {
-        stacks = [];
-        unit.finalize();
+});
+        
+Object.defineProperty(xnew, 'promise', {
+    enumerable: true,
+    value: (mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise => {
+        try {
+            return UnitPromise.execute(UnitScope.current, mix);
+        } catch (error: unknown) {
+            console.error('xnew.promise(mix): ', error);
+            throw error;
+        }
     }
+});
 
-    function next(callback: Function, interval: number, easing: string = 'linear'): any {
-        stacks.push([callback, interval, easing]);
-        execute();
+Object.defineProperty(xnew, 'fetch', {
+    enumerable: true,
+    value: (url: string, options?: object): UnitPromise => {
+        try {
+            const promise = fetch(url, options);
+            return UnitPromise.execute(UnitScope.current, promise);
+        } catch (error: unknown) {
+            console.error('xnew.promise(mix): ', error);
+            throw error;
+        }
+    }
+});
+
+Object.defineProperty(xnew, 'emit', {
+    enumerable: true,
+    value: (type: string, ...args: any[]): void => {
+        try {
+            UnitEvent.emit(type, ...args);
+        } catch (error: unknown) {
+            console.error('xnew.emit(type, ...args): ', error);
+        }
+    }
+});
+
+Object.defineProperty(xnew, 'scope', {
+    enumerable: true,
+    value: (callback: any): any => {
+        const snapshot = UnitScope.snapshot();
+        return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
+    }
+});
+
+Object.defineProperty(xnew, 'find', {
+    enumerable: true,
+    value: (component: Function): Unit[] | undefined => {
+        try {
+            if (typeof component !== 'function') {
+                throw new Error(`The argument [component] is invalid.`);
+            } else {
+                return UnitComponent.find(component);
+            }
+        } catch (error: unknown) {
+            console.error('xnew.find(component): ', error);
+        }
+    }
+});
+
+Object.defineProperty(xnew, 'timeout', {
+    enumerable: true,
+    value: (callback: Function, delay: number): any => {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew((self: Unit) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback);
+                self.finalize();
+            }, null, delay);
+            self.on('finalize', () => {
+                timer.clear();
+            });
+        });
+        return { clear: () => unit.finalize() };
+    }
+});
+
+Object.defineProperty(xnew, 'interval', {
+    enumerable: true,
+    value: (callback: Function, delay: number): any => {
+        const snapshot = UnitScope.snapshot();
+        const unit = xnew((self: Unit) => {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback);
+            }, null, delay, true);
+            self.on('finalize', () => {
+                timer.clear();
+            });
+        });
+        return { clear: () => unit.finalize() };
+    }
+});
+
+Object.defineProperty(xnew, 'transition', {
+    enumerable: true,
+    value: (callback: Function, interval: number, easing: string = 'linear'): any => {
+        const snapshot = UnitScope.snapshot();
+
+        let stacks: any = [];
+        let unit = xnew(Local, callback, interval, easing);
+        let isRunning = true;
+
+        function Local(self: Unit, callback: Function, interval: number, easing: string) {
+            const timer = new Timer(() => {
+                UnitScope.execute(snapshot, callback, 1.0);
+                self.finalize();
+            }, (progress: number) => {
+                if (progress < 1.0) {
+                    if (easing === 'ease-out') {
+                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
+                    } else if (easing === 'ease-in') {
+                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
+                    } else if (easing === 'ease') {
+                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                    } else if (easing === 'ease-in-out') {
+                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                    }
+                    UnitScope.execute(snapshot, callback, progress);
+                }
+            }, interval);
+            self.on('finalize', () => {
+                timer.clear();
+                isRunning = false;
+                execute();
+            });
+        }
+        
+        let timer: any = null;
+
+        function execute() {
+            if (isRunning === false && stacks.length > 0) {
+                const args: any = stacks.shift();
+                unit = xnew(Local, ...args);
+                isRunning = true;
+            }
+        }
+
+        function clear() {
+            stacks = [];
+            unit.finalize();
+        }
+
+        function next(callback: Function, interval: number, easing: string = 'linear'): any {
+            stacks.push([callback, interval, easing]);
+            execute();
+            return timer;
+        }
+        timer = { clear, next };
         return timer;
     }
-    timer = { clear, next };
-    return timer;
-}
+});
 
 // Object.defineProperty(xnew, 'css', { 
 //     enumerable: true, 

@@ -16,6 +16,7 @@ var xpixi = {
         xnew(PreUpdate, () => {
             object.texture.source.update();
         });
+        return object;
     },
     get renderer() {
         var _a;

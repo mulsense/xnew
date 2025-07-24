@@ -1,19 +1,31 @@
 import xnew from 'xnew';
+import xpixi from 'xnew/addons/xpixi';
 import xthree from 'xnew/addons/xthree';
+import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 import { Water } from 'Water.js';
 import { Sky } from 'Sky.js';
 import { mog } from './mog3d.js';
 
+import { Model } from './model.js';
+
+const width = 1200;
+const height = 600;
+
 xnew('#main', Main);
 
 function Main(self) {
-  xnew(xnew.Screen, { width: 800, height: 400 });
-  xthree.initialize();
+  // three
+  const oscanvas = new OffscreenCanvas(width, height);
+  xthree.initialize({ canvas: oscanvas });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  xthree.camera.position.set(0, 0, +200);
+  // xthree.camera.position.set(0, 0, +200);
 
+  // pixi
+  xnew(xnew.Screen, { width, height });
+  xpixi.initialize();
+  const object = xpixi.connect(oscanvas);
   xnew(Controller);
   xnew(ThreeMain);
 }
@@ -23,6 +35,8 @@ function Controller(self) {
 
   const pivot1 = xthree.nest(new THREE.Object3D());
   const pivot2 = xthree.nest(new THREE.Object3D());
+  pivot1.position.y = 20;
+  xthree.camera.position.z = 20;
   pivot2.add(xthree.camera);
   self.on('+scale', (scale) => {
     xthree.camera.position.z /= scale;
@@ -32,8 +46,8 @@ function Controller(self) {
     xthree.camera.position.y += move.y * xthree.camera.position.z * 0.001;
   });
   self.on('+rotate', (move) => {
-    pivot2.rotation.x -= move.y * 0.01;
     pivot1.rotation.y -= move.x * 0.01;
+    pivot2.rotation.x -= move.y * 0.01;
     // pivot.rotation.y -= move.x * 0.01;
   });
 
@@ -42,6 +56,16 @@ function Controller(self) {
   user.on('-gesturestart', () => isActive = true);
   user.on('-gestureend', () => isActive = false);
   user.on('-gesturemove', ({ scale }) => xnew.emit('+scale', scale));
+
+  user.on('-arrowkeydown -arrowkeyup', ({ vector }) => {
+    console.log(pivot1.rotation.y * 180 / Math.PI)
+    const x = Math.cos(pivot1.rotation.y) * vector.x + Math.sin(pivot1.rotation.y) * vector.y;
+    const y = Math.sin(pivot1.rotation.y) * vector.x - Math.cos(pivot1.rotation.y) * vector.y;
+    pivot1.position.x += x * 0.5;
+    pivot1.position.z += y * 0.5;
+
+    xnew.emit('+move', pivot1.position);
+  });
   
   user.on('-dragmove', ({ event, delta }) => {
     if (isActive === true) return;
@@ -58,7 +82,7 @@ function Controller(self) {
 
 function ThreeMain(self) {
   const object = xthree.nest(new THREE.Object3D()); 
-  xnew(DirectionaLight, { x: 200, y: -500, z: 1000 });
+  xnew(DirectionaLight, { x: 200, y: -600, z: 1000 });
   xnew(AmbientLight);
   object.rotation.x = -90 / 180 * Math.PI
 
@@ -74,7 +98,11 @@ function ThreeMain(self) {
       }
     });
   }));
-  
+  const model = xnew(Model, './zundamon.vrm');
+  const user = xnew(xnew.UserEvent);
+
+  model.on('+move', (position) => model.object.position.set(position.x, -position.z, position.y));
+
   xnew(WaterPlane);
   const sky = xnew(SkyDorm);
   xnew(Sun, sky.object);

@@ -16,6 +16,7 @@ export default {
         xnew(PreUpdate, () => {
             object.texture.source.update();
         });
+        return object;
     },
     get renderer() {
         return xnew.context('xpixi.root')?.renderer;
