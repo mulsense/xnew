@@ -1217,7 +1217,7 @@
         });
         const canvas = xnew$1({
             tag: 'canvas', width, height,
-            style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
+            style: { width: '100%', height: '100%', verticalAlign: 'bottom', userSelect: 'none' }
         });
         const observer = xnew$1(wrapper, ResizeEvent);
         observer.on('-resize', resize);

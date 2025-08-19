@@ -161,3 +161,4 @@ function getPosition(element: any, event: any) {
     const rect = element.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
+

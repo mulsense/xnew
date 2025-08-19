@@ -11,7 +11,7 @@ export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'cont
 
     const canvas = xnew({
         tag: 'canvas', width, height,
-        style: { width: '100%', height: '100%', verticalAlign: 'bottom' }
+        style: { width: '100%', height: '100%', verticalAlign: 'bottom', userSelect: 'none', userDrag: 'none' }
     });
 
     const observer = xnew(wrapper, ResizeEvent);

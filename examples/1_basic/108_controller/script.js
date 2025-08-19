@@ -33,6 +33,8 @@ function Controller(self) {
       xnew.emit('+action')
     }
   });
+
+  xnew(Gamepad);
 }
 
 function Box(self) {
@@ -52,4 +54,109 @@ function Box(self) {
     self.element.style.top = current.y + 'px';
     self.element.style.transform = `rotate(${current.r}deg)`;
   });
+}
+
+function Gamepad(self) {
+    const gamepads = new Map;
+    
+    const win = xnew(window);
+
+    win.on('gamepadconnected', (e) => {
+        console.log('ゲームパッド接続:', e.gamepad.id, e.gamepad.index);
+        gamepads.set(e.gamepad.index, {
+            gamepad: e.gamepad,
+            previousButtons: new Map,
+            previousAxes: []
+        });
+        xnew.emit('-gamepadconnected', e.gamepad);
+    });
+        
+    win.on('gamepaddisconnected', (e) => {
+        console.log('ゲームパッド切断:', e.gamepad.id);
+        gamepads.delete(e.gamepad.index);
+    });
+
+    self.on('update', () => {
+      const currents = navigator.getGamepads();
+
+      gamepads.forEach((gamepad, gamepadIndex) =>  {
+        const current = currents[gamepadIndex];
+
+        current.buttons.forEach((button, buttonIndex) => {
+          const isPressed = button.pressed;
+          const wasPressed = gamepads.get(gamepadIndex).previousButtons.get(buttonIndex) ?? false;
+        
+          if (isPressed === true && wasPressed === false) {
+            gamepads.get(gamepadIndex).previousButtons.set(buttonIndex, true);
+            console.log(gamepad, button);
+            xnew.emit('-gamepadbuttondown', { gamepad,  button: buttonIndex });
+          }
+          if (isPressed === false && wasPressed === true) {
+            gamepads.get(gamepadIndex).previousButtons.set(buttonIndex, false);
+            xnew.emit('-gamepadbuttonup', { gamepad, button: buttonIndex });
+          }
+        });
+        
+        current.axes.forEach((axis, axisIndex) => {
+          const previousValue = gamepads.get(gamepadIndex).previousAxes[axisIndex] || 0;
+          const threshold = 0.01;
+          
+          if (Math.abs(axis - previousValue) >= threshold) {
+            xnew.emit('-gamepadaxismove', { gamepad, axis: axisIndex });
+              // this.triggerCallback('axisMove', {
+              //     gamepadIndex: gamepad.index,
+              //     axisIndex: axisIndex,
+              //     value: axisValue,
+              //     previousValue: previousValue
+              // });
+          }
+        });
+      });
+    });
+       //     const gamepads = navigator.getGamepads();
+    //     for (let i = 0; i < gamepads.length; i++) {
+    //         if (gamepads[i]) {
+    //             this.gamepads[i] = {
+    //                 gamepad: gamepads[i],
+    //                 previousButtons: [],
+    //                 previousAxes: []
+    //             };
+    //             this.triggerCallback('connect', gamepads[i]);
+    //             this.startPolling();
+    //         }
+    //     }    
+    //     // 既に接続されているゲームパッドをチェック
+    //     this.checkExistingGamepads();
+
+    //     this.on('buttonPress', (data) => {
+            
+    //         // 具体的なボタンの処理例
+    //         switch(data.buttonIndex) {
+              
+    //         }
+    //         // this.vec.x = this.input.left ? -1 : this.input.right ? 1 : 0;
+    //         // this.vec.y = this.input.up ? -1 : this.input.down ? 1 : 0;
+    //     });
+
+    //     // ボタンが離された時
+    //     this.on('buttonRelease', (data) => {
+    //         switch(data.buttonIndex) {
+                
+    //         }
+    //     });
+
+    //     // アナログスティックが動いた時
+    //     this.on('axisMove', (data) => {
+            
+    //         // 左スティックの処理例
+    //         if (data.axisIndex === 0) { // 左スティック X軸
+    //             this.vec.x = data.value.toFixed(3);
+    //         } else if (data.axisIndex === 1) { // 左スティック Y軸
+    //             this.vec.y = data.value.toFixed(3);
+    //         }
+    //     });
+    // }
+    
+    
+    
 }
