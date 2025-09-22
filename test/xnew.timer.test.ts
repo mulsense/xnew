@@ -12,7 +12,7 @@ describe('unit timer', () => {
             let start = Date.now();
             const margin = 100;
             xnew((self: xnew.Unit) => {
-                xnew.timer(() => {
+                xnew.timeout(() => {
                     const d = Date.now() - start;
                     expect(d).toBeGreaterThan(500 - margin);
                     expect(d).toBeLessThan(500 + margin);
