@@ -259,11 +259,82 @@ class MapMapMap extends MapEx {
 }
 
 //----------------------------------------------------------------------------------------------------
-// internal
+// type check
 //----------------------------------------------------------------------------------------------------
-function isPlainObject(value) {
-    return value !== null && typeof value === 'object' && value.constructor === Object;
+function isPlainObject(object) {
+    return object !== null && typeof object === 'object' && object.constructor === Object;
 }
+function isSVGElement(element) {
+    return element instanceof Element && element.namespaceURI === 'http://www.w3.org/2000/svg';
+}
+//----------------------------------------------------------------------------------------------------
+// element
+//----------------------------------------------------------------------------------------------------
+function createElementFromAttributes(attributes) {
+    var _a, _b;
+    const tagName = ((_b = (_a = attributes.tag) !== null && _a !== void 0 ? _a : attributes.tagName) !== null && _b !== void 0 ? _b : 'div').toLowerCase();
+    const element = document.createElement(tagName);
+    Object.keys(attributes).forEach((key) => {
+        const value = attributes[key];
+        if (key === 'tagName' || key === 'class') ;
+        else if (key === 'className') {
+            if (typeof value === 'string' && value !== '') {
+                element.classList.add(...value.trim().split(/\s+/));
+            }
+        }
+        else if (key === 'style') {
+            if (typeof value === 'string') {
+                element.style.cssText = value;
+            }
+            else if (isPlainObject(value) === true) {
+                Object.assign(element.style, value);
+            }
+        }
+        else {
+            key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            if (element[key] === true || element[key] === false) {
+                element[key] = value;
+            }
+            else {
+                element.setAttribute(key, value);
+            }
+        }
+    });
+    return element;
+}
+function createElementNSFromAttributes(attributes) {
+    var _a, _b;
+    const tagName = ((_b = (_a = attributes.tag) !== null && _a !== void 0 ? _a : attributes.tagName) !== null && _b !== void 0 ? _b : 'div').toLowerCase();
+    const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+    Object.keys(attributes).forEach((key) => {
+        const value = attributes[key];
+        if (key === 'tagName' || key === 'class') ;
+        else if (key === 'className') {
+            if (typeof value === 'string' && value !== '') {
+                element.classList.add(...value.trim().split(/\s+/));
+            }
+        }
+        else if (key === 'style') {
+            if (typeof value === 'string') {
+                element.style.cssText = value;
+            }
+            else if (isPlainObject(value) === true) {
+                Object.assign(element.style, value);
+            }
+        }
+        else {
+            key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            if (element[key] === true || element[key] === false) {
+                element[key] = value;
+            }
+            else {
+                element.setAttributeNS(null, key, value);
+            }
+        }
+    });
+    return element;
+}
+
 //----------------------------------------------------------------------------------------------------
 // unit main
 //----------------------------------------------------------------------------------------------------
@@ -283,12 +354,12 @@ class Unit {
         }
         this._ = {
             root: (_c = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _c !== void 0 ? _c : this,
-            list: (_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots,
-            input: { parent, target, component, args },
+            peers: (_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots,
+            inputs: { parent, target, component, args },
             baseTarget,
             baseContext: UnitScope.get(parent),
         };
-        this._.list.push(this);
+        this._.peers.push(this);
         Unit.initialize(this);
     }
     get element() {
@@ -304,7 +375,7 @@ class Unit {
     finalize() {
         Unit.stop(this);
         Unit.finalize(this);
-        this._.list = this._.list.filter((unit) => unit !== this);
+        this._.peers = this._.peers.filter((unit) => unit !== this);
     }
     reboot() {
         Unit.stop(this);
@@ -369,15 +440,15 @@ class Unit {
         UnitScope.initialize(unit, unit._.baseContext);
         UnitElement.initialize(unit, unit._.baseTarget);
         // nest html element
-        if (isPlainObject(unit._.input.target)) {
-            UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.input.target));
+        if (isPlainObject(unit._.inputs.target)) {
+            UnitScope.execute({ unit, context: null }, () => UnitElement.nest(unit._.inputs.target));
         }
         // setup component
-        if (typeof unit._.input.component === 'function') {
-            UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, unit._.input.component, ...unit._.input.args));
+        if (typeof unit._.inputs.component === 'function') {
+            UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
         }
-        else if (isPlainObject(unit._.input.target) && typeof unit._.input.component === 'string') {
-            unit.element.innerHTML = unit._.input.component;
+        else if (isPlainObject(unit._.inputs.target) && typeof unit._.inputs.component === 'string') {
+            unit.element.innerHTML = unit._.inputs.component;
         }
         // whether the unit promise was resolved
         (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
@@ -484,27 +555,27 @@ class Unit {
 Unit.roots = [];
 Unit.reset();
 class UnitScope {
-    static initialize(unit, data) {
-        UnitScope.data.set(unit, data);
+    static initialize(unit, context) {
+        UnitScope.contexts.set(unit, context);
     }
     static finalize(unit) {
-        UnitScope.data.delete(unit);
+        UnitScope.contexts.delete(unit);
     }
-    static set(unit, data) {
-        UnitScope.data.set(unit, data);
+    static set(unit, context) {
+        UnitScope.contexts.set(unit, context);
     }
     static get(unit) {
         var _a;
-        return (_a = UnitScope.data.get(unit)) !== null && _a !== void 0 ? _a : null;
+        return (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null;
     }
     static execute(snapshot, func, ...args) {
-        const backup = { unit: null, data: null };
+        const backup = { unit: null, context: null };
         try {
             backup.unit = UnitScope.current;
             UnitScope.current = snapshot.unit;
-            if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                backup.data = UnitScope.get(snapshot.unit);
-                UnitScope.data.set(snapshot.unit, snapshot.data);
+            if (snapshot.unit !== null && snapshot.context !== null && backup.context === null) {
+                backup.context = UnitScope.get(snapshot.unit);
+                UnitScope.contexts.set(snapshot.unit, snapshot.context);
             }
             return func(...args);
         }
@@ -513,27 +584,27 @@ class UnitScope {
         }
         finally {
             UnitScope.current = backup.unit;
-            if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                UnitScope.data.set(snapshot.unit, backup.data);
+            if (snapshot.unit !== null && snapshot.context !== null && backup.context !== null) {
+                UnitScope.contexts.set(snapshot.unit, backup.context);
             }
         }
     }
     static snapshot(unit = UnitScope.current) {
-        return { unit, data: UnitScope.get(unit) };
+        return { unit, context: UnitScope.get(unit) };
     }
     static stack(unit, key, value) {
-        UnitScope.data.set(unit, { stack: UnitScope.get(unit), key, value });
+        UnitScope.contexts.set(unit, { stack: UnitScope.get(unit), key, value });
     }
     static trace(unit, key) {
-        for (let data = UnitScope.get(unit); data !== null; data = data.stack) {
-            if (data.key === key) {
-                return data.value;
+        for (let context = UnitScope.get(unit); context !== null; context = context.stack) {
+            if (context.key === key) {
+                return context.value;
             }
         }
     }
 }
 UnitScope.current = null;
-UnitScope.data = new Map();
+UnitScope.contexts = new Map();
 //----------------------------------------------------------------------------------------------------
 // unit component
 //----------------------------------------------------------------------------------------------------
@@ -597,56 +668,13 @@ class UnitElement {
     static append(parentElement, attributes) {
         var _a, _b;
         const tagName = ((_b = (_a = attributes.tag) !== null && _a !== void 0 ? _a : attributes.tagName) !== null && _b !== void 0 ? _b : 'div').toLowerCase();
-        let isNS = false;
-        if (tagName === 'svg') {
-            isNS = true;
-        }
-        else {
-            for (let e = parentElement; e !== null; e = e.parentElement) {
-                if (e.tagName.toLowerCase() === 'svg') {
-                    isNS = true;
-                    break;
-                }
-            }
-        }
         let element;
-        if (isNS) {
-            element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+        if (tagName === 'svg' || isSVGElement(parentElement) === true) {
+            element = createElementNSFromAttributes(attributes);
         }
         else {
-            element = document.createElement(tagName);
+            element = createElementFromAttributes(attributes);
         }
-        Object.keys(attributes).forEach((key) => {
-            const value = attributes[key];
-            if (key === 'tagName' || key === 'class') ;
-            else if (key === 'className') {
-                if (typeof value === 'string' && value !== '') {
-                    element.classList.add(...value.trim().split(/\s+/));
-                }
-            }
-            else if (key === 'style') {
-                if (typeof value === 'string') {
-                    element.style.cssText = value;
-                }
-                else if (isPlainObject(value) === true) {
-                    Object.assign(element.style, value);
-                }
-            }
-            else {
-                key.replace(/([A-Z])/g, '-$1').toLowerCase();
-                if (element[key] === true || element[key] === false) {
-                    element[key] = value;
-                }
-                else {
-                    if (isNS) {
-                        element.setAttributeNS(null, key, value);
-                    }
-                    else {
-                        element.setAttribute(key, value);
-                    }
-                }
-            }
-        });
         parentElement.append(element);
         return element;
     }
@@ -1029,27 +1057,6 @@ Object.defineProperty(xnew$1, 'transition', {
         return timer;
     }
 });
-// Object.defineProperty(xnew, 'css', { 
-//     enumerable: true, 
-//     value: function (label: string, style: { [key: string]: any }): void {
-//         xnew((self: xnew.Unit) => {
-//             const element = document.createElement('style');
-//             let text = '';
-//             Object.keys(style).forEach((key) => {
-//                 const value = style[key];
-//                 const snake = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-//                 text += `${snake}: ${value};`;
-//             });
-//             element.textContent = `${label}{ ${text} }`;
-//             document.head.appendChild(element);
-//             return {
-//                 finalize() {
-//                     document.head.removeChild(element);
-//                 }
-//             }
-//         });
-//     }
-// });
 
 function ResizeEvent(self) {
     const observer = new ResizeObserver(xnew$1.scope((entries) => {
@@ -1211,7 +1218,7 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
     });
     const canvas = xnew$1({
         tag: 'canvas', width, height,
-        style: { width: '100%', height: '100%', verticalAlign: 'bottom', userSelect: 'none' }
+        style: { width: '100%', height: '100%', verticalAlign: 'bottom', userSelect: 'none', userDrag: 'none' }
     });
     const observer = xnew$1(wrapper, ResizeEvent);
     observer.on('-resize', resize);

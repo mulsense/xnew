@@ -1,13 +1,6 @@
 import { MapSet, MapMap, MapMapMap } from './map';
 import { Ticker } from './time';
-
-//----------------------------------------------------------------------------------------------------
-// internal
-//----------------------------------------------------------------------------------------------------
-
-function isPlainObject(value: any): boolean {
-    return value !== null && typeof value === 'object' && value.constructor === Object;
-}
+import { isPlainObject, isSVGElement, createElementFromAttributes, createElementNSFromAttributes } from './util';
 
 //----------------------------------------------------------------------------------------------------
 // unit main
@@ -32,13 +25,13 @@ export class Unit {
 
         this._ = {
             root: parent?._.root ?? this,
-            list: parent?._.children ?? Unit.roots,
-            input: { parent, target, component, args }, 
+            peers: parent?._.children ?? Unit.roots,
+            inputs: { parent, target, component, args }, 
             baseTarget,
             baseContext: UnitScope.get(parent),
         };
 
-        this._.list.push(this);
+        this._.peers.push(this);
         Unit.initialize(this);
     }
 
@@ -58,7 +51,7 @@ export class Unit {
     finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
-        this._.list = this._.list.filter((unit: Unit) => unit !== this);
+        this._.peers = this._.peers.filter((unit: Unit) => unit !== this);
     }
 
     reboot(): void {
@@ -128,15 +121,15 @@ export class Unit {
         UnitElement.initialize(unit, unit._.baseTarget);
 
         // nest html element
-        if (isPlainObject(unit._.input.target)) {
-            UnitScope.execute({ unit, data: null }, () => UnitElement.nest(unit._.input.target));
+        if (isPlainObject(unit._.inputs.target)) {
+            UnitScope.execute({ unit, context: null }, () => UnitElement.nest(unit._.inputs.target));
         }
 
         // setup component
-        if (typeof unit._.input.component === 'function') {
-            UnitScope.execute({ unit, data: null }, () => Unit.extend(unit, unit._.input.component, ...unit._.input.args));
-        } else if (isPlainObject(unit._.input.target) && typeof unit._.input.component === 'string') {
-            unit.element!.innerHTML = unit._.input.component;
+        if (typeof unit._.inputs.component === 'function') {
+            UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
+        } else if (isPlainObject(unit._.inputs.target) && typeof unit._.inputs.component === 'string') {
+            unit.element!.innerHTML = unit._.inputs.component;
         }
 
         // whether the unit promise was resolved
@@ -253,64 +246,63 @@ Unit.reset();
 // unit scope
 //----------------------------------------------------------------------------------------------------
 
-interface UnitContext { unit: Unit | null; data: UnitContextData | null; }
-interface UnitContextData { stack: UnitContextData | null; key: string; value: any; }
+interface Context { stack: Context | null; key: string; value: any; }
+interface Snapshot { unit: Unit | null; context: Context  | null; }
 
 export class UnitScope {
     static current: Unit | null = null;
-
-    static data: Map<Unit | null, UnitContextData> = new Map();
+    static contexts: Map<Unit | null, Context > = new Map();
    
-    static initialize(unit: Unit | null, data: UnitContextData): void {
-        UnitScope.data.set(unit, data);
+    static initialize(unit: Unit | null, context: Context): void {
+        UnitScope.contexts.set(unit, context);
     }
 
     static finalize(unit: Unit): void {
-        UnitScope.data.delete(unit);
+        UnitScope.contexts.delete(unit);
     }
 
-    static set(unit: Unit, data: UnitContextData): void {
-        UnitScope.data.set(unit, data);
+    static set(unit: Unit, context: Context): void {
+        UnitScope.contexts.set(unit, context);
     }
 
-    static get(unit: Unit | null): UnitContextData | null {
-        return UnitScope.data.get(unit) ?? null;
+    static get(unit: Unit | null): Context | null {
+        return UnitScope.contexts.get(unit) ?? null;
     }
 
-    static execute(snapshot: UnitContext, func: Function, ...args: any[]): any {
-        const backup: UnitContext = { unit: null, data: null };
+    static execute(snapshot: Snapshot, func: Function, ...args: any[]): any {
+        const current = UnitScope.current;
+        let context: Context | null = null;
 
         try {
-            backup.unit = UnitScope.current;
             UnitScope.current = snapshot.unit;
 
-            if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                backup.data = UnitScope.get(snapshot.unit);
-                UnitScope.data.set(snapshot.unit, snapshot.data);
+            if (snapshot.unit !== null && snapshot.context !== null) {
+                context = UnitScope.get(snapshot.unit);
+                UnitScope.contexts.set(snapshot.unit, snapshot.context);
             }
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
-            UnitScope.current = backup.unit;
-            if (snapshot.unit !== null && snapshot.data !== null && backup.data !== null) {
-                UnitScope.data.set(snapshot.unit, backup.data);
+            UnitScope.current = current;
+            if (snapshot.unit !== null && snapshot.context !== null && context !== null) {
+                UnitScope.contexts.set(snapshot.unit, context);
             }
         }
     }
 
-    static snapshot(unit: Unit | null = UnitScope.current): UnitContext {
-        return { unit, data: UnitScope.get(unit) };
+    static snapshot(unit: Unit | null = UnitScope.current): Snapshot {
+        return { unit, context: UnitScope.get(unit) };
     }
 
     static stack(unit: Unit, key: string, value: any): void {
-        UnitScope.data.set(unit, { stack: UnitScope.get(unit), key, value });
+        UnitScope.contexts.set(unit, { stack: UnitScope.get(unit), key, value });
     }
 
     static trace(unit: Unit, key: string): any {
-        for (let data: UnitContextData | null = UnitScope.get(unit); data !== null; data = data.stack) {
-            if (data.key === key) {
-                return data.value;
+        for (let context = UnitScope.get(unit); context !== null; context = context.stack) {
+            if (context.key === key) {
+                return context.value;
             }
         }
     }
@@ -386,52 +378,12 @@ export class UnitElement {
     static append(parentElement: Element, attributes: Record<string, any>): Element {
         const tagName = (attributes.tag ?? attributes.tagName ?? 'div').toLowerCase();
 
-        let isNS = false;
-        if (tagName === 'svg') {
-            isNS = true;
-        } else {
-            for (let e: Element | null = parentElement; e !== null; e = e.parentElement) {
-                if (e.tagName.toLowerCase() === 'svg') {
-                    isNS = true;
-                    break;
-                }
-            }
-        }
-
         let element: Element;
-        if (isNS) {
-            element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+        if (tagName === 'svg' || isSVGElement(parentElement) === true) {
+            element = createElementNSFromAttributes(attributes);
         } else {
-            element = document.createElement(tagName);
+            element = createElementFromAttributes(attributes);
         }
-
-        Object.keys(attributes).forEach((key) => {
-            const value = attributes[key];
-            if (key === 'tagName' || key === 'class') {
-                // Skip
-            } else if (key === 'className') {
-                if (typeof value === 'string' && value !== '') {
-                    element.classList.add(...value.trim().split(/\s+/));
-                }
-            } else if (key === 'style') {
-                if (typeof value === 'string') {
-                    (element as HTMLElement).style.cssText = value;
-                } else if (isPlainObject(value) === true) {
-                    Object.assign((element as HTMLElement).style, value);
-                }
-            } else {
-                const snake = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-                if (element[key as keyof Element] === true || element[key as keyof Element] === false) {
-                    (element as any)[key] = value;
-                } else {
-                    if (isNS) {
-                        element.setAttributeNS(null, key, value);
-                    } else {
-                        element.setAttribute(key, value);
-                    }
-                }
-            }
-        });
         parentElement.append(element);
         return element;
     }
