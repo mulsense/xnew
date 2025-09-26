@@ -14,8 +14,8 @@ export class Unit {
     static roots: Unit[] = [];
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
-        let baseTarget: Element | Window | Document | null = null;
-        if (target instanceof Element || target instanceof Window || target instanceof Document) {
+        let baseTarget: Element | Window | null = null;
+        if (target instanceof Element || target instanceof Window) {
             baseTarget = target;
         } else if (parent !== null) {
             baseTarget = parent.element;

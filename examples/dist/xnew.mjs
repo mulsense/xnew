@@ -343,7 +343,7 @@ class Unit {
         var _a, _b, _c, _d;
         this._ = {};
         let baseTarget = null;
-        if (target instanceof Element || target instanceof Window || target instanceof Document) {
+        if (target instanceof Element || target instanceof Window) {
             baseTarget = target;
         }
         else if (parent !== null) {
@@ -569,12 +569,12 @@ class UnitScope {
         return (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null;
     }
     static execute(snapshot, func, ...args) {
-        const backup = { unit: null, context: null };
+        const current = UnitScope.current;
+        let context = null;
         try {
-            backup.unit = UnitScope.current;
             UnitScope.current = snapshot.unit;
-            if (snapshot.unit !== null && snapshot.context !== null && backup.context === null) {
-                backup.context = UnitScope.get(snapshot.unit);
+            if (snapshot.unit !== null && snapshot.context !== null) {
+                context = UnitScope.get(snapshot.unit);
                 UnitScope.contexts.set(snapshot.unit, snapshot.context);
             }
             return func(...args);
@@ -583,9 +583,9 @@ class UnitScope {
             throw error;
         }
         finally {
-            UnitScope.current = backup.unit;
-            if (snapshot.unit !== null && snapshot.context !== null && backup.context !== null) {
-                UnitScope.contexts.set(snapshot.unit, backup.context);
+            UnitScope.current = current;
+            if (snapshot.unit !== null && snapshot.context !== null && context !== null) {
+                UnitScope.contexts.set(snapshot.unit, context);
             }
         }
     }
