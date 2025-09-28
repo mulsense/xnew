@@ -1,6 +1,5 @@
 import { MapSet, MapMap, MapMapMap } from './map';
 import { Ticker } from './time';
-import { isPlainObject, isSVGElement, createElementFromAttributes, createElementNSFromAttributes } from './util';
 
 //----------------------------------------------------------------------------------------------------
 // unit main
@@ -36,7 +35,7 @@ export class Unit {
     }
 
     get element(): Element | null {
-        return this._.baseTarget instanceof Element ? UnitElement.get(this) : null;
+        return this._.baseTarget instanceof Element ? (this._.nestElement ?? this._.baseTarget) : null;
     }
 
     start(): void {
@@ -109,6 +108,7 @@ export class Unit {
             children: [],       // children units
             state: 'pending',   // [pending -> running <-> stopped -> finalized]
             tostart: true,      // flag for start
+            nestElement: null,  // nested html element
             upcount: 0,         // update count    
             resolved: false,    // promise check
             props: {},          // properties in the component function
@@ -118,18 +118,20 @@ export class Unit {
         unit._.system = { start: [], update: [], stop: [], finalize: [] };
 
         UnitScope.initialize(unit, unit._.baseContext);
-        UnitElement.initialize(unit, unit._.baseTarget);
 
         // nest html element
-        if (isPlainObject(unit._.inputs.target)) {
-            UnitScope.execute({ unit, context: null }, () => UnitElement.nest(unit._.inputs.target));
+        if (unit._.baseTarget instanceof Element && typeof unit._.inputs.target === 'string') {
+            const html = unit._.inputs.target.trim();
+            const match = html.match(/<((\w+)[^>]*?)\/?>/);
+            unit._.baseTarget.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+            unit._.nestElement = unit._.baseTarget.children[unit._.baseTarget.children.length - 1];
         }
 
         // setup component
         if (typeof unit._.inputs.component === 'function') {
             UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
-        } else if (isPlainObject(unit._.inputs.target) && typeof unit._.inputs.component === 'string') {
-            unit.element!.innerHTML = unit._.inputs.component;
+        } else if (unit._.nestElement instanceof Element && typeof unit._.inputs.component === 'string') {
+            unit._.nestElement.innerHTML = unit._.inputs.component;
         }
 
         // whether the unit promise was resolved
@@ -144,11 +146,16 @@ export class Unit {
             unit._.system.finalize.forEach((listener: Function) => {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
+
             UnitEvent.off(unit);
-            UnitScope.finalize(unit)
-            UnitElement.finalize(unit);
+            UnitScope.finalize(unit);
             UnitComponent.finalize(unit);
             UnitPromise.finalize(unit);
+
+            if (unit._.nestElement instanceof Element) {
+                unit._.baseTarget?.removeChild(unit._.nestElement);
+                unit._.nestElement = null;
+            }
 
             // reset props
             Object.keys(unit._.props).forEach((key) => {
@@ -330,62 +337,6 @@ export class UnitComponent {
     
     static find(component: Function): Unit[] {
         return [...(UnitComponent.units.get(component) ?? [])];
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
-// unit element
-//----------------------------------------------------------------------------------------------------
-
-export class UnitElement {
-    static elements: Map<Unit, Element[]> = new Map();
-
-    static initialize(unit: Unit, baseTarget: Element): void {
-        UnitElement.elements.set(unit, [baseTarget]);
-    }
-
-    static finalize(unit: Unit): void {
-        const elements = UnitElement.elements.get(unit);
-        if (elements && elements.length > 1) {
-            elements[0].removeChild(elements[1]);
-        }
-        UnitElement.elements.delete(unit);
-    }
-
-    static nest(attributes: Record<string, any>, text?: string): Element {
-        const unit = UnitScope.current;
-        if (unit === null) {
-            throw new Error(`This function can not be called outside xnew.`);
-        }
-        const current = UnitElement.get(unit);
-        if (isPlainObject(attributes) === false) {
-            throw new Error(`The argument [attributes] is invalid.`);
-        } else if (unit._.state !== 'pending') {
-            throw new Error(`This function can not be called after initialized.`);
-        }
-        const element = UnitElement.append(current, attributes);
-        if (text !== undefined && typeof text === 'string') {
-            element.textContent = text;
-        }
-        UnitElement.elements.get(unit)?.push(element);
-        return element;
-    }
-
-    static get(unit: Unit): Element {
-        return UnitElement.elements.get(unit)?.slice(-1)[0]!;
-    }
-
-    static append(parentElement: Element, attributes: Record<string, any>): Element {
-        const tagName = (attributes.tag ?? attributes.tagName ?? 'div').toLowerCase();
-
-        let element: Element;
-        if (tagName === 'svg' || isSVGElement(parentElement) === true) {
-            element = createElementNSFromAttributes(attributes);
-        } else {
-            element = createElementFromAttributes(attributes);
-        }
-        parentElement.append(element);
-        return element;
     }
 }
 

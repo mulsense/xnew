@@ -13,27 +13,25 @@
     xnew(Component);
 
     function Component(self) {
-      xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
-      
-      xnew({ tag: 'span' });
-      
-      let isRunning = false;
-      self.on('click', (event) => {
-        isRunning ? self.stop() : self.start();
-      });
+      xnew('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F">', (self) => {
+        let isRunning = false;
+        self.on('click', (event) => {
+          isRunning ? self.stop() : self.start();
+        });
 
-      self.on('start', () => {
-        isRunning = true;
-        self.element.textContent = 'start';
-      });
+        self.on('start', () => {
+          isRunning = true;
+          self.element.textContent = 'start';
+        });
 
-      self.on('update', (count) => {
-        self.element.style.transform = `rotate(${count}deg)`;
-      });
-      
-      self.on('stop', () => {
-        isRunning = false;
-        self.element.textContent = 'stop';
+        self.on('update', (count) => {
+          self.element.style.transform = `rotate(${count}deg)`;
+        });
+        
+        self.on('stop', () => {
+          isRunning = false;
+          self.element.textContent = 'stop';
+        });
       });
     }
   </script>

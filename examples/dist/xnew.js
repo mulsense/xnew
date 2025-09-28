@@ -265,83 +265,6 @@
     }
 
     //----------------------------------------------------------------------------------------------------
-    // type check
-    //----------------------------------------------------------------------------------------------------
-    function isPlainObject(object) {
-        return object !== null && typeof object === 'object' && object.constructor === Object;
-    }
-    function isSVGElement(element) {
-        return element instanceof Element && element.namespaceURI === 'http://www.w3.org/2000/svg';
-    }
-    //----------------------------------------------------------------------------------------------------
-    // element
-    //----------------------------------------------------------------------------------------------------
-    function createElementFromAttributes(attributes) {
-        var _a, _b;
-        const tagName = ((_b = (_a = attributes.tag) !== null && _a !== void 0 ? _a : attributes.tagName) !== null && _b !== void 0 ? _b : 'div').toLowerCase();
-        const element = document.createElement(tagName);
-        Object.keys(attributes).forEach((key) => {
-            const value = attributes[key];
-            if (key === 'tagName' || key === 'class') ;
-            else if (key === 'className') {
-                if (typeof value === 'string' && value !== '') {
-                    element.classList.add(...value.trim().split(/\s+/));
-                }
-            }
-            else if (key === 'style') {
-                if (typeof value === 'string') {
-                    element.style.cssText = value;
-                }
-                else if (isPlainObject(value) === true) {
-                    Object.assign(element.style, value);
-                }
-            }
-            else {
-                key.replace(/([A-Z])/g, '-$1').toLowerCase();
-                if (element[key] === true || element[key] === false) {
-                    element[key] = value;
-                }
-                else {
-                    element.setAttribute(key, value);
-                }
-            }
-        });
-        return element;
-    }
-    function createElementNSFromAttributes(attributes) {
-        var _a, _b;
-        const tagName = ((_b = (_a = attributes.tag) !== null && _a !== void 0 ? _a : attributes.tagName) !== null && _b !== void 0 ? _b : 'div').toLowerCase();
-        const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
-        Object.keys(attributes).forEach((key) => {
-            const value = attributes[key];
-            if (key === 'tagName' || key === 'class') ;
-            else if (key === 'className') {
-                if (typeof value === 'string' && value !== '') {
-                    element.classList.add(...value.trim().split(/\s+/));
-                }
-            }
-            else if (key === 'style') {
-                if (typeof value === 'string') {
-                    element.style.cssText = value;
-                }
-                else if (isPlainObject(value) === true) {
-                    Object.assign(element.style, value);
-                }
-            }
-            else {
-                key.replace(/([A-Z])/g, '-$1').toLowerCase();
-                if (element[key] === true || element[key] === false) {
-                    element[key] = value;
-                }
-                else {
-                    element.setAttributeNS(null, key, value);
-                }
-            }
-        });
-        return element;
-    }
-
-    //----------------------------------------------------------------------------------------------------
     // unit main
     //----------------------------------------------------------------------------------------------------
     class Unit {
@@ -369,7 +292,8 @@
             Unit.initialize(this);
         }
         get element() {
-            return this._.baseTarget instanceof Element ? UnitElement.get(this) : null;
+            var _a;
+            return this._.baseTarget instanceof Element ? ((_a = this._.nestElement) !== null && _a !== void 0 ? _a : this._.baseTarget) : null;
         }
         start() {
             this._.tostart = true;
@@ -437,6 +361,7 @@
                 children: [], // children units
                 state: 'pending', // [pending -> running <-> stopped -> finalized]
                 tostart: true, // flag for start
+                nestElement: null, // nested html element
                 upcount: 0, // update count    
                 resolved: false, // promise check
                 props: {}, // properties in the component function
@@ -444,22 +369,25 @@
             });
             unit._.system = { start: [], update: [], stop: [], finalize: [] };
             UnitScope.initialize(unit, unit._.baseContext);
-            UnitElement.initialize(unit, unit._.baseTarget);
             // nest html element
-            if (isPlainObject(unit._.inputs.target)) {
-                UnitScope.execute({ unit, context: null }, () => UnitElement.nest(unit._.inputs.target));
+            if (unit._.baseTarget instanceof Element && typeof unit._.inputs.target === 'string') {
+                const html = unit._.inputs.target.trim();
+                const match = html.match(/<((\w+)[^>]*?)\/?>/);
+                unit._.baseTarget.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                unit._.nestElement = unit._.baseTarget.children[unit._.baseTarget.children.length - 1];
             }
             // setup component
             if (typeof unit._.inputs.component === 'function') {
                 UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
             }
-            else if (isPlainObject(unit._.inputs.target) && typeof unit._.inputs.component === 'string') {
-                unit.element.innerHTML = unit._.inputs.component;
+            else if (unit._.nestElement instanceof Element && typeof unit._.inputs.component === 'string') {
+                unit._.nestElement.innerHTML = unit._.inputs.component;
             }
             // whether the unit promise was resolved
             (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
         }
         static finalize(unit) {
+            var _a;
             if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
                 unit._.state = 'pre finalized';
                 unit._.children.forEach((unit) => unit.finalize());
@@ -468,9 +396,12 @@
                 });
                 UnitEvent.off(unit);
                 UnitScope.finalize(unit);
-                UnitElement.finalize(unit);
                 UnitComponent.finalize(unit);
                 UnitPromise.finalize(unit);
+                if (unit._.nestElement instanceof Element) {
+                    (_a = unit._.baseTarget) === null || _a === void 0 ? void 0 : _a.removeChild(unit._.nestElement);
+                    unit._.nestElement = null;
+                }
                 // reset props
                 Object.keys(unit._.props).forEach((key) => {
                     if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
@@ -634,59 +565,6 @@
     UnitComponent.components = new MapSet();
     UnitComponent.units = new MapSet();
     //----------------------------------------------------------------------------------------------------
-    // unit element
-    //----------------------------------------------------------------------------------------------------
-    class UnitElement {
-        static initialize(unit, baseTarget) {
-            UnitElement.elements.set(unit, [baseTarget]);
-        }
-        static finalize(unit) {
-            const elements = UnitElement.elements.get(unit);
-            if (elements && elements.length > 1) {
-                elements[0].removeChild(elements[1]);
-            }
-            UnitElement.elements.delete(unit);
-        }
-        static nest(attributes, text) {
-            var _a;
-            const unit = UnitScope.current;
-            if (unit === null) {
-                throw new Error(`This function can not be called outside xnew.`);
-            }
-            const current = UnitElement.get(unit);
-            if (isPlainObject(attributes) === false) {
-                throw new Error(`The argument [attributes] is invalid.`);
-            }
-            else if (unit._.state !== 'pending') {
-                throw new Error(`This function can not be called after initialized.`);
-            }
-            const element = UnitElement.append(current, attributes);
-            if (text !== undefined && typeof text === 'string') {
-                element.textContent = text;
-            }
-            (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.push(element);
-            return element;
-        }
-        static get(unit) {
-            var _a;
-            return (_a = UnitElement.elements.get(unit)) === null || _a === void 0 ? void 0 : _a.slice(-1)[0];
-        }
-        static append(parentElement, attributes) {
-            var _a, _b;
-            const tagName = ((_b = (_a = attributes.tag) !== null && _a !== void 0 ? _a : attributes.tagName) !== null && _b !== void 0 ? _b : 'div').toLowerCase();
-            let element;
-            if (tagName === 'svg' || isSVGElement(parentElement) === true) {
-                element = createElementNSFromAttributes(attributes);
-            }
-            else {
-                element = createElementFromAttributes(attributes);
-            }
-            parentElement.append(element);
-            return element;
-        }
-    }
-    UnitElement.elements = new Map();
-    //----------------------------------------------------------------------------------------------------
     // unit event
     //----------------------------------------------------------------------------------------------------
     class UnitEvent {
@@ -836,14 +714,20 @@
                 parent = UnitScope.current;
             }
             let target;
-            if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
+            if (args[0] instanceof Element || args[0] instanceof Window) {
                 target = args.shift(); // an existing html element
             }
             else if (typeof args[0] === 'string') {
-                const selector = args.shift(); // a selector for an existing html element
-                target = document.querySelector(selector);
-                if (target == null) {
-                    throw new Error(`'${selector}' can not be found.`);
+                const str = args.shift(); // a selector for an existing html element
+                const match = str.match(/<([^>]*)\/?>/);
+                if (match) {
+                    target = str;
+                }
+                else {
+                    target = document.querySelector(str);
+                    if (target == null) {
+                        throw new Error(`'${str}' can not be found.`);
+                    }
                 }
             }
             else if (typeof args[0] !== null && typeof args[0] === 'object') {
@@ -856,7 +740,7 @@
             else {
                 target = null;
             }
-            if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && typeof target === 'object') && typeof args[0] === 'string'))) {
+            if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
                 throw new Error('The argument [parent, target, component] is invalid.');
             }
             return new Unit(parent, target, ...args);
@@ -865,17 +749,6 @@
             console.error('xnew: ', error);
         }
     };
-    Object.defineProperty(xnew$1, 'nest', {
-        enumerable: true,
-        value: (attributes, text) => {
-            try {
-                return UnitElement.nest(attributes, text);
-            }
-            catch (error) {
-                console.error('xnew.nest(attributes): ', error);
-            }
-        }
-    });
     Object.defineProperty(xnew$1, 'extend', {
         enumerable: true,
         value: (component, ...args) => {

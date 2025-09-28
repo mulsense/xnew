@@ -15,22 +15,23 @@
 
     function Component(self) {
       // Pattern 1: Create new HTML element.
-      xnew({ tag: 'p' }, 'Create new HTML elements.');
-    
+      xnew('<p>', 'Create new HTML elements.');
+
       // Pattern 2: Create child component.
       xnew(ChildComponent);
     }
 
     function ChildComponent(self) {
-       // If tag is omitted, tag: 'div' is set as default.
-
-      // Pattern 3: Create new HTML element and nest the following elements.
-      xnew.nest({ style: { display: 'flex' } });
-
-      // The following elements are nested.
-      xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
-      xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
-      xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
+      // Pattern 3: nest HTML elements.
+      let count = 0;
+      xnew('<div style="display: flex;">', (self) => {
+        xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
+        xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
+        xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
+        self.on('click', () => {
+          self.reboot();
+        });
+      });
     }
   </script>
 </body>

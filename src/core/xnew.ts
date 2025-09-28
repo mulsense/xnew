@@ -1,5 +1,5 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitComponent, UnitElement, UnitPromise, UnitEvent } from './unit';
+import { Unit, UnitScope, UnitComponent, UnitPromise, UnitEvent } from './unit';
 
 export interface xnewtype extends Function {
     [key: string]: any;
@@ -24,13 +24,18 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
         }
 
         let target;
-        if (args[0] instanceof Element || args[0] instanceof Window || args[0] instanceof Document) {
+        if (args[0] instanceof Element || args[0] instanceof Window) {
             target = args.shift(); // an existing html element
         } else if (typeof args[0] === 'string') {
-            const selector = args.shift(); // a selector for an existing html element
-            target = document.querySelector(selector); 
-            if (target == null) {
-                throw new Error(`'${selector}' can not be found.`);
+            const str = args.shift(); // a selector for an existing html element
+            const match = str.match(/<([^>]*)\/?>/);
+            if (match) {
+                target = str;
+            } else {
+                target = document.querySelector(str); 
+                if (target == null) {
+                    throw new Error(`'${str}' can not be found.`);
+                }
             }
         } else if (typeof args[0] !== null && typeof args[0] === 'object') {
             target = args.shift(); // an attributes for a new html element
@@ -41,7 +46,7 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
             target = null;
         }
 
-        if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && typeof target === 'object') && typeof args[0] === 'string'))) {
+        if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
             throw new Error('The argument [parent, target, component] is invalid.');
         }
         return new Unit(parent, target, ...args);
@@ -54,7 +59,8 @@ Object.defineProperty(xnew, 'nest', {
     enumerable: true,
     value: (attributes: object, text?: string): UnitElement | undefined => {
         try {
-            return UnitElement.nest(attributes, text);
+            // return UnitElement.nest(attributes, text);
+            return undefined;
         } catch (error: unknown) {
             console.error('xnew.nest(attributes): ', error);
         }

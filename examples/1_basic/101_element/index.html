@@ -10,24 +10,26 @@
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
     xnew('#main', (self) => {
-      xnew(Div1);
+      xnew(Basic);
       xnew(Div2);
       xnew(Div3);
       xnew(Div4);
     });
 
-    function Base(self, name) {
-      xnew.nest({ style: { margin: '8px', padding: '8px', border: 'solid 1px #222'} });
-      xnew({ tag: 'p' }, name);
+    function Template(self, { name }, inner) {
+      xnew('<div style="margin: 8px; padding: 8px; border: solid 1px #222;">', () => {
+        xnew('<div style="display: flex; column-gap: 8px;">', () => {
+          xnew('<p>', name);
+          inner();
+        });
+      });
     }
 
-    function Div1(self) {
-      xnew.extend(Base, 'my div');
-
-      xnew({ style: { display: 'flex' } }, () => {
-        xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
-        xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
-        xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
+    function Basic(self) {
+      xnew(Template, { name: 'my div' }, () => {
+        xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
+        xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
+        xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
       });
     }
 
