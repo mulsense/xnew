@@ -57,10 +57,10 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
 
 Object.defineProperty(xnew, 'nest', {
     enumerable: true,
-    value: (attributes: object, text?: string): UnitElement | undefined => {
+    value: (html: string): Element | null | undefined => {
         try {
-            // return UnitElement.nest(attributes, text);
-            return undefined;
+            const current = UnitScope.current;
+            return current ? Unit.nest(current, html) : undefined;
         } catch (error: unknown) {
             console.error('xnew.nest(attributes): ', error);
         }

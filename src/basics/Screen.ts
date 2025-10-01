@@ -2,17 +2,9 @@ import { xnew } from '../core/xnew';
 import { ResizeEvent } from './ResizeEvent';
 
 export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'contain' } = {}) {
-    const wrapper = xnew.nest({
-        style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
-    });
-    const absolute = xnew.nest({
-        style: { position: 'absolute', margin: 'auto' } 
-    });
-
-    const canvas = xnew({
-        tag: 'canvas', width, height,
-        style: { width: '100%', height: '100%', verticalAlign: 'bottom', userSelect: 'none', userDrag: 'none' }
-    });
+    const wrapper = xnew.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
+    const absolute = xnew.nest('<div style="position: absolute; margin: auto;">');
+    const canvas = xnew(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
 
     const observer = xnew(wrapper, ResizeEvent);
     observer.on('-resize', resize);

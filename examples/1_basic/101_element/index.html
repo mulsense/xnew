@@ -10,66 +10,75 @@
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
     xnew('#main', (self) => {
-      xnew(Basic);
-      xnew(Div2);
-      xnew(Div3);
-      xnew(Div4);
+      xnew(MyDivs);
+      xnew(MyInputs);
+      xnew(MyCanvas);
     });
 
     function Template(self, { name }, inner) {
       xnew('<div style="margin: 8px; padding: 8px; border: solid 1px #222;">', () => {
-        xnew('<div style="display: flex; column-gap: 8px;">', () => {
-          xnew('<p>', name);
-          inner();
-        });
+        xnew('<p>', name);
+        xnew('<div style="display: flex; column-gap: 32px;">', inner);
       });
     }
 
-    function Basic(self) {
-      xnew(Template, { name: 'my div' }, () => {
+    function MyDivs(self) {
+      xnew(Template, { name: 'my divs' }, (self) => {
         xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
         xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
         xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
       });
     }
 
-    function Div2(self) {
-      xnew.extend(Base, 'my button');
+    function MyInputs(self) {
+      xnew(Template, { name: 'my inputs' }, (self) => {
 
-      const button = xnew({ tag: 'button' }, 'click me');
+        xnew('<div>', (self) => {
+          let count = 0;
+          const button = xnew('<button>', 'click me');
+          button.on('click', () => {
+            button.element.textContent = `count: ${count++}`;
+          });
+        });
 
-      let count = 0;
-      button.on('click', () => {
-        button.element.textContent = `count: ${count++}`;
-      })
-    }
+        xnew('<div>', (self) => {
+          const input = xnew('<input type="text">');
+          const text = xnew('<span style="margin: 0 8px;">');
 
-    function Div3(self) {
-      xnew.extend(Base, 'my input text');
+          input.on('change input', () => {
+            text.element.textContent = input.element.value;
+          });
+        });
 
-      const input = xnew({ tag: 'input', type: 'text' });
-      const span = xnew({ tag: 'span', style: { margin: '0 8px' } });
+        xnew('<div>', (self) => {
+          const select = xnew('<select>', () => {
+            xnew('<option value="one">', 'one');
+            xnew('<option value="two">', 'two');
+            xnew('<option value="three">', 'three');
+          });
 
-      input.on('change input', () => {
-        span.element.textContent = input.element.value;
-      })
-    }
-
-    function Div4(self) {
-      xnew.extend(Base, 'my select');
-
-      const select = xnew({ tag: 'select' }, () => {
-        xnew({ tag: 'option', value: 'one' }, 'one');
-        xnew({ tag: 'option', value: 'two' }, 'two');
-        xnew({ tag: 'option', value: 'three' }, 'three');
-      });
-
-      const text = xnew({ tag: 'span', style: { margin: '0 8px' } }, 'one');
-
-      select.on('change', (event) => {
-        text.element.textContent = event.target.value;
+          const text = xnew('<span style="margin: 0 8px;">', 'one');
+          select.on('change', (event) => {
+            text.element.textContent = event.target.value;
+          });
+        });
       });
     }
+
+    function MyCanvas(self) {
+      xnew(Template, { name: 'my canvas' }, (self) => {
+        xnew('<canvas width="200" height="140" style="border: 1px solid #ccc;">', (self) => {
+          const ctx = self.element.getContext('2d');
+          ctx.fillStyle = '#f88';
+          ctx.fillRect(20, 10, 100, 100);
+          ctx.fillStyle = '#8f8';
+          ctx.fillRect(50, 20, 100, 100);
+          ctx.fillStyle = '#88f';
+          ctx.fillRect(80, 30, 100, 100);
+        });
+      });
+    }
+
 
   </script>
 </body>

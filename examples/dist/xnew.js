@@ -292,8 +292,12 @@
             Unit.initialize(this);
         }
         get element() {
-            var _a;
-            return this._.baseTarget instanceof Element ? ((_a = this._.nestElement) !== null && _a !== void 0 ? _a : this._.baseTarget) : null;
+            if (this._.baseTarget instanceof Element) {
+                return this._.nestedElements.length > 0 ? this._.nestedElements[this._.nestedElements.length - 1] : this._.baseTarget;
+            }
+            else {
+                return null;
+            }
         }
         start() {
             this._.tostart = true;
@@ -361,7 +365,7 @@
                 children: [], // children units
                 state: 'pending', // [pending -> running <-> stopped -> finalized]
                 tostart: true, // flag for start
-                nestElement: null, // nested html element
+                nestedElements: [], // nested html elements
                 upcount: 0, // update count    
                 resolved: false, // promise check
                 props: {}, // properties in the component function
@@ -370,18 +374,15 @@
             unit._.system = { start: [], update: [], stop: [], finalize: [] };
             UnitScope.initialize(unit, unit._.baseContext);
             // nest html element
-            if (unit._.baseTarget instanceof Element && typeof unit._.inputs.target === 'string') {
-                const html = unit._.inputs.target.trim();
-                const match = html.match(/<((\w+)[^>]*?)\/?>/);
-                unit._.baseTarget.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                unit._.nestElement = unit._.baseTarget.children[unit._.baseTarget.children.length - 1];
+            if (unit.element instanceof Element && typeof unit._.inputs.target === 'string') {
+                Unit.nest(unit, unit._.inputs.target);
             }
             // setup component
             if (typeof unit._.inputs.component === 'function') {
                 UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
             }
-            else if (unit._.nestElement instanceof Element && typeof unit._.inputs.component === 'string') {
-                unit._.nestElement.innerHTML = unit._.inputs.component;
+            else if (unit.element instanceof Element && typeof unit._.inputs.component === 'string') {
+                unit.element.innerHTML = unit._.inputs.component;
             }
             // whether the unit promise was resolved
             (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
@@ -398,9 +399,9 @@
                 UnitScope.finalize(unit);
                 UnitComponent.finalize(unit);
                 UnitPromise.finalize(unit);
-                if (unit._.nestElement instanceof Element) {
-                    (_a = unit._.baseTarget) === null || _a === void 0 ? void 0 : _a.removeChild(unit._.nestElement);
-                    unit._.nestElement = null;
+                if (unit._.nestedElements.length > 0) {
+                    (_a = unit._.baseTarget) === null || _a === void 0 ? void 0 : _a.removeChild(unit._.nestedElements[0]);
+                    unit._.nestedElements = [];
                 }
                 // reset props
                 Object.keys(unit._.props).forEach((key) => {
@@ -411,6 +412,15 @@
                 unit._.props = {};
                 unit._.state = 'finalized';
             }
+        }
+        static nest(unit, html) {
+            const match = html.match(/<((\w+)[^>]*?)\/?>/);
+            const element = unit.element;
+            if (element && match !== null) {
+                element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                unit._.nestedElements.push(element.children[element.children.length - 1]);
+            }
+            return unit.element;
         }
         static extend(unit, component, ...args) {
             var _a;
@@ -749,6 +759,18 @@
             console.error('xnew: ', error);
         }
     };
+    Object.defineProperty(xnew$1, 'nest', {
+        enumerable: true,
+        value: (html) => {
+            try {
+                const current = UnitScope.current;
+                return current ? Unit.nest(current, html) : undefined;
+            }
+            catch (error) {
+                console.error('xnew.nest(attributes): ', error);
+            }
+        }
+    });
     Object.defineProperty(xnew$1, 'extend', {
         enumerable: true,
         value: (component, ...args) => {
@@ -1089,16 +1111,9 @@
     }
 
     function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
-        const wrapper = xnew$1.nest({
-            style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }
-        });
-        const absolute = xnew$1.nest({
-            style: { position: 'absolute', margin: 'auto' }
-        });
-        const canvas = xnew$1({
-            tag: 'canvas', width, height,
-            style: { width: '100%', height: '100%', verticalAlign: 'bottom', userSelect: 'none', userDrag: 'none' }
-        });
+        const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
+        const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
+        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
         const observer = xnew$1(wrapper, ResizeEvent);
         observer.on('-resize', resize);
         resize();

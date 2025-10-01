@@ -12,7 +12,7 @@
   <script>
     xnew("#main", (self) => {
       xnew(Modal);
-      xnew({ tag: 'button' }, 'open').on('click', () => xnew(Modal));
+      xnew('<button>', 'open').on('click', () => xnew(Modal));
     });
 
     function Modal(modal) {
