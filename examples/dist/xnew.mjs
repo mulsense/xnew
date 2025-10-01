@@ -423,7 +423,7 @@ class Unit {
         const snapshot = UnitScope.snapshot(unit);
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-            if (unit[key] === undefined) {
+            if (unit[key] === undefined || unit._.props[key] !== undefined) {
                 const descriptor = { configurable: true, enumerable: true };
                 if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.get) === 'function') {
                     descriptor.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
@@ -1153,17 +1153,18 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
 }
 
 function Modal(self) {
-    const fixed = xnew$1.nest({ style: { position: 'fixed', inset: 0 } });
+    const fixed = xnew$1.nest('<div style="position: fixed; inset: 0;">');
     xnew$1().on('click', (event) => {
         if (fixed === event.target) {
-            if (self.close) {
-                self.close();
-            }
-            else {
-                self.finalize();
-            }
+            self.close();
         }
     });
+    return {
+        background: fixed,
+        close: () => {
+            self.finalize();
+        }
+    };
 }
 
 function WorkSpace(self, attributes = {}) {

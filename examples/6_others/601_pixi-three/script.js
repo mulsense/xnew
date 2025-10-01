@@ -31,11 +31,9 @@ function Boxes(self) {
       xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
     }
   }
-  return {
-    update() {
+  self.on('update', () => {
       object.rotation += 0.01;
-    },
-  };
+  });
 }
 
 function Box(self, { x, y, size, color }) {
@@ -43,11 +41,9 @@ function Box(self, { x, y, size, color }) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-  return {
-    update() {
-      object.rotation += 0.01;
-    },
-  };
+  self.on('update', () => {
+    object.rotation += 0.01;
+  });
 }
 
 function Cubes(self) {
@@ -60,12 +56,10 @@ function Cubes(self) {
       }
     }
   }
-  return {
-    update() {
-      object.rotation.y += 0.01;
-      object.rotation.z += 0.01;
-    },
-  };
+  self.on('update', () => {
+    object.rotation.y += 0.01;
+    object.rotation.z += 0.01;
+  });
 }
 
 function Cube(self, { x, y, z, size }) {
@@ -74,10 +68,8 @@ function Cube(self, { x, y, z, size }) {
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
 
-  return {
-    update() {
+  self.on('update', () => {
       object.rotation.x += 0.01;
       object.rotation.y += 0.01;
-    },
-  };
+  });
 }

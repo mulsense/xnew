@@ -188,7 +188,7 @@ export class Unit {
 
         Object.keys(props).forEach((key) => {
             const descripter = Object.getOwnPropertyDescriptor(props, key);
-            if (unit[key as keyof Unit] === undefined) {
+            if (unit[key as keyof Unit] === undefined || unit._.props[key] !== undefined) {
                 const descriptor: PropertyDescriptor = { configurable: true, enumerable: true };
                 if (typeof descripter?.get === 'function') {
                     descriptor.get = (...args: any[]) => UnitScope.execute(snapshot, descripter.get!, ...args);

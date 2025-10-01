@@ -13,7 +13,7 @@ function Main(self) {
 
   xnew(Contents);
 
-  const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
+  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
   button.on('click', () => xnew.emit('+reset'));
 }
 
@@ -23,12 +23,12 @@ function Contents(self) {
   xnew(Circle, { x: 350, y: 50, r: 40, color: 0xFF0000 });
   xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
   xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
-  xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888 }, { isStatic: true });
+  xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888, options: { isStatic: true } });
 
   self.on('+reset', () => self.reboot());
 }
 
-function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
+function Circle(self, { x, y, r, color = 0xFFFFFF, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
   object.position.set(x, y);
@@ -44,7 +44,7 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
   };
 }
 
-function Rectangle(self, { x, y, w, h, color = 0xFFFFFF }, options = {}) {
+function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.rectangle(x, y, w, h, options));
   object.position.set(x, y);
@@ -60,7 +60,7 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF }, options = {}) {
   };
 }
 
-function Polygon(self, { x, y, s, r, color = 0xFFFFFF }, options = {}) {
+function Polygon(self, { x, y, s, r, color = 0xFFFFFF, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.polygon(x, y, s, r, options));
   object.position.set(x, y);

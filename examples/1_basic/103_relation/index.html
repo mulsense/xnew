@@ -23,12 +23,12 @@
 
     // parent component
     function Parent(self) {
-      xnew.nest({ style: { padding: '6px', background: '#08F' }});
-      xnew({ tagName: 'span' }, 'parent');
+      xnew.nest('<div style="padding: 6px; background: #08F;">');
+      xnew('<span>', 'parent');
 
       const button1 = xnew(Button, 'stop');
       const button2 = xnew(Button, 'finalize');
-      const text = xnew({ tagName: 'div' });
+      const text = xnew('<div>');
 
       let isRunning = false;
       button1.on('click', () => {
@@ -38,33 +38,30 @@
       button2.on('click', (event) => self.finalize());
 
       xnew(Child);
-
-      return {
-        start() {
-          isRunning = true;
-          xnew.emit('+console', 'parent start');
-        },
-        update(count) {
-          text.element.textContent = `count ${count}`;
-        },
-        stop() {
-          isRunning = false;
-          xnew.emit('+console', 'parent stop');
-        },
-        finalize() {
-          xnew.emit('+console', 'parent finalize');
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        xnew.emit('+console', 'parent start');
+      });
+      self.on('update', (count) => {
+        text.element.textContent = `count ${count}`;
+      });
+      self.on('stop', () => {
+        isRunning = false;
+        xnew.emit('+console', 'parent stop');
+      });
+      self.on('finalize', () => {
+        xnew.emit('+console', 'parent finalize');
+      });
     }
 
     // child component
     function Child(self) {
-      xnew.nest({ style: { padding: '6px', background: '#F80' }});
-      xnew({ tagName: 'span' }, 'child');
+      xnew.nest('<div style="padding: 6px; background: #F80;">');
+      xnew('<span>', 'child');
 
       const button1 = xnew(Button, 'stop');
       const button2 = xnew(Button, 'finalize');
-      const text = xnew({ tagName: 'div' });
+      const text = xnew('<div>');
 
       let isRunning = false;
       button1.on('click', (event) => {
@@ -73,37 +70,35 @@
       });
       button2.on('click', (event) => self.finalize());
 
-      return {
-        start() {
-          isRunning = true;
-          xnew.emit('+console', 'child start');
-        },
-        update(count) {
-          text.element.textContent = `count ${count}`;
-        },
-        stop() {
-          isRunning = false;
-          xnew.emit('+console', 'child stop');
-        },
-        finalize() {
-          xnew.emit('+console', 'child finalize');
-        },
-      };
+      self.on('start', () => {
+        isRunning = true;
+        xnew.emit('+console', 'child start');
+      });
+      self.on('update', (count) => {
+        text.element.textContent = `count ${count}`;
+      });
+      self.on('stop', () => {
+        isRunning = false;
+        xnew.emit('+console', 'child stop');
+      });
+      self.on('finalize', () => {
+        xnew.emit('+console', 'child finalize');
+      });
     }
 
     function Button(self, text) {
-      xnew.nest({ tagName: 'button', style: { width: '60px', margin: '6px' }});
+      xnew.nest('<button style="width: 60px; margin: 6px;">');
       self.element.textContent = text;
     }
 
     function Console(self) {
-      xnew.nest({ style: { margin: '16px 0', border: 'solid 1px #AAA' }});
-      xnew({ tagName: 'div', style: { background: '#DDD' } }, 'console');
-      
+      xnew.nest('<div style="margin: 16px 0; border: solid 1px #AAA;">');
+      xnew('<div style="background: #DDD;">', 'console');
+
       const list = [];
       let autoincrement = 0;
       self.on('+console', (text) => {
-        list.push(xnew({ tagName: 'div' }, autoincrement++ + ': ' + text));
+        list.push(xnew('<div>', autoincrement++ + ': ' + text));
         if (list.length > 6) {
           list.shift().finalize();
         }

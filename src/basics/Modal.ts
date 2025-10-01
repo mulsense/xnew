@@ -5,11 +5,12 @@ export function Modal(self: xnew.Unit) {
     
     xnew().on('click', (event: Event) => {
         if (fixed === event.target) {
-            if (self.close) {
-                self.close();
-            } else {
-                self.finalize();
-            }
+            self.close();
         }
     });
+    return {
+        close: () => {
+            self.finalize();
+        }
+    }
 }

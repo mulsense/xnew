@@ -1,6 +1,5 @@
 import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
-// import xmatter from 'xnew/addons/xmatter';
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
 
@@ -23,8 +22,7 @@ function Main(self) {
 
     xnew(Contents);
   });
-
-  const button = xnew({ tagName: 'button', style: 'position: absolute; top: 0;' }, 'reset');
+  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
   button.on('click', () => xnew.emit('+reset'));
 }
 
@@ -37,12 +35,9 @@ function Contents(self) {
   xnew(Rectangle, { x: 400, y: 400, w: 380, h: 40, color: 0xFFFF00 }, false);
   // xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
   // xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888 }, { isStatic: true });
-  return {
-    update() {
-      // xmatter.update();
+  self.on('update', () => {
       world.step();
-    },
-  }
+  });
 }
 
 function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
@@ -50,12 +45,12 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().circle(0, 0, r).fill(color));
+  self.on('update', () => {
+    object.rotation = pyshics.angle;
+    object.position.set(pyshics.position.x, pyshics.position.y);
+  });
   return {
     object,
-    update() {
-      object.rotation = pyshics.angle;
-      object.position.set(pyshics.position.x, pyshics.position.y);
-    },
   };
 }
 
@@ -72,14 +67,12 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF }, dynamic = true, optio
   // Create a cuboid collider attached to the dynamic rigidBody.
   let colliderDesc = RAPIER.ColliderDesc.cuboid(w/2, h/2);
   let collider = world.createCollider(colliderDesc, rigidBody);
-
+  self.on('update', () => {
+      let position = rigidBody.translation();
+      object.position.set(position.x, position.y);
+  });
   return {
     object,
-    update() {
-        let position = rigidBody.translation();
-        object.position.set(position.x, position.y);
-  
-    },
   };
 }
 
@@ -92,10 +85,9 @@ function Polygon(self, { x, y, s, r, color = 0xFFFFFF }, options = {}) {
     points.push(Math.cos(i * Math.PI / 180) * r, Math.sin(i * Math.PI / 180) * r);
   }
   object.addChild(new PIXI.Graphics().regularPoly(0, 0, r, s).fill(color));
-  return {
-    update() {
-      object.rotation = pyshics.angle;
-      object.position.set(pyshics.position.x, pyshics.position.y);
-    },
-  };
+  self.on('update', () => {
+    let position = rigidBody.translation();
+    object.position.set(position.x, position.y);
+  });
+
 }
