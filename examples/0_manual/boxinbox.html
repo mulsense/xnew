@@ -17,13 +17,11 @@
       const text = xnew('<span>');
       xnew(Child);
 
-      let isRunning = false;
       self.on('click', () => {
-        isRunning ? self.stop() : self.start();
+        self.state === 'started' ? self.stop() : self.start();
       });
 
       self.on('start', () => {
-        isRunning = true;
         text.element.textContent = 'parent: start';
       });
 
@@ -32,7 +30,6 @@
       });
       
       self.on('stop', () => {
-        isRunning = false;
         text.element.textContent = 'parent: stop';
       });
     }
@@ -42,14 +39,12 @@
      
       const text = xnew('<span>');
 
-      let isRunning = false;
       self.on('click', (event) => {
         event.stopPropagation(); // cancel propagation to the parent element
-        isRunning ? self.stop() : self.start();
+        self.state === 'started' ? self.stop() : self.start();
       });
 
       self.on('start', () => {
-        isRunning = true;
         text.element.textContent = 'child: start';
       });
 
@@ -58,7 +53,6 @@
       });
       
       self.on('stop', () => {
-        isRunning = false;
         text.element.textContent = 'child: stop';
       });
     }

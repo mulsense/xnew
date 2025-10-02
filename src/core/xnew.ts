@@ -72,7 +72,7 @@ Object.defineProperty(xnew, 'extend', {
     value: (component: Function, ...args: any[]): any => {
         try {
             const current = UnitScope.current;
-            if (current?._.state === 'pending') {
+            if (current?._.state === 'invoked') {
                 return Unit.extend(current, component, ...args);
             } else {
                 throw new Error('This function can not be called after initialized.');

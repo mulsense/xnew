@@ -5,12 +5,14 @@
 ### Arguments
 `xnew` accepts the following arguments:
 ```js
-// target:    1. [an existing HTML element] or 
-//            2. [attributes to create a new HTML element]  
+const unit = xnew(target, component, ...args);
+
+// target:    1. [ existing HTML element] or 
+//            2. [the string to create a new HTML element]  
 // Component: 1. [a component function] or 
 //            2. [innerHTML for the created HTML element]  
 // ...args:   1. [arguments for the component function]
-const unit = xnew(target, component, ...args);
+
 ```
 
 There is no need to understand the details here.

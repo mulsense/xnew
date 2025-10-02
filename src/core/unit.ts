@@ -51,6 +51,10 @@ export class Unit {
         Unit.stop(this);
     }
 
+    get state(): string {
+        return this._.state;
+    }
+
     finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
@@ -103,7 +107,6 @@ export class Unit {
         return this;
     }
 
-    
     //----------------------------------------------------------------------------------------------------
     // internal
     //----------------------------------------------------------------------------------------------------
@@ -111,7 +114,7 @@ export class Unit {
     static initialize(unit: Unit): void {
         unit._ = Object.assign(unit._, {
             children: [],       // children units
-            state: 'pending',   // [pending -> running <-> stopped -> finalized]
+            state: 'invoked',   // [invoked -> initialized -> started <-> stopped -> finalized]
             tostart: true,      // flag for start
             nestedElements: [], // nested html elements
             upcount: 0,         // update count    
@@ -210,19 +213,19 @@ export class Unit {
 
     static start(unit: Unit, time: number): void {
         if (unit._.resolved === false || unit._.tostart === false) return;
-        if (unit._.state === 'pending' || unit._.state === 'stopped') {
-            unit._.state = 'running';
+        if (unit._.state === 'invoked' || unit._.state === 'initialized' || unit._.state === 'stopped') {
+            unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
             unit._.system.start.forEach((listener: Function) => {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
-        } else if (unit._.state === 'running') {
+        } else if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
         }
     }
 
     static stop(unit: Unit): void {
-        if (unit._.state === 'running') {
+        if (unit._.state === 'started') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
             unit._.system.stop.forEach((listener: Function) => {
@@ -232,10 +235,10 @@ export class Unit {
     }
 
     static update(unit: Unit, time: number): void {
-        if (['running'].includes(unit._.state) === true) {
+        if (['started'].includes(unit._.state) === true) {
             unit._.children.forEach((unit: Unit) => Unit.update(unit, time));
 
-            if (['running'].includes(unit._.state)) {
+            if (['started'].includes(unit._.state)) {
                 unit._.system.update.forEach((listener: Function) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener, unit._.upcount);
                 });

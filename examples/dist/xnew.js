@@ -306,6 +306,9 @@
             this._.tostart = false;
             Unit.stop(this);
         }
+        get state() {
+            return this._.state;
+        }
         finalize() {
             Unit.stop(this);
             Unit.finalize(this);
@@ -363,7 +366,7 @@
             var _a;
             unit._ = Object.assign(unit._, {
                 children: [], // children units
-                state: 'pending', // [pending -> running <-> stopped -> finalized]
+                state: 'invoked', // [invoked -> initialized -> started <-> stopped -> finalized]
                 tostart: true, // flag for start
                 nestedElements: [], // nested html elements
                 upcount: 0, // update count    
@@ -455,19 +458,19 @@
         static start(unit, time) {
             if (unit._.resolved === false || unit._.tostart === false)
                 return;
-            if (unit._.state === 'pending' || unit._.state === 'stopped') {
-                unit._.state = 'running';
+            if (unit._.state === 'invoked' || unit._.state === 'initialized' || unit._.state === 'stopped') {
+                unit._.state = 'started';
                 unit._.children.forEach((child) => Unit.start(child, time));
                 unit._.system.start.forEach((listener) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener);
                 });
             }
-            else if (unit._.state === 'running') {
+            else if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.start(child, time));
             }
         }
         static stop(unit) {
-            if (unit._.state === 'running') {
+            if (unit._.state === 'started') {
                 unit._.state = 'stopped';
                 unit._.children.forEach((child) => Unit.stop(child));
                 unit._.system.stop.forEach((listener) => {
@@ -476,9 +479,9 @@
             }
         }
         static update(unit, time) {
-            if (['running'].includes(unit._.state) === true) {
+            if (['started'].includes(unit._.state) === true) {
                 unit._.children.forEach((unit) => Unit.update(unit, time));
-                if (['running'].includes(unit._.state)) {
+                if (['started'].includes(unit._.state)) {
                     unit._.system.update.forEach((listener) => {
                         UnitScope.execute(UnitScope.snapshot(unit), listener, unit._.upcount);
                     });
@@ -776,7 +779,7 @@
         value: (component, ...args) => {
             try {
                 const current = UnitScope.current;
-                if ((current === null || current === void 0 ? void 0 : current._.state) === 'pending') {
+                if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
                     return Unit.extend(current, component, ...args);
                 }
                 else {
@@ -1166,7 +1169,6 @@
             }
         });
         return {
-            background: fixed,
             close: () => {
                 self.finalize();
             }

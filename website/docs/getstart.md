@@ -10,7 +10,7 @@ sidebar_position: 1
 ### Via CDN
 Include the following script in your HTML file:
 ```html
-<script src="https://unpkg.com/xnew@4.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
 ```
 
 ### Via CDN (ESM)
@@ -19,7 +19,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@4.0.x/dist/xnew.mjs"
+    "xnew": "https://unpkg.com/xnew@5.0.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -34,7 +34,7 @@ import xnew from 'xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install xnew@4.0.x
+npm install xnew@5.0.x
 ```
 
 Then import it in your JavaScript file:
@@ -72,7 +72,7 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@3.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -81,22 +81,20 @@ Use `xnew` and `xnew.nest` to create HTML elements.
 
     function Component(self) {
       // Pattern 1: Create new HTML element.
-      xnew({ tag: 'p' }, 'Create new HTML elements.');
+      xnew('<p>', 'Create new HTML elements.');
     
       // Pattern 2: Create child component.
       xnew(ChildComponent);
     }
 
     function ChildComponent(self) {
-       // If tag is omitted, tag: 'div' is set as default.
-
       // Pattern 3: Create new HTML element and nest the following elements.
-      xnew.nest({ style: { display: 'flex' } });
+      xnew.nest('<div style="display: flex;">');
 
       // The following elements are nested.
-      xnew({ style: { width: '160px', height: '36px', background: '#d66' } }, '1');
-      xnew({ style: { width: '160px', height: '36px', background: '#6d6' } }, '2');
-      xnew({ style: { width: '160px', height: '36px', background: '#66d' } }, '3');
+      xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
+      xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
+      xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
     }
   </script>
 </body>
@@ -128,18 +126,16 @@ Clicking on the box will toggle it start / stop.
     xnew(Component);
 
     function Component(self) {
-      xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
+      xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F">');
+      
+      const text = xnew('<span>');
 
-      const text = xnew({ tag: 'span' });
-
-      let isRunning = false;
       self.on('click', (event) => {
-        isRunning ? self.stop() : self.start();
+        self.state === 'started' ? self.stop() : self.start();
       });
 
       self.on('start', () => {
-        isRunning = true;
-        self.element.textContent = 'start';
+        text.element.textContent = 'start';
       });
 
       self.on('update', (count) => {
@@ -147,8 +143,7 @@ Clicking on the box will toggle it start / stop.
       });
       
       self.on('stop', () => {
-        isRunning = false;
-        self.element.textContent = 'stop';
+        text.element.textContent = 'stop';
       });
     }
   </script>
@@ -166,20 +161,17 @@ Connected units work together. For example, stopping the parent component also s
   <script>
     xnew(Component);
 
-    function Component(self) {
-      xnew.nest({ style: { position: 'absolute', width: '200px', height: '200px', inset: 0, margin: 'auto', background: '#08F' } });
+    function Parent(self) {
+      xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F">');
+      
+      const text = xnew('<span>');
+      xnew(Child);
 
-      const text = xnew({ tag: 'span' });
-
-      xnew(ChildComponent);
-
-      let isRunning = false;
       self.on('click', () => {
-        isRunning ? self.stop() : self.start();
+        self.state === 'started' ? self.stop() : self.start();
       });
 
       self.on('start', () => {
-        isRunning = true;
         text.element.textContent = 'parent: start';
       });
 
@@ -188,24 +180,21 @@ Connected units work together. For example, stopping the parent component also s
       });
       
       self.on('stop', () => {
-        isRunning = false;
         text.element.textContent = 'parent: stop';
       });
     }
 
-    function ChildComponent(self) {
-      xnew.nest({ style: { position: 'absolute', width: '100px', height: '100px', inset: 0, margin: 'auto', background: '#F80' } });
+    function Child(self) {
+      xnew.nest('<div style="position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80">');
+     
+      const text = xnew('<span>');
 
-      const text = xnew({ tag: 'span' });
-
-      let isRunning = false;
       self.on('click', (event) => {
-        event.stopPropagation(); // Prevent propagation to the parent element
-        isRunning ? self.stop() : self.start();
+        event.stopPropagation(); // cancel propagation to the parent element
+        self.state === 'started' ? self.stop() : self.start();
       });
 
       self.on('start', () => {
-        isRunning = true;
         text.element.textContent = 'child: start';
       });
 
@@ -214,7 +203,6 @@ Connected units work together. For example, stopping the parent component also s
       });
       
       self.on('stop', () => {
-        isRunning = false;
         text.element.textContent = 'child: stop';
       });
     }
