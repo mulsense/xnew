@@ -10,7 +10,7 @@
   <script>
     // reset button
     xnew((self) => {
-      const reset = xnew(Button, 'reset');
+      const reset = xnew(Button, { text: 'reset' });
       let parent = xnew(Parent);
       let console = xnew(Console);
       reset.on('click', () => {
@@ -26,8 +26,8 @@
       xnew.nest('<div style="padding: 6px; background: #08F;">');
       xnew('<span>', 'parent');
 
-      const button1 = xnew(Button, 'stop');
-      const button2 = xnew(Button, 'finalize');
+      const button1 = xnew(Button, { text: 'stop' });
+      const button2 = xnew(Button, { text: 'finalize' });
       const text = xnew('<div>');
 
       let isRunning = false;
@@ -59,8 +59,8 @@
       xnew.nest('<div style="padding: 6px; background: #F80;">');
       xnew('<span>', 'child');
 
-      const button1 = xnew(Button, 'stop');
-      const button2 = xnew(Button, 'finalize');
+      const button1 = xnew(Button, { text: 'stop' });
+      const button2 = xnew(Button, { text: 'finalize' });
       const text = xnew('<div>');
 
       let isRunning = false;
@@ -86,7 +86,7 @@
       });
     }
 
-    function Button(self, text) {
+    function Button(self, { text }) {
       xnew.nest('<button style="width: 60px; margin: 6px;">');
       self.element.textContent = text;
     }
