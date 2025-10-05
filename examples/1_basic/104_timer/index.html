@@ -17,20 +17,20 @@
     
     function Box(self) {
       const box = xnew.nest('<div style="position: absolute; width: 30px; height: 30px; background: #F80;">');
-      box.style.left = (Math.random() * 400 - 15) + 'px';
-      box.style.top = (Math.random() * 300 - 15) + 'px';
+      box.element.style.left = (Math.random() * 400 - 15) + 'px';
+      box.element.style.top = (Math.random() * 300 - 15) + 'px';
 
       // fade in -> fade out -> finalize
       xnew.transition((x) => {
-        box.style.opacity = x;
+        box.element.style.opacity = x;
       }, 1000).next((x) => {
-        box.style.opacity = 1.0 - x;
+        box.element.style.opacity = 1.0 - x;
       }, 1000).next(() => {
         self.finalize();
       });
 
       self.on('update', (count) => {
-        box.style.transform = `rotate(${count}deg)`;
+        box.element.style.transform = `rotate(${count}deg)`;
       });
     }
   </script>
