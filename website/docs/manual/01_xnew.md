@@ -5,32 +5,30 @@
 ### Arguments
 `xnew` accepts the following arguments:
 ```js
-const unit = xnew(target, component, ...args);
+// Pattern A
+const unit = xnew(target, Component, props);
+// target:    [an existing HTML element], [a query string for it] or [a html string for a new HTML element]  
+// Component: [a component function]
+// props:     [the properties for the component function]
+```
 
-// target:    1. [ existing HTML element] or 
-//            2. [the string to create a new HTML element]  
-// Component: 1. [a component function] or 
-//            2. [innerHTML for the created HTML element]  
-// ...args:   1. [arguments for the component function]
-
+```js
+// Pattern B
+const unit = xnew(target, innerHTML);
+// target:    [a string for a new HTML element]  
+// innerHTML: [innerHTML for the created HTML element]  
 ```
 
 There is no need to understand the details here.
 
-All arguments are optional:
-```js
-xnew(Component, ...args);   // target is omitted
-xnew(target);               // Component is omitted
-xnew();                     // both are omitted
-```
 
-### Component
+### Component 
 Define a component function to implement features for the unit:
 
 ```js
-const unit = xnew(Component, ...args);
+const unit = xnew(Component, props); // target is omitted
 
-function Component(self, ...args) {
+function Component(self, props) {
   // Implement features here
 }
 ```
@@ -69,18 +67,12 @@ The `target` specifies the HTML element for the new unit. Access it via `unit.el
 ```html
 <body>
   <script>
-    xnew({ tag: 'div', id: 'hoge' }, (self) => {
+    xnew('<div id="hoge">', (self) => {
       self.element; // element (id = hoge)
     });
   </script>
 </body>
 ```
-
-:::note Variations
-- `xnew({ tag: 'div', className: 'aaa', style: 'bbb' }, ...)`
-:::
-
-If `tag` is omitted, it defaults to `'div'`.
 
 #### Inheriting Parent Elements
 If `target` is omitted, the parent unit's element or the current scope's parent element is used.
@@ -99,33 +91,19 @@ If `target` is omitted, the parent unit's element or the current scope's parent 
       // self.element: (id=hoge)
     });
 
-    xnew({ tag: 'div', id: 'fuga' }, (self) => {
+    xnew('<div id="fuga">', (self) => {
       // self.element: (id=fuga)
     });
   });
 </script>
-
-<div id="parent">
-  <script>
-    xnew((self) => {
-      // self.element: (id=parent)
-    });
-  </script>
-</div>
 ```
 
 ### InnerHTML
-If `Component` is a string, it is set as the `innerHTML` of the created element.
-
+You can also set the inner HTML.
 ```js
-xnew({ tag: 'p', id: 'hoge' }, 'aaa');
+xnew('<p>', 'inner html');
 ```
 
-```html
-<body>
-  <p id="hoge">aaa</p>
-</body>
-```
 ## Event Listener
 Use `unit.on` to add event listeners and `unit.off` to remove them.
 
@@ -281,7 +259,7 @@ xnew(() => {
   });
 
   xnew((self) => {
-    xnew.emit('+myevent'); // Emit event
+    self.emit('+myevent'); // Emit event
   });
 });
 ```
@@ -301,7 +279,7 @@ Use the `-` prefix to listen for events emitted within the component function.
   function Component(self) {
     xnew.timer(() => {
       const data = { key: 'value' };
-      xnew.emit('-myevent', data);
+      self.emit('-myevent', data);
     }, 1000);
   }
 </script>
@@ -309,7 +287,7 @@ Use the `-` prefix to listen for events emitted within the component function.
 
 ## Custom Properties
 You can define custom properties unless they conflict with system properties. Reserved names include:
-- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `_`
+- `start`, `update`, `stop`, `finalize`, `reboot`, `element`, `on`, `off`, `emit`, `_`
 
 ```js
 const unit = xnew((self) => {

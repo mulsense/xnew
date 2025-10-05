@@ -78,7 +78,7 @@ function TitleScene(self) {
   xpixi.connect(xthree.renderer.domElement);
 
   xnew(window).on('keydown pointerdown', () => {
-    xnew.emit('+nextscene', GameScene);
+    self.emit('+nextscene', GameScene);
     self.finalize();
   });
 }
@@ -103,7 +103,7 @@ function GameScene(scene) {
 
     xnew.timeout(() => {
       xnew(window).on('keydown pointerdown', () => {
-        xnew.emit('+nextscene', TitleScene);
+        self.emit('+nextscene', TitleScene);
         scene.finalize();
       });
     }, 1000);
@@ -127,9 +127,9 @@ function Controller(self) {
   const screen = xnew.find(xnew.Screen)[0];
   const user = xnew(screen.canvas, xnew.UserEvent);
   user.on('-pointermove -pointerdown', ({ position }) => {
-    xnew.emit('+move', { x: position.x * screen.scale.x });
+    self.emit('+move', { x: position.x * screen.scale.x });
   });
-  user.on('-pointerdown', () => xnew.emit('+action'));
+  user.on('-pointerdown', () => self.emit('+action'));
 }
 
 function ScoreText(self) {
@@ -151,7 +151,7 @@ function Bowl(self) {
 
 function Queue(self) {
   const balls = [...Array(4)].map(() => Math.floor(1 + Math.random() * 3));
-  xnew.emit('+reloadcomplete', 1);
+  self.emit('+reloadcomplete', 1);
 
   let model = xnew(Model, { size: balls[0], scale: 1 });
   model.setPosition(70, 60, 0);
@@ -170,7 +170,7 @@ function Queue(self) {
     xnew.transition((progress) => {
       model.setPosition(0 + progress * 70, 60, 0);
       if (progress === 1.0) {
-        xnew.emit('+reloadcomplete', next);
+        self.emit('+reloadcomplete', next);
       }
     }, 500);
   });
@@ -262,12 +262,12 @@ function Cursor(self) {
   self.on('+action', () => {
     if (next !== null) {
       circle.clear();
-      xnew.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, size: next, score: Math.pow(2, next - 1)});
+      self.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, size: next, score: Math.pow(2, next - 1)});
       if (model) {
         model.finalize();
         model = null;
       }
-      xnew.emit('+reload');
+      self.emit('+reload');
       next = null;
     } 
   });
@@ -286,12 +286,12 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
   const model = xnew(Model, { r, size, scale });
-  xnew.emit('+scoreup', score);
+  self.emit('+scoreup', score);
   
   self.on('update', () => {
     model.setPosition(self.object.x, self.object.y, self.object.rotation);
     if (self.object.y > height - 10) {
-      xnew.emit('+gameover');
+      self.emit('+gameover');
       self.finalize();
       return;
     }
@@ -302,7 +302,7 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
         const x = (self.object.x + target.object.x) / 2;
         const y = (self.object.y + target.object.y) / 2;
         const a = (self.object.rotation + target.object.rotation) / 2;
-        xnew.emit('+addobject', ModelBall, { x, y, a, size, score });
+        self.emit('+addobject', ModelBall, { x, y, a, size, score });
         self.finalize();
         target.finalize();
         break;

@@ -10,8 +10,8 @@ sidebar_position: 501
 ### Via CDN
 Include the following scripts in your HTML file:
 ```html
-<script src="https://unpkg.com/xnew@3.0.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/xnew@3.0.x/dist/addons/xaudio.js"></script>
+<script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@5.0.x/dist/addons/xaudio.js"></script>
 ```
 
 ### Via CDN (ESM)
@@ -20,8 +20,8 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs",
-    "xnew/addons/xaudio": "https://unpkg.com/xnew@3.0.x/dist/addons/xaudio.mjs"
+    "xnew": "https://unpkg.com/xnew@5.0.x/dist/xnew.mjs",
+    "xnew/addons/xaudio": "https://unpkg.com/xnew@5.0.x/dist/addons/xaudio.mjs"
   }
 }
 </script>
@@ -37,7 +37,7 @@ import xaudio from 'xnew/addons/xaudio';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install xnew@3.0.x
+npm install xnew@5.0.x
 ```
 
 Then import `xnew` and `xaudio` in your JavaScript file:

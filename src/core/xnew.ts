@@ -60,7 +60,11 @@ Object.defineProperty(xnew, 'nest', {
     value: (html: string): Element | null | undefined => {
         try {
             const current = UnitScope.current;
-            return current ? Unit.nest(current, html) : undefined;
+            if (current?._.state === 'invoked') {
+                return xnew(Unit.nest(current, html));
+            } else {
+                throw new Error('This function can not be called after initialized.');
+            }
         } catch (error: unknown) {
             console.error('xnew.nest(attributes): ', error);
         }
@@ -126,17 +130,6 @@ Object.defineProperty(xnew, 'fetch', {
         } catch (error: unknown) {
             console.error('xnew.promise(mix): ', error);
             throw error;
-        }
-    }
-});
-
-Object.defineProperty(xnew, 'emit', {
-    enumerable: true,
-    value: (type: string, ...args: any[]): void => {
-        try {
-            UnitEvent.emit(type, ...args);
-        } catch (error: unknown) {
-            console.error('xnew.emit(type, ...args): ', error);
         }
     }
 });

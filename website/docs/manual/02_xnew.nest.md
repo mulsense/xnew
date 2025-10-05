@@ -1,46 +1,62 @@
 # xnew.nest
 
-`xnew.nest` creates a new element as a child of the current element and replaces `unit.element`.
+`xnew.nest` creates a new html element and the following elements are nested.
 
 ```js
 xnew((self) => {
-  const element = xnew.nest(attributes);
+  const unit = xnew.nest(html);
 
-  self.element; // Access the new element
+  unit.element; // Access the new element
 })
 ```
 
 ## Example
 ```js
-xnew({ tag: 'div', name: 'A'}, (self) =>{
+xnew('<div id="A">', (self) =>{
   self.element; // div A
+
+  xnew('<p>', 'in A');
 });
 
 xnew((self) => {
-  xnew.nest({ tag: 'div', name: 'B' });
-  self.element; // div B
+  const div = xnew.nest('<div id="B">');
+
+  self.element; // div A
+  div.element; // div B
+
+  xnew('<p>', 'in B');
 }
 
-xnew({ tag: 'div', name: 'C' }, (self) => {
-  xnew.nest({ tag: 'div', name: 'D' }); // inner div
-  self.element; // div D
+xnew('<div id="C">', (self) => {
+  const div = xnew.nest('<div id="D">');
+
+  self.element; // div C
+  div.element; // div D
+
+  xnew('<p>', 'in D');
 }
 
-const unit4 = xnew({ tag: 'div', name: 'E' }, 'aaa');
-unit4.element; // div E
+const unit = xnew('<div id="E">', 'in E');
+unit.element; // div E
 
 ```
 
 The above code produces the following HTML structure:
 ```html
 <body>
-  <div name="A"></div>
-  <div name="B"></div>
-  <div name="C">
-    <div name="D"></div>
+  <div id="A">
+    <p>in A</p>
   </div>
-  <div name="E">
-    aaa
+  <div id="B">
+    <p>in B</p>
+  </div>
+  <div id="C">
+    <div id="D">
+      <p>in D</p>
+    </div>
+  </div>
+  <div id="E">
+    in E
   </div>
 </body>
 ```

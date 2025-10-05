@@ -47,16 +47,16 @@ import xnew from 'xnew';
 Calling `xnew` creates a unit (`self`). You can define a component function to implement features.
 
 ```js
-const unit = xnew(Component, ...args);
+const unit = xnew(Component, props);
 
-function Component(self, ...args) {
+function Component(self, props) {
   // Implement features here
 }
 ```
 
 You can also create a HTML element with `xnew`:
 ```js
-const unit = xnew({ className: '...', style: '...', ... }, 'inner html');
+const unit = xnew('<div class="hoge">', 'inner html');
 
 unit.element; // Access the created element
 ```
@@ -144,66 +144,6 @@ Clicking on the box will toggle it start / stop.
       
       self.on('stop', () => {
         text.element.textContent = 'stop';
-      });
-    }
-  </script>
-</body>
-```
-
-### Example 3: Parent-Child Relation
-When `xnew` is called inside a component function, a parent-child relation is established.  
-Connected units work together. For example, stopping the parent component also stops its children.
-
-<iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/boxinbox.html" ></iframe>
-
-```html
-<body>
-  <script>
-    xnew(Component);
-
-    function Parent(self) {
-      xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F">');
-      
-      const text = xnew('<span>');
-      xnew(Child);
-
-      self.on('click', () => {
-        self.state === 'started' ? self.stop() : self.start();
-      });
-
-      self.on('start', () => {
-        text.element.textContent = 'parent: start';
-      });
-
-      self.on('update', (count) => {
-        self.element.style.transform = `rotate(${count}deg)`;
-      });
-      
-      self.on('stop', () => {
-        text.element.textContent = 'parent: stop';
-      });
-    }
-
-    function Child(self) {
-      xnew.nest('<div style="position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80">');
-     
-      const text = xnew('<span>');
-
-      self.on('click', (event) => {
-        event.stopPropagation(); // cancel propagation to the parent element
-        self.state === 'started' ? self.stop() : self.start();
-      });
-
-      self.on('start', () => {
-        text.element.textContent = 'child: start';
-      });
-
-      self.on('update', (count) => {
-        self.element.style.transform = `rotate(${count}deg)`;
-      });
-      
-      self.on('stop', () => {
-        text.element.textContent = 'child: stop';
       });
     }
   </script>

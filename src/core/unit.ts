@@ -13,8 +13,8 @@ export class Unit {
     static roots: Unit[] = [];
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, ...args: any[]) {
-        let baseTarget: Element | Window | null = null;
-        if (target instanceof Element || target instanceof Window) {
+        let baseTarget: Element | Window | Document | null = null;
+        if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
         } else if (parent !== null) {
             baseTarget = parent.element;
@@ -107,6 +107,14 @@ export class Unit {
         return this;
     }
 
+    emit(type: string, ...args: any[]) {
+        try {
+            UnitEvent.emit(type, ...args);
+        } catch (error: unknown) {
+            console.error('unit.emit(type, ...args): ', error);
+        }
+    }
+
     //----------------------------------------------------------------------------------------------------
     // internal
     //----------------------------------------------------------------------------------------------------
@@ -128,7 +136,7 @@ export class Unit {
         UnitScope.initialize(unit, unit._.baseContext);
 
         // nest html element
-        if (unit.element instanceof Element && typeof unit._.inputs.target === 'string') {
+        if (unit._.baseTarget instanceof Element && typeof unit._.inputs.target === 'string') {
             Unit.nest(unit, unit._.inputs.target);
         }
 
@@ -173,14 +181,22 @@ export class Unit {
         }
     }
 
+    static next(unit: Unit) : Element | null {
+        if (unit._.baseTarget instanceof Element) {
+            return unit._.nestedElements.length > 0 ? unit._.nestedElements[unit._.nestedElements.length - 1] : unit._.baseTarget;
+        } else {
+            return null;
+        }
+    }
+
     static nest(unit: Unit, html: string) : Element | null {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
-        const element = unit.element;
+        const element = Unit.next(unit);
         if (element && match !== null) {
             element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
             unit._.nestedElements.push(element.children[element.children.length - 1]);
         }
-        return unit.element;
+        return Unit.next(unit);
     }
 
     static extend(unit: Unit, component: Function, ...args: any[]): void {

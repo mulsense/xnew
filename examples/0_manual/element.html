@@ -23,15 +23,11 @@
 
     function ChildComponent(self) {
       // Pattern 3: nest HTML elements.
-      let count = 0;
-      xnew('<div style="display: flex;">', (self) => {
-        xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
-        xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
-        xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
-        self.on('click', () => {
-          self.reboot();
-        });
-      });
+      xnew.nest('<div style="display: flex;">');
+        
+      xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
+      xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
+      xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
     }
   </script>
 </body>

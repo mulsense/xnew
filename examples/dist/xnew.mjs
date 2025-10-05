@@ -266,7 +266,7 @@ class Unit {
         var _a, _b, _c, _d;
         this._ = {};
         let baseTarget = null;
-        if (target instanceof Element || target instanceof Window) {
+        if (target instanceof Element || target instanceof Window || target instanceof Document) {
             baseTarget = target;
         }
         else if (parent !== null) {
@@ -353,6 +353,14 @@ class Unit {
         }
         return this;
     }
+    emit(type, ...args) {
+        try {
+            UnitEvent.emit(type, ...args);
+        }
+        catch (error) {
+            console.error('unit.emit(type, ...args): ', error);
+        }
+    }
     //----------------------------------------------------------------------------------------------------
     // internal
     //----------------------------------------------------------------------------------------------------
@@ -371,7 +379,7 @@ class Unit {
         unit._.system = { start: [], update: [], stop: [], finalize: [] };
         UnitScope.initialize(unit, unit._.baseContext);
         // nest html element
-        if (unit.element instanceof Element && typeof unit._.inputs.target === 'string') {
+        if (unit._.baseTarget instanceof Element && typeof unit._.inputs.target === 'string') {
             Unit.nest(unit, unit._.inputs.target);
         }
         // setup component
@@ -410,14 +418,22 @@ class Unit {
             unit._.state = 'finalized';
         }
     }
+    static next(unit) {
+        if (unit._.baseTarget instanceof Element) {
+            return unit._.nestedElements.length > 0 ? unit._.nestedElements[unit._.nestedElements.length - 1] : unit._.baseTarget;
+        }
+        else {
+            return null;
+        }
+    }
     static nest(unit, html) {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
-        const element = unit.element;
+        const element = Unit.next(unit);
         if (element && match !== null) {
             element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
             unit._.nestedElements.push(element.children[element.children.length - 1]);
         }
-        return unit.element;
+        return Unit.next(unit);
     }
     static extend(unit, component, ...args) {
         var _a;
@@ -761,7 +777,12 @@ Object.defineProperty(xnew$1, 'nest', {
     value: (html) => {
         try {
             const current = UnitScope.current;
-            return current ? Unit.nest(current, html) : undefined;
+            if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
+                return xnew$1(Unit.nest(current, html));
+            }
+            else {
+                throw new Error('This function can not be called after initialized.');
+            }
         }
         catch (error) {
             console.error('xnew.nest(attributes): ', error);
@@ -832,17 +853,6 @@ Object.defineProperty(xnew$1, 'fetch', {
         catch (error) {
             console.error('xnew.promise(mix): ', error);
             throw error;
-        }
-    }
-});
-Object.defineProperty(xnew$1, 'emit', {
-    enumerable: true,
-    value: (type, ...args) => {
-        try {
-            UnitEvent.emit(type, ...args);
-        }
-        catch (error) {
-            console.error('xnew.emit(type, ...args): ', error);
         }
     }
 });
@@ -959,7 +969,7 @@ Object.defineProperty(xnew$1, 'transition', {
 function ResizeEvent(self) {
     const observer = new ResizeObserver(xnew$1.scope((entries) => {
         for (const entry of entries) {
-            xnew$1.emit('-resize');
+            self.emit('-resize');
             break;
         }
     }));
@@ -975,25 +985,25 @@ function ResizeEvent(self) {
 
 function UserEvent(self) {
     const unit = xnew$1();
-    unit.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
-    unit.on('pointermove', (event) => xnew$1.emit('-pointermove', { event, position: getPosition(self.element, event) }));
-    unit.on('pointerup', (event) => xnew$1.emit('-pointerup', { event, position: getPosition(self.element, event) }));
-    unit.on('wheel', (event) => xnew$1.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
+    unit.on('pointerdown', (event) => self.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
+    unit.on('pointermove', (event) => self.emit('-pointermove', { event, position: getPosition(self.element, event) }));
+    unit.on('pointerup', (event) => self.emit('-pointerup', { event, position: getPosition(self.element, event) }));
+    unit.on('wheel', (event) => self.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
     const drag = xnew$1(DragEvent);
-    drag.on('-dragstart', (...args) => xnew$1.emit('-dragstart', ...args));
-    drag.on('-dragmove', (...args) => xnew$1.emit('-dragmove', ...args));
-    drag.on('-dragend', (...args) => xnew$1.emit('-dragend', ...args));
-    drag.on('-dragcancel', (...args) => xnew$1.emit('-dragcancel', ...args));
+    drag.on('-dragstart', (...args) => self.emit('-dragstart', ...args));
+    drag.on('-dragmove', (...args) => self.emit('-dragmove', ...args));
+    drag.on('-dragend', (...args) => self.emit('-dragend', ...args));
+    drag.on('-dragcancel', (...args) => self.emit('-dragcancel', ...args));
     const gesture = xnew$1(GestureEvent);
-    gesture.on('-gesturestart', (...args) => xnew$1.emit('-gesturestart', ...args));
-    gesture.on('-gesturemove', (...args) => xnew$1.emit('-gesturemove', ...args));
-    gesture.on('-gestureend', (...args) => xnew$1.emit('-gestureend', ...args));
-    gesture.on('-gesturecancel', (...args) => xnew$1.emit('-gesturecancel', ...args));
+    gesture.on('-gesturestart', (...args) => self.emit('-gesturestart', ...args));
+    gesture.on('-gesturemove', (...args) => self.emit('-gesturemove', ...args));
+    gesture.on('-gestureend', (...args) => self.emit('-gestureend', ...args));
+    gesture.on('-gesturecancel', (...args) => self.emit('-gesturecancel', ...args));
     const keyborad = xnew$1(Keyboard);
-    keyborad.on('-keydown', (...args) => xnew$1.emit('-keydown', ...args));
-    keyborad.on('-keyup', (...args) => xnew$1.emit('-keyup', ...args));
-    keyborad.on('-arrowkeydown', (...args) => xnew$1.emit('-arrowkeydown', ...args));
-    keyborad.on('-arrowkeyup', (...args) => xnew$1.emit('-arrowkeyup', ...args));
+    keyborad.on('-keydown', (...args) => self.emit('-keydown', ...args));
+    keyborad.on('-keyup', (...args) => self.emit('-keyup', ...args));
+    keyborad.on('-arrowkeydown', (...args) => self.emit('-arrowkeydown', ...args));
+    keyborad.on('-arrowkeyup', (...args) => self.emit('-arrowkeyup', ...args));
 }
 function DragEvent(self) {
     xnew$1().on('pointerdown', (event) => {
@@ -1005,25 +1015,25 @@ function DragEvent(self) {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew$1.emit('-dragmove', { event, position, delta });
+                self.emit('-dragmove', { event, position, delta });
                 previous = position;
             }
         });
         win.on('pointerup', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
-                xnew$1.emit('-dragend', { event, position, });
+                self.emit('-dragend', { event, position, });
                 win.finalize();
             }
         });
         win.on('pointercancel', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
-                xnew$1.emit('-dragcancel', { event, position, });
+                self.emit('-dragcancel', { event, position, });
                 win.finalize();
             }
         });
-        xnew$1.emit('-dragstart', { event, position });
+        self.emit('-dragstart', { event, position });
     });
 }
 function GestureEvent(self) {
@@ -1034,7 +1044,7 @@ function GestureEvent(self) {
         map.set(event.pointerId, Object.assign({}, position));
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            xnew$1.emit('-gesturestart', {});
+            self.emit('-gesturestart', {});
         }
     });
     drag.on('-dragmove', ({ event, position, delta }) => {
@@ -1052,20 +1062,20 @@ function GestureEvent(self) {
                 ({ x: a.x - b.x, y: a.y - b.y });
                 ({ x: c.x - b.x, y: c.y - b.y });
             }
-            xnew$1.emit('-gesturemove', { event, position, delta, scale });
+            self.emit('-gesturemove', { event, position, delta, scale });
         }
         map.set(event.pointerId, position);
     });
     drag.on('-dragend', ({ event }) => {
         if (isActive === true) {
-            xnew$1.emit('-gesturemend', { event });
+            self.emit('-gesturemend', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
     });
     drag.on('-dragcancel', ({ event }) => {
         if (isActive === true) {
-            xnew$1.emit('-gesturecancel', { event });
+            self.emit('-gesturecancel', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
@@ -1083,17 +1093,17 @@ function Keyboard(self) {
     const win = xnew$1(window);
     win.on('keydown', (event) => {
         state[event.code] = 1;
-        xnew$1.emit('-keydown', { event, code: event.code });
+        self.emit('-keydown', { event, code: event.code });
     });
     win.on('keyup', (event) => {
         state[event.code] = 0;
-        xnew$1.emit('-keyup', { event, code: event.code });
+        self.emit('-keyup', { event, code: event.code });
     });
     win.on('keydown', (event) => {
-        xnew$1.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
+        self.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
     win.on('keyup', (event) => {
-        xnew$1.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
+        self.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
     function getVector() {
         return {
@@ -1111,34 +1121,34 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
     const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
     const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
-    const observer = xnew$1(wrapper, ResizeEvent);
+    const observer = xnew$1(wrapper.element, ResizeEvent);
     observer.on('-resize', resize);
     resize();
     function resize() {
         const aspect = canvas.element.width / canvas.element.height;
         const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
         if (fit === 'contain') {
-            if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
-                style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
+            if (wrapper.element.clientWidth < wrapper.element.clientHeight * aspect) {
+                style.height = Math.floor(wrapper.element.clientWidth / aspect) + 'px';
             }
             else {
-                style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
+                style.width = Math.floor(wrapper.element.clientHeight * aspect) + 'px';
             }
         }
         else if (fit === 'cover') {
-            if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
-                style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
-                style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
+            if (wrapper.element.clientWidth < wrapper.element.clientHeight * aspect) {
+                style.width = Math.floor(wrapper.element.clientHeight * aspect) + 'px';
+                style.left = Math.floor((wrapper.element.clientWidth - wrapper.element.clientHeight * aspect) / 2) + 'px';
                 style.right = 'auto';
             }
             else {
-                style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
-                style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
+                style.height = Math.floor(wrapper.element.clientWidth / aspect) + 'px';
+                style.top = Math.floor((wrapper.element.clientHeight - wrapper.element.clientWidth / aspect) / 2) + 'px';
                 style.bottom = 'auto';
             }
         }
         else ;
-        Object.assign(absolute.style, style);
+        Object.assign(absolute.element.style, style);
     }
     return {
         get canvas() {
@@ -1158,7 +1168,7 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
 function Modal(self) {
     const fixed = xnew$1.nest('<div style="position: fixed; inset: 0;">');
     xnew$1().on('click', (event) => {
-        if (fixed === event.target) {
+        if (fixed.element === event.target) {
             self.close();
         }
     });

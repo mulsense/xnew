@@ -3,7 +3,7 @@ import { xnew } from '../core/xnew';
 export function ResizeEvent(self: any) {
     const observer = new ResizeObserver(xnew.scope((entries: any) => {
         for (const entry of entries) {
-            xnew.emit('-resize');
+            self.emit('-resize');
             break;
         }
     }));

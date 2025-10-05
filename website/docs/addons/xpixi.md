@@ -7,8 +7,8 @@ sidebar_position: 501
 ## setup
 ### via cdn
 ```html
-<script src="https://unpkg.com/xnew@3.0.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/xnew@3.0.x/dist/addons/xpixi.js"></script>
+<script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@5.0.x/dist/addons/xpixi.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -16,8 +16,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@3.0.x/dist/xnew.mjs",
-    "xnew/addons/xpixi": "https://unpkg.com/xnew@3.0.x/dist/addons/xpixi.mjs"
+    "xnew": "https://unpkg.com/xnew@5.0.x/dist/xnew.mjs",
+    "xnew/addons/xpixi": "https://unpkg.com/xnew@5.0.x/dist/addons/xpixi.mjs"
   }
 }
 </script>
@@ -32,7 +32,7 @@ import xpixi from 'xnew/addons/xpixi'
 
 ### via npm
 ```bash
-npm install xnew@3.0.x
+npm install xnew@5.0.x
 ```
 ```js
 import xnew from 'xnew'
