@@ -83,11 +83,11 @@ function Controller(self) {
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // virtual D-Pad
-  const dpad = xnew({ style: 'position: absolute; left: 10px; bottom: 20px;' }, xutil.DPad, { size: 130 });
+  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xutil.DPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => self.emit('+move', vector));
 
   // virtual button
-  const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px;' }, xutil.CircleButton);
+  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xutil.CircleButton);
   button.on('-down', () => self.emit('+shot'));
 
   // keyboard
