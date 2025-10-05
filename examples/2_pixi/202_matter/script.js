@@ -14,7 +14,7 @@ function Main(self) {
   xnew(Contents);
 
   const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
-  button.on('click', () => xnew.emit('+reset'));
+  button.on('click', () => sekf.emit('+reset'));
 }
 
 function Contents(self) {
