@@ -17,31 +17,29 @@ describe('unit element', () => {
 
     it('create', () => {
         xnew((self: xnew.Unit) => {
-            xnew.nest({ tagName: 'div', name: 'A' });
-            expect(self.element).toBe(document.querySelector('div[name=A]'));
+            xnew.nest('<div id="A">');
+            expect(self.element).toBe(document.querySelector('div[id=A]'));
         })
-        xnew({ tagName: 'div', name: 'B' }, (self: xnew.Unit) => {
-            expect(self.element).toBe(document.querySelector('div[name=B]'));
+        xnew('<div id="B">', (self: xnew.Unit) => {
+            expect(self.element).toBe(document.querySelector('div[id=B]'));
         })
     });
 
     it('nest', () => {
         const unit1 = xnew((self: xnew.Unit) => {
-            xnew.nest({ tagName: 'div', name: 'test' });
+            xnew.nest('<div id="C">');
             const unit2 = xnew();
-            expect(self.element).toBe(document.querySelector('div[name=test]'));
-            expect(unit2.element).toBe(document.querySelector('div[name=test]'));
+            expect(unit2.element).toBe(document.querySelector('div[id=C]'));
         });
         unit1.finalize();
     });
 
     it('delete', () => {
         const unit1 = xnew((self: xnew.Unit) => {
-            xnew.nest({ tagName: 'div', name: 'test' });
+            xnew.nest('<div id="D">');
         });
  
-        expect(unit1.element).toBe(document.querySelector('div[name=test]'));
         unit1.finalize();
-        expect(document.querySelector('div[name=test]')).toBe(null);
+        expect(document.querySelector('div[id=D]')).toBe(null);
     });
 });
