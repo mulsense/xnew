@@ -40,17 +40,17 @@
       xnew(Child);
       self.on('start', () => {
         isRunning = true;
-        xnew.emit('+console', 'parent start');
+        self.emit('+console', 'parent start');
       });
       self.on('update', (count) => {
         text.element.textContent = `count ${count}`;
       });
       self.on('stop', () => {
         isRunning = false;
-        xnew.emit('+console', 'parent stop');
+        self.emit('+console', 'parent stop');
       });
       self.on('finalize', () => {
-        xnew.emit('+console', 'parent finalize');
+        self.emit('+console', 'parent finalize');
       });
     }
 
@@ -72,17 +72,17 @@
 
       self.on('start', () => {
         isRunning = true;
-        xnew.emit('+console', 'child start');
+        self.emit('+console', 'child start');
       });
       self.on('update', (count) => {
         text.element.textContent = `count ${count}`;
       });
       self.on('stop', () => {
         isRunning = false;
-        xnew.emit('+console', 'child stop');
+        self.emit('+console', 'child stop');
       });
       self.on('finalize', () => {
-        xnew.emit('+console', 'child finalize');
+        self.emit('+console', 'child finalize');
       });
     }
 
