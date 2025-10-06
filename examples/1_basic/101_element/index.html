@@ -124,7 +124,7 @@
         xnew.extend(xnew.Modal);
         modal.base.style.background = 'rgba(0, 0, 0, 0.1)';
 
-        xnew.transition((x) => modal.base.style.opacity = x, 500, 'ease');
+        xnew.transition((x) => modal.base.style.opacity = x, 500);
 
         xnew('<div style="position: absolute; inset: 0; margin: auto; width: 400px; height: max-content; border: solid 1px #000; border-radius: 8px; background: #fff;">', (self) => {
 
@@ -149,7 +149,7 @@
           close() {
             xnew.transition((x) => {
               modal.base.style.opacity = 1 - x;
-            }, 500, 'ease').next(() => {
+            }, 500).next(() => {
               modal.finalize();
             });
           }
