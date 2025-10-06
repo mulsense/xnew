@@ -1180,7 +1180,9 @@
             }
         });
         return {
-            frame: fixed.element,
+            get base() {
+                return fixed.element;
+            },
             close: () => {
                 self.finalize();
             }

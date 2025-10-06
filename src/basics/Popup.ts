@@ -9,7 +9,9 @@ export function Modal(self: xnew.Unit) {
         }
     });
     return {
-        frame: fixed.element,
+        get base() {
+            return fixed.element;
+        },
         close: () => {
             self.finalize();
         }
