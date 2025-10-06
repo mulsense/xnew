@@ -276,7 +276,7 @@
                 baseTarget = target;
             }
             else if (parent !== null) {
-                baseTarget = parent.element;
+                baseTarget = parent._.nestedElements.length > 0 ? parent._.nestedElements[parent._.nestedElements.length - 1] : parent._.baseTarget;
             }
             else if (document instanceof Document) {
                 baseTarget = (_b = (_a = document.currentScript) === null || _a === void 0 ? void 0 : _a.parentElement) !== null && _b !== void 0 ? _b : document.body;
@@ -292,12 +292,7 @@
             Unit.initialize(this);
         }
         get element() {
-            if (this._.baseTarget instanceof Element) {
-                return this._.nestedElements.length > 0 ? this._.nestedElements[this._.nestedElements.length - 1] : this._.baseTarget;
-            }
-            else {
-                return null;
-            }
+            return this._.element;
         }
         start() {
             this._.tostart = true;
@@ -376,7 +371,9 @@
                 children: [], // children units
                 state: 'invoked', // [invoked -> initialized -> started <-> stopped -> finalized]
                 tostart: true, // flag for start
+                element: null, // current element
                 nestedElements: [], // nested html elements
+                isNested: false, // nested flag
                 upcount: 0, // update count    
                 resolved: false, // promise check
                 props: {}, // properties in the component function
@@ -385,8 +382,12 @@
             unit._.system = { start: [], update: [], stop: [], finalize: [] };
             UnitScope.initialize(unit, unit._.baseContext);
             // nest html element
-            if (unit._.baseTarget instanceof Element && typeof unit._.inputs.target === 'string') {
-                Unit.nest(unit, unit._.inputs.target);
+            if (unit._.baseTarget instanceof Element) {
+                unit._.element = unit._.baseTarget;
+                if (typeof unit._.inputs.target === 'string') {
+                    Unit.nest(unit, unit._.inputs.target);
+                    unit._.element = unit._.nestedElements[0];
+                }
             }
             // setup component
             if (typeof unit._.inputs.component === 'function') {
@@ -1179,6 +1180,7 @@
             }
         });
         return {
+            frame: fixed.element,
             close: () => {
                 self.finalize();
             }

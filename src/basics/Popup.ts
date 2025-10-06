@@ -9,6 +9,7 @@ export function Modal(self: xnew.Unit) {
         }
     });
     return {
+        frame: fixed.element,
         close: () => {
             self.finalize();
         }

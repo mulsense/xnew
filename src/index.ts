@@ -1,7 +1,7 @@
 import { ResizeEvent } from './basics/ResizeEvent';
 import { UserEvent } from './basics/UserEvent';
 import { Screen } from './basics/Screen';
-import { Modal } from './basics/Modal';
+import { Modal } from './basics/Popup';
 import { WorkSpace } from './basics/WorkSpace';
 // import { Accordion } from './basics/Accordion';
 
