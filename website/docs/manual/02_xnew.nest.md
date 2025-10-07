@@ -4,9 +4,9 @@
 
 ```js
 xnew((self) => {
-  const unit = xnew.nest(html);
+  const element = xnew.nest(html);
 
-  unit.element; // Access the new element
+  element; // Access the new element
 })
 ```
 
@@ -22,7 +22,7 @@ xnew((self) => {
   const div = xnew.nest('<div id="B">');
 
   self.element; // div A
-  div.element; // div B
+  div; // div B
 
   xnew('<p>', 'in B');
 }
@@ -31,7 +31,7 @@ xnew('<div id="C">', (self) => {
   const div = xnew.nest('<div id="D">');
 
   self.element; // div C
-  div.element; // div D
+  div; // div D
 
   xnew('<p>', 'in D');
 }

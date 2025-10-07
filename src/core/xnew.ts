@@ -61,7 +61,7 @@ Object.defineProperty(xnew, 'nest', {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
-                return xnew(Unit.nest(current, html));
+                return Unit.nest(current, html);
             } else {
                 throw new Error('This function can not be called after initialized.');
             }

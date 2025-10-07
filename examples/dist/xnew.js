@@ -785,7 +785,7 @@
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                    return xnew$1(Unit.nest(current, html));
+                    return Unit.nest(current, html);
                 }
                 else {
                     throw new Error('This function can not be called after initialized.');
@@ -1128,34 +1128,34 @@
         const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
         const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
         const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
-        const observer = xnew$1(wrapper.element, ResizeEvent);
+        const observer = xnew$1(wrapper, ResizeEvent);
         observer.on('-resize', resize);
         resize();
         function resize() {
             const aspect = canvas.element.width / canvas.element.height;
             const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
             if (fit === 'contain') {
-                if (wrapper.element.clientWidth < wrapper.element.clientHeight * aspect) {
-                    style.height = Math.floor(wrapper.element.clientWidth / aspect) + 'px';
+                if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
+                    style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
                 }
                 else {
-                    style.width = Math.floor(wrapper.element.clientHeight * aspect) + 'px';
+                    style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
                 }
             }
             else if (fit === 'cover') {
-                if (wrapper.element.clientWidth < wrapper.element.clientHeight * aspect) {
-                    style.width = Math.floor(wrapper.element.clientHeight * aspect) + 'px';
-                    style.left = Math.floor((wrapper.element.clientWidth - wrapper.element.clientHeight * aspect) / 2) + 'px';
+                if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
+                    style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
+                    style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
                     style.right = 'auto';
                 }
                 else {
-                    style.height = Math.floor(wrapper.element.clientWidth / aspect) + 'px';
-                    style.top = Math.floor((wrapper.element.clientHeight - wrapper.element.clientWidth / aspect) / 2) + 'px';
+                    style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
+                    style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
                     style.bottom = 'auto';
                 }
             }
             else ;
-            Object.assign(absolute.element.style, style);
+            Object.assign(absolute.style, style);
         }
         return {
             get canvas() {
@@ -1175,13 +1175,13 @@
     function Modal(self) {
         const fixed = xnew$1.nest('<div style="position: fixed; inset: 0;">');
         xnew$1().on('click', (event) => {
-            if (fixed.element === event.target) {
+            if (fixed === event.target) {
                 self.close();
             }
         });
         return {
             get base() {
-                return fixed.element;
+                return fixed;
             },
             close: () => {
                 self.finalize();
