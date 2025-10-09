@@ -14,3 +14,18 @@ export function Modal(self: xnew.Unit) {
         }
     }
 }
+
+export function Menu(self: xnew.Unit, { anchor = 'auto', position = { x: 0, y: 0 } }) {
+    xnew.nest(`<div style="position: fixed; inset: 0;">`);
+    
+    xnew().on('click', (event: Event) => {
+        if (self.element === event.target) {
+            self.close();
+        }
+    });
+    return {
+        close: () => {
+            self.finalize();
+        }
+    }
+}

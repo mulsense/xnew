@@ -57,11 +57,11 @@ export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
 
 Object.defineProperty(xnew, 'nest', {
     enumerable: true,
-    value: (html: string): Element | null | undefined => {
+    value: (html: string, innerHTML?: string): Element | null | undefined => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
-                return Unit.nest(current, html);
+                return Unit.nest(current, html, innerHTML);
             } else {
                 throw new Error('This function can not be called after initialized.');
             }

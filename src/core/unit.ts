@@ -184,7 +184,7 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, html: string) : Element | null {
+    static nest(unit: Unit, html: string, innerHTML?: string) : Element | null {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
         const element = unit.element;
         if (element !== null && match !== null) {
@@ -192,6 +192,9 @@ export class Unit {
             const last = element.children[element.children.length - 1];
             unit._.nestedElements.push(last);
             unit._.element = last;
+            if (typeof innerHTML === 'string') {
+                last.innerHTML = innerHTML;
+            }
         }
         return unit.element;
     }

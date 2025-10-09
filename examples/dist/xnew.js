@@ -425,7 +425,7 @@
                 unit._.state = 'finalized';
             }
         }
-        static nest(unit, html) {
+        static nest(unit, html, innerHTML) {
             const match = html.match(/<((\w+)[^>]*?)\/?>/);
             const element = unit.element;
             if (element !== null && match !== null) {
@@ -433,6 +433,9 @@
                 const last = element.children[element.children.length - 1];
                 unit._.nestedElements.push(last);
                 unit._.element = last;
+                if (typeof innerHTML === 'string') {
+                    last.innerHTML = innerHTML;
+                }
             }
             return unit.element;
         }
@@ -794,11 +797,11 @@
     };
     Object.defineProperty(xnew$1, 'nest', {
         enumerable: true,
-        value: (html) => {
+        value: (html, innerHTML) => {
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                    return Unit.nest(current, html);
+                    return Unit.nest(current, html, innerHTML);
                 }
                 else {
                     throw new Error('This function can not be called after initialized.');
