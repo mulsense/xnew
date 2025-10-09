@@ -108,159 +108,343 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // map ex
-    //----------------------------------------------------------------------------------------------------
+    /**
+     * Extended Map collection utilities for xnew library
+     * Provides enhanced data structures for complex key-value relationships
+     */
+    /**
+     * Base class for extended Map collections
+     * Provides common functionality for all map variants
+     */
     class MapEx {
         constructor() {
-            this.map = new Map;
+            this.map = new Map();
         }
+        /**
+         * Gets the number of key-value pairs in the map
+         */
         get size() {
             return this.map.size;
         }
+        /**
+         * Executes a callback for each key-value pair in the map
+         * @param callback Function to execute for each entry
+         */
         forEach(callback) {
             this.map.forEach(callback);
         }
+        /**
+         * Removes all entries from the map
+         */
+        clear() {
+            this.map.clear();
+        }
     }
-    //----------------------------------------------------------------------------------------------------
-    // map set
-    //----------------------------------------------------------------------------------------------------
+    /**
+     * A Map that stores Sets as values, allowing multiple values per key
+     * Useful for one-to-many relationships
+     */
     class MapSet extends MapEx {
+        /**
+         * Checks if a key exists, or if a specific value exists for a key
+         * @param key The key to check
+         * @param value Optional value to check within the key's set
+         * @returns True if the key (and optionally value) exists
+         */
         has(key, value) {
             var _a, _b;
             if (value === undefined) {
                 return this.map.has(key);
             }
-            else {
-                return (_b = (_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
-            }
+            return (_b = (_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
         }
+        /**
+         * Gets the Set associated with a key
+         * @param key The key to retrieve
+         * @returns The Set for the key, or undefined if not found
+         */
         get(key) {
             return this.map.get(key);
         }
+        /**
+         * Gets all keys in the map
+         * @returns Iterator for all keys
+         */
         keys() {
             return this.map.keys();
         }
+        /**
+         * Adds a value to the set associated with a key
+         * Creates a new set if the key doesn't exist
+         * @param key The key to add the value to
+         * @param value The value to add
+         * @returns This MapSet instance for chaining
+         */
         add(key, value) {
-            var _a;
-            this.map.set(key, ((_a = this.map.get(key)) !== null && _a !== void 0 ? _a : new Set).add(value));
-            return this;
-        }
-        delete(key, value) {
-            var _a, _b, _c, _d;
-            let ret = false;
-            if (value === undefined) {
-                ret = (((_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key) : false;
+            const existingSet = this.map.get(key);
+            if (existingSet) {
+                existingSet.add(value);
             }
             else {
-                ret = (_c = (_b = this.map.get(key)) === null || _b === void 0 ? void 0 : _b.delete(value)) !== null && _c !== void 0 ? _c : false;
-                (((_d = this.map.get(key)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key);
+                this.map.set(key, new Set([value]));
             }
-            return ret;
+            return this;
+        }
+        /**
+         * Deletes a key or a specific value from a key's set
+         * @param key The key to delete from
+         * @param value Optional specific value to delete
+         * @returns True if something was deleted
+         */
+        delete(key, value) {
+            const keySet = this.map.get(key);
+            if (!keySet) {
+                return false;
+            }
+            if (value === undefined) {
+                // Delete entire key if set is empty
+                if (keySet.size === 0) {
+                    return this.map.delete(key);
+                }
+                return false;
+            }
+            // Delete specific value
+            const deleted = keySet.delete(value);
+            // Clean up empty sets
+            if (keySet.size === 0) {
+                this.map.delete(key);
+            }
+            return deleted;
+        }
+        /**
+         * Gets the total number of values across all sets
+         * @returns Total count of all values
+         */
+        get totalSize() {
+            let total = 0;
+            this.map.forEach(set => total += set.size);
+            return total;
         }
     }
-    //----------------------------------------------------------------------------------------------------
-    // map map
-    //----------------------------------------------------------------------------------------------------
+    /**
+     * A Map that stores Maps as values, creating a two-level key hierarchy
+     * Useful for complex data structures with nested relationships
+     */
     class MapMap extends MapEx {
+        /**
+         * Checks if a primary key exists, or if a secondary key exists within a primary key
+         * @param key1 The primary key to check
+         * @param key2 Optional secondary key to check
+         * @returns True if the key(s) exist
+         */
         has(key1, key2) {
             var _a, _b;
             if (key2 === undefined) {
                 return this.map.has(key1);
             }
-            else {
-                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2)) !== null && _b !== void 0 ? _b : false;
-            }
+            return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2)) !== null && _b !== void 0 ? _b : false;
         }
+        /**
+         * Sets a value for the given key pair
+         * Creates nested maps as needed
+         * @param key1 Primary key
+         * @param key2 Secondary key
+         * @param value Value to set
+         * @returns This MapMap instance for chaining
+         */
         set(key1, key2, value) {
-            var _a;
-            this.map.set(key1, ((_a = this.map.get(key1)) !== null && _a !== void 0 ? _a : new Map).set(key2, value));
+            const existingMap = this.map.get(key1);
+            if (existingMap) {
+                existingMap.set(key2, value);
+            }
+            else {
+                this.map.set(key1, new Map([[key2, value]]));
+            }
             return this;
         }
         get(key1, key2) {
-            var _a;
+            const nestedMap = this.map.get(key1);
+            if (!nestedMap) {
+                return undefined;
+            }
             if (key2 === undefined) {
-                return this.map.get(key1);
+                return nestedMap;
             }
-            else {
-                return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
-            }
+            return nestedMap.get(key2);
         }
         keys(key1) {
-            var _a, _b;
+            var _a;
             if (key1 === undefined) {
                 return this.map.keys();
             }
-            else {
-                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.keys()) !== null && _b !== void 0 ? _b : (function* () { })();
-            }
+            const nestedMap = this.map.get(key1);
+            return (_a = nestedMap === null || nestedMap === void 0 ? void 0 : nestedMap.keys()) !== null && _a !== void 0 ? _a : this.createEmptyIterator();
         }
+        /**
+         * Deletes a primary key or a specific key pair
+         * @param key1 Primary key
+         * @param key2 Optional secondary key
+         * @returns True if something was deleted
+         */
         delete(key1, key2) {
-            var _a, _b, _c, _d;
-            let ret = false;
+            const nestedMap = this.map.get(key1);
+            if (!nestedMap) {
+                return false;
+            }
             if (key2 === undefined) {
-                ret = (((_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key1) : false;
+                // Delete entire primary key if nested map is empty
+                if (nestedMap.size === 0) {
+                    return this.map.delete(key1);
+                }
+                return false;
             }
-            else {
-                ret = (_c = (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2)) !== null && _c !== void 0 ? _c : false;
-                (((_d = this.map.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key1);
+            // Delete specific key pair
+            const deleted = nestedMap.delete(key2);
+            // Clean up empty nested maps
+            if (nestedMap.size === 0) {
+                this.map.delete(key1);
             }
-            return ret;
+            return deleted;
+        }
+        /**
+         * Creates an empty iterator for cases where no data exists
+         * @returns Empty iterator
+         */
+        createEmptyIterator() {
+            return (function* () { })();
+        }
+        /**
+         * Gets all values in all nested maps
+         * @returns Array of all values
+         */
+        getAllValues() {
+            const values = [];
+            this.map.forEach(nestedMap => {
+                nestedMap.forEach(value => values.push(value));
+            });
+            return values;
         }
     }
-    //----------------------------------------------------------------------------------------------------
-    // map map map
-    //----------------------------------------------------------------------------------------------------
+    /**
+     * A Map that stores MapMaps as values, creating a three-level key hierarchy
+     * Useful for complex hierarchical data structures
+     */
     class MapMapMap extends MapEx {
+        /**
+         * Checks if keys exist at various levels of the hierarchy
+         * @param key1 Primary key
+         * @param key2 Optional secondary key
+         * @param key3 Optional tertiary key
+         * @returns True if the key(s) exist
+         */
         has(key1, key2, key3) {
-            var _a, _b;
+            const level1 = this.map.get(key1);
+            if (!level1) {
+                return false;
+            }
             if (key2 === undefined) {
-                return this.map.has(key1);
+                return true;
             }
-            else {
-                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2, key3)) !== null && _b !== void 0 ? _b : false;
-            }
+            return level1.has(key2, key3);
         }
+        /**
+         * Sets a value for the given key triplet
+         * Creates nested structures as needed
+         * @param key1 Primary key
+         * @param key2 Secondary key
+         * @param key3 Tertiary key
+         * @param value Value to set
+         * @returns This MapMapMap instance for chaining
+         */
         set(key1, key2, key3, value) {
-            var _a;
-            this.map.set(key1, ((_a = this.map.get(key1)) !== null && _a !== void 0 ? _a : new MapMap).set(key2, key3, value));
+            let level1 = this.map.get(key1);
+            if (!level1) {
+                level1 = new MapMap();
+                this.map.set(key1, level1);
+            }
+            level1.set(key2, key3, value);
             return this;
         }
         get(key1, key2, key3) {
-            var _a, _b;
+            const level1 = this.map.get(key1);
+            if (!level1) {
+                return undefined;
+            }
             if (key2 === undefined) {
-                return this.map.get(key1);
+                return level1;
             }
-            else if (key3 === undefined) {
-                return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
-            }
-            else {
-                return (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.get(key2, key3);
-            }
+            return level1.get(key2, key3);
         }
         keys(key1, key2) {
-            var _a, _b, _c, _d, _e;
             if (key1 === undefined) {
                 return this.map.keys();
             }
-            else if (key2 === undefined) {
-                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.keys()) !== null && _b !== void 0 ? _b : (function* () { })();
+            const level1 = this.map.get(key1);
+            if (!level1) {
+                return this.createEmptyIterator();
             }
-            else {
-                return (_e = (_d = (_c = this.map.get(key1)) === null || _c === void 0 ? void 0 : _c.get(key2)) === null || _d === void 0 ? void 0 : _d.keys()) !== null && _e !== void 0 ? _e : (function* () { })();
-            }
-        }
-        delete(key1, key2, key3) {
-            var _a, _b, _c, _d;
-            let ret = false;
             if (key2 === undefined) {
-                ret = (((_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key1) : false;
+                return level1.keys();
             }
-            else {
-                ret = (_c = (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2, key3)) !== null && _c !== void 0 ? _c : false;
-                (((_d = this.map.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key1);
+            return level1.keys(key2);
+        }
+        /**
+         * Deletes keys at various levels of the hierarchy
+         * @param key1 Primary key
+         * @param key2 Optional secondary key
+         * @param key3 Optional tertiary key
+         * @returns True if something was deleted
+         */
+        delete(key1, key2, key3) {
+            const level1 = this.map.get(key1);
+            if (!level1) {
+                return false;
             }
-            return ret;
+            if (key2 === undefined) {
+                // Delete entire primary key if nested structure is empty
+                if (level1.size === 0) {
+                    return this.map.delete(key1);
+                }
+                return false;
+            }
+            // Delete at nested level
+            const deleted = level1.delete(key2, key3);
+            // Clean up empty nested structures
+            if (level1.size === 0) {
+                this.map.delete(key1);
+            }
+            return deleted;
+        }
+        /**
+         * Creates an empty iterator for cases where no data exists
+         * @returns Empty iterator
+         */
+        createEmptyIterator() {
+            return (function* () { })();
+        }
+        /**
+         * Gets all values in all nested structures
+         * @returns Array of all values
+         */
+        getAllValues() {
+            const values = [];
+            this.map.forEach(mapMap => {
+                values.push(...mapMap.getAllValues());
+            });
+            return values;
+        }
+        /**
+         * Gets the total number of deeply nested values
+         * @returns Total count of all values
+         */
+        get totalSize() {
+            let total = 0;
+            this.map.forEach(mapMap => {
+                mapMap.forEach(nestedMap => {
+                    total += nestedMap.size;
+                });
+            });
+            return total;
         }
     }
 

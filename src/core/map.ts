@@ -12,6 +12,10 @@ class MapEx<Key, Value> {
     public forEach(callback: (value: Value, key: Key, map: Map<Key, Value>) => any): void {
         this.map.forEach(callback);
     }
+
+    public clear(): void {
+        this.map.clear();
+    }
 }
 
 //----------------------------------------------------------------------------------------------------
