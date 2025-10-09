@@ -385,7 +385,7 @@ class Unit {
         }
         // setup component
         if (typeof unit._.inputs.component === 'function') {
-            UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
+            UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
         }
         else if (unit.element instanceof Element && typeof unit._.inputs.component === 'string') {
             unit.element.innerHTML = unit._.inputs.component;
@@ -419,22 +419,16 @@ class Unit {
             unit._.state = 'finalized';
         }
     }
-    static next(unit) {
-        if (unit._.baseTarget instanceof Element) {
-            return unit._.nestedElements.length > 0 ? unit._.nestedElements[unit._.nestedElements.length - 1] : unit._.baseTarget;
-        }
-        else {
-            return null;
-        }
-    }
     static nest(unit, html) {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
-        const element = Unit.next(unit);
-        if (element && match !== null) {
+        const element = unit.element;
+        if (element !== null && match !== null) {
             element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            unit._.nestedElements.push(element.children[element.children.length - 1]);
+            const last = element.children[element.children.length - 1];
+            unit._.nestedElements.push(last);
+            unit._.element = last;
         }
-        return Unit.next(unit);
+        return unit.element;
     }
     static extend(unit, component, ...args) {
         var _a;
@@ -530,28 +524,47 @@ class UnitScope {
         return (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null;
     }
     static execute(snapshot, func, ...args) {
-        const current = UnitScope.current;
-        let context = null;
-        try {
-            UnitScope.current = snapshot.unit;
-            if (snapshot.unit !== null && snapshot.context !== null) {
-                context = UnitScope.get(snapshot.unit);
-                UnitScope.contexts.set(snapshot.unit, snapshot.context);
+        if (snapshot) {
+            const current = UnitScope.current;
+            let context = null;
+            let element = null;
+            try {
+                UnitScope.current = snapshot.unit;
+                if (snapshot.unit !== null) {
+                    if (snapshot.context !== null) {
+                        context = UnitScope.get(snapshot.unit);
+                        UnitScope.contexts.set(snapshot.unit, snapshot.context);
+                    }
+                    if (snapshot.element !== null) {
+                        element = snapshot.unit._.element;
+                        snapshot.unit._.element = snapshot.element;
+                    }
+                }
+                return func(...args);
             }
-            return func(...args);
-        }
-        catch (error) {
-            throw error;
-        }
-        finally {
-            UnitScope.current = current;
-            if (snapshot.unit !== null && snapshot.context !== null && context !== null) {
-                UnitScope.contexts.set(snapshot.unit, context);
+            catch (error) {
+                throw error;
+            }
+            finally {
+                UnitScope.current = current;
+                if (snapshot.unit !== null) {
+                    if (context !== null) {
+                        UnitScope.contexts.set(snapshot.unit, context);
+                    }
+                    if (element !== null) {
+                        snapshot.unit._.element = element;
+                    }
+                }
             }
         }
     }
     static snapshot(unit = UnitScope.current) {
-        return { unit, context: UnitScope.get(unit) };
+        if (unit !== null) {
+            return { unit, context: UnitScope.get(unit), element: unit.element };
+        }
+        else {
+            return null;
+        }
     }
     static stack(unit, key, value) {
         UnitScope.contexts.set(unit, { stack: UnitScope.get(unit), key, value });
@@ -1167,16 +1180,13 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
 }
 
 function Modal(self) {
-    const fixed = xnew$1.nest('<div style="position: fixed; inset: 0;">');
+    xnew$1.nest('<div style="position: fixed; inset: 0;">');
     xnew$1().on('click', (event) => {
-        if (fixed === event.target) {
+        if (self.element === event.target) {
             self.close();
         }
     });
     return {
-        get base() {
-            return fixed;
-        },
         close: () => {
             self.finalize();
         }

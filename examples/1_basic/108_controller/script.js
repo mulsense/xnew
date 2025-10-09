@@ -38,7 +38,7 @@ function Controller(self) {
 }
 
 function Box(self) {
-  xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;">');
+  const box = xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;">');
   let current = { x: 0, y: 0, r: 0 };
   let move = { x: 0, y: 0 };
   let direction = +1;
@@ -49,9 +49,9 @@ function Box(self) {
     current.x += move.x * 10;
     current.y += move.y * 10;
     current.r += direction;
-    self.element.style.left = current.x + 'px';
-    self.element.style.top = current.y + 'px';
-    self.element.style.transform = `rotate(${current.r}deg)`;
+    box.style.left = current.x + 'px';
+    box.style.top = current.y + 'px';
+    box.style.transform = `rotate(${current.r}deg)`;
   });
 }
 

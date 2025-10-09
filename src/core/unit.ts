@@ -145,7 +145,7 @@ export class Unit {
 
         // setup component
         if (typeof unit._.inputs.component === 'function') {
-            UnitScope.execute({ unit, context: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
+            UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
         } else if (unit.element instanceof Element && typeof unit._.inputs.component === 'string') {
             unit.element.innerHTML = unit._.inputs.component;
         }
@@ -184,22 +184,16 @@ export class Unit {
         }
     }
 
-    static next(unit: Unit) : Element | null {
-        if (unit._.baseTarget instanceof Element) {
-            return unit._.nestedElements.length > 0 ? unit._.nestedElements[unit._.nestedElements.length - 1] : unit._.baseTarget;
-        } else {
-            return null;
-        }
-    }
-
     static nest(unit: Unit, html: string) : Element | null {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
-        const element = Unit.next(unit);
-        if (element && match !== null) {
+        const element = unit.element;
+        if (element !== null && match !== null) {
             element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            unit._.nestedElements.push(element.children[element.children.length - 1]);
+            const last = element.children[element.children.length - 1];
+            unit._.nestedElements.push(last);
+            unit._.element = last;
         }
-        return Unit.next(unit);
+        return unit.element;
     }
 
     static extend(unit: Unit, component: Function, ...args: any[]): void {
@@ -287,8 +281,17 @@ Unit.reset();
 // unit scope
 //----------------------------------------------------------------------------------------------------
 
-interface Context { stack: Context | null; key: string; value: any; }
-interface Snapshot { unit: Unit | null; context: Context  | null; }
+interface Context {
+    stack: Context | null;
+    key: string;
+    value: any;
+}
+
+interface Snapshot {
+    unit: Unit | null;
+    context: Context | null;
+    element: Element | null; 
+}
 
 export class UnitScope {
     static current: Unit | null = null;
@@ -310,30 +313,48 @@ export class UnitScope {
         return UnitScope.contexts.get(unit) ?? null;
     }
 
-    static execute(snapshot: Snapshot, func: Function, ...args: any[]): any {
-        const current = UnitScope.current;
-        let context: Context | null = null;
+    static execute(snapshot: Snapshot | null, func: Function, ...args: any[]): any {
+        if (snapshot) {
+            const current = UnitScope.current;
+            let context: Context | null = null;
+            let element: Element | null = null;
+                
+            try {
+                UnitScope.current = snapshot.unit;
 
-        try {
-            UnitScope.current = snapshot.unit;
-
-            if (snapshot.unit !== null && snapshot.context !== null) {
-                context = UnitScope.get(snapshot.unit);
-                UnitScope.contexts.set(snapshot.unit, snapshot.context);
-            }
-            return func(...args);
-        } catch (error) {
-            throw error;
-        } finally {
-            UnitScope.current = current;
-            if (snapshot.unit !== null && snapshot.context !== null && context !== null) {
-                UnitScope.contexts.set(snapshot.unit, context);
+                if (snapshot.unit !== null) {
+                    if (snapshot.context !== null) {
+                        context = UnitScope.get(snapshot.unit);
+                        UnitScope.contexts.set(snapshot.unit, snapshot.context);
+                    }
+                    if (snapshot.element !== null) {
+                        element = snapshot.unit._.element
+                        snapshot.unit._.element = snapshot.element;
+                    }
+                }
+                return func(...args);
+            } catch (error) {
+                throw error;
+            } finally {
+                UnitScope.current = current;
+                if (snapshot.unit !== null) {
+                    if (context !== null) {
+                        UnitScope.contexts.set(snapshot.unit, context);
+                    }
+                    if (element !== null) {
+                        snapshot.unit._.element = element
+                    }
+                }
             }
         }
     }
 
-    static snapshot(unit: Unit | null = UnitScope.current): Snapshot {
-        return { unit, context: UnitScope.get(unit) };
+    static snapshot(unit: Unit | null = UnitScope.current): Snapshot | null {
+        if (unit !== null) {
+            return { unit, context: UnitScope.get(unit), element: unit.element };
+        } else {
+            return null;
+        }
     }
 
     static stack(unit: Unit, key: string, value: any): void {
