@@ -17,7 +17,7 @@ function Scene1(self) {
   xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0xff2266 });
 
   self.on('pointerdown', () => {
-    xnew.emit('+addscene', Scene2);
+    self.emit('+addscene', Scene2);
     self.finalize();
   });
 }
@@ -27,7 +27,7 @@ function Scene2(self) {
   xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0x6622ff });
 
   self.on('pointerdown', () => {
-    xnew.emit('+addscene', Scene1);
+    self.emit('+addscene', Scene1);
     self.finalize();
   });
 }

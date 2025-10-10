@@ -2,18 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Claude Code Settings
-
-### Auto-approve
-- `Read`: Auto-approve reading all project files
-- `Glob`: Auto-approve file pattern searches
-- `Grep`: Auto-approve content searches
-- `Bash`: Auto-approve build and test commands (`npm run build`, `npm run dev`, `npm test`, `npm run build:addons`, `npm run dev:addons`, `npx jest`, `npx rollup`)
-
-### Skip Permissions
-- `Edit`: Skip edit permissions for all source files
-- `Write`: Skip write permissions for new files
-
 ## Project Overview
 
 `xnew` is a JavaScript library for component-oriented programming, designed for applications with dynamic scenes and games. It provides a flexible architecture based on `Unit` components that can be composed hierarchically.

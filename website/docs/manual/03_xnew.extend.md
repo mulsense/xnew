@@ -1,53 +1,136 @@
 # xnew.extend
-`xnew.extend` allows you to extend a component function by combining it with another one.
+
+`xnew.extend` adds functionality from another component to the current unit. This allows you to compose components by mixing multiple behaviors together.
+
+## Syntax
 
 ```js
-xnew.extend(component, ...args);
+xnew.extend(component, props);
 ```
 
-## Example
+- **component**: A component function to extend with
+- **props**: Additional properties passed to the component function
 
-Here is an example demonstrating how to use `xnew.extend`:
+## How It Works
+
+When you call `xnew.extend(Component)`, it:
+1. Executes the component function immediately
+2. Adds the returned properties/methods to the current unit
+3. Registers any event handlers (like `update`, `start`, `finalize`)
+4. If a property already exists, the **later definition overwrites** the earlier one
+
+## Basic Example
 
 ```js
-// Base component function
-function Base(self) {
-  self.on('update', () => {
-    console.log('base update');
-  });
+// Define a reusable component
+function Logger(self) {
 
   return {
-    hoge() {
-      console.log('base hoge');
+    log(message) {
+      console.log('Logger:', message);
     },
   };
 }
+
+// Use the component
+const unit = xnew((self) => {
+  xnew.extend(Logger); // Add Logger functionality
+
+  self.log('Hello!'); // Can use the log method immediately
+});
+
+// Result: Logger: Hello!
 ```
 
-```js
-// Derived component using xnew.extend
-const unit = xnew((self) => {
-  xnew.extend(Base); // Extend the current component with the Base component
+## Overriding Properties
 
-  self.on('update', () => {
-    console.log('derived update');
-  });
+When multiple components define the same property, the **last one wins**:
+
+```js
+function Base(self) {
 
   return {
-    hoge() {
-      console.log('derived hoge');
+    greet() {
+      console.log('base greet');
+    },
+  };
+}
+
+const unit = xnew((self) => {
+  xnew.extend(Base); // Add Base functionality first
+
+  return {
+    greet() {
+      console.log('derived greet'); // This overwrites Base.greet
     },
   };
 });
 
-// Call the 'hoge' method from the Base component
-unit.hoge(); // Output: derived hoge
-
-// Call the 'update' methods
-// Output:
-// base update
-// derived update
-
-// ... update loop
+unit.greet(); // Output: "derived greet" (overridden)
 ```
+
+## Multiple Event Handlers
+
+Event handlers from different components are **all executed**, not overridden:
+
+```js
+function Base(self) {
+  self.on('start', () => {
+    console.log('base start');
+  });
+
+}
+
+const unit = xnew((self) => {
+  xnew.extend(Base);
+
+  self.on('start', () => {
+    console.log('derived start');
+  });
+
+});
+
+// When update event fires:
+// Output:
+//   "base start"      (from Base component)
+//   "derived start"   (from main component)
+```
+
+## Passing Arguments
+
+You can pass properties to the extended component:
+
+```js
+function Counter(self, { initialValue = 0 }) {
+  let count = initialValue;
+
+  return {
+    increment() {
+      count++;
+      console.log('Count:', count);
+    },
+    getCount() {
+      return count;
+    },
+  };
+}
+
+const unit = xnew((self) => {
+  xnew.extend(Counter, { initialValue: 10 }); // Start counter at 10
+
+  self.increment(); // Count: 11
+  console.log(self.getCount()); // 11
+});
+```
+
+## Use Cases
+
+`xnew.extend` is useful for:
+- **Mixins**: Adding reusable behaviors (logging, animation, input handling)
+- **Component composition**: Combining multiple features into one unit
+- **Code reuse**: Sharing common functionality across different components
+
+:::note
+`xnew.extend` can only be called during component initialization (inside the component function). You cannot call it after the unit is created.
+:::
 
