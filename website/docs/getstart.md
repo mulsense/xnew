@@ -211,9 +211,6 @@ Now let's add events and animations! This example creates an interactive rotatin
       self.on('stop', () => {
         text.element.textContent = 'Start';
       });
-
-      // Set initial text
-      text.element.textContent = 'Start';
     }
   </script>
 </body>

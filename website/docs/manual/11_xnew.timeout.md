@@ -20,5 +20,5 @@ xnew((self) => {
 ```
 
 :::tip
-If the parent unit is finalized, the timer is automatically cleared. Additionally, the callback function provided to `xnew.timeout` will always execute within the current `xnew` scope.
+If the parent unit is finalized, the timeout is automatically cleared. Additionally, the callback function provided to `xnew.timeout` will always execute within the current `xnew` scope.
 :::

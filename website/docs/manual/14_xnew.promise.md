@@ -13,7 +13,7 @@ The following example demonstrates how `xnew.promise` integrates a `Promise` int
 ```js
 xnew((self) => {
   xnew.promise(new Promise((resolve, reject) => {
-    xnew.timer(() => resolve(1), 1000); // Simulate a delay of 1 second
+    xnew.timeout(() => resolve(1), 1000); // Simulate a delay of 1 second
   }))
   .then((result) => {
     console.log(result); // 1

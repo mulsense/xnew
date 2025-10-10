@@ -15,7 +15,7 @@
 
 There are two main ways to use `xnew`:
 
-### 1. Creating Components (Recommended)
+### 1. Creating Components
 ```js
 const unit = xnew(Component, props);
 
@@ -29,7 +29,7 @@ function Component(self, props) {
 const unit = xnew('<div class="my-class">', 'inner content');
 ```
 
-### 3. Advanced: Targeting Specific Elements
+### 3. Targeting Specific Elements
 ```js
 const unit = xnew(target, Component, props);
 // target: existing element, selector, or HTML string
@@ -45,14 +45,12 @@ Components are functions that define the behavior of your units. They receive tw
 
 ### Simple Component Example
 ```js
-function MyComponent(self, props) {
+function MyComponent(self, { message }) {
   // Access the HTML element
   console.log(self.element);
   
   // Use props data
-  if (props && props.message) {
-    self.element.textContent = props.message;
-  }
+  self.element.textContent = props.message;
 }
 
 // Create a unit with this component
@@ -265,7 +263,7 @@ const unit = xnew((self) => {
 });
 
 // Manually start later
-xnew.timer(() => {
+xnew.timeout(() => {
   unit.start();
 }, 2000);
 ```
