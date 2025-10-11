@@ -11,8 +11,8 @@ export default {
 //----------------------------------------------------------------------------------------------------
 
 function SVGTemplate(self: xnew.Unit,
-    { fill = null, fillOpacity = 0.8, stroke = null, strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {},
-    inner: Function
+    { fill = null, fillOpacity = 0.8, stroke = null, strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', inner } 
+    : { fill: string | null, fillOpacity: number, stroke: string | null, strokeOpacity: number, strokeWidth: number, strokeLinejoin: string, inner: Function },
 ) {
     xnew.nest(`<svg
         viewBox="0 0 100 100"
@@ -30,16 +30,16 @@ function AnalogStick(self: xnew.Unit,
 
     xnew.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
 
-    xnew(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }, () => {
+    xnew(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin, inner: () => {
         xnew('<polygon points="50  7 40 18 60 18">');
         xnew('<polygon points="50 93 40 83 60 83">');
         xnew('<polygon points=" 7 50 18 40 18 60">');
         xnew('<polygon points="93 50 83 40 83 60">');
-    });
+    }});
     
-    const target = xnew(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }, () => {
+    const target = xnew(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin, inner: () => {
         xnew('<circle cx="50" cy="50" r="23">');
-    });
+    }});
 
     const user = xnew(xnew.UserEvent);
 
@@ -87,12 +87,12 @@ function DPad(self: xnew.Unit,
     ];
 
     const targets = polygons.map((polygon) => {
-        return xnew(SVGTemplate, { fill, fillOpacity }, () => {
+        return xnew(SVGTemplate, { fill, fillOpacity, inner: () => {
             xnew(polygon);
-        });
+        }});
     });
 
-    xnew(SVGTemplate, {fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin, }, () => {
+    xnew(SVGTemplate, {fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin, inner: () => {
         xnew('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
         xnew('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
         xnew('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
@@ -101,7 +101,7 @@ function DPad(self: xnew.Unit,
         xnew('<polygon points="50 89 42 80 58 80">');
         xnew('<polygon points="11 50 20 42 20 58">');
         xnew('<polygon points="89 50 80 42 80 58">');
-    });
+    }});
 
     const user = xnew(xnew.UserEvent);
 
@@ -147,9 +147,9 @@ function CircleButton(self: xnew.Unit,
     strokeWidth /= (size / 100);
     xnew.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
 
-    const target = xnew(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin, }, () => {
+    const target = xnew(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin, inner: () => {
         xnew('<circle cx="50" cy="50" r="40">');
-    });
+    }});
 
     const user = xnew(xnew.UserEvent);
 

@@ -73,11 +73,11 @@ Object.defineProperty(xnew, 'nest', {
 
 Object.defineProperty(xnew, 'extend', {
     enumerable: true,
-    value: (component: Function, ...args: any[]): any => {
+    value: (component: Function, props?: Object): any => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
-                return Unit.extend(current, component, ...args);
+                return Unit.extend(current, component, props);
             } else {
                 throw new Error('This function can not be called after initialized.');
             }
@@ -196,10 +196,10 @@ Object.defineProperty(xnew, 'transition', {
         const snapshot = UnitScope.snapshot();
 
         let stacks: any = [];
-        let unit = xnew(Local, callback, interval, easing);
+        let unit = xnew(Local, { callback, interval, easing });
         let isRunning = true;
 
-        function Local(self: Unit, callback: Function, interval: number, easing: string) {
+        function Local(self: Unit, { callback, interval, easing }: { callback: Function, interval: number, easing: string }) {
             const timer = new Timer(() => {
                 UnitScope.execute(snapshot, callback, 1.0);
                 self.finalize();
@@ -228,8 +228,8 @@ Object.defineProperty(xnew, 'transition', {
 
         function execute() {
             if (isRunning === false && stacks.length > 0) {
-                const args: any = stacks.shift();
-                unit = xnew(Local, ...args);
+                const props: any = stacks.shift();
+                unit = xnew(Local, props);
                 isRunning = true;
             }
         }
@@ -240,7 +240,7 @@ Object.defineProperty(xnew, 'transition', {
         }
 
         function next(callback: Function, interval: number, easing: string = 'linear'): any {
-            stacks.push([callback, interval, easing]);
+            stacks.push({ callback, interval, easing });
             execute();
             return timer;
         }

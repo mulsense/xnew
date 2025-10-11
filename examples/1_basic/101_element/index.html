@@ -124,7 +124,9 @@
         xnew.extend(xnew.Modal);
         modal.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
-        xnew.transition((x) => modal.element.style.opacity = x, 500);
+        xnew.transition((x) => {
+          console.log(x);
+          modal.element.style.opacity = x}, 500);
 
         xnew('<div style="position: absolute; inset: 0; margin: auto; width: 400px; height: max-content; border: solid 1px #000; border-radius: 8px; background: #fff;">', (self) => {
 

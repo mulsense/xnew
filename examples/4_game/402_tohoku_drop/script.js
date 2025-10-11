@@ -145,7 +145,7 @@ function Bowl(self) {
   for (let angle = 10; angle <= 170; angle++) {
     const x = 400 + Math.cos(angle * Math.PI / 180) * 240;
     const y = 360 + Math.sin(angle * Math.PI / 180) * 200;
-    xnew(Circle, { x, y, r: 12, color: 0x00AAAA }, { isStatic: true });
+    xnew(Circle, { x, y, r: 12, color: 0x00AAAA, options: { isStatic: true } });
   }
 }
 
@@ -329,7 +329,7 @@ function GameOverText(self) {
   object.anchor.set(0.5);
 }
 
-function Circle(self, { x, y, r, color = 0xFFFFFF, alpha = 1.0 }, options = {}) {
+function Circle(self, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
   const graphics = new PIXI.Graphics().circle(0, 0, r).fill(color);

@@ -108,353 +108,187 @@
         }
     }
 
-    /**
-     * Extended Map collection utilities for xnew library
-     * Provides enhanced data structures for complex key-value relationships
-     */
-    /**
-     * Base class for extended Map collections
-     * Provides common functionality for all map variants
-     */
+    //----------------------------------------------------------------------------------------------------
+    // map ex
+    //----------------------------------------------------------------------------------------------------
     class MapEx {
         constructor() {
-            this.map = new Map();
+            this.map = new Map;
         }
-        /**
-         * Gets the number of key-value pairs in the map
-         */
         get size() {
             return this.map.size;
         }
-        /**
-         * Executes a callback for each key-value pair in the map
-         * @param callback Function to execute for each entry
-         */
         forEach(callback) {
             this.map.forEach(callback);
         }
-        /**
-         * Removes all entries from the map
-         */
         clear() {
             this.map.clear();
         }
     }
-    /**
-     * A Map that stores Sets as values, allowing multiple values per key
-     * Useful for one-to-many relationships
-     */
+    //----------------------------------------------------------------------------------------------------
+    // map set
+    //----------------------------------------------------------------------------------------------------
     class MapSet extends MapEx {
-        /**
-         * Checks if a key exists, or if a specific value exists for a key
-         * @param key The key to check
-         * @param value Optional value to check within the key's set
-         * @returns True if the key (and optionally value) exists
-         */
         has(key, value) {
             var _a, _b;
             if (value === undefined) {
                 return this.map.has(key);
             }
-            return (_b = (_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
+            else {
+                return (_b = (_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
+            }
         }
-        /**
-         * Gets the Set associated with a key
-         * @param key The key to retrieve
-         * @returns The Set for the key, or undefined if not found
-         */
         get(key) {
             return this.map.get(key);
         }
-        /**
-         * Gets all keys in the map
-         * @returns Iterator for all keys
-         */
         keys() {
             return this.map.keys();
         }
-        /**
-         * Adds a value to the set associated with a key
-         * Creates a new set if the key doesn't exist
-         * @param key The key to add the value to
-         * @param value The value to add
-         * @returns This MapSet instance for chaining
-         */
         add(key, value) {
-            const existingSet = this.map.get(key);
-            if (existingSet) {
-                existingSet.add(value);
-            }
-            else {
-                this.map.set(key, new Set([value]));
-            }
+            var _a;
+            this.map.set(key, ((_a = this.map.get(key)) !== null && _a !== void 0 ? _a : new Set).add(value));
             return this;
         }
-        /**
-         * Deletes a key or a specific value from a key's set
-         * @param key The key to delete from
-         * @param value Optional specific value to delete
-         * @returns True if something was deleted
-         */
         delete(key, value) {
-            const keySet = this.map.get(key);
-            if (!keySet) {
-                return false;
-            }
+            var _a, _b, _c, _d;
+            let ret = false;
             if (value === undefined) {
-                // Delete entire key if set is empty
-                if (keySet.size === 0) {
-                    return this.map.delete(key);
-                }
-                return false;
+                ret = (((_a = this.map.get(key)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key) : false;
             }
-            // Delete specific value
-            const deleted = keySet.delete(value);
-            // Clean up empty sets
-            if (keySet.size === 0) {
-                this.map.delete(key);
+            else {
+                ret = (_c = (_b = this.map.get(key)) === null || _b === void 0 ? void 0 : _b.delete(value)) !== null && _c !== void 0 ? _c : false;
+                (((_d = this.map.get(key)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key);
             }
-            return deleted;
-        }
-        /**
-         * Gets the total number of values across all sets
-         * @returns Total count of all values
-         */
-        get totalSize() {
-            let total = 0;
-            this.map.forEach(set => total += set.size);
-            return total;
+            return ret;
         }
     }
-    /**
-     * A Map that stores Maps as values, creating a two-level key hierarchy
-     * Useful for complex data structures with nested relationships
-     */
+    //----------------------------------------------------------------------------------------------------
+    // map map
+    //----------------------------------------------------------------------------------------------------
     class MapMap extends MapEx {
-        /**
-         * Checks if a primary key exists, or if a secondary key exists within a primary key
-         * @param key1 The primary key to check
-         * @param key2 Optional secondary key to check
-         * @returns True if the key(s) exist
-         */
         has(key1, key2) {
             var _a, _b;
             if (key2 === undefined) {
                 return this.map.has(key1);
             }
-            return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2)) !== null && _b !== void 0 ? _b : false;
-        }
-        /**
-         * Sets a value for the given key pair
-         * Creates nested maps as needed
-         * @param key1 Primary key
-         * @param key2 Secondary key
-         * @param value Value to set
-         * @returns This MapMap instance for chaining
-         */
-        set(key1, key2, value) {
-            const existingMap = this.map.get(key1);
-            if (existingMap) {
-                existingMap.set(key2, value);
-            }
             else {
-                this.map.set(key1, new Map([[key2, value]]));
+                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2)) !== null && _b !== void 0 ? _b : false;
             }
+        }
+        set(key1, key2, value) {
+            var _a;
+            this.map.set(key1, ((_a = this.map.get(key1)) !== null && _a !== void 0 ? _a : new Map).set(key2, value));
             return this;
         }
         get(key1, key2) {
-            const nestedMap = this.map.get(key1);
-            if (!nestedMap) {
-                return undefined;
-            }
+            var _a;
             if (key2 === undefined) {
-                return nestedMap;
+                return this.map.get(key1);
             }
-            return nestedMap.get(key2);
+            else {
+                return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
+            }
         }
         keys(key1) {
-            var _a;
+            var _a, _b;
             if (key1 === undefined) {
                 return this.map.keys();
             }
-            const nestedMap = this.map.get(key1);
-            return (_a = nestedMap === null || nestedMap === void 0 ? void 0 : nestedMap.keys()) !== null && _a !== void 0 ? _a : this.createEmptyIterator();
+            else {
+                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.keys()) !== null && _b !== void 0 ? _b : (function* () { })();
+            }
         }
-        /**
-         * Deletes a primary key or a specific key pair
-         * @param key1 Primary key
-         * @param key2 Optional secondary key
-         * @returns True if something was deleted
-         */
         delete(key1, key2) {
-            const nestedMap = this.map.get(key1);
-            if (!nestedMap) {
-                return false;
-            }
+            var _a, _b, _c, _d;
+            let ret = false;
             if (key2 === undefined) {
-                // Delete entire primary key if nested map is empty
-                if (nestedMap.size === 0) {
-                    return this.map.delete(key1);
-                }
-                return false;
+                ret = (((_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key1) : false;
             }
-            // Delete specific key pair
-            const deleted = nestedMap.delete(key2);
-            // Clean up empty nested maps
-            if (nestedMap.size === 0) {
-                this.map.delete(key1);
+            else {
+                ret = (_c = (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2)) !== null && _c !== void 0 ? _c : false;
+                (((_d = this.map.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key1);
             }
-            return deleted;
-        }
-        /**
-         * Creates an empty iterator for cases where no data exists
-         * @returns Empty iterator
-         */
-        createEmptyIterator() {
-            return (function* () { })();
-        }
-        /**
-         * Gets all values in all nested maps
-         * @returns Array of all values
-         */
-        getAllValues() {
-            const values = [];
-            this.map.forEach(nestedMap => {
-                nestedMap.forEach(value => values.push(value));
-            });
-            return values;
+            return ret;
         }
     }
-    /**
-     * A Map that stores MapMaps as values, creating a three-level key hierarchy
-     * Useful for complex hierarchical data structures
-     */
+    //----------------------------------------------------------------------------------------------------
+    // map map map
+    //----------------------------------------------------------------------------------------------------
     class MapMapMap extends MapEx {
-        /**
-         * Checks if keys exist at various levels of the hierarchy
-         * @param key1 Primary key
-         * @param key2 Optional secondary key
-         * @param key3 Optional tertiary key
-         * @returns True if the key(s) exist
-         */
         has(key1, key2, key3) {
-            const level1 = this.map.get(key1);
-            if (!level1) {
-                return false;
-            }
+            var _a, _b;
             if (key2 === undefined) {
-                return true;
+                return this.map.has(key1);
             }
-            return level1.has(key2, key3);
+            else {
+                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.has(key2, key3)) !== null && _b !== void 0 ? _b : false;
+            }
         }
-        /**
-         * Sets a value for the given key triplet
-         * Creates nested structures as needed
-         * @param key1 Primary key
-         * @param key2 Secondary key
-         * @param key3 Tertiary key
-         * @param value Value to set
-         * @returns This MapMapMap instance for chaining
-         */
         set(key1, key2, key3, value) {
-            let level1 = this.map.get(key1);
-            if (!level1) {
-                level1 = new MapMap();
-                this.map.set(key1, level1);
-            }
-            level1.set(key2, key3, value);
+            var _a;
+            this.map.set(key1, ((_a = this.map.get(key1)) !== null && _a !== void 0 ? _a : new MapMap).set(key2, key3, value));
             return this;
         }
         get(key1, key2, key3) {
-            const level1 = this.map.get(key1);
-            if (!level1) {
-                return undefined;
-            }
+            var _a, _b;
             if (key2 === undefined) {
-                return level1;
+                return this.map.get(key1);
             }
-            return level1.get(key2, key3);
+            else if (key3 === undefined) {
+                return (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.get(key2);
+            }
+            else {
+                return (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.get(key2, key3);
+            }
         }
         keys(key1, key2) {
+            var _a, _b, _c, _d, _e;
             if (key1 === undefined) {
                 return this.map.keys();
             }
-            const level1 = this.map.get(key1);
-            if (!level1) {
-                return this.createEmptyIterator();
+            else if (key2 === undefined) {
+                return (_b = (_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.keys()) !== null && _b !== void 0 ? _b : (function* () { })();
             }
-            if (key2 === undefined) {
-                return level1.keys();
+            else {
+                return (_e = (_d = (_c = this.map.get(key1)) === null || _c === void 0 ? void 0 : _c.get(key2)) === null || _d === void 0 ? void 0 : _d.keys()) !== null && _e !== void 0 ? _e : (function* () { })();
             }
-            return level1.keys(key2);
         }
-        /**
-         * Deletes keys at various levels of the hierarchy
-         * @param key1 Primary key
-         * @param key2 Optional secondary key
-         * @param key3 Optional tertiary key
-         * @returns True if something was deleted
-         */
         delete(key1, key2, key3) {
-            const level1 = this.map.get(key1);
-            if (!level1) {
-                return false;
-            }
+            var _a, _b, _c, _d;
+            let ret = false;
             if (key2 === undefined) {
-                // Delete entire primary key if nested structure is empty
-                if (level1.size === 0) {
-                    return this.map.delete(key1);
-                }
-                return false;
+                ret = (((_a = this.map.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? this.map.delete(key1) : false;
             }
-            // Delete at nested level
-            const deleted = level1.delete(key2, key3);
-            // Clean up empty nested structures
-            if (level1.size === 0) {
-                this.map.delete(key1);
+            else {
+                ret = (_c = (_b = this.map.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2, key3)) !== null && _c !== void 0 ? _c : false;
+                (((_d = this.map.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && this.map.delete(key1);
             }
-            return deleted;
-        }
-        /**
-         * Creates an empty iterator for cases where no data exists
-         * @returns Empty iterator
-         */
-        createEmptyIterator() {
-            return (function* () { })();
-        }
-        /**
-         * Gets all values in all nested structures
-         * @returns Array of all values
-         */
-        getAllValues() {
-            const values = [];
-            this.map.forEach(mapMap => {
-                values.push(...mapMap.getAllValues());
-            });
-            return values;
-        }
-        /**
-         * Gets the total number of deeply nested values
-         * @returns Total count of all values
-         */
-        get totalSize() {
-            let total = 0;
-            this.map.forEach(mapMap => {
-                mapMap.forEach(nestedMap => {
-                    total += nestedMap.size;
-                });
-            });
-            return total;
+            return ret;
         }
     }
 
     //----------------------------------------------------------------------------------------------------
+    // Constants
+    //----------------------------------------------------------------------------------------------------
+    const LIFECYCLE_EVENTS = ['start', 'update', 'stop', 'finalize'];
+    const LIFECYCLE_STATES = {
+        INVOKED: 'invoked',
+        INITIALIZED: 'initialized',
+        STARTED: 'started',
+        STOPPED: 'stopped',
+        PRE_FINALIZED: 'pre finalized',
+        FINALIZED: 'finalized',
+    };
+    const CUSTOM_EVENT_PREFIX = {
+        GLOBAL: '+',
+        INTERNAL: '-',
+    };
+    //----------------------------------------------------------------------------------------------------
     // unit main
     //----------------------------------------------------------------------------------------------------
     class Unit {
-        constructor(parent, target, component, ...args) {
+        constructor(parent, target, component, props) {
             var _a, _b, _c, _d;
-            this._ = {};
             let baseTarget = null;
             if (target instanceof Element || target instanceof Window || target instanceof Document) {
                 baseTarget = target;
@@ -468,7 +302,7 @@
             this._ = {
                 root: (_c = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _c !== void 0 ? _c : this,
                 peers: (_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots,
-                inputs: { parent, target, component, args },
+                inputs: { parent, target, component, props },
                 baseTarget,
                 baseContext: UnitScope.get(parent),
             };
@@ -476,7 +310,7 @@
             Unit.initialize(this);
         }
         get element() {
-            return this._.element;
+            return this._.currentElement;
         }
         start() {
             this._.tostart = true;
@@ -501,8 +335,7 @@
         on(type, listener, options) {
             try {
                 if (typeof type === 'string') {
-                    const list = ['start', 'update', 'stop', 'finalize'];
-                    const filtered = type.trim().split(/\s+/).filter((type) => list.includes(type));
+                    const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type));
                     filtered.forEach((type) => {
                         this._.system[type].push(listener);
                     });
@@ -516,12 +349,11 @@
         }
         off(type, listener) {
             try {
-                if (typeof type == undefined) {
+                if (type === undefined) {
                     this._.system = { start: [], update: [], stop: [], finalize: [] };
                 }
                 else if (typeof type === 'string') {
-                    const list = ['start', 'update', 'stop', 'finalize'];
-                    const filtered = type.trim().split(/\s+/).filter((type) => list.includes(type));
+                    const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type));
                     filtered.forEach((type) => {
                         if (listener === undefined) {
                             this._.system[type] = [];
@@ -552,42 +384,43 @@
         static initialize(unit) {
             var _a;
             unit._ = Object.assign(unit._, {
-                children: [], // children units
-                state: 'invoked', // [invoked -> initialized -> started <-> stopped -> finalized]
-                tostart: true, // flag for start
-                element: null, // current element
-                nestedElements: [], // nested html elements
-                isNested: false, // nested flag
-                upcount: 0, // update count    
-                resolved: false, // promise check
-                props: {}, // properties in the component function
-                system: {}, // system properties
+                children: [],
+                state: LIFECYCLE_STATES.INVOKED,
+                tostart: true,
+                currentElement: null,
+                nestedElements: [],
+                isNested: false,
+                upcount: 0,
+                resolved: false,
+                defines: {},
+                system: { start: [], update: [], stop: [], finalize: [] },
             });
-            unit._.system = { start: [], update: [], stop: [], finalize: [] };
             UnitScope.initialize(unit, unit._.baseContext);
             // nest html element
             if (unit._.baseTarget instanceof Element) {
-                unit._.element = unit._.baseTarget;
+                unit._.currentElement = unit._.baseTarget;
                 if (typeof unit._.inputs.target === 'string') {
                     Unit.nest(unit, unit._.inputs.target);
-                    unit._.element = unit._.nestedElements[0];
+                    unit._.currentElement = unit._.nestedElements[0];
                 }
             }
             // setup component
             if (typeof unit._.inputs.component === 'function') {
-                UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.inputs.component, ...unit._.inputs.args));
+                UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.inputs.component, unit._.inputs.props));
             }
             else if (unit.element instanceof Element && typeof unit._.inputs.component === 'string') {
                 unit.element.innerHTML = unit._.inputs.component;
             }
             // whether the unit promise was resolved
-            (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => { unit._.resolved = true; });
+            (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => {
+                unit._.resolved = true;
+            });
         }
         static finalize(unit) {
-            var _a;
-            if (unit._.state !== 'finalized' || unit._.state !== 'pre finalized') {
-                unit._.state = 'pre finalized';
-                unit._.children.forEach((unit) => unit.finalize());
+            const { state } = unit._;
+            if (state !== LIFECYCLE_STATES.FINALIZED && state !== LIFECYCLE_STATES.PRE_FINALIZED) {
+                unit._.state = LIFECYCLE_STATES.PRE_FINALIZED;
+                unit._.children.forEach((child) => child.finalize());
                 unit._.system.finalize.forEach((listener) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener);
                 });
@@ -596,80 +429,80 @@
                 UnitComponent.finalize(unit);
                 UnitPromise.finalize(unit);
                 if (unit._.nestedElements.length > 0) {
-                    (_a = unit._.baseTarget) === null || _a === void 0 ? void 0 : _a.removeChild(unit._.nestedElements[0]);
+                    if (unit._.baseTarget instanceof Element) {
+                        unit._.baseTarget.removeChild(unit._.nestedElements[0]);
+                    }
                     unit._.nestedElements = [];
                 }
-                // reset props
-                Object.keys(unit._.props).forEach((key) => {
-                    if (['start', 'update', 'stop', 'finalize'].includes(key) === false) {
+                // reset defines
+                Object.keys(unit._.defines).forEach((key) => {
+                    if (!LIFECYCLE_EVENTS.includes(key)) {
                         delete unit[key];
                     }
                 });
-                unit._.props = {};
-                unit._.state = 'finalized';
+                unit._.defines = {};
+                unit._.state = LIFECYCLE_STATES.FINALIZED;
             }
         }
         static nest(unit, html, innerHTML) {
             const match = html.match(/<((\w+)[^>]*?)\/?>/);
-            const element = unit.element;
-            if (element !== null && match !== null) {
-                element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                const last = element.children[element.children.length - 1];
+            if (unit.element !== null && match !== null) {
+                unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                const last = unit.element.children[unit.element.children.length - 1];
                 unit._.nestedElements.push(last);
-                unit._.element = last;
+                unit._.currentElement = last;
                 if (typeof innerHTML === 'string') {
                     last.innerHTML = innerHTML;
                 }
             }
             return unit.element;
         }
-        static extend(unit, component, ...args) {
+        static extend(unit, component, props) {
             var _a;
             UnitComponent.add(unit, component);
-            const props = (_a = component(unit, ...args)) !== null && _a !== void 0 ? _a : {};
+            const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
             const snapshot = UnitScope.snapshot(unit);
-            Object.keys(props).forEach((key) => {
-                const descripter = Object.getOwnPropertyDescriptor(props, key);
-                if (unit[key] === undefined || unit._.props[key] !== undefined) {
-                    const descriptor = { configurable: true, enumerable: true };
-                    if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.get) === 'function') {
-                        descriptor.get = (...args) => UnitScope.execute(snapshot, descripter.get, ...args);
-                    }
-                    else if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.set) === 'function') {
-                        descriptor.set = (...args) => UnitScope.execute(snapshot, descripter.set, ...args);
-                    }
-                    else if (typeof (descripter === null || descripter === void 0 ? void 0 : descripter.value) === 'function') {
-                        descriptor.value = (...args) => UnitScope.execute(snapshot, descripter.value, ...args);
-                    }
-                    else if ((descripter === null || descripter === void 0 ? void 0 : descripter.value) !== undefined) {
-                        descriptor.writable = true;
-                        descriptor.value = descripter.value;
-                    }
-                    Object.defineProperty(unit._.props, key, descriptor);
-                    Object.defineProperty(unit, key, descriptor);
-                }
-                else {
+            Object.keys(defines).forEach((key) => {
+                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+                if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
                 }
+                const newDescriptor = { configurable: true, enumerable: true };
+                if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) {
+                    newDescriptor.get = (...args) => UnitScope.execute(snapshot, descriptor.get, ...args);
+                }
+                else if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set) {
+                    newDescriptor.set = (...args) => UnitScope.execute(snapshot, descriptor.set, ...args);
+                }
+                else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
+                    newDescriptor.value = (...args) => UnitScope.execute(snapshot, descriptor.value, ...args);
+                }
+                else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
+                    newDescriptor.writable = true;
+                    newDescriptor.value = descriptor.value;
+                }
+                Object.defineProperty(unit._.defines, key, newDescriptor);
+                Object.defineProperty(unit, key, newDescriptor);
             });
         }
         static start(unit, time) {
-            if (unit._.resolved === false || unit._.tostart === false)
+            if (!unit._.resolved || !unit._.tostart)
                 return;
-            if (unit._.state === 'invoked' || unit._.state === 'initialized' || unit._.state === 'stopped') {
-                unit._.state = 'started';
+            const { state } = unit._;
+            if (state === LIFECYCLE_STATES.INVOKED || state === LIFECYCLE_STATES.INITIALIZED || state === LIFECYCLE_STATES.STOPPED) {
+                unit._.state = LIFECYCLE_STATES.STARTED;
                 unit._.children.forEach((child) => Unit.start(child, time));
                 unit._.system.start.forEach((listener) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener);
                 });
             }
-            else if (unit._.state === 'started') {
+            else if (state === LIFECYCLE_STATES.STARTED) {
                 unit._.children.forEach((child) => Unit.start(child, time));
             }
         }
         static stop(unit) {
-            if (unit._.state === 'started') {
-                unit._.state = 'stopped';
+            if (unit._.state === LIFECYCLE_STATES.STARTED) {
+                unit._.state = LIFECYCLE_STATES.STOPPED;
                 unit._.children.forEach((child) => Unit.stop(child));
                 unit._.system.stop.forEach((listener) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener);
@@ -677,9 +510,9 @@
             }
         }
         static update(unit, time) {
-            if (['started'].includes(unit._.state) === true) {
-                unit._.children.forEach((unit) => Unit.update(unit, time));
-                if (['started'].includes(unit._.state)) {
+            if (unit._.state === LIFECYCLE_STATES.STARTED) {
+                unit._.children.forEach((child) => Unit.update(child, time));
+                if (unit._.state === LIFECYCLE_STATES.STARTED) {
                     unit._.system.update.forEach((listener) => {
                         UnitScope.execute(UnitScope.snapshot(unit), listener, unit._.upcount);
                     });
@@ -702,9 +535,14 @@
     }
     Unit.roots = [];
     Unit.reset();
+    //----------------------------------------------------------------------------------------------------
+    // unit scope
+    //----------------------------------------------------------------------------------------------------
     class UnitScope {
         static initialize(unit, context) {
-            UnitScope.contexts.set(unit, context);
+            if (context !== null) {
+                UnitScope.contexts.set(unit, context);
+            }
         }
         static finalize(unit) {
             UnitScope.contexts.delete(unit);
@@ -717,36 +555,36 @@
             return (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null;
         }
         static execute(snapshot, func, ...args) {
-            if (snapshot) {
-                const current = UnitScope.current;
-                let context = null;
-                let element = null;
-                try {
-                    UnitScope.current = snapshot.unit;
-                    if (snapshot.unit !== null) {
-                        if (snapshot.context !== null) {
-                            context = UnitScope.get(snapshot.unit);
-                            UnitScope.contexts.set(snapshot.unit, snapshot.context);
-                        }
-                        if (snapshot.element !== null) {
-                            element = snapshot.unit._.element;
-                            snapshot.unit._.element = snapshot.element;
-                        }
+            if (!snapshot)
+                return;
+            const current = UnitScope.current;
+            let context = null;
+            let element = null;
+            try {
+                UnitScope.current = snapshot.unit;
+                if (snapshot.unit !== null) {
+                    if (snapshot.context !== null) {
+                        context = UnitScope.get(snapshot.unit);
+                        UnitScope.contexts.set(snapshot.unit, snapshot.context);
                     }
-                    return func(...args);
+                    if (snapshot.element !== null) {
+                        element = snapshot.unit._.currentElement;
+                        snapshot.unit._.currentElement = snapshot.element;
+                    }
                 }
-                catch (error) {
-                    throw error;
-                }
-                finally {
-                    UnitScope.current = current;
-                    if (snapshot.unit !== null) {
-                        if (context !== null) {
-                            UnitScope.contexts.set(snapshot.unit, context);
-                        }
-                        if (element !== null) {
-                            snapshot.unit._.element = element;
-                        }
+                return func(...args);
+            }
+            catch (error) {
+                throw error;
+            }
+            finally {
+                UnitScope.current = current;
+                if (snapshot.unit !== null) {
+                    if (context !== null) {
+                        UnitScope.contexts.set(snapshot.unit, context);
+                    }
+                    if (element !== null) {
+                        snapshot.unit._.currentElement = element;
                     }
                 }
             }
@@ -755,9 +593,7 @@
             if (unit !== null) {
                 return { unit, context: UnitScope.get(unit), element: unit.element };
             }
-            else {
-                return null;
-            }
+            return null;
         }
         static stack(unit, key, value) {
             UnitScope.contexts.set(unit, { stack: UnitScope.get(unit), key, value });
@@ -799,7 +635,7 @@
     //----------------------------------------------------------------------------------------------------
     class UnitEvent {
         static on(unit, type, listener, options) {
-            if (typeof type !== 'string' || (typeof type === 'string' && type.trim() === '')) {
+            if (typeof type !== 'string' || type.trim() === '') {
                 throw new Error('"type" is invalid.');
             }
             else if (typeof listener !== 'function') {
@@ -815,7 +651,7 @@
             }
             const types = type.trim().split(/\s+/);
             types.forEach((type) => {
-                if (UnitEvent.listeners.has(unit, type, listener) === false) {
+                if (!UnitEvent.listeners.has(unit, type, listener)) {
                     const execute = (...args) => {
                         UnitScope.execute(snapshot, listener, ...args);
                     };
@@ -838,16 +674,16 @@
             types.forEach((type) => {
                 const listeners = listener ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
                 listeners.forEach((lis) => {
-                    const tupple = UnitEvent.listeners.get(unit, type, lis);
-                    if (tupple !== undefined) {
-                        const [target, execute] = tupple;
+                    const tuple = UnitEvent.listeners.get(unit, type, lis);
+                    if (tuple !== undefined) {
+                        const [target, execute] = tuple;
                         UnitEvent.listeners.delete(unit, type, lis);
                         if (target instanceof Element || target instanceof Window || target instanceof Document) {
                             target.removeEventListener(type, execute);
                         }
                     }
                 });
-                if (UnitEvent.listeners.has(unit, type) === false) {
+                if (!UnitEvent.listeners.has(unit, type)) {
                     UnitEvent.units.delete(type, unit);
                 }
             });
@@ -858,16 +694,16 @@
             if (typeof type !== 'string') {
                 throw new Error('The argument [type] is invalid.');
             }
-            else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === 'finalized') {
+            else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === LIFECYCLE_STATES.FINALIZED) {
                 throw new Error('This function can not be called after finalized.');
             }
-            if (type[0] === '+') {
+            if (type[0] === CUSTOM_EVENT_PREFIX.GLOBAL) {
                 (_a = UnitEvent.units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                     var _a;
                     (_a = UnitEvent.listeners.get(unit, type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
                 });
             }
-            else if (type[0] === '-' && unit !== null) {
+            else if (type[0] === CUSTOM_EVENT_PREFIX.INTERNAL && unit !== null) {
                 (_b = UnitEvent.listeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
             }
         }
@@ -998,11 +834,11 @@
     });
     Object.defineProperty(xnew$1, 'extend', {
         enumerable: true,
-        value: (component, ...args) => {
+        value: (component, props) => {
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                    return Unit.extend(current, component, ...args);
+                    return Unit.extend(current, component, props);
                 }
                 else {
                     throw new Error('This function can not be called after initialized.');
@@ -1122,9 +958,9 @@
         value: (callback, interval, easing = 'linear') => {
             const snapshot = UnitScope.snapshot();
             let stacks = [];
-            let unit = xnew$1(Local, callback, interval, easing);
+            let unit = xnew$1(Local, { callback, interval, easing });
             let isRunning = true;
-            function Local(self, callback, interval, easing) {
+            function Local(self, { callback, interval, easing }) {
                 const timer = new Timer(() => {
                     UnitScope.execute(snapshot, callback, 1.0);
                     self.finalize();
@@ -1154,8 +990,8 @@
             let timer = null;
             function execute() {
                 if (isRunning === false && stacks.length > 0) {
-                    const args = stacks.shift();
-                    unit = xnew$1(Local, ...args);
+                    const props = stacks.shift();
+                    unit = xnew$1(Local, props);
                     isRunning = true;
                 }
             }
@@ -1164,7 +1000,7 @@
                 unit.finalize();
             }
             function next(callback, interval, easing = 'linear') {
-                stacks.push([callback, interval, easing]);
+                stacks.push({ callback, interval, easing });
                 execute();
                 return timer;
             }
