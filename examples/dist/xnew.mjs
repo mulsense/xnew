@@ -282,22 +282,22 @@ const CUSTOM_EVENT_PREFIX = {
 //----------------------------------------------------------------------------------------------------
 class Unit {
     constructor(parent, target, component, props) {
-        var _a, _b, _c, _d;
-        let baseTarget = null;
-        if (target instanceof Element || target instanceof Window || target instanceof Document) {
-            baseTarget = target;
+        var _a, _b, _c, _d, _e;
+        let baseElement;
+        if (target instanceof HTMLElement || target instanceof SVGElement) {
+            baseElement = target;
         }
         else if (parent !== null) {
-            baseTarget = parent._.nestedElements.length > 0 ? parent._.nestedElements[parent._.nestedElements.length - 1] : parent._.baseTarget;
+            baseElement = (_a = parent._.currentElement) !== null && _a !== void 0 ? _a : parent._.baseElement;
         }
-        else if (document instanceof Document) {
-            baseTarget = (_b = (_a = document.currentScript) === null || _a === void 0 ? void 0 : _a.parentElement) !== null && _b !== void 0 ? _b : document.body;
+        else {
+            baseElement = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
         }
         this._ = {
-            root: (_c = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _c !== void 0 ? _c : this,
-            peers: (_d = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _d !== void 0 ? _d : Unit.roots,
+            root: (_d = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _d !== void 0 ? _d : this,
+            peers: (_e = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _e !== void 0 ? _e : Unit.roots,
             inputs: { parent, target, component, props },
-            baseTarget,
+            baseElement,
             baseContext: UnitScope.get(parent),
         };
         this._.peers.push(this);
@@ -381,9 +381,7 @@ class Unit {
             children: [],
             state: LIFECYCLE_STATES.INVOKED,
             tostart: true,
-            currentElement: null,
-            nestedElements: [],
-            isNested: false,
+            currentElement: unit._.baseElement,
             upcount: 0,
             resolved: false,
             defines: {},
@@ -391,18 +389,14 @@ class Unit {
         });
         UnitScope.initialize(unit, unit._.baseContext);
         // nest html element
-        if (unit._.baseTarget instanceof Element) {
-            unit._.currentElement = unit._.baseTarget;
-            if (typeof unit._.inputs.target === 'string') {
-                Unit.nest(unit, unit._.inputs.target);
-                unit._.currentElement = unit._.nestedElements[0];
-            }
+        if (typeof unit._.inputs.target === 'string') {
+            Unit.nest(unit, unit._.inputs.target);
         }
         // setup component
         if (typeof unit._.inputs.component === 'function') {
             UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.inputs.component, unit._.inputs.props));
         }
-        else if (unit.element instanceof Element && typeof unit._.inputs.component === 'string') {
+        else if (typeof unit._.inputs.component === 'string') {
             unit.element.innerHTML = unit._.inputs.component;
         }
         // whether the unit promise was resolved
@@ -419,14 +413,14 @@ class Unit {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
             UnitEvent.off(unit);
+            UnitSubEvent.off(unit, null);
             UnitScope.finalize(unit);
             UnitComponent.finalize(unit);
             UnitPromise.finalize(unit);
-            if (unit._.nestedElements.length > 0) {
-                if (unit._.baseTarget instanceof Element) {
-                    unit._.baseTarget.removeChild(unit._.nestedElements[0]);
-                }
-                unit._.nestedElements = [];
+            while (unit._.currentElement !== unit._.baseElement && unit._.currentElement.parentElement !== null) {
+                const parent = unit._.currentElement.parentElement;
+                parent.removeChild(unit._.currentElement);
+                unit._.currentElement = parent;
             }
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
@@ -440,13 +434,11 @@ class Unit {
     }
     static nest(unit, html, innerHTML) {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
-        if (unit.element !== null && match !== null) {
+        if (match !== null) {
             unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            const last = unit.element.children[unit.element.children.length - 1];
-            unit._.nestedElements.push(last);
-            unit._.currentElement = last;
+            unit._.currentElement = unit.element.children[unit.element.children.length - 1];
             if (typeof innerHTML === 'string') {
-                last.innerHTML = innerHTML;
+                unit.element.innerHTML = innerHTML;
             }
         }
         return unit.element;
@@ -636,23 +628,16 @@ class UnitEvent {
             throw new Error('"listener" is invalid.');
         }
         const snapshot = UnitScope.snapshot();
-        let target = null;
-        if (unit.element instanceof Element) {
-            target = unit.element;
-        }
-        else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
-            target = unit._.baseTarget;
-        }
         const types = type.trim().split(/\s+/);
         types.forEach((type) => {
             if (!UnitEvent.listeners.has(unit, type, listener)) {
                 const execute = (...args) => {
                     UnitScope.execute(snapshot, listener, ...args);
                 };
-                UnitEvent.listeners.set(unit, type, listener, [target, execute]);
+                UnitEvent.listeners.set(unit, type, listener, [unit.element, execute]);
                 UnitEvent.units.add(type, unit);
-                if (/^[A-Za-z]/.test(type[0])) {
-                    target === null || target === void 0 ? void 0 : target.addEventListener(type, execute, options);
+                if (/^[A-Za-z]/.test(type)) {
+                    unit.element.addEventListener(type, execute, options);
                 }
             }
         });
@@ -672,7 +657,7 @@ class UnitEvent {
                 if (tuple !== undefined) {
                     const [target, execute] = tuple;
                     UnitEvent.listeners.delete(unit, type, lis);
-                    if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                    if (/^[A-Za-z]/.test(type)) {
                         target.removeEventListener(type, execute);
                     }
                 }
@@ -702,8 +687,52 @@ class UnitEvent {
         }
     }
 }
-UnitEvent.units = new MapSet();
-UnitEvent.listeners = new MapMapMap();
+UnitEvent.units = new MapSet;
+UnitEvent.listeners = new MapMapMap;
+class UnitSubEvent {
+    static on(unit, target, type, listener, options) {
+        if (typeof type !== 'string' || type.trim() === '') {
+            throw new Error('"type" is invalid.');
+        }
+        else if (typeof listener !== 'function') {
+            throw new Error('"listener" is invalid.');
+        }
+        const snapshot = UnitScope.snapshot();
+        const types = type.trim().split(/\s+/);
+        types.forEach((type) => {
+            if (!UnitSubEvent.listeners.has(unit, type, listener)) {
+                const execute = (...args) => {
+                    UnitScope.execute(snapshot, listener, ...args);
+                };
+                UnitSubEvent.listeners.set(unit, type, listener, [target, execute]);
+                target.addEventListener(type, execute, options);
+            }
+        });
+    }
+    static off(unit, target, type, listener) {
+        if (typeof type === 'string' && type.trim() === '') {
+            throw new Error('"type" is invalid.');
+        }
+        else if (listener !== undefined && typeof listener !== 'function') {
+            throw new Error('"listener" is invalid.');
+        }
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitSubEvent.listeners.keys(unit)];
+        types.forEach((type) => {
+            const listeners = listener ? [listener] : [...UnitSubEvent.listeners.keys(unit, type)];
+            listeners.forEach((lis) => {
+                const tuple = UnitSubEvent.listeners.get(unit, type, lis);
+                if (tuple !== undefined) {
+                    const [element, execute] = tuple;
+                    if (target === null || target === element) {
+                        UnitSubEvent.listeners.delete(unit, type, lis);
+                        element.removeEventListener(type, execute);
+                    }
+                }
+            });
+        });
+    }
+}
+UnitSubEvent.listeners = new MapMapMap;
 //----------------------------------------------------------------------------------------------------
 // unit promise
 //----------------------------------------------------------------------------------------------------
@@ -757,65 +786,75 @@ class UnitPromise {
 }
 UnitPromise.promises = new MapSet();
 
-const xnew$1 = function (...args) {
-    try {
-        let parent;
-        if (args[0] instanceof Unit) {
-            parent = args.shift();
-        }
-        else if (args[0] === null) {
-            parent = args.shift();
-        }
-        else if (args[0] === undefined) {
-            args.shift();
-            parent = UnitScope.current;
-        }
-        else {
-            parent = UnitScope.current;
-        }
-        let target;
-        if (args[0] instanceof Element || args[0] instanceof Window) {
-            target = args.shift(); // an existing html element
-        }
-        else if (typeof args[0] === 'string') {
-            const str = args.shift(); // a selector for an existing html element
-            const match = str.match(/<([^>]*)\/?>/);
-            if (match) {
-                target = str;
+const xnew$1 = (() => {
+    const fn = function (...args) {
+        try {
+            let parent;
+            if (args[0] instanceof Unit) {
+                parent = args.shift();
+            }
+            else if (args[0] === null) {
+                parent = args.shift();
+            }
+            else if (args[0] === undefined) {
+                args.shift();
+                parent = UnitScope.current;
             }
             else {
-                target = document.querySelector(str);
-                if (target == null) {
-                    throw new Error(`'${str}' can not be found.`);
+                parent = UnitScope.current;
+            }
+            let target;
+            if (args[0] instanceof Element || args[0] instanceof Window) {
+                target = args.shift(); // an existing html element
+            }
+            else if (typeof args[0] === 'string') {
+                const str = args.shift(); // a selector for an existing html element
+                const match = str.match(/<([^>]*)\/?>/);
+                if (match) {
+                    target = str;
+                }
+                else {
+                    target = document.querySelector(str);
+                    if (target == null) {
+                        throw new Error(`'${str}' can not be found.`);
+                    }
                 }
             }
+            else if (typeof args[0] !== null && typeof args[0] === 'object') {
+                target = args.shift(); // an attributes for a new html element
+            }
+            else if (args[0] === null || args[0] === undefined) {
+                args.shift();
+                target = null;
+            }
+            else {
+                target = null;
+            }
+            if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
+                throw new Error('The argument [parent, target, component] is invalid.');
+            }
+            const unit = new Unit(parent, target, ...args);
+            if (unit === undefined) {
+                throw '';
+            }
+            return unit;
         }
-        else if (typeof args[0] !== null && typeof args[0] === 'object') {
-            target = args.shift(); // an attributes for a new html element
+        catch (error) {
+            console.error('xnew: ', error);
+            throw '';
         }
-        else if (args[0] === null || args[0] === undefined) {
-            args.shift();
-            target = null;
-        }
-        else {
-            target = null;
-        }
-        if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
-            throw new Error('The argument [parent, target, component] is invalid.');
-        }
-        return new Unit(parent, target, ...args);
-    }
-    catch (error) {
-        console.error('xnew: ', error);
-    }
-};
-Object.defineProperty(xnew$1, 'nest', {
-    enumerable: true,
-    value: (html, innerHTML) => {
+    };
+    fn.nest = (html, innerHTML) => {
         try {
             const current = UnitScope.current;
             if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                return Unit.nest(current, html, innerHTML);
+                const element = Unit.nest(current, html, innerHTML);
+                if (element instanceof HTMLElement || element instanceof SVGElement) {
+                    return element;
+                }
+                else {
+                    throw new Error('');
+                }
             }
             else {
                 throw new Error('This function can not be called after initialized.');
@@ -823,12 +862,10 @@ Object.defineProperty(xnew$1, 'nest', {
         }
         catch (error) {
             console.error('xnew.nest(attributes): ', error);
+            throw new Error('');
         }
-    }
-});
-Object.defineProperty(xnew$1, 'extend', {
-    enumerable: true,
-    value: (component, props) => {
+    };
+    fn.extend = (component, props) => {
         try {
             const current = UnitScope.current;
             if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
@@ -841,11 +878,8 @@ Object.defineProperty(xnew$1, 'extend', {
         catch (error) {
             console.error('xnew.extend(component, ...args): ', error);
         }
-    }
-});
-Object.defineProperty(xnew$1, 'context', {
-    enumerable: true,
-    value: (key, value = undefined) => {
+    };
+    fn.context = (key, value = undefined) => {
         try {
             const unit = UnitScope.current;
             if (typeof key !== 'string') {
@@ -866,11 +900,8 @@ Object.defineProperty(xnew$1, 'context', {
         catch (error) {
             console.error('xnew.context(key, value?): ', error);
         }
-    }
-});
-Object.defineProperty(xnew$1, 'promise', {
-    enumerable: true,
-    value: (mix) => {
+    };
+    fn.promise = (mix) => {
         try {
             return UnitPromise.execute(UnitScope.current, mix);
         }
@@ -878,11 +909,8 @@ Object.defineProperty(xnew$1, 'promise', {
             console.error('xnew.promise(mix): ', error);
             throw error;
         }
-    }
-});
-Object.defineProperty(xnew$1, 'fetch', {
-    enumerable: true,
-    value: (url, options) => {
+    };
+    fn.fetch = (url, options) => {
         try {
             const promise = fetch(url, options);
             return UnitPromise.execute(UnitScope.current, promise);
@@ -891,18 +919,12 @@ Object.defineProperty(xnew$1, 'fetch', {
             console.error('xnew.promise(mix): ', error);
             throw error;
         }
-    }
-});
-Object.defineProperty(xnew$1, 'scope', {
-    enumerable: true,
-    value: (callback) => {
+    };
+    fn.scope = (callback) => {
         const snapshot = UnitScope.snapshot();
         return (...args) => UnitScope.execute(snapshot, callback, ...args);
-    }
-});
-Object.defineProperty(xnew$1, 'find', {
-    enumerable: true,
-    value: (component) => {
+    };
+    fn.find = (component) => {
         try {
             if (typeof component !== 'function') {
                 throw new Error(`The argument [component] is invalid.`);
@@ -914,11 +936,8 @@ Object.defineProperty(xnew$1, 'find', {
         catch (error) {
             console.error('xnew.find(component): ', error);
         }
-    }
-});
-Object.defineProperty(xnew$1, 'timeout', {
-    enumerable: true,
-    value: (callback, delay) => {
+    };
+    fn.timeout = (callback, delay) => {
         const snapshot = UnitScope.snapshot();
         const unit = xnew$1((self) => {
             const timer = new Timer(() => {
@@ -930,11 +949,8 @@ Object.defineProperty(xnew$1, 'timeout', {
             });
         });
         return { clear: () => unit.finalize() };
-    }
-});
-Object.defineProperty(xnew$1, 'interval', {
-    enumerable: true,
-    value: (callback, delay) => {
+    };
+    fn.interval = (callback, delay) => {
         const snapshot = UnitScope.snapshot();
         const unit = xnew$1((self) => {
             const timer = new Timer(() => {
@@ -945,11 +961,8 @@ Object.defineProperty(xnew$1, 'interval', {
             });
         });
         return { clear: () => unit.finalize() };
-    }
-});
-Object.defineProperty(xnew$1, 'transition', {
-    enumerable: true,
-    value: (callback, interval, easing = 'linear') => {
+    };
+    fn.transition = (callback, interval, easing = 'linear') => {
         const snapshot = UnitScope.snapshot();
         let stacks = [];
         let unit = xnew$1(Local, { callback, interval, easing });
@@ -1000,8 +1013,25 @@ Object.defineProperty(xnew$1, 'transition', {
         }
         timer = { clear, next };
         return timer;
-    }
-});
+    };
+    fn.window = {
+        on(type, listener, options) {
+            UnitSubEvent.on(UnitScope.current, window, type, listener, options);
+        },
+        off(type, listener) {
+            UnitSubEvent.off(UnitScope.current, window, type, listener);
+        }
+    };
+    fn.document = {
+        on(type, listener, options) {
+            UnitSubEvent.on(UnitScope.current, document, type, listener, options);
+        },
+        off(type, listener) {
+            UnitSubEvent.off(UnitScope.current, document, type, listener);
+        }
+    };
+    return fn;
+})();
 
 function ResizeEvent(self) {
     const observer = new ResizeObserver(xnew$1.scope((entries) => {
@@ -1019,7 +1049,6 @@ function ResizeEvent(self) {
         }
     });
 }
-
 function UserEvent(self) {
     const unit = xnew$1();
     unit.on('pointerdown', (event) => self.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
@@ -1047,8 +1076,7 @@ function DragEvent(self) {
         const id = event.pointerId;
         const position = getPosition(self.element, event);
         let previous = position;
-        const win = xnew$1(window);
-        win.on('pointermove', (event) => {
+        xnew$1.window.on('pointermove', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -1056,18 +1084,18 @@ function DragEvent(self) {
                 previous = position;
             }
         });
-        win.on('pointerup', (event) => {
+        xnew$1.window.on('pointerup', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 self.emit('-dragend', { event, position, });
-                win.finalize();
+                xnew$1.window.off();
             }
         });
-        win.on('pointercancel', (event) => {
+        xnew$1.window.on('pointercancel', (event) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 self.emit('-dragcancel', { event, position, });
-                win.finalize();
+                xnew$1.window.off();
             }
         });
         self.emit('-dragstart', { event, position });
@@ -1127,19 +1155,18 @@ function GestureEvent(self) {
 }
 function Keyboard(self) {
     const state = {};
-    const win = xnew$1(window);
-    win.on('keydown', (event) => {
+    xnew$1.window.on('keydown', (event) => {
         state[event.code] = 1;
         self.emit('-keydown', { event, code: event.code });
     });
-    win.on('keyup', (event) => {
+    xnew$1.window.on('keyup', (event) => {
         state[event.code] = 0;
         self.emit('-keyup', { event, code: event.code });
     });
-    win.on('keydown', (event) => {
+    xnew$1.window.on('keydown', (event) => {
         self.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
-    win.on('keyup', (event) => {
+    xnew$1.window.on('keyup', (event) => {
         self.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
     function getVector() {
@@ -1155,6 +1182,7 @@ function getPosition(element, event) {
 }
 
 function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
+    const size = { width, height };
     const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
     const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
@@ -1162,7 +1190,7 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
     observer.on('-resize', resize);
     resize();
     function resize() {
-        const aspect = canvas.element.width / canvas.element.height;
+        const aspect = size.width / size.height;
         const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
         if (fit === 'contain') {
             if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
@@ -1192,128 +1220,75 @@ function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
             return canvas.element;
         },
         resize(width, height) {
-            canvas.element.width = width;
-            canvas.element.height = height;
+            size.width = width;
+            size.height = height;
+            canvas.element.setAttribute('width', width + 'px');
+            canvas.element.setAttribute('height', height + 'px');
             resize();
         },
         get scale() {
-            return { x: canvas.element.width / canvas.element.clientWidth, y: canvas.element.height / canvas.element.clientHeight };
+            return { x: size.width / canvas.element.clientWidth, y: size.height / canvas.element.clientHeight };
         }
     };
 }
 
-function Modal(self) {
-    xnew$1.nest('<div style="position: fixed; inset: 0;">');
+function Modal(self, { duration = 200, easing = 'ease' } = {}) {
+    const fixed = xnew$1.nest('<div style="position: fixed; inset: 0;">');
     xnew$1().on('click', (event) => {
         if (self.element === event.target) {
             self.close();
         }
     });
+    xnew$1.timeout(() => self.open());
     return {
-        close: () => {
-            self.finalize();
+        open() {
+            xnew$1.transition((x) => fixed.style.opacity = x.toString(), duration, easing);
+        },
+        close() {
+            xnew$1.transition((x) => fixed.style.opacity = (1.0 - x).toString(), duration, easing).next(() => self.finalize());
         }
     };
 }
-
-function WorkSpace(self, attributes = {}) {
-    var _a;
-    xnew$1.context('workspace', self);
-    const current = {
-        position: { x: 0, y: 0 },
-        rotation: 0,
-        scale: 1
-    };
-    const local = attributes;
-    local.style = Object.assign((_a = local.style) !== null && _a !== void 0 ? _a : {}, { overflow: 'hidden', });
-    xnew$1.nest(local);
-    xnew$1(Controller);
-    const base = xnew$1.nest({ style: { position: 'absolute', top: '0px', left: '0px' } });
-    xnew$1(Grid);
+function Accordion(self, { open = false, duration = 200, easing = 'ease' }) {
+    const outer = xnew$1.nest('<div style="overflow: hidden">');
+    const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
+    let isOpen = open;
+    let moving = false;
+    outer.style.display = isOpen ? 'block' : 'none';
     return {
-        get transform() {
-            return current;
-        },
-        move(transform) {
-            if (transform.position) {
-                current.position = transform.position;
-            }
-            if (transform.rotation) {
-                current.rotation = transform.rotation;
-            }
-            if (transform.scale) {
-                current.scale = transform.scale;
+        open() {
+            if (moving === false) {
+                isOpen = true;
+                moving = true;
+                outer.style.display = 'block';
+                xnew$1.transition((x) => {
+                    outer.style.height = inner.offsetHeight * x + 'px';
+                    outer.style.opacity = `${x}`;
+                    if (x === 1.0) {
+                        outer.style.height = 'auto';
+                        moving = false;
+                    }
+                }, duration, easing);
             }
         },
-        update() {
-            let text = '';
-            if (current.position) {
-                text += `translate(${current.position.x}px, ${current.position.y}px) `;
+        close() {
+            if (moving === false) {
+                moving = true;
+                xnew$1.transition((x) => {
+                    outer.style.height = inner.offsetHeight * (1.0 - x) + 'px';
+                    outer.style.opacity = `${1.0 - x}`;
+                    if (x === 1.0) {
+                        isOpen = false;
+                        outer.style.display = 'none';
+                        outer.style.height = '0px';
+                        moving = false;
+                    }
+                }, duration, easing);
             }
-            if (current.rotation) {
-                text += `rotate(${current.rotation}deg) `;
-            }
-            if (current.scale) {
-                text += `scale(${current.scale}) `;
-            }
-            base.style.transform = text;
-        }
-    };
-}
-function Controller(self) {
-    const ws = xnew$1.context('workspace');
-    self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-    self.on('+scale', (scale) => {
-        if (self.element) {
-            const s = 0.2 * (scale - 1);
-            ws.move({
-                position: {
-                    x: ws.transform.position.x - (ws.transform.position.x + self.element.clientWidth / 2) * s,
-                    y: ws.transform.position.y - (ws.transform.position.y + self.element.clientHeight / 2) * s,
-                },
-                scale: ws.transform.scale + s,
-            });
-        }
-    });
-    self.on('+translate', (delta) => {
-        ws.move({
-            position: {
-                x: ws.transform.position.x - delta.x,
-                y: ws.transform.position.y + delta.y
-            }
-        });
-    });
-    self.on('+rotate', (delta) => {
-        // scene.rotation.x += delta.y * 0.01;
-        // xthree.scene.rotation.z += delta.x * 0.01;
-    });
-    const user = xnew$1(UserEvent);
-    user.on('-dragmove', ({ event, delta }) => {
-        if (event.target == user.element) {
-            if (event.buttons & 1 || !event.buttons) {
-                xnew$1.emit('+rotate', { x: +delta.x, y: +delta.y });
-            }
-            if (event.buttons & 1) {
-                xnew$1.emit('+translate', { x: -delta.x, y: +delta.y });
-            }
-        }
-    });
-    user.on('-wheel', ({ delta }) => xnew$1.emit('+scale', 1 + 0.001 * delta.y));
-}
-function Grid(self) {
-    xnew$1.context('workspace');
-    xnew$1.nest({ style: { position: 'absolute', top: '0px', left: '0px', pointerEvents: 'none' } });
-    // for (let i = -count; i <= count; i++) {
-    //     const lineX = xnew.nest({ style: { position: 'absolute', width: '1px', height: `${size * count}px`, backgroundColor: '#ccc' } });
-    //     lineX.style.left = `${i * size}px`;
-    //     grid.append(lineX);
-    //     const lineY = xnew.nest({ style: { position: 'absolute', width: `${size * count}px`, height: '1px', backgroundColor: '#ccc' } });
-    //     lineY.style.top = `${i * size}px`;
-    //     grid.append(lineY);
-    // }
-    return {
-        update() {
-        }
+        },
+        toggle() {
+            isOpen ? self.close() : self.open();
+        },
     };
 }
 
@@ -1322,7 +1297,7 @@ const xnew = Object.assign(xnew$1, {
     UserEvent,
     ResizeEvent,
     Modal,
-    WorkSpace,
+    Accordion,
 });
 
 export { xnew as default };

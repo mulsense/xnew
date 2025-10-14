@@ -21,13 +21,9 @@
       box.style.top = (Math.random() * 300 - 15) + 'px';
 
       // fade in -> fade out -> finalize
-      xnew.transition((x) => {
-        box.style.opacity = x;
-      }, 1000).next((x) => {
-        box.style.opacity = 1.0 - x;
-      }, 1000).next(() => {
-        self.finalize();
-      });
+      xnew.transition((x) => box.style.opacity = x, 1000)
+      .next((x) => box.style.opacity = 1.0 - x, 1000)
+      .next((x) => self.finalize());
 
       self.on('update', (count) => {
         box.style.transform = `rotate(${count}deg)`;

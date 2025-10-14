@@ -1,7 +1,8 @@
 import { xnew } from '../core/xnew';
-import { ResizeEvent } from './ResizeEvent';
+import { ResizeEvent } from './Event';
 
 export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'contain' } = {}) {
+    const size = { width, height };
     const wrapper = xnew.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
     const absolute = xnew.nest('<div style="position: absolute; margin: auto;">');
   
@@ -12,7 +13,7 @@ export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'cont
     resize();
 
     function resize() {
-        const aspect = canvas.element.width / canvas.element.height;
+        const aspect = size.width / size.height;
         const style: any = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
         
         if (fit === 'contain') {
@@ -33,7 +34,7 @@ export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'cont
             }
         } else if (fit === 'fill') {
         }
-        Object.assign(absolute.style, style);
+        Object.assign((absolute as HTMLElement).style, style);
     }
 
     return {
@@ -41,12 +42,14 @@ export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'cont
             return canvas.element;
         },
         resize(width: number, height: number): void{
-            canvas.element.width = width;
-            canvas.element.height = height;
+            size.width = width;
+            size.height = height;
+            canvas.element.setAttribute('width', width + 'px');
+            canvas.element.setAttribute('height', height + 'px');
             resize();
         },
         get scale() {
-            return { x: canvas.element.width / canvas.element.clientWidth, y: canvas.element.height / canvas.element.clientHeight };
+            return { x: size.width / canvas.element.clientWidth, y: size.height / canvas.element.clientHeight };
         }
     }
 }

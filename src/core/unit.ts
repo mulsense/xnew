@@ -22,8 +22,6 @@ const CUSTOM_EVENT_PREFIX = {
     INTERNAL: '-',
 } as const;
 
-const RESERVED_PROPERTIES = ['start', 'stop', 'finalize', 'reboot', 'element', 'on', 'off', 'emit', 'state', '_'] as const;
-
 //----------------------------------------------------------------------------------------------------
 // Interfaces
 //----------------------------------------------------------------------------------------------------
@@ -37,14 +35,12 @@ interface UnitInternal {
         component?: Function | string;
         props?: Object;
     };
-    baseTarget: Element | Window | Document | null;
+    baseElement: HTMLElement | SVGElement;
     baseContext: Context | null;
     children: Unit[];
     state: string;
     tostart: boolean;
-    currentElement: Element | null;
-    nestedElements: Element[];
-    isNested: boolean;
+    currentElement: HTMLElement | SVGElement;
     upcount: number;
     resolved: boolean;
     defines: Record<string, any>;
@@ -60,7 +56,7 @@ interface Context {
 interface Snapshot {
     unit: Unit | null;
     context: Context | null;
-    element: Element | null;
+    element: HTMLElement | SVGElement | null;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -75,20 +71,20 @@ export class Unit {
     static roots: Unit[] = [];
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object) {
-        let baseTarget: Element | Window | Document | null = null;
-        if (target instanceof Element || target instanceof Window || target instanceof Document) {
-            baseTarget = target;
+        let baseElement: HTMLElement | SVGElement;
+        if (target instanceof HTMLElement || target instanceof SVGElement) {
+            baseElement = target;
         } else if (parent !== null) {
-            baseTarget = parent._.nestedElements.length > 0 ? parent._.nestedElements[parent._.nestedElements.length - 1] : parent._.baseTarget;
-        } else if (document instanceof Document) {
-            baseTarget = document.currentScript?.parentElement ?? document.body;
+            baseElement = parent._.currentElement ?? parent._.baseElement;
+        } else {
+            baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
         this._ = {
             root: parent?._.root ?? this,
             peers: parent?._.children ?? Unit.roots,
             inputs: { parent, target, component, props },
-            baseTarget,
+            baseElement,
             baseContext: UnitScope.get(parent),
         } as UnitInternal;
 
@@ -96,7 +92,7 @@ export class Unit {
         Unit.initialize(this);
     }
 
-    get element(): Element | null {
+    get element(): HTMLElement | SVGElement {
         return this._.currentElement;
     }
 
@@ -125,7 +121,7 @@ export class Unit {
         Unit.initialize(this);
     }
 
-    on(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): Unit {
+    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit {
         try {
             if (typeof type === 'string') {
                 const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type as LifecycleEvent));
@@ -141,7 +137,7 @@ export class Unit {
         return this;
     }
 
-    off(type?: string, listener?: EventListener): Unit {
+    off(type?: string, listener?: Function): Unit {
         try {
             if (type === undefined) {
                 this._.system = { start: [], update: [], stop: [], finalize: [] };
@@ -180,9 +176,7 @@ export class Unit {
             children: [],
             state: LIFECYCLE_STATES.INVOKED,
             tostart: true,
-            currentElement: null,
-            nestedElements: [],
-            isNested: false,
+            currentElement: unit._.baseElement,
             upcount: 0,
             resolved: false,
             defines: {},
@@ -192,13 +186,8 @@ export class Unit {
         UnitScope.initialize(unit, unit._.baseContext);
 
         // nest html element
-        if (unit._.baseTarget instanceof Element) {
-            unit._.currentElement = unit._.baseTarget;
-
-            if (typeof unit._.inputs.target === 'string') {
-                Unit.nest(unit, unit._.inputs.target);
-                unit._.currentElement = unit._.nestedElements[0];
-            }
+        if (typeof unit._.inputs.target === 'string') {
+            Unit.nest(unit, unit._.inputs.target);
         }
 
         // setup component
@@ -207,7 +196,7 @@ export class Unit {
                 { unit, context: null, element: null },
                 () => Unit.extend(unit, unit._.inputs.component as Function, unit._.inputs.props)
             );
-        } else if (unit.element instanceof Element && typeof unit._.inputs.component === 'string') {
+        } else if (typeof unit._.inputs.component === 'string') {
             unit.element.innerHTML = unit._.inputs.component;
         }
 
@@ -228,15 +217,15 @@ export class Unit {
             });
 
             UnitEvent.off(unit);
+            UnitSubEvent.off(unit, null);
             UnitScope.finalize(unit);
             UnitComponent.finalize(unit);
             UnitPromise.finalize(unit);
 
-            if (unit._.nestedElements.length > 0) {
-                if (unit._.baseTarget instanceof Element) {
-                    unit._.baseTarget.removeChild(unit._.nestedElements[0]);
-                }
-                unit._.nestedElements = [];
+            while (unit._.currentElement !== unit._.baseElement && unit._.currentElement.parentElement !== null) {
+                const parent = unit._.currentElement.parentElement;
+                parent.removeChild(unit._.currentElement);
+                unit._.currentElement = parent;
             }
 
             // reset defines
@@ -250,15 +239,13 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, html: string, innerHTML?: string): Element | null {
+    static nest(unit: Unit, html: string, innerHTML?: string): HTMLElement | SVGElement | null {
         const match = html.match(/<((\w+)[^>]*?)\/?>/);
-        if (unit.element !== null && match !== null) {
+        if (match !== null) {
             unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            const last = unit.element.children[unit.element.children.length - 1];
-            unit._.nestedElements.push(last);
-            unit._.currentElement = last;
+            unit._.currentElement = unit.element.children[unit.element.children.length - 1] as HTMLElement | SVGElement;
             if (typeof innerHTML === 'string') {
-                last.innerHTML = innerHTML;
+                unit.element.innerHTML = innerHTML;
             }
         }
         return unit.element;
@@ -381,7 +368,7 @@ export class UnitScope {
 
         const current = UnitScope.current;
         let context: Context | null = null;
-        let element: Element | null = null;
+        let element: HTMLElement | SVGElement | null = null;
 
         try {
             UnitScope.current = snapshot.unit;
@@ -462,9 +449,9 @@ export class UnitComponent {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitEvent {
-    static units: MapSet<string, Unit> = new MapSet();
-    static listeners: MapMapMap<Unit, string, Function, [Element | Window | Document | null, (...args: any[]) => void]> =
-        new MapMapMap();
+    static units: MapSet<string, Unit> = new MapSet;
+    static listeners: MapMapMap<Unit, string, Function, [HTMLElement | SVGElement, (...args: any[]) => void]> =
+        new MapMapMap;
 
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || type.trim() === '') {
@@ -474,23 +461,16 @@ export class UnitEvent {
         }
 
         const snapshot = UnitScope.snapshot();
-        let target: Element | Window | Document | null = null;
-        if (unit.element instanceof Element) {
-            target = unit.element;
-        } else if (unit._.baseTarget instanceof Window || unit._.baseTarget instanceof Document) {
-            target = unit._.baseTarget;
-        }
-
         const types = type.trim().split(/\s+/);
         types.forEach((type) => {
             if (!UnitEvent.listeners.has(unit, type, listener)) {
                 const execute = (...args: any[]) => {
                     UnitScope.execute(snapshot, listener, ...args);
                 };
-                UnitEvent.listeners.set(unit, type, listener, [target, execute]);
+                UnitEvent.listeners.set(unit, type, listener, [unit.element, execute]);
                 UnitEvent.units.add(type, unit);
-                if (/^[A-Za-z]/.test(type[0])) {
-                    target?.addEventListener(type, execute, options);
+                if (/^[A-Za-z]/.test(type)) {
+                    unit.element.addEventListener(type, execute, options);
                 }
             }
         });
@@ -511,7 +491,7 @@ export class UnitEvent {
                 if (tuple !== undefined) {
                     const [target, execute] = tuple;
                     UnitEvent.listeners.delete(unit, type, lis);
-                    if (target instanceof Element || target instanceof Window || target instanceof Document) {
+                    if (/^[A-Za-z]/.test(type)) {
                         target.removeEventListener(type, execute);
                     }
                 }
@@ -536,6 +516,53 @@ export class UnitEvent {
         } else if (type[0] === CUSTOM_EVENT_PREFIX.INTERNAL && unit !== null) {
             UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
         }
+    }
+}
+export class UnitSubEvent {
+    static listeners: MapMapMap<Unit | null, string, Function, [Window | Document, (...args: any[]) => void]> =
+        new MapMapMap;
+
+    static on(unit: Unit | null, target: Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        if (typeof type !== 'string' || type.trim() === '') {
+            throw new Error('"type" is invalid.');
+        } else if (typeof listener !== 'function') {
+            throw new Error('"listener" is invalid.');
+        }
+
+        const snapshot = UnitScope.snapshot();
+        const types = type.trim().split(/\s+/);
+        types.forEach((type) => {
+            if (!UnitSubEvent.listeners.has(unit, type, listener)) {
+                const execute = (...args: any[]) => {
+                    UnitScope.execute(snapshot, listener, ...args);
+                };
+                UnitSubEvent.listeners.set(unit, type, listener, [target, execute]);
+                target.addEventListener(type, execute, options);
+            }
+        });
+    }
+
+    static off(unit: Unit | null, target: Window | Document | null, type?: string, listener?: Function): void {
+        if (typeof type === 'string' && type.trim() === '') {
+            throw new Error('"type" is invalid.');
+        } else if (listener !== undefined && typeof listener !== 'function') {
+            throw new Error('"listener" is invalid.');
+        }
+
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitSubEvent.listeners.keys(unit)];
+        types.forEach((type) => {
+            const listeners = listener ? [listener] : [...UnitSubEvent.listeners.keys(unit, type)];
+            listeners.forEach((lis) => {
+                const tuple = UnitSubEvent.listeners.get(unit, type, lis);
+                if (tuple !== undefined) {
+                    const [element, execute] = tuple;
+                    if (target === null || target === element) {
+                        UnitSubEvent.listeners.delete(unit, type, lis);
+                        element.removeEventListener(type, execute);
+                    }
+                }
+            });
+        });
     }
 }
 

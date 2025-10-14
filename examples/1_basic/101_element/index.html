@@ -12,12 +12,13 @@
     xnew('#main', (self) => {
       xnew(MyDiv);
       xnew(MyInput);
+      xnew(MySVG);
+      xnew(MyTransition);
       xnew(MyCanvas);
-      xnew(MyModal);
     });
 
     function Template(self, { name }) {
-      xnew.nest('<div style="margin: 8px; padding: 8px; border: solid 1px #222;">');
+      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222;">');
       xnew('<p>', name);
       xnew.nest('<div style="display: flex; column-gap: 16px; flex-wrap: wrap;">');
     }
@@ -26,8 +27,15 @@
       xnew.extend(Template, { name: 'my div' });
 
       xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
-      xnew('<div style="width: 160px; height: 36px; background: #6d6;">', '2');
-      xnew('<div style="width: 160px; height: 36px; background: #66d;">', '3');
+
+      xnew('<div style="width: 160px; height: 36px; background: #6d6;">', (self) => {
+        self.element.textContent = '2';
+      });
+
+      xnew((self) => {
+        xnew.nest('<div style="width: 160px; height: 36px; background: #66d;">');
+        self.element.textContent = '3';
+      });
     }
 
     function MyInput(self) {
@@ -61,6 +69,14 @@
         select.on('change', (event) => {
           text.element.textContent = event.target.value;
         });
+      });
+    }
+
+    function MySVG(self) {
+      xnew.extend(Template, { name: 'my svg' });
+      xnew('<svg viewBox="0 0 100 100" style="width: 120px; height: 120px; stroke: #000;">', () => {
+        xnew('<circle cx="20" cy="20" r="40" style="fill: #6c0;">');
+        xnew('<rect x="40" y="40" width="80" height="80" style="fill: #06c;">');
       });
     }
 
@@ -115,29 +131,45 @@
       }
     }
 
-    function MyModal(self) {
-      xnew.extend(Template, { name: 'my modal' });
+    function MyTransition(self) {
+      xnew.extend(Template, { name: 'my transition' });
 
-      xnew('<button>', 'open').on('click', () => xnew(Modal));
-      
-      function Modal(modal) {
-        xnew.extend(xnew.Modal);
-        modal.element.style.background = 'rgba(0, 0, 0, 0.1)';
+      xnew('<div>', (self) => {
 
-        xnew.transition((x) => {
-          console.log(x);
-          modal.element.style.opacity = x}, 500);
+        xnew('<button>', 'modal').on('click', () => xnew(Modal));
+        
+        function Modal(modal) {
+          xnew.extend(xnew.Modal);
+          modal.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
-        xnew('<div style="position: absolute; inset: 0; margin: auto; width: 400px; height: max-content; border: solid 1px #000; border-radius: 8px; background: #fff;">', (self) => {
+          xnew('<div style="position: absolute; inset: 0; margin: auto; width: 400px; max-width: 80%; height: max-content; border: solid 1px #000; border-radius: 8px; background: #fff;">', (self) => {
 
-          // Title Bar
-          xnew('<div style="padding: 8px; border-bottom: solid 1px #000; display: flex; justify-content: space-between;">', () => {
-            xnew('<span>', 'Title');
-            xnew('<button>', 'Close').on('click', () => modal.close());
+            // Title Bar
+            xnew('<div style="padding: 8px; border-bottom: solid 1px #000; display: flex; justify-content: space-between;">', () => {
+              xnew('<span>', 'Title');
+              xnew('<button>', 'Close').on('click', () => modal.close());
+            });
+
+            // Content
+            xnew('<div style="padding: 8px;">', () => {
+              xnew('<span>', 'Content');
+              xnew('<ul>', () => {
+                xnew('<li>', '1st item');
+                xnew('<li>', '2nd item');
+                xnew('<li>', '3rd item');
+              });
+            });
           });
+        }
+      });
 
-          // Content
-          xnew('<div style="padding: 8px;">', () => {
+      xnew('<div style="border: solid 1px #000; border-radius: 8px;">', (self) => {
+
+        const header = xnew('<div style="margin: 8px; cursor: pointer;">', 'accordion (click me!)')
+        const accordion = xnew((self) => {
+          xnew.extend(xnew.Accordion, { open: false });
+
+          xnew('<div style="padding: 8px; border-top: solid 1px #000;">', () => {
             xnew('<span>', 'Content');
             xnew('<ul>', () => {
               xnew('<li>', '1st item');
@@ -146,18 +178,10 @@
             });
           });
         });
-        
-        return {
-          close() {
-            xnew.transition((x) => {
-              modal.element.style.opacity = 1 - x;
-            }, 500).next(() => {
-              modal.finalize();
-            });
-          }
-        }
-      }
+        header.on('click', () => accordion.toggle());
+      });
     }
+
 
   </script>
 </body>

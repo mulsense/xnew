@@ -1,79 +1,89 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitComponent, UnitPromise, UnitEvent } from './unit';
-
-export interface xnewtype extends Function {
-    [key: string]: any;
-}
+import { Unit, UnitScope, UnitComponent, UnitPromise, UnitSubEvent } from './unit';
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-export const xnew: xnewtype = function (...args: any[]): Unit | undefined {
-    try {
-        let parent;
-        if (args[0] instanceof Unit) {
-            parent = args.shift();
-        } else if (args[0] === null) {
-            parent = args.shift();
-        } else if (args[0] === undefined) {
-            args.shift();
-            parent = UnitScope.current
-        } else {
-            parent = UnitScope.current
-        }
-
-        let target;
-        if (args[0] instanceof Element || args[0] instanceof Window) {
-            target = args.shift(); // an existing html element
-        } else if (typeof args[0] === 'string') {
-            const str = args.shift(); // a selector for an existing html element
-            const match = str.match(/<([^>]*)\/?>/);
-            if (match) {
-                target = str;
-            } else {
-                target = document.querySelector(str); 
-                if (target == null) {
-                    throw new Error(`'${str}' can not be found.`);
-                }
-            }
-        } else if (typeof args[0] !== null && typeof args[0] === 'object') {
-            target = args.shift(); // an attributes for a new html element
-        } else if (args[0] === null || args[0] === undefined) {
-            args.shift();
-            target = null;
-        } else {
-            target = null;
-        }
-
-        if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
-            throw new Error('The argument [parent, target, component] is invalid.');
-        }
-        return new Unit(parent, target, ...args);
-    } catch (error: unknown) {
-        console.error('xnew: ', error);
-    }
+export interface xnewtype {
+    (...args: any[]): Unit;
+    nest(html: string, innerHTML?: string): HTMLElement | SVGElement;
+    [key: string]: any;
 }
 
-Object.defineProperty(xnew, 'nest', {
-    enumerable: true,
-    value: (html: string, innerHTML?: string): Element | null | undefined => {
+export const xnew: xnewtype = (() => {
+    const fn = function (...args: any[]): Unit {
+        try {
+            let parent;
+            if (args[0] instanceof Unit) {
+                parent = args.shift();
+            } else if (args[0] === null) {
+                parent = args.shift();
+            } else if (args[0] === undefined) {
+                args.shift();
+                parent = UnitScope.current
+            } else {
+                parent = UnitScope.current
+            }
+
+            let target;
+            if (args[0] instanceof Element || args[0] instanceof Window) {
+                target = args.shift(); // an existing html element
+            } else if (typeof args[0] === 'string') {
+                const str = args.shift(); // a selector for an existing html element
+                const match = str.match(/<([^>]*)\/?>/);
+                if (match) {
+                    target = str;
+                } else {
+                    target = document.querySelector(str); 
+                    if (target == null) {
+                        throw new Error(`'${str}' can not be found.`);
+                    }
+                }
+            } else if (typeof args[0] !== null && typeof args[0] === 'object') {
+                target = args.shift(); // an attributes for a new html element
+            } else if (args[0] === null || args[0] === undefined) {
+                args.shift();
+                target = null;
+            } else {
+                target = null;
+            }
+
+            if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
+                throw new Error('The argument [parent, target, component] is invalid.');
+            }
+            const unit = new Unit(parent, target, ...args);
+            if (unit === undefined) {
+                throw '';
+            }
+            return unit;
+        } catch (error: unknown) {
+            console.error('xnew: ', error);
+            throw '';
+        }
+    }
+  
+
+    fn.nest = (html: string, innerHTML?: string): HTMLElement | SVGElement => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
-                return Unit.nest(current, html, innerHTML);
+                const element = Unit.nest(current, html, innerHTML);
+                if (element instanceof HTMLElement || element instanceof SVGElement) {
+                    return element;
+                } else {
+                    throw new Error('');
+                }
             } else {
                 throw new Error('This function can not be called after initialized.');
             }
         } catch (error: unknown) {
             console.error('xnew.nest(attributes): ', error);
+            throw new Error('');
         }
     }
-});
 
-Object.defineProperty(xnew, 'extend', {
-    enumerable: true,
-    value: (component: Function, props?: Object): any => {
+    fn.extend = (component: Function, props?: Object): any => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
@@ -85,11 +95,8 @@ Object.defineProperty(xnew, 'extend', {
             console.error('xnew.extend(component, ...args): ', error);
         }
     }
-});
 
-Object.defineProperty(xnew, 'context', {
-    enumerable: true,
-    value: (key: string, value: any = undefined): any => {
+    fn.context = (key: string, value: any = undefined): any => {
         try {
             const unit = UnitScope.current;
             if (typeof key !== 'string') {
@@ -107,11 +114,8 @@ Object.defineProperty(xnew, 'context', {
             console.error('xnew.context(key, value?): ', error);
         }
     }
-});
         
-Object.defineProperty(xnew, 'promise', {
-    enumerable: true,
-    value: (mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise => {
+    fn.promise = (mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise => {
         try {
             return UnitPromise.execute(UnitScope.current, mix);
         } catch (error: unknown) {
@@ -119,11 +123,8 @@ Object.defineProperty(xnew, 'promise', {
             throw error;
         }
     }
-});
 
-Object.defineProperty(xnew, 'fetch', {
-    enumerable: true,
-    value: (url: string, options?: object): UnitPromise => {
+    fn.fetch = (url: string, options?: object): UnitPromise => {
         try {
             const promise = fetch(url, options);
             return UnitPromise.execute(UnitScope.current, promise);
@@ -132,19 +133,13 @@ Object.defineProperty(xnew, 'fetch', {
             throw error;
         }
     }
-});
 
-Object.defineProperty(xnew, 'scope', {
-    enumerable: true,
-    value: (callback: any): any => {
+    fn.scope = (callback: any): any => {
         const snapshot = UnitScope.snapshot();
         return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
     }
-});
 
-Object.defineProperty(xnew, 'find', {
-    enumerable: true,
-    value: (component: Function): Unit[] | undefined => {
+    fn.find = (component: Function): Unit[] | undefined => {
         try {
             if (typeof component !== 'function') {
                 throw new Error(`The argument [component] is invalid.`);
@@ -155,11 +150,8 @@ Object.defineProperty(xnew, 'find', {
             console.error('xnew.find(component): ', error);
         }
     }
-});
 
-Object.defineProperty(xnew, 'timeout', {
-    enumerable: true,
-    value: (callback: Function, delay: number): any => {
+    fn.timeout = (callback: Function, delay: number): any => {
         const snapshot = UnitScope.snapshot();
         const unit = xnew((self: Unit) => {
             const timer = new Timer(() => {
@@ -172,11 +164,8 @@ Object.defineProperty(xnew, 'timeout', {
         });
         return { clear: () => unit.finalize() };
     }
-});
 
-Object.defineProperty(xnew, 'interval', {
-    enumerable: true,
-    value: (callback: Function, delay: number): any => {
+    fn.interval = (callback: Function, delay: number): any => {
         const snapshot = UnitScope.snapshot();
         const unit = xnew((self: Unit) => {
             const timer = new Timer(() => {
@@ -188,11 +177,8 @@ Object.defineProperty(xnew, 'interval', {
         });
         return { clear: () => unit.finalize() };
     }
-});
 
-Object.defineProperty(xnew, 'transition', {
-    enumerable: true,
-    value: (callback: Function, interval: number, easing: string = 'linear'): any => {
+    fn.transition = (callback: Function, interval: number, easing: string = 'linear'): any => {
         const snapshot = UnitScope.snapshot();
 
         let stacks: any = [];
@@ -247,4 +233,23 @@ Object.defineProperty(xnew, 'transition', {
         timer = { clear, next };
         return timer;
     }
-});
+
+    fn.window = {
+        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
+            UnitSubEvent.on(UnitScope.current, window, type, listener, options);
+        },
+        off(type?: string, listener?: Function) {
+            UnitSubEvent.off(UnitScope.current, window, type, listener);
+        }
+    }
+    fn.document = {
+        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
+            UnitSubEvent.on(UnitScope.current, document, type, listener, options);
+        },
+        off(type?: string, listener?: Function) {
+            UnitSubEvent.off(UnitScope.current, document, type, listener);
+        }
+    }  
+    return fn;
+})();
+

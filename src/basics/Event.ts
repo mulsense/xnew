@@ -1,5 +1,23 @@
 import { xnew } from '../core/xnew';
 
+export function ResizeEvent(self: any) {
+    const observer = new ResizeObserver(xnew.scope((entries: any) => {
+        for (const entry of entries) {
+            self.emit('-resize');
+            break;
+        }
+    }));
+
+    if (self.element) {
+        observer.observe(self.element);
+    }
+    self.on('finalize', () => {
+        if (self.element) {
+            observer.unobserve(self.element);
+        }
+    });
+}
+
 export function UserEvent(self: xnew.Unit) {
     const unit = xnew();
     unit.on('pointerdown', (event: any) => self.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
@@ -32,8 +50,7 @@ function DragEvent(self: xnew.Unit) {
         const position = getPosition(self.element, event);
         let previous = position;
 
-        const win = xnew(window);
-        win.on('pointermove', (event: any) => {
+        xnew.window.on('pointermove', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -41,18 +58,18 @@ function DragEvent(self: xnew.Unit) {
                 previous = position;
             }
         });
-        win.on('pointerup', (event: any) => {
+        xnew.window.on('pointerup', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 self.emit('-dragend', { event, position, });
-                win.finalize();
+                xnew.window.off();
             }
         });
-        win.on('pointercancel', (event: any) => {
+        xnew.window.on('pointercancel', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 self.emit('-dragcancel', { event, position, });
-                win.finalize();
+                xnew.window.off();
             }
         });
         self.emit('-dragstart', { event, position });
@@ -133,19 +150,18 @@ function GestureEvent(self: xnew.Unit) {
 function Keyboard(self: xnew.Unit) {
     const state: any = {};
 
-    const win = xnew(window);
-    win.on('keydown', (event: any) => {
+    xnew.window.on('keydown', (event: any) => {
         state[event.code] = 1;
         self.emit('-keydown', { event, code: event.code });
     });
-    win.on('keyup', (event: any) => {
+    xnew.window.on('keyup', (event: any) => {
         state[event.code] = 0;
         self.emit('-keyup', { event, code: event.code });
     });
-    win.on('keydown', (event: any) => {
+    xnew.window.on('keydown', (event: any) => {
         self.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
-    win.on('keyup', (event: any) => {
+    xnew.window.on('keyup', (event: any) => {
         self.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
 
