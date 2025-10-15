@@ -59,7 +59,7 @@ function Event(self) {
           transform.ty = backup.ty * (1.0 - p);
           if (progress === 1.0) state.moving = false;
         }, 700);
-        self.emit('+planefade');
+        xnew.emit('+planefade');
       }
     });
   }

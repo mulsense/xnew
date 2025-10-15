@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 
 export function Modal(self: xnew.Unit, { duration = 200, easing = 'ease' } = {}) {
-    const fixed = xnew.nest('<div style="position: fixed; inset: 0;">') as HTMLElement;
+    const fixed = xnew.nest('<div style="position: fixed; inset: 0; opacity: 0;">') as HTMLElement;
 
     xnew().on('click', (event: Event) => {
         if (self.element === event.target) {
@@ -69,16 +69,16 @@ export function Tab(self: xnew.Unit, { duration = 200, easing = 'ease' } = {}) {
     const tabs = new Map<string, xnew.Unit>();
     return {
         assign(name: string, component: Function) {
-            const div = xnew('<div>', component);
-            tabs.set(name, div);
+            const unit = xnew('<div>', component);
+            tabs.set(name, unit);
             if (tabs.size > 1) {
-                div.element.style.display = 'none';
+                unit.element.style.display = 'none';
             }
         },
         select(name: string) {
-            tabs.forEach((div) => div.element.style.display = 'none');
-            const div = tabs.get(name);
-            div!.element.style.display = 'block';
+            tabs.forEach((unit) => unit.element.style.display = 'none');
+            const unit = tabs.get(name);
+            unit!.element.style.display = 'block';
         }
     }
 }

@@ -1,5 +1,5 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitComponent, UnitPromise, UnitSubEvent } from './unit';
+import { Unit, UnitScope, UnitComponent, UnitPromise, UnitEvent, UnitSubEvent } from './unit';
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
@@ -139,15 +139,17 @@ export const xnew: xnewtype = (() => {
         return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
     }
 
-    fn.find = (component: Function): Unit[] | undefined => {
+    fn.find = (component: Function): Unit[] => {
         try {
             if (typeof component !== 'function') {
                 throw new Error(`The argument [component] is invalid.`);
             } else {
-                return UnitComponent.find(component);
+                let units = UnitComponent.find(component);
+                return units;
             }
         } catch (error: unknown) {
             console.error('xnew.find(component): ', error);
+            throw new Error(`The argument [component] is invalid.`);
         }
     }
 
@@ -234,6 +236,13 @@ export const xnew: xnewtype = (() => {
         return timer;
     }
 
+    fn.emit = (type: string, ...args: any[]) => {
+        try {
+            UnitEvent.emit(type, ...args);
+        } catch (error: unknown) {
+            console.error('xnew.emit(type, ...args): ', error);
+        }
+    }
     fn.window = {
         on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
             UnitSubEvent.on(UnitScope.current, window, type, listener, options);

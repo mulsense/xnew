@@ -32,10 +32,10 @@
       button2.on('click', (event) => self.finalize());
 
       xnew(Child);
-      self.on('start', () => self.emit('+console', 'parent start'));
+      self.on('start', () => xnew.emit('+console', 'parent start'));
       self.on('update', (count) => div.element.textContent = `count ${count}`);
-      self.on('stop', () => self.emit('+console', 'parent stop'));
-      self.on('finalize', () => self.emit('+console', 'parent finalize'));
+      self.on('stop', () => xnew.emit('+console', 'parent stop'));
+      self.on('finalize', () => xnew.emit('+console', 'parent finalize'));
     }
 
     // child component
@@ -53,10 +53,10 @@
       });
       button2.on('click', (event) => self.finalize());
 
-      self.on('start', () => self.emit('+console', 'child start'));
+      self.on('start', () => xnew.emit('+console', 'child start'));
       self.on('update', (count) => div.element.textContent = `count ${count}`);
-      self.on('stop', () => self.emit('+console', 'child stop'));
-      self.on('finalize', () => self.emit('+console', 'child finalize'));
+      self.on('stop', () => xnew.emit('+console', 'child stop'));
+      self.on('finalize', () => xnew.emit('+console', 'child finalize'));
     }
 
     function Console(self) {

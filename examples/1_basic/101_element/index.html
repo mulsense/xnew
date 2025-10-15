@@ -9,16 +9,17 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', (main) => {
       xnew.extend(xnew.Tab);
 
-      const basics = xnew('<span style="margin: 6px; cursor: pointer;">', 'basics');
-      const graphics = xnew('<span style="margin: 6px; cursor: pointer;">', 'graphics');
-      basics.on('click', () => self.select('basics'));
-      graphics.on('click', () => self.select('graphics'));
+      // select & assign: extension methods of xnew.Tab
+      xnew('<div style="display: flex; column-gap: 8px;">', (self) => {
+        xnew('<div>', 'basics').on('click', () => main.select('basics'));
+        xnew('<div>', 'graphics').on('click', () => main.select('graphics'));
+      });
 
-      self.assign('basics', Basics);
-      self.assign('graphics', Graphics);
+      main.assign('basics', Basics);
+      main.assign('graphics', Graphics);
     });
 
     function Basics(self) {

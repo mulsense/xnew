@@ -40,7 +40,7 @@ function Root(self: xnew.Unit, { renderer, canvas }: any) {
         });
         
     } else {
-        const screens = xnew.find(xnew.Screen);
+        const screens = xnew.find(null, xnew.Screen);
         if (screens.length > 0) {
             const screen = screens.slice(-1)[0]; // last screen
             data = PIXI.autoDetectRenderer({

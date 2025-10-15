@@ -15,22 +15,22 @@ function Controller(self) {
 
   // virtual joyscick
   const stick = xnew('<div style="position: absolute; left: 10px; bottom: 10px;">', xutil.AnalogStick, { size: 130 });
-  stick.on('-down -move -up', ({ vector }) => self.emit('+move', { vector }));
+  stick.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
 
   // virtual D-pad
   const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 150px;">', xutil.DPad, { size: 130 });
-  dpad.on('-down -move -up', ({ vector }) => self.emit('+move', { vector }));
+  dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
 
   // virtual button
   const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xutil.CircleButton);
-  button.on('-down', () => self.emit('+action'));
+  button.on('-down', () => xnew.emit('+action'));
 
   // keyboard
   const user = xnew(xnew.UserEvent);
-  user.on('-arrowkeydown -arrowkeyup', ({ vector }) => self.emit('+move', { vector }));
+  user.on('-arrowkeydown -arrowkeyup', ({ vector }) => xnew.emit('+move', { vector }));
   user.on('-keydown', ({ code }) => {
     if (code === 'Space') {
-      self.emit('+action')
+      xnew.emit('+action')
     }
   });
 
@@ -67,7 +67,7 @@ function Box(self) {
 //             previousButtons: new Map,
 //             previousAxes: []
 //         });
-//         self.emit('-gamepadconnected', e.gamepad);
+//         xnew.emit('-gamepadconnected', e.gamepad);
 //     });
         
 //     win.on('gamepaddisconnected', (e) => {
@@ -88,11 +88,11 @@ function Box(self) {
 //           if (isPressed === true && wasPressed === false) {
 //             gamepads.get(gamepadIndex).previousButtons.set(buttonIndex, true);
 //             console.log(gamepad, button);
-//             self.emit('-gamepadbuttondown', { gamepad,  button: buttonIndex });
+//             xnew.emit('-gamepadbuttondown', { gamepad,  button: buttonIndex });
 //           }
 //           if (isPressed === false && wasPressed === true) {
 //             gamepads.get(gamepadIndex).previousButtons.set(buttonIndex, false);
-//             self.emit('-gamepadbuttonup', { gamepad, button: buttonIndex });
+//             xnew.emit('-gamepadbuttonup', { gamepad, button: buttonIndex });
 //           }
 //         });
         
@@ -101,7 +101,7 @@ function Box(self) {
 //           const threshold = 0.01;
           
 //           if (Math.abs(axis - previousValue) >= threshold) {
-//             self.emit('-gamepadaxismove', { gamepad, axis: axisIndex });
+//             xnew.emit('-gamepadaxismove', { gamepad, axis: axisIndex });
 //               // this.triggerCallback('axisMove', {
 //               //     gamepadIndex: gamepad.index,
 //               //     axisIndex: axisIndex,
