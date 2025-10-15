@@ -55,7 +55,7 @@
             root.renderer.setClearColor(0x000000, 0);
         }
         else {
-            const screens = xnew.find(null, xnew.Screen);
+            const screens = xnew.find(xnew.Screen);
             if (screens.length > 0) {
                 const screen = screens.slice(-1)[0]; // last screen
                 root.renderer = new THREE__namespace.WebGLRenderer({ canvas: screen.canvas, alpha: true });
