@@ -103,7 +103,7 @@ function GameScene(scene) {
 
     xnew.timeout(() => {
       xnew(window).on('keydown pointerdown', () => {
-        scene.emit('+nextscene', TitleScene);
+        xnew.emit('+nextscene', TitleScene);
         scene.finalize();
       });
     }, 1000);

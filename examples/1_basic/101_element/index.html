@@ -9,17 +9,17 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', (main) => {
+    xnew('#main', (tab) => {
       xnew.extend(xnew.Tab);
 
       // select & assign: extension methods of xnew.Tab
       xnew('<div style="display: flex; column-gap: 8px;">', (self) => {
-        xnew('<div>', 'basics').on('click', () => main.select('basics'));
-        xnew('<div>', 'graphics').on('click', () => main.select('graphics'));
+        xnew('<div>', 'basics').on('click', () => tab.select('basics'));
+        xnew('<div>', 'graphics').on('click', () => tab.select('graphics'));
       });
 
-      main.assign('basics', Basics);
-      main.assign('graphics', Graphics);
+      tab.assign('basics', Basics);
+      tab.assign('graphics', Graphics);
     });
 
     function Basics(self) {

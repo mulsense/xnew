@@ -45,7 +45,7 @@ function Dot(self) {
 function TitleScene(self) {
   xnew(TitleText);
 
-  xnew(window).on('keydown pointerdown', () => {
+  xnew.window.on('keydown pointerdown', () => {
     xnew.emit('+nextscene', GameScene);
     self.finalize();
   });
@@ -70,7 +70,7 @@ function GameScene(self) {
     interval.clear();
     xnew(GameOverText);
 
-    xnew(window).on('keydown pointerdown', () => {
+    xnew.window.on('keydown pointerdown', () => {
       xnew.emit('+nextscene', TitleScene);
       self.finalize();
     });
@@ -79,7 +79,7 @@ function GameScene(self) {
 
 function Controller(self) {
   // prevent default event
-  xnew(window).on('keydown', (event) => event.preventDefault());
+  xnew.window.on('keydown', (event) => event.preventDefault());
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // virtual D-Pad
@@ -129,7 +129,7 @@ function Player(self) {
   // actions
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
-  self.on('+shot', () => xnew.emit('+addobject', Shot, object.x, object.y));
+  self.on('+shot', () => xnew.emit('+addobject', Shot, { x: object.x, y: object.y }));
   self.on('+shot', () => self.sound());
 
   self.on('update', () => {
@@ -161,7 +161,7 @@ function Player(self) {
   };
 }
 
-function Shot(self, x, y) {
+function Shot(self, { x, y }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().ellipse(0, 0, 4, 24).fill(0x22FFFF));
@@ -210,9 +210,9 @@ function Enemy(self) {
     clash(score) {
       self.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.emit('+addobject', Crash, object.x, object.y, score);
+        xnew.emit('+addobject', Crash, { x: object.x, y: object.y, score });
       }
-      xnew.emit('+addobject', CrashText, object.x, object.y, score);
+      xnew.emit('+addobject', CrashText, { x: object.x, y: object.y, score });
       xnew.emit('+scoreup', score);
       self.finalize();
     },
@@ -234,7 +234,7 @@ function Enemy(self) {
   };
 }
 
-function CrashText(self, x, y, score) {
+function CrashText(self, { x, y, score }) {
   const object = xpixi.nest(new PIXI.Text(`+ ${score}`, { fontSize: 24, fill: '#FFFF22' }));
   object.position.set(x, y);
   object.anchor.set(0.5);
@@ -247,7 +247,7 @@ function CrashText(self, x, y, score) {
   });
 }
 
-function Crash(self, x, y, score) {
+function Crash(self, { x, y, score }) {
   const object = xpixi.nest(new PIXI.Container());
 
   object.position.set(x, y);
