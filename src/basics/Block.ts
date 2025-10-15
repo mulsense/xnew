@@ -19,7 +19,7 @@ export function Modal(self: xnew.Unit, { duration = 200, easing = 'ease' } = {})
     }
 }
 
-export function Accordion(self: xnew.Unit, { open = false, duration = 200, easing = 'ease' }) {
+export function Accordion(self: xnew.Unit, { open = false, duration = 200, easing = 'ease' } = {}) {
     const outer = xnew.nest('<div style="overflow: hidden">') as HTMLElement;
     const inner = xnew.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
 
@@ -65,20 +65,20 @@ export function Accordion(self: xnew.Unit, { open = false, duration = 200, easin
     };
 }
 
-// export function Tab(self: xnew.Unit, { duration = 200, easing = 'ease' }) {
-//     const tabs = new Map<string, xnew.Unit>;
-//     return {
-//         append(name: string, component: Function) {
-//             tabs.set(name, xnew(component));
-//         },
-//         select(name: string) {
-//             tabs.forEach((tab, key) => {
-//                 if (key === name) {
-//                     tab.open();
-//                 } else {
-//                     tab.close();
-//                 }
-//             });
-//         }
-//     }
-// }
+export function Tab(self: xnew.Unit, { duration = 200, easing = 'ease' } = {}) {
+    const tabs = new Map<string, xnew.Unit>();
+    return {
+        assign(name: string, component: Function) {
+            const div = xnew('<div>', component);
+            tabs.set(name, div);
+            if (tabs.size > 1) {
+                div.element.style.display = 'none';
+            }
+        },
+        select(name: string) {
+            tabs.forEach((div) => div.element.style.display = 'none');
+            const div = tabs.get(name);
+            div!.element.style.display = 'block';
+        }
+    }
+}

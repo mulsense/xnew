@@ -62,6 +62,7 @@ interface xnewtype extends xnewtype$1 {
     ResizeEvent: Function;
     Modal: Function;
     Accordion: Function;
+    Tab: Function;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

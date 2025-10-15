@@ -10,16 +10,31 @@
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
     xnew('#main', (self) => {
+      xnew.extend(xnew.Tab);
+
+      const basics = xnew('<span style="margin: 6px; cursor: pointer;">', 'basics');
+      const graphics = xnew('<span style="margin: 6px; cursor: pointer;">', 'graphics');
+      basics.on('click', () => self.select('basics'));
+      graphics.on('click', () => self.select('graphics'));
+
+      self.assign('basics', Basics);
+      self.assign('graphics', Graphics);
+    });
+
+    function Basics(self) {
       xnew(MyDiv);
       xnew(MyInput);
-      xnew(MySVG);
       xnew(MyTransition);
+    }
+
+    function Graphics(self) {
+      xnew(MySVG);
       xnew(MyCanvas);
-    });
+    }
 
     function Template(self, { name }) {
       xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222;">');
-      xnew('<p>', name);
+      xnew('<div style="margin: 6px 0 ;">', name);
       xnew.nest('<div style="display: flex; column-gap: 16px; flex-wrap: wrap;">');
     }
 

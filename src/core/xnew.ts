@@ -92,7 +92,7 @@ export const xnew: xnewtype = (() => {
                 throw new Error('This function can not be called after initialized.');
             }
         } catch (error: unknown) {
-            console.error('xnew.extend(component, ...args): ', error);
+            console.error('xnew.extend(component, props): ', error);
         }
     }
 

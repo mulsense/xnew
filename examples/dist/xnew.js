@@ -882,7 +882,7 @@
                 }
             }
             catch (error) {
-                console.error('xnew.extend(component, ...args): ', error);
+                console.error('xnew.extend(component, props): ', error);
             }
         };
         fn.context = (key, value = undefined) => {
@@ -1255,7 +1255,7 @@
             }
         };
     }
-    function Accordion(self, { open = false, duration = 200, easing = 'ease' }) {
+    function Accordion(self, { open = false, duration = 200, easing = 'ease' } = {}) {
         const outer = xnew$1.nest('<div style="overflow: hidden">');
         const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
         let isOpen = open;
@@ -1297,6 +1297,25 @@
             },
         };
     }
+    function Tab(self, { duration = 200, easing = 'ease' } = {}) {
+        const tabs = new Map();
+        return {
+            assign(name, component) {
+                const div = xnew$1('<div>', (self) => {
+                    xnew$1(component);
+                });
+                tabs.set(name, div);
+                if (tabs.size > 1) {
+                    div.element.style.display = 'none';
+                }
+            },
+            select(name) {
+                tabs.forEach((div) => div.element.style.display = 'none');
+                const div = tabs.get(name);
+                div.element.style.display = 'block';
+            }
+        };
+    }
 
     const xnew = Object.assign(xnew$1, {
         Screen,
@@ -1304,6 +1323,7 @@
         ResizeEvent,
         Modal,
         Accordion,
+        Tab,
     });
 
     return xnew;
