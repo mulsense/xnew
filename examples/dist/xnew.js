@@ -802,7 +802,7 @@
                     parent = UnitScope.current;
                 }
                 let target;
-                if (args[0] instanceof Element || args[0] instanceof Window) {
+                if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
                     target = args.shift(); // an existing html element
                 }
                 else if (typeof args[0] === 'string') {
@@ -1057,6 +1057,7 @@
             }
         });
     }
+
     function UserEvent(self) {
         const unit = xnew$1();
         unit.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
@@ -1257,6 +1258,24 @@
             }
         };
     }
+
+    function Tabs(self, { duration = 200, easing = 'ease' } = {}) {
+        const tabs = new Map();
+        return {
+            content(name, component, props) {
+                const unit = xnew$1('<div>', component, props);
+                tabs.set(name, unit);
+            },
+            select(name) {
+                xnew$1.timeout(() => {
+                    tabs.forEach((unit) => unit.element.style.display = 'none');
+                    const unit = tabs.get(name);
+                    unit.element.style.display = 'block';
+                });
+            }
+        };
+    }
+
     function Accordion(self, { open = false, duration = 200, easing = 'ease' } = {}) {
         const outer = xnew$1.nest('<div style="overflow: hidden">');
         const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
@@ -1299,23 +1318,6 @@
             },
         };
     }
-    function Tab(self, { duration = 200, easing = 'ease' } = {}) {
-        const tabs = new Map();
-        return {
-            assign(name, component) {
-                const unit = xnew$1('<div>', component);
-                tabs.set(name, unit);
-                if (tabs.size > 1) {
-                    unit.element.style.display = 'none';
-                }
-            },
-            select(name) {
-                tabs.forEach((unit) => unit.element.style.display = 'none');
-                const unit = tabs.get(name);
-                unit.element.style.display = 'block';
-            }
-        };
-    }
 
     const xnew = Object.assign(xnew$1, {
         Screen,
@@ -1323,7 +1325,7 @@
         ResizeEvent,
         Modal,
         Accordion,
-        Tab,
+        Tabs,
     });
 
     return xnew;

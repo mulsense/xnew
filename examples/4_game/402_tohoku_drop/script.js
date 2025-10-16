@@ -9,6 +9,7 @@ import xthree from 'xnew/addons/xthree';
 import xmatter from 'xnew/addons/xmatter';
 
 const width = 800, height = 600;
+
 xnew('#main', (self) => {
   // three 
   const oscanvas = new OffscreenCanvas(width, height);
@@ -59,11 +60,9 @@ function TitleScene(self) {
     const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
     object.position.set(width / 2, height / 2 - 50);
     object.anchor.set(0.5);
-    return {
-      update(count) {
+    self.on('update', (count) => {
         object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
-      }
-    }
+    });
   });
 
   xnew(DirectionaLight, { x: 2, y: 12, z: 20 });
@@ -77,7 +76,7 @@ function TitleScene(self) {
   }
   xpixi.connect(xthree.renderer.domElement);
 
-  xnew(window).on('keydown pointerdown', () => {
+  xnew.window.on('keydown pointerdown', () => {
     xnew.emit('+nextscene', GameScene);
     self.finalize();
   });
@@ -102,7 +101,7 @@ function GameScene(scene) {
     controller.finalize();
 
     xnew.timeout(() => {
-      xnew(window).on('keydown pointerdown', () => {
+      xnew.window.on('keydown pointerdown', () => {
         xnew.emit('+nextscene', TitleScene);
         scene.finalize();
       });

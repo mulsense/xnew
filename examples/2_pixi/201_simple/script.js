@@ -3,14 +3,13 @@ import xpixi from 'xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
 const width = 800, height = 400;
-xnew('#main', Main);
 
-function Main(self) {
+xnew('#main', (self) => {
   xnew(xnew.Screen, { width, height, fit: 'contain' });
   xpixi.initialize();
 
   xnew(Boxes);
-}
+});
 
 function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());

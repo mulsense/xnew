@@ -2,15 +2,13 @@ import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
-xnew('#main', Main);
-
-function Main(self) {
+xnew('#main', (self) => {
   xnew(xnew.Screen, { width: 800, height: 450 });
   xpixi.initialize();
 
   xnew(Scene1);
   self.on('+addscene', xnew);
-}
+});
 
 function Scene1(self) {
   xnew(Text, 'Scene1');

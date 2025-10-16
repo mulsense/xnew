@@ -11,9 +11,7 @@ let currentBaseAction = 'idle';
 const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
 const additiveActions = { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } };
 
-xnew('#main', Main);
-
-function Main(self) {
+xnew('#main', (self) => {
   xnew(xnew.Screen, { width, height });
   xthree.initialize();
   xthree.scene.background = new THREE.Color(0xa0a0a0);
@@ -35,7 +33,7 @@ function Main(self) {
       xnew(Panel);
     });
   });
-}
+});
 
 function HemisphereLight(self) {
   const object = xthree.nest(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 3));
@@ -140,9 +138,8 @@ function Model(self, gltf) {
 
   const clock = new THREE.Clock();
 
-  return {
-    update() {
-      // for (let i = 0; i < animations.length; i++) {
+  self.on('update', () => {
+     // for (let i = 0; i < animations.length; i++) {
       //   const action = actions[i];
       //   const clip = action.getClip();
       //   const settings = baseActions[clip.name] || additiveActions[clip.name];
@@ -150,8 +147,7 @@ function Model(self, gltf) {
       // }
 
       mixer.update(clock.getDelta());
-    }
-  }
+  });
 }
 
 function Panel(self) {

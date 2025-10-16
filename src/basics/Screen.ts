@@ -1,5 +1,5 @@
 import { xnew } from '../core/xnew';
-import { ResizeEvent } from './Event';
+import { ResizeEvent } from './ResizeEvent';
 
 export function Screen(self: xnew.Unit, { width = 640, height = 480, fit = 'contain' } = {}) {
     const size = { width, height };

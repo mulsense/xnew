@@ -2,9 +2,7 @@ import xnew from 'xnew';
 import xthree from 'xnew/addons/xthree';
 import * as THREE from 'three';
 
-xnew('#main', Main);
-
-function Main(self) {
+xnew('#main', (self) => {
   xnew(xnew.Screen, { width: 800, height: 400 });
   xthree.initialize();
   xthree.renderer.shadowMap.enabled = true;
@@ -14,7 +12,7 @@ function Main(self) {
 
   xnew(Controller);
   xnew(ThreeMain);
-}
+});
 
 function Controller(self) {
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());

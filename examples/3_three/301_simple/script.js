@@ -3,15 +3,14 @@ import xthree from 'xnew/addons/xthree';
 import * as THREE from 'three';
 
 const width = 800, height = 400;
-xnew('#main', Main);
 
-function Main(self) {
+xnew('#main', (self) => {
   xnew(xnew.Screen, { width, height });
   xthree.initialize();
   xthree.camera.position.set(0, 0, +100);
 
   xnew(Cubes);
-}
+});
 
 function Cubes(self) {
   const object = xthree.nest(new THREE.Object3D());

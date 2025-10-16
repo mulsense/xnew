@@ -9,18 +9,30 @@
 <body>
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
-    xnew('#main', (tab) => {
-      xnew.extend(xnew.Tab);
+    xnew('#main', (tabs) => {
+      xnew.extend(xnew.Tabs);
 
-      // select & assign: extension methods of xnew.Tab
-      xnew('<div style="display: flex; column-gap: 8px;">', (self) => {
-        xnew('<div>', 'basics').on('click', () => tab.select('basics'));
-        xnew('<div>', 'graphics').on('click', () => tab.select('graphics'));
-      });
+      // content & assign: extension methods of xnew.Tab
+      xnew.nest('<div style="display: flex;">');
+      const tab1 = xnew(TabButton, { name: 'basics' }).on('click', () => tabs.select('basics'));
+      const tab2 = xnew(TabButton, { name: 'graphics' }).on('click', () => tabs.select('graphics'));
+      tabs.select('basics');
+      tab1.activate();
 
-      tab.assign('basics', Basics);
-      tab.assign('graphics', Graphics);
+      tabs.content('basics', Basics);
+      tabs.content('graphics', Graphics);
     });
+
+    function TabButton(self, { name }) {
+      xnew.nest('<div style="margin: 6px; padding: 4px; cursor: pointer;">', name);
+      self.on('click', () => self.activate());
+      return {
+        activate() {
+          xnew.find(TabButton).forEach((item) => Object.assign(item.element.style, { opacity: 0.5, cursor: 'pointer' }));
+          Object.assign(self.element.style, { opacity: 1.0, cursor: 'text' });
+        }
+      }
+    }
 
     function Basics(self) {
       xnew(MyDiv);

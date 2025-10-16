@@ -1,12 +1,10 @@
 import xnew from 'xnew';
 import xutil from 'xnew/addons/xutil';
 
-xnew('#main', Main);
-
-function Main(self) {
+xnew('#main', (self) => {
   xnew(Box);
   xnew(Controller);
-}
+});
 
 function Controller(self) {
   // prevent default event

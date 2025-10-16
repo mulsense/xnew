@@ -27,7 +27,7 @@ export const xnew: xnewtype = (() => {
             }
 
             let target;
-            if (args[0] instanceof Element || args[0] instanceof Window) {
+            if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
                 target = args.shift(); // an existing html element
             } else if (typeof args[0] === 'string') {
                 const str = args.shift(); // a selector for an existing html element

@@ -5,9 +5,8 @@ import * as PIXI from 'pixi.js';
 import Matter from 'matter-js';
 
 const width = 800, height = 400;
-xnew('#main', Main);
 
-function Main(self) {
+xnew('#main', (self) => {
   xnew(xnew.Screen, { width, height });
   xpixi.initialize();
 
@@ -15,7 +14,7 @@ function Main(self) {
 
   const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
   button.on('click', () => xnew.emit('+reset'));
-}
+});
 
 function Contents(self) {
   xmatter.initialize();

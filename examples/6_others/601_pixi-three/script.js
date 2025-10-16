@@ -5,9 +5,7 @@ import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 
 const width = 800, height = 400;
-xnew('#main', Main);
-
-function Main(self) {
+xnew('#main', (self) => {
   // three 
   const oscanvas = new OffscreenCanvas(width, height);
   xthree.initialize({ canvas: oscanvas });
@@ -20,7 +18,7 @@ function Main(self) {
 
   xnew(Cubes);
   xnew(Boxes);
-}
+});
 
 function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());
