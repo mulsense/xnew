@@ -32,7 +32,7 @@ function DragEvent(self: xnew.Unit) {
         const position = getPosition(self.element, event);
         let previous = position;
 
-        xnew.window.on('pointermove', (event: any) => {
+        xnew.listener(window).on('pointermove', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -40,18 +40,18 @@ function DragEvent(self: xnew.Unit) {
                 previous = position;
             }
         });
-        xnew.window.on('pointerup', (event: any) => {
+        xnew.listener(window).on('pointerup', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 xnew.emit('-dragend', { event, position, });
-                xnew.window.off();
+                xnew.listener(window).off();
             }
         });
-        xnew.window.on('pointercancel', (event: any) => {
+        xnew.listener(window).on('pointercancel', (event: any) => {
             if (event.pointerId === id) {
                 const position = getPosition(self.element, event);
                 xnew.emit('-dragcancel', { event, position, });
-                xnew.window.off();
+                xnew.listener(window).off();
             }
         });
         xnew.emit('-dragstart', { event, position });
@@ -132,18 +132,18 @@ function GestureEvent(self: xnew.Unit) {
 function Keyboard(self: xnew.Unit) {
     const state: any = {};
 
-    xnew.window.on('keydown', (event: any) => {
+    xnew.listener(window).on('keydown', (event: any) => {
         state[event.code] = 1;
         xnew.emit('-keydown', { event, code: event.code });
     });
-    xnew.window.on('keyup', (event: any) => {
+    xnew.listener(window).on('keyup', (event: any) => {
         state[event.code] = 0;
         xnew.emit('-keyup', { event, code: event.code });
     });
-    xnew.window.on('keydown', (event: any) => {
+    xnew.listener(window).on('keydown', (event: any) => {
         xnew.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
-    xnew.window.on('keyup', (event: any) => {
+    xnew.listener(window).on('keyup', (event: any) => {
         xnew.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
 

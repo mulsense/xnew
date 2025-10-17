@@ -1022,21 +1022,15 @@
                 console.error('xnew.emit(type, ...args): ', error);
             }
         };
-        fn.window = {
-            on(type, listener, options) {
-                UnitSubEvent.on(UnitScope.current, window, type, listener, options);
-            },
-            off(type, listener) {
-                UnitSubEvent.off(UnitScope.current, window, type, listener);
-            }
-        };
-        fn.document = {
-            on(type, listener, options) {
-                UnitSubEvent.on(UnitScope.current, document, type, listener, options);
-            },
-            off(type, listener) {
-                UnitSubEvent.off(UnitScope.current, document, type, listener);
-            }
+        fn.listener = function (target) {
+            return {
+                on(type, listener, options) {
+                    UnitSubEvent.on(UnitScope.current, target, type, listener, options);
+                },
+                off(type, listener) {
+                    UnitSubEvent.off(UnitScope.current, target, type, listener);
+                }
+            };
         };
         return fn;
     })();
@@ -1085,7 +1079,7 @@
             const id = event.pointerId;
             const position = getPosition(self.element, event);
             let previous = position;
-            xnew$1.window.on('pointermove', (event) => {
+            xnew$1.listener(window).on('pointermove', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(self.element, event);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -1093,18 +1087,18 @@
                     previous = position;
                 }
             });
-            xnew$1.window.on('pointerup', (event) => {
+            xnew$1.listener(window).on('pointerup', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(self.element, event);
                     xnew$1.emit('-dragend', { event, position, });
-                    xnew$1.window.off();
+                    xnew$1.listener(window).off();
                 }
             });
-            xnew$1.window.on('pointercancel', (event) => {
+            xnew$1.listener(window).on('pointercancel', (event) => {
                 if (event.pointerId === id) {
                     const position = getPosition(self.element, event);
                     xnew$1.emit('-dragcancel', { event, position, });
-                    xnew$1.window.off();
+                    xnew$1.listener(window).off();
                 }
             });
             xnew$1.emit('-dragstart', { event, position });
@@ -1164,18 +1158,18 @@
     }
     function Keyboard(self) {
         const state = {};
-        xnew$1.window.on('keydown', (event) => {
+        xnew$1.listener(window).on('keydown', (event) => {
             state[event.code] = 1;
             xnew$1.emit('-keydown', { event, code: event.code });
         });
-        xnew$1.window.on('keyup', (event) => {
+        xnew$1.listener(window).on('keyup', (event) => {
             state[event.code] = 0;
             xnew$1.emit('-keyup', { event, code: event.code });
         });
-        xnew$1.window.on('keydown', (event) => {
+        xnew$1.listener(window).on('keydown', (event) => {
             xnew$1.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
         });
-        xnew$1.window.on('keyup', (event) => {
+        xnew$1.listener(window).on('keyup', (event) => {
             xnew$1.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
         });
         function getVector() {
@@ -1259,19 +1253,49 @@
         };
     }
 
-    function Tabs(self, { duration = 200, easing = 'ease' } = {}) {
-        const tabs = new Map();
+    function TabView(self, { duration = 200, easing = 'ease' } = {}) {
+        xnew$1.context('xnew.tabview', self);
+        const tabs = [];
+        const contents = [];
         return {
-            content(name, component, props) {
-                const unit = xnew$1('<div>', component, props);
-                tabs.set(name, unit);
+            tabs,
+            contents,
+            select(index) {
+                const tab = tabs[index];
+                const content = contents[index];
+                tabs.filter((item) => item !== tab).forEach((item) => item.deselect());
+                contents.filter((item) => item !== content).forEach((item) => item.deselect());
+                tab.select();
+                content.select();
+            }
+        };
+    }
+    function TabButton(self) {
+        xnew$1.nest('<div>');
+        const tabview = xnew$1.context('xnew.tabview');
+        tabview.tabs.push(self);
+        self.on('click', () => {
+            tabview.select(tabview.tabs.indexOf(self));
+        });
+        return {
+            select() {
+                Object.assign(self.element.style, { opacity: 1.0, cursor: 'text' });
             },
-            select(name) {
-                xnew$1.timeout(() => {
-                    tabs.forEach((unit) => unit.element.style.display = 'none');
-                    const unit = tabs.get(name);
-                    unit.element.style.display = 'block';
-                });
+            deselect() {
+                Object.assign(self.element.style, { opacity: 0.6, cursor: 'pointer' });
+            }
+        };
+    }
+    function TabContent(self) {
+        xnew$1.nest('<div>');
+        const tabview = xnew$1.context('xnew.tabview');
+        tabview.contents.push(self);
+        return {
+            select() {
+                Object.assign(self.element.style, { display: 'block' });
+            },
+            deselect() {
+                Object.assign(self.element.style, { display: 'none' });
             }
         };
     }
@@ -1325,7 +1349,9 @@
         ResizeEvent,
         Modal,
         Accordion,
-        Tabs,
+        TabView,
+        TabButton,
+        TabContent,
     });
 
     return xnew;

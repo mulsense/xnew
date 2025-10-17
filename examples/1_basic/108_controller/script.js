@@ -8,7 +8,7 @@ xnew('#main', (self) => {
 
 function Controller(self) {
   // prevent default event
-  xnew.window.on('keydown', (event) => event.preventDefault());
+  xnew.listener(window).on('keydown', (event) => event.preventDefault());
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
   // virtual joyscick

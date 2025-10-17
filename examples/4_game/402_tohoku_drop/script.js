@@ -76,7 +76,7 @@ function TitleScene(self) {
   }
   xpixi.connect(xthree.renderer.domElement);
 
-  xnew.window.on('keydown pointerdown', () => {
+  xnew.listener(window).on('keydown pointerdown', () => {
     xnew.emit('+nextscene', GameScene);
     self.finalize();
   });
@@ -101,7 +101,7 @@ function GameScene(scene) {
     controller.finalize();
 
     xnew.timeout(() => {
-      xnew.window.on('keydown pointerdown', () => {
+      xnew.listener(window).on('keydown pointerdown', () => {
         xnew.emit('+nextscene', TitleScene);
         scene.finalize();
       });

@@ -511,10 +511,10 @@ export class UnitEvent {
     }
 }
 export class UnitSubEvent {
-    static listeners: MapMapMap<Unit | null, string, Function, [Window | Document, (...args: any[]) => void]> =
+    static listeners: MapMapMap<Unit | null, string, Function, [HTMLElement | SVGElement | Window | Document, (...args: any[]) => void]> =
         new MapMapMap;
 
-    static on(unit: Unit | null, target: Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+    static on(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || type.trim() === '') {
             throw new Error('"type" is invalid.');
         } else if (typeof listener !== 'function') {
@@ -534,7 +534,7 @@ export class UnitSubEvent {
         });
     }
 
-    static off(unit: Unit | null, target: Window | Document | null, type?: string, listener?: Function): void {
+    static off(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document | null, type?: string, listener?: Function): void {
         if (typeof type === 'string' && type.trim() === '') {
             throw new Error('"type" is invalid.');
         } else if (listener !== undefined && typeof listener !== 'function') {

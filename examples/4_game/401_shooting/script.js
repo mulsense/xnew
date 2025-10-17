@@ -45,7 +45,7 @@ function Dot(self) {
 function TitleScene(self) {
   xnew(TitleText);
 
-  xnew.window.on('keydown pointerdown', () => {
+  xnew.listener(window).on('keydown pointerdown', () => {
     xnew.emit('+nextscene', GameScene);
     self.finalize();
   });
@@ -70,7 +70,7 @@ function GameScene(self) {
     interval.clear();
     xnew(GameOverText);
 
-    xnew.window.on('keydown pointerdown', () => {
+    xnew.listener(window).on('keydown pointerdown', () => {
       xnew.emit('+nextscene', TitleScene);
       self.finalize();
     });
@@ -79,7 +79,7 @@ function GameScene(self) {
 
 function Controller(self) {
   // prevent default event
-  xnew.window.on('keydown', (event) => event.preventDefault());
+  xnew.listener(window).on('keydown', (event) => event.preventDefault());
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // virtual D-Pad

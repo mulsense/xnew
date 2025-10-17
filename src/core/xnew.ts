@@ -243,22 +243,18 @@ export const xnew: xnewtype = (() => {
             console.error('xnew.emit(type, ...args): ', error);
         }
     }
-    fn.window = {
-        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-            UnitSubEvent.on(UnitScope.current, window, type, listener, options);
-        },
-        off(type?: string, listener?: Function) {
-            UnitSubEvent.off(UnitScope.current, window, type, listener);
+
+    fn.listener = function (target: HTMLElement | SVGElement | Window | Document) {
+        return {
+            on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
+                UnitSubEvent.on(UnitScope.current, target, type, listener, options);
+            },
+            off(type?: string, listener?: Function) {
+                UnitSubEvent.off(UnitScope.current, target, type, listener);
+            }  
         }
     }
-    fn.document = {
-        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-            UnitSubEvent.on(UnitScope.current, document, type, listener, options);
-        },
-        off(type?: string, listener?: Function) {
-            UnitSubEvent.off(UnitScope.current, document, type, listener);
-        }
-    }  
+
     return fn;
 })();
 

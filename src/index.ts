@@ -2,7 +2,7 @@ import { ResizeEvent } from './basics/ResizeEvent';
 import { UserEvent } from './basics/UserEvent';
 import { Screen } from './basics/Screen';
 import { Modal } from './basics/Modal';
-import { Tabs } from './basics/Tabs';
+import { TabView, TabButton, TabContent } from './basics/TabView';
 import { Accordion } from './basics/Accordion';
 
 import { Unit } from './core/unit';
@@ -14,7 +14,9 @@ interface xnewtype extends basetype {
     ResizeEvent: Function;
     Modal: Function;
     Accordion: Function;
-    Tabs: Function;
+    TabView: Function;
+    TabButton: Function;
+    TabContent: Function;
 }
 
 namespace xnew {
@@ -27,7 +29,9 @@ const xnew: xnewtype = Object.assign(base, {
     ResizeEvent,
     Modal,
     Accordion,
-    Tabs,
+    TabView,
+    TabButton,
+    TabContent,
 });
 
 export default xnew;
