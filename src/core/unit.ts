@@ -105,10 +105,6 @@ export class Unit {
         Unit.stop(this);
     }
 
-    get state(): string {
-        return this._.state;
-    }
-
     finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);

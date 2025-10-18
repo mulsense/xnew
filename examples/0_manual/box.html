@@ -17,11 +17,13 @@
       
       const text = xnew('<span>');
      
+      let running = false;
       self.on('click', (event) => {
-        self.state === 'started' ? self.stop() : self.start();
+        running ? self.stop() : self.start();
       });
 
       self.on('start', () => {
+        running = true;
         text.element.textContent = 'start';
       });
 
@@ -30,6 +32,7 @@
       });
       
       self.on('stop', () => {
+        running = false;
         text.element.textContent = 'stop';
       });
     }

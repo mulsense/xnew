@@ -149,6 +149,9 @@ function Model(self, gltf) {
       mixer.update(clock.getDelta());
   });
 }
+function MyPanel(self) {
+  xnew
+}
 
 function Panel(self) {
   const panel = new GUI({ width: 310 });

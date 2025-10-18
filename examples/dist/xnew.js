@@ -1253,14 +1253,18 @@
         };
     }
 
-    function TabView(self, { duration = 200, easing = 'ease' } = {}) {
+    function TabView(self, { select = 0, duration = 200, easing = 'ease' } = {}) {
         xnew$1.context('xnew.tabview', self);
         const tabs = [];
         const contents = [];
+        const timer = xnew$1.timeout(() => {
+            self.select(0);
+        });
         return {
             tabs,
             contents,
             select(index) {
+                timer.clear();
                 const tab = tabs[index];
                 const content = contents[index];
                 tabs.filter((item) => item !== tab).forEach((item) => item.deselect());
@@ -1303,44 +1307,77 @@
     function Accordion(self, { open = false, duration = 200, easing = 'ease' } = {}) {
         const outer = xnew$1.nest('<div style="overflow: hidden">');
         const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-        let isOpen = open;
-        let moving = false;
-        outer.style.display = isOpen ? 'block' : 'none';
+        let state = open ? 'open' : 'closed';
+        outer.style.display = state === 'open' ? 'block' : 'none';
         return {
             open() {
-                if (moving === false) {
-                    isOpen = true;
-                    moving = true;
-                    outer.style.display = 'block';
-                    xnew$1.transition((x) => {
-                        outer.style.height = inner.offsetHeight * x + 'px';
-                        outer.style.opacity = `${x}`;
-                        if (x === 1.0) {
-                            outer.style.height = 'auto';
-                            moving = false;
-                        }
-                    }, duration, easing);
+                if (state === 'closed') {
+                    state = 'opening';
+                    xnew$1.transition((x) => self.transition(outer, x), duration, easing)
+                        .next(() => { state = 'open'; });
                 }
             },
             close() {
-                if (moving === false) {
-                    moving = true;
-                    xnew$1.transition((x) => {
-                        outer.style.height = inner.offsetHeight * (1.0 - x) + 'px';
-                        outer.style.opacity = `${1.0 - x}`;
-                        if (x === 1.0) {
-                            isOpen = false;
-                            outer.style.display = 'none';
-                            outer.style.height = '0px';
-                            moving = false;
-                        }
-                    }, duration, easing);
+                if (state === 'open') {
+                    state = 'closing';
+                    xnew$1.transition((x) => self.transition(outer, 1.0 - x), duration, easing)
+                        .next(() => { state = 'closed'; });
+                }
+            },
+            transition(element, x) {
+                element.style.height = inner.offsetHeight * x + 'px';
+                element.style.opacity = x.toString();
+                if (x === 0.0) {
+                    element.style.display = 'none';
+                    element.style.height = '0px';
+                }
+                else if (x === 1.0) {
+                    element.style.height = 'auto';
+                }
+                else {
+                    element.style.display = 'block';
                 }
             },
             toggle() {
                 isOpen ? self.close() : self.open();
             },
         };
+    }
+
+    function BulletArrow(self, { rotate = 0, color = '#000' } = {}) {
+        const arrow = xnew$1(`<div style="display:inline-block; width: 0.5em; height: 0.5em; border-right: 0.15em solid ${color}; border-bottom: 0.15em solid ${color}; box-sizing: border-box; transform-origin: center center;">`);
+        arrow.element.style.transform = `rotate(${rotate - 45}deg)`;
+        return {
+            rotate(rotate, transition = 200, easing = 'ease') {
+                arrow.element.style.transition = `transform ${transition}ms ${easing}`;
+                arrow.element.style.transform = `rotate(${rotate - 45}deg)`;
+            }
+        };
+    }
+
+    function Panel(self, { name }) {
+        xnew$1.nest('<div style="overflow: hidden; padding: 4px; user-select: none;">');
+        xnew$1('<div style="margin: 4px;">', name);
+    }
+    function PanelGroup(group, { name = 'group', open = false } = {}) {
+        xnew$1.nest('<div>');
+        let isOpen = open;
+        xnew$1('<div style="margin: 4px; cursor: pointer;">', (self) => {
+            const arrow = xnew$1(BulletArrow, { rotate: isOpen ? 90 : 0 });
+            const span = xnew$1('<span>', name);
+            self.on('click', () => {
+                isOpen = !isOpen;
+                group.toggle();
+                arrow.rotate(isOpen ? 90 : 0);
+            });
+            self.on('mouseenter', () => {
+                span.element.style.opacity = '0.7';
+            });
+            self.on('mouseleave', () => {
+                span.element.style.opacity = '1.0';
+            });
+        });
+        xnew$1.extend(xnew$1.Accordion, { open });
     }
 
     const xnew = Object.assign(xnew$1, {
@@ -1352,6 +1389,9 @@
         TabView,
         TabButton,
         TabContent,
+        BulletArrow,
+        Panel,
+        PanelGroup,
     });
 
     return xnew;

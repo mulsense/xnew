@@ -1,15 +1,19 @@
 import { xnew } from '../core/xnew';
 
-export function TabView(self: xnew.Unit, { duration = 200, easing = 'ease' } = {}) {
+export function TabView(self: xnew.Unit, { select = 0, duration = 200, easing = 'ease' } = {}) {
     xnew.context('xnew.tabview', self);
    
     const tabs: xnew.Unit[] = [];
     const contents: xnew.Unit[] = [];
-
+    
+    const timer = xnew.timeout(() => {
+        self.select(0);
+    });
     return {
         tabs,
         contents,
         select(index: number) {
+            timer.clear();
             const tab = tabs[index];
             const content = contents[index];
             tabs.filter((item: xnew.Unit) => item !== tab).forEach((item: xnew.Unit) => item.deselect());

@@ -64,6 +64,9 @@ interface xnewtype extends xnewtype$1 {
     TabView: Function;
     TabButton: Function;
     TabContent: Function;
+    BulletArrow: Function;
+    Panel: Function;
+    PanelGroup: Function;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

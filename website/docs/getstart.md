@@ -193,13 +193,15 @@ Now let's add events and animations! This example creates an interactive rotatin
       const text = xnew('<span style="color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; height: 100%;">');
 
       // Handle click events - toggle start/stop
+      let running = false;
       self.on('click', (event) => {
-        self.state === 'started' ? self.stop() : self.start();
+        running ? self.stop() : self.start();
       });
 
       // When animation starts
       self.on('start', () => {
-        text.element.textContent = 'Stop';
+        running = true;
+        text.element.textContent = 'start';
       });
 
       // Update animation frame
@@ -209,7 +211,8 @@ Now let's add events and animations! This example creates an interactive rotatin
       
       // When animation stops
       self.on('stop', () => {
-        text.element.textContent = 'Start';
+        running = false;
+        text.element.textContent = 'stop';
       });
     }
   </script>

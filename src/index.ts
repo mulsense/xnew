@@ -4,6 +4,8 @@ import { Screen } from './basics/Screen';
 import { Modal } from './basics/Modal';
 import { TabView, TabButton, TabContent } from './basics/TabView';
 import { Accordion } from './basics/Accordion';
+import { BulletArrow } from './basics/Bullet';
+import { Panel, PanelGroup } from './basics/Panel';
 
 import { Unit } from './core/unit';
 import { xnew as base, xnewtype as basetype } from './core/xnew';
@@ -17,6 +19,9 @@ interface xnewtype extends basetype {
     TabView: Function;
     TabButton: Function;
     TabContent: Function;
+    BulletArrow: Function;
+    Panel: Function;
+    PanelGroup: Function;
 }
 
 namespace xnew {
@@ -32,6 +37,9 @@ const xnew: xnewtype = Object.assign(base, {
     TabView,
     TabButton,
     TabContent,
+    BulletArrow,
+    Panel,
+    PanelGroup,
 });
 
 export default xnew;
