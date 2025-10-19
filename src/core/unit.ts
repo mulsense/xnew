@@ -227,13 +227,27 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, html: string, innerHTML?: string): HTMLElement | SVGElement | null {
-        const match = html.match(/<((\w+)[^>]*?)\/?>/);
+    static nest(unit: Unit, tag: string, ...args: any[]): HTMLElement | SVGElement | null {
+        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            unit._.currentElement = unit.element.children[unit.element.children.length - 1] as HTMLElement | SVGElement;
-            if (typeof innerHTML === 'string') {
-                unit.element.innerHTML = innerHTML;
+            const element = unit.element.children[unit.element.children.length - 1] as HTMLElement;
+
+            if (typeof args[0] === 'object') {
+                const attributes = args.shift();
+                Object.keys(attributes).forEach((key: string) => {
+                    if (key === 'className') {
+                        element.className = attributes[key] as string;
+                    } else if (key === 'style') {
+                        Object.assign(element.style, attributes[key] as string);
+                    } else {
+                        element.setAttribute(key, attributes[key] as string);
+                    }
+                });
+            }
+            unit._.currentElement = element;
+            if (typeof args[0] === 'string') {
+                unit.element.innerHTML = args.shift();
             }
         }
         return unit.element;
@@ -256,9 +270,11 @@ export class Unit {
 
             if (descriptor?.get) {
                 newDescriptor.get = (...args: any[]) => UnitScope.execute(snapshot, descriptor.get!, ...args);
-            } else if (descriptor?.set) {
+            }
+            if (descriptor?.set) {
                 newDescriptor.set = (...args: any[]) => UnitScope.execute(snapshot, descriptor.set!, ...args);
-            } else if (typeof descriptor?.value === 'function') {
+            }
+            if (typeof descriptor?.value === 'function') {
                 newDescriptor.value = (...args: any[]) => UnitScope.execute(snapshot, descriptor.value, ...args);
             } else if (descriptor?.value !== undefined) {
                 newDescriptor.writable = true;

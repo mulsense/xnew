@@ -1,17 +1,23 @@
 import { xnew } from '../core/xnew';
 
-export function TabView(self: xnew.Unit, { select = 0, duration = 200, easing = 'ease' } = {}) {
-    xnew.context('xnew.tabview', self);
-   
+export function TabFrame(frame: xnew.Unit, 
+    { select = 0 } = {}
+) {
+    xnew.context('xnew.tabframe', frame);
+
     const tabs: xnew.Unit[] = [];
     const contents: xnew.Unit[] = [];
     
     const timer = xnew.timeout(() => {
-        self.select(0);
+        frame.select(select);
     });
     return {
-        tabs,
-        contents,
+        get tabs() {
+            return tabs;
+        },
+        get contents() {
+            return contents;
+        },
         select(index: number) {
             timer.clear();
             const tab = tabs[index];
@@ -23,13 +29,16 @@ export function TabView(self: xnew.Unit, { select = 0, duration = 200, easing = 
         }
     }
 }
-export function TabButton(self: xnew.Unit) {
-    xnew.nest('<div>');
-    const tabview = xnew.context('xnew.tabview');
-    tabview.tabs.push(self);
+export function TabButton(self: xnew.Unit, 
+    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
+) {
+    const frame = xnew.context('xnew.tabframe');
+    frame.tabs.push(self);
+
+    xnew.nest('<div>', { className, style });
 
     self.on('click', () => {
-        tabview.select(tabview.tabs.indexOf(self));
+        frame.select(frame.tabs.indexOf(self));
     });
     return {
         select() {
@@ -41,10 +50,13 @@ export function TabButton(self: xnew.Unit) {
     }
 }
 
-export function TabContent(self: xnew.Unit) {
-    xnew.nest('<div>');
-    const tabview = xnew.context('xnew.tabview');
-    tabview.contents.push(self);
+export function TabContent(self: xnew.Unit,
+    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
+) {
+    const frame = xnew.context('xnew.tabframe');
+    frame.contents.push(self);
+
+    xnew.nest('<div>', { className, style });
 
     return {
         select() {

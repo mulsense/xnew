@@ -33,14 +33,13 @@ declare class Unit {
     get element(): HTMLElement | SVGElement;
     start(): void;
     stop(): void;
-    get state(): string;
     finalize(): void;
     reboot(): void;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit;
     off(type?: string, listener?: Function): Unit;
     static initialize(unit: Unit): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, html: string, innerHTML?: string): HTMLElement | SVGElement | null;
+    static nest(unit: Unit, tag: string, ...args: any[]): HTMLElement | SVGElement | null;
     static extend(unit: Unit, component: Function, props?: Object): void;
     static start(unit: Unit, time: number): void;
     static stop(unit: Unit): void;
@@ -51,7 +50,6 @@ declare class Unit {
 
 interface xnewtype$1 {
     (...args: any[]): Unit;
-    nest(html: string, innerHTML?: string): HTMLElement | SVGElement;
     [key: string]: any;
 }
 
@@ -59,14 +57,19 @@ interface xnewtype extends xnewtype$1 {
     Screen: Function;
     UserEvent: Function;
     ResizeEvent: Function;
-    Modal: Function;
-    Accordion: Function;
-    TabView: Function;
+    ModalFrame: Function;
+    ModalContent: Function;
+    AccordionFrame: Function;
+    AccordionButton: Function;
+    AccordionContent: Function;
+    TabFrame: Function;
     TabButton: Function;
     TabContent: Function;
-    BulletArrow: Function;
-    Panel: Function;
+    PanelFrame: Function;
     PanelGroup: Function;
+    InputFrame: Function;
+    InputRange: Function;
+    InputText: Function;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

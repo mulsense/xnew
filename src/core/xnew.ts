@@ -7,7 +7,7 @@ export namespace xnew {
 
 export interface xnewtype {
     (...args: any[]): Unit;
-    nest(html: string, innerHTML?: string): HTMLElement | SVGElement;
+    // nest(html: string, innerHTML?: string): HTMLElement | SVGElement;
     [key: string]: any;
 }
 
@@ -64,11 +64,11 @@ export const xnew: xnewtype = (() => {
     }
   
 
-    fn.nest = (html: string, innerHTML?: string): HTMLElement | SVGElement => {
+    fn.nest = (tag: string, ...args: any[]): HTMLElement | SVGElement => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
-                const element = Unit.nest(current, html, innerHTML);
+                const element = Unit.nest(current, tag, ...args);
                 if (element instanceof HTMLElement || element instanceof SVGElement) {
                     return element;
                 } else {

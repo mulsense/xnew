@@ -1,29 +1,54 @@
 import { xnew } from '../core/xnew';
-import { BulletArrow } from './Bullet';
+import { AccordionFrame, AccordionButton, AccordionContent } from './Accordion';
 
-export function Panel(self: xnew.Unit, { name }: { name: string } ) {
-    xnew.nest('<div style="overflow: hidden; padding: 4px; user-select: none;">');
-    xnew('<div style="margin: 4px;">', name)
+export function PanelFrame(frame: xnew.Unit, 
+    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
+) {
+    xnew.context('xnew.panelframe', frame);
+
+    xnew.nest('<div>', { className, style });
 }
 
-export function PanelGroup(group: xnew.Unit, { name = 'group', open = false }: { name?: string; open?: boolean } = {}) {
-    xnew.nest('<div>');
-    let isOpen = open;
-    xnew('<div style="margin: 4px; cursor: pointer;">', (self: xnew.Unit) => {
-        const arrow = xnew(BulletArrow, { rotate: isOpen ? 90 : 0 });
-        const span = xnew('<span>', name);
-        self.on('click', () => {
-            isOpen = !isOpen;
-            group.toggle();
-            arrow.rotate(isOpen ? 90 : 0);
-        });
-        self.on('mouseenter', () => {
-            span.element.style.opacity = '0.7';
-        });
-        self.on('mouseleave', () => {
-            span.element.style.opacity = '1.0';
-        });
-    })
+export function PanelGroup(group: xnew.Unit,
+    { className, style, name, open = false }: { className?: string, style?: Partial<CSSStyleDeclaration>, name?: string; open?: boolean } = {}
+) {
+    xnew.context('xnew.panelgroup', group);
 
-    xnew.extend(xnew.Accordion, { open });
-} 
+    xnew.extend(AccordionFrame, { className, style });
+
+    xnew((button: xnew.Unit) => {
+        xnew.extend(AccordionButton, { style: { margin: '0.2em', cursor: 'pointer' } });
+
+        const arrow = xnew(BulletArrow, { rotate: open ? 90 : 0 });
+        xnew('<span style="margin-left: 0.4em;">', name);
+        button.off('click');
+        button.on('click', () => {
+            if (group.content?.state === 'open') {
+                group.close();
+                arrow.rotate(0);
+            } else if (group.content?.state === 'closed') {
+                group.open();
+                arrow.rotate(90);
+            }
+        });
+        button.on('mouseenter', () => button.element.style.opacity = '0.7');
+        button.on('mouseleave', () => button.element.style.opacity = '1.0');
+    });
+
+    xnew.extend(AccordionContent, { open });
+}
+
+function BulletArrow(self: xnew.Unit,
+    { rotate = 0 }: { rotate?: number; color?: string } = {}
+) {
+    const arrow = xnew(`<div style="display:inline-block; width: 0.5em; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+
+    arrow.element.style.transform = `rotate(${rotate - 45}deg)`;
+
+    return {
+        rotate(rotate: number, transition: number = 200, easing: string = 'ease') {
+            arrow.element.style.transition = `transform ${transition}ms ${easing}`;
+            arrow.element.style.transform = `rotate(${rotate - 45}deg)`;
+        }
+    }
+}
