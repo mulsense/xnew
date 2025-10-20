@@ -1217,13 +1217,12 @@
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
 
-    function Screen(self, { width = 640, height = 480, fit = 'contain' } = {}) {
+    function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
         const size = { width, height };
         const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
         const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
-        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
-        const observer = xnew$1(wrapper, ResizeEvent);
-        observer.on('-resize', resize);
+        const canvas = xnew$1.nest(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
+        xnew$1(wrapper, ResizeEvent).on('-resize', resize);
         resize();
         function resize() {
             const aspect = size.width / size.height;
@@ -1253,23 +1252,23 @@
         }
         return {
             get canvas() {
-                return canvas.element;
+                return canvas;
             },
             resize(width, height) {
                 size.width = width;
                 size.height = height;
-                canvas.element.setAttribute('width', width + 'px');
-                canvas.element.setAttribute('height', height + 'px');
+                canvas.setAttribute('width', width + 'px');
+                canvas.setAttribute('height', height + 'px');
                 resize();
             },
             get scale() {
-                return { x: size.width / canvas.element.clientWidth, y: size.height / canvas.element.clientHeight };
+                return { x: size.width / canvas.clientWidth, y: size.height / canvas.clientHeight };
             }
         };
     }
 
-    function InputUnit(self, { className, style } = {}) {
-        xnew$1.nest('<div>', { className, style });
+    function InputUnit(self, {} = {}) {
+        xnew$1.nest('<div>');
         const status = xnew$1('<div style="font-size: 0.8em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self) => {
             const div1 = xnew$1('<div style="flex: auto">');
             const div2 = xnew$1('<div style="flex: none">');

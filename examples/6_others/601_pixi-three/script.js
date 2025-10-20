@@ -7,7 +7,7 @@ import * as THREE from 'three';
 const width = 800, height = 400;
 xnew('#main', (self) => {
   // three 
-  xthree.initialize({ canvas: new OffscreenCanvas(width, height); });
+  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.camera.position.set(0, 0, +100);
 
   // pixi

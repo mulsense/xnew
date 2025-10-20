@@ -16,7 +16,7 @@ export function AccordionFrame(frame: xnew.Unit,
     }
 }
 
-export function AccordionButton(button: xnew.Unit
+export function AccordionButton(button: xnew.Unit,
     {}: {} = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');

@@ -112,7 +112,7 @@
         xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
 
         const unit = xnew('<canvas width="400" height="200" style="width: 100%; border: 1px solid #ccc;">');
-        draw(unit.element)
+        draw(unit)
       });
 
       xnew('<div>', (self) => {
@@ -120,7 +120,7 @@
         xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
 
         const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'contain' });
-        draw(screen.canvas)
+        draw(screen)
       });
       
       xnew('<div>', (self) => {
@@ -128,7 +128,7 @@
         xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
 
         const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'cover' });
-        draw(screen.canvas)
+        draw(screen)
       });
 
       xnew('<div>', (self) => {
@@ -136,10 +136,11 @@
         xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
 
         const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'fill' });
-        draw(screen.canvas)
+        draw(screen)
       });
 
-      function draw(canvas) {
+      function draw(unit) {
+        const canvas = unit.element;
         const context = canvas.getContext('2d');
         const [cx, cy] = [canvas.width / 2, canvas.height / 2];
         const size = 80;
@@ -163,7 +164,8 @@
         xnew('<button>', 'modal').on('click', () => xnew(Modal));
         
         function Modal(frame) {
-          xnew.extend(xnew.ModalFrame, { style: { background: 'rgba(0, 0, 0, 0.1)' } });
+          xnew.extend(xnew.ModalFrame);
+          frame.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
           xnew((content) => {
             xnew.extend(xnew.ModalContent);
