@@ -1,12 +1,8 @@
 import { xnew } from '../core/xnew';
 import { AccordionFrame, AccordionButton, AccordionContent } from './Accordion';
 
-export function PanelFrame(frame: xnew.Unit, 
-    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
-) {
+export function PanelFrame(frame: xnew.Unit) {
     xnew.context('xnew.panelframe', frame);
-
-    xnew.nest('<div>', { className, style });
 }
 
 export function PanelGroup(group: xnew.Unit,
@@ -17,8 +13,8 @@ export function PanelGroup(group: xnew.Unit,
     xnew.extend(AccordionFrame, { className, style });
 
     xnew((button: xnew.Unit) => {
-        xnew.extend(AccordionButton, { style: { margin: '0.2em', cursor: 'pointer' } });
-
+        xnew.extend(AccordionButton);
+        xnew.nest('<div style="margin: 0.2em; cursor: pointer">');
         const arrow = xnew(BulletArrow, { rotate: open ? 90 : 0 });
         xnew('<span style="margin-left: 0.4em;">', name);
         button.off('click');

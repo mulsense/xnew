@@ -9,6 +9,7 @@ interface UnitInternal {
         component?: Function | string;
         props?: Object;
     };
+    nextElementSibling: HTMLElement | SVGElement | null;
     baseElement: HTMLElement | SVGElement;
     baseContext: Context | null;
     children: Unit[];
@@ -67,9 +68,7 @@ interface xnewtype extends xnewtype$1 {
     TabContent: Function;
     PanelFrame: Function;
     PanelGroup: Function;
-    InputFrame: Function;
-    InputRange: Function;
-    InputText: Function;
+    InputUnit: Function;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

@@ -18,6 +18,9 @@ export default {
     get scene() {
         return xnew.context('xthree.root')?.scene;
     },
+    get canvas() {
+        return xnew.context('xthree.root')?.renderer.domElement;
+    }
 };
 
 function Root(self: xnew.Unit, { renderer, canvas, camera }: any) {

@@ -303,6 +303,7 @@
                 root: (_d = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _d !== void 0 ? _d : this,
                 peers: (_e = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _e !== void 0 ? _e : Unit.roots,
                 inputs: { parent, target, component, props },
+                nextElementSibling: null,
                 baseElement,
                 baseContext: UnitScope.get(parent),
             };
@@ -326,6 +327,12 @@
         }
         reboot() {
             Unit.stop(this);
+            if (this._.currentElement !== this._.baseElement) {
+                let currentElement = this._.currentElement;
+                if (currentElement.parentElement === this._.baseElement) {
+                    this._.nextElementSibling = currentElement.nextElementSibling;
+                }
+            }
             Unit.finalize(this);
             Unit.initialize(this);
         }
@@ -371,7 +378,7 @@
         // internal
         //----------------------------------------------------------------------------------------------------
         static initialize(unit) {
-            var _a;
+            var _a, _b;
             unit._ = Object.assign(unit._, {
                 children: [],
                 state: LIFECYCLE_STATES.INVOKED,
@@ -398,6 +405,10 @@
             (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => {
                 unit._.resolved = true;
             });
+            unit._.state = LIFECYCLE_STATES.INITIALIZED;
+            if (unit._.inputs.parent) {
+                (_b = UnitEvent.listeners.get(unit._.inputs.parent, 'append')) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(unit));
+            }
         }
         static finalize(unit) {
             const { state } = unit._;
@@ -430,19 +441,29 @@
         static nest(unit, tag, ...args) {
             const match = tag.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
-                unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                const element = unit.element.children[unit.element.children.length - 1];
+                let element;
+                if (unit._.nextElementSibling) {
+                    unit._.nextElementSibling.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
+                    element = unit._.nextElementSibling.previousElementSibling;
+                    unit._.nextElementSibling = null;
+                }
+                else {
+                    unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                    element = unit.element.children[unit.element.children.length - 1];
+                }
                 if (typeof args[0] === 'object') {
                     const attributes = args.shift();
                     Object.keys(attributes).forEach((key) => {
-                        if (key === 'className') {
-                            element.className = attributes[key];
-                        }
-                        else if (key === 'style') {
-                            Object.assign(element.style, attributes[key]);
-                        }
-                        else {
-                            element.setAttribute(key, attributes[key]);
+                        if (attributes[key] !== undefined) {
+                            if (key === 'className') {
+                                element.className = attributes[key];
+                            }
+                            else if (key === 'style') {
+                                Object.assign(element.style, attributes[key]);
+                            }
+                            else {
+                                element.setAttribute(key, attributes[key]);
+                            }
                         }
                     });
                 }
@@ -858,7 +879,7 @@
             try {
                 const current = UnitScope.current;
                 if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                    const element = Unit.nest(current, tag, ...args);
+                    const element = Unit.nest(current, tag);
                     if (element instanceof HTMLElement || element instanceof SVGElement) {
                         return element;
                     }
@@ -1247,52 +1268,33 @@
         };
     }
 
-    function InputFrame(frame, { className, style } = {}) {
-        xnew$1.context('xnew.inputframe', frame);
+    function InputUnit(self, { className, style } = {}) {
         xnew$1.nest('<div>', { className, style });
-        let status = null;
-        xnew$1('<div>', (self) => {
-            status = xnew$1('<div style="font-size: 0.8em; display: flex; flex-direction: row; justify-content: space-between;">');
+        const status = xnew$1('<div style="font-size: 0.8em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self) => {
+            const div1 = xnew$1('<div style="flex: auto">');
+            const div2 = xnew$1('<div style="flex: none">');
+            return {
+                set name(name) {
+                    div1.element.textContent = name;
+                },
+                set value(value) {
+                    div2.element.textContent = value;
+                }
+            };
         });
-        let input = null;
-        return {
-            set input(unit) {
-                input = unit;
-            },
-            get input() {
-                return input;
-            },
-            reset() {
-                status === null || status === void 0 ? void 0 : status.reboot();
-                xnew$1(status === null || status === void 0 ? void 0 : status.element, (self) => {
-                    var _a;
-                    const element = input === null || input === void 0 ? void 0 : input.element;
-                    console.log('update', element);
-                    xnew$1('<div style="flex: auto">', (_a = element.name) !== null && _a !== void 0 ? _a : '');
-                    // if (element.type === 'range') {
-                    //     const div = xnew('<div style="flex: none">', element.value?.toString() ?? '0' );
-                    //     xnew.listener(element).on('input change', (event: Event) => {
-                    //         div.element.textContent = element.value;
-                    //     });
-                    // }
-                });
+        self.on('append', (unit) => {
+            var _a;
+            if (unit.element.tagName.toLowerCase() === 'input') {
+                const element = unit.element;
+                status.name = (_a = element.name) !== null && _a !== void 0 ? _a : '';
+                if (element.type === 'range') {
+                    status.value = element.value;
+                    xnew$1.listener(element).on('input change', (event) => {
+                        status.value = element.value;
+                    });
+                }
             }
-        };
-    }
-    function InputRange(input, attributes = {}) {
-        const frame = xnew$1.context('xnew.inputframe');
-        if (frame) {
-            frame.input = input;
-        }
-        xnew$1.nest('<input type="range"">', attributes);
-        frame.reset();
-    }
-    function InputText(self, { className, style, label, name, value } = {}) {
-        xnew$1.nest('<div>');
-        xnew$1('<div style="font-size: 0.8em; display: flex; flex-direction: row; justify-content: space-between;">', () => {
-            xnew$1('<div style="flex: auto">', name !== null && name !== void 0 ? name : '');
         });
-        xnew$1.nest('<input type="text"">', { className, style, value });
     }
 
     function ModalFrame(frame, { className, style, duration = 200, easing = 'ease' } = {}) {
@@ -1331,9 +1333,7 @@
         xnew$1.context('xnew.tabframe', frame);
         const tabs = [];
         const contents = [];
-        const timer = xnew$1.timeout(() => {
-            frame.select(select);
-        });
+        const timeout = xnew$1.timeout(() => frame.select(select));
         return {
             get tabs() {
                 return tabs;
@@ -1342,7 +1342,7 @@
                 return contents;
             },
             select(index) {
-                timer.clear();
+                timeout.clear();
                 const tab = tabs[index];
                 const content = contents[index];
                 tabs.filter((item) => item !== tab).forEach((item) => item.deselect());
@@ -1352,10 +1352,10 @@
             }
         };
     }
-    function TabButton(self, { className, style } = {}) {
+    function TabButton(self, {} = {}) {
         const frame = xnew$1.context('xnew.tabframe');
         frame.tabs.push(self);
-        xnew$1.nest('<div>', { className, style });
+        xnew$1.nest('<div>');
         self.on('click', () => {
             frame.select(frame.tabs.indexOf(self));
         });
@@ -1382,9 +1382,8 @@
         };
     }
 
-    function AccordionFrame(frame, { className, style, duration = 200, easing = 'ease' } = {}) {
+    function AccordionFrame(frame, { duration = 200, easing = 'ease' } = {}) {
         xnew$1.context('xnew.accordionframe', frame);
-        xnew$1.nest('<div>', { className, style });
         let content = null;
         return {
             set content(unit) {
@@ -1395,17 +1394,16 @@
             },
         };
     }
-    function AccordionButton(button, { className, style } = {}) {
+    function AccordionButton(button, {} = {}) {
         const frame = xnew$1.context('xnew.accordionframe');
-        xnew$1.nest('<div>', { className, style });
+        xnew$1.nest('<div>');
         button.on('click', () => { var _a; return (_a = frame.content) === null || _a === void 0 ? void 0 : _a.toggle(); });
     }
-    function AccordionContent(content, { className, style, open = false, duration = 200, easing = 'ease' } = {}) {
+    function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {
         const frame = xnew$1.context('xnew.accordionframe');
         frame.content = content;
         const outer = xnew$1.nest('<div>');
         const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-        xnew$1.nest('<div>', { className, style });
         let state = open ? 'open' : 'closed';
         outer.style.display = state === 'open' ? 'block' : 'none';
         return {
@@ -1452,15 +1450,15 @@
         };
     }
 
-    function PanelFrame(frame, { className, style } = {}) {
+    function PanelFrame(frame) {
         xnew$1.context('xnew.panelframe', frame);
-        xnew$1.nest('<div>', { className, style });
     }
     function PanelGroup(group, { className, style, name, open = false } = {}) {
         xnew$1.context('xnew.panelgroup', group);
         xnew$1.extend(AccordionFrame, { className, style });
         xnew$1((button) => {
-            xnew$1.extend(AccordionButton, { style: { margin: '0.2em', cursor: 'pointer' } });
+            xnew$1.extend(AccordionButton);
+            xnew$1.nest('<div style="margin: 0.2em; cursor: pointer">');
             const arrow = xnew$1(BulletArrow, { rotate: open ? 90 : 0 });
             xnew$1('<span style="margin-left: 0.4em;">', name);
             button.off('click');
@@ -1505,9 +1503,7 @@
         TabContent,
         PanelFrame,
         PanelGroup,
-        InputRange,
-        InputText,
-        InputFrame,
+        InputUnit,
     });
 
     return xnew;

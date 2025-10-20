@@ -68,7 +68,7 @@ export const xnew: xnewtype = (() => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
-                const element = Unit.nest(current, tag, ...args);
+                const element = Unit.nest(current, tag);
                 if (element instanceof HTMLElement || element instanceof SVGElement) {
                     return element;
                 } else {

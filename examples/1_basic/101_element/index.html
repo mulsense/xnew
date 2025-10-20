@@ -10,7 +10,7 @@
   <div id="main" style="width: 100%; height: 100%;"></div>
   <script>
     xnew('#main', (self) => {
-      xnew.extend(xnew.TabView);
+      xnew.extend(xnew.TabFrame);
 
       xnew('<div style="display: flex;">', () => {
         xnew(TabButton, { name: 'basics' });
@@ -19,7 +19,6 @@
 
       xnew(Basics);
       xnew(Graphics);
-      self.select(0); // extension method of xnew.TabView
     });
 
     function TabButton(self, { name }) {
@@ -159,24 +158,25 @@
     function MyTransition(self) {
       xnew.extend(Template, { name: 'my transition' });
 
+      // modal
       xnew('<div>', (self) => {
-
         xnew('<button>', 'modal').on('click', () => xnew(Modal));
         
-        function Modal(modal) {
-          xnew.extend(xnew.Modal);
-          modal.element.style.background = 'rgba(0, 0, 0, 0.1)';
+        function Modal(frame) {
+          xnew.extend(xnew.ModalFrame, { style: { background: 'rgba(0, 0, 0, 0.1)' } });
 
-          xnew('<div style="position: absolute; inset: 0; margin: auto; width: 400px; max-width: 80%; height: max-content; border: solid 1px #000; border-radius: 8px; background: #fff;">', (self) => {
+          xnew((content) => {
+            xnew.extend(xnew.ModalContent);
+            xnew.nest('<div style="width: 400px; max-width: 80%; border: solid 1px #000; border-radius: 8px; background: #fff;">');
 
             // Title Bar
-            xnew('<div style="padding: 8px; border-bottom: solid 1px #000; display: flex; justify-content: space-between;">', () => {
+            xnew('<div style="padding: 6px; border-bottom: solid 1px #000; display: flex; justify-content: space-between;">', () => {
               xnew('<span>', 'Title');
-              xnew('<button>', 'Close').on('click', () => modal.close());
+              xnew('<button>', 'Close').on('click', () => frame.close());
             });
 
             // Content
-            xnew('<div style="padding: 8px;">', () => {
+            xnew('<div style="padding: 6px;">', () => {
               xnew('<span>', 'Content');
               xnew('<ul>', () => {
                 xnew('<li>', '1st item');
@@ -188,26 +188,54 @@
         }
       });
 
-      xnew('<div style="border: solid 1px #000; border-radius: 8px;">', (self) => {
+      // accordion
+      xnew('<div>', (frame) => {
+        xnew.extend(xnew.AccordionFrame);
+        xnew.nest('<div style="border: solid 1px #000; border-radius: 6px;">');
 
-        const header = xnew('<div style="margin: 8px; cursor: pointer;">', 'accordion (click me!)')
-        const accordion = xnew((self) => {
-          xnew.extend(xnew.Accordion, { open: false });
+        xnew((button) => {
+          xnew.extend(xnew.AccordionButton);
+          xnew('<div style="padding: 6px; user-select: none; cursor: pointer;">', 'accordion (click me!)');
+        });
 
-          xnew('<div style="padding: 8px; border-top: solid 1px #000;">', () => {
-            xnew('<span>', 'Content');
-            xnew('<ul>', () => {
-              xnew('<li>', '1st item');
-              xnew('<li>', '2nd item');
-              xnew('<li>', '3rd item');
-            });
+        xnew((content) => {
+          xnew.extend(xnew.AccordionContent, { open: false });
+          xnew.nest('<div style="padding: 6px; border-top: solid 1px #000;">');
+          xnew('<span>', 'Content');
+          xnew('<ul>', () => {
+            xnew('<li>', '1st item');
+            xnew('<li>', '2nd item');
+            xnew('<li>', '3rd item');
           });
         });
-        header.on('click', () => accordion.toggle());
+      });
+
+      xnew('<div>', (frame) => {
+        xnew.extend(xnew.PanelFrame);
+        xnew.nest('<div style="width: 200px; padding: 6px; border: solid 1px #000; border-radius: 6px;">')
+
+        xnew('<div style="margin: 2px;">', 'My Panel');
+
+        xnew((self) => {
+          xnew.extend(xnew.PanelGroup, { name: 'group 1', open: true });
+          xnew('<button style="display: block; width: 100%;">', 'button 1');
+          xnew('<button style="display: block; width: 100%;">', 'button 2');
+          xnew('<button style="display: block; width: 100%;">', 'button 3');
+        });
+        xnew((self) => {
+          xnew.extend(xnew.PanelGroup, { name: 'group 2', open: true });
+
+          xnew((self) => {
+            xnew.extend(xnew.InputUnit);
+            xnew('<input type="range" name="range 1" min="0" max="100" value="25" style="margin: 0; width: 100%">');
+          });
+          xnew((self) => {
+            xnew.extend(xnew.InputUnit);
+            xnew('<input type="text" name="text 1" value="text" style="box-sizing: border-box; width: 100%">');
+          })
+        });
       });
     }
-
-
   </script>
 </body>
 

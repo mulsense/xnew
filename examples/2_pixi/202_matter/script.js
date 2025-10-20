@@ -37,10 +37,6 @@ function Circle(self, { x, y, r, color = 0xFFFFFF, options = {} }) {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
-
-  return {
-    object,
-  };
 }
 
 function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, options = {} }) {
@@ -53,10 +49,6 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, options = {} }) {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
-
-  return {
-    object,
-  };
 }
 
 function Polygon(self, { x, y, s, r, color = 0xFFFFFF, options = {} }) {

@@ -35,6 +35,7 @@ interface UnitInternal {
         component?: Function | string;
         props?: Object;
     };
+    nextElementSibling: HTMLElement | SVGElement | null;
     baseElement: HTMLElement | SVGElement;
     baseContext: Context | null;
     children: Unit[];
@@ -84,6 +85,7 @@ export class Unit {
             root: parent?._.root ?? this,
             peers: parent?._.children ?? Unit.roots,
             inputs: { parent, target, component, props },
+            nextElementSibling: null,
             baseElement,
             baseContext: UnitScope.get(parent),
         } as UnitInternal;
@@ -113,6 +115,13 @@ export class Unit {
 
     reboot(): void {
         Unit.stop(this);
+        if (this._.currentElement !== this._.baseElement) {
+            let currentElement = this._.currentElement;
+            if (currentElement.parentElement === this._.baseElement) {
+                this._.nextElementSibling = currentElement.nextElementSibling as HTMLElement | SVGElement | null;
+            }
+        };
+
         Unit.finalize(this);
         Unit.initialize(this);
     }
@@ -192,6 +201,11 @@ export class Unit {
         UnitPromise.get(unit)?.then(() => {
             unit._.resolved = true;
         });
+
+        unit._.state = LIFECYCLE_STATES.INITIALIZED;
+        if (unit._.inputs.parent) {
+            UnitEvent.listeners.get(unit._.inputs.parent, 'append')?.forEach(([_, execute]) => execute(unit));
+        }
     }
 
     static finalize(unit: Unit): void {
@@ -230,18 +244,27 @@ export class Unit {
     static nest(unit: Unit, tag: string, ...args: any[]): HTMLElement | SVGElement | null {
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
-            unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            const element = unit.element.children[unit.element.children.length - 1] as HTMLElement;
+            let element: HTMLElement;
+            if (unit._.nextElementSibling) {
+                unit._.nextElementSibling.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
+                element = unit._.nextElementSibling.previousElementSibling as HTMLElement;
+                unit._.nextElementSibling = null;
+            } else {
+                unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                element = unit.element.children[unit.element.children.length - 1] as HTMLElement;
+            }
 
             if (typeof args[0] === 'object') {
                 const attributes = args.shift();
                 Object.keys(attributes).forEach((key: string) => {
-                    if (key === 'className') {
-                        element.className = attributes[key] as string;
-                    } else if (key === 'style') {
-                        Object.assign(element.style, attributes[key] as string);
-                    } else {
-                        element.setAttribute(key, attributes[key] as string);
+                    if (attributes[key] !== undefined) {
+                        if (key === 'className') {
+                            element.className = attributes[key] as string;
+                        } else if (key === 'style') {
+                            Object.assign(element.style, attributes[key] as string);
+                        } else {
+                            element.setAttribute(key, attributes[key] as string);
+                        }
                     }
                 });
             }

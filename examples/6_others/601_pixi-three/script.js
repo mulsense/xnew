@@ -7,14 +7,13 @@ import * as THREE from 'three';
 const width = 800, height = 400;
 xnew('#main', (self) => {
   // three 
-  const oscanvas = new OffscreenCanvas(width, height);
-  xthree.initialize({ canvas: oscanvas });
+  xthree.initialize({ canvas: new OffscreenCanvas(width, height); });
   xthree.camera.position.set(0, 0, +100);
 
   // pixi
   xnew(xnew.Screen, { width, height });
   xpixi.initialize();
-  xpixi.connect(oscanvas);
+  xpixi.connect(xthree.canvas);
 
   xnew(Cubes);
   xnew(Boxes);

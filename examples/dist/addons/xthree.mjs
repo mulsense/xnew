@@ -21,6 +21,10 @@ var xthree = {
         var _a;
         return (_a = xnew.context('xthree.root')) === null || _a === void 0 ? void 0 : _a.scene;
     },
+    get canvas() {
+        var _a;
+        return (_a = xnew.context('xthree.root')) === null || _a === void 0 ? void 0 : _a.renderer.domElement;
+    }
 };
 function Root(self, { renderer, canvas, camera }) {
     const root = {};

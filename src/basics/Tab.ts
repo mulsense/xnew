@@ -8,9 +8,7 @@ export function TabFrame(frame: xnew.Unit,
     const tabs: xnew.Unit[] = [];
     const contents: xnew.Unit[] = [];
     
-    const timer = xnew.timeout(() => {
-        frame.select(select);
-    });
+    const timeout = xnew.timeout(() => frame.select(select));
     return {
         get tabs() {
             return tabs;
@@ -19,7 +17,7 @@ export function TabFrame(frame: xnew.Unit,
             return contents;
         },
         select(index: number) {
-            timer.clear();
+            timeout.clear();
             const tab = tabs[index];
             const content = contents[index];
             tabs.filter((item: xnew.Unit) => item !== tab).forEach((item: xnew.Unit) => item.deselect());
@@ -30,12 +28,12 @@ export function TabFrame(frame: xnew.Unit,
     }
 }
 export function TabButton(self: xnew.Unit, 
-    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
+    {}: {} = {}
 ) {
     const frame = xnew.context('xnew.tabframe');
     frame.tabs.push(self);
 
-    xnew.nest('<div>', { className, style });
+    xnew.nest('<div>');
 
     self.on('click', () => {
         frame.select(frame.tabs.indexOf(self));

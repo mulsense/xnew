@@ -12,8 +12,7 @@ const width = 800, height = 600;
 
 xnew('#main', (self) => {
   // three 
-  const oscanvas = new OffscreenCanvas(width, height);
-  xthree.initialize({ canvas: oscanvas });
+  xthree.initialize({ canvas:  new OffscreenCanvas(width, height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
@@ -93,7 +92,7 @@ function GameScene(scene) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xpixi.connect(xthree.renderer.domElement);
+  xpixi.connect(xthree.canvas);
   scene.on('+addobject', xnew);
 
   scene.on('+gameover', () => {

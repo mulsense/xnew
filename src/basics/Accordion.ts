@@ -1,11 +1,9 @@
 import { xnew } from '../core/xnew';
 
 export function AccordionFrame(frame: xnew.Unit, 
-    { className, style, duration = 200, easing = 'ease' }: { className?: string, style?: Partial<CSSStyleDeclaration>, duration?: number, easing?: string } = {}
+    { duration = 200, easing = 'ease' }: { className?: string, style?: Partial<CSSStyleDeclaration>, duration?: number, easing?: string } = {}
 ) {
     xnew.context('xnew.accordionframe', frame);
-    const div = xnew.nest('<div>', { className, style }) as HTMLElement;
-
     let content: xnew.Unit | null = null;
 
     return {
@@ -19,23 +17,22 @@ export function AccordionFrame(frame: xnew.Unit,
 }
 
 export function AccordionButton(button: xnew.Unit
-    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
+    {}: {} = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');
-    const div = xnew.nest('<div>', { className, style }) as HTMLElement;
+    const div = xnew.nest('<div>') as HTMLElement;
 
     button.on('click', () => frame.content?.toggle());
 }
 
 export function AccordionContent(content: xnew.Unit,
-    { className, style, open = false, duration = 200, easing = 'ease' }: { className?: string, style?: Partial<CSSStyleDeclaration>, open?: boolean, duration?: number, easing?: string } = {}
+    { open = false, duration = 200, easing = 'ease' }: { open?: boolean, duration?: number, easing?: string } = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');
     frame.content = content;
 
     const outer = xnew.nest('<div>') as HTMLElement;
     const inner = xnew.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
-    xnew.nest('<div>', { className, style });
 
     let state = open ? 'open' : 'closed';
     outer.style.display = state === 'open' ? 'block' : 'none';

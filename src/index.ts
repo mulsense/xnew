@@ -2,7 +2,7 @@ import { ResizeEvent } from './basics/ResizeEvent';
 import { UserEvent } from './basics/UserEvent';
 import { Screen } from './basics/Screen';
 
-import { InputFrame, InputRange, InputText } from './basics/Input';
+import { InputUnit } from './basics/Input';
 
 import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
@@ -26,9 +26,7 @@ interface xnewtype extends basetype {
     TabContent: Function;
     PanelFrame: Function;
     PanelGroup: Function;
-    InputFrame: Function;
-    InputRange: Function;
-    InputText: Function;
+    InputUnit: Function;
 }
 
 namespace xnew {
@@ -49,9 +47,7 @@ const xnew: xnewtype = Object.assign(base, {
     TabContent,
     PanelFrame,
     PanelGroup,
-    InputRange,
-    InputText,
-    InputFrame,
+    InputUnit,
 });
 
 export default xnew;
