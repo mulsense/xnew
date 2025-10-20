@@ -5,7 +5,7 @@ export function InputUnit(self: xnew.Unit,
 ) {
     xnew.nest('<div>');
 
-    const status = xnew('<div style="font-size: 0.8em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self: xnew.Unit) => {
+    const status = xnew('<div style="font-size: 0.9em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self: xnew.Unit) => {
         const div1 = xnew('<div style="flex: auto">');
         const div2 = xnew('<div style="flex: none">');
         return {

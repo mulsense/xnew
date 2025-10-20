@@ -203,8 +203,15 @@ export class Unit {
         });
 
         unit._.state = LIFECYCLE_STATES.INITIALIZED;
-        if (unit._.inputs.parent) {
-            UnitEvent.listeners.get(unit._.inputs.parent, 'append')?.forEach(([_, execute]) => execute(unit));
+
+        let parent = unit._.inputs.parent;
+        const components = new Set<Function>();
+        while (parent !== null && components.has(parent._.inputs.component as Function) === false) {
+            components.add(parent._.inputs.component as Function);
+            UnitEvent.listeners.get(parent, 'append')?.forEach(([_, execute]) => {
+                execute(unit);
+            });
+            parent = parent._.inputs.parent;
         }
     }
 

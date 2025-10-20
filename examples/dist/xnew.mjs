@@ -400,8 +400,14 @@ class Unit {
             unit._.resolved = true;
         });
         unit._.state = LIFECYCLE_STATES.INITIALIZED;
-        if (unit._.inputs.parent) {
-            (_b = UnitEvent.listeners.get(unit._.inputs.parent, 'append')) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(unit));
+        let parent = unit._.inputs.parent;
+        const components = new Set();
+        while (parent !== null && components.has(parent._.inputs.component) === false) {
+            components.add(parent._.inputs.component);
+            (_b = UnitEvent.listeners.get(parent, 'append')) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => {
+                execute(unit);
+            });
+            parent = parent._.inputs.parent;
         }
     }
     static finalize(unit) {
@@ -1263,7 +1269,7 @@ function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
 
 function InputUnit(self, {} = {}) {
     xnew$1.nest('<div>');
-    const status = xnew$1('<div style="font-size: 0.8em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self) => {
+    const status = xnew$1('<div style="font-size: 0.9em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self) => {
         const div1 = xnew$1('<div style="flex: auto">');
         const div2 = xnew$1('<div style="flex: none">');
         return {
