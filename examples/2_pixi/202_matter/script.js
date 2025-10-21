@@ -11,9 +11,6 @@ xnew('#main', (self) => {
   xpixi.initialize();
 
   xnew(Contents);
-
-  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
-  button.on('click', () => xnew.emit('+reset'));
 });
 
 function Contents(self) {
@@ -24,7 +21,8 @@ function Contents(self) {
   xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
   xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888, options: { isStatic: true } });
 
-  self.on('+reset', () => self.reboot());
+  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
+  button.on('click', () => self.reboot());
 }
 
 function Circle(self, { x, y, r, color = 0xFFFFFF, options = {} }) {
