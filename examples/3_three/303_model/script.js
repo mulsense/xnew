@@ -163,12 +163,20 @@ function Panel(self) {
       xnew.extend(xnew.PanelGroup, { name: 'action weights', open: true });
 
       for (const name of Object.keys(additiveActions)) {
-        xnew((self) => {
-          xnew.extend(xnew.InputUnit);
+        xnew((frame) => {
+          xnew.extend(xnew.InputFrame);
+          xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
+              xnew('<div style="flex: auto">', name);
+              const status = xnew('<div style="flex: none">', '0');
+              frame.on('-input', ({ event }) => {
+                status.element.textContent = event.target.value;
+              })
+          });
+          
           const settings = additiveActions[name];
-          const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" style="margin: 0; width: 100%">`);
+          xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" style="margin: 0; width: 100%">`);
        
-          input.on('input', (event) => {
+          frame.on('-input', ({ event }) => {
             settings.weight = parseFloat(event.target.value);
             xnew.emit('+setWeight', settings.action, settings.weight);
           });
@@ -178,10 +186,18 @@ function Panel(self) {
     });
     xnew((self) => {
       xnew.extend(xnew.PanelGroup, { name: 'options', open: true });
-      xnew((self) => {
-        xnew.extend(xnew.InputUnit);
-        const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" style="margin: 0; width: 100%">');
-        input.on('input', (event) => {
+      xnew((frame) => {
+        xnew.extend(xnew.InputFrame);
+        xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
+          xnew('<div style="flex: auto">', 'speed');
+          const status = xnew('<div style="flex: none">', '1.0');
+          frame.on('-input', ({ event }) => {
+            status.element.textContent = event.target.value;
+          })
+        });
+
+        xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" style="margin: 0; width: 100%">');
+        frame.on('-input', (event) => {
           xnew.emit('+speed', parseFloat(event.target.value));
         });
       });

@@ -224,6 +224,7 @@
           xnew('<button style="display: block; width: 100%;">', 'button 2');
           xnew('<button style="display: block; width: 100%;">', 'button 3');
         });
+        
         xnew((self) => {
           xnew.extend(xnew.PanelGroup, { name: 'group 2', open: true });
 
@@ -238,6 +239,31 @@
             });
             xnew('<input type="range" name="range 1" min="0" max="100" value="25" style="margin: 0; width: 100%">');
           });
+
+          xnew((frame) => {
+            xnew.extend(xnew.InputFrame);
+
+            xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
+                xnew('<div style="flex: auto">', 'radio 1');
+                const status = xnew('<div style="flex: none">', 'radio A');
+                frame.on('-input', ({ event }) => {
+                  status.element.textContent = event.target.value;
+                })
+            });
+            xnew('<label>', () => {
+              xnew('<input type="radio" name="radio 1" value="radio A" checked>');
+              xnew('<span style="margin: 0 8px;">', 'radio A');
+            });
+            xnew('<label>', () => {
+              xnew('<input type="radio" name="radio 1" value="radio B">');
+              xnew('<span style="margin: 0 8px;">', 'radio B');
+            });
+            xnew('<label>', () => {
+              xnew('<input type="radio" name="radio 1" value="radio C">');
+              xnew('<span style="margin: 0 8px;">', 'radio C');
+            });
+          })
+
           xnew((self) => {
             xnew.extend(xnew.InputFrame);
 
