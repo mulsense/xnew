@@ -55,10 +55,6 @@ function Polygon(self, { x, y, s, r, color = 0xFFFFFF, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.polygon(x, y, s, r, options));
   object.position.set(x, y);
-  const points = [];
-  for (let i = 0; i < 360; i += 60) {
-    points.push(Math.cos(i * Math.PI / 180) * r, Math.sin(i * Math.PI / 180) * r);
-  }
   object.addChild(new PIXI.Graphics().regularPoly(0, 0, r, s).fill(color));
 
   self.on('update', () => {
