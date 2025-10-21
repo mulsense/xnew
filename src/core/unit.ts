@@ -128,7 +128,7 @@ export class Unit {
         Unit.initialize(this);
     }
 
-    components(): Function[] {
+    get components(): Function[] {
         return this._.components;
     }
 
@@ -212,17 +212,17 @@ export class Unit {
 
         unit._.state = LIFECYCLE_STATES.INITIALIZED;
 
-        let parent = unit._.inputs.parent;
-        while (parent !== null) {
+        let current: Unit | null = unit;
+        while (current !== null) {
             let captured = false;
-            for (const capture of parent._.captures) {
+            for (const capture of current._.captures) {
                 if (capture.checker(unit)) {
                     capture.execute(unit);
                     captured = true;
                 }
             }
             if (captured === false) {
-                parent = parent._.inputs.parent;
+                current = current._.inputs.parent;
             } else {
                 break;
             }

@@ -4,12 +4,16 @@ export function AccordionFrame(frame: xnew.Unit,
     { duration = 200, easing = 'ease' }: { className?: string, style?: Partial<CSSStyleDeclaration>, duration?: number, easing?: string } = {}
 ) {
     xnew.context('xnew.accordionframe', frame);
+
     let content: xnew.Unit | null = null;
 
+    xnew.capture((unit: xnew.Unit) => {
+        return unit.components.includes(AccordionContent);
+    }, (unit: xnew.Unit) => {   
+        content = unit;
+    });
+
     return {
-        set content(unit: xnew.Unit) {
-            content = unit;
-        },
         get content() : xnew.Unit | null {
             return content;
         },
@@ -20,17 +24,13 @@ export function AccordionButton(button: xnew.Unit,
     {}: {} = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');
-    const div = xnew.nest('<div>') as HTMLElement;
-
+    xnew.nest('<div>');
     button.on('click', () => frame.content?.toggle());
 }
 
 export function AccordionContent(content: xnew.Unit,
     { open = false, duration = 200, easing = 'ease' }: { open?: boolean, duration?: number, easing?: string } = {}
 ) {
-    const frame = xnew.context('xnew.accordionframe');
-    frame.content = content;
-
     const outer = xnew.nest('<div>') as HTMLElement;
     const inner = xnew.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
 

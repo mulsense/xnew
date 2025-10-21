@@ -336,7 +336,7 @@
             Unit.finalize(this);
             Unit.initialize(this);
         }
-        components() {
+        get components() {
             return this._.components;
         }
         on(type, listener, options) {
@@ -411,17 +411,17 @@
                 unit._.resolved = true;
             });
             unit._.state = LIFECYCLE_STATES.INITIALIZED;
-            let parent = unit._.inputs.parent;
-            while (parent !== null) {
+            let current = unit;
+            while (current !== null) {
                 let captured = false;
-                for (const capture of parent._.captures) {
+                for (const capture of current._.captures) {
                     if (capture.checker(unit)) {
                         capture.execute(unit);
                         captured = true;
                     }
                 }
                 if (captured === false) {
-                    parent = parent._.inputs.parent;
+                    current = current._.inputs.parent;
                 }
                 else {
                     break;
@@ -1297,8 +1297,11 @@
             return unit.element.tagName.toLowerCase() === 'input';
         }, (unit) => {
             const element = unit.element;
-            xnew$1.listener(element).on('input change', (event) => {
+            xnew$1.listener(element).on('input', (event) => {
                 xnew$1.emit('-input', { event });
+            });
+            xnew$1.listener(element).on('change', (event) => {
+                xnew$1.emit('-change', { event });
             });
         });
     }
@@ -1391,10 +1394,12 @@
     function AccordionFrame(frame, { duration = 200, easing = 'ease' } = {}) {
         xnew$1.context('xnew.accordionframe', frame);
         let content = null;
+        xnew$1.capture((unit) => {
+            return unit.components.includes(AccordionContent);
+        }, (unit) => {
+            content = unit;
+        });
         return {
-            set content(unit) {
-                content = unit;
-            },
             get content() {
                 return content;
             },
@@ -1406,8 +1411,6 @@
         button.on('click', () => { var _a; return (_a = frame.content) === null || _a === void 0 ? void 0 : _a.toggle(); });
     }
     function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {
-        const frame = xnew$1.context('xnew.accordionframe');
-        frame.content = content;
         const outer = xnew$1.nest('<div>');
         const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
         let state = open ? 'open' : 'closed';

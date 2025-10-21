@@ -38,7 +38,7 @@ declare class Unit {
     stop(): void;
     finalize(): void;
     reboot(): void;
-    components(): Function[];
+    get components(): Function[];
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit;
     off(type?: string, listener?: Function): Unit;
     static initialize(unit: Unit): void;

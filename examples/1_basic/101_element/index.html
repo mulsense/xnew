@@ -214,17 +214,17 @@
 
       xnew('<div>', (frame) => {
         xnew.extend(xnew.PanelFrame);
-        xnew.nest('<div style="width: 200px; padding: 6px; border: solid 1px #000; border-radius: 6px;">')
+        xnew.nest('<div style="font-size: 0.8em; width: 200px; padding: 6px; border: solid 1px #000; border-radius: 6px;">')
 
         xnew('<div style="margin: 2px;">', 'My Panel');
 
         xnew((self) => {
-          xnew.extend(xnew.PanelGroup, { name: 'group 1', open: true });
+          xnew.extend(xnew.PanelGroup, { name: 'group 1', open: false });
           xnew('<button style="display: block; width: 100%;">', 'button 1');
           xnew('<button style="display: block; width: 100%;">', 'button 2');
           xnew('<button style="display: block; width: 100%;">', 'button 3');
         });
-        
+
         xnew((self) => {
           xnew.extend(xnew.PanelGroup, { name: 'group 2', open: true });
 
@@ -250,15 +250,15 @@
                   status.element.textContent = event.target.value;
                 })
             });
-            xnew('<label>', () => {
+            xnew('<label style="display: block;">', () => {
               xnew('<input type="radio" name="radio 1" value="radio A" checked>');
               xnew('<span style="margin: 0 8px;">', 'radio A');
             });
-            xnew('<label>', () => {
+            xnew('<label style="display: block;">', () => {
               xnew('<input type="radio" name="radio 1" value="radio B">');
               xnew('<span style="margin: 0 8px;">', 'radio B');
             });
-            xnew('<label>', () => {
+            xnew('<label style="display: block;">', () => {
               xnew('<input type="radio" name="radio 1" value="radio C">');
               xnew('<span style="margin: 0 8px;">', 'radio C');
             });
