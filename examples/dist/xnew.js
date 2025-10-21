@@ -336,6 +336,9 @@
             Unit.finalize(this);
             Unit.initialize(this);
         }
+        components() {
+            return this._.components;
+        }
         on(type, listener, options) {
             try {
                 if (typeof type === 'string') {
@@ -378,9 +381,11 @@
         // internal
         //----------------------------------------------------------------------------------------------------
         static initialize(unit) {
-            var _a, _b;
+            var _a;
             unit._ = Object.assign(unit._, {
                 children: [],
+                components: [],
+                captures: [],
                 state: LIFECYCLE_STATES.INVOKED,
                 tostart: true,
                 currentElement: unit._.baseElement,
@@ -407,13 +412,20 @@
             });
             unit._.state = LIFECYCLE_STATES.INITIALIZED;
             let parent = unit._.inputs.parent;
-            const components = new Set();
-            while (parent !== null && components.has(parent._.inputs.component) === false) {
-                components.add(parent._.inputs.component);
-                (_b = UnitEvent.listeners.get(parent, 'append')) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => {
-                    execute(unit);
-                });
-                parent = parent._.inputs.parent;
+            while (parent !== null) {
+                let captured = false;
+                for (const capture of parent._.captures) {
+                    if (capture.checker(unit)) {
+                        capture.execute(unit);
+                        captured = true;
+                    }
+                }
+                if (captured === false) {
+                    parent = parent._.inputs.parent;
+                }
+                else {
+                    break;
+                }
             }
         }
         static finalize(unit) {
@@ -482,6 +494,7 @@
         }
         static extend(unit, component, props) {
             var _a;
+            unit._.components.push(component);
             UnitComponent.add(unit, component);
             const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
             const snapshot = UnitScope.snapshot(unit);
@@ -1071,6 +1084,11 @@
                 }
             };
         };
+        fn.capture = function (checker, execute) {
+            const current = UnitScope.current;
+            const snapshot = UnitScope.snapshot();
+            current._.captures.push({ checker, execute: (unit) => UnitScope.execute(snapshot, execute, unit) });
+        };
         return fn;
     })();
 
@@ -1273,32 +1291,15 @@
         };
     }
 
-    function InputUnit(self, {} = {}) {
+    function InputFrame(self, {} = {}) {
         xnew$1.nest('<div>');
-        const status = xnew$1('<div style="font-size: 0.9em; margin-bottom: -0.2em; display: flex; flex-direction: row; justify-content: space-between;">', (self) => {
-            const div1 = xnew$1('<div style="flex: auto">');
-            const div2 = xnew$1('<div style="flex: none">');
-            return {
-                set name(name) {
-                    div1.element.textContent = name;
-                },
-                set value(value) {
-                    div2.element.textContent = value;
-                }
-            };
-        });
-        self.on('append', (unit) => {
-            var _a;
-            if (unit.element.tagName.toLowerCase() === 'input') {
-                const element = unit.element;
-                status.name = (_a = element.name) !== null && _a !== void 0 ? _a : '';
-                if (element.type === 'range') {
-                    status.value = element.value;
-                    xnew$1.listener(element).on('input change', (event) => {
-                        status.value = element.value;
-                    });
-                }
-            }
+        xnew$1.capture((unit) => {
+            return unit.element.tagName.toLowerCase() === 'input';
+        }, (unit) => {
+            const element = unit.element;
+            xnew$1.listener(element).on('input change', (event) => {
+                xnew$1.emit('-input', { event });
+            });
         });
     }
 
@@ -1508,7 +1509,7 @@
         TabContent,
         PanelFrame,
         PanelGroup,
-        InputUnit,
+        InputFrame,
     });
 
     return xnew;

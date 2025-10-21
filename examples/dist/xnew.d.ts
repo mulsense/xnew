@@ -13,6 +13,8 @@ interface UnitInternal {
     baseElement: HTMLElement | SVGElement;
     baseContext: Context | null;
     children: Unit[];
+    components: Function[];
+    captures: any[];
     state: string;
     tostart: boolean;
     currentElement: HTMLElement | SVGElement;
@@ -36,6 +38,7 @@ declare class Unit {
     stop(): void;
     finalize(): void;
     reboot(): void;
+    components(): Function[];
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit;
     off(type?: string, listener?: Function): Unit;
     static initialize(unit: Unit): void;
@@ -68,7 +71,7 @@ interface xnewtype extends xnewtype$1 {
     TabContent: Function;
     PanelFrame: Function;
     PanelGroup: Function;
-    InputUnit: Function;
+    InputFrame: Function;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

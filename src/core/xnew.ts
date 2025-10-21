@@ -254,6 +254,11 @@ export const xnew: xnewtype = (() => {
             }  
         }
     }
+    fn.capture = function (checker: (unit: xnew.Unit) => boolean, execute: (unit: xnew.Unit) => void) {
+        const current = UnitScope.current as xnew.Unit;
+        const snapshot = UnitScope.snapshot();
+        current._.captures.push({ checker, execute: (unit: xnew.Unit) => UnitScope.execute(snapshot, execute, unit) });
+    }
 
     return fn;
 })();

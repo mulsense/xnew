@@ -39,6 +39,8 @@ interface UnitInternal {
     baseElement: HTMLElement | SVGElement;
     baseContext: Context | null;
     children: Unit[];
+    components: Function[];
+    captures: any[];
     state: string;
     tostart: boolean;
     currentElement: HTMLElement | SVGElement;
@@ -126,6 +128,10 @@ export class Unit {
         Unit.initialize(this);
     }
 
+    components(): Function[] {
+        return this._.components;
+    }
+
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit {
         try {
             if (typeof type === 'string') {
@@ -171,6 +177,8 @@ export class Unit {
     static initialize(unit: Unit): void {
         unit._ = Object.assign(unit._, {
             children: [],
+            components: [],
+            captures: [],
             state: LIFECYCLE_STATES.INVOKED,
             tostart: true,
             currentElement: unit._.baseElement,
@@ -205,13 +213,19 @@ export class Unit {
         unit._.state = LIFECYCLE_STATES.INITIALIZED;
 
         let parent = unit._.inputs.parent;
-        const components = new Set<Function>();
-        while (parent !== null && components.has(parent._.inputs.component as Function) === false) {
-            components.add(parent._.inputs.component as Function);
-            UnitEvent.listeners.get(parent, 'append')?.forEach(([_, execute]) => {
-                execute(unit);
-            });
-            parent = parent._.inputs.parent;
+        while (parent !== null) {
+            let captured = false;
+            for (const capture of parent._.captures) {
+                if (capture.checker(unit)) {
+                    capture.execute(unit);
+                    captured = true;
+                }
+            }
+            if (captured === false) {
+                parent = parent._.inputs.parent;
+            } else {
+                break;
+            }
         }
     }
 
@@ -284,6 +298,7 @@ export class Unit {
     }
 
     static extend(unit: Unit, component: Function, props?: Object): void {
+        unit._.components.push(component);
         UnitComponent.add(unit, component);
 
         const defines = component(unit, props) ?? {};
