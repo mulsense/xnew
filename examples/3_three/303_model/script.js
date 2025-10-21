@@ -197,7 +197,7 @@ function Panel(self) {
         });
 
         xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" style="margin: 0; width: 100%">');
-        frame.on('-input', (event) => {
+        frame.on('-input', ({ event }) => {
           xnew.emit('+speed', parseFloat(event.target.value));
         });
       });
