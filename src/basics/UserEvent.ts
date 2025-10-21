@@ -106,7 +106,7 @@ function GestureEvent(self: xnew.Unit) {
 
     drag.on('-dragend', ({ event }: any) => {
         if (isActive === true) {
-            xnew.emit('-gesturemend', { event });
+            xnew.emit('-gestureend', { event });
         }
         isActive = false;
         map.delete(event.pointerId);

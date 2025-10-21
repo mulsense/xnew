@@ -1187,7 +1187,7 @@ function GestureEvent(self) {
     });
     drag.on('-dragend', ({ event }) => {
         if (isActive === true) {
-            xnew$1.emit('-gesturemend', { event });
+            xnew$1.emit('-gestureend', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
