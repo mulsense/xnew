@@ -1069,7 +1069,7 @@ const xnew$1 = (() => {
     };
     fn.emit = (type, ...args) => {
         try {
-            UnitEvent.emit(type, ...args);
+            UnitEvent.emit(UnitScope.current, type, ...args);
         }
         catch (error) {
             console.error('xnew.emit(type, ...args): ', error);

@@ -236,14 +236,6 @@ export const xnew: xnewtype = (() => {
         return timer;
     }
 
-    fn.emit = (type: string, ...args: any[]) => {
-        try {
-            UnitEvent.emit(type, ...args);
-        } catch (error: unknown) {
-            console.error('xnew.emit(type, ...args): ', error);
-        }
-    }
-
     fn.listener = function (target: HTMLElement | SVGElement | Window | Document) {
         return {
             on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
