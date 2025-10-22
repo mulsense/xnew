@@ -373,7 +373,7 @@ class Unit {
     }
     emit(type, ...args) {
         try {
-            UnitEvent.emit(type, ...args);
+            UnitEvent.emit(this, type, ...args);
         }
         catch (error) {
             console.error('unit.emit(type, ...args): ', error);
@@ -719,9 +719,8 @@ class UnitEvent {
             }
         });
     }
-    static emit(type, ...args) {
+    static emit(unit, type, ...args) {
         var _a, _b;
-        const unit = UnitScope.current;
         if (typeof type !== 'string') {
             throw new Error('The argument [type] is invalid.');
         }
@@ -1395,28 +1394,26 @@ function TabContent(self, { className, style } = {}) {
 
 function AccordionFrame(frame, { duration = 200, easing = 'ease' } = {}) {
     xnew$1.context('xnew.accordionframe', frame);
-    let content = null;
-    xnew$1.capture((unit) => {
-        return unit.components.includes(AccordionContent);
-    }, (unit) => {
-        content = unit;
-    });
-    return {
-        get content() {
-            return content;
-        },
-    };
 }
 function AccordionButton(button, {} = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
     xnew$1.nest('<div>');
-    button.on('click', () => { var _a; return (_a = frame.content) === null || _a === void 0 ? void 0 : _a.toggle(); });
+    button.on('click', () => frame.emit('-toggle'));
 }
 function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {
+    const frame = xnew$1.context('xnew.accordionframe');
     const outer = xnew$1.nest('<div>');
     const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
     let state = open ? 'open' : 'closed';
     outer.style.display = state === 'open' ? 'block' : 'none';
+    frame.on('-toggle', () => {
+        if (state === 'open') {
+            content.close();
+        }
+        else if (state === 'closed') {
+            content.open();
+        }
+    });
     return {
         get state() {
             return state;
@@ -1448,14 +1445,6 @@ function AccordionContent(content, { open = false, duration = 200, easing = 'eas
                 outer.style.height = 'auto';
                 outer.style.opacity = '1.0';
                 outer.style.display = 'block';
-            }
-        },
-        toggle() {
-            if (state === 'open') {
-                content.close();
-            }
-            else if (state === 'closed') {
-                content.open();
             }
         },
     };

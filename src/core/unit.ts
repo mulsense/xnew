@@ -172,7 +172,7 @@ export class Unit {
 
     emit(type: string, ...args: any[]) {
         try {
-            UnitEvent.emit(type, ...args);
+            UnitEvent.emit(this, type, ...args);
         } catch (error: unknown) {
             console.error('unit.emit(type, ...args): ', error);
         }
@@ -559,8 +559,7 @@ export class UnitEvent {
         });
     }
 
-    static emit(type: string, ...args: any[]): void {
-        const unit = UnitScope.current;
+    static emit(unit: Unit, type: string, ...args: any[]): void {
         if (typeof type !== 'string') {
             throw new Error('The argument [type] is invalid.');
         } else if (unit?._.state === LIFECYCLE_STATES.FINALIZED) {

@@ -503,7 +503,7 @@ box.randomize();           // Custom method
 
 Avoid these reserved names when creating custom properties:
 - `start`, `stop`, `finalize`, `reboot`
-- `element`, `on`, `off`,
+- `element`, `on`, `off`, `emit`,
 - `_` (internal use)
 
 ## Summary
