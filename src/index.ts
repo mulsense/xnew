@@ -8,6 +8,7 @@ import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { AccordionFrame, AccordionButton, AccordionContent } from './basics/Accordion';
 import { PanelFrame, PanelGroup } from './basics/Panel';
+import { DragFrame, DragTarget } from './basics/SubWIndow';
 
 import { Unit } from './core/unit';
 import { xnew as base, xnewtype as basetype } from './core/xnew';
@@ -27,6 +28,8 @@ interface xnewtype extends basetype {
     PanelFrame: Function;
     PanelGroup: Function;
     InputFrame: Function;
+    DragFrame: Function;
+    DragTarget: Function;
 }
 
 namespace xnew {
@@ -48,6 +51,8 @@ const xnew: xnewtype = Object.assign(base, {
     PanelFrame,
     PanelGroup,
     InputFrame,
+    DragFrame,
+    DragTarget,
 });
 
 export default xnew;

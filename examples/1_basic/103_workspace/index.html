@@ -43,7 +43,6 @@ function WorkSpace(self, attributes = {}) {
     fix.style.overflow = 'hidden';
 
     xnew(Controller);
-    xnew(Grid);
 
     const base = xnew.nest({ style: { position: 'absolute', top: '50%', left: '50%' } });
     xnew.nest({ style: { position: 'absolute' } });
@@ -80,18 +79,7 @@ function WorkSpace(self, attributes = {}) {
 function Controller(self) {
     const ws = xnew.context('xnew.WorkSpace');
     self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-    self.on('+scale', (scale) => {
-        if (self.element) {
-            const s = 0.2 * (scale - 1);
-            ws.move({
-                position: {
-                    x: ws.transform.position.x - (self.element.clientWidth / 2) * 0,
-                    y: ws.transform.position.y - (self.element.clientHeight / 2) * 0,
-                },
-                scale: ws.transform.scale + s,
-            });
-        }
-    });
+
     self.on('+translate', (delta) => {
         ws.move({
             position: {
@@ -100,55 +88,18 @@ function Controller(self) {
             }
         });
     });
-    self.on('+rotate', (delta) => {
-        // scene.rotation.x += delta.y * 0.01;
-        // xthree.scene.rotation.z += delta.x * 0.01;
-    });
+
     const user = xnew(xnew.UserEvent);
 
     user.on('-dragmove', ({ event, delta }) => {
         if (event.target == user.element || 1) {
-            if (event.buttons & 1 || !event.buttons) {
-                xnew.emit('+rotate', { x: +delta.x, y: +delta.y });
-            }
             if (event.buttons & 1) {
                 xnew.emit('+translate', { x: -delta.x, y: +delta.y });
             }
         }
     });
-
-    user.on('-wheel', ({ delta } ) => xnew.emit('+scale', 1 + 0.001 * delta.y));
 }
 
-function Grid(self) {
-    const ws = xnew.context('xnew.WorkSpace');
-    const grid = xnew.nest({ style: { position: 'relative', width: '100%', height: '100%' } });
-    const size = 20;
-    const offset = { x: 0, y: 0 };
-    grid.style.backgroundImage = 'radial-gradient(circle, #06b6d4 1.5px, transparent 1.5px)';
-    grid.style.backgroundPosition = `${offset.x}px ${offset.y}px`;
-    grid.style.backgroundSize = `${size}px ${size}px`;
-
-    // for (let i = -count; i <= count; i++) {
-    //     const lineX = xnew.nest({ style: { position: 'absolute', width: '1px', height: `${size * count}px`, backgroundColor: '#ccc' } });
-    //     lineX.style.left = `${i * size}px`;
-    //     grid.append(lineX);
-
-    //     const lineY = xnew.nest({ style: { position: 'absolute', width: `${size * count}px`, height: '1px', backgroundColor: '#ccc' } });
-    //     lineY.style.top = `${i * size}px`;
-    //     grid.append(lineY);
-    // }
-
-    return {
-        update() {
-          const s = size * ws.transform.scale;
-          grid.style.backgroundSize = `${s}px ${s}px`;
-
-        }
-    }
-  
-}
-    
   </script>
 </body>
 

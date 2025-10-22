@@ -7,7 +7,7 @@
 </head>
 
 <body>
-  <div id="main" style="width: 100%; height: 100%;"></div>
+  <div id="main" style="position: relative; width: 100%; height: 100vh;"></div>
   <script>
     xnew('#main', (self) => {
       xnew('<button>', 'open modal!').on('click', () => xnew(MyModal));
@@ -18,7 +18,7 @@
 
       xnew((content) => {
         xnew.extend(xnew.ModalContent, { duration: 300, easing: 'ease', background: 'rgba(0, 0, 0, 0.1)' });
-        xnew.nest('<div style="width: 400px; max-width: 80%; border: solid 1px #000; border-radius: 8px; background: #fff;">');
+        xnew.nest('<div style="width: 300px; max-width: 80%; border: solid 1px #000; border-radius: 8px; background: #fff;">');
 
         // Title Bar
         xnew('<div style="padding: 6px; border-bottom: solid 1px #000; display: flex; justify-content: space-between;">', () => {

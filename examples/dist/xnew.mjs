@@ -1067,14 +1067,6 @@ const xnew$1 = (() => {
         timer = { clear, next };
         return timer;
     };
-    fn.emit = (type, ...args) => {
-        try {
-            UnitEvent.emit(UnitScope.current, type, ...args);
-        }
-        catch (error) {
-            console.error('xnew.emit(type, ...args): ', error);
-        }
-    };
     fn.listener = function (target) {
         return {
             on(type, listener, options) {
@@ -1482,6 +1474,23 @@ function BulletArrow(self, { rotate = 0 } = {}) {
     };
 }
 
+function DragFrame(frame, { x = 0, y = 0 } = {}) {
+    xnew$1.context('xnew.dragframe', frame);
+    xnew$1.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
+}
+function DragTarget(target, {} = {}) {
+    const frame = xnew$1.context('xnew.dragframe');
+    xnew$1.nest('<div>');
+    const user = xnew$1(UserEvent);
+    user.on('-dragmove', ({ event, delta }) => {
+        console.log('dragmove', delta);
+        const style = frame.element.style;
+        frame.element.style.left = `${parseFloat(style.left || '0') + delta.x}px`;
+        frame.element.style.top = `${parseFloat(style.top || '0') + delta.y}px`;
+        console.log('dragmove', { x: frame.element.style.left, y: frame.element.style.top });
+    });
+}
+
 const xnew = Object.assign(xnew$1, {
     Screen,
     UserEvent,
@@ -1497,6 +1506,8 @@ const xnew = Object.assign(xnew$1, {
     PanelFrame,
     PanelGroup,
     InputFrame,
+    DragFrame,
+    DragTarget,
 });
 
 export { xnew as default };
