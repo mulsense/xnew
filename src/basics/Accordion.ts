@@ -1,60 +1,57 @@
 import { xnew } from '../core/xnew';
 
 export function AccordionFrame(frame: xnew.Unit, 
-    { duration = 200, easing = 'ease' }: { className?: string, style?: Partial<CSSStyleDeclaration>, duration?: number, easing?: string } = {}
+    {}: {} = {}
 ) {
-    xnew.context('xnew.accordionframe', frame);
+    xnew.context('xnew.accordionframe', { frame });
 
     let content: xnew.Unit | null = null;
-
-    xnew.capture((unit: xnew.Unit) => {
-        return unit.components.includes(AccordionContent);
-    }, (unit: xnew.Unit) => {   
+    xnew.capture((unit: xnew.Unit) => unit.components.includes(AccordionContent), (unit: xnew.Unit) => {
         content = unit;
     });
 
-    return {
-        get content() : xnew.Unit | null {
-            return content;
-        },
-    }
+    frame.on('-toggle', () => {
+        if (content?.status === 1.0) {
+            frame.emit('-close');
+            content.close();
+        } else if (content?.status === 0.0) {
+            frame.emit('-open');
+            content.open();
+        }
+    });
 }
 
 export function AccordionButton(button: xnew.Unit,
     {}: {} = {}
 ) {
-    const frame = xnew.context('xnew.accordionframe');
+    const { frame } = xnew.context('xnew.accordionframe');
     xnew.nest('<div>');
-    
-    button.on('click', () => frame.content?.toggle());
+
+    xnew().on('click', () => frame.emit('-toggle'));
 }
 
 export function AccordionContent(content: xnew.Unit,
-    { open = false, duration = 200, easing = 'ease' }: { open?: boolean, duration?: number, easing?: string } = {}
+    { open = false, duration = 200, easing = 'ease'}: { open?: boolean, duration?: number, easing?: string } = {}
 ) {
+    const { frame } = xnew.context('xnew.accordionframe');
     const outer = xnew.nest('<div>') as HTMLElement;
     const inner = xnew.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
 
-    let state = open ? 'open' : 'closed';
-    outer.style.display = state === 'open' ? 'block' : 'none';
-
+    let status = open ? 1.0 : 0.0;
+    outer.style.display = status ? 'block' : 'none';
+    
     return {
-        get state() {
-            return state;
+        get status() {
+            return status;
         },
         open() {
-            if (state === 'closed') {
-                state = 'opening';
-                xnew.transition((x: number) => content.transition(outer, inner, x), duration, easing).next(() => state = 'open');
-            }
+            return xnew.transition((x: number) => content.transition(x), duration, easing);
         },
         close() {
-            if (state === 'open') {
-                state = 'closing';
-                xnew.transition((x: number) => content.transition(outer, inner, 1.0 - x), duration, easing).next(() => state = 'closed');
-            }
+            return xnew.transition((x: number) => content.transition(1.0 - x), duration, easing);
         },
-        transition(outer: HTMLElement, inner: HTMLElement, x: number) {
+        transition(x: number) {
+            status = x;
             if (x === 0.0) {
                 outer.style.display = 'none';
             } else if (x < 1.0) {
@@ -67,13 +64,6 @@ export function AccordionContent(content: xnew.Unit,
                 outer.style.height = 'auto';
                 outer.style.opacity = '1.0';
                 outer.style.display = 'block';
-            }
-        },
-        toggle() {
-            if (state === 'open') {
-                content.close();
-            } else if (state === 'closed') {
-                content.open();
             }
         },
     };

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  <script>
+    xnew('#main', (self) => {
+      xnew.extend(xnew.TabFrame);
+
+      xnew('<div style="display: flex;">', () => {
+        xnew(TabButton, { name: 'Content 1' });
+        xnew(TabButton, { name: 'Content 2' });
+        xnew(TabButton, { name: 'Content 3' });
+      });
+
+      xnew(Content1);
+      xnew(Content2);
+      xnew(Content3);
+    });
+
+    function TabButton(self, { name }) {
+      xnew.extend(xnew.TabButton);
+      xnew('<div style="margin: 6px; padding: 4px;">', name);
+    }
+
+    function Content1(self) {
+      xnew.extend(xnew.TabContent);
+      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222; background: #eef;">');
+    
+      xnew('<p>', 'content 1');
+    }
+ 
+    function Content2(self) {
+      xnew.extend(xnew.TabContent);
+      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222; background: #efe;">');
+
+      xnew('<p>', 'content 2');
+    }
+
+    function Content3(self) {
+      xnew.extend(xnew.TabContent);
+      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222; background: #fee;">');
+
+      xnew('<p>', 'content 3');
+    }
+  </script>
+</body>
+
+</html>

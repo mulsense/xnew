@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+  <div id="main" style="width: 100%; height: 100%;"></div>
+  <script>
+    xnew('#main', (self) => {
+      xnew(MyAccordion)
+    });
+
+    function MyAccordion(frame) {
+      xnew.extend(xnew.AccordionFrame, { open: true, duration: 300, easing: 'ease' });
+      xnew.nest('<div style="width: 300px; border: solid 1px #000; border-radius: 6px;">');
+
+      xnew((button) => {
+        xnew.extend(xnew.AccordionButton);
+        xnew('<div style="padding: 6px; user-select: none; cursor: pointer;">', 'accordion (click me!)');
+      });
+
+      xnew((content) => {
+        xnew.extend(xnew.AccordionContent);
+        xnew.nest('<div style="padding: 6px; border-top: solid 1px #000;">');
+        xnew('<span>', 'Content');
+        xnew('<ul>', () => {
+          xnew('<li>', '1st item');
+          xnew('<li>', '2nd item');
+          xnew('<li>', '3rd item');
+        });
+      });
+
+      frame.on('-open', () => {
+        console.log('-open');
+      })
+      frame.on('-close', () => {
+        console.log('-close');
+      })
+    }
+  </script>
+</body>
+
+</html>

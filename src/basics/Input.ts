@@ -15,5 +15,8 @@ export function InputFrame(frame: xnew.Unit,
         xnew.listener(element).on('change', (event: Event) => {
             frame.emit('-change', { event });
         });
+        xnew.listener(element).on('click', (event: Event) => {
+            frame.emit('-click', { event });
+        });
     });
 }

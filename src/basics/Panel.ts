@@ -17,16 +17,8 @@ export function PanelGroup(group: xnew.Unit,
         xnew.nest('<div style="margin: 0.2em; cursor: pointer">');
         const arrow = xnew(BulletArrow, { rotate: open ? 90 : 0 });
         xnew('<span style="margin-left: 0.4em;">', name);
-        button.off('click');
-        button.on('click', () => {
-            if (group.content?.state === 'open') {
-                group.close();
-                arrow.rotate(0);
-            } else if (group.content?.state === 'closed') {
-                group.open();
-                arrow.rotate(90);
-            }
-        });
+        group.on('-open', () => arrow.rotate(90));
+        group.on('-close', () => arrow.rotate(0));
         button.on('mouseenter', () => button.element.style.opacity = '0.7');
         button.on('mouseleave', () => button.element.style.opacity = '1.0');
     });

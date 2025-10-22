@@ -1304,26 +1304,39 @@ function InputFrame(frame, {} = {}) {
         xnew$1.listener(element).on('change', (event) => {
             frame.emit('-change', { event });
         });
+        xnew$1.listener(element).on('click', (event) => {
+            frame.emit('-click', { event });
+        });
     });
 }
 
-function ModalFrame(frame, { className, style, duration = 200, easing = 'ease' } = {}) {
+function ModalFrame(frame, {} = {}) {
     xnew$1.context('xnew.modalframe', frame);
-    const div = xnew$1.nest('<div style="position: fixed; inset: 0; opacity: 0;">', { className, style });
+    xnew$1.nest('<div style="position: fixed; inset: 0;">');
     let content = null;
-    xnew$1().on('click', (event) => {
-        if (div === event.target) {
-            frame.close();
-        }
+    xnew$1.capture((unit) => unit.components.includes(ModalContent), (unit) => {
+        content = unit;
     });
-    xnew$1.timeout(() => frame.open());
+    xnew$1().on('click', (event) => {
+        frame === null || frame === void 0 ? void 0 : frame.close();
+    });
     return {
-        set content(unit) {
-            content = unit;
-        },
-        get content() {
-            return content;
-        },
+        close() {
+            frame.emit('-close');
+            content === null || content === void 0 ? void 0 : content.close();
+        }
+    };
+}
+function ModalContent(content, { duration = 200, easing = 'ease', background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+    const frame = xnew$1.context('xnew.modalframe');
+    const div = xnew$1.nest('<div style="width: 100%; height: 100%; opacity: 0;">');
+    div.style.background = background;
+    xnew$1.nest('<div style="position: absolute; inset: 0;  margin: auto; width: max-content; height: max-content;">');
+    xnew$1().on('click', (event) => {
+        event.stopPropagation();
+    });
+    xnew$1.timeout(() => content.open());
+    return {
         open() {
             xnew$1.transition((x) => div.style.opacity = x.toString(), duration, easing);
         },
@@ -1332,56 +1345,45 @@ function ModalFrame(frame, { className, style, duration = 200, easing = 'ease' }
         }
     };
 }
-function ModalContent(content, { className, style } = {}) {
-    const frame = xnew$1.context('xnew.modalframe');
-    frame.content = content;
-    xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-    xnew$1.nest('<div>', { className, style });
-}
 
 function TabFrame(frame, { select = 0 } = {}) {
     xnew$1.context('xnew.tabframe', frame);
-    const tabs = [];
+    const buttons = [];
     const contents = [];
-    const timeout = xnew$1.timeout(() => frame.select(select));
-    return {
-        get tabs() {
-            return tabs;
-        },
-        get contents() {
-            return contents;
-        },
-        select(index) {
-            timeout.clear();
-            const tab = tabs[index];
-            const content = contents[index];
-            tabs.filter((item) => item !== tab).forEach((item) => item.deselect());
-            contents.filter((item) => item !== content).forEach((item) => item.deselect());
-            tab.select();
-            content.select();
-        }
-    };
-}
-function TabButton(self, {} = {}) {
-    const frame = xnew$1.context('xnew.tabframe');
-    frame.tabs.push(self);
-    xnew$1.nest('<div>');
-    self.on('click', () => {
-        frame.select(frame.tabs.indexOf(self));
+    xnew$1.capture((unit) => unit.components.includes(TabButton), (unit) => {
+        buttons.push(unit);
     });
+    xnew$1.capture((unit) => unit.components.includes(TabContent), (unit) => {
+        contents.push(unit);
+    });
+    frame.on('-click', ({ unit }) => execute(buttons.indexOf(unit)));
+    const timeout = xnew$1.timeout(() => execute(select));
+    function execute(index) {
+        timeout.clear();
+        const button = buttons[index];
+        const content = contents[index];
+        buttons.filter((item) => item !== button).forEach((item) => item.deselect());
+        contents.filter((item) => item !== content).forEach((item) => item.deselect());
+        button.select();
+        content.select();
+    }
+}
+function TabButton(button, {} = {}) {
+    const frame = xnew$1.context('xnew.tabframe');
+    xnew$1.nest('<div>');
+    button.on('click', () => frame.emit('-click', { unit: button }));
     return {
         select() {
-            Object.assign(self.element.style, { opacity: 1.0, cursor: 'text' });
+            Object.assign(button.element.style, { opacity: 1.0, cursor: 'text' });
         },
         deselect() {
-            Object.assign(self.element.style, { opacity: 0.6, cursor: 'pointer' });
+            Object.assign(button.element.style, { opacity: 0.6, cursor: 'pointer' });
         }
     };
 }
-function TabContent(self, { className, style } = {}) {
-    const frame = xnew$1.context('xnew.tabframe');
-    frame.contents.push(self);
-    xnew$1.nest('<div>', { className, style });
+function TabContent(self, {} = {}) {
+    xnew$1.context('xnew.tabframe');
+    xnew$1.nest('<div>');
     return {
         select() {
             Object.assign(self.element.style, { display: 'block' });
@@ -1392,47 +1394,46 @@ function TabContent(self, { className, style } = {}) {
     };
 }
 
-function AccordionFrame(frame, { duration = 200, easing = 'ease' } = {}) {
-    xnew$1.context('xnew.accordionframe', frame);
+function AccordionFrame(frame, {} = {}) {
+    xnew$1.context('xnew.accordionframe', { frame });
     let content = null;
-    xnew$1.capture((unit) => {
-        return unit.components.includes(AccordionContent);
-    }, (unit) => {
+    xnew$1.capture((unit) => unit.components.includes(AccordionContent), (unit) => {
         content = unit;
     });
-    return {
-        get content() {
-            return content;
-        },
-    };
+    frame.on('-toggle', () => {
+        if ((content === null || content === void 0 ? void 0 : content.status) === 1.0) {
+            frame.emit('-close');
+            content.close();
+        }
+        else if ((content === null || content === void 0 ? void 0 : content.status) === 0.0) {
+            frame.emit('-open');
+            content.open();
+        }
+    });
 }
 function AccordionButton(button, {} = {}) {
-    const frame = xnew$1.context('xnew.accordionframe');
+    const { frame } = xnew$1.context('xnew.accordionframe');
     xnew$1.nest('<div>');
-    button.on('click', () => { var _a; return (_a = frame.content) === null || _a === void 0 ? void 0 : _a.toggle(); });
+    xnew$1().on('click', () => frame.emit('-toggle'));
 }
 function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {
+    xnew$1.context('xnew.accordionframe');
     const outer = xnew$1.nest('<div>');
     const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-    let state = open ? 'open' : 'closed';
-    outer.style.display = state === 'open' ? 'block' : 'none';
+    let status = open ? 1.0 : 0.0;
+    outer.style.display = status ? 'block' : 'none';
     return {
-        get state() {
-            return state;
+        get status() {
+            return status;
         },
         open() {
-            if (state === 'closed') {
-                state = 'opening';
-                xnew$1.transition((x) => content.transition(outer, inner, x), duration, easing).next(() => state = 'open');
-            }
+            return xnew$1.transition((x) => content.transition(x), duration, easing);
         },
         close() {
-            if (state === 'open') {
-                state = 'closing';
-                xnew$1.transition((x) => content.transition(outer, inner, 1.0 - x), duration, easing).next(() => state = 'closed');
-            }
+            return xnew$1.transition((x) => content.transition(1.0 - x), duration, easing);
         },
-        transition(outer, inner, x) {
+        transition(x) {
+            status = x;
             if (x === 0.0) {
                 outer.style.display = 'none';
             }
@@ -1449,14 +1450,6 @@ function AccordionContent(content, { open = false, duration = 200, easing = 'eas
                 outer.style.display = 'block';
             }
         },
-        toggle() {
-            if (state === 'open') {
-                content.close();
-            }
-            else if (state === 'closed') {
-                content.open();
-            }
-        },
     };
 }
 
@@ -1471,18 +1464,8 @@ function PanelGroup(group, { className, style, name, open = false } = {}) {
         xnew$1.nest('<div style="margin: 0.2em; cursor: pointer">');
         const arrow = xnew$1(BulletArrow, { rotate: open ? 90 : 0 });
         xnew$1('<span style="margin-left: 0.4em;">', name);
-        button.off('click');
-        button.on('click', () => {
-            var _a, _b;
-            if (((_a = group.content) === null || _a === void 0 ? void 0 : _a.state) === 'open') {
-                group.close();
-                arrow.rotate(0);
-            }
-            else if (((_b = group.content) === null || _b === void 0 ? void 0 : _b.state) === 'closed') {
-                group.open();
-                arrow.rotate(90);
-            }
-        });
+        group.on('-open', () => arrow.rotate(90));
+        group.on('-close', () => arrow.rotate(0));
         button.on('mouseenter', () => button.element.style.opacity = '0.7');
         button.on('mouseleave', () => button.element.style.opacity = '1.0');
     });

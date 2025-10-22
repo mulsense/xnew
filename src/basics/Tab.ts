@@ -5,56 +5,54 @@ export function TabFrame(frame: xnew.Unit,
 ) {
     xnew.context('xnew.tabframe', frame);
 
-    const tabs: xnew.Unit[] = [];
+    const buttons: xnew.Unit[] = [];
     const contents: xnew.Unit[] = [];
-    
-    const timeout = xnew.timeout(() => frame.select(select));
-    return {
-        get tabs() {
-            return tabs;
-        },
-        get contents() {
-            return contents;
-        },
-        select(index: number) {
-            timeout.clear();
-            const tab = tabs[index];
-            const content = contents[index];
-            tabs.filter((item: xnew.Unit) => item !== tab).forEach((item: xnew.Unit) => item.deselect());
-            contents.filter((item: xnew.Unit) => item !== content).forEach((item: xnew.Unit) => item.deselect());
-            tab.select();
-            content.select();
-        }
+
+    xnew.capture((unit: xnew.Unit) => unit.components.includes(TabButton), (unit: xnew.Unit) => {
+        buttons.push(unit);
+    });
+    xnew.capture((unit: xnew.Unit) => unit.components.includes(TabContent), (unit: xnew.Unit) => {
+        contents.push(unit);
+    });
+    frame.on('-click', ({ unit } : { unit: xnew.Unit }) => execute(buttons.indexOf(unit)));
+
+    const timeout = xnew.timeout(() => execute(select));
+
+    function execute(index: number) {
+        timeout.clear();
+        const button = buttons[index];
+        const content = contents[index];
+        buttons.filter((item: xnew.Unit) => item !== button).forEach((item: xnew.Unit) => item.deselect());
+        contents.filter((item: xnew.Unit) => item !== content).forEach((item: xnew.Unit) => item.deselect());
+        button.select();
+        content.select();
     }
 }
-export function TabButton(self: xnew.Unit, 
+
+export function TabButton(button: xnew.Unit, 
     {}: {} = {}
 ) {
     const frame = xnew.context('xnew.tabframe');
-    frame.tabs.push(self);
 
     xnew.nest('<div>');
 
-    self.on('click', () => {
-        frame.select(frame.tabs.indexOf(self));
-    });
+    button.on('click', () => frame.emit('-click', { unit: button }));
     return {
         select() {
-            Object.assign(self.element.style, { opacity: 1.0, cursor: 'text' });
+            Object.assign(button.element.style, { opacity: 1.0, cursor: 'text' });
         },
         deselect() {
-            Object.assign(self.element.style, { opacity: 0.6, cursor: 'pointer' });
+            Object.assign(button.element.style, { opacity: 0.6, cursor: 'pointer' });
         }
     }
 }
 
 export function TabContent(self: xnew.Unit,
-    { className, style }: { className?: string, style?: Partial<CSSStyleDeclaration> } = {}
+    {}: {} = {}
 ) {
     const frame = xnew.context('xnew.tabframe');
-    frame.contents.push(self);
 
-    xnew.nest('<div>', { className, style });
+    xnew.nest('<div>');
 
     return {
         select() {
