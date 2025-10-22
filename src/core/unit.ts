@@ -170,6 +170,14 @@ export class Unit {
         return this;
     }
 
+    emit(type: string, ...args: any[]) {
+        try {
+            UnitEvent.emit(type, ...args);
+        } catch (error: unknown) {
+            console.error('unit.emit(type, ...args): ', error);
+        }
+    }
+    
     //----------------------------------------------------------------------------------------------------
     // internal
     //----------------------------------------------------------------------------------------------------

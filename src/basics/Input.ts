@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 
-export function InputFrame(self: xnew.Unit,
+export function InputFrame(frame: xnew.Unit,
     {}: {} = {}
 ) {
     xnew.nest('<div>');
@@ -10,10 +10,10 @@ export function InputFrame(self: xnew.Unit,
     }, (unit: xnew.Unit) => {   
         const element = unit.element as HTMLInputElement;
         xnew.listener(element).on('input', (event: Event) => {
-            xnew.emit('-input', { event });
+            frame.emit('-input', { event });
         });
         xnew.listener(element).on('change', (event: Event) => {
-            xnew.emit('-change', { event });
+            frame.emit('-change', { event });
         });
     });
 }

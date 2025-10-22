@@ -41,6 +41,7 @@ declare class Unit {
     get components(): Function[];
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit;
     off(type?: string, listener?: Function): Unit;
+    emit(type: string, ...args: any[]): void;
     static initialize(unit: Unit): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string, ...args: any[]): HTMLElement | SVGElement | null;

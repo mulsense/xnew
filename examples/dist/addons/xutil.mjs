@@ -36,21 +36,21 @@ function AnalogStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, strok
         target.element.style.filter = 'brightness(90%)';
         target.element.style.left = vector.x * size / 4 + 'px';
         target.element.style.top = vector.y * size / 4 + 'px';
-        xnew.emit('-down', { vector });
+        self.emit('-down', { vector });
     });
     user.on('-dragmove', ({ event, position }) => {
         const vector = getVector(position);
         target.element.style.filter = 'brightness(90%)';
         target.element.style.left = vector.x * size / 4 + 'px';
         target.element.style.top = vector.y * size / 4 + 'px';
-        xnew.emit('-move', { vector });
+        self.emit('-move', { vector });
     });
     user.on('-dragend', ({ event }) => {
         const vector = { x: 0, y: 0 };
         target.element.style.filter = '';
         target.element.style.left = vector.x * size / 4 + 'px';
         target.element.style.top = vector.y * size / 4 + 'px';
-        xnew.emit('-up', { vector });
+        self.emit('-up', { vector });
     });
     function getVector(position) {
         const x = position.x - size / 2;
@@ -93,7 +93,7 @@ function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#0
         targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
         targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
         targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-        xnew.emit('-down', { vector });
+        self.emit('-down', { vector });
     });
     user.on('-dragmove', ({ event, position }) => {
         const vector = getVector(position);
@@ -101,7 +101,7 @@ function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#0
         targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
         targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
         targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-        xnew.emit('-move', { vector });
+        self.emit('-move', { vector });
     });
     user.on('-dragend', ({ event }) => {
         const vector = { x: 0, y: 0 };
@@ -109,7 +109,7 @@ function DPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#0
         targets[1].element.style.filter = '';
         targets[2].element.style.filter = '';
         targets[3].element.style.filter = '';
-        xnew.emit('-up', { vector });
+        self.emit('-up', { vector });
     });
     function getVector(position) {
         const x = position.x - size / 2;
@@ -132,11 +132,11 @@ function CircleButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, strok
     const user = xnew(xnew.UserEvent);
     user.on('-dragstart', (event) => {
         target.element.style.filter = 'brightness(90%)';
-        xnew.emit('-down', event);
+        self.emit('-down', event);
     });
     user.on('-dragend', (event) => {
         target.element.style.filter = '';
-        xnew.emit('-up', event);
+        self.emit('-up', event);
     });
 }
 

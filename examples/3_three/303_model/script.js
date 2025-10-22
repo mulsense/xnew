@@ -98,7 +98,7 @@ function Model(self, { gltf }) {
     function onLoopFinished(event) {
       if (event.action === currentAction) {
         mixer.removeEventListener('loop', onLoopFinished);
-        xnew.emit('+executeCrossFade', currentAction, nextAction, duration);
+        self.emit('+executeCrossFade', currentAction, nextAction, duration);
       }
     }
   });
@@ -149,9 +149,9 @@ function Panel(self) {
 
           if (currentAction !== nextAction) {
             if (select === 'idle' || !currentAction || !nextAction) {
-              xnew.emit('+executeCrossFade', currentAction, nextAction, 0.35);
+              self.emit('+executeCrossFade', currentAction, nextAction, 0.35);
             } else {
-              xnew.emit('+synchronizeCrossFade', currentAction, nextAction, 0.35);
+              self.emit('+synchronizeCrossFade', currentAction, nextAction, 0.35);
             }
             select = nextAction ? nextAction.getClip().name : 'none';
           }
@@ -178,7 +178,7 @@ function Panel(self) {
        
           frame.on('-input', ({ event }) => {
             settings.weight = parseFloat(event.target.value);
-            xnew.emit('+setWeight', settings.action, settings.weight);
+            self.emit('+setWeight', settings.action, settings.weight);
           });
         });
       }
@@ -198,7 +198,7 @@ function Panel(self) {
 
         xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" style="margin: 0; width: 100%">');
         frame.on('-input', ({ event }) => {
-          xnew.emit('+speed', parseFloat(event.target.value));
+          self.emit('+speed', parseFloat(event.target.value));
         });
       });
     });
