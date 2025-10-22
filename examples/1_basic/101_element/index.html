@@ -4,10 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
-<body>
-  <div id="main" style="position: relative; width: 100%; height: 100vh;"></div>
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  
   <script>
     xnew('#main', (self) => {
       xnew(MyDiv);
@@ -16,22 +18,20 @@
     });
 
     function Template(self, { name }) {
-      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222;">');
-      xnew('<div style="margin: 6px 0 ;">', name);
-      xnew.nest('<div style="display: flex; column-gap: 16px; flex-wrap: wrap;">');
+      xnew.nest('<div class="m-2 p-2 border rounded-lg border-gray-600">');
+      xnew('<div class="my-2">', name);
+      xnew.nest('<div class="flex gap-x-2 flex-wrap">');
     }
 
     function MyDiv(self) {
       xnew.extend(Template, { name: 'my div' });
 
-      xnew('<div style="width: 160px; height: 36px; background: #d66;">', '1');
-
-      xnew('<div style="width: 160px; height: 36px; background: #6d6;">', (self) => {
+      xnew('<div class="w-32 h-8 bg-red-400 border rounded">', '1');
+      xnew('<div class="w-32 h-8 bg-green-400 border rounded">', (self) => {
         self.element.textContent = '2';
       });
-
       xnew((self) => {
-        xnew.nest('<div style="width: 160px; height: 36px; background: #66d;">');
+        xnew.nest('<div class="w-32 h-8 bg-blue-400 border rounded">');
         self.element.textContent = '3';
       });
     }
@@ -41,15 +41,15 @@
 
       xnew('<div>', (self) => {
         let count = 0;
-        const button = xnew('<button>', 'click me');
+        const button = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer bg-blue-200 hover:opacity-50">', 'click me');
         button.on('click', () => {
           button.element.textContent = `count: ${count++}`;
         });
       });
 
       xnew('<div>', (self) => {
-        const input = xnew('<input type="text">');
-        const text = xnew('<span style="margin: 0 8px;">');
+        const input = xnew('<input type="text" class="px-2 h-8 border rounded-lg" placeholder="type here">');
+        const text = xnew('<span class="ml-2">');
 
         input.on('change input', () => {
           text.element.textContent = input.element.value;
@@ -57,13 +57,13 @@
       });
 
       xnew('<div>', (self) => {
-        const select = xnew('<select>', () => {
+        const select = xnew('<select class="px-2 h-8 border rounded-lg">', () => {
           xnew('<option value="one">', 'one');
           xnew('<option value="two">', 'two');
           xnew('<option value="three">', 'three');
         });
 
-        const text = xnew('<span style="margin: 0 8px;">', 'one');
+        const text = xnew('<span style="margin: 0 8px;">');
         select.on('change', (event) => {
           text.element.textContent = event.target.value;
         });
@@ -72,9 +72,9 @@
 
     function MySVG(self) {
       xnew.extend(Template, { name: 'my svg' });
-      xnew('<svg viewBox="0 0 100 100" style="width: 120px; height: 120px; stroke: #000;">', () => {
-        xnew('<circle cx="20" cy="20" r="40" style="fill: #6c0;">');
-        xnew('<rect x="40" y="40" width="80" height="80" style="fill: #06c;">');
+      xnew('<svg viewBox="0 0 100 100" class="w-30 h-30 border rounded-lg" style="stroke: #000;">', () => {
+        xnew('<circle cx="20" cy="20" r="40" class="fill-current text-green-600">');
+        xnew('<rect x="40" y="40" width="80" height="80" class="fill-current text-blue-600">');
       });
     }
 

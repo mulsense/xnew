@@ -12,15 +12,15 @@ function Controller(self) {
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
   // virtual joyscick
-  const stick = xnew('<div style="position: absolute; left: 10px; bottom: 10px;">', xutil.AnalogStick, { size: 130 });
+  const stick = xnew('<div class="absolute left-4 bottom-4">', xutil.AnalogStick, { size: 130 });
   stick.on('-down -move -up', ({ vector }) => self.emit('+move', { vector }));
 
   // virtual D-pad
-  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 150px;">', xutil.DPad, { size: 130 });
+  const dpad = xnew('<div class="absolute left-4 bottom-40">', xutil.DPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => self.emit('+move', { vector }));
 
   // virtual button
-  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xutil.CircleButton);
+  const button = xnew('<div class="absolute right-8 bottom-8">', xutil.CircleButton);
   button.on('-down', () => self.emit('+action'));
 
   // keyboard
@@ -36,7 +36,7 @@ function Controller(self) {
 }
 
 function Box(self) {
-  const box = xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;">');
+  const box = xnew.nest('<div class="absolute w-48 h-48 inset-0 m-auto bg-blue-500">');
   let current = { x: 0, y: 0, r: 0 };
   let move = { x: 0, y: 0 };
   let direction = +1;

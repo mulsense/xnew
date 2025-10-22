@@ -4,25 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
-<body>
-  <div id="main" style="position: relative; width: 100%; height: 100vh;"></div>
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew('#main', (self) => {
-      xnew.nest('<div style="display: flex; gap: 12px; padding: 12px;">');
+      xnew.nest('<div class="p-2 flex gap-x-4 flex-wrap">');
         
       xnew('<div>', (self) => {
         xnew('<p>', 'canvas');
-        xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
-        const unit = xnew('<canvas width="400" height="200" style="width: 100%; border: 1px solid #ccc;">');
+        const unit = xnew('<canvas width="400" height="200" class="w-full">');
         draw(unit)
       });
 
       xnew('<div>', (self) => {
         xnew('<p>', 'screen: contain');
-        xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'contain' });
         draw(screen)
@@ -30,7 +31,7 @@
       
       xnew('<div>', (self) => {
         xnew('<p>', 'screen: cover');
-        xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'cover' });
         draw(screen)
@@ -38,7 +39,7 @@
 
       xnew('<div>', (self) => {
         xnew('<p>', 'screen: fill');
-        xnew.nest('<div style="width: 120px; height: 120px; border: 1px solid #A0A;">');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'fill' });
         draw(screen)

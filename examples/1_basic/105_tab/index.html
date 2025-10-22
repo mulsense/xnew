@@ -4,20 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
-<body>
-  <div id="main" style="position: relative; width: 100%; height: 100vh;"></div>
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew('#main', (self) => {
       xnew.extend(xnew.TabFrame);
+      xnew.nest('<div class="p-2">')
 
-      xnew('<div style="display: flex;">', () => {
-        xnew(TabButton, { name: 'Content 1' });
-        xnew(TabButton, { name: 'Content 2' });
-        xnew(TabButton, { name: 'Content 3' });
+      xnew('<div class="flex">', () => {
+        xnew(TabButton, { name: 'Tab 1' });
+        xnew(TabButton, { name: 'Tab 2' });
+        xnew(TabButton, { name: 'Tab 3' });
       });
-
       xnew(Content1);
       xnew(Content2);
       xnew(Content3);
@@ -25,27 +26,24 @@
 
     function TabButton(self, { name }) {
       xnew.extend(xnew.TabButton);
-      xnew('<div style="margin: 6px; padding: 4px;">', name);
+      xnew('<div class="m-2">', name);
     }
 
     function Content1(self) {
       xnew.extend(xnew.TabContent);
-      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222; background: #eef;">');
-    
+      xnew.nest('<div class="p-2 border rounded-lg bg-red-100">');
       xnew('<p>', 'content 1');
     }
  
     function Content2(self) {
       xnew.extend(xnew.TabContent);
-      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222; background: #efe;">');
-
+      xnew.nest('<div class="p-2 border rounded-lg bg-green-100">');
       xnew('<p>', 'content 2');
     }
 
     function Content3(self) {
       xnew.extend(xnew.TabContent);
-      xnew.nest('<div style="margin: 4px; padding: 8px 4px; border: solid 1px #222; background: #fee;">');
-
+      xnew.nest('<div class="p-2 border rounded-lg bg-blue-100">');
       xnew('<p>', 'content 3');
     }
   </script>

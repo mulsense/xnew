@@ -1475,19 +1475,23 @@ function BulletArrow(self, { rotate = 0 } = {}) {
 }
 
 function DragFrame(frame, { x = 0, y = 0 } = {}) {
-    xnew$1.context('xnew.dragframe', frame);
-    xnew$1.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
+    const absolute = xnew$1.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
+    xnew$1.context('xnew.dragframe', { frame, absolute });
 }
 function DragTarget(target, {} = {}) {
-    const frame = xnew$1.context('xnew.dragframe');
+    const { frame, absolute } = xnew$1.context('xnew.dragframe');
     xnew$1.nest('<div>');
-    const user = xnew$1(UserEvent);
+    const user = xnew$1(absolute.parentElement, UserEvent);
+    const current = { x: 0, y: 0 };
+    user.on('-dragstart', ({ event, position }) => {
+        current.x = parseFloat(absolute.style.left || '0') + position.x;
+        current.y = parseFloat(absolute.style.top || '0') + position.y;
+    });
     user.on('-dragmove', ({ event, delta }) => {
-        console.log('dragmove', delta);
-        const style = frame.element.style;
-        frame.element.style.left = `${parseFloat(style.left || '0') + delta.x}px`;
-        frame.element.style.top = `${parseFloat(style.top || '0') + delta.y}px`;
-        console.log('dragmove', { x: frame.element.style.left, y: frame.element.style.top });
+        current.x += delta.x;
+        current.y += delta.y;
+        absolute.style.left = `${current.x}px`;
+        absolute.style.top = `${current.y}px`;
     });
 }
 
