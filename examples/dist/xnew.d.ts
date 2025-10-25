@@ -66,6 +66,7 @@ interface xnewtype extends xnewtype$1 {
     ModalContent: Function;
     AccordionFrame: Function;
     AccordionButton: Function;
+    AccordionBullet: Function;
     AccordionContent: Function;
     TabFrame: Function;
     TabButton: Function;

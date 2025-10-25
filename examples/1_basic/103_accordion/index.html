@@ -21,7 +21,8 @@
 
       xnew((button) => {
         xnew.extend(xnew.AccordionButton);
-        xnew('<div class="p-2 select-none cursor-pointer">', 'accordion (click me!)');
+        xnew(xnew.AccordionBullet, { type: 'arrow' });
+        xnew('<div class="my-2 select-none cursor-pointer">', 'accordion (click me!)');
       });
 
       xnew((content) => {

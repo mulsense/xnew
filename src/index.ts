@@ -6,7 +6,7 @@ import { InputFrame } from './basics/Input';
 
 import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
-import { AccordionFrame, AccordionButton, AccordionContent } from './basics/Accordion';
+import { AccordionFrame, AccordionButton, AccordionBullet, AccordionContent } from './basics/Accordion';
 import { PanelFrame, PanelGroup } from './basics/Panel';
 import { DragFrame, DragTarget } from './basics/SubWIndow';
 import { VirtualStick, VirtualDPad, VirtualButton } from './basics/Controller';
@@ -22,6 +22,7 @@ interface xnewtype extends basetype {
     ModalContent: Function;
     AccordionFrame: Function;
     AccordionButton: Function;
+    AccordionBullet: Function;
     AccordionContent: Function;
     TabFrame: Function;
     TabButton: Function;
@@ -48,6 +49,7 @@ const xnew: xnewtype = Object.assign(base, {
     ModalContent,
     AccordionFrame,
     AccordionButton,
+    AccordionBullet,
     AccordionContent,
     TabFrame,
     TabButton,

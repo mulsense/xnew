@@ -14,22 +14,18 @@ export function AccordionFrame(frame: xnew.Unit,
         toggle() {
             if (content?.status === 1.0) {
                 frame.emit('-close');
-                content.deselect();
             } else if (content?.status === 0.0) {
                 frame.emit('-open');
-                content.select();
             }
         },
         open () {
             if (content?.status === 0.0) {
                 frame.emit('-open');
-                content.select();
             }
         },
         close () {
             if (content?.status === 1.0) {
                 frame.emit('-close');
-                content.deselect();
             }
         }
     }
@@ -39,9 +35,39 @@ export function AccordionButton(button: xnew.Unit,
     {}: {} = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');
-    xnew.nest('<button style="display: block; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none;">');
+    xnew.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
 
-    xnew().on('click', () => frame.toggle());   
+    xnew().on('click', () => frame.toggle());       
+}
+
+export function AccordionBullet(bullet: xnew.Unit,
+    { type = 'arrow' }: { type?: string } = {}
+) {
+    const frame = xnew.context('xnew.accordionframe');
+
+    xnew.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.4em;">');
+    frame.on('-transition', ({ status }: { status: number}) => bullet.update?.(status));
+    
+    if (type === 'arrow') {
+
+        const arrow = xnew(`<div style="width: 100%; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+
+        return {
+            update(status: number) {
+                arrow.element.style.transform = `rotate(${status * 90 - 45}deg)`;
+            }
+        }
+    } else if (type === 'plusminus') {
+        const line1 = xnew(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+        const line2 = xnew(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+        line2.element.style.transform = `rotate(90deg)`;
+
+        return {
+            update(status: number) {
+                line2.element.style.opacity = `${1.0 - status}`;
+            }
+        }
+    }
 }
 
 export function AccordionContent(content: xnew.Unit,
@@ -53,28 +79,35 @@ export function AccordionContent(content: xnew.Unit,
 
     let status = open ? 1.0 : 0.0;
     outer.style.display = status ? 'block' : 'none';
-    
+    frame.emit('-transition', { status });
+
+    frame.on('-open', () => {
+        xnew.transition((x: number) => {
+            status = x;
+            frame.emit('-transition', { status });
+            content.update(status);
+        }, duration, easing);
+    });
+    frame.on('-close', () => {
+        xnew.transition((x: number) => {
+            status = 1.0 - x;
+            frame.emit('-transition', { status });
+            content.update(status);
+        }, duration, easing);
+    });
     return {
         get status() {
             return status;
         },
-        select() {
-            xnew.transition((x: number) => content.transition(x), duration, easing);
-        },
-        deselect() {
-            xnew.transition((x: number) => content.transition(1.0 - x), duration, easing);
-        },
-        transition(x: number) {
-            status = x;
+        update(status: number) {
             outer.style.display = 'block';
-            if (x === 0.0) {
+            if (status === 0.0) {
                 outer.style.display = 'none';
-            } else if (x < 1.0) {
-                Object.assign(outer.style, { height: inner.offsetHeight * x + 'px', overflow: 'hidden', opacity: x });
+            } else if (status < 1.0) {
+                Object.assign(outer.style, { height: inner.offsetHeight * status + 'px', overflow: 'hidden', opacity: status });
             } else {
                 Object.assign(outer.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
             }
         },
     };
 }
-

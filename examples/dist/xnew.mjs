@@ -1394,56 +1394,83 @@ function AccordionFrame(frame, {} = {}) {
         toggle() {
             if ((content === null || content === void 0 ? void 0 : content.status) === 1.0) {
                 frame.emit('-close');
-                content.deselect();
             }
             else if ((content === null || content === void 0 ? void 0 : content.status) === 0.0) {
                 frame.emit('-open');
-                content.select();
             }
         },
         open() {
             if ((content === null || content === void 0 ? void 0 : content.status) === 0.0) {
                 frame.emit('-open');
-                content.select();
             }
         },
         close() {
             if ((content === null || content === void 0 ? void 0 : content.status) === 1.0) {
                 frame.emit('-close');
-                content.deselect();
             }
         }
     };
 }
 function AccordionButton(button, {} = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
-    xnew$1.nest('<button style="display: block; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none;">');
+    xnew$1.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
     xnew$1().on('click', () => frame.toggle());
 }
+function AccordionBullet(bullet, { type = 'arrow' } = {}) {
+    const frame = xnew$1.context('xnew.accordionframe');
+    xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.4em;">');
+    frame.on('-transition', ({ status }) => { var _a; return (_a = bullet.update) === null || _a === void 0 ? void 0 : _a.call(bullet, status); });
+    if (type === 'arrow') {
+        const arrow = xnew$1(`<div style="width: 100%; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+        return {
+            update(status) {
+                arrow.element.style.transform = `rotate(${status * 90 - 45}deg)`;
+            }
+        };
+    }
+    else if (type === 'plusminus') {
+        xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+        const line2 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+        line2.element.style.transform = `rotate(90deg)`;
+        return {
+            update(status) {
+                line2.element.style.opacity = `${1.0 - status}`;
+            }
+        };
+    }
+}
 function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {
-    xnew$1.context('xnew.accordionframe');
+    const frame = xnew$1.context('xnew.accordionframe');
     const outer = xnew$1.nest('<div>');
     const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
     let status = open ? 1.0 : 0.0;
     outer.style.display = status ? 'block' : 'none';
+    frame.emit('-transition', { status });
+    frame.on('-open', () => {
+        xnew$1.transition((x) => {
+            status = x;
+            frame.emit('-transition', { status });
+            content.update(status);
+        }, duration, easing);
+    });
+    frame.on('-close', () => {
+        xnew$1.transition((x) => {
+            status = 1.0 - x;
+            frame.emit('-transition', { status });
+            content.update(status);
+        }, duration, easing);
+    });
     return {
         get status() {
             return status;
         },
-        select() {
-            xnew$1.transition((x) => content.transition(x), duration, easing);
-        },
-        deselect() {
-            xnew$1.transition((x) => content.transition(1.0 - x), duration, easing);
-        },
-        transition(x) {
-            status = x;
+        update(status) {
             outer.style.display = 'block';
-            if (x === 0.0) {
+            if (status === 0.0) {
                 outer.style.display = 'none';
             }
-            else if (x < 1.0) {
-                Object.assign(outer.style, { height: inner.offsetHeight * x + 'px', overflow: 'hidden', opacity: x });
+            else if (status < 1.0) {
+                Object.assign(outer.style, { height: inner.offsetHeight * status + 'px', overflow: 'hidden', opacity: status });
             }
             else {
                 Object.assign(outer.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
@@ -1455,30 +1482,16 @@ function AccordionContent(content, { open = false, duration = 200, easing = 'eas
 function PanelFrame(frame) {
     xnew$1.context('xnew.panelframe', frame);
 }
-function PanelGroup(group, { className, style, name, open = false } = {}) {
+function PanelGroup(group, { name, open = false } = {}) {
     xnew$1.context('xnew.panelgroup', group);
-    xnew$1.extend(AccordionFrame, { className, style });
+    xnew$1.extend(AccordionFrame);
     xnew$1((button) => {
+        xnew$1.nest('<div style="margin: 0.2em 0;">');
         xnew$1.extend(AccordionButton);
-        xnew$1.nest('<div style="margin: 0.2em; cursor: pointer">');
-        const arrow = xnew$1(BulletArrow, { rotate: open ? 90 : 0 });
-        xnew$1('<span style="margin-left: 0.4em;">', name);
-        group.on('-open', () => arrow.rotate(90));
-        group.on('-close', () => arrow.rotate(0));
-        button.on('mouseenter', () => button.element.style.opacity = '0.7');
-        button.on('mouseleave', () => button.element.style.opacity = '1.0');
+        xnew$1(AccordionBullet);
+        xnew$1('<div>', name);
     });
     xnew$1.extend(AccordionContent, { open });
-}
-function BulletArrow(self, { rotate = 0 } = {}) {
-    const arrow = xnew$1(`<div style="display:inline-block; width: 0.5em; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
-    arrow.element.style.transform = `rotate(${rotate - 45}deg)`;
-    return {
-        rotate(rotate, transition = 200, easing = 'ease') {
-            arrow.element.style.transition = `transform ${transition}ms ${easing}`;
-            arrow.element.style.transform = `rotate(${rotate - 45}deg)`;
-        }
-    };
 }
 
 function DragFrame(frame, { x = 0, y = 0 } = {}) {
@@ -1645,6 +1658,7 @@ const xnew = Object.assign(xnew$1, {
     ModalContent,
     AccordionFrame,
     AccordionButton,
+    AccordionBullet,
     AccordionContent,
     TabFrame,
     TabButton,

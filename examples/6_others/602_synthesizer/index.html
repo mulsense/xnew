@@ -68,16 +68,16 @@
     }
 
     function CodeBlock() {
-      xnew.nest('<div class="w-[670px] p-1 border border-[#AAA] rounded text-sm">');
-      const code1 = xnew('<pre class="max-w-[1200px] user-select-text whitespace-pre-wrap p-1 m-1">');
-      const code2 = xnew('<pre class="max-w-[1200px] user-select-text whitespace-pre-wrap p-1 m-1">');
+      xnew.nest('<div class="w-[670px] p-1 border rounded-lg text-sm">');
+      const code1 = xnew('<pre class="user-select-text whitespace-pre-wrap p-1 m-1">');
+      const code2 = xnew('<pre class="user-select-text whitespace-pre-wrap p-1 m-1">');
       code1.on('+code1', (text) => code1.element.textContent = text);
       code2.on('+code2', (text) => code2.element.textContent = text);
     }
     
     function Oscillator(self) {
-      xnew.extend(Block, 'oscillator');
-
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(xnew.PanelGroup, { name: 'oscillator', open: true });
       const data = {};
       const waveform = xnew(Waveform, { value: 2 });
       const envelope = xnew(Envelope, { value: 0.0, min: -36.0, max: +36.0, step: 1, checkable: true });
@@ -94,7 +94,8 @@
     }
 
     function Filter(self) {
-      xnew.extend(Block, 'filter', true);
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(xnew.PanelGroup, { name: 'type', open: true });
 
       const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
       const cutoff = xnew(Slider, { name: 'cutoff', value: 1000, min: 100, max: 4000, step: 10 });
@@ -112,7 +113,8 @@
     }
 
     function Amp(self) {
-      xnew.extend(Block, 'amp');
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(xnew.PanelGroup, { name: 'amp', open: true });
 
       const envelope = xnew(Envelope, { value: 0.1, min: 0.0, max: 1.0, step: 0.1 });
       const lfo = xnew(LFO, { value: 0.1, min: 0.0, max: 1.0, step: 0.1 });
@@ -128,10 +130,12 @@
     }
 
     function Options(self) {
-      xnew.extend(Block, { name: 'effect' });
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(xnew.PanelGroup, { name: 'effect', open: true });
 
       const reverb = xnew((self) => {
-        xnew.extend(Section, { name: 'reverb', checkable: true });
+        xnew.extend(xnew.PanelGroup, { name: 'reverb', open: true });
+        xnew.extend(Check, { checkable: true });
 
         const time = xnew(Slider, { name: 'time', value: 1000, min: 0.0, max: 2000, step: 100 });
         const mix = xnew(Slider, { name: 'mix', value: 0.5, min: 0.0, max: 1.0, step: 0.1 });
@@ -142,7 +146,8 @@
       });
 
       const delay = xnew((self) => {
-        xnew.extend(Section, { name: 'delay', checkable: true });
+        xnew.extend(xnew.PanelGroup, { name: 'delay', open: true });
+        xnew.extend(Check, { checkable: true });
 
         const time = xnew(Slider, { name: 'time', value: 500, min: 0, max: 2000, step: 100 });
         const feedback = xnew(Slider, { name: 'feedback', value: 0.5, min: 0.0, max: 0.9, step: 0.1 });
@@ -168,14 +173,15 @@
     }
 
     function Waveform(self, { value = 0 }) {
-      xnew('<p>', 'type');
+      xnew.extend(xnew.PanelGroup, { name: 'type', open: true });
+      xnew.nest('<div class="flex">');
       const name = 'waveform' + xnew.find(Waveform).length;
       const labels = ['sine', 'triangle', 'square', 'sawtooth'];
       labels.forEach((label, i) => {
         xnew(`<label class="inline-block">`, (self) => {
           xnew.nest('<div class="flex flex-col items-center">');
           const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
-          const svg = xnew(`<svg class="block w-[30px] h-[20px] m-[4px]" viewBox="0 0 20 20">`);
+          const svg = xnew(`<svg class="block w-6 h-5 m-1" viewBox="0 0 20 20">`);
           let points = null;
           if (label === 'sine') {
             points = '0 10 2 3 5 0 8 3 10 10 12 17 15 20 18 17 20 10';
@@ -200,9 +206,10 @@
       }
     }
     function Envelope(self, { value, min, max, step, checkable = false }) {
-      xnew.extend(Section, { name: 'envelope', checkable });
+      xnew.extend(xnew.PanelGroup, { name: 'envelope', open: true });
+      xnew.extend(Check, { checkable });
 
-      const svg = xnew('<svg class="w-[120px] h-[60px] m-[8px] bg-[#000]" viewBox="0 0 300 150">');
+      const svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
       const amount = xnew(Slider, { name: 'amount', value, min, max, step });
       const attack = xnew(Slider, { name: 'attack', value: 200, min: 0, max: 500, step: 20 });
       const decay = xnew(Slider, { name: 'decay', value: 200, min: 0, max: 500, step: 20 });
@@ -210,10 +217,10 @@
       const release = xnew(Slider, { name: 'release', value: 200, min: 0, max: 500, step: 20 });
 
       render();
-      attack.input.on('change input', () => { render(); });
-      decay.input.on('change input', () => { render(); });
-      sustain.input.on('change input', () => { render(); });
-      release.input.on('change input', () => { render(); });
+      attack.on('-change -input', () => { render(); });
+      decay.on('-change -input', () => { render(); });
+      sustain.on('-change -input', () => { render(); });
+      release.on('-change -input', () => { render(); });
 
       function render() {
         const [A, D, S, R] = [attack.value, decay.value, sustain.value, release.value];
@@ -230,7 +237,8 @@
     }
 
     function LFO(self, { value, min, max, step }) {
-      xnew.extend(Section, { name: 'LFO', checkable: true });
+      xnew.extend(xnew.PanelGroup, { name: 'LFO', open: true });
+      xnew.extend(Check, { checkable: true });
 
       const waveform = xnew(Waveform, { value: 2 });
       const amount = xnew(Slider, { name: 'amount', value, min, max, step });
@@ -244,20 +252,22 @@
       };
     }
 
-    function Slider(self, { name, value, max, min, step }) {
-      xnew('<span>', name);
-      xnew.nest('<div class="flex items-center">');
-      const input = xnew(`<input type="range" class="w-[120px]" min="${min}" max="${max}" step="${step}" value="${value}">`);
-      const span = xnew('<span>', `${value}`);
-      input.on('change input', () => span.element.textContent = input.element.value);
+    function Slider(frame, { name, value, max, min, step }) {
+      xnew.extend(xnew.InputFrame);
+      xnew('<div class="flex justify-between text-sm">', (self) => {
+          xnew('<div class="flex-1">', name);
+          const status = xnew('<div class="flex-none">', `${value}`);
+          frame.on('-input', ({ event }) => {
+            status.element.textContent = event.target.value;
+          })
+      });
+      const input = xnew(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
       return {
         get value() { return Number(input.element.value); },
-        get input() { return input; },
       }
     }
 
     function Radio(self, { name, labels, value = 0 }) {
-      xnew('<span>', name);
       xnew.nest('<div>');
       labels.forEach((label, i) => {
         xnew(`<label class="inline-block">`, () => {
@@ -281,13 +291,8 @@
       xnew.extend(Check, { name, checkable });
     }
 
-    function Section(self, { name, checkable = false }) {
-      xnew.extend(Check, { name, checkable });
-    }
-
-    function Check(self, { name, checkable = false }) {
+    function Check(self, { checkable = false }) {
       xnew.nest('<div>');
-      xnew('<span class="text-lg">', name);
       let check = null;
 
       if (checkable) {
