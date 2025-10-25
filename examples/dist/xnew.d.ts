@@ -75,6 +75,9 @@ interface xnewtype extends xnewtype$1 {
     InputFrame: Function;
     DragFrame: Function;
     DragTarget: Function;
+    VirtualStick: Function;
+    VirtualDPad: Function;
+    VirtualButton: Function;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

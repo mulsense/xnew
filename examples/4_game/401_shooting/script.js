@@ -1,7 +1,6 @@
 import * as PIXI from 'pixi.js';
 import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
-import xutil from 'xnew/addons/xutil';
 import xaudio from 'xnew/addons/xaudio';
 
 const width = 800, height = 600;
@@ -84,11 +83,11 @@ function Controller(self) {
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // virtual D-Pad
-  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xutil.DPad, { size: 130 });
+  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xnew.VirtualDPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => self.emit('+move', vector));
 
   // virtual button
-  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xutil.CircleButton);
+  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xnew.VirtualButton);
   button.on('-down', () => self.emit('+shot'));
 
   // keyboard

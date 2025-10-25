@@ -1,10 +1,4 @@
-import xnew from 'xnew';
-
-export default {
-    AnalogStick,
-    DPad,
-    CircleButton,
-};
+import { xnew } from '../core/xnew';
 
 //----------------------------------------------------------------------------------------------------
 // controller
@@ -22,7 +16,7 @@ function SVGTemplate(self: xnew.Unit,
     ">`);
 }
 
-function AnalogStick(self: xnew.Unit,
+export function VirtualStick(self: xnew.Unit,
     { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
@@ -74,7 +68,7 @@ function AnalogStick(self: xnew.Unit,
     }
 }
 
-function DPad(self: xnew.Unit,
+export function VirtualDPad(self: xnew.Unit,
     { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
@@ -144,7 +138,7 @@ function DPad(self: xnew.Unit,
     }
 }
 
-function CircleButton(self: xnew.Unit,
+export function VirtualButton(self: xnew.Unit,
     { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);

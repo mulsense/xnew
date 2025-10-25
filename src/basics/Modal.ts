@@ -12,13 +12,13 @@ export function ModalFrame(frame: xnew.Unit,
     });
 
     xnew().on('click', (event: Event) => {
-        frame?.close();
+        frame?.deselect();
     });
 
     return {
         close() {
             frame.emit('-close');
-            content?.close();
+            content?.deselect();
         }
     }
 }
@@ -37,12 +37,12 @@ export function ModalContent(content: xnew.Unit,
         event.stopPropagation();
     });
 
-    xnew.timeout(() => content.open());
+    xnew.timeout(() => content.select());
     return {
-        open() {
+        select() {
             xnew.transition((x: number) => div.style.opacity = x.toString(), duration, easing);
         },
-        close() {
+        deselect() {
             xnew.transition((x: number) => div.style.opacity = (1.0 - x).toString(), duration, easing).next(() => frame.finalize());
         }
     }

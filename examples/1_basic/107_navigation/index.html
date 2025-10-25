@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <header id="header"></header>
+  <script>
+    xnew('#header', (self) => {
+      xnew.extend(NavigationFrame);
+      xnew.nest('<div class="h-12 p-2 flex items-center bg-gray-800 text-white">');
+      xnew('<h1 class="flex-none mx-4 text-lg font-bold">', 'Navigation Menu');
+
+      xnew('<div class="flex-auto mx-4 flex gap-x-4">', () => {
+        xnew('<div class="flex-none">', 'Item 1');
+        xnew('<div class="flex-none">', 'Item 2');
+        xnew('<div class="flex-none">', 'Item 3');
+      });
+
+      xnew('<div class="text-white">', () => {
+        xnew(NavigationMenuButton);
+      })
+    });
+    function NavigationFrame(self, {} = {}) {
+      xnew.nest('<nav>');
+    }
+
+    function NavigationMenuButton(self, { size = 40 } = {}) {
+      let isActive = false;
+
+      // Create hamburger button
+      const hamburger = xnew.nest('<div style="display: flex; position: relative; border: 2px solid currentColor; background: #333; border-radius: 8px; cursor: pointer; box-sizing: border-box;">');
+      hamburger.style.width = `${size}px`;
+      hamburger.style.height = `${size}px`;
+
+      // Create 3 hamburger lines
+      const line1 = xnew(`<div style="position: absolute; left: 0; right: 0; top: 30%; margin: auto; width: ${size*0.7}px; height: 1px; border: ${size*0.03}px solid currentColor;">`);
+      const line2 = xnew(`<div style="position: absolute; left: 0; right: 0; top: 50%; margin: auto; width: ${size*0.7}px; height: 1px; border: ${size*0.03}px solid currentColor;">`);
+      const line3 = xnew(`<div style="position: absolute; left: 0; right: 0; top: 70%; margin: auto; width: ${size*0.7}px; height: 1px; border: ${size*0.03}px solid currentColor;">`);
+      self.on('click', toggle);
+
+      let status = 0.0;
+      function toggle() {
+        isActive = !isActive;
+
+        if (status === 0.0) {
+          xnew.transition((x) => {
+            status = x;
+            line1.element.style.top = `${30 + 20 * x}%`;
+            line2.element.style.opacity = `${1.0 - x}`;
+            line3.element.style.top = `${70 - 20 * x}%`;
+            line1.element.style.transform = `rotate(${45 * x}deg)`;
+            line3.element.style.transform = `rotate(${-45 * x}deg)`;
+          }, 200, 'ease');
+        } else if (status === 1.0) {
+          xnew.transition((x) => {
+            status = 1.0 - x ;
+            line1.element.style.top = `${30 + 20 * (1.0 - x)}%`;
+            line2.element.style.opacity = `${x}`;
+            line3.element.style.top = `${70 - 20 * (1.0 - x)}%`;
+            line1.element.style.transform = `rotate(${45 * (1.0 - x)}deg)`;
+            line3.element.style.transform = `rotate(${-45 * (1.0 - x)}deg)`;
+          }, 200, 'ease');
+        }
+
+
+      }
+
+      return;
+      // // Toggle function
+      // function toggle() {
+      //     isActive = !isActive;
+
+      //     if (isActive) {
+      //         // Transform to X
+      //         lines[0].element.style.transform = 'translateY(9px) rotate(45deg)';
+      //         lines[1].element.style.opacity = '0';
+      //         lines[1].element.style.transform = 'translateX(-20px)';
+      //         lines[2].element.style.transform = 'translateY(-9px) rotate(-45deg)';
+      //         hamburger.element.style.background = '#667eea';
+      //         console.log('Hamburger menu opened');
+      //     } else {
+      //         // Transform back to hamburger
+      //         lines[0].element.style.transform = '';
+      //         lines[1].element.style.opacity = '1';
+      //         lines[1].element.style.transform = '';
+      //         lines[2].element.style.transform = '';
+      //         hamburger.element.style.background = '#333';
+      //         console.log('Hamburger menu closed');
+      //     }
+      // }
+
+      // Hover effect
+      hamburger.on('mouseenter', () => {
+          if (!isActive) {
+              hamburger.element.style.background = '#555';
+          }
+      });
+
+      hamburger.on('mouseleave', () => {
+          if (!isActive) {
+              hamburger.element.style.background = '#333';
+          }
+      });
+
+      // Click event
+  }
+  </script>
+</body>
+
+</html>

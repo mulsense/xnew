@@ -9,6 +9,7 @@ import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { AccordionFrame, AccordionButton, AccordionContent } from './basics/Accordion';
 import { PanelFrame, PanelGroup } from './basics/Panel';
 import { DragFrame, DragTarget } from './basics/SubWIndow';
+import { VirtualStick, VirtualDPad, VirtualButton } from './basics/Controller';
 
 import { Unit } from './core/unit';
 import { xnew as base, xnewtype as basetype } from './core/xnew';
@@ -30,6 +31,9 @@ interface xnewtype extends basetype {
     InputFrame: Function;
     DragFrame: Function;
     DragTarget: Function;
+    VirtualStick: Function;
+    VirtualDPad: Function;
+    VirtualButton: Function;
 }
 
 namespace xnew {
@@ -53,6 +57,9 @@ const xnew: xnewtype = Object.assign(base, {
     InputFrame,
     DragFrame,
     DragTarget,
+    VirtualStick,
+    VirtualDPad,
+    VirtualButton
 });
 
 export default xnew;

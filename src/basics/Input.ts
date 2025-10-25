@@ -5,9 +5,7 @@ export function InputFrame(frame: xnew.Unit,
 ) {
     xnew.nest('<div>');
 
-    xnew.capture((unit: xnew.Unit) => {
-        return unit.element.tagName.toLowerCase() === 'input';
-    }, (unit: xnew.Unit) => {   
+    xnew.capture((unit: xnew.Unit) => unit.element.tagName.toLowerCase() === 'input', (unit: xnew.Unit) => {   
         const element = unit.element as HTMLInputElement;
         xnew.listener(element).on('input', (event: Event) => {
             frame.emit('-input', { event });

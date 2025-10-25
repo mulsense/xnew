@@ -16,7 +16,7 @@
     });
 
     function MyAccordion(frame) {
-      xnew.extend(xnew.AccordionFrame, { open: true, duration: 300, easing: 'ease' });
+      xnew.extend(xnew.AccordionFrame);
       xnew.nest('<div class="w-64 border rounded-lg">');
 
       xnew((button) => {
@@ -25,7 +25,7 @@
       });
 
       xnew((content) => {
-        xnew.extend(xnew.AccordionContent);
+        xnew.extend(xnew.AccordionContent, { open: true, duration: 300, easing: 'ease' });
         xnew.nest('<div class="p-2 border-t">');
         xnew('<span>', 'Content');
         xnew('<ul>', () => {

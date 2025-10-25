@@ -81,29 +81,6 @@ export default [
         ],
     },
     {
-        input: './src/addons/xutil.ts',
-        output: [
-            {
-                file: './dist/addons/xutil.js',
-                format: 'umd',
-                extend: true,
-                name: 'xutil',
-                globals: { 'xnew': 'xnew' },
-            },
-            {
-                file: './dist/addons/xutil.mjs',
-                format: 'es',
-            },
-        ],
-        external: ['xnew'],
-        plugins: [
-            typescript({ tsconfig: 'tsconfig.addons.json' }),
-            copyto('./dist/addons/xutil.d.ts', './examples/dist/addons/xutil.d.ts'),
-            copyto('./dist/addons/xutil.js', './examples/dist/addons/xutil.js'),
-            copyto('./dist/addons/xutil.mjs', './examples/dist/addons/xutil.mjs'),
-        ],
-    },
-    {
         input: './src/addons/xaudio.ts',
         output: [
             {
