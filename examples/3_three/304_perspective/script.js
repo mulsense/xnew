@@ -75,7 +75,7 @@ function Event(self) {
 
 function ThreeMain(self) {
   const screen = xnew('#screen', xnew.Screen, { width: 1200, height: 800, fit: 'cover' });
-  xthree.initialize();
+  xthree.initialize({ canvas: screen.element });
 
   xnew(xnew.ResizeEvent).on('-resize', () => {
     xthree.camera.fov = fov();
@@ -83,7 +83,7 @@ function ThreeMain(self) {
   });
 
   function fov() {
-    return Math.atan2(screen.canvas.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
+    return Math.atan2(screen.element.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
   }
 
   xnew(ThreeContents);

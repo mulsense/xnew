@@ -39,9 +39,9 @@ export function AccordionButton(button: xnew.Unit,
     {}: {} = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');
-    xnew.nest('<div>');
+    xnew.nest('<button style="display: block; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none;">');
 
-    xnew().on('click', () => frame.toggle());
+    xnew().on('click', () => frame.toggle());   
 }
 
 export function AccordionContent(content: xnew.Unit,

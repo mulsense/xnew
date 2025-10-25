@@ -3,8 +3,8 @@ import xpixi from 'xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
 xnew('#main', (self) => {
-  xnew(xnew.Screen, { width: 800, height: 450 });
-  xpixi.initialize();
+  const screen = xnew(xnew.Screen, { width: 800, height: 450 });
+  xpixi.initialize({ canvas: screen.element });
 
   xnew(Scene1);
   self.on('+addscene', xnew);

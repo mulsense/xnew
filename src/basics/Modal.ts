@@ -12,7 +12,7 @@ export function ModalFrame(frame: xnew.Unit,
     });
 
     xnew().on('click', (event: Event) => {
-        frame?.deselect();
+        frame?.close();
     });
 
     return {

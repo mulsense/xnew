@@ -5,10 +5,11 @@ import * as THREE from 'three';
 xnew('#main', Main);
 
 function Main(self) {
-  xnew(xnew.Screen, { width: 800, height: 400 });
-  xthree.initialize();
+  const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+  xthree.initialize({ canvas: screen.element });
   xthree.camera.position.set(0, 0, +100);
-
+  xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 300);
+  
   xnew(Light);
   xnew.interval(() => xnew(Cube), 100);
 }
@@ -35,15 +36,13 @@ function Cube(self) {
   velocity.z = Math.random() - 0.5;
 
   // finalize after 5000ms
-  xnew.timer(() => self.finalize(), 5000);
+  xnew.timeout(() => self.finalize(), 5000);
 
-  return {
-    update() {
-      object.position.x += velocity.x;
-      object.position.y += velocity.y;
-      object.position.z += velocity.z;
-      object.rotation.y += 0.01;
-      object.rotation.x += 0.01;
-    },
-  };
+  self.on('update', () => {
+    object.position.x += velocity.x;
+    object.position.y += velocity.y;
+    object.position.z += velocity.z;
+    object.rotation.y += 0.01;
+    object.rotation.x += 0.01;
+  })
 }

@@ -12,15 +12,15 @@ const width = 800, height = 600;
 
 xnew('#main', (self) => {
   // three 
-  xthree.initialize({ canvas:  new OffscreenCanvas(width, height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -0 / 180 * Math.PI
 
   // pixi
-  xnew(xnew.Screen, { width, height });
-  xpixi.initialize();
+  const screen = xnew(xnew.Screen, { width, height });
+  xpixi.initialize({ canvas: screen.element });
 
   xnew(Background);
   xnew(TitleScene);

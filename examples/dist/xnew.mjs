@@ -1308,7 +1308,7 @@ function ModalFrame(frame, {} = {}) {
         content = unit;
     });
     xnew$1().on('click', (event) => {
-        frame === null || frame === void 0 ? void 0 : frame.deselect();
+        frame === null || frame === void 0 ? void 0 : frame.close();
     });
     return {
         close() {
@@ -1417,7 +1417,7 @@ function AccordionFrame(frame, {} = {}) {
 }
 function AccordionButton(button, {} = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
-    xnew$1.nest('<div>');
+    xnew$1.nest('<button style="display: block; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none;">');
     xnew$1().on('click', () => frame.toggle());
 }
 function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {

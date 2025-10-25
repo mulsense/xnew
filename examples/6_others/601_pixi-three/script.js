@@ -11,8 +11,8 @@ xnew('#main', (self) => {
   xthree.camera.position.set(0, 0, +100);
 
   // pixi
-  xnew(xnew.Screen, { width, height });
-  xpixi.initialize();
+  const screen = xnew(xnew.Screen, { width, height });
+  xpixi.initialize({ canvas: screen.element } );
   xpixi.connect(xthree.canvas);
 
   xnew(Cubes);

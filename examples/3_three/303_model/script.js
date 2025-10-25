@@ -7,8 +7,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const width = 1200, height = 600;
 
 xnew('#main', (self) => {
-  xnew(xnew.Screen, { width, height });
-  xthree.initialize();
+  const screen = xnew(xnew.Screen, { width, height });
+  xthree.initialize({ canvas: screen.element });
   xthree.scene.background = new THREE.Color(0xa0a0a0);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
   xthree.renderer.shadowMap.enabled = true;

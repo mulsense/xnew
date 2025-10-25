@@ -3,8 +3,8 @@ import xthree from 'xnew/addons/xthree';
 import * as THREE from 'three';
 
 xnew('#main', (self) => {
-  xnew(xnew.Screen, { width: 800, height: 400 });
-  xthree.initialize();
+  const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+  xthree.initialize({ canvas: screen.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +200);
