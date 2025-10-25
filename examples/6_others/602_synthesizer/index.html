@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="../../thirdparty/pixi.min.js"></script>
   <script src="../../dist/xnew.js"></script>
   <script src="../../dist/addons/xaudio.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
 <body>
@@ -13,7 +13,7 @@
     xnew((self) => {
       xnew(Keyboard);
       xnew(CodeBlock);
-      xnew({ style: { display: 'flex', margin: '12px 0' }}, () => {
+      xnew('<div class="flex my-3">', () => {
         xnew(Oscillator);
         xnew(Filter);
         xnew(Amp);
@@ -22,29 +22,26 @@
     });
   
     function Keyboard() {
-      xnew.nest({ style: { display: 'flex' }});
+      xnew.nest('<div class="flex">');
       for (let i = 2; i < 6; i++) {
         xnew(Keyset, i);
       }
       function Keyset(self, number) {
-        xnew.nest({ style: { display: 'flex', position: 'relative', userSelect: 'none' } });
+        xnew.nest('<div class="flex relative select-none">');
         for (let i = 0; i < 12; i++) {
-          xnew(Key, i, number);
+          xnew(Key, { key: i, number });
         }
       }
-      function Key(self, key, number) {
+      function Key(self, { key, number }) {
         const list = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', ];
         const offset = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
         const w = 24, h = 128;
 
-        const style = { wordBreak: 'normal', boxSizing: 'border-box', cursor: 'pointer', display: 'flex', flexDirection: 'column-reverse', fontSize: '0.7em', alignItems: 'center' };
         if (list[key].indexOf('#') < 0) {
-          Object.assign(style, { width: `${w}px`, height: `${h}px`, border: '1px solid #000000' });
-          xnew.nest({ style });
+          xnew.nest(`<div class="word-break-normal box-border cursor-pointer flex flex-col-reverse items-center" style="width: ${w}px; height: ${h}px; border: 1px solid #000000;">`);
           self.element.textContent = list[key] + number;
         } else {
-          Object.assign(style, { width: `${w * 6 / 8}px`, height: `${h * 9 / 16}px`, background: '#000000', position: 'absolute', left: `${offset[list[key][0]] * w + w * 5 / 8}px` });
-          xnew.nest({ style });
+          xnew.nest(`<div class="absolute word-break-normal box-border cursor-pointer flex flex-col-reverse items-center" style="width: ${w * 6 / 8}px; height: ${h * 9 / 16}px; left: ${offset[list[key][0]] * w + w * 5 / 8}px; border: 1px solid #000000; background: #000000">`);
         }
 
         let press = null;
@@ -54,15 +51,15 @@
             startTime = Date.now();
             const [oscillator, filter, amp, options] = [xnew.find(Oscillator)[0], xnew.find(Filter)[0], xnew.find(Amp)[0], xnew.find(Options)[0]];
             const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, };
-            xnew.emit('+code1', ' ');
-            xnew.emit('+code2', `const synth = xaudio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}}${options.json});\nsynth.press('${list[key] + number}', duration);`);
+            self.emit('+code1', ' ');
+            self.emit('+code2', `const synth = xaudio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}}${options.json});\nsynth.press('${list[key] + number}', duration);`);
             const synth = xaudio.synthesizer(param, options.value);
             press = synth.press(list[key] + number);
           }
         });
         self.on('touchend mouseup mouseout', () => {
           if (press) {
-            xnew.emit('+code1',`const duration = ${Date.now() - startTime};`);
+            self.emit('+code1',`const duration = ${Date.now() - startTime};`);
             press.release();
             press = null;
           }
@@ -71,9 +68,9 @@
     }
 
     function CodeBlock() {
-      xnew.nest({ style: { width: '670px', padding: '4px', fontSize: '0.8em', border: '1px solid #AAA', borderRadius: '4px' } });
-      const code1 = xnew({ tagName: 'pre', style: { maxWidth: '1200px', userSelect: 'text', whiteSpace: 'pre-wrap', padding: '1px', margin: '1px' }});
-      const code2 = xnew({ tagName: 'pre', style: { maxWidth: '1200px', userSelect: 'text', whiteSpace: 'pre-wrap', padding: '1px', margin: '1px' }});
+      xnew.nest('<div class="w-[670px] p-1 border border-[#AAA] rounded text-sm">');
+      const code1 = xnew('<pre class="max-w-[1200px] user-select-text whitespace-pre-wrap p-1 m-1">');
+      const code2 = xnew('<pre class="max-w-[1200px] user-select-text whitespace-pre-wrap p-1 m-1">');
       code1.on('+code1', (text) => code1.element.textContent = text);
       code2.on('+code2', (text) => code2.element.textContent = text);
     }
@@ -82,8 +79,8 @@
       xnew.extend(Block, 'oscillator');
 
       const data = {};
-      const waveform = xnew(Waveform, 2);
-      const envelope = xnew(Envelope, { value: 0.0, min: -36.0, max: +36.0, step: 1}, true);
+      const waveform = xnew(Waveform, { value: 2 });
+      const envelope = xnew(Envelope, { value: 0.0, min: -36.0, max: +36.0, step: 1, checkable: true });
       const lfo = xnew(LFO, { value: 4, min: 0, max: 36, step: 1 });
 
       return {
@@ -101,7 +98,7 @@
 
       const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
       const cutoff = xnew(Slider, { name: 'cutoff', value: 1000, min: 100, max: 4000, step: 10 });
-      const envelope = xnew(Envelope, { value: 0, min: -36, max: 36, step: 1 }, true);
+      const envelope = xnew(Envelope, { value: 0, min: -36, max: 36, step: 1, checkable: true });
       const lfo = xnew(LFO, { value: 4, min: 0, max: 36, step: 1 });
 
       return {
@@ -131,10 +128,10 @@
     }
 
     function Options(self) {
-      xnew.extend(Block, 'effect');
+      xnew.extend(Block, { name: 'effect' });
 
       const reverb = xnew((self) => {
-        xnew.extend(Section, 'reverb', true);
+        xnew.extend(Section, { name: 'reverb', checkable: true });
 
         const time = xnew(Slider, { name: 'time', value: 1000, min: 0.0, max: 2000, step: 100 });
         const mix = xnew(Slider, { name: 'mix', value: 0.5, min: 0.0, max: 1.0, step: 0.1 });
@@ -145,7 +142,7 @@
       });
 
       const delay = xnew((self) => {
-        xnew.extend(Section, 'delay', true);
+        xnew.extend(Section, { name: 'delay', checkable: true });
 
         const time = xnew(Slider, { name: 'time', value: 500, min: 0, max: 2000, step: 100 });
         const feedback = xnew(Slider, { name: 'feedback', value: 0.5, min: 0.0, max: 0.9, step: 0.1 });
@@ -170,15 +167,15 @@
       }
     }
 
-    function Waveform(self, value = 0) {
-      xnew({ tagName: 'p' }, 'type');
+    function Waveform(self, { value = 0 }) {
+      xnew('<p>', 'type');
       const name = 'waveform' + xnew.find(Waveform).length;
       const labels = ['sine', 'triangle', 'square', 'sawtooth'];
       labels.forEach((label, i) => {
-        xnew({ tagName: 'label', style: { display: 'inline-block' }}, (self) => {
-          xnew.nest({ style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } });
-          const input = xnew({ tagName: 'input', name, type: 'radio', value: i });
-          const svg = xnew({ tagName: 'svg', style: { display: 'block', width: '30px', height: '20px', margin: '4px' }, viewBox: '0 0 20 20' });
+        xnew(`<label class="inline-block">`, (self) => {
+          xnew.nest('<div class="flex flex-col items-center">');
+          const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
+          const svg = xnew(`<svg class="block w-[30px] h-[20px] m-[4px]" viewBox="0 0 20 20">`);
           let points = null;
           if (label === 'sine') {
             points = '0 10 2 3 5 0 8 3 10 10 12 17 15 20 18 17 20 10';
@@ -202,10 +199,10 @@
         get value() { return labels[value]; },
       }
     }
-    function Envelope(self, { value, min, max, step }, checkable = false) {
-      xnew.extend(Section, 'envelope', checkable);
+    function Envelope(self, { value, min, max, step, checkable = false }) {
+      xnew.extend(Section, { name: 'envelope', checkable });
 
-      const svg = xnew({ tagName: 'svg', style: `width: 120px; height: 60px; margin: 8px; background: #000;`, viewBox: '0 0 300 150' });
+      const svg = xnew('<svg class="w-[120px] h-[60px] m-[8px] bg-[#000]" viewBox="0 0 300 150">');
       const amount = xnew(Slider, { name: 'amount', value, min, max, step });
       const attack = xnew(Slider, { name: 'attack', value: 200, min: 0, max: 500, step: 20 });
       const decay = xnew(Slider, { name: 'decay', value: 200, min: 0, max: 500, step: 20 });
@@ -233,9 +230,9 @@
     }
 
     function LFO(self, { value, min, max, step }) {
-      xnew.extend(Section, 'LFO', true);
+      xnew.extend(Section, { name: 'LFO', checkable: true });
 
-      const waveform = xnew(Waveform, 2);
+      const waveform = xnew(Waveform, { value: 2 });
       const amount = xnew(Slider, { name: 'amount', value, min, max, step });
       const rate = xnew(Slider, { name: 'rate', value: 8, min: 2, max: 36, step: 1 });
 
@@ -248,10 +245,10 @@
     }
 
     function Slider(self, { name, value, max, min, step }) {
-      xnew({ tagName: 'span' }, name);
-      xnew.nest({ style: { display: 'flex', alignItems: 'center' }});
-      const input = xnew({ tagName: 'input', type: 'range', style: { width: '120px' }, min, max, step, value });
-      const span = xnew({ tagName: 'span' }, `${value}`);
+      xnew('<span>', name);
+      xnew.nest('<div class="flex items-center">');
+      const input = xnew(`<input type="range" class="w-[120px]" min="${min}" max="${max}" step="${step}" value="${value}">`);
+      const span = xnew('<span>', `${value}`);
       input.on('change input', () => span.element.textContent = input.element.value);
       return {
         get value() { return Number(input.element.value); },
@@ -260,12 +257,12 @@
     }
 
     function Radio(self, { name, labels, value = 0 }) {
-      xnew({ tagName: 'span' }, name);
-      xnew.nest({});
+      xnew('<span>', name);
+      xnew.nest('<div>');
       labels.forEach((label, i) => {
-        xnew({ tagName: 'label', style: { display: 'inline-block' } }, () => {
-          const input = xnew({ tagName: 'input', name, type: 'radio', value: i });
-          xnew({ tagName: 'span' }, label);
+        xnew(`<label class="inline-block">`, () => {
+          const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
+          xnew('<span>', label);
           input.on('change', () => {
             if (input.element.checked) value = i;
           });
@@ -279,28 +276,28 @@
       }
     }
 
-    function Block(self, name, checkable = false) {
-      xnew.nest({ style: { width: '160px', padding: '4px', border: '1px solid #000000', borderRadius: '4px' } });
-      xnew.extend(Check, name, checkable);
+    function Block(self, { name, checkable = false }) {
+      xnew.nest('<div class="w-[160px] p-[4px] border border-[#000000] rounded-[4px]">');
+      xnew.extend(Check, { name, checkable });
     }
 
-    function Section(self, name, checkable = false) {
-      xnew.extend(Check, name, checkable);
+    function Section(self, { name, checkable = false }) {
+      xnew.extend(Check, { name, checkable });
     }
 
-    function Check(self, name, checkable = false) {
-      xnew.nest({});
-      xnew({ tagName: 'span', style: { fontSize: '1.2em' } }, name);
+    function Check(self, { name, checkable = false }) {
+      xnew.nest('<div>');
+      xnew('<span class="text-lg">', name);
       let check = null;
 
       if (checkable) {
-        check = xnew({ tagName: 'input', type: 'checkbox', checked: false });
-        check.on('change', () => {
-          self.element.style.display = check.element.checked ? 'block' : 'none';
-        })
+        check = xnew(`<input type="checkbox" >`);
       }
 
-      xnew.nest({ style: checkable ? { display: 'none' } : {}});
+      xnew.nest(`<div class="${checkable ? 'hidden' : ''}">`);
+      check?.on('change', () => {
+        self.element.style.display = check.element.checked ? 'block' : 'none';
+      });
       return {
         get checked() { return check ? check.element.checked : true; },
       }

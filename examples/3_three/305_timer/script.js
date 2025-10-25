@@ -9,9 +9,11 @@ function Main(self) {
   xthree.initialize({ canvas: screen.element });
   xthree.camera.position.set(0, 0, +100);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 300);
-  
+
   xnew(Light);
-  xnew.interval(() => xnew(Cube), 100);
+  xnew.interval(() => {
+    xnew(Cube);
+  }, 50);
 }
 
 function Light(self) {
