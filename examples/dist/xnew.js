@@ -1227,11 +1227,19 @@
                     const s = v.x * v.x + v.y * v.y;
                     scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
                 }
-                {
-                    const c = { x: a.x + delta.x, y: a.y + delta.y };
-                    ({ x: a.x - b.x, y: a.y - b.y });
-                    ({ x: c.x - b.x, y: c.y - b.y });
-                }
+                // let rotate = 0.0;
+                // {
+                //     const c = { x: a.x + delta.x, y: a.y + delta.y };
+                //     const v1 = { x: a.x - b.x, y: a.y - b.y };
+                //     const v2 = { x: c.x - b.x, y: c.y - b.y };
+                //     const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                //     const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                //     if (l1 > 0.0 && l2 > 0.0) {
+                //         const angle = Math.acos((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
+                //         const sign = v1.x * v2.y - v1.y * v2.x;
+                //         rotate = sign > 0.0 ? +angle : -angle;
+                //     }
+                // }
                 self.emit('-gesturemove', { event, position, delta, scale });
             }
             map.set(event.pointerId, position);
