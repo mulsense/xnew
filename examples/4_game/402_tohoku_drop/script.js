@@ -156,7 +156,7 @@ function Bowl(self) {
 
 function Queue(self) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  self.emit('+reloadcomplete', 1);
+  self.emit('+reloadcomplete', 0);
 
   let model = xnew(Model, { id: balls[0], scale: 1 });
   model.setPosition(70, 60, 0);
@@ -171,7 +171,7 @@ function Queue(self) {
     model.object.rotation.y = 60 / 180 * Math.PI;
     model.object.rotation.x = 30 / 180 * Math.PI;
 
-    balls.push(Math.floor(1 + Math.random() * 3));
+    balls.push(Math.floor(Math.random() * 3));
     xnew.transition((progress) => {
       model.setPosition(0 + progress * 70, 60, 0);
       if (progress === 1.0) {
@@ -259,7 +259,7 @@ function Cursor(self) {
   let model = null
   let offset = 50;
   self.on('+reloadcomplete', (level) => {
-    next = level - 1;
+    next = level;
     circle.circle(0, 0, 32).fill(0xAACCAA);
     model = xnew(Model, { id: next, scale: 1 });
     model.setPosition(object.x, object.y + offset, 0);
@@ -267,7 +267,7 @@ function Cursor(self) {
   self.on('+action', () => {
     if (next !== null) {
       circle.clear();
-      self.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, size: next, score: Math.pow(2, next - 1)});
+      self.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next - 1)});
       if (model) {
         model.finalize();
         model = null;
@@ -285,12 +285,12 @@ function Cursor(self) {
   });
 }
 
-function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
-  const scale = [1.0, 1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.8, 3.8, 3.8][size];
+function ModelBall(self, { x, y, a = 0, id = 0, score = 1 }) {
+  const scale = [1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.8, 3.8, 3.8][id];
   const r = 35 + Math.pow(3.0, scale);
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
-  const model = xnew(Model, { r, size, scale });
+  const model = xnew(Model, { r, id, scale });
   self.emit('+scoreup', score);
   
   self.on('update', () => {
@@ -303,11 +303,11 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
     for (const target of xnew.find(ModelBall)) {
       if (self.mergeCheck(target)) {
         const score = self.score + target.score;
-        const size = self.size + 1;
+        const id = self.id + 1;
         const x = (self.object.x + target.object.x) / 2;
         const y = (self.object.y + target.object.y) / 2;
         const a = (self.object.rotation + target.object.rotation) / 2;
-        self.emit('+addobject', ModelBall, { x, y, a, size, score });
+        self.emit('+addobject', ModelBall, { x, y, a, id, score });
         self.finalize();
         target.finalize();
         break;
@@ -315,7 +315,7 @@ function ModelBall(self, { x, y, a = 0, size = 1, score = 1 }) {
     }
   });
   return {
-    r, score, size, isMearged: false,
+    r, score, id, isMearged: false,
     mergeCheck(target) {
       if (self === target || self.score !== target.score) return false;
       if (self.isMearged === true || target.isMearged === true) return false;
