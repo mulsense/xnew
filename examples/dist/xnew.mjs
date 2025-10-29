@@ -1247,11 +1247,11 @@ function GestureEvent(self) {
         map.delete(event.pointerId);
     });
     drag.on('-dragcancel', ({ event }) => {
+        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gesturecancel', { event });
         }
         isActive = false;
-        map.delete(event.pointerId);
     });
     function getOthers(id) {
         const backup = map.get(id);
