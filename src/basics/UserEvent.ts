@@ -114,11 +114,11 @@ function GestureEvent(self: xnew.Unit) {
     });
 
     drag.on('-dragcancel', ({ event }: any) => {
+        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gesturecancel', { event });
         }
         isActive = false;
-        map.delete(event.pointerId);
     });
 
     function getOthers(id: number) {
