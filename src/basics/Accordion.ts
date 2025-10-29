@@ -37,7 +37,7 @@ export function AccordionButton(button: xnew.Unit,
     const frame = xnew.context('xnew.accordionframe');
     xnew.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
 
-    xnew().on('click', () => frame.toggle());       
+    button.on('click', () => frame.toggle());       
 }
 
 export function AccordionBullet(bullet: xnew.Unit,
@@ -46,14 +46,12 @@ export function AccordionBullet(bullet: xnew.Unit,
     const frame = xnew.context('xnew.accordionframe');
 
     xnew.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.4em;">');
-    frame.on('-transition', ({ status }: { status: number}) => bullet.update?.(status));
+    frame.on('-transition', ({ status }: { status: number}) => bullet.transition?.(status));
     
     if (type === 'arrow') {
-
         const arrow = xnew(`<div style="width: 100%; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
-
         return {
-            update(status: number) {
+            transition(status: number) {
                 arrow.element.style.transform = `rotate(${status * 90 - 45}deg)`;
             }
         }
@@ -63,7 +61,7 @@ export function AccordionBullet(bullet: xnew.Unit,
         line2.element.style.transform = `rotate(90deg)`;
 
         return {
-            update(status: number) {
+            transition(status: number) {
                 line2.element.style.opacity = `${1.0 - status}`;
             }
         }
@@ -85,21 +83,21 @@ export function AccordionContent(content: xnew.Unit,
         xnew.transition((x: number) => {
             status = x;
             frame.emit('-transition', { status });
-            content.update(status);
+            content.transition(status);
         }, duration, easing);
     });
     frame.on('-close', () => {
         xnew.transition((x: number) => {
             status = 1.0 - x;
             frame.emit('-transition', { status });
-            content.update(status);
+            content.transition(status);
         }, duration, easing);
     });
     return {
         get status() {
             return status;
         },
-        update(status: number) {
+        transition(status: number) {
             outer.style.display = 'block';
             if (status === 0.0) {
                 outer.style.display = 'none';

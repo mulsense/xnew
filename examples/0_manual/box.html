@@ -23,15 +23,18 @@
       });
 
       self.on('start', () => {
+        console.log('start');
         running = true;
         text.element.textContent = 'start';
       });
 
       self.on('update', (count) => {
+        console.log('update');
         self.element.style.transform = `rotate(${count}deg)`;
       });
       
       self.on('stop', () => {
+        console.log('stop');
         running = false;
         text.element.textContent = 'stop';
       });

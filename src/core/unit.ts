@@ -238,8 +238,7 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        const { state } = unit._;
-        if (state !== LIFECYCLE_STATES.FINALIZED && state !== LIFECYCLE_STATES.PRE_FINALIZED) {
+        if (unit._.state !== LIFECYCLE_STATES.FINALIZED && unit._.state !== LIFECYCLE_STATES.PRE_FINALIZED) {
             unit._.state = LIFECYCLE_STATES.PRE_FINALIZED;
 
             unit._.children.forEach((child: Unit) => child.finalize());
@@ -635,51 +634,45 @@ export class UnitPromise {
 
     then(callback: Function): UnitPromise {
         const snapshot = UnitScope.snapshot();
-        this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
+        this.promise = this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
         return this;
     }
 
     catch(callback: Function): UnitPromise {
         const snapshot = UnitScope.snapshot();
-        this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
+        this.promise = this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
         return this;
     }
 
     finally(callback: Function): UnitPromise {
         const snapshot = UnitScope.snapshot();
-        this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
+        this.promise = this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
         return this;
     }
 
-    static promises: MapSet<Unit, Promise<any>> = new MapSet();
+    static promises: MapSet<Unit, UnitPromise> = new MapSet();
 
     static get(unit: Unit) {
-        return Promise.all([...(UnitPromise.promises.get(unit) ?? [])]);
+        return Promise.all([...(UnitPromise.promises.get(unit) ?? [])].map((unitPromise) => unitPromise.promise));
     }
 
     static finalize(unit: Unit) {
         UnitPromise.promises.delete(unit);
     }
 
-    static execute(
-        unit: Unit | null,
-        mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit
-    ): UnitPromise {
-        let promise: Promise<any> | null = null;
-        if (mix instanceof Promise) {
-            promise = mix;
-        } else if (typeof mix === 'function') {
-            promise = new Promise(mix);
-        } else if (mix instanceof Unit) {
-            promise = UnitPromise.get(mix);
+    static execute(unit: Unit, promise?: Promise<any>): UnitPromise {
+        if (promise !== undefined) {
+            const upromise = new UnitPromise((resolve, reject) => {
+                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
+            UnitPromise.promises.add(unit, upromise);
+            return upromise;
         } else {
-            throw new Error('"mix" is invalid.');
+            const promiseall: Promise<any> = UnitPromise.get(unit);
+            const upromise = new UnitPromise((resolve, reject) => {
+                promiseall.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
+            return upromise;
         }
-        if (unit !== null && unit !== mix) {
-            UnitPromise.promises.add(unit, promise);
-        }
-        return new UnitPromise((resolve, reject) => {
-            promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-        });
     }
 }

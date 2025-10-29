@@ -115,19 +115,66 @@ export const xnew: xnewtype = (() => {
         }
     }
         
-    fn.promise = (mix: Promise<any> | ((resolve: (value: any) => void, reject: (reason?: any) => void) => void) | Unit): UnitPromise => {
+    fn.promise = (promise: Promise<any>): UnitPromise => {
         try {
-            return UnitPromise.execute(UnitScope.current, mix);
+            if (UnitScope.current !== null) {
+                return UnitPromise.execute(UnitScope.current, promise);
+            } else {
+                throw new Error('No current unit.');
+            }
         } catch (error: unknown) {
             console.error('xnew.promise(mix): ', error);
             throw error;
         }
     }
 
+    fn.then = (callback: Function): UnitPromise => {
+        try {
+            if (UnitScope.current !== null) {
+                return UnitPromise.execute(UnitScope.current).then(callback);
+            } else {
+                throw new Error('No current unit.');
+            }
+        } catch (error: unknown) {
+            console.error('xnew.then(mix): ', error);
+            throw error;
+        }
+    }
+
+    fn.catch = (callback: Function): UnitPromise => {
+        try {
+            if (UnitScope.current !== null) {
+                return UnitPromise.execute(UnitScope.current).catch(callback);
+            } else {
+                throw new Error('No current unit.');
+            }
+        } catch (error: unknown) {
+            console.error('xnew.catch(mix): ', error);
+            throw error;
+        }
+    }
+
+    fn.finally = (callback: Function): UnitPromise => {
+        try {
+            if (UnitScope.current !== null) {
+                return UnitPromise.execute(UnitScope.current).finally(callback);
+            } else {
+                throw new Error('No current unit.');
+            }
+        } catch (error: unknown) {
+            console.error('xnew.finally(mix): ', error);
+            throw error;
+        }
+    }   
+
     fn.fetch = (url: string, options?: object): UnitPromise => {
         try {
             const promise = fetch(url, options);
-            return UnitPromise.execute(UnitScope.current, promise);
+            if (UnitScope.current !== null) {
+                return UnitPromise.execute(UnitScope.current, promise);
+            } else {
+                throw new Error('No current unit.');
+            }
         } catch (error: unknown) {
             console.error('xnew.promise(mix): ', error);
             throw error;

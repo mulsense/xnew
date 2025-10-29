@@ -14,6 +14,11 @@ import { VirtualStick, VirtualDPad, VirtualButton } from './basics/Controller';
 import { Unit } from './core/unit';
 import { xnew as base, xnewtype as basetype } from './core/xnew';
 
+import { synthesizer } from './audio/synthesizer';
+const audio = {
+    synthesizer
+};
+
 interface xnewtype extends basetype {
     Screen: Function;
     UserEvent: Function;
@@ -35,6 +40,8 @@ interface xnewtype extends basetype {
     VirtualStick: Function;
     VirtualDPad: Function;
     VirtualButton: Function;
+
+    audio: typeof audio;
 }
 
 namespace xnew {
@@ -61,7 +68,9 @@ const xnew: xnewtype = Object.assign(base, {
     DragTarget,
     VirtualStick,
     VirtualDPad,
-    VirtualButton
+    VirtualButton,
+
+    audio,
 });
 
 export default xnew;

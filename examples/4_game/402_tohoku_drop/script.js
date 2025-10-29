@@ -23,33 +23,36 @@ xnew('#main', (self) => {
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Background);
+  xnew(ShadowPlane);
   xnew(TitleScene);
   self.on('+nextscene', xnew);
 });
 
 function Background(self) {
-  xnew((self) => {
-    const object = xpixi.nest(new PIXI.Container());
-    xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
-      const sprite = new PIXI.Sprite(texture);
-      sprite.anchor.set(0);
-      sprite.scale.set(1 / 1.4);
-      object.addChild(sprite);
-    });
-  });
-  xnew((self) => {
-    const object = xthree.nest(new THREE.Object3D());
-    const geometry = new THREE.PlaneGeometry(16, 14);
-    const material = new THREE.ShadowMaterial({ opacity: 0.25 });
-    const plane = xthree.nest(new THREE.Mesh(geometry, material));
-    plane.receiveShadow = true;
-    plane.rotation.x = -1 * Math.PI / 2;
-    plane.position.set(0.0, -2.9, -2.0);
-    object.add(plane);
+  const object = xpixi.nest(new PIXI.Container());
+  xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
+    const sprite = new PIXI.Sprite(texture);
+    sprite.anchor.set(0);
+    sprite.scale.set(1.0 / 1.4);
+    object.addChild(sprite);
   });
 }
 
-function TitleScene(self) {
+function ShadowPlane(self) {
+  const geometry = new THREE.PlaneGeometry(16, 14);
+  const material = new THREE.ShadowMaterial({ opacity: 0.25 });
+  const plane = xthree.nest(new THREE.Mesh(geometry, material));
+  plane.receiveShadow = true;
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(0.0, -2.9, -2.0);
+}
+
+function ThreeLayer(self) {
+  const texture = xpixi.sync(xthree.canvas);
+  xpixi.nest(new PIXI.Sprite(texture));
+}
+
+function TitleText(self) {
   xnew((self) => {
     const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
     object.position.set(width / 2, height / 2 - 150);
@@ -63,17 +66,21 @@ function TitleScene(self) {
         object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
     });
   });
+}
+
+function TitleScene(self) {
+  xnew(TitleText);
 
   xnew(DirectionaLight, { x: 2, y: 12, z: 20 });
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
-    const model = xnew(Model, { size: i + 1, scale: 1.4 });
+    const model = xnew(Model, { id: i, scale: 1.4 });
     model.setPosition(140 + i * 90, 450, 0);
     model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
     model.object.rotation.x = 10 / 180 * Math.PI;
   }
-  xpixi.connect(xthree.renderer.domElement);
+  xnew(ThreeLayer);
 
   xnew.listener(window).on('keydown pointerdown', () => {
     self.emit('+nextscene', GameScene);
@@ -92,7 +99,7 @@ function GameScene(scene) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xpixi.connect(xthree.canvas);
+  xnew(ThreeLayer);
   scene.on('+addobject', xnew);
 
   scene.on('+gameover', () => {
@@ -148,10 +155,10 @@ function Bowl(self) {
 }
 
 function Queue(self) {
-  const balls = [...Array(4)].map(() => Math.floor(1 + Math.random() * 3));
+  const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
   self.emit('+reloadcomplete', 1);
 
-  let model = xnew(Model, { size: balls[0], scale: 1 });
+  let model = xnew(Model, { id: balls[0], scale: 1 });
   model.setPosition(70, 60, 0);
   model.object.rotation.y = 60 / 180 * Math.PI;
   model.object.rotation.x = 30 / 180 * Math.PI;
@@ -159,7 +166,7 @@ function Queue(self) {
   self.on('+reload', () => {
     const next = balls.shift();
     model.finalize();
-    model = xnew(Model, { size: balls[0], scale: 1 });
+    model = xnew(Model, { id: balls[0], scale: 1 });
     model.setPosition(0, 60, 0);
     model.object.rotation.y = 60 / 180 * Math.PI;
     model.object.rotation.x = 30 / 180 * Math.PI;
@@ -174,21 +181,21 @@ function Queue(self) {
   });
 }
 
-function Model(self, { x, y, r = 0.0, size = 1, scale = 1.0 }) {
+function Model(self, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
   const object = xthree.nest(new THREE.Object3D());
   object.rotation.z = -r;
 
   const list = ['./zundamon.vrm', './usagi.vrm', './kiritan.vrm', './metan.vrm', './sora.vrm', './zunko.vrm', './itako.vrm'];
-  const path = size < 8 ? list[size - 1] : list[0];
+  const path = id < 7 ? list[id] : list[0];
 
   let vrm = null;
-  xnew.promise((resolve) => {
+  xnew.promise(new Promise((resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => {
       return new VRMLoaderPlugin(parser);
     });
     loader.load(path, (gltf) => resolve(gltf));
-  }).then((gltf) => {
+  })).then((gltf) => {
     vrm = gltf.userData.vrm;
     vrm.scene.traverse((object) => {
       if (object.isMesh) object.castShadow = true;
@@ -252,9 +259,9 @@ function Cursor(self) {
   let model = null
   let offset = 50;
   self.on('+reloadcomplete', (level) => {
-    next = level;
+    next = level - 1;
     circle.circle(0, 0, 32).fill(0xAACCAA);
-    model = xnew(Model, { size: next, scale: 1 });
+    model = xnew(Model, { id: next, scale: 1 });
     model.setPosition(object.x, object.y + offset, 0);
   });
   self.on('+action', () => {

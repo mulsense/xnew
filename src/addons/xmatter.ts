@@ -6,16 +6,8 @@ export default {
         xnew.extend(Root, { engine });
     },
     nest (object: any) {
-        xnew.extend(Connect, object);
+        xnew.extend(Nest, object);
         return object;
-    },
-    start() {
-        const root = xnew.context('xmatter.root');
-        root!.isActive = true;
-    },
-    stop() {
-        const root = xnew.context('xmatter.root');
-        root!.isActive = false;
     },
     get engine() {
         return xnew.context('xmatter.root')?.engine;
@@ -28,7 +20,7 @@ function Root(self: xnew.Unit, { engine }: any) {
 
     root.isActive = true;
     root.engine = engine ?? Matter.Engine.create();
-    xnew.extend(Connect, root.engine.world);
+    xnew.extend(Nest, root.engine.world);
     self.on('update', () => {
         if (root.isActive) {
             Matter.Engine.update(root.engine);
@@ -36,7 +28,7 @@ function Root(self: xnew.Unit, { engine }: any) {
     });
 }
 
-function Connect(self: xnew.Unit, object: any) {
+function Nest(self: xnew.Unit, object: any) {
     const parent = xnew.context('xmatter.object');
     xnew.context('xmatter.object', object);
 

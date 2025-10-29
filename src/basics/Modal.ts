@@ -31,19 +31,33 @@ export function ModalContent(content: xnew.Unit,
     const div = xnew.nest('<div style="width: 100%; height: 100%; opacity: 0;">');
     div.style.background = background;
 
-    xnew.nest('<div style="position: absolute; inset: 0;  margin: auto; width: max-content; height: max-content;">');
+    xnew.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
 
     xnew().on('click', (event: Event) => {
         event.stopPropagation();
     });
 
-    xnew.timeout(() => content.select());
+    let status = 0;
+    xnew.timeout(() => frame.emit('-open'));
+
+    frame.on('-open', () => {
+        xnew.transition((x: number) => {
+            status = x;
+            frame.emit('-transition', { status });
+            content.transition(status);
+        }, duration, easing);
+    });
+    frame.on('-close', () => {
+        xnew.transition((x: number) => {
+            status = 1.0 - x;
+            frame.emit('-transition', { status });
+            content.transition(status);
+        }, duration, easing).next(() => frame.finalize());
+    });
+
     return {
-        select() {
-            xnew.transition((x: number) => div.style.opacity = x.toString(), duration, easing);
-        },
-        deselect() {
-            xnew.transition((x: number) => div.style.opacity = (1.0 - x).toString(), duration, easing).next(() => frame.finalize());
+        transition(status: number) {
+            div.style.opacity = status.toString();
         }
     }
 }

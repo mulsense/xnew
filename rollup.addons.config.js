@@ -80,27 +80,4 @@ export default [
             copyto('./dist/addons/xmatter.mjs', './examples/dist/addons/xmatter.mjs'),
         ],
     },
-    {
-        input: './src/addons/xaudio.ts',
-        output: [
-            {
-                file: './dist/addons/xaudio.js',
-                format: 'umd',
-                extend: true,
-                name: 'xaudio',
-                globals: { 'xnew': 'xnew' },
-            },
-            {
-                file: './dist/addons/xaudio.mjs',
-                format: 'es',
-            },
-        ],
-        external: ['xnew'],
-        plugins: [
-            typescript({ tsconfig: 'tsconfig.addons.json' }),
-            copyto('./dist/addons/xaudio.d.ts', './examples/dist/addons/xaudio.d.ts'),
-            copyto('./dist/addons/xaudio.js', './examples/dist/addons/xaudio.js'),
-            copyto('./dist/addons/xaudio.mjs', './examples/dist/addons/xaudio.mjs'),
-        ],
-    },
 ];

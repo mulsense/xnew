@@ -9,6 +9,13 @@ var xpixi = {
         xnew.extend(Nest, object);
         return object;
     },
+    sync(canvas) {
+        const texture = PIXI.Texture.from(canvas);
+        xnew(PreUpdate, () => {
+            texture.source.update();
+        });
+        return texture;
+    },
     connect(canvas) {
         const texture = PIXI.Texture.from(canvas);
         const object = new PIXI.Sprite(texture);
@@ -26,6 +33,11 @@ var xpixi = {
         var _a;
         return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.scene;
     },
+    get canvas() {
+        var _a;
+        const renderer = (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.renderer;
+        return renderer ? renderer.view.canvas : null;
+    }
 };
 function Root(self, { renderer, canvas }) {
     const root = {};

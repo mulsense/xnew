@@ -9,6 +9,13 @@ export default {
         xnew.extend(Nest, object);
         return object;
     },
+    sync(canvas: any) {
+        const texture = PIXI.Texture.from(canvas);
+        xnew(PreUpdate, () => {
+            texture.source.update();
+        });
+        return texture;
+    },
     connect(canvas: any) {
         const texture = PIXI.Texture.from(canvas);
         const object = new PIXI.Sprite(texture);
@@ -24,6 +31,10 @@ export default {
     get scene() {
         return xnew.context('xpixi.root')?.scene;
     },
+    get canvas() {
+        const renderer = xnew.context('xpixi.root')?.renderer;
+        return renderer ? renderer.view.canvas : null;
+    }
 };
 
 function Root(self: xnew.Unit, { renderer, canvas }: any) {

@@ -13,11 +13,17 @@ xnew('#main', (self) => {
   // pixi
   const screen = xnew(xnew.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element } );
-  xpixi.connect(xthree.canvas);
 
   xnew(Cubes);
+  
+  xnew(ThreeLayer);
   xnew(Boxes);
 });
+
+function ThreeLayer(self) {
+  const texture = xpixi.sync(xthree.canvas);
+  xpixi.nest(new PIXI.Sprite(texture));
+}
 
 function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());
