@@ -105,11 +105,11 @@ function GestureEvent(self: xnew.Unit) {
     });
 
     drag.on('-dragend', ({ event }: any) => {
+        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gestureend', { event });
         }
         isActive = false;
-        map.delete(event.pointerId);
     });
 
     drag.on('-dragcancel', ({ event }: any) => {
