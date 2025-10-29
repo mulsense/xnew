@@ -1240,11 +1240,11 @@ function GestureEvent(self) {
     });
     drag.on('-dragend', ({ event }) => {
         //map.clear();
+        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gestureend', {});
         }
         isActive = false;
-        map.delete(event.pointerId);
     });
     drag.on('-dragcancel', ({ event }) => {
         map.delete(event.pointerId);
