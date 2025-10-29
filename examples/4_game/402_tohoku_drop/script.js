@@ -70,7 +70,6 @@ function TitleText(self) {
 
 function TitleScene(self) {
   xnew(TitleText);
-
   xnew(DirectionaLight, { x: 2, y: 12, z: 20 });
   xnew(AmbientLight);
 
@@ -94,7 +93,7 @@ function GameScene(scene) {
   xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
   xnew(AmbientLight);
 
-  const controller = xnew(Controller);
+  xnew(Controller);
   xnew(ScoreText);
   xnew(Bowl);
   xnew(Cursor);
@@ -104,7 +103,6 @@ function GameScene(scene) {
 
   scene.on('+gameover', () => {
     xnew(GameOverText);
-    controller.finalize();
 
     xnew.timeout(() => {
       xnew.listener(window).on('keydown pointerdown', () => {
@@ -135,6 +133,7 @@ function Controller(self) {
     self.emit('+move', { x: position.x * screen.scale.x });
   });
   user.on('-pointerdown', () => self.emit('+action'));
+  self.on('+gameover', () => self.finalize());
 }
 
 function ScoreText(self) {
@@ -267,7 +266,7 @@ function Cursor(self) {
   self.on('+action', () => {
     if (next !== null) {
       circle.clear();
-      self.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next - 1)});
+      self.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
       if (model) {
         model.finalize();
         model = null;
