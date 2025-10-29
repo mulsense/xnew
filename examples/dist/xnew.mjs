@@ -1206,7 +1206,6 @@ function GestureEvent(self) {
     const map = new Map();
     drag.on('-dragstart', ({ event, position }) => {
         map.set(event.pointerId, Object.assign({}, position));
-        console.log(event, map.size);
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
             self.emit('-gesturestart', {});
@@ -1240,7 +1239,8 @@ function GestureEvent(self) {
         map.set(event.pointerId, position);
     });
     drag.on('-dragend', ({ event }) => {
-        map.delete(event.pointerId);
+        map.clear();
+        // map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gestureend', { event });
         }
