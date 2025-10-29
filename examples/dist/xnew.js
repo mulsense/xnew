@@ -1246,11 +1246,11 @@
         });
         drag.on('-dragend', ({ event }) => {
             //map.clear();
-            map.delete(event.pointerId);
             if (isActive === true) {
-                self.emit('-gestureend', { event });
+                self.emit('-gestureend', {});
             }
             isActive = false;
+            map.delete(event.pointerId);
         });
         drag.on('-dragcancel', ({ event }) => {
             if (isActive === true) {
