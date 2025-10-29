@@ -1175,27 +1175,29 @@ function DragEvent(self) {
         const id = event.pointerId;
         const position = getPosition(self.element, event);
         let previous = position;
-        xnew$1.listener(window).on('pointermove', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                self.emit('-dragmove', { event, position, delta });
-                previous = position;
-            }
-        });
-        xnew$1.listener(window).on('pointerup', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                self.emit('-dragend', { event, position, });
-                xnew$1.listener(window).off();
-            }
-        });
-        xnew$1.listener(window).on('pointercancel', (event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                self.emit('-dragcancel', { event, position, });
-                xnew$1.listener(window).off();
-            }
+        xnew$1(() => {
+            xnew$1.listener(window).on('pointermove', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    const delta = { x: position.x - previous.x, y: position.y - previous.y };
+                    self.emit('-dragmove', { event, position, delta });
+                    previous = position;
+                }
+            });
+            xnew$1.listener(window).on('pointerup', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    self.emit('-dragend', { event, position, });
+                    xnew$1.listener(window).off();
+                }
+            });
+            xnew$1.listener(window).on('pointercancel', (event) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    self.emit('-dragcancel', { event, position, });
+                    xnew$1.listener(window).off();
+                }
+            });
         });
         self.emit('-dragstart', { event, position });
     });
@@ -1239,19 +1241,18 @@ function GestureEvent(self) {
         map.set(event.pointerId, position);
     });
     drag.on('-dragend', ({ event }) => {
-        //map.clear();
-        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gestureend', {});
         }
         isActive = false;
+        map.delete(event.pointerId);
     });
     drag.on('-dragcancel', ({ event }) => {
-        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gesturecancel', { event });
         }
         isActive = false;
+        map.delete(event.pointerId);
     });
     function getOthers(id) {
         const backup = map.get(id);

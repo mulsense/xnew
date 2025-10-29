@@ -28,31 +28,33 @@ export function UserEvent(self: xnew.Unit) {
 
 function DragEvent(self: xnew.Unit) {
     xnew().on('pointerdown', (event: any) => {
+
         const id = event.pointerId;
         const position = getPosition(self.element, event);
         let previous = position;
-
-        xnew.listener(window).on('pointermove', (event: any) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                self.emit('-dragmove', { event, position, delta });
-                previous = position;
-            }
-        });
-        xnew.listener(window).on('pointerup', (event: any) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                self.emit('-dragend', { event, position, });
-                xnew.listener(window).off();
-            }
-        });
-        xnew.listener(window).on('pointercancel', (event: any) => {
-            if (event.pointerId === id) {
-                const position = getPosition(self.element, event);
-                self.emit('-dragcancel', { event, position, });
-                xnew.listener(window).off();
-            }
+        xnew(() => {
+            xnew.listener(window).on('pointermove', (event: any) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    const delta = { x: position.x - previous.x, y: position.y - previous.y };
+                    self.emit('-dragmove', { event, position, delta });
+                    previous = position;
+                }
+            });
+            xnew.listener(window).on('pointerup', (event: any) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    self.emit('-dragend', { event, position, });
+                    xnew.listener(window).off();
+                }
+            });
+            xnew.listener(window).on('pointercancel', (event: any) => {
+                if (event.pointerId === id) {
+                    const position = getPosition(self.element, event);
+                    self.emit('-dragcancel', { event, position, });
+                    xnew.listener(window).off();
+                }
+            });
         });
         self.emit('-dragstart', { event, position });
     });
@@ -105,20 +107,19 @@ function GestureEvent(self: xnew.Unit) {
     });
 
     drag.on('-dragend', ({ event }: any) => {
-        //map.clear();
-        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gestureend', {});
         }
         isActive = false;
+        map.delete(event.pointerId);
     });
 
     drag.on('-dragcancel', ({ event }: any) => {
-        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gesturecancel', { event });
         }
         isActive = false;
+        map.delete(event.pointerId);
     });
 
     function getOthers(id: number) {
