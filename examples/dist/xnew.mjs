@@ -1239,8 +1239,8 @@ function GestureEvent(self) {
         map.set(event.pointerId, position);
     });
     drag.on('-dragend', ({ event }) => {
-        map.clear();
-        // map.delete(event.pointerId);
+        //map.clear();
+        map.delete(event.pointerId);
         if (isActive === true) {
             self.emit('-gestureend', { event });
         }
