@@ -1218,7 +1218,7 @@
             }
         });
         drag.on('-dragmove', ({ event, position, delta }) => {
-            if (isActive === true) {
+            if (map.size >= 2 && isActive === true) {
                 const a = map.get(event.pointerId);
                 const b = getOthers(event.pointerId)[0];
                 let scale = 0.0;
