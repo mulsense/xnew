@@ -31,10 +31,9 @@ function Controller(self) {
 
   const user = xnew(xnew.UserEvent);
   let isActive = false;
-  user.on('-gesturestart', () => isActive = true);
-  user.on('-gestureend', () => isActive = false);
+  user.on('-gesturestart', () => { isActive = true; });
+  user.on('-gestureend', () => { isActive = false; });
   user.on('-gesturemove', ({ scale }) => {
-    console.log(scale);
     self.emit('+scale', scale)
   });
   
