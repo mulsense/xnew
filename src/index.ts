@@ -15,40 +15,8 @@ import { Unit } from './core/unit';
 import { xnew as base, xnewtype as basetype } from './core/xnew';
 
 import { synthesizer } from './audio/synthesizer';
-const audio = {
-    synthesizer
-};
 
-interface xnewtype extends basetype {
-    Screen: Function;
-    UserEvent: Function;
-    ResizeEvent: Function;
-    ModalFrame: Function;
-    ModalContent: Function;
-    AccordionFrame: Function;
-    AccordionButton: Function;
-    AccordionBullet: Function;
-    AccordionContent: Function;
-    TabFrame: Function;
-    TabButton: Function;
-    TabContent: Function;
-    PanelFrame: Function;
-    PanelGroup: Function;
-    InputFrame: Function;
-    DragFrame: Function;
-    DragTarget: Function;
-    VirtualStick: Function;
-    VirtualDPad: Function;
-    VirtualButton: Function;
-
-    audio: typeof audio;
-}
-
-namespace xnew {
-    export type Unit = InstanceType<typeof Unit>;
-}
-
-const xnew: xnewtype = Object.assign(base, {
+const basics = {
     Screen,
     UserEvent,
     ResizeEvent,
@@ -69,7 +37,22 @@ const xnew: xnewtype = Object.assign(base, {
     VirtualStick,
     VirtualDPad,
     VirtualButton,
+};
+const audio = {
+    synthesizer
+};
 
+interface xnewtype extends basetype {
+    basics: typeof basics;
+    audio: typeof audio;
+}
+
+namespace xnew {
+    export type Unit = InstanceType<typeof Unit>;
+}
+
+const xnew: xnewtype = Object.assign(base, {
+    basics,
     audio,
 });
 

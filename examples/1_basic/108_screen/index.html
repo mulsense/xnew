@@ -25,7 +25,7 @@
         xnew('<p>', 'screen: contain');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
-        const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'contain' });
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'contain' });
         draw(screen)
       });
       
@@ -33,7 +33,7 @@
         xnew('<p>', 'screen: cover');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
-        const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'cover' });
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'cover' });
         draw(screen)
       });
 
@@ -41,7 +41,7 @@
         xnew('<p>', 'screen: fill');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
-        const screen = xnew(xnew.Screen, { width: 400, height: 200, fit: 'fill' });
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'fill' });
         draw(screen)
       });
 

@@ -11,29 +11,28 @@
   <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew('#main', (self) => {
-      xnew.extend(xnew.TabFrame);
       xnew.nest('<div class="p-2">');
       xnew(MyPanel);
     });
 
     function MyPanel(self) {
-      xnew.extend(xnew.PanelFrame);
+      xnew.extend(xnew.basics.PanelFrame);
       xnew.nest('<div class="text-sm w-64 p-1 border rounded-lg">')
 
       xnew('<div">', 'My Panel');
 
       xnew((self) => {
-        xnew.extend(xnew.PanelGroup, { name: 'group 1', open: false });
+        xnew.extend(xnew.basics.PanelGroup, { name: 'group 1', open: false });
         xnew('<button class="border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 1');
         xnew('<button class="border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 2');
         xnew('<button class="border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 3');
       });
 
       xnew((self) => {
-        xnew.extend(xnew.PanelGroup, { name: 'group 2', open: true });
+        xnew.extend(xnew.basics.PanelGroup, { name: 'group 2', open: true });
 
         xnew((frame) => {
-          xnew.extend(xnew.InputFrame);
+          xnew.extend(xnew.basics.InputFrame);
           xnew('<div class="text-sm flex justify-between">', (self) => {
               xnew('<div class="flex-1">', 'range 1');
               const status = xnew('<div class="flex-none">', '25');
@@ -45,7 +44,7 @@
         });
 
         xnew((frame) => {
-          xnew.extend(xnew.InputFrame);
+          xnew.extend(xnew.basics.InputFrame);
 
           xnew('<div class="flex justify-between">', (self) => {
               xnew('<div class="flex-1">', 'radio 1');
@@ -69,7 +68,7 @@
         })
 
         xnew((self) => {
-          xnew.extend(xnew.InputFrame);
+          xnew.extend(xnew.basics.InputFrame);
 
           xnew('<div class="flex justify-between">', (self) => {
               xnew('<div class="flex-1">', 'text 1');

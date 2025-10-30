@@ -26,30 +26,6 @@ const CUSTOM_EVENT_PREFIX = {
 // Interfaces
 //----------------------------------------------------------------------------------------------------
 
-interface UnitInternal {
-    root: Unit;
-    peers: Unit[];
-    inputs: {
-        parent: Unit | null;
-        target: Object | null;
-        component?: Function | string;
-        props?: Object;
-    };
-    nextElementSibling: HTMLElement | SVGElement | null;
-    baseElement: HTMLElement | SVGElement;
-    baseContext: Context | null;
-    children: Unit[];
-    components: Function[];
-    captures: any[];
-    state: string;
-    tostart: boolean;
-    currentElement: HTMLElement | SVGElement;
-    upcount: number;
-    resolved: boolean;
-    defines: Record<string, any>;
-    system: Record<LifecycleEvent, Function[]>;
-}
-
 interface Context {
     stack: Context | null;
     key: string;
@@ -60,6 +36,32 @@ interface Snapshot {
     unit: Unit | null;
     context: Context | null;
     element: HTMLElement | SVGElement | null;
+}
+
+interface Capture {
+    checker: (unit: Unit) => boolean;
+    execute: (unit: Unit) => any;
+}
+
+interface UnitInternal {
+    root: Unit;
+    parent: Unit | null;
+    children: Unit[];
+    target: Object | null;
+    props?: Object;
+    nextNest: { element: HTMLElement | SVGElement, position: InsertPosition };
+    baseElement: HTMLElement | SVGElement;
+    currentElement: HTMLElement | SVGElement;
+    baseContext: Context | null;
+    baseComponent: Function | null;
+    components: Function[];
+    captures: Capture[];
+    state: string;
+    tostart: boolean;
+    upcount: number;
+    resolved: boolean;
+    defines: Record<string, any>;
+    system: Record<LifecycleEvent, Function[]>;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -83,16 +85,25 @@ export class Unit {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
+        let baseComponent: Function | null = null;
+        if (typeof component === 'function') {
+            baseComponent = component;
+        } else if (typeof component === 'string') {
+            baseComponent = (self: Unit) => { self.element.textContent = component; };
+        }
+
         this._ = {
             root: parent?._.root ?? this,
-            peers: parent?._.children ?? Unit.roots,
-            inputs: { parent, target, component, props },
-            nextElementSibling: null,
+            parent,
+            target,
+            baseComponent,
+            props,
             baseElement,
+            nextNest: { element: baseElement, position: 'beforeend' },
             baseContext: UnitScope.get(parent),
         } as UnitInternal;
 
-        this._.peers.push(this);
+        (parent?._.children ?? Unit.roots).push(this);
         Unit.initialize(this);
     }
 
@@ -112,17 +123,23 @@ export class Unit {
     finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
-        this._.peers = this._.peers.filter((unit: Unit) => unit !== this);
+        if (this._.parent) {
+            this._.parent._.children = this._.parent._.children.filter((unit: Unit) => unit !== this);
+        } else {
+            Unit.roots = Unit.roots.filter((unit: Unit) => unit !== this);
+        }
     }
 
     reboot(): void {
         Unit.stop(this);
-        if (this._.currentElement !== this._.baseElement) {
-            let currentElement = this._.currentElement;
-            if (currentElement.parentElement === this._.baseElement) {
-                this._.nextElementSibling = currentElement.nextElementSibling as HTMLElement | SVGElement | null;
-            }
-        };
+        let trace: Element = this._.currentElement;
+        while (trace.parentElement && trace.parentElement !== this._.baseElement) {
+            trace = trace.parentElement as Element;
+        }
+        if (trace.parentElement === this._.baseElement) {
+            this._.nextNest.element = trace.nextElementSibling as HTMLElement | SVGElement;
+            this._.nextNest.position = 'beforebegin';
+        }
 
         Unit.finalize(this);
         Unit.initialize(this);
@@ -199,18 +216,16 @@ export class Unit {
         UnitScope.initialize(unit, unit._.baseContext);
 
         // nest html element
-        if (typeof unit._.inputs.target === 'string') {
-            Unit.nest(unit, unit._.inputs.target);
+        if (typeof unit._.target === 'string') {
+            Unit.nest(unit, unit._.target);
         }
 
         // setup component
-        if (typeof unit._.inputs.component === 'function') {
+        if (typeof unit._.baseComponent === 'function') {
             UnitScope.execute(
                 { unit, context: null, element: null },
-                () => Unit.extend(unit, unit._.inputs.component as Function, unit._.inputs.props)
+                () => Unit.extend(unit, unit._.baseComponent as Function, unit._.props)
             );
-        } else if (typeof unit._.inputs.component === 'string') {
-            unit.element.innerHTML = unit._.inputs.component;
         }
 
         // whether the unit promise was resolved
@@ -230,7 +245,7 @@ export class Unit {
                 }
             }
             if (captured === false) {
-                current = current._.inputs.parent;
+                current = current._.parent;
             } else {
                 break;
             }
@@ -247,7 +262,7 @@ export class Unit {
             });
 
             UnitEvent.off(unit);
-            UnitSubEvent.off(unit, null);
+            UnitEvent.suboff(unit, null);
             UnitScope.finalize(unit);
             UnitComponent.finalize(unit);
             UnitPromise.finalize(unit);
@@ -269,37 +284,20 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, tag: string, ...args: any[]): HTMLElement | SVGElement | null {
+    static nest(unit: Unit, tag: string): HTMLElement | SVGElement | null {
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element: HTMLElement;
-            if (unit._.nextElementSibling) {
-                unit._.nextElementSibling.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                element = unit._.nextElementSibling.previousElementSibling as HTMLElement;
-                unit._.nextElementSibling = null;
+            unit._.nextNest.element.insertAdjacentHTML(unit._.nextNest.position, `<${match[1]}></${match[2]}>`);
+            if (unit._.nextNest.position === 'beforebegin') {
+                element = unit._.nextNest.element.previousElementSibling as HTMLElement;
             } else {
-                unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
                 element = unit.element.children[unit.element.children.length - 1] as HTMLElement;
             }
+            unit._.nextNest.element = element;
+            unit._.nextNest.position = 'beforeend';
 
-            if (typeof args[0] === 'object') {
-                const attributes = args.shift();
-                Object.keys(attributes).forEach((key: string) => {
-                    if (attributes[key] !== undefined) {
-                        if (key === 'className') {
-                            element.className = attributes[key] as string;
-                        } else if (key === 'style') {
-                            Object.assign(element.style, attributes[key] as string);
-                        } else {
-                            element.setAttribute(key, attributes[key] as string);
-                        }
-                    }
-                });
-            }
             unit._.currentElement = element;
-            if (typeof args[0] === 'string') {
-                unit.element.innerHTML = args.shift();
-            }
         }
         return unit.element;
     }
@@ -572,12 +570,11 @@ export class UnitEvent {
             UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
         }
     }
-}
-export class UnitSubEvent {
-    static listeners: MapMapMap<Unit | null, string, Function, [HTMLElement | SVGElement | Window | Document, (...args: any[]) => void]> =
+
+    static sublisteners: MapMapMap<Unit | null, string, Function, [HTMLElement | SVGElement | Window | Document, (...args: any[]) => void]> =
         new MapMapMap;
 
-    static on(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+    static subon(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (typeof type !== 'string' || type.trim() === '') {
             throw new Error('"type" is invalid.');
         } else if (typeof listener !== 'function') {
@@ -587,32 +584,32 @@ export class UnitSubEvent {
         const snapshot = UnitScope.snapshot();
         const types = type.trim().split(/\s+/);
         types.forEach((type) => {
-            if (!UnitSubEvent.listeners.has(unit, type, listener)) {
+            if (!UnitEvent.sublisteners.has(unit, type, listener)) {
                 const execute = (...args: any[]) => {
                     UnitScope.execute(snapshot, listener, ...args);
                 };
-                UnitSubEvent.listeners.set(unit, type, listener, [target, execute]);
+                UnitEvent.sublisteners.set(unit, type, listener, [target, execute]);
                 target.addEventListener(type, execute, options);
             }
         });
     }
 
-    static off(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document | null, type?: string, listener?: Function): void {
+    static suboff(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document | null, type?: string, listener?: Function): void {
         if (typeof type === 'string' && type.trim() === '') {
             throw new Error('"type" is invalid.');
         } else if (listener !== undefined && typeof listener !== 'function') {
             throw new Error('"listener" is invalid.');
         }
 
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitSubEvent.listeners.keys(unit)];
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.sublisteners.keys(unit)];
         types.forEach((type) => {
-            const listeners = listener ? [listener] : [...UnitSubEvent.listeners.keys(unit, type)];
+            const listeners = listener ? [listener] : [...UnitEvent.sublisteners.keys(unit, type)];
             listeners.forEach((lis) => {
-                const tuple = UnitSubEvent.listeners.get(unit, type, lis);
+                const tuple = UnitEvent.sublisteners.get(unit, type, lis);
                 if (tuple !== undefined) {
                     const [element, execute] = tuple;
                     if (target === null || target === element) {
-                        UnitSubEvent.listeners.delete(unit, type, lis);
+                        UnitEvent.sublisteners.delete(unit, type, lis);
                         element.removeEventListener(type, execute);
                     }
                 }
@@ -620,6 +617,7 @@ export class UnitSubEvent {
         });
     }
 }
+
 
 //----------------------------------------------------------------------------------------------------
 // unit promise

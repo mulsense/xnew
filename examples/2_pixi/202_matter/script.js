@@ -7,7 +7,7 @@ import Matter from 'matter-js';
 const width = 800, height = 400;
 
 xnew('#main', (self) => {
-  const screen = xnew(xnew.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Contents);

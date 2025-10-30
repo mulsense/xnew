@@ -16,10 +16,10 @@
     });
 
     function MyModal(frame) {
-      xnew.extend(xnew.ModalFrame);
+      xnew.extend(xnew.basics.ModalFrame);
 
       xnew((content) => {
-        xnew.extend(xnew.ModalContent, { duration: 300, easing: 'ease' });
+        xnew.extend(xnew.basics.ModalContent, { duration: 300, easing: 'ease' });
         xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
 
         // Title Bar

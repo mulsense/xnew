@@ -1,5 +1,5 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitComponent, UnitPromise, UnitEvent, UnitSubEvent } from './unit';
+import { Unit, UnitScope, UnitComponent, UnitPromise, UnitEvent } from './unit';
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
@@ -7,7 +7,7 @@ export namespace xnew {
 
 export interface xnewtype {
     (...args: any[]): Unit;
-    // nest(html: string, innerHTML?: string): HTMLElement | SVGElement;
+    // nest(html: string): HTMLElement | SVGElement;
     [key: string]: any;
 }
 
@@ -64,7 +64,7 @@ export const xnew: xnewtype = (() => {
     }
   
 
-    fn.nest = (tag: string, ...args: any[]): HTMLElement | SVGElement => {
+    fn.nest = (tag: string): HTMLElement | SVGElement => {
         try {
             const current = UnitScope.current;
             if (current?._.state === 'invoked') {
@@ -78,7 +78,7 @@ export const xnew: xnewtype = (() => {
                 throw new Error('This function can not be called after initialized.');
             }
         } catch (error: unknown) {
-            console.error('xnew.nest(attributes): ', error);
+            console.error('xnew.nest(tag): ', error);
             throw new Error('');
         }
     }
@@ -286,10 +286,10 @@ export const xnew: xnewtype = (() => {
     fn.listener = function (target: HTMLElement | SVGElement | Window | Document) {
         return {
             on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-                UnitSubEvent.on(UnitScope.current, target, type, listener, options);
+                UnitEvent.subon(UnitScope.current, target, type, listener, options);
             },
             off(type?: string, listener?: Function) {
-                UnitSubEvent.off(UnitScope.current, target, type, listener);
+                UnitEvent.suboff(UnitScope.current, target, type, listener);
             }  
         }
     }

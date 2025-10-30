@@ -11,7 +11,7 @@ xnew('#main', (self) => {
   xthree.camera.position.set(0, 0, +100);
 
   // pixi
-  const screen = xnew(xnew.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element } );
 
   xnew(Cubes);

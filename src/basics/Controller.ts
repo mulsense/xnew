@@ -1,4 +1,5 @@
 import { xnew } from '../core/xnew';
+import { UserEvent } from './UserEvent';
 
 //----------------------------------------------------------------------------------------------------
 // controller
@@ -36,7 +37,7 @@ export function VirtualStick(self: xnew.Unit,
         xnew('<circle cx="50" cy="50" r="23">');
     });
 
-    const user = xnew(xnew.UserEvent);
+    const user = xnew(UserEvent);
 
     user.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
         const vector = getVector(position);
@@ -100,7 +101,7 @@ export function VirtualDPad(self: xnew.Unit,
         xnew('<polygon points="89 50 80 42 80 58">');
     });
 
-    const user = xnew(xnew.UserEvent);
+    const user = xnew(UserEvent);
 
     user.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
         const vector = getVector(position);
@@ -149,7 +150,7 @@ export function VirtualButton(self: xnew.Unit,
         xnew('<circle cx="50" cy="50" r="40">');
     });
 
-    const user = xnew(xnew.UserEvent);
+    const user = xnew(UserEvent);
 
     user.on('-dragstart', (event: any) => {
         target.element.style.filter = 'brightness(90%)';

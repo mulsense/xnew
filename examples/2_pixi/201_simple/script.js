@@ -5,7 +5,7 @@ import * as PIXI from 'pixi.js';
 const width = 800, height = 400;
 
 xnew('#main', (self) => {
-  const screen = xnew(xnew.Screen, { width, height, fit: 'contain' });
+  const screen = xnew(xnew.basics.Screen, { width, height, fit: 'contain' });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Boxes);

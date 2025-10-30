@@ -7,7 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const width = 1200, height = 600;
 
 xnew('#main', (self) => {
-  const screen = xnew(xnew.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xthree.initialize({ canvas: screen.element });
   xthree.scene.background = new THREE.Color(0xa0a0a0);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
@@ -133,13 +133,13 @@ function Model(self, { gltf }) {
 
 function Panel(self) {
   xnew('<div style="position: absolute; top: 8px; right: 8px; width: 200px;">', (frame) => {
-    xnew.extend(xnew.PanelFrame);
+    xnew.extend(xnew.basics.PanelFrame);
     xnew.nest('<div style="padding: 6px; font-size: 0.8em; background: #FFF; border: solid 1px #AAA; border-radius: 6px;">')
 
     xnew('<div style="margin: 2px;">', 'Panel');
 
     xnew((self) => {
-      xnew.extend(xnew.PanelGroup, { name: 'actions', open: true });
+      xnew.extend(xnew.basics.PanelGroup, { name: 'actions', open: true });
 
       for (const name of ['none', ...Object.keys(baseActions)]) {
         const button = xnew(`<button style="width: 100%;">`, name);
@@ -160,11 +160,11 @@ function Panel(self) {
     });
     
     xnew((self) => {
-      xnew.extend(xnew.PanelGroup, { name: 'action weights', open: true });
+      xnew.extend(xnew.basics.PanelGroup, { name: 'action weights', open: true });
 
       for (const name of Object.keys(additiveActions)) {
         xnew((frame) => {
-          xnew.extend(xnew.InputFrame);
+          xnew.extend(xnew.basics.InputFrame);
           xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
               xnew('<div style="flex: auto">', name);
               const status = xnew('<div style="flex: none">', '0');
@@ -185,9 +185,9 @@ function Panel(self) {
 
     });
     xnew((self) => {
-      xnew.extend(xnew.PanelGroup, { name: 'options', open: true });
+      xnew.extend(xnew.basics.PanelGroup, { name: 'options', open: true });
       xnew((frame) => {
-        xnew.extend(xnew.InputFrame);
+        xnew.extend(xnew.basics.InputFrame);
         xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
           xnew('<div style="flex: auto">', 'speed');
           const status = xnew('<div style="flex: none">', '1.0');

@@ -16,17 +16,17 @@
     });
 
     function MyAccordion(frame) {
-      xnew.extend(xnew.AccordionFrame);
+      xnew.extend(xnew.basics.AccordionFrame);
       xnew.nest('<div class="w-64 border rounded-lg">');
 
       xnew((button) => {
-        xnew.extend(xnew.AccordionButton);
-        xnew(xnew.AccordionBullet, { type: 'arrow' });
+        xnew.extend(xnew.basics.AccordionButton);
+        xnew(xnew.basics.AccordionBullet, { type: 'arrow' });
         xnew('<div class="my-2 select-none cursor-pointer">', 'accordion (click me!)');
       });
 
       xnew((content) => {
-        xnew.extend(xnew.AccordionContent, { open: true, duration: 300, easing: 'ease' });
+        xnew.extend(xnew.basics.AccordionContent, { open: true, duration: 300, easing: 'ease' });
         xnew.nest('<div class="p-2 border-t">');
         xnew('<span>', 'Content');
         xnew('<ul>', () => {

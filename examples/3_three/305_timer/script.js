@@ -5,7 +5,7 @@ import * as THREE from 'three';
 xnew('#main', Main);
 
 function Main(self) {
-  const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
   xthree.initialize({ canvas: screen.element });
   xthree.camera.position.set(0, 0, +100);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 300);

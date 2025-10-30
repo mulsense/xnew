@@ -16,11 +16,11 @@
     });
 
     function MyDragFrame(frame) {
-      xnew.extend(xnew.DragFrame);
+      xnew.extend(xnew.basics.DragFrame);
       xnew.nest('<div style="width: 300px; border: solid 1px #000; border-radius: 6px;">');
 
       xnew((target) => {
-        xnew.extend(xnew.DragTarget);
+        xnew.extend(xnew.basics.DragTarget);
         xnew('<div style="padding: 6px; user-select: none; cursor: pointer;">', 'drag (drag me!)');
       });
 

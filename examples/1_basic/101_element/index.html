@@ -25,7 +25,10 @@
 
     function MyDiv(self) {
       xnew.extend(Template, { name: 'my div' });
-
+      xnew.timeout(() => {
+        console.log('reboot');
+        self.reboot();
+      }, 1000);
       xnew('<div class="w-32 h-8 bg-red-400 border rounded">', '1');
       xnew('<div class="w-32 h-8 bg-green-400 border rounded">', (self) => {
         self.element.textContent = '2';

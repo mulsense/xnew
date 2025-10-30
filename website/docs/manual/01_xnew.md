@@ -15,7 +15,7 @@
 
 There are two main ways to use `xnew`:
 
-### 1. Creating Components
+### A. Creating Components
 ```js
 const unit = xnew(Component, props);
 
@@ -24,15 +24,11 @@ function Component(self, props) {
 }
 ```
 
-### 2. Creating HTML Elements Directly
-```js
-const unit = xnew('<div class="my-class">', 'inner content');
-```
-
-### 3. Targeting Specific Elements
+### B. Targeting Specific Elements
 ```js
 const unit = xnew(target, Component, props);
 // target: existing element, selector, or HTML string
+// Component, props: can be omitted
 ```
 
 
@@ -65,7 +61,7 @@ const unit = xnew((self, props) => {
 });
 ```
 
-## Element Targeting
+## Targeting
 
 The `target` parameter specifies which HTML element your component will be attached to. You can access this element via `self.element` in your component.
 
@@ -126,7 +122,7 @@ When no target is specified, xnew inherits the element from its parent context:
 </script>
 ```
 
-### Setting innerHTML
+### Setting textContent
 
 You can set the content directly when creating elements:
 
@@ -136,7 +132,7 @@ xnew('<p>', 'This is the paragraph content');
 
 // Equivalent to:
 xnew('<p>', (self) => {
-  self.element.innerHTML = 'This is the paragraph content';
+  self.element.textContent = 'This is the paragraph content';
 });
 ```
 

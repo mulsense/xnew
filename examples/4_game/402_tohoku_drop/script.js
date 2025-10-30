@@ -19,7 +19,7 @@ xnew('#main', (self) => {
   xthree.scene.rotation.x = -0 / 180 * Math.PI
 
   // pixi
-  const screen = xnew(xnew.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Background);
@@ -127,8 +127,8 @@ function AmbientLight(self) {
 }
 
 function Controller(self) {
-  const screen = xnew.find(xnew.Screen)[0];
-  const user = xnew(screen.canvas, xnew.UserEvent);
+  const screen = xnew.find(xnew.basics.Screen)[0];
+  const user = xnew(screen.canvas, xnew.basics.UserEvent);
   user.on('-pointermove -pointerdown', ({ position }) => {
     self.emit('+move', { x: position.x * screen.scale.x });
   });

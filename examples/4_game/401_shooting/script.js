@@ -7,7 +7,7 @@ const width = 800, height = 600;
 xnew('#main', Main);
 
 function Main(self) {
-  const screen = xnew(xnew.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Background);
@@ -82,15 +82,15 @@ function Controller(self) {
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // virtual D-Pad
-  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xnew.VirtualDPad, { size: 130 });
+  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xnew.basics.VirtualDPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => self.emit('+move', vector));
 
   // virtual button
-  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xnew.VirtualButton);
+  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xnew.basics.VirtualButton);
   button.on('-down', () => self.emit('+shot'));
 
   // keyboard
-  const user = xnew(xnew.UserEvent);
+  const user = xnew(xnew.basics.UserEvent);
   user.on('-arrowkeydown -arrowkeyup', ({ vector }) => self.emit('+move', vector));
   user.on('-keydown', ({ code }) => {
     if (code === 'Space') {

@@ -293,15 +293,24 @@ class Unit {
         else {
             baseElement = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
         }
+        let baseComponent = null;
+        if (typeof component === 'function') {
+            baseComponent = component;
+        }
+        else if (typeof component === 'string') {
+            baseComponent = (self) => { self.element.textContent = component; };
+        }
         this._ = {
             root: (_d = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _d !== void 0 ? _d : this,
-            peers: (_e = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _e !== void 0 ? _e : Unit.roots,
-            inputs: { parent, target, component, props },
-            nextElementSibling: null,
+            parent,
+            target,
+            baseComponent,
+            props,
             baseElement,
+            nextNest: { element: baseElement, position: 'beforeend' },
             baseContext: UnitScope.get(parent),
         };
-        this._.peers.push(this);
+        ((_e = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _e !== void 0 ? _e : Unit.roots).push(this);
         Unit.initialize(this);
     }
     get element() {
@@ -317,15 +326,22 @@ class Unit {
     finalize() {
         Unit.stop(this);
         Unit.finalize(this);
-        this._.peers = this._.peers.filter((unit) => unit !== this);
+        if (this._.parent) {
+            this._.parent._.children = this._.parent._.children.filter((unit) => unit !== this);
+        }
+        else {
+            Unit.roots = Unit.roots.filter((unit) => unit !== this);
+        }
     }
     reboot() {
         Unit.stop(this);
-        if (this._.currentElement !== this._.baseElement) {
-            let currentElement = this._.currentElement;
-            if (currentElement.parentElement === this._.baseElement) {
-                this._.nextElementSibling = currentElement.nextElementSibling;
-            }
+        let trace = this._.currentElement;
+        while (trace.parentElement && trace.parentElement !== this._.baseElement) {
+            trace = trace.parentElement;
+        }
+        if (trace.parentElement === this._.baseElement) {
+            this._.nextNest.element = trace.nextElementSibling;
+            this._.nextNest.position = 'beforebegin';
         }
         Unit.finalize(this);
         Unit.initialize(this);
@@ -398,15 +414,12 @@ class Unit {
         });
         UnitScope.initialize(unit, unit._.baseContext);
         // nest html element
-        if (typeof unit._.inputs.target === 'string') {
-            Unit.nest(unit, unit._.inputs.target);
+        if (typeof unit._.target === 'string') {
+            Unit.nest(unit, unit._.target);
         }
         // setup component
-        if (typeof unit._.inputs.component === 'function') {
-            UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.inputs.component, unit._.inputs.props));
-        }
-        else if (typeof unit._.inputs.component === 'string') {
-            unit.element.innerHTML = unit._.inputs.component;
+        if (typeof unit._.baseComponent === 'function') {
+            UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.baseComponent, unit._.props));
         }
         // whether the unit promise was resolved
         (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => {
@@ -423,7 +436,7 @@ class Unit {
                 }
             }
             if (captured === false) {
-                current = current._.inputs.parent;
+                current = current._.parent;
             }
             else {
                 break;
@@ -438,7 +451,7 @@ class Unit {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
             UnitEvent.off(unit);
-            UnitSubEvent.off(unit, null);
+            UnitEvent.suboff(unit, null);
             UnitScope.finalize(unit);
             UnitComponent.finalize(unit);
             UnitPromise.finalize(unit);
@@ -457,39 +470,20 @@ class Unit {
             unit._.state = LIFECYCLE_STATES.FINALIZED;
         }
     }
-    static nest(unit, tag, ...args) {
+    static nest(unit, tag) {
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element;
-            if (unit._.nextElementSibling) {
-                unit._.nextElementSibling.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                element = unit._.nextElementSibling.previousElementSibling;
-                unit._.nextElementSibling = null;
+            unit._.nextNest.element.insertAdjacentHTML(unit._.nextNest.position, `<${match[1]}></${match[2]}>`);
+            if (unit._.nextNest.position === 'beforebegin') {
+                element = unit._.nextNest.element.previousElementSibling;
             }
             else {
-                unit.element.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
                 element = unit.element.children[unit.element.children.length - 1];
             }
-            if (typeof args[0] === 'object') {
-                const attributes = args.shift();
-                Object.keys(attributes).forEach((key) => {
-                    if (attributes[key] !== undefined) {
-                        if (key === 'className') {
-                            element.className = attributes[key];
-                        }
-                        else if (key === 'style') {
-                            Object.assign(element.style, attributes[key]);
-                        }
-                        else {
-                            element.setAttribute(key, attributes[key]);
-                        }
-                    }
-                });
-            }
+            unit._.nextNest.element = element;
+            unit._.nextNest.position = 'beforeend';
             unit._.currentElement = element;
-            if (typeof args[0] === 'string') {
-                unit.element.innerHTML = args.shift();
-            }
         }
         return unit.element;
     }
@@ -736,11 +730,7 @@ class UnitEvent {
             (_b = UnitEvent.listeners.get(unit, type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
         }
     }
-}
-UnitEvent.units = new MapSet;
-UnitEvent.listeners = new MapMapMap;
-class UnitSubEvent {
-    static on(unit, target, type, listener, options) {
+    static subon(unit, target, type, listener, options) {
         if (typeof type !== 'string' || type.trim() === '') {
             throw new Error('"type" is invalid.');
         }
@@ -750,31 +740,31 @@ class UnitSubEvent {
         const snapshot = UnitScope.snapshot();
         const types = type.trim().split(/\s+/);
         types.forEach((type) => {
-            if (!UnitSubEvent.listeners.has(unit, type, listener)) {
+            if (!UnitEvent.sublisteners.has(unit, type, listener)) {
                 const execute = (...args) => {
                     UnitScope.execute(snapshot, listener, ...args);
                 };
-                UnitSubEvent.listeners.set(unit, type, listener, [target, execute]);
+                UnitEvent.sublisteners.set(unit, type, listener, [target, execute]);
                 target.addEventListener(type, execute, options);
             }
         });
     }
-    static off(unit, target, type, listener) {
+    static suboff(unit, target, type, listener) {
         if (typeof type === 'string' && type.trim() === '') {
             throw new Error('"type" is invalid.');
         }
         else if (listener !== undefined && typeof listener !== 'function') {
             throw new Error('"listener" is invalid.');
         }
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitSubEvent.listeners.keys(unit)];
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.sublisteners.keys(unit)];
         types.forEach((type) => {
-            const listeners = listener ? [listener] : [...UnitSubEvent.listeners.keys(unit, type)];
+            const listeners = listener ? [listener] : [...UnitEvent.sublisteners.keys(unit, type)];
             listeners.forEach((lis) => {
-                const tuple = UnitSubEvent.listeners.get(unit, type, lis);
+                const tuple = UnitEvent.sublisteners.get(unit, type, lis);
                 if (tuple !== undefined) {
                     const [element, execute] = tuple;
                     if (target === null || target === element) {
-                        UnitSubEvent.listeners.delete(unit, type, lis);
+                        UnitEvent.sublisteners.delete(unit, type, lis);
                         element.removeEventListener(type, execute);
                     }
                 }
@@ -782,7 +772,9 @@ class UnitSubEvent {
         });
     }
 }
-UnitSubEvent.listeners = new MapMapMap;
+UnitEvent.units = new MapSet;
+UnitEvent.listeners = new MapMapMap;
+UnitEvent.sublisteners = new MapMapMap;
 //----------------------------------------------------------------------------------------------------
 // unit promise
 //----------------------------------------------------------------------------------------------------
@@ -889,7 +881,7 @@ const xnew$1 = (() => {
             throw '';
         }
     };
-    fn.nest = (tag, ...args) => {
+    fn.nest = (tag) => {
         try {
             const current = UnitScope.current;
             if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
@@ -906,7 +898,7 @@ const xnew$1 = (() => {
             }
         }
         catch (error) {
-            console.error('xnew.nest(attributes): ', error);
+            console.error('xnew.nest(tag): ', error);
             throw new Error('');
         }
     };
@@ -1116,10 +1108,10 @@ const xnew$1 = (() => {
     fn.listener = function (target) {
         return {
             on(type, listener, options) {
-                UnitSubEvent.on(UnitScope.current, target, type, listener, options);
+                UnitEvent.subon(UnitScope.current, target, type, listener, options);
             },
             off(type, listener) {
-                UnitSubEvent.off(UnitScope.current, target, type, listener);
+                UnitEvent.suboff(UnitScope.current, target, type, listener);
             }
         };
     };
@@ -1607,7 +1599,7 @@ function VirtualStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stro
         xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
         xnew$1('<circle cx="50" cy="50" r="23">');
     });
-    const user = xnew$1(xnew$1.UserEvent);
+    const user = xnew$1(UserEvent);
     user.on('-dragstart', ({ event, position }) => {
         const vector = getVector(position);
         target.element.style.filter = 'brightness(90%)';
@@ -1663,7 +1655,7 @@ function VirtualDPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, strok
         xnew$1('<polygon points="11 50 20 42 20 58">');
         xnew$1('<polygon points="89 50 80 42 80 58">');
     });
-    const user = xnew$1(xnew$1.UserEvent);
+    const user = xnew$1(UserEvent);
     user.on('-dragstart', ({ event, position }) => {
         const vector = getVector(position);
         targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
@@ -1706,7 +1698,7 @@ function VirtualButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stro
         xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
         xnew$1('<circle cx="50" cy="50" r="40">');
     });
-    const user = xnew$1(xnew$1.UserEvent);
+    const user = xnew$1(UserEvent);
     user.on('-dragstart', (event) => {
         target.element.style.filter = 'brightness(90%)';
         self.emit('-down', event);
@@ -2017,10 +2009,7 @@ function impulseResponse({ time, decay = 2.0 }) {
     return impulse;
 }
 
-const audio = {
-    synthesizer
-};
-const xnew = Object.assign(xnew$1, {
+const basics = {
     Screen,
     UserEvent,
     ResizeEvent,
@@ -2041,6 +2030,12 @@ const xnew = Object.assign(xnew$1, {
     VirtualStick,
     VirtualDPad,
     VirtualButton,
+};
+const audio = {
+    synthesizer
+};
+const xnew = Object.assign(xnew$1, {
+    basics,
     audio,
 });
 

@@ -44,7 +44,7 @@ import xpixi from 'xnew/addons/xpixi'
 ## `xpixi.initialize`
 ```js
 xpixi.initialize({
-  renderer: PIXI.autoDetectRenderer({ width, height, view })
+  canvas: canvas
 })
 ```
 

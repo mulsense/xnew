@@ -5,7 +5,7 @@ import * as THREE from 'three';
 const width = 800, height = 400;
 
 xnew('#main', (self) => {
-  const screen = xnew(xnew.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xthree.initialize({ canvas: screen.element });
   xthree.camera.position.set(0, 0, +100);
 
