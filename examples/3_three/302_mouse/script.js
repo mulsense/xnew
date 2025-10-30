@@ -3,7 +3,7 @@ import xthree from 'xnew/addons/xthree';
 import * as THREE from 'three';
 
 xnew('#main', (self) => {
-  const screen = xnew(xnew.Screen, { width: 800, height: 400 });
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
   xthree.initialize({ canvas: screen.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -29,11 +29,13 @@ function Controller(self) {
     xthree.scene.rotation.z += move.x * 0.01;
   });
 
-  const user = xnew(xnew.UserEvent);
+  const user = xnew(xnew.basics.UserEvent);
   let isActive = false;
   user.on('-gesturestart', () => isActive = true);
   user.on('-gestureend', () => isActive = false);
-  user.on('-gesturemove', ({ scale }) => self.emit('+scale', scale));
+  user.on('-gesturemove', ({ scale }) => {
+    self.emit('+scale', scale)
+  });
   
   user.on('-dragmove', ({ event, delta }) => {
     if (isActive === true) return;
