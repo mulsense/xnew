@@ -49,8 +49,6 @@ function TitleScene(self) {
 
 function TitleText(self) {
   const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 32, fill: 0xFFFFFF }));
-  
-  // center
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
 }
@@ -98,9 +96,7 @@ function Controller(self) {
 
 function ScoreText(self) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0xFFFFFF }));
-
-  // top right
-  object.position.set(xpixi.canvas.width - 10, 10);
+  object.position.set(xpixi.canvas.width - 10, 10); // top right
   object.anchor.set(1.0, 0.0);
 
   let sum = 0;
@@ -109,24 +105,19 @@ function ScoreText(self) {
 
 function GameOverText(self) {
   const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0xFFFFFF }));
-  
-  // center
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
 }
 
 function Player(self) {
   const object = xpixi.nest(new PIXI.Container());
-
-  // center
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
-  setSprite(object, [[0, 0, 32, 32], [32, 0, 32, 32]]);
+  xnew.extend(Texture, { object, rects: [[0, 0, 32, 32], [32, 0, 32, 32]] });
 
   // actions
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
   self.on('+shot', () => xnew.append(GameScene, Shot, { x: object.x, y: object.y }));
-
   self.on('+shot', () => self.sound());
 
   self.on('update', () => {
@@ -186,7 +177,7 @@ function Shot(self, { x, y }) {
 function Enemy(self) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * xpixi.canvas.width, 0);
-  setSprite(object, [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]);
+  xnew.extend(Texture, { object, rects: [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]] });
 
   // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
@@ -246,9 +237,8 @@ function CrashText(self, { x, y, score }) {
 
 function Crash(self, { x, y, score }) {
   const object = xpixi.nest(new PIXI.Container());
-
   object.position.set(x, y);
-  setSprite(object, [[0, 64, 32, 32]]);
+  xnew.extend(Texture, { object, rects: [[0, 64, 32, 32]] });
 
   const v = Math.random() * 4 + 1; // 1 ~ 5
   const a = Math.random() * 2 * Math.PI; // 0 ~ 2PI
@@ -274,7 +264,7 @@ function Crash(self, { x, y, score }) {
   });
 }
 
-function setSprite(object, rects) {
+function Texture(self, {object, rects}) {
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
     texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
     const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));
