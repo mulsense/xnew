@@ -10,13 +10,11 @@ function Main(self) {
   xthree.camera.position.set(0, 0, +100);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 300);
 
-  xnew(Light);
-  xnew.interval(() => {
-    xnew(Cube);
-  }, 50);
+  xnew(DirectionalLight);
+  xnew.interval(() => xnew(Cube), 50);
 }
 
-function Light(self) {
+function DirectionalLight(self) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
   object.position.set(0, 0, 1);
 }

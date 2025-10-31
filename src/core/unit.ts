@@ -75,7 +75,9 @@ export class Unit {
 
     static roots: Unit[] = [];
 
-    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object) {
+    constructor(target: Object | null, component?: Function | string, props?: Object) {
+        const parent = UnitScope.current;
+
         let baseElement: HTMLElement | SVGElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;

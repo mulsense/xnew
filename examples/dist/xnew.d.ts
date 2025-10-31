@@ -38,7 +38,7 @@ declare class Unit {
     [key: string]: any;
     _: UnitInternal;
     static roots: Unit[];
-    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object);
+    constructor(target: Object | null, component?: Function | string, props?: Object);
     get element(): HTMLElement | SVGElement;
     start(): void;
     stop(): void;

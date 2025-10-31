@@ -2,22 +2,20 @@ import * as PIXI from 'pixi.js';
 import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
 
-const width = 800, height = 600;
-
 xnew('#main', Main);
 
 function Main(self) {
+  const width = 800, height = 600;
   const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Background);
   xnew(TitleScene);
-  self.on('+nextscene', xnew);
 }
 
 function Background(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.addChild(new PIXI.Graphics().rect(0, 0, width, height).fill(0x000000));
+  object.addChild(new PIXI.Graphics().rect(0, 0, xpixi.canvas.width, xpixi.canvas.height).fill(0x000000));
 
   for (let i = 0; i < 100; i++) {
     xnew(Dot);
@@ -28,14 +26,14 @@ function Dot(self) {
   const object = xpixi.nest(new PIXI.Container());
 
   // random position
-  object.position.set(Math.random() * width, Math.random() * height);
+  object.position.set(Math.random() * xpixi.canvas.width, Math.random() * xpixi.canvas.height);
   object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
 
   let velocity = Math.random() + 0.1;
   self.on('update', (count) => {
     object.y += velocity;
-    if (object.y > height) {
-      object.position.set(Math.random() * width, 0);
+    if (object.y > xpixi.canvas.height) {
+      object.position.set(Math.random() * xpixi.canvas.width, 0);
     }
   });
 }
@@ -44,8 +42,8 @@ function TitleScene(self) {
   xnew(TitleText);
 
   xnew.listener(window).on('keydown pointerdown', () => {
-    self.emit('+nextscene', GameScene);
     self.finalize();
+    xnew.append(Main, GameScene);
   });
 }
 
@@ -53,7 +51,7 @@ function TitleText(self) {
   const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 32, fill: 0xFFFFFF }));
   
   // center
-  object.position.set(width / 2, height / 2);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
 }
 
@@ -62,15 +60,14 @@ function GameScene(self) {
   xnew(ScoreText);
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
-  self.on('+addobject', xnew);
 
   self.on('+gameover', () => {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
       xnew.listener(window).on('keydown pointerdown', () => {
-        self.emit('+nextscene', TitleScene);
         self.finalize();
+        xnew.append(Main, TitleScene);
       });
     }, 1000);
   });
@@ -103,7 +100,7 @@ function ScoreText(self) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0xFFFFFF }));
 
   // top right
-  object.position.set(width - 10, 10);
+  object.position.set(xpixi.canvas.width - 10, 10);
   object.anchor.set(1.0, 0.0);
 
   let sum = 0;
@@ -114,7 +111,7 @@ function GameOverText(self) {
   const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0xFFFFFF }));
   
   // center
-  object.position.set(width / 2, height / 2);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
 }
 
@@ -122,13 +119,14 @@ function Player(self) {
   const object = xpixi.nest(new PIXI.Container());
 
   // center
-  object.position.set(width / 2, height / 2);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   setSprite(object, [[0, 0, 32, 32], [32, 0, 32, 32]]);
 
   // actions
   let velocity = { x: 0, y: 0 };
   self.on('+move', (vector) => velocity = vector);
-  self.on('+shot', () => self.emit('+addobject', Shot, { x: object.x, y: object.y }));
+  self.on('+shot', () => xnew.append(GameScene, Shot, { x: object.x, y: object.y }));
+
   self.on('+shot', () => self.sound());
 
   self.on('update', () => {
@@ -136,8 +134,8 @@ function Player(self) {
     object.y += velocity.y * 2;
 
     // limitation (10 < x < width - 10, 10 < y < height - 10)
-    object.x = Math.min(Math.max(object.x, 10), width - 10);
-    object.y = Math.min(Math.max(object.y, 10), height - 10);
+    object.x = Math.min(Math.max(object.x, 10), xpixi.canvas.width - 10);
+    object.y = Math.min(Math.max(object.y, 10), xpixi.canvas.height - 10);
 
     // detect collision
     for (const enemy of xnew.find(Enemy)) {
@@ -187,7 +185,7 @@ function Shot(self, { x, y }) {
 
 function Enemy(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(Math.random() * width, 0);
+  object.position.set(Math.random() * xpixi.canvas.width, 0);
   setSprite(object, [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]]);
 
   // set velocity and angle of the object
@@ -198,9 +196,9 @@ function Enemy(self) {
   self.on('update', () => {
     // move in the opposite direction at the edge of the screen
     if (object.x < 10) velocity.x = +Math.abs(velocity.x);
-    if (object.x > width - 10) velocity.x = -Math.abs(velocity.x);
+    if (object.x > xpixi.canvas.width - 10) velocity.x = -Math.abs(velocity.x);
     if (object.y < 10) velocity.y = +Math.abs(velocity.y);
-    if (object.y > height - 10) velocity.y = -Math.abs(velocity.y);
+    if (object.y > xpixi.canvas.height - 10) velocity.y = -Math.abs(velocity.y);
 
     object.x += velocity.x;
     object.y += velocity.y;
@@ -209,9 +207,9 @@ function Enemy(self) {
     clash(score) {
       self.sound(score);
       for (let i = 0; i < 4; i++) {
-        self.emit('+addobject', Crash, { x: object.x, y: object.y, score });
+        xnew.append(GameScene, Crash, { x: object.x, y: object.y, score });
       }
-      self.emit('+addobject', CrashText, { x: object.x, y: object.y, score });
+      xnew.append(GameScene, CrashText, { x: object.x, y: object.y, score });
       self.emit('+scoreup', score);
       self.finalize();
     },

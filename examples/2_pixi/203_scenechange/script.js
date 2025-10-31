@@ -2,31 +2,33 @@ import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
-xnew('#main', (self) => {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 450 });
+xnew('#main', Main);
+
+function Main(self) {
+  const width = 800, height = 400;
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Scene1);
-  self.on('+addscene', xnew);
-});
+}
 
 function Scene1(self) {
   xnew(Text, { text: 'Scene1' });
-  xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0xff2266 });
+  xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
   self.on('pointerdown', () => {
-    self.emit('+addscene', Scene2);
     self.finalize();
+    xnew.append(Main, Scene2);
   });
 }
 
 function Scene2(self) {
   xnew(Text, { text: 'Scene2' });
-  xnew(Box, { x: 800 / 2, y: 400 / 2, size: 160, color: 0x6622ff });
+  xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
   self.on('pointerdown', () => {
-    self.emit('+addscene', Scene1);
     self.finalize();
+    xnew.append(Main, Scene1);
   });
 }
 

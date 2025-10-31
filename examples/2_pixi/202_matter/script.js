@@ -4,14 +4,17 @@ import xmatter from 'xnew/addons/xmatter';
 import * as PIXI from 'pixi.js';
 import Matter from 'matter-js';
 
-const width = 800, height = 400;
+xnew('#main', Main);
 
-xnew('#main', (self) => {
+function Main(self) {
+  const width = 800, height = 400;
   const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
-  xnew(Contents);
-});
+  const contents = xnew(Contents);
+  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
+  button.on('click', () => contents.reboot());
+}
 
 function Contents(self) {
   xmatter.initialize();
@@ -20,9 +23,6 @@ function Contents(self) {
   xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
   xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
   xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888, options: { isStatic: true } });
-
-  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
-  button.on('click', () => self.reboot());
 }
 
 function Circle(self, { x, y, r, color = 0xFFFFFF, options = {} }) {

@@ -7,11 +7,13 @@ const offset = { rx: 0, ry: 11, rz: 0, tx: 120, ty: 0, tz: 0 };
 const transform = { rx: 0, ry: 0, rz: 0, tx: 0, ty: 0, tz: 0 };
 const state = { id: 0, moving: false };
 
-xnew((self) => {
+xnew(Main);
+
+function Main(self) {
   xnew(HtmlMain);
   xnew(ThreeMain);
   xnew(Event);
-});
+}
 
 function HtmlMain(self) {
   const targets = xnew('#targets');
@@ -66,11 +68,6 @@ function Event(self) {
     event.preventDefault();
     transform.ty = Math.max(-300, Math.min(+300, transform.ty + event.wheelDeltaY * 0.2));
   }, { passive: false });
-
-  // xnew(xnew.DragEvent).on('move', (event, { position, delta }) => {
-  //   transform.ry -= delta.x * 0.2;
-  //   transform.rx += delta.y * 0.2;
-  // });
 }
 
 function ThreeMain(self) {

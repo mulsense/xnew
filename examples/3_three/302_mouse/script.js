@@ -2,8 +2,11 @@ import xnew from 'xnew';
 import xthree from 'xnew/addons/xthree';
 import * as THREE from 'three';
 
-xnew('#main', (self) => {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
+xnew('#main', Main);
+
+function Main(self) {
+  const width = 800, height = 400;
+  const screen = xnew(xnew.basics.Screen, { width, height });
   xthree.initialize({ canvas: screen.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -12,7 +15,7 @@ xnew('#main', (self) => {
 
   xnew(Controller);
   xnew(ThreeMain);
-});
+}
 
 function Controller(self) {
   self.on('touchstart contextmenu wheel', (event) => event.preventDefault());

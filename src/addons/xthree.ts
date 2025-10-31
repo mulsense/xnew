@@ -6,7 +6,7 @@ export default {
         xnew.extend(Root, { renderer, canvas, camera });
     },
     nest (object: any) {
-        xnew.extend(Connect, object);
+        xnew.extend(Nest, object);
         return object;
     },
     get renderer() {
@@ -19,39 +19,27 @@ export default {
         return xnew.context('xthree.root')?.scene;
     },
     get canvas() {
-        return xnew.context('xthree.root')?.renderer.domElement;
+        return xnew.context('xthree.root')?.canvas;
     }
 };
 
-function Root(self: xnew.Unit, { renderer, canvas, camera }: any) {
+function Root(self: xnew.Unit, { canvas, camera }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xthree.root', root);
+    root.canvas = canvas;
 
-    if (renderer !== null) {
-        root.renderer = renderer;
-    } else if (canvas !== null) {
-        root.renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-        root.renderer.setClearColor(0x000000, 0);
-    } else {
-        const screens = xnew.find(xnew.Screen);
-        if (screens.length > 0) {
-            const screen = screens.slice(-1)[0]; // last screen
-            root.renderer = new THREE.WebGLRenderer({ canvas: screen.canvas, alpha: true });
-            root.renderer.setClearColor(0x000000, 0);
-        } else {
-            root.renderer = new THREE.WebGLRenderer({});
-        }
-    }
-
+    root.renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+    root.renderer.setClearColor(0x000000, 0);
+    
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
-    xnew.extend(Connect, root.scene);
+    xnew.extend(Nest, root.scene);
     self.on('update', () => {
         root.renderer.render(root.scene, root.camera);
     });
 }
 
-function Connect(self: xnew.Unit, object: any) {
+function Nest(self: xnew.Unit, object: any) {
     const parent = xnew.context('xthree.object');
     xnew.context('xthree.object', object);
 

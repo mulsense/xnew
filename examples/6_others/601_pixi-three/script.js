@@ -4,8 +4,10 @@ import xthree from 'xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 
-const width = 800, height = 400;
-xnew('#main', (self) => {
+xnew('#main', Main);
+
+function Main(self) {
+  const width = 800, height = 400;
   // three 
   xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.camera.position.set(0, 0, +100);
@@ -15,10 +17,9 @@ xnew('#main', (self) => {
   xpixi.initialize({ canvas: screen.element } );
 
   xnew(Cubes);
-  
   xnew(ThreeLayer);
   xnew(Boxes);
-});
+}
 
 function ThreeLayer(self) {
   const texture = xpixi.sync(xthree.canvas);
@@ -27,7 +28,7 @@ function ThreeLayer(self) {
 
 function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(width / 2, height / 2);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
 
   for (let y = -1; y <= 1; y++) {
     for (let x = -1; x <= 1; x++) {

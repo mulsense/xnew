@@ -287,8 +287,9 @@
     // unit main
     //----------------------------------------------------------------------------------------------------
     class Unit {
-        constructor(parent, target, component, props) {
+        constructor(target, component, props) {
             var _a, _b, _c, _d, _e;
+            const parent = UnitScope.current;
             let baseElement;
             if (target instanceof HTMLElement || target instanceof SVGElement) {
                 baseElement = target;
@@ -831,95 +832,51 @@
 
     const xnew$1 = (() => {
         const fn = function (...args) {
-            try {
-                let parent;
-                if (args[0] instanceof Unit) {
-                    parent = args.shift();
-                }
-                else if (args[0] === null) {
-                    parent = args.shift();
-                }
-                else if (args[0] === undefined) {
-                    args.shift();
-                    parent = UnitScope.current;
+            let target;
+            if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+                target = args.shift(); // an existing html element
+            }
+            else if (typeof args[0] === 'string') {
+                const str = args.shift(); // a selector for an existing html element
+                const match = str.match(/<([^>]*)\/?>/);
+                if (match) {
+                    target = str;
                 }
                 else {
-                    parent = UnitScope.current;
-                }
-                let target;
-                if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-                    target = args.shift(); // an existing html element
-                }
-                else if (typeof args[0] === 'string') {
-                    const str = args.shift(); // a selector for an existing html element
-                    const match = str.match(/<([^>]*)\/?>/);
-                    if (match) {
-                        target = str;
-                    }
-                    else {
-                        target = document.querySelector(str);
-                        if (target == null) {
-                            throw new Error(`'${str}' can not be found.`);
-                        }
+                    target = document.querySelector(str);
+                    if (target == null) {
+                        throw new Error(`'${str}' can not be found.`);
                     }
                 }
-                else if (typeof args[0] !== null && typeof args[0] === 'object') {
-                    target = args.shift(); // an attributes for a new html element
-                }
-                else if (args[0] === null || args[0] === undefined) {
-                    args.shift();
-                    target = null;
-                }
-                else {
-                    target = null;
-                }
-                if (!(args[0] === undefined || typeof args[0] === 'function' || ((target !== null && (typeof target === 'object' || typeof target === 'string')) && typeof args[0] === 'string'))) {
-                    throw new Error('The argument [parent, target, component] is invalid.');
-                }
-                const unit = new Unit(parent, target, ...args);
-                if (unit === undefined) {
-                    throw '';
-                }
-                return unit;
             }
-            catch (error) {
-                console.error('xnew: ', error);
-                throw '';
+            else {
+                target = null;
             }
+            const unit = new Unit(target, ...args);
+            return unit;
         };
         fn.nest = (tag) => {
-            try {
-                const current = UnitScope.current;
-                if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                    const element = Unit.nest(current, tag);
-                    if (element instanceof HTMLElement || element instanceof SVGElement) {
-                        return element;
-                    }
-                    else {
-                        throw new Error('');
-                    }
+            const current = UnitScope.current;
+            if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
+                const element = Unit.nest(current, tag);
+                if (element instanceof HTMLElement || element instanceof SVGElement) {
+                    return element;
                 }
                 else {
-                    throw new Error('This function can not be called after initialized.');
+                    throw new Error('');
                 }
             }
-            catch (error) {
-                console.error('xnew.nest(tag): ', error);
-                throw new Error('');
+            else {
+                throw new Error('This function can not be called after initialized.');
             }
         };
         fn.extend = (component, props) => {
-            try {
-                const current = UnitScope.current;
-                if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-                    return Unit.extend(current, component, props);
-                }
-                else {
-                    throw new Error('This function can not be called after initialized.');
-                }
+            const current = UnitScope.current;
+            if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
+                return Unit.extend(current, component, props);
             }
-            catch (error) {
-                console.error('xnew.extend(component, props): ', error);
+            else {
+                throw new Error('This function can not be called after initialized.');
             }
         };
         fn.context = (key, value = undefined) => {
@@ -1020,17 +977,23 @@
             return (...args) => UnitScope.execute(snapshot, callback, ...args);
         };
         fn.find = (component) => {
-            try {
-                if (typeof component !== 'function') {
-                    throw new Error(`The argument [component] is invalid.`);
-                }
-                else {
-                    let units = UnitComponent.find(component);
-                    return units;
+            if (typeof component === 'function') {
+                return UnitComponent.find(component);
+            }
+            else {
+                throw new Error(`The argument [component] is invalid.`);
+            }
+        };
+        fn.append = (base, ...args) => {
+            if (typeof base === 'function') {
+                for (let unit of UnitComponent.find(base)) {
+                    UnitScope.execute(UnitScope.snapshot(unit), xnew$1, ...args);
                 }
             }
-            catch (error) {
-                console.error('xnew.find(component): ', error);
+            else if (base instanceof Unit) {
+                UnitScope.execute(UnitScope.snapshot(base), xnew$1, ...args);
+            }
+            else {
                 throw new Error(`The argument [component] is invalid.`);
             }
         };

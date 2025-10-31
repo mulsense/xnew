@@ -8,15 +8,15 @@ import xpixi from 'xnew/addons/xpixi';
 import xthree from 'xnew/addons/xthree';
 import xmatter from 'xnew/addons/xmatter';
 
-const width = 800, height = 600;
+xnew('#main', Main);
 
-xnew('#main', (self) => {
+function Main(self) {
+  const width = 800, height = 600;
   // three 
   xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
-  xthree.scene.rotation.x = -0 / 180 * Math.PI
 
   // pixi
   const screen = xnew(xnew.basics.Screen, { width, height });
@@ -25,8 +25,7 @@ xnew('#main', (self) => {
   xnew(Background);
   xnew(ShadowPlane);
   xnew(TitleScene);
-  self.on('+nextscene', xnew);
-});
+}
 
 function Background(self) {
   const object = xpixi.nest(new PIXI.Container());
@@ -53,24 +52,24 @@ function ThreeLayer(self) {
 }
 
 function TitleText(self) {
-  xnew((self) => {
-    const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
-    object.position.set(width / 2, height / 2 - 150);
-    object.anchor.set(0.5);
-  });
-  xnew((self) => {
-    const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
-    object.position.set(width / 2, height / 2 - 50);
-    object.anchor.set(0.5);
-    self.on('update', (count) => {
-        object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
-    });
+  const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 150);
+  object.anchor.set(0.5);
+}
+
+function TouchMessage(self) {
+  const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 50);
+  object.anchor.set(0.5);
+  self.on('update', (count) => {
+      object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
   });
 }
 
 function TitleScene(self) {
   xnew(TitleText);
-  xnew(DirectionaLight, { x: 2, y: 12, z: 20 });
+  xnew(TouchMessage);
+  xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
@@ -82,38 +81,36 @@ function TitleScene(self) {
   xnew(ThreeLayer);
 
   xnew.listener(window).on('keydown pointerdown', () => {
-    self.emit('+nextscene', GameScene);
     self.finalize();
+    xnew.append(Main, GameScene);
   });
 }
 
 function GameScene(scene) {
   xmatter.initialize();
 
-  xnew(DirectionaLight, { x: 2, y: 5, z: 10 });
+  xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
   xnew(AmbientLight);
-
   xnew(Controller);
   xnew(ScoreText);
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
   xnew(ThreeLayer);
-  scene.on('+addobject', xnew);
 
   scene.on('+gameover', () => {
     xnew(GameOverText);
 
     xnew.timeout(() => {
       xnew.listener(window).on('keydown pointerdown', () => {
-        scene.emit('+nextscene', TitleScene);
         scene.finalize();
+        xnew.append(Main, TitleScene);
       });
     }, 1000);
   });
 }
 
-function DirectionaLight(self, { x, y, z }) {
+function DirectionalLight(self, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
   object.castShadow = true;
@@ -138,7 +135,7 @@ function Controller(self) {
 
 function ScoreText(self) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0x000000 }));
-  object.position.set(width - 10, 10);
+  object.position.set(xpixi.canvas.width - 10, 10);
   object.anchor.set(1, 0);
 
   let sum = 0;
@@ -233,8 +230,8 @@ function Model(self, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
   return {
     object,
     setPosition(x, y, r) {
-      const cx = width / 2;
-      const cy = height / 2;
+      const cx = xpixi.canvas.width / 2;
+      const cy = xpixi.canvas.height / 2;
       const X = (x - cx) / 70;
       const Y = - (y - cy) / 70;
       object.position.set(X, Y, 0);
@@ -252,7 +249,7 @@ function Cursor(self) {
   object.addChild(new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 }));
   object.addChild(new PIXI.Graphics().moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 }));
 
-  self.on('+move', ({ x }) => object.x = Math.max(Math.min(x, width / 2 + 190), width / 2 - 190));
+  self.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
 
   let next = null;
   let model = null
@@ -266,7 +263,7 @@ function Cursor(self) {
   self.on('+action', () => {
     if (next !== null) {
       circle.clear();
-      self.emit('+addobject', ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
+      xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
       if (model) {
         model.finalize();
         model = null;
@@ -294,7 +291,7 @@ function ModelBall(self, { x, y, a = 0, id = 0, score = 1 }) {
   
   self.on('update', () => {
     model.setPosition(self.object.x, self.object.y, self.object.rotation);
-    if (self.object.y > height - 10) {
+    if (self.object.y > xpixi.canvas.height - 10) {
       self.emit('+gameover');
       self.finalize();
       return;
@@ -306,9 +303,9 @@ function ModelBall(self, { x, y, a = 0, id = 0, score = 1 }) {
         const x = (self.object.x + target.object.x) / 2;
         const y = (self.object.y + target.object.y) / 2;
         const a = (self.object.rotation + target.object.rotation) / 2;
-        self.emit('+addobject', ModelBall, { x, y, a, id, score });
         self.finalize();
         target.finalize();
+        xnew.append(GameScene, ModelBall, { x, y, a, id, score });
         break;
       }
     }
@@ -329,7 +326,7 @@ function ModelBall(self, { x, y, a = 0, id = 0, score = 1 }) {
 
 function GameOverText(self) {
   const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0x000000 }));
-  object.position.set(width / 2, height / 2);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
 }
 

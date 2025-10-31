@@ -4,9 +4,10 @@ import xthree from 'xnew/addons/xthree';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const width = 1200, height = 600;
+xnew('#main', Main);
 
-xnew('#main', (self) => {
+function Main(self) {
+  const width = 1200, height = 600;
   const screen = xnew(xnew.basics.Screen, { width, height });
   xthree.initialize({ canvas: screen.element });
   xthree.scene.background = new THREE.Color(0xa0a0a0);
@@ -22,11 +23,13 @@ xnew('#main', (self) => {
   xnew(DirectionalLight);
   xnew(Ground);
 
-  new GLTFLoader().load('./Xbot.glb', xnew.scope((gltf) => {
+  xnew.promise(new Promise((resolve) => {
+    new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
+  })).then((gltf) => {
     xnew(Model, { gltf });
     xnew(Panel);
-  }));
-});
+  });
+}
 
 function HemisphereLight(self) {
   const object = xthree.nest(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 3));

@@ -16,15 +16,6 @@ var xpixi = {
         });
         return texture;
     },
-    connect(canvas) {
-        const texture = PIXI.Texture.from(canvas);
-        const object = new PIXI.Sprite(texture);
-        xnew(Nest, object);
-        xnew(PreUpdate, () => {
-            object.texture.source.update();
-        });
-        return object;
-    },
     get renderer() {
         var _a;
         return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.renderer;
@@ -35,43 +26,23 @@ var xpixi = {
     },
     get canvas() {
         var _a;
-        const renderer = (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.renderer;
-        return renderer ? renderer.view.canvas : null;
+        return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.canvas;
     }
 };
-function Root(self, { renderer, canvas }) {
+function Root(self, { canvas }) {
     const root = {};
     xnew.context('xpixi.root', root);
-    let data;
-    if (renderer !== null) {
-        data = renderer;
-    }
-    else if (canvas !== null) {
-        data = PIXI.autoDetectRenderer({
-            width: canvas.width, height: canvas.height, view: canvas,
-            antialias: true, backgroundAlpha: 0,
-        });
+    root.canvas = canvas;
+    const renderer = PIXI.autoDetectRenderer({
+        width: canvas.width, height: canvas.height, view: canvas,
+        antialias: true, backgroundAlpha: 0,
+    });
+    root.renderer = null;
+    if (renderer instanceof Promise) {
+        xnew.promise(renderer).then((renderer) => root.renderer = renderer);
     }
     else {
-        const screens = xnew.find(xnew.Screen);
-        if (screens.length > 0) {
-            const screen = screens.slice(-1)[0]; // last screen
-            data = PIXI.autoDetectRenderer({
-                width: screen.canvas.width, height: screen.canvas.height, view: screen.canvas,
-                antialias: true, backgroundAlpha: 0,
-            });
-        }
-        else {
-            data = PIXI.autoDetectRenderer({});
-        }
-    }
-    root.renderer = null;
-    if (data instanceof Promise) {
-        xnew.promise(data).then((renderer) => root.renderer = renderer);
-    }
-    else if ((PIXI.WebGPURenderer && data instanceof PIXI.WebGPURenderer) ||
-        (PIXI.WebGLRenderer && data instanceof PIXI.WebGLRenderer)) {
-        root.renderer = data;
+        root.renderer = renderer;
     }
     root.updates = [];
     root.scene = new PIXI.Container();
