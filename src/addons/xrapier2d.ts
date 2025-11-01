@@ -22,20 +22,15 @@ function Root(self: xnew.Unit, { gravity }: any) {
         root.world = new RAPIER.World(gravity);
     });
     
-    xnew.extend(Nest, root.engine.world);
     self.on('update', () => {
-        root.world.step();
     });
 }
 
 function Nest(self: xnew.Unit, object: any) {
-    const parent = xnew.context('xmatter.object');
-    xnew.context('xmatter.object', object);
+    const parent = xnew.context('xrapier2d.object');
+    xnew.context('xrapier2d.object', object);
 
     if (parent) {
-        Matter.Composite.add(parent, object);
-        self.on('finalize', () => {
-            Matter.Composite.remove(parent, object);
-        });
+        
     }
 }

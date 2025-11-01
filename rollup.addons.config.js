@@ -80,27 +80,27 @@ export default [
             copyto('./dist/addons/xmatter.mjs', './examples/dist/addons/xmatter.mjs'),
         ],
     },
-    // {
-    //     input: './src/addons/xmatter.ts',
-    //     output: [
-    //         {
-    //             file: './dist/addons/xrapier2d.js',
-    //             format: 'umd',
-    //             extend: true,
-    //             name: 'xrapier2d',
-    //             globals: { 'xnew': 'xnew', '@dimforge/rapier2d-compat': 'RAPIER' },
-    //         },
-    //         {
-    //             file: './dist/addons/xrapier2d.mjs',
-    //             format: 'es',
-    //         },
-    //     ],
-    //     external: ['xnew', '@dimforge/rapier2d-compat'],
-    //     plugins: [
-    //         typescript({ tsconfig: 'tsconfig.addons.json' }),
-    //         copyto('./dist/addons/xrapier2d.d.ts', './examples/dist/addons/xrapier2d.d.ts'),
-    //         copyto('./dist/addons/xrapier2d.js', './examples/dist/addons/xrapier2d.js'),
-    //         copyto('./dist/addons/xrapier2d.mjs', './examples/dist/addons/xrapier2d.mjs'),
-    //     ],
-    // },
+    {
+        input: './src/addons/xrapier2d.ts',
+        output: [
+            {
+                file: './dist/addons/xrapier2d.js',
+                format: 'umd',
+                extend: true,
+                name: 'xrapier2d',
+                globals: { 'xnew': 'xnew', '@dimforge/rapier2d-compat': 'RAPIER' },
+            },
+            {
+                file: './dist/addons/xrapier2d.mjs',
+                format: 'es',
+            },
+        ],
+        external: ['xnew', '@dimforge/rapier2d-compat'],
+        plugins: [
+            typescript({ tsconfig: 'tsconfig.addons.json' }),
+            copyto('./dist/addons/xrapier2d.d.ts', './examples/dist/addons/xrapier2d.d.ts'),
+            copyto('./dist/addons/xrapier2d.js', './examples/dist/addons/xrapier2d.js'),
+            copyto('./dist/addons/xrapier2d.mjs', './examples/dist/addons/xrapier2d.mjs'),
+        ],
+    },
 ];
