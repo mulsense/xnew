@@ -22,8 +22,6 @@ function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
 
-  xnew(Background);
-  xnew(ShadowPlane);
   xnew(TitleScene);
 }
 
@@ -67,6 +65,8 @@ function TouchMessage(unit) {
 }
 
 function TitleScene(unit) {
+  xnew(Background);
+  xnew(ShadowPlane);
   xnew(TitleText);
   xnew(TouchMessage);
   xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
@@ -89,6 +89,8 @@ function TitleScene(unit) {
 function GameScene(scene) {
   xmatter.initialize();
 
+  xnew(Background);
+  xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
   xnew(AmbientLight);
   xnew(Controller);
