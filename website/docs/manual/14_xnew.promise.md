@@ -11,7 +11,7 @@ xnew.promise(promise);
 The following example demonstrates how `xnew.promise` integrates a `Promise` into the `xnew` scope:
 
 ```js
-xnew((self) => {
+xnew((unit) => {
   xnew.promise(new Promise((resolve, reject) => {
     xnew.timeout(() => resolve(1), 1000); // Simulate a delay of 1 second
   }))

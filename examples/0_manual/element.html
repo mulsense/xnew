@@ -13,7 +13,7 @@
     // Create first component.
     xnew(Component);
 
-    function Component(self) {
+    function Component(unit) {
       // Pattern 1: Create new HTML element.
       xnew('<p>', 'Create new HTML elements.');
 
@@ -21,7 +21,7 @@
       xnew(ChildComponent);
     }
 
-    function ChildComponent(self) {
+    function ChildComponent(unit) {
       // Pattern 3: nest HTML elements.
       xnew.nest('<div style="display: flex;">');
         

@@ -19,7 +19,7 @@ const unit2 = xnew(Component);
 const units = xnew.find(Component); // [unit1, unit2]
 console.log(units);
 
-function Component(self) {
+function Component(unit) {
   // Component logic here
 }
 ```

@@ -19,16 +19,16 @@ xnew.context(name);
 The following example demonstrates how `xnew.context` works across nested units:
 
 ```js
-xnew((self) => {
+xnew((unit) => {
   // Set a context property
   xnew.context('hoge', 1);
   console.log(xnew.context('hoge')); // Output: 1
 
-  xnew((self) => {
+  xnew((unit) => {
     // Retrieve the context property from the parent unit
     console.log(xnew.context('hoge')); // Output: 1
 
-    xnew((self) => {
+    xnew((unit) => {
       // Override the context property in the current unit
       xnew.context('hoge', 2);
       console.log(xnew.context('hoge')); // Output: 2

@@ -60,6 +60,7 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
+    "@dimforge/rapier2d-compat": "^0.19.2",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
     "@types/matter-js": "^0.19.8",

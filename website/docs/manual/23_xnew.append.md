@@ -8,13 +8,13 @@
 
 ```js
 const unit = xnew(Component);
-xnew.append(unit, ChildComponent); // Adds ChildComponent as a child of unit
+xnew.append(unit, ChildComponent, props); // Adds ChildComponent as a child of unit
 ```
 
 ### Append to All Units Using a Component
 
 ```js
-xnew.append(Component, ChildComponent); // Adds ChildComponent to all units using Component
+xnew.append(Component, ChildComponent, props); // Adds ChildComponent to all units using Component
 ```
 
 ## Examples
@@ -22,11 +22,11 @@ xnew.append(Component, ChildComponent); // Adds ChildComponent to all units usin
 ### Appending to a Specific Unit
 
 ```js
-function ParentComponent(self) {
-  self.count = 0;
+function ParentComponent(unit) {
+  unit.count = 0;
 }
 
-function ChildComponent(self) {
+function ChildComponent(unit) {
   console.log('Child created');
 }
 
@@ -40,12 +40,12 @@ xnew.append(parent, ChildComponent);
 ### Appending to All Units of a Component Type
 
 ```js
-function Container(self) {
-  self.name = 'Container';
+function Container(unit) {
+  unit.name = 'Container';
 }
 
-function Item(self) {
-  console.log('Item added to', self.parent.name);
+function Item(unit) {
+  console.log('Item added to', unit.parent.name);
 }
 
 // Create multiple containers

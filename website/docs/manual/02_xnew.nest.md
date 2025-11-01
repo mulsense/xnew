@@ -5,31 +5,31 @@
 ## Basic Usage
 
 ```js
-xnew((self) => {
+xnew((unit) => {
   const element = xnew.nest('<div>');
 
   element; // Access the newly created element
-  self.element === element; // true - self.element now points to the nested element
+  unit.element === element; // true - unit.element now points to the nested element
 })
 ```
 
-## How `self.element` Changes with `xnew.nest`
+## How `unit.element` Changes with `xnew.nest`
 
-When you call `xnew.nest()`, it changes what `self.element` refers to:
+When you call `xnew.nest()`, it changes what `unit.element` refers to:
 
 ```js
-const unit = xnew('<div id="A">', (self) => {
-  self.element; // div#A
+const unit = xnew('<div id="A">', (unit) => {
+  unit.element; // div#A
 
-  self.on('click', () => {
-    self.element; // div#A (captured at this point)
+  unit.on('click', () => {
+    unit.element; // div#A (captured at this point)
   });
 
   xnew.nest('<div id="B">');
-  self.element; // div#B (now points to the nested element)
+  unit.element; // div#B (now points to the nested element)
 
-  self.on('click', () => {
-    self.element; // div#B (captured at this new point)
+  unit.on('click', () => {
+    unit.element; // div#B (captured at this new point)
   });
 
   const child = xnew('<div id="C">');
@@ -38,18 +38,18 @@ const unit = xnew('<div id="A">', (self) => {
 ```
 
 **Key points:**
-- Before `xnew.nest()`: `self.element` points to the parent element (div#A)
-- After `xnew.nest('<div id="B">')`: `self.element` changes to point to the nested element (div#B)
-- New child elements are created inside the current `self.element`
-- Event handlers capture the value of `self.element` at the time they are registered
+- Before `xnew.nest()`: `unit.element` points to the parent element (div#A)
+- After `xnew.nest('<div id="B">')`: `unit.element` changes to point to the nested element (div#B)
+- New child elements are created inside the current `unit.element`
+- Event handlers capture the value of `unit.element` at the time they are registered
 ## Example
 
 ### Without `xnew.nest`
 
 ```js
 // Case 1: Create div#A and add a paragraph inside it
-xnew('<div id="A">', (self) => {
-  self.element; // div#A
+xnew('<div id="A">', (unit) => {
+  unit.element; // div#A
 
   xnew('<p>', 'in A'); // Creates <p> inside div#A
 });
@@ -61,10 +61,10 @@ xnew('<div id="A">', (self) => {
 
 ```js
 // Case 2: Using nest changes the target element
-xnew((self) => {
+xnew((unit) => {
   const div = xnew.nest('<div id="B">');
 
-  self.element; // div#B (changed by nest)
+  unit.element; // div#B (changed by nest)
   div; // div#B (same reference)
 
   xnew('<p>', 'in B'); // Creates <p> inside div#B
@@ -77,10 +77,10 @@ xnew((self) => {
 
 ```js
 // Case 3: Nesting creates a child element
-xnew('<div id="C">', (self) => {
+xnew('<div id="C">', (unit) => {
   const div = xnew.nest('<div id="D">');
 
-  self.element; // div#D (changed by nest)
+  unit.element; // div#D (changed by nest)
   div; // div#D (same reference)
 
   xnew('<p>', 'in D'); // Creates <p> inside div#D

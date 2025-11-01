@@ -9,7 +9,7 @@ xnew.timeout(callback, delay);
 ## Example
 
 ```js
-xnew((self) => {
+xnew((unit) => {
   const timeout = xnew.timeout(() => {
     // This function is called after 100 ms within the current xnew scope.
   }, 100);

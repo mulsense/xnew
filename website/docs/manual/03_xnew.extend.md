@@ -23,7 +23,7 @@ When you call `xnew.extend(Component)`, it:
 
 ```js
 // Define a reusable component
-function Logger(self) {
+function Logger(unit) {
 
   return {
     log(message) {
@@ -33,10 +33,10 @@ function Logger(self) {
 }
 
 // Use the component
-const unit = xnew((self) => {
+const unit = xnew((unit) => {
   xnew.extend(Logger); // Add Logger functionality
 
-  self.log('Hello!'); // Can use the log method immediately
+  unit.log('Hello!'); // Can use the log method immediately
 });
 
 // Result: Logger: Hello!
@@ -47,7 +47,7 @@ const unit = xnew((self) => {
 When multiple components define the same property, the **last one wins**:
 
 ```js
-function Base(self) {
+function Base(unit) {
 
   return {
     greet() {
@@ -56,7 +56,7 @@ function Base(self) {
   };
 }
 
-const unit = xnew((self) => {
+const unit = xnew((unit) => {
   xnew.extend(Base); // Add Base functionality first
 
   return {
@@ -74,17 +74,17 @@ unit.greet(); // Output: "derived greet" (overridden)
 Event handlers from different components are **all executed**, not overridden:
 
 ```js
-function Base(self) {
-  self.on('start', () => {
+function Base(unit) {
+  unit.on('start', () => {
     console.log('base start');
   });
 
 }
 
-const unit = xnew((self) => {
+const unit = xnew((unit) => {
   xnew.extend(Base);
 
-  self.on('start', () => {
+  unit.on('start', () => {
     console.log('derived start');
   });
 
@@ -101,7 +101,7 @@ const unit = xnew((self) => {
 You can pass properties to the extended component:
 
 ```js
-function Counter(self, { initialValue = 0 }) {
+function Counter(unit, { initialValue = 0 }) {
   let count = initialValue;
 
   return {
@@ -115,11 +115,11 @@ function Counter(self, { initialValue = 0 }) {
   };
 }
 
-const unit = xnew((self) => {
+const unit = xnew((unit) => {
   xnew.extend(Counter, { initialValue: 10 }); // Start counter at 10
 
-  self.increment(); // Count: 11
-  console.log(self.getCount()); // 11
+  unit.increment(); // Count: 11
+  console.log(unit.getCount()); // 11
 });
 ```
 

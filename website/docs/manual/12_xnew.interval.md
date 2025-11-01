@@ -9,7 +9,7 @@ xnew.interval(callback, delay);
 ## Example
 
 ```js
-xnew((self) => {
+xnew((unit) => {
   const interval = xnew.interval(() => {
     // This function is called at 100 ms intervals within the current xnew scope.
   }, 100);

@@ -7,32 +7,30 @@ let gravity = { x: 0.0, y: 9.81 };
 let world = null;
 // Create the ground
 
-const width = 800, height = 400;
 xnew('#main', Main);
 
 function Main(self) {
+  const width = 800, height = 400;
   const screen = xnew(xnew.basics.Screen, { width, height });
   xpixi.initialize({ canvas: screen.element });
   xnew.promise(RAPIER.init()).then(() => {
-    console.log('RAPIER initialized');
     world = new RAPIER.World(gravity);
     world.timestep = 3 / 60;
     // let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.1);
     // world.createCollider(groundColliderDesc);
 
-    xnew(Contents);
+    const contents = xnew(Contents);
+    const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
+    button.on('click', () => contents.reboot());
   });
-  const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
-  button.on('click', () => self.emit('+reset'));
 }
 
 function Contents(self) {
-  self.on('+reset', () => self.reboot());
   // xmatter.initialize();
 
   // xnew(Circle, { x: 350, y: 50, r: 40, color: 0xFF0000 });
   xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
-  xnew(Rectangle, { x: 400, y: 400, w: 380, h: 40, color: 0xFFFF00 }, false);
+  xnew(Rectangle, { x: 400, y: 400, w: 380, h: 40, color: 0xFFFF00 , dynamic: false });
   // xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
   // xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888 }, { isStatic: true });
   self.on('update', () => {
@@ -49,12 +47,9 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
-  return {
-    object,
-  };
 }
 
-function Rectangle(self, { x, y, w, h, color = 0xFFFFFF }, dynamic = true, options = {}) {
+function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   // const pyshics = xmatter.nest(Matter.Bodies.rectangle(x, y, w, h, options));
   object.position.set(x, y);
@@ -65,15 +60,12 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF }, dynamic = true, optio
   let rigidBody = world.createRigidBody(rigidBodyDesc);
   
   // Create a cuboid collider attached to the dynamic rigidBody.
-  let colliderDesc = RAPIER.ColliderDesc.cuboid(w/2, h/2);
+  let colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2);
   let collider = world.createCollider(colliderDesc, rigidBody);
   self.on('update', () => {
       let position = rigidBody.translation();
       object.position.set(position.x, position.y);
   });
-  return {
-    object,
-  };
 }
 
 function Polygon(self, { x, y, s, r, color = 0xFFFFFF }, options = {}) {

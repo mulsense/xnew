@@ -12,28 +12,28 @@
   <script>
     xnew(Component);
 
-    function Component(self) {
+    function Component(unit) {
       xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F">');
       
       const text = xnew('<span>');
      
       let running = false;
-      self.on('click', (event) => {
-        running ? self.stop() : self.start();
+      unit.on('click', (event) => {
+        running ? unit.stop() : unit.start();
       });
 
-      self.on('start', () => {
+      unit.on('start', () => {
         console.log('start');
         running = true;
         text.element.textContent = 'start';
       });
 
-      self.on('update', (count) => {
+      unit.on('update', (count) => {
         console.log('update');
-        self.element.style.transform = `rotate(${count}deg)`;
+        unit.element.style.transform = `rotate(${count}deg)`;
       });
       
-      self.on('stop', () => {
+      unit.on('stop', () => {
         console.log('stop');
         running = false;
         text.element.textContent = 'stop';

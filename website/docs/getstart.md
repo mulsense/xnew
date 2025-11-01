@@ -8,7 +8,8 @@ sidebar_position: 1
 
 ## What is xnew?
 
-`xnew` is a lightweight JavaScript library for building interactive web applications. It provides a simple way to create components, manage state, and handle events using a functional approach.
+`xnew` is a JavaScript / TypeScript library for component-oriented programming,
+providing a flexible architecture well-suited for applications with dynamic scenes and games.
 
 ## Setup
 
@@ -54,7 +55,6 @@ import xnew from 'xnew';
 ### Units and Components
 - **unit**: When you call `xnew()`, it creates a "unit" - a building block of your application
 - **Component**: A function that defines what a unit does and how it behaves
-- **self**: The first parameter passed to your component function, representing the unit itself
 
 ### Basic Syntax
 There are two main ways to use `xnew`:
@@ -63,9 +63,8 @@ There are two main ways to use `xnew`:
 ```js
 const unit = xnew(Component, props);
 
-function Component(self, props) {
+function Component(unit, props) {
   // Define behavior here
-  // self = the unit itself
   // props = data passed to the component
 }
 ```
@@ -93,7 +92,7 @@ Let's start with a simple example. This creates a basic component that displays 
     // Create your first component
     xnew(MyFirstComponent);
 
-    function MyFirstComponent(self) {
+    function MyFirstComponent(unit) {
       // Create a simple paragraph element
       xnew('<p>', 'Hello, xnew!');
     }
@@ -128,7 +127,7 @@ Now let's create multiple elements and organize them using `xnew.nest`:
     // Create main component
     xnew(MainComponent);
 
-    function MainComponent(self) {
+    function MainComponent(unit) {
       // Create a paragraph element
       xnew('<p>', 'Create new HTML elements.');
     
@@ -136,7 +135,7 @@ Now let's create multiple elements and organize them using `xnew.nest`:
       xnew(ColorBoxes);
     }
 
-    function ColorBoxes(self) {
+    function ColorBoxes(unit) {
       // Create a container and nest child elements inside it
       xnew.nest('<div style="display: flex;">');
 
@@ -185,7 +184,7 @@ Now let's add events and animations! This example creates an interactive rotatin
   <script>
     xnew(RotatingBox);
 
-    function RotatingBox(self) {
+    function RotatingBox(unit) {
       // Create a centered blue box and nest content inside it
       xnew.nest('<div style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F; cursor: pointer;">');
       
@@ -194,23 +193,23 @@ Now let's add events and animations! This example creates an interactive rotatin
 
       // Handle click events - toggle start/stop
       let running = false;
-      self.on('click', (event) => {
-        running ? self.stop() : self.start();
+      unit.on('click', (event) => {
+        running ? unit.stop() : unit.start();
       });
 
       // When animation starts
-      self.on('start', () => {
+      unit.on('start', () => {
         running = true;
         text.element.textContent = 'start';
       });
 
       // Update animation frame
-      self.on('update', (count) => {
-        self.element.style.transform = `rotate(${count}deg)`;
+      unit.on('update', (count) => {
+        unit.element.style.transform = `rotate(${count}deg)`;
       });
       
       // When animation stops
-      self.on('stop', () => {
+      unit.on('stop', () => {
         running = false;
         text.element.textContent = 'stop';
       });
@@ -221,9 +220,8 @@ Now let's add events and animations! This example creates an interactive rotatin
 ```
 
 **Key concepts:**
-- `self.on()` adds event listeners to your component
-- `self.start()` and `self.stop()` control animations
-- `self.state` tracks the current state ('started' or 'stopped')
+- `unit.on()` adds event listeners to your component
+- `unit.start()` and `unit.stop()` control animations
 - The 'update' event fires continuously during animation, providing a frame count
 
 ## Next Steps

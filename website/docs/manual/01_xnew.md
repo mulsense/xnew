@@ -19,7 +19,7 @@ There are two main ways to use `xnew`:
 ```js
 const unit = xnew(Component, props);
 
-function Component(self, props) {
+function Component(unit, props) {
   // Define component behavior here
 }
 ```
@@ -36,17 +36,17 @@ const unit = xnew(target, Component, props);
 
 Components are functions that define the behavior of your units. They receive two parameters:
 
-- `self`: The unit instance (provides access to element, events, lifecycle methods)
+- `unit`: The unit instance (provides access to element, events, lifecycle methods)
 - `props`: Optional data passed to the component
 
 ### Simple Component Example
 ```js
-function MyComponent(self, { message }) {
+function MyComponent(unit, { message }) {
   // Access the HTML element
-  console.log(self.element);
+  console.log(unit.element);
   
   // Use props data
-  self.element.textContent = props.message;
+  unit.element.textContent = props.message;
 }
 
 // Create a unit with this component
@@ -55,15 +55,15 @@ const unit = xnew(MyComponent, { message: 'Hello World' });
 
 ### Arrow Function Components
 ```js
-const unit = xnew((self, props) => {
+const unit = xnew((unit, props) => {
   // Component logic here
-  self.element.style.color = 'blue';
+  unit.element.style.color = 'blue';
 });
 ```
 
 ## Targeting
 
-The `target` parameter specifies which HTML element your component will be attached to. You can access this element via `self.element` in your component.
+The `target` parameter specifies which HTML element your component will be attached to. You can access this element via `unit.element` in your component.
 
 ### Targeting Existing Elements
 
@@ -74,8 +74,8 @@ Use CSS selectors or direct element references to target existing HTML elements:
   <div id="my-container"></div>
   <script>
     // Using CSS selector
-    xnew('#my-container', (self) => {
-      self.element.style.background = 'lightblue';
+    xnew('#my-container', (unit) => {
+      unit.element.style.background = 'lightblue';
     });
   </script>
 </body>
@@ -94,8 +94,8 @@ Create new HTML elements by providing an HTML string as the target:
 ```html
 <body>
   <script>
-    xnew('<div class="new-element">', (self) => {
-      self.element.textContent = 'I am a new element!';
+    xnew('<div class="new-element">', (unit) => {
+      unit.element.textContent = 'I am a new element!';
     });
   </script>
 </body>
@@ -108,15 +108,15 @@ When no target is specified, xnew inherits the element from its parent context:
 ```html
 <div id="parent"></div>
 <script>
-  xnew('#parent', (self) => {
-    // self.element is the #parent div
+  xnew('#parent', (unit) => {
+    // unit.element is the #parent div
     
-    xnew((self) => {
-      // self.element is inherited: still the #parent div
+    xnew((unit) => {
+      // unit.element is inherited: still the #parent div
     });
     
-    xnew('<span>', (self) => {
-      // self.element is the new <span>, child of #parent
+    xnew('<span>', (unit) => {
+      // unit.element is the new <span>, child of #parent
     });
   });
 </script>
@@ -131,8 +131,8 @@ You can set the content directly when creating elements:
 xnew('<p>', 'This is the paragraph content');
 
 // Equivalent to:
-xnew('<p>', (self) => {
-  self.element.textContent = 'This is the paragraph content';
+xnew('<p>', (unit) => {
+  unit.element.textContent = 'This is the paragraph content';
 });
 ```
 
@@ -142,14 +142,14 @@ The xnew event system allows you to handle DOM events, lifecycle events, and cus
 
 ### Adding Event Listeners
 
-Use `unit.on()` or `self.on()` to add event listeners:
+Use `unit.on()` or `unit.on()` to add event listeners:
 
 ```js
-function MyComponent(self) {
+function MyComponent(unit) {
   xnew.nest('<div>', 'click here');
 
   // Listen for click events on the element
-  self.on('click', (event) => {
+  unit.on('click', (event) => {
     console.log('Element was clicked!');
   });
 }
@@ -190,24 +190,24 @@ xnew provides built-in lifecycle events that help you manage your component's be
 ### Available Lifecycle Events
 
 ```js
-function MyComponent(self) {
-  self.on('start', () => {
+function MyComponent(unit) {
+  unit.on('start', () => {
     // Called once before the first update
     console.log('Component started');
   });
 
-  self.on('update', (frameCount) => {
+  unit.on('update', (frameCount) => {
     // Called continuously at ~60fps (or your browser's refresh rate)
     // Use for animations and real-time updates
     console.log('Frame:', frameCount);
   });
 
-  self.on('stop', () => {
+  unit.on('stop', () => {
     // Called when the update loop is stopped
     console.log('Component stopped');
   });
 
-  self.on('finalize', () => {
+  unit.on('finalize', () => {
     // Called when the component is destroyed
     console.log('Component finalized');
   });
@@ -219,22 +219,22 @@ const unit = xnew(MyComponent);
 ### Lifecycle Example: Animated Counter
 
 ```js
-function AnimatedCounter(self, { maxCount }) {
+function AnimatedCounter(unit, { maxCount }) {
   xnew.nest('<div>');
 
-  self.on('start', () => {
-    self.element.textContent = '0';
+  unit.on('start', () => {
+    unit.element.textContent = '0';
   });
   
-  self.on('update', (count) => {
+  unit.on('update', (count) => {
     if (count < maxCount) {
-      self.element.textContent = count++;
+      unit.element.textContent = count++;
     } else {
-      self.stop(); // Stop when target reached
+      unit.stop(); // Stop when target reached
     }
   });
   
-  self.on('stop', () => {
+  unit.on('stop', () => {
     console.log('Counting finished!');
   });
 }
@@ -250,10 +250,10 @@ You can control your component's lifecycle using these methods:
 Starts the update loop. Components start automatically by default.
 
 ```js
-const unit = xnew((self) => {
-  self.stop(); // Prevent auto-start
+const unit = xnew((unit) => {
+  unit.stop(); // Prevent auto-start
   
-  self.on('update', (count) => {
+  unit.on('update', (count) => {
     console.log('Updating...', count);
   });
 });
@@ -268,9 +268,9 @@ xnew.timeout(() => {
 Stops the update loop. The component remains alive but doesn't update.
 
 ```js
-const unit = xnew((self) => {
-  self.on('click', () => {
-    self.stop(); // Stop updates when clicked
+const unit = xnew((unit) => {
+  unit.on('click', () => {
+    unit.stop(); // Stop updates when clicked
   });
 });
 ```
@@ -290,10 +290,10 @@ unit.on('click', () => {
 Restarts the component, re-running its component function.
 
 ```js
-function RandomColor(self) {
+function RandomColor(unit) {
   const colors = ['red', 'blue', 'green', 'yellow'];
   const randomColor = colors[Math.floor(Math.random() * colors.length)];
-  self.element.style.background = randomColor;
+  unit.element.style.background = randomColor;
 }
 
 const unit = xnew('<div style="width:100px;height:100px;">', RandomColor);
@@ -309,25 +309,25 @@ xnew.interval(() => {
 Important: Child components execute their lifecycle events **before** their parent components.
 
 ```js
-function Parent(self) {
+function Parent(unit) {
   xnew(Child1);
   xnew(Child2);
   
-  self.on('start', () => console.log('Parent start'));
-  self.on('update', () => console.log('Parent update'));
-  self.on('stop', () => console.log('Parent stop'));
+  unit.on('start', () => console.log('Parent start'));
+  unit.on('update', () => console.log('Parent update'));
+  unit.on('stop', () => console.log('Parent stop'));
 }
 
-function Child1(self) {
-  self.on('start', () => console.log('Child1 start'));
-  self.on('update', () => console.log('Child1 update'));
-  self.on('stop', () => console.log('Child1 stop'));
+function Child1(unit) {
+  unit.on('start', () => console.log('Child1 start'));
+  unit.on('update', () => console.log('Child1 update'));
+  unit.on('stop', () => console.log('Child1 stop'));
 }
 
-function Child2(self) {
-  self.on('start', () => console.log('Child2 start'));
-  self.on('update', () => console.log('Child2 update'));
-  self.on('stop', () => console.log('Child2 stop'));
+function Child2(unit) {
+  unit.on('start', () => console.log('Child2 start'));
+  unit.on('update', () => console.log('Child2 update'));
+  unit.on('stop', () => console.log('Child2 stop'));
 }
 
 const parent = xnew(Parent);
@@ -355,18 +355,18 @@ Parent stop
 xnew automatically handles standard DOM events like click, mouseover, keydown, etc.
 
 ```js
-function InteractiveButton(self) {
-  self.on('click', (event) => {
+function InteractiveButton(unit) {
+  unit.on('click', (event) => {
     console.log('Button clicked!');
     event.preventDefault(); // Standard DOM event object
   });
   
-  self.on('mouseover', (event) => {
-    self.element.style.background = 'lightblue';
+  unit.on('mouseover', (event) => {
+    unit.element.style.background = 'lightblue';
   });
   
-  self.on('mouseout', (event) => {
-    self.element.style.background = '';
+  unit.on('mouseout', (event) => {
+    unit.element.style.background = '';
   });
 }
 
@@ -382,25 +382,25 @@ xnew provides a powerful custom event system for communication between component
 Global events can be heard by any component in your application:
 
 ```js
-function Sender(self) {
+function Sender(unit) {
   xnew.nest('<button>', 'Send Message');
 
-  self.on('click', () => {
+  unit.on('click', () => {
     // Emit global event
-    self.emit('+message', { 
+    unit.emit('+message', { 
       text: 'Hello from sender!',
       timestamp: Date.now()
     });
   });
 }
 
-function Receiver(self) {
+function Receiver(unit) {
   xnew.nest('<div>', 'Waiting for message...');
  
  // Listen for global events
-  self.on('+message', (data) => {
+  unit.on('+message', (data) => {
     console.log('Received message:', data.text);
-    self.element.textContent = data.text;
+    unit.element.textContent = data.text;
   });
 }
 
@@ -414,14 +414,14 @@ xnew(Receiver);
 Internal events are scoped to the component and its parent:
 
 ```js
-function Timer(self) {
+function Timer(unit) {
   let seconds = 0;
   
-  self.on('update', () => {
+  unit.on('update', () => {
     seconds++;
     if (seconds % 60 === 0) {
       // Emit internal event every minute
-      self.emit('-message', { minutes: seconds / 60 });
+      unit.emit('-message', { minutes: seconds / 60 });
     }
   });
 }
@@ -440,7 +440,7 @@ You can extend your components with custom properties and methods by returning a
 ### Basic Custom Methods
 
 ```js
-function Counter(self) {
+function Counter(unit) {
   let count = 0;
   
   // Return public API
@@ -464,16 +464,16 @@ console.log(counter.value()); // 1
 ### Getters and Setters
 
 ```js
-function ColorBox(self) {
+function ColorBox(unit) {
   let currentColor = 'red';
   
   // Set initial color
-  self.element.style.background = currentColor;
+  unit.element.style.background = currentColor;
   
   return {
     set color(newColor) {
       currentColor = newColor;
-      self.element.style.background = currentColor;
+      unit.element.style.background = currentColor;
     },
     
     get color() {
