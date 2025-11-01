@@ -17,12 +17,11 @@ function Main(unit) {
   xpixi.initialize({ canvas: screen.element } );
 
   xnew(Cubes);
-  xnew(ThreeLayer);
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   xnew(Boxes);
 }
 
-function ThreeLayer(unit) {
-  const texture = xpixi.sync(xthree.canvas);
+function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 

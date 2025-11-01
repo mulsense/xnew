@@ -45,7 +45,7 @@ export function AccordionBullet(bullet: xnew.Unit,
 ) {
     const frame = xnew.context('xnew.accordionframe');
 
-    xnew.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.4em;">');
+    xnew.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.3em;">');
     frame.on('-transition', ({ status }: { status: number}) => bullet.transition?.(status));
     
     if (type === 'arrow') {

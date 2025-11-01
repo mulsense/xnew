@@ -6,30 +6,47 @@ import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
 import xthree from 'xnew/addons/xthree';
 
-const TILE_SIZE = 50;
-const GRID_SIZE = 10;
+const GRID = 10;
 xnew('#main', Main);
 
 function Main(unit) {
-  const width = TILE_SIZE * GRID_SIZE + 200;
-  const height = TILE_SIZE * GRID_SIZE;
-
-  // three 
-  const camera = new THREE.OrthographicCamera(-100, +100, 100 * height / width, -100 * height / width, 0, 2000);
-  xthree.initialize({ canvas: new OffscreenCanvas(width, height), camera });
+  // three
+  const camera = new THREE.OrthographicCamera(-GRID / 2, +GRID / 2, +GRID / 2, -GRID / 2, 0, 2000);
+  xthree.initialize({ canvas: new OffscreenCanvas(500, 500), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  xthree.camera.position.set(0, 0, +100);
+  xthree.camera.position.set(0, 0, +500);
+  xthree.scene.rotation.x = -40 / 180 * Math.PI;
 
   // pixi 
-  const screen = xnew(xnew.basics.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width: 700, height: 500 });
   xpixi.initialize({ canvas: screen.element });
 
-  xnew(TitleScene);
+  // xnew(TitleScene);
+  xnew(GameScene, { level: 0 });
+}
+function DirectionaLight(unit, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
+  object.position.set(x, y, z);
+
+  const s = object.position.length();
+  object.castShadow = true;
+  object.shadow.mapSize.width = 1024;
+  object.shadow.mapSize.height = 1024;
+  object.shadow.camera.left = -s * 1.0;
+  object.shadow.camera.right = +s * 1.0;
+  object.shadow.camera.top = -s * 1.0;
+  object.shadow.camera.bottom = +s * 1.0;
+  object.shadow.camera.near = +s * 0.1;
+  object.shadow.camera.far = +s * 10.0;
+  object.shadow.camera.updateProjectionMatrix();
 }
 
-function ThreeLayer(unit) {
-  const texture = xpixi.sync(xthree.canvas);
+function AmbientLight(unit) {
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1));
+}
+
+function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
@@ -58,8 +75,6 @@ function TitleScene(unit) {
   xnew(Background);
   xnew(TitleText);
   xnew(StartMessage);
-  xnew(ThreeLayer);
-  xnew(Cube, { x: 0, y: 0, z: 0, size: 10});
 
   xnew.listener(window).on('keydown pointerdown', () => {
     unit.finalize();
@@ -67,17 +82,6 @@ function TitleScene(unit) {
   });
 }
 
-function Cube(unit, { x, y, z, size }) {
-  const geometry = new THREE.BoxGeometry(size, size, size);
-  const material = new THREE.MeshNormalMaterial();
-  const object = xthree.nest(new THREE.Mesh(geometry, material));
-  object.position.set(x, y, z);
-
-  unit.on('update', () => {
-      object.rotation.x += 0.01;
-      object.rotation.y += 0.01;
-  });
-}
 function GameScene(unit, { level }) {
   const gameState = {
     level,
@@ -89,16 +93,21 @@ function GameScene(unit, { level }) {
     moves: 0,
     canMove: true
   };
+
+  xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
+  xnew(AmbientLight);
+
   xnew(Background);
   xnew(Floor);
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
     // # = 壁, . = 床, @ = プレイヤー, $ = 箱, * = ゴール, + = ゴールの上のプレイヤー, % = ゴールの上の箱
     // レベルデータの解析
     const levelData = levels[level];
-    for (let y = 0; y < GRID_SIZE; y++) {
+    for (let y = 0; y < GRID; y++) {
       gameState.grid[y] = [];
-      for (let x = 0; x < GRID_SIZE; x++) {
+      for (let x = 0; x < GRID; x++) {
         const char = levelData[y][x];
         gameState.grid[y][x] = '.';
 
@@ -154,51 +163,61 @@ function GameScene(unit, { level }) {
 }
 
 function Floor(unit) {
-  const container = xpixi.nest(new PIXI.Container());
+  const container = xthree.nest(new THREE.Group());
 
-  for (let y = 0; y < GRID_SIZE; y++) {
-    for (let x = 0; x < GRID_SIZE; x++) {
-      const tile = new PIXI.Graphics();
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const geometry = new THREE.PlaneGeometry(1, 1);
       const color = (x + y) % 2 === 0 ? 0x2d2d44 : 0x242438;
-      tile.rect(0, 0, TILE_SIZE, TILE_SIZE).fill(color);
-      tile.position.set(x * TILE_SIZE, y * TILE_SIZE);
-      container.addChild(tile);
+      const material = new THREE.MeshStandardMaterial({ color });
+      const tile = new THREE.Mesh(geometry, material);
+
+      const pos = gridToThree(x, y, 0);
+      tile.position.set(pos.x, pos.y, pos.z);
+      tile.receiveShadow = true;
+      container.add(tile);
     }
   }
 }
 
 function Wall(unit, { x, y }) {
-  const object = xpixi.nest(new PIXI.Container());
-  const graphics = new PIXI.Graphics();
-  graphics.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(0x4444ff);
-  graphics.rect(6, 6, TILE_SIZE - 12, TILE_SIZE - 12).fill(0x666666);
-  object.position.set(x * TILE_SIZE, y * TILE_SIZE);
-  object.addChild(graphics);
+  const wallHeight = 0.5;
+  const geometry = new THREE.BoxGeometry(1.0 - 0.1, 1.0 - 0.1, wallHeight);
+  const material = new THREE.MeshStandardMaterial({ color: 0x666666 });
+  const object = xthree.nest(new THREE.Mesh(geometry, material));
+
+  const pos = gridToThree(x, y, wallHeight / 2);
+  object.position.set(pos.x, pos.y, pos.z);
+  object.castShadow = true;
+  object.receiveShadow = true;
 }
 
 function Goal(unit, { x, y }) {
-  const object = xpixi.nest(new PIXI.Container());
-  const graphics = new PIXI.Graphics();
-  graphics.circle(TILE_SIZE / 2, TILE_SIZE / 2, 15).fill(0x4444ff);
-  graphics.circle(TILE_SIZE / 2, TILE_SIZE / 2, 10).fill(0x6666ff);
-  object.position.set(x * TILE_SIZE, y * TILE_SIZE);
-  object.addChild(graphics);
-  // object.alpha = 0.5;
+  const depth = 0.3;
+  const geometry = new THREE.CylinderGeometry(0.5, 0.5, depth, 32);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x6666ff,
+    emissive: 0x4444ff,
+    emissiveIntensity: 0.3
+  });
+  const object = xthree.nest(new THREE.Mesh(geometry, material));
+
+  const pos = gridToThree(x, y, 1);
+  object.position.set(pos.x, pos.y, pos.z);
+  object.rotation.x = Math.PI / 2;
+  object.receiveShadow = true;
 }
 
 function Player(unit, { gameState }) {
-  const object = xpixi.nest(new PIXI.Container());
-  const graphics = new PIXI.Graphics();
-  graphics.circle(TILE_SIZE / 2, TILE_SIZE / 2, 18).fill(0x00ff00);
-  graphics.circle(TILE_SIZE / 2 - 5, TILE_SIZE / 2 - 5, 3).fill(0x000000);
-  graphics.circle(TILE_SIZE / 2 + 5, TILE_SIZE / 2 - 5, 3).fill(0x000000);
-  graphics.arc(TILE_SIZE / 2, TILE_SIZE / 2 + 3, 8, 0, Math.PI).stroke({ color: 0x000000, width: 2 });
+  const playerRadius = 1;
+  const geometry = new THREE.SphereGeometry(0.3);
+  const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  const object = xthree.nest(new THREE.Mesh(geometry, material));
+  object.castShadow = true;
+  object.receiveShadow = true;
 
-  object.addChild(graphics);
-  object.position.set(
-    gameState.playerPos.x * TILE_SIZE,
-    gameState.playerPos.y * TILE_SIZE
-  );
+  const pos = gridToThree(gameState.playerPos.x, gameState.playerPos.y, playerRadius);
+  object.position.set(pos.x, pos.y, pos.z);
 
   unit.on('+playermove', ({ dx, dy }) => {
     const targetX = gameState.playerPos.x + dx;
@@ -228,41 +247,51 @@ function Player(unit, { gameState }) {
     gameState.moves++;
 
     unit.emit('+moved');
-    checkGameClear(gameState, unit);
+    // 全ての箱がゴールに乗っているかチェック
+    const allBoxesOnGoals = gameState.goals.every(goal => 
+      gameState.boxes.some(box => box.x === goal.x && box.y === goal.y)
+    );
+    if (allBoxesOnGoals) {
+      unit.emit('+gameclear');
+    }
   });
 
   unit.on('update', () => {
-    object.position.set(
-      gameState.playerPos.x * TILE_SIZE,
-      gameState.playerPos.y * TILE_SIZE
-    );
+    const pos = gridToThree(gameState.playerPos.x, gameState.playerPos.y, playerRadius);
+    object.position.set(pos.x, pos.y, pos.z);
   });
+
+  function isValidPosition(x, y, gameState) {
+    if (x < 0 || x >= GRID || y < 0 || y >= GRID) return false;
+    if (gameState.grid[y][x] === '#') return false;
+    return true;
+  }
 }
 
 function Box(unit, { gameState, boxData }) {
-  const object = xpixi.nest(new PIXI.Container());
-  const graphics = new PIXI.Graphics();
+  const boxSize = 1;
+  const geometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+  const material = new THREE.MeshStandardMaterial({ color: 0xaa5500 });
+  const object = xthree.nest(new THREE.Mesh(geometry, material));
+  object.castShadow = true;
+  object.receiveShadow = true;
 
-  function updateGraphics() {
-    graphics.clear();
+  function updatePosition() {
+    const pos = gridToThree(boxData.x, boxData.y, boxSize / 2);
+    object.position.set(pos.x, pos.y, pos.z);
+
     const isOnGoal = gameState.goals.some(g => g.x === boxData.x && g.y === boxData.y);
-    const color = isOnGoal ? 0xffaa00 : 0xaa5500;
-    graphics.rect(5, 5, TILE_SIZE - 10, TILE_SIZE - 10).fill(color);
-    graphics.rect(10, 10, TILE_SIZE - 20, TILE_SIZE - 20).stroke({ color: 0x664400, width: 2 });
-    graphics.moveTo(10, 10).lineTo(TILE_SIZE - 10, TILE_SIZE - 10).stroke({ color: 0x664400, width: 2 });
-    graphics.moveTo(TILE_SIZE - 10, 10).lineTo(10, TILE_SIZE - 10).stroke({ color: 0x664400, width: 2 });
+    material.color.setHex(isOnGoal ? 0xffaa00 : 0xaa5500);
   }
 
-  updateGraphics();
-  object.addChild(graphics);
-  object.position.set(boxData.x * TILE_SIZE, boxData.y * TILE_SIZE);
+  updatePosition();
 
   unit.on('update', () => {
-    object.position.set(boxData.x * TILE_SIZE, boxData.y * TILE_SIZE);
+    updatePosition();
   });
 
   unit.on('+boxmoved', () => {
-    updateGraphics();
+    updatePosition();
   });
 }
 
@@ -300,7 +329,7 @@ function Controller(unit, { gameState }) {
 
 function InfoPanel(unit, { gameState }) {
   const panel = xpixi.nest(new PIXI.Container());
-  panel.position.set(TILE_SIZE * GRID_SIZE + 10, 10);
+  panel.position.set(500 + 10, 10);
 
   const levelText = new PIXI.Text(`Level: ${gameState.level + 1}`, { fontSize: 24, fill: 0xFFFFFF, fontFamily: 'Arial' });
   levelText.position.set(0, 0);
@@ -325,22 +354,13 @@ function InfoPanel(unit, { gameState }) {
 
 function GameClearText(unit) {
   const object = xpixi.nest(new PIXI.Text('Stage Clear!', { fontSize: 36, fill: 0xFFFF00, fontFamily: 'Arial' }));
-  object.position.set((TILE_SIZE * GRID_SIZE) / 2, (TILE_SIZE * GRID_SIZE) / 2 - 30);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 30);
   object.anchor.set(0.5);
 }
 
 // ヘルパー関数
-function isValidPosition(x, y, gameState) {
-  if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return false;
-  if (gameState.grid[y][x] === '#') return false;
-  return true;
+function gridToThree(gridX, gridY, z = 0) {
+  return { x: (gridX + 0.5) - GRID / 2, y: -((gridY + 0.5) - GRID / 2), z: z };
 }
 
-function checkGameClear(gameState, unit) {
-  const allBoxesOnGoals = gameState.goals.every(goal => 
-    gameState.boxes.some(box => box.x === goal.x && box.y === goal.y)
-  );
-  if (allBoxesOnGoals) {
-    unit.emit('+gameclear');
-  }
-}
+

@@ -5,8 +5,7 @@ import * as THREE from 'three';
 xnew('#main', Main);
 
 function Main(unit) {
-  const width = 800, height = 400;
-  const screen = xnew(xnew.basics.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
   xthree.initialize({ canvas: screen.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;

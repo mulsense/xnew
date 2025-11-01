@@ -1441,7 +1441,7 @@ function AccordionButton(button, {} = {}) {
 }
 function AccordionBullet(bullet, { type = 'arrow' } = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
-    xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.4em;">');
+    xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.3em;">');
     frame.on('-transition', ({ status }) => { var _a; return (_a = bullet.transition) === null || _a === void 0 ? void 0 : _a.call(bullet, status); });
     if (type === 'arrow') {
         const arrow = xnew$1(`<div style="width: 100%; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
