@@ -46,7 +46,7 @@ function ShadowPlane(unit) {
 
 function ThreeLayer(unit) {
   const texture = xpixi.sync(xthree.canvas);
-  xpixi.nest(new PIXI.Sprite(texture));
+  const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
 function TitleText(unit) {
@@ -183,7 +183,7 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
   const object = xthree.nest(new THREE.Object3D());
   object.rotation.z = -r;
 
-  const list = ['./zundamon.vrm', './usagi.vrm', './kiritan.vrm', './metan.vrm', './sora.vrm', './zunko.vrm', './itako.vrm'];
+  const list = ['./models/zundamon.vrm', './models/usagi.vrm', './models/kiritan.vrm', './models/metan.vrm', './models/sora.vrm', './models/zunko.vrm', './models/itako.vrm'];
   const path = id < 7 ? list[id] : list[0];
 
   let vrm = null;

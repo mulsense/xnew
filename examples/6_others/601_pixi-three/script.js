@@ -23,7 +23,7 @@ function Main(unit) {
 
 function ThreeLayer(unit) {
   const texture = xpixi.sync(xthree.canvas);
-  xpixi.nest(new PIXI.Sprite(texture));
+  const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
 function Boxes(unit) {
