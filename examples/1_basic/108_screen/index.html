@@ -10,10 +10,10 @@
 <body class="relative m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', (unit) => {
       xnew.nest('<div class="p-2 flex gap-x-4 flex-wrap">');
         
-      xnew('<div>', (self) => {
+      xnew('<div>', (unit) => {
         xnew('<p>', 'canvas');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
@@ -21,7 +21,7 @@
         draw(unit)
       });
 
-      xnew('<div>', (self) => {
+      xnew('<div>', (unit) => {
         xnew('<p>', 'screen: contain');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
@@ -29,7 +29,7 @@
         draw(screen)
       });
       
-      xnew('<div>', (self) => {
+      xnew('<div>', (unit) => {
         xnew('<p>', 'screen: cover');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
@@ -37,7 +37,7 @@
         draw(screen)
       });
 
-      xnew('<div>', (self) => {
+      xnew('<div>', (unit) => {
         xnew('<p>', 'screen: fill');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 

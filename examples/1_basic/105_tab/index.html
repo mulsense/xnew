@@ -10,7 +10,7 @@
 <body class="relative m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', (unit) => {
       xnew.extend(xnew.basics.TabFrame);
       xnew.nest('<div class="p-2">')
 
@@ -24,24 +24,24 @@
       xnew(Content3);
     });
 
-    function TabButton(self, { name }) {
+    function TabButton(unit, { name }) {
       xnew.extend(xnew.basics.TabButton);
       xnew('<div class="m-2">', name);
     }
 
-    function Content1(self) {
+    function Content1(unit) {
       xnew.extend(xnew.basics.TabContent);
       xnew.nest('<div class="p-2 border rounded-lg bg-red-100">');
       xnew('<p>', 'content 1');
     }
  
-    function Content2(self) {
+    function Content2(unit) {
       xnew.extend(xnew.basics.TabContent);
       xnew.nest('<div class="p-2 border rounded-lg bg-green-100">');
       xnew('<p>', 'content 2');
     }
 
-    function Content3(self) {
+    function Content3(unit) {
       xnew.extend(xnew.basics.TabContent);
       xnew.nest('<div class="p-2 border rounded-lg bg-blue-100">');
       xnew('<p>', 'content 3');

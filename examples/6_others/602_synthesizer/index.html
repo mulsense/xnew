@@ -10,7 +10,7 @@
 <body class="relative m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', (unit) => {
       xnew.nest('<div class="m-2">')
       xnew(Keyboard);
       xnew(CodeBlock);
@@ -27,40 +27,40 @@
       for (let i = 2; i < 6; i++) {
         xnew(Keyset, i);
       }
-      function Keyset(self, number) {
+      function Keyset(unit, number) {
         xnew.nest('<div class="flex relative select-none">');
         for (let i = 0; i < 12; i++) {
           xnew(Key, { key: i, number });
         }
       }
-      function Key(self, { key, number }) {
+      function Key(unit, { key, number }) {
         const list = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', ];
         const offset = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
         const w = 24, h = 128;
 
         if (list[key].indexOf('#') < 0) {
           xnew.nest(`<div class="word-break-normal box-border cursor-pointer flex flex-col-reverse items-center" style="width: ${w}px; height: ${h}px; border: 1px solid #000000;">`);
-          self.element.textContent = list[key] + number;
+          unit.element.textContent = list[key] + number;
         } else {
           xnew.nest(`<div class="absolute word-break-normal box-border cursor-pointer flex flex-col-reverse items-center" style="width: ${w * 6 / 8}px; height: ${h * 9 / 16}px; left: ${offset[list[key][0]] * w + w * 5 / 8}px; border: 1px solid #000000; background: #000000">`);
         }
 
         let press = null;
         let startTime = 0;
-        self.on('touchstart mousedown mouseover', (event) => {
+        unit.on('touchstart mousedown mouseover', (event) => {
           if (event.buttons === 1 || event.type === 'touchstart') {
             startTime = Date.now();
             const [oscillator, filter, amp, options] = [xnew.find(Oscillator)[0], xnew.find(Filter)[0], xnew.find(Amp)[0], xnew.find(Options)[0]];
             const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, };
-            self.emit('+code1', ' ');
-            self.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}}${options.json});\nsynth.press('${list[key] + number}', duration);`);
+            unit.emit('+code1', ' ');
+            unit.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}}${options.json});\nsynth.press('${list[key] + number}', duration);`);
             const synth = xnew.audio.synthesizer(param, options.value);
             press = synth.press(list[key] + number);
           }
         });
-        self.on('touchend mouseup mouseout', () => {
+        unit.on('touchend mouseup mouseout', () => {
           if (press) {
-            self.emit('+code1',`const duration = ${Date.now() - startTime};`);
+            unit.emit('+code1',`const duration = ${Date.now() - startTime};`);
             press.release();
             press = null;
           }
@@ -76,7 +76,7 @@
       code2.on('+code2', (text) => code2.element.textContent = text);
     }
     
-    function Oscillator(self) {
+    function Oscillator(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       xnew.extend(xnew.basics.PanelGroup, { name: 'oscillator', open: true });
       const data = {};
@@ -94,7 +94,7 @@
       }
     }
 
-    function Filter(self) {
+    function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       xnew.extend(xnew.basics.PanelGroup, { name: 'type', open: true });
 
@@ -105,15 +105,15 @@
 
       return {
         get value() {
-          return self.checked ? { filter: { type: type.value, cutoff: cutoff.value, ...envelope.value, ...lfo.value }} : {};
+          return unit.checked ? { filter: { type: type.value, cutoff: cutoff.value, ...envelope.value, ...lfo.value }} : {};
         },
         get json() {
-          return self.checked ? `filter: { type: '${type.value}', cutoff: ${cutoff.value}, ${envelope.json}${lfo.json}}, ` : '';
+          return unit.checked ? `filter: { type: '${type.value}', cutoff: ${cutoff.value}, ${envelope.json}${lfo.json}}, ` : '';
         },
       }
     }
 
-    function Amp(self) {
+    function Amp(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       xnew.extend(xnew.basics.PanelGroup, { name: 'amp', open: true });
 
@@ -130,23 +130,23 @@
       }
     }
 
-    function Options(self) {
+    function Options(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       xnew.extend(xnew.basics.PanelGroup, { name: 'effect', open: true });
 
-      const reverb = xnew((self) => {
+      const reverb = xnew((unit) => {
         xnew.extend(xnew.basics.PanelGroup, { name: 'reverb', open: true });
         xnew.extend(Check, { checkable: true });
 
         const time = xnew(Slider, { name: 'time', value: 1000, min: 0.0, max: 2000, step: 100 });
         const mix = xnew(Slider, { name: 'mix', value: 0.5, min: 0.0, max: 1.0, step: 0.1 });
         return {
-          get value() { return self.checked ? { reverb: { time: time.value, mix: mix.value }} : {}; },
-          get json() { return self.checked ? `reverb: { time: ${time.value}, mix: ${mix.value}, }, ` : ''; }
+          get value() { return unit.checked ? { reverb: { time: time.value, mix: mix.value }} : {}; },
+          get json() { return unit.checked ? `reverb: { time: ${time.value}, mix: ${mix.value}, }, ` : ''; }
         };
       });
 
-      const delay = xnew((self) => {
+      const delay = xnew((unit) => {
         xnew.extend(xnew.basics.PanelGroup, { name: 'delay', open: true });
         xnew.extend(Check, { checkable: true });
 
@@ -156,10 +156,10 @@
 
         return {
           get value() {
-            return self.checked ? { delay: { time: time.value, feedback: feedback.value, mix: mix.value }} : {};
+            return unit.checked ? { delay: { time: time.value, feedback: feedback.value, mix: mix.value }} : {};
           },
           get json() {
-            return self.checked ? `delay: { time: ${time.value}, feedback: ${feedback.value}, mix: ${mix.value}, }, ` : '';
+            return unit.checked ? `delay: { time: ${time.value}, feedback: ${feedback.value}, mix: ${mix.value}, }, ` : '';
           }
         };
       });
@@ -173,13 +173,13 @@
       }
     }
 
-    function Waveform(self, { value = 0 }) {
+    function Waveform(unit, { value = 0 }) {
       xnew.extend(xnew.basics.PanelGroup, { name: 'type', open: true });
       xnew.nest('<div class="flex">');
       const name = 'waveform' + xnew.find(Waveform).length;
       const labels = ['sine', 'triangle', 'square', 'sawtooth'];
       labels.forEach((label, i) => {
-        xnew(`<label class="inline-block">`, (self) => {
+        xnew(`<label class="inline-block">`, (unit) => {
           xnew.nest('<div class="flex flex-col items-center">');
           const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
           const svg = xnew(`<svg class="block w-6 h-5 m-1" viewBox="0 0 20 20">`);
@@ -206,7 +206,7 @@
         get value() { return labels[value]; },
       }
     }
-    function Envelope(self, { value, min, max, step, checkable = false }) {
+    function Envelope(unit, { value, min, max, step, checkable = false }) {
       xnew.extend(xnew.basics.PanelGroup, { name: 'envelope', open: true });
       xnew.extend(Check, { checkable });
 
@@ -231,13 +231,13 @@
       }
       return {
         get value() {
-          return self.checked ? { envelope: { amount: amount.value, ADSR: [attack.value, decay.value, sustain.value, release.value] }} : {};
+          return unit.checked ? { envelope: { amount: amount.value, ADSR: [attack.value, decay.value, sustain.value, release.value] }} : {};
         },
-        get json() { return self.checked ? `envelope: { amount: ${amount.value}, ADSR: [${attack.value}, ${decay.value}, ${sustain.value}, ${release.value}], }, ` : ''; }
+        get json() { return unit.checked ? `envelope: { amount: ${amount.value}, ADSR: [${attack.value}, ${decay.value}, ${sustain.value}, ${release.value}], }, ` : ''; }
       };
     }
 
-    function LFO(self, { value, min, max, step }) {
+    function LFO(unit, { value, min, max, step }) {
       xnew.extend(xnew.basics.PanelGroup, { name: 'LFO', open: true });
       xnew.extend(Check, { checkable: true });
 
@@ -247,15 +247,15 @@
 
       return {
         get value() {
-          return self.checked ? { LFO: { type: waveform.value, amount: amount.value, rate: rate.value }} : {};
+          return unit.checked ? { LFO: { type: waveform.value, amount: amount.value, rate: rate.value }} : {};
         },
-        get json() { return self.checked ? `LFO: { type: '${waveform.value}', amount: ${amount.value}, rate: ${rate.value}, }, ` : ''; }
+        get json() { return unit.checked ? `LFO: { type: '${waveform.value}', amount: ${amount.value}, rate: ${rate.value}, }, ` : ''; }
       };
     }
 
     function Slider(frame, { name, value, max, min, step }) {
       xnew.extend(xnew.basics.InputFrame);
-      xnew('<div class="flex justify-between text-sm">', (self) => {
+      xnew('<div class="flex justify-between text-sm">', (unit) => {
           xnew('<div class="flex-1">', name);
           const status = xnew('<div class="flex-none">', `${value}`);
           frame.on('-input', ({ event }) => {
@@ -268,7 +268,7 @@
       }
     }
 
-    function Radio(self, { name, labels, value = 0 }) {
+    function Radio(unit, { name, labels, value = 0 }) {
       xnew.nest('<div>');
       labels.forEach((label, i) => {
         xnew(`<label class="inline-block">`, () => {
@@ -287,12 +287,12 @@
       }
     }
 
-    function Block(self, { name, checkable = false }) {
+    function Block(unit, { name, checkable = false }) {
       xnew.nest('<div class="w-[160px] p-[4px] border border-[#000000] rounded-[4px]">');
       xnew.extend(Check, { name, checkable });
     }
 
-    function Check(self, { checkable = false }) {
+    function Check(unit, { checkable = false }) {
       xnew.nest('<div>');
       let check = null;
 
@@ -302,7 +302,7 @@
 
       xnew.nest(`<div class="${checkable ? 'hidden' : ''}">`);
       check?.on('change', () => {
-        self.element.style.display = check.element.checked ? 'block' : 'none';
+        unit.element.style.display = check.element.checked ? 'block' : 'none';
       });
       return {
         get checked() { return check ? check.element.checked : true; },

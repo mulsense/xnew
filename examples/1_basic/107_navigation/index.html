@@ -10,7 +10,7 @@
 <body class="relative m-0 p-0 w-full h-screen overflow-hidden">
   <header id="header"></header>
   <script>
-    xnew('#header', (self) => {
+    xnew('#header', (unit) => {
       xnew.extend(NavigationFrame);
       xnew.nest('<div class="h-12 p-2 flex items-center bg-gray-800 text-white">');
       xnew('<h1 class="flex-none mx-4 text-lg font-bold">', 'Navigation Menu');
@@ -25,11 +25,11 @@
         xnew(NavigationMenuButton);
       })
     });
-    function NavigationFrame(self, {} = {}) {
+    function NavigationFrame(unit, {} = {}) {
       xnew.nest('<nav>');
     }
 
-    function NavigationMenuButton(self, { size = 40 } = {}) {
+    function NavigationMenuButton(unit, { size = 40 } = {}) {
       let isActive = false;
 
       // Create hamburger button
@@ -41,7 +41,7 @@
       const line1 = xnew(`<div style="position: absolute; left: 0; right: 0; top: 30%; margin: auto; width: ${size*0.7}px; height: 1px; border: ${size*0.03}px solid currentColor;">`);
       const line2 = xnew(`<div style="position: absolute; left: 0; right: 0; top: 50%; margin: auto; width: ${size*0.7}px; height: 1px; border: ${size*0.03}px solid currentColor;">`);
       const line3 = xnew(`<div style="position: absolute; left: 0; right: 0; top: 70%; margin: auto; width: ${size*0.7}px; height: 1px; border: ${size*0.03}px solid currentColor;">`);
-      self.on('click', toggle);
+      unit.on('click', toggle);
 
       let status = 0.0;
       function toggle() {

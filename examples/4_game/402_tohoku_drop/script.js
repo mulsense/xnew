@@ -10,7 +10,7 @@ import xmatter from 'xnew/addons/xmatter';
 
 xnew('#main', Main);
 
-function Main(self) {
+function Main(unit) {
   const width = 800, height = 600;
   // three 
   xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
@@ -27,7 +27,7 @@ function Main(self) {
   xnew(TitleScene);
 }
 
-function Background(self) {
+function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
   xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
     const sprite = new PIXI.Sprite(texture);
@@ -37,7 +37,7 @@ function Background(self) {
   });
 }
 
-function ShadowPlane(self) {
+function ShadowPlane(unit) {
   const geometry = new THREE.PlaneGeometry(16, 14);
   const material = new THREE.ShadowMaterial({ opacity: 0.25 });
   const plane = xthree.nest(new THREE.Mesh(geometry, material));
@@ -46,27 +46,27 @@ function ShadowPlane(self) {
   plane.position.set(0.0, -2.9, -2.0);
 }
 
-function ThreeLayer(self) {
+function ThreeLayer(unit) {
   const texture = xpixi.sync(xthree.canvas);
   xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function TitleText(self) {
+function TitleText(unit) {
   const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 150);
   object.anchor.set(0.5);
 }
 
-function TouchMessage(self) {
+function TouchMessage(unit) {
   const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 50);
   object.anchor.set(0.5);
-  self.on('update', (count) => {
+  unit.on('update', (count) => {
       object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
   });
 }
 
-function TitleScene(self) {
+function TitleScene(unit) {
   xnew(TitleText);
   xnew(TouchMessage);
   xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
@@ -81,7 +81,7 @@ function TitleScene(self) {
   xnew(ThreeLayer);
 
   xnew.listener(window).on('keydown pointerdown', () => {
-    self.finalize();
+    unit.finalize();
     xnew.append(Main, GameScene);
   });
 }
@@ -110,7 +110,7 @@ function GameScene(scene) {
   });
 }
 
-function DirectionalLight(self, { x, y, z }) {
+function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
   object.castShadow = true;
@@ -119,30 +119,30 @@ function DirectionalLight(self, { x, y, z }) {
   object.shadow.camera.updateProjectionMatrix();
 }
 
-function AmbientLight(self) {
+function AmbientLight(unit) {
   const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
 }
 
-function Controller(self) {
+function Controller(unit) {
   const screen = xnew.find(xnew.basics.Screen)[0];
   const user = xnew(screen.canvas, xnew.basics.UserEvent);
   user.on('-pointermove -pointerdown', ({ position }) => {
-    self.emit('+move', { x: position.x * screen.scale.x });
+    unit.emit('+move', { x: position.x * screen.scale.x });
   });
-  user.on('-pointerdown', () => self.emit('+action'));
-  self.on('+gameover', () => self.finalize());
+  user.on('-pointerdown', () => unit.emit('+action'));
+  unit.on('+gameover', () => unit.finalize());
 }
 
-function ScoreText(self) {
+function ScoreText(unit) {
   const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0x000000 }));
   object.position.set(xpixi.canvas.width - 10, 10);
   object.anchor.set(1, 0);
 
   let sum = 0;
-  self.on('+scoreup', (score) => object.text = `score ${sum += score}`);
+  unit.on('+scoreup', (score) => object.text = `score ${sum += score}`);
 }
 
-function Bowl(self) {
+function Bowl(unit) {
   for (let angle = 10; angle <= 170; angle++) {
     const x = 400 + Math.cos(angle * Math.PI / 180) * 240;
     const y = 360 + Math.sin(angle * Math.PI / 180) * 200;
@@ -150,16 +150,16 @@ function Bowl(self) {
   }
 }
 
-function Queue(self) {
+function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  self.emit('+reloadcomplete', 0);
+  unit.emit('+reloadcomplete', 0);
 
   let model = xnew(Model, { id: balls[0], scale: 1 });
   model.setPosition(70, 60, 0);
   model.object.rotation.y = 60 / 180 * Math.PI;
   model.object.rotation.x = 30 / 180 * Math.PI;
 
-  self.on('+reload', () => {
+  unit.on('+reload', () => {
     const next = balls.shift();
     model.finalize();
     model = xnew(Model, { id: balls[0], scale: 1 });
@@ -171,13 +171,13 @@ function Queue(self) {
     xnew.transition((progress) => {
       model.setPosition(0 + progress * 70, 60, 0);
       if (progress === 1.0) {
-        self.emit('+reloadcomplete', next);
+        unit.emit('+reloadcomplete', next);
       }
     }, 500);
   });
 }
 
-function Model(self, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
+function Model(unit, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
   const object = xthree.nest(new THREE.Object3D());
   object.rotation.z = -r;
 
@@ -204,7 +204,7 @@ function Model(self, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
 
   const offset = Math.random() * 10;
 
-  self.on('update', (count) => {
+  unit.on('update', (count) => {
     const neck = vrm.humanoid.getNormalizedBoneNode('neck');
     const chest = vrm.humanoid.getNormalizedBoneNode('chest');
     const hips = vrm.humanoid.getNormalizedBoneNode('hips');
@@ -240,7 +240,7 @@ function Model(self, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
   }
 }
 
-function Cursor(self) {
+function Cursor(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 40);
 
@@ -249,18 +249,18 @@ function Cursor(self) {
   object.addChild(new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 }));
   object.addChild(new PIXI.Graphics().moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 }));
 
-  self.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
+  unit.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
 
   let next = null;
   let model = null
   let offset = 50;
-  self.on('+reloadcomplete', (level) => {
+  unit.on('+reloadcomplete', (level) => {
     next = level;
     circle.circle(0, 0, 32).fill(0xAACCAA);
     model = xnew(Model, { id: next, scale: 1 });
     model.setPosition(object.x, object.y + offset, 0);
   });
-  self.on('+action', () => {
+  unit.on('+action', () => {
     if (next !== null) {
       circle.clear();
       xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
@@ -268,12 +268,12 @@ function Cursor(self) {
         model.finalize();
         model = null;
       }
-      self.emit('+reload');
+      unit.emit('+reload');
       next = null;
     } 
   });
 
-  self.on('update', () => {
+  unit.on('update', () => {
     object.rotation += 0.02;
     if (model) {
       model.setPosition(object.x, object.y + offset, 0);
@@ -281,29 +281,29 @@ function Cursor(self) {
   });
 }
 
-function ModelBall(self, { x, y, a = 0, id = 0, score = 1 }) {
+function ModelBall(unit, { x, y, a = 0, id = 0, score = 1 }) {
   const scale = [1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.8, 3.8, 3.8][id];
   const r = 35 + Math.pow(3.0, scale);
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
   const model = xnew(Model, { r, id, scale });
-  self.emit('+scoreup', score);
+  unit.emit('+scoreup', score);
   
-  self.on('update', () => {
-    model.setPosition(self.object.x, self.object.y, self.object.rotation);
-    if (self.object.y > xpixi.canvas.height - 10) {
-      self.emit('+gameover');
-      self.finalize();
+  unit.on('update', () => {
+    model.setPosition(unit.object.x, unit.object.y, unit.object.rotation);
+    if (unit.object.y > xpixi.canvas.height - 10) {
+      unit.emit('+gameover');
+      unit.finalize();
       return;
     }
     for (const target of xnew.find(ModelBall)) {
-      if (self.mergeCheck(target)) {
-        const score = self.score + target.score;
-        const id = self.id + 1;
-        const x = (self.object.x + target.object.x) / 2;
-        const y = (self.object.y + target.object.y) / 2;
-        const a = (self.object.rotation + target.object.rotation) / 2;
-        self.finalize();
+      if (unit.mergeCheck(target)) {
+        const score = unit.score + target.score;
+        const id = unit.id + 1;
+        const x = (unit.object.x + target.object.x) / 2;
+        const y = (unit.object.y + target.object.y) / 2;
+        const a = (unit.object.rotation + target.object.rotation) / 2;
+        unit.finalize();
         target.finalize();
         xnew.append(GameScene, ModelBall, { x, y, a, id, score });
         break;
@@ -313,24 +313,24 @@ function ModelBall(self, { x, y, a = 0, id = 0, score = 1 }) {
   return {
     r, score, id, isMearged: false,
     mergeCheck(target) {
-      if (self === target || self.score !== target.score) return false;
-      if (self.isMearged === true || target.isMearged === true) return false;
-      const dx = target.object.x - self.object.x;
-      const dy = target.object.y - self.object.y;
+      if (unit === target || unit.score !== target.score) return false;
+      if (unit.isMearged === true || target.isMearged === true) return false;
+      const dx = target.object.x - unit.object.x;
+      const dy = target.object.y - unit.object.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > self.r + target.r + 0.01) return false;
+      if (dist > unit.r + target.r + 0.01) return false;
       return true;
     }
   }
 }
 
-function GameOverText(self) {
+function GameOverText(unit) {
   const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0x000000 }));
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
 }
 
-function Circle(self, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
+function Circle(unit, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
   const graphics = new PIXI.Graphics().circle(0, 0, r).fill(color);
@@ -338,7 +338,7 @@ function Circle(self, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) 
   object.addChild(graphics);
   object.alpha = alpha;
 
-  self.on('update', () => {
+  unit.on('update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });

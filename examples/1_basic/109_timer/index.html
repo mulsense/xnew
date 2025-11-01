@@ -10,13 +10,13 @@
 <body class="relative m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', (unit) => {
       xnew.nest('<div class="absolute w-128 h-64 inset-0 m-auto border rounded-lg overflow-hidden">');
       
       xnew.interval(() => xnew(Box), 10);
     });
     
-    function Box(self) {
+    function Box(unit) {
       const box = xnew.nest('<div class="absolute w-8 h-8 bg-orange-400">');
       box.style.left = (Math.random() * 512 - 15) + 'px';
       box.style.top = (Math.random() * 256 - 15) + 'px';
@@ -24,9 +24,9 @@
       // fade in -> fade out -> finalize
       xnew.transition((x) => box.style.opacity = x, 1000)
       .next((x) => box.style.opacity = 1.0 - x, 1000)
-      .next((x) => self.finalize());
+      .next((x) => unit.finalize());
 
-      self.on('update', (count) => {
+      unit.on('update', (count) => {
         box.style.transform = `rotate(${count}deg)`;
       });
     }

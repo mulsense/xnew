@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(self) {
+function Main(unit) {
   const width = 800, height = 400;
   const screen = xnew(xnew.basics.Screen, { width, height });
   xthree.initialize({ canvas: screen.element });
@@ -13,7 +13,7 @@ function Main(self) {
   xnew(Cubes);
 }
 
-function Cubes(self) {
+function Cubes(unit) {
   const object = xthree.nest(new THREE.Object3D());
 
   for (let z = -1; z <= 1; z++) {
@@ -23,19 +23,19 @@ function Cubes(self) {
       }
     }
   }
-  self.on('update', () => {
+  unit.on('update', () => {
     object.rotation.y += 0.01;
     object.rotation.z += 0.01;
   });
 }
 
-function Cube(self, { x, y, z, size }) {
+function Cube(unit, { x, y, z, size }) {
   const geometry = new THREE.BoxGeometry(size, size, size);
   const material = new THREE.MeshNormalMaterial();
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
   
-  self.on('update', () => {
+  unit.on('update', () => {
     object.rotation.x += 0.01;
     object.rotation.y += 0.01;
   });

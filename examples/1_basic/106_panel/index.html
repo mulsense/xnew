@@ -10,30 +10,30 @@
 <body class="relative m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew('#main', (unit) => {
       xnew.nest('<div class="p-2">');
       xnew(MyPanel);
     });
 
-    function MyPanel(self) {
+    function MyPanel(unit) {
       xnew.extend(xnew.basics.PanelFrame);
       xnew.nest('<div class="text-sm w-64 p-1 border rounded-lg">')
 
       xnew('<div">', 'My Panel');
 
-      xnew((self) => {
+      xnew((unit) => {
         xnew.extend(xnew.basics.PanelGroup, { name: 'group 1', open: false });
         xnew('<button class="border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 1');
         xnew('<button class="border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 2');
         xnew('<button class="border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 3');
       });
 
-      xnew((self) => {
+      xnew((unit) => {
         xnew.extend(xnew.basics.PanelGroup, { name: 'group 2', open: true });
 
         xnew((frame) => {
           xnew.extend(xnew.basics.InputFrame);
-          xnew('<div class="text-sm flex justify-between">', (self) => {
+          xnew('<div class="text-sm flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'range 1');
               const status = xnew('<div class="flex-none">', '25');
               frame.on('-input', ({ event }) => {
@@ -46,7 +46,7 @@
         xnew((frame) => {
           xnew.extend(xnew.basics.InputFrame);
 
-          xnew('<div class="flex justify-between">', (self) => {
+          xnew('<div class="flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'radio 1');
               const status = xnew('<div class="flex-none">', 'radio A');
               frame.on('-input', ({ event }) => {
@@ -67,10 +67,10 @@
           });
         })
 
-        xnew((self) => {
+        xnew((unit) => {
           xnew.extend(xnew.basics.InputFrame);
 
-          xnew('<div class="flex justify-between">', (self) => {
+          xnew('<div class="flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'text 1');
           });
           xnew('<input type="text" name="text 1" value="text" class="px-2 w-full h-8 border rounded-lg">');

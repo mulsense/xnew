@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 xnew('#main', Main);
 
-function Main(self) {
+function Main(unit) {
   const width = 1200, height = 600;
   const screen = xnew(xnew.basics.Screen, { width, height });
   xthree.initialize({ canvas: screen.element });
@@ -31,12 +31,12 @@ function Main(self) {
   });
 }
 
-function HemisphereLight(self) {
+function HemisphereLight(unit) {
   const object = xthree.nest(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 3));
   object.position.set(0, 20, 0);
 }
 
-function DirectionalLight(self) {
+function DirectionalLight(unit) {
   const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
   object.position.set(3, 10, 10);
   object.castShadow = true;
@@ -48,7 +48,7 @@ function DirectionalLight(self) {
   object.shadow.camera.far = 40;
 }
 
-function Ground(self) {
+function Ground(unit) {
   const geometry = new THREE.PlaneGeometry(100, 100);
   const material = new THREE.MeshPhongMaterial({ color: 0xcbcbcb, depthWrite: false });
   const object = xthree.nest(new THREE.Mesh(geometry, material));
@@ -60,7 +60,7 @@ let select = 'idle';
 const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
 const additiveActions = { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } };
 
-function Model(self, { gltf }) {
+function Model(unit, { gltf }) {
   const object = xthree.nest(new THREE.Object3D());
   const model = gltf.scene;
   const animations = gltf.animations;
@@ -95,17 +95,17 @@ function Model(self, { gltf }) {
     }
   }
 
-  self.on('+synchronizeCrossFade', (currentAction, nextAction, duration) => {
+  unit.on('+synchronizeCrossFade', (currentAction, nextAction, duration) => {
     mixer.addEventListener('loop', onLoopFinished);
 
     function onLoopFinished(event) {
       if (event.action === currentAction) {
         mixer.removeEventListener('loop', onLoopFinished);
-        self.emit('+executeCrossFade', currentAction, nextAction, duration);
+        unit.emit('+executeCrossFade', currentAction, nextAction, duration);
       }
     }
   });
-  self.on('+executeCrossFade', (currentAction, nextAction, duration) => {
+  unit.on('+executeCrossFade', (currentAction, nextAction, duration) => {
     if (nextAction) {
       setWeight(nextAction, 1);
       nextAction.time = 0;
@@ -118,9 +118,9 @@ function Model(self, { gltf }) {
       currentAction.fadeOut(duration);
     }
   });
-  self.on('+speed', (speed) => mixer.timeScale = speed);
+  unit.on('+speed', (speed) => mixer.timeScale = speed);
 
-  self.on('+setWeight', setWeight);
+  unit.on('+setWeight', setWeight);
 
   function setWeight(action, weight) {
     action.enabled = true;
@@ -129,19 +129,19 @@ function Model(self, { gltf }) {
   }
 
   const clock = new THREE.Clock();
-  self.on('update', () => {
+  unit.on('update', () => {
     mixer.update(clock.getDelta());
   });
 }
 
-function Panel(self) {
+function Panel(unit) {
   xnew('<div style="position: absolute; top: 8px; right: 8px; width: 200px;">', (frame) => {
     xnew.extend(xnew.basics.PanelFrame);
     xnew.nest('<div style="padding: 6px; font-size: 0.8em; background: #FFF; border: solid 1px #AAA; border-radius: 6px;">')
 
     xnew('<div style="margin: 2px;">', 'Panel');
 
-    xnew((self) => {
+    xnew((unit) => {
       xnew.extend(xnew.basics.PanelGroup, { name: 'actions', open: true });
 
       for (const name of ['none', ...Object.keys(baseActions)]) {
@@ -152,9 +152,9 @@ function Panel(self) {
 
           if (currentAction !== nextAction) {
             if (select === 'idle' || !currentAction || !nextAction) {
-              self.emit('+executeCrossFade', currentAction, nextAction, 0.35);
+              unit.emit('+executeCrossFade', currentAction, nextAction, 0.35);
             } else {
-              self.emit('+synchronizeCrossFade', currentAction, nextAction, 0.35);
+              unit.emit('+synchronizeCrossFade', currentAction, nextAction, 0.35);
             }
             select = nextAction ? nextAction.getClip().name : 'none';
           }
@@ -162,13 +162,13 @@ function Panel(self) {
       }
     });
     
-    xnew((self) => {
+    xnew((unit) => {
       xnew.extend(xnew.basics.PanelGroup, { name: 'action weights', open: true });
 
       for (const name of Object.keys(additiveActions)) {
         xnew((frame) => {
           xnew.extend(xnew.basics.InputFrame);
-          xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
+          xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (unit) => {
               xnew('<div style="flex: auto">', name);
               const status = xnew('<div style="flex: none">', '0');
               frame.on('-input', ({ event }) => {
@@ -181,17 +181,17 @@ function Panel(self) {
        
           frame.on('-input', ({ event }) => {
             settings.weight = parseFloat(event.target.value);
-            self.emit('+setWeight', settings.action, settings.weight);
+            unit.emit('+setWeight', settings.action, settings.weight);
           });
         });
       }
 
     });
-    xnew((self) => {
+    xnew((unit) => {
       xnew.extend(xnew.basics.PanelGroup, { name: 'options', open: true });
       xnew((frame) => {
         xnew.extend(xnew.basics.InputFrame);
-        xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (self) => {
+        xnew('<div style="font-size: 0.9em; display: flex; justify-content: space-between;">', (unit) => {
           xnew('<div style="flex: auto">', 'speed');
           const status = xnew('<div style="flex: none">', '1.0');
           frame.on('-input', ({ event }) => {
@@ -201,7 +201,7 @@ function Panel(self) {
 
         xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" style="margin: 0; width: 100%">');
         frame.on('-input', ({ event }) => {
-          self.emit('+speed', parseFloat(event.target.value));
+          unit.emit('+speed', parseFloat(event.target.value));
         });
       });
     });

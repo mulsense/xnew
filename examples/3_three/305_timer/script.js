@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(self) {
+function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
   xthree.initialize({ canvas: screen.element });
   xthree.camera.position.set(0, 0, +100);
@@ -14,12 +14,12 @@ function Main(self) {
   xnew.interval(() => xnew(Cube), 50);
 }
 
-function DirectionalLight(self) {
+function DirectionalLight(unit) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
   object.position.set(0, 0, 1);
 }
 
-function Cube(self) {
+function Cube(unit) {
   const size = 10 * Math.random() + 5;
 
   const geometry = new THREE.BoxGeometry(size, size, size);
@@ -36,9 +36,9 @@ function Cube(self) {
   velocity.z = Math.random() - 0.5;
 
   // finalize after 5000ms
-  xnew.timeout(() => self.finalize(), 5000);
+  xnew.timeout(() => unit.finalize(), 5000);
 
-  self.on('update', () => {
+  unit.on('update', () => {
     object.position.x += velocity.x;
     object.position.y += velocity.y;
     object.position.z += velocity.z;

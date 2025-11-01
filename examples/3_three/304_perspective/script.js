@@ -9,13 +9,13 @@ const state = { id: 0, moving: false };
 
 xnew(Main);
 
-function Main(self) {
+function Main(unit) {
   xnew(HtmlMain);
   xnew(ThreeMain);
   xnew(Event);
 }
 
-function HtmlMain(self) {
+function HtmlMain(unit) {
   const targets = xnew('#targets');
   targets.element.style.display = 'block';
 
@@ -24,17 +24,17 @@ function HtmlMain(self) {
   });
 }
 
-function Plane(self, id) {
+function Plane(unit, id) {
   let opacity = id === state.id ? 0.80 : 0.20;
-  self.on('+planefade', () => {
+  unit.on('+planefade', () => {
     xnew.transition((progress) => {
       opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
     }, 700);
   });
 
-  self.on('update', () => {
-    self.element.style.opacity = opacity;
-    self.element.style.transform = `
+  unit.on('update', () => {
+    unit.element.style.opacity = opacity;
+    unit.element.style.transform = `
           translateZ(${perspective}px) 
           translateX(${(transform.tx + offset.tx)}px) translateY(${(transform.ty + offset.ty)}px)
           rotateX(${transform.rx + offset.rx}deg) rotateY(${transform.ry + offset.ry + id * 90}deg) 
@@ -43,12 +43,12 @@ function Plane(self, id) {
   });
 }
 
-function Event(self) {
+function Event(unit) {
   xnew('.button.left', Button, +1);
   xnew('.button.right', Button, -1);
 
-  function Button(self, direction) {
-    self.on('click', () => {
+  function Button(unit, direction) {
+    unit.on('click', () => {
       if (state.moving === false) {
         state.id = (state.id + direction + 4) % 4;
         state.moving = true;
@@ -59,18 +59,18 @@ function Event(self) {
           transform.ty = backup.ty * (1.0 - p);
           if (progress === 1.0) state.moving = false;
         }, 700);
-        self.emit('+planefade');
+        unit.emit('+planefade');
       }
     });
   }
 
-  self.on('wheel', (event) => {
+  unit.on('wheel', (event) => {
     event.preventDefault();
     transform.ty = Math.max(-300, Math.min(+300, transform.ty + event.wheelDeltaY * 0.2));
   }, { passive: false });
 }
 
-function ThreeMain(self) {
+function ThreeMain(unit) {
   const screen = xnew('#screen', xnew.basics.Screen, { width: 1200, height: 800, fit: 'cover' });
   xthree.initialize({ canvas: screen.element });
 
@@ -85,7 +85,7 @@ function ThreeMain(self) {
 
   xnew(ThreeContents);
   xnew(() => {
-    self.on('update', () => {
+    unit.on('update', () => {
       xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
       xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
       xthree.camera.position.x = -(transform.tx + offset.tx);
@@ -94,23 +94,23 @@ function ThreeMain(self) {
   });
 }
 
-function ThreeContents(self) {
+function ThreeContents(unit) {
   xnew(DirectionaLight, 20, -50, 50, 0.1);
   xnew(DirectionaLight, 20, 50, -10, 0.1);
   xnew(AmbientLight, 0.05);
   xnew(Room);
 }
 
-function DirectionaLight(self, x, y, z, value) {
+function DirectionaLight(unit, x, y, z, value) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, value));
   object.position.set(x, y, z);
 }
 
-function AmbientLight(self, value) {
+function AmbientLight(unit, value) {
   const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, value));
 }
 
-function Room(self) {
+function Room(unit) {
   const size = perspective;
   const geometry = new THREE.BoxGeometry(size * 2, size * 2, size * 2);
   const material = new THREE.MeshStandardMaterial({
@@ -127,7 +127,7 @@ function Room(self) {
   xnew(Grid, { ty: -size });
 }
 
-function Grid(self, { tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
+function Grid(unit, { tx = 0, ty = 0, tz = 0, rx = 0, ry = 0, rz = 0 }) {
   const object = xthree.nest(new THREE.GridHelper(1100, 10, 0x444466, 0x444466));
   object.rotation.set(rx * Math.PI / 180, ry * Math.PI / 180, rz * Math.PI / 180);
   object.position.set(tx, ty, tz);
