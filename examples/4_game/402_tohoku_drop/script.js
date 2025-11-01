@@ -11,15 +11,14 @@ import xmatter from 'xnew/addons/xmatter';
 xnew('#main', Main);
 
 function Main(unit) {
-  const width = 800, height = 600;
   // three 
-  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(800, 600) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
 
   // pixi
-  const screen = xnew(xnew.basics.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(TitleScene);
@@ -44,8 +43,7 @@ function ShadowPlane(unit) {
   plane.position.set(0.0, -2.9, -2.0);
 }
 
-function ThreeLayer(unit) {
-  const texture = xpixi.sync(xthree.canvas);
+function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
@@ -78,7 +76,7 @@ function TitleScene(unit) {
     model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
     model.object.rotation.x = 10 / 180 * Math.PI;
   }
-  xnew(ThreeLayer);
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
   xnew.listener(window).on('keydown pointerdown', () => {
     unit.finalize();
@@ -98,7 +96,7 @@ function GameScene(scene) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xnew(ThreeLayer);
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
   scene.on('+gameover', () => {
     xnew(GameOverText);

@@ -5,8 +5,7 @@ import * as PIXI from 'pixi.js';
 xnew('#main', Main);
 
 function Main(self) {
-  const width = 800, height = 400;
-  const screen = xnew(xnew.basics.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Scene1);
