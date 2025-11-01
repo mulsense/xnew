@@ -11,11 +11,11 @@ xnew('#main', Main);
 
 function Main(unit) {
   // three
-  const camera = new THREE.OrthographicCamera(-GRID / 2, +GRID / 2, +GRID / 2, -GRID / 2, 0, 2000);
+  const camera = new THREE.OrthographicCamera(-GRID / 2, +GRID / 2, +GRID / 2, -GRID / 2, 0, 100);
   xthree.initialize({ canvas: new OffscreenCanvas(500, 500), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  xthree.camera.position.set(0, 0, +500);
+  xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -40 / 180 * Math.PI;
 
   // pixi 
@@ -25,25 +25,16 @@ function Main(unit) {
   // xnew(TitleScene);
   xnew(GameScene, { level: 0 });
 }
-function DirectionaLight(unit, { x, y, z }) {
+
+function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
   object.position.set(x, y, z);
-
-  const s = object.position.length();
   object.castShadow = true;
-  object.shadow.mapSize.width = 1024;
-  object.shadow.mapSize.height = 1024;
-  object.shadow.camera.left = -s * 1.0;
-  object.shadow.camera.right = +s * 1.0;
-  object.shadow.camera.top = -s * 1.0;
-  object.shadow.camera.bottom = +s * 1.0;
-  object.shadow.camera.near = +s * 0.1;
-  object.shadow.camera.far = +s * 10.0;
   object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 0.5));
 }
 
 function Texture(unit, { texture } = {}) {
@@ -94,7 +85,7 @@ function GameScene(unit, { level }) {
     canMove: true
   };
 
-  xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
+  xnew(DirectionalLight, { x: 2, y: -2, z: 10 });
   xnew(AmbientLight);
 
   xnew(Background);
