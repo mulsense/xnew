@@ -7,14 +7,13 @@ import * as THREE from 'three';
 xnew('#main', Main);
 
 function Main(unit) {
-  const width = 800, height = 400;
   // three 
-  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(800, 400) });
   xthree.camera.position.set(0, 0, +100);
 
   // pixi
-  const screen = xnew(xnew.basics.Screen, { width, height });
-  xpixi.initialize({ canvas: screen.element } );
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
+  xpixi.initialize({ canvas: screen.element });
 
   xnew(Cubes);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
@@ -25,28 +24,24 @@ function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function Boxes(unit) {
+function Boxes(self) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2); // center
 
   for (let y = -1; y <= 1; y++) {
     for (let x = -1; x <= 1; x++) {
       xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
     }
   }
-  unit.on('update', () => {
-      object.rotation += 0.01;
-  });
+  self.on('update', () => object.rotation += 0.01);
 }
 
-function Box(unit, { x, y, size, color }) {
+function Box(self, { x, y, size, color }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-  unit.on('update', () => {
-    object.rotation += 0.01;
-  });
+  self.on('update', () => object.rotation += 0.01);
 }
 
 function Cubes(unit) {
