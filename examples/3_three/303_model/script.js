@@ -26,7 +26,7 @@ function Main(unit) {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
-    xnew(Panel);
+    xnew('<div class="absolute w-48 top-2 right-2">', Panel);
   });
 }
 
@@ -93,17 +93,17 @@ function Model(unit, { gltf }) {
     }
   }
 
-  unit.on('+synchronizeCrossFade', (currentAction, nextAction, duration) => {
+  unit.on('+synccrossfade', (currentAction, nextAction, duration) => {
     mixer.addEventListener('loop', onLoopFinished);
 
     function onLoopFinished(event) {
       if (event.action === currentAction) {
         mixer.removeEventListener('loop', onLoopFinished);
-        unit.emit('+executeCrossFade', currentAction, nextAction, duration);
+        unit.emit('+crossfade', currentAction, nextAction, duration);
       }
     }
   });
-  unit.on('+executeCrossFade', (currentAction, nextAction, duration) => {
+  unit.on('+crossfade', (currentAction, nextAction, duration) => {
     if (nextAction) {
       setWeight(nextAction, 1);
       nextAction.time = 0;
@@ -132,75 +132,74 @@ function Model(unit, { gltf }) {
   });
 }
 
-function Panel(unit) {
+function Panel(frame) {
+  xnew.extend(xnew.basics.PanelFrame);
+  xnew.nest('<div class="p-1 bg-white border border-gray-300 rounded shadow-lg">');
+  xnew('<div>', 'Panel');
+
   let select = 'idle';
-  xnew('<div class="absolute w-48 top-2 right-2">', (frame) => {
-    xnew.extend(xnew.basics.PanelFrame);
-    xnew.nest('<div class="p-1 bg-white border border-gray-300 rounded shadow-lg">');
-    xnew('<div>', 'Panel');
+  xnew((group) => {
+    xnew.extend(xnew.basics.PanelGroup, { name: 'actions', open: true });
 
-    xnew((unit) => {
-      xnew.extend(xnew.basics.PanelGroup, { name: 'actions', open: true });
+    for (const name of ['none', ...Object.keys(baseActions)]) {
+      const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
+      button.on('click', () => {
+        const currentAction = baseActions[select] ? baseActions[select].action : null;
+        const nextAction = baseActions[name] ? baseActions[name].action : null;
 
-      for (const name of ['none', ...Object.keys(baseActions)]) {
-        const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
-        button.on('click', () => {
-          const currentAction = baseActions[select] ? baseActions[select].action : null;
-          const nextAction = baseActions[name] ? baseActions[name].action : null;
-
-          if (currentAction !== nextAction) {
-            if (select === 'idle' || !currentAction || !nextAction) {
-              unit.emit('+executeCrossFade', currentAction, nextAction, 0.35);
-            } else {
-              unit.emit('+synchronizeCrossFade', currentAction, nextAction, 0.35);
-            }
-            select = nextAction ? nextAction.getClip().name : 'none';
+        if (currentAction !== nextAction) {
+          if (select === 'idle' || !currentAction || !nextAction) {
+            group.emit('+crossfade', currentAction, nextAction, 0.35);
+          } else {
+            group.emit('+synccrossfade', currentAction, nextAction, 0.35);
           }
-        });
-      }
-    });
-    
-    xnew((unit) => {
-      xnew.extend(xnew.basics.PanelGroup, { name: 'action weights', open: true });
+          select = nextAction ? nextAction.getClip().name : 'none';
+        }
+      });
+    }
+  });
+  
+  xnew((group) => {
+    xnew.extend(xnew.basics.PanelGroup, { name: 'action weights', open: true });
 
-      for (const name of Object.keys(additiveActions)) {
-        xnew((frame) => {
-          xnew.extend(xnew.basics.InputFrame);
-          xnew('<div class="text-sm flex justify-between">', (unit) => {
-              xnew('<div class="flex-1">', name);
-              const status = xnew('<div class="flex-none">', '0');
-              frame.on('-input', ({ event }) => {
-                status.element.textContent = event.target.value;
-              })
-          });
-          
-          const settings = additiveActions[name];
-          xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="m-0 w-full">`);
-       
-          frame.on('-input', ({ event }) => {
-            settings.weight = parseFloat(event.target.value);
-            unit.emit('+setWeight', settings.action, settings.weight);
-          });
-        });
-      }
-
-    });
-    xnew((unit) => {
-      xnew.extend(xnew.basics.PanelGroup, { name: 'options', open: true });
+    for (const name of Object.keys(additiveActions)) {
       xnew((frame) => {
         xnew.extend(xnew.basics.InputFrame);
         xnew('<div class="text-sm flex justify-between">', (unit) => {
-          xnew('<div class="flex-1">', 'speed');
-          const status = xnew('<div class="flex-none">', '1.0');
-          frame.on('-input', ({ event }) => {
-            status.element.textContent = event.target.value;
-          })
+            xnew('<div class="flex-auto">', name);
+            const status = xnew('<div class="flex-none">', '0');
+            frame.on('-input', ({ event }) => {
+              status.element.textContent = event.target.value;
+            })
         });
-
-        xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="m-0 w-full">');
+        
+        const settings = additiveActions[name];
+        xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
+      
         frame.on('-input', ({ event }) => {
-          unit.emit('+speed', parseFloat(event.target.value));
+          settings.weight = parseFloat(event.target.value);
+          group.emit('+setWeight', settings.action, settings.weight);
         });
+      });
+    }
+
+  });
+
+  xnew((group) => {
+    xnew.extend(xnew.basics.PanelGroup, { name: 'options', open: true });
+    xnew((frame) => {
+      xnew.extend(xnew.basics.InputFrame);
+      xnew('<div class="text-sm flex justify-between">', (unit) => {
+        xnew('<div class="flex-auto">', 'speed');
+        const status = xnew('<div class="flex-none">', '1.0');
+        frame.on('-input', ({ event }) => {
+          status.element.textContent = event.target.value;
+        })
+      });
+
+      xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
+      frame.on('-input', ({ event }) => {
+        group.emit('+speed', parseFloat(event.target.value));
       });
     });
   });
