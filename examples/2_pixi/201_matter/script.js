@@ -20,11 +20,11 @@ function Contents(self) {
 
   // simple bodies
   xnew(Rectangle, { x: 100, y: 200, w: 80, h: 80, color: 0x00CC00 });
-  xnew(Polygon, { x: 200, y: 100, sides: 6, radius: 40, color: 0x0000CC });
-  xnew(Circle, { x: 300, y: 50, radius: 40, color: 0xCC0000 });
+  xnew(Circle, { x: 300, y: 150, radius: 40, color: 0xCC0000 });
+  xnew(Polygon, { x: 320, y: 50, sides: 6, radius: 40, color: 0x0000CC });
 
   // multiple bodies as a compound body
-  xnew(Dumbbell, { x: 400, y: 50, size: 40, angle: 45 * Math.PI / 180, color: 0xCCCC00 });
+  xnew(Dumbbell, { x: 420, y: 50, size: 40, angle: 45 * Math.PI / 180, color: 0xCCCC00 });
   xnew(LShape, { x: 650, y: 50, size: 50, color: 0xCC00CC });
   xnew(Car, { x: 500, y: 100, size: 50, color: 0x00CCCC });
 

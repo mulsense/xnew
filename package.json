@@ -1,10 +1,10 @@
 {
-  "name": "xnew",
+  "name": "@mulsense/xnew",
   "description": "JavaScript Library for Component-Oriented Programming.",
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "5.0.28",
+  "version": "0.1.0",
   "main": "dist/xnew.js",
   "module": "dist/xnew.mjs",
   "types": "dist/xnew.d.ts",

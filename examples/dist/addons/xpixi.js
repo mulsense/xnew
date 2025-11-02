@@ -68,7 +68,7 @@
         }
         root.updates = [];
         root.scene = new PIXI__namespace.Container();
-        xnew.extend(Nest, root.scene);
+        xnew.context('xpixi.object', root.scene);
         self.on('update', () => {
             root.updates.forEach((update) => {
                 update();

@@ -47,7 +47,7 @@ function Root(self: xnew.Unit, { canvas }: any) {
     root.updates = [];
 
     root.scene = new PIXI.Container();
-    xnew.extend(Nest, root.scene);
+    xnew.context('xpixi.object', root.scene);
     self.on('update', () => {
         root.updates.forEach((update: any) => {
             update();

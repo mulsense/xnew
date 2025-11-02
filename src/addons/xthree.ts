@@ -33,7 +33,7 @@ function Root(self: xnew.Unit, { canvas, camera }: any) {
     
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
-    xnew.extend(Nest, root.scene);
+    xnew.context('xthree.object', root.scene);
     self.on('update', () => {
         root.renderer.render(root.scene, root.camera);
     });
