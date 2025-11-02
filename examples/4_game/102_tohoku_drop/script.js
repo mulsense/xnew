@@ -24,6 +24,28 @@ function Main(unit) {
   xnew(TitleScene);
 }
 
+function TitleScene(scene) {
+  xnew(Background);
+  xnew(ShadowPlane);
+  xnew(TitleText);
+  xnew(TouchMessage);
+  xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
+  xnew(AmbientLight);
+
+  for (let i = 0; i < 7; i++) {
+    const model = xnew(Model, { id: i, scale: 0.7 });
+    model.setPosition(140 + i * 90, 450, 0);
+    model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
+    model.object.rotation.x = 10 / 180 * Math.PI;
+  }
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+
+  xnew.listener(window).on('keydown pointerdown', () => {
+    scene.finalize();
+    xnew.append(Main, GameScene);
+  });
+}
+
 function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
   xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
@@ -59,28 +81,6 @@ function TouchMessage(unit) {
   object.anchor.set(0.5);
   unit.on('update', (count) => {
       object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
-  });
-}
-
-function TitleScene(scene) {
-  xnew(Background);
-  xnew(ShadowPlane);
-  xnew(TitleText);
-  xnew(TouchMessage);
-  xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
-  xnew(AmbientLight);
-
-  for (let i = 0; i < 7; i++) {
-    const model = xnew(Model, { id: i, scale: 0.7 });
-    model.setPosition(140 + i * 90, 450, 0);
-    model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
-    model.object.rotation.x = 10 / 180 * Math.PI;
-  }
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-
-  xnew.listener(window).on('keydown pointerdown', () => {
-    scene.finalize();
-    xnew.append(Main, GameScene);
   });
 }
 
