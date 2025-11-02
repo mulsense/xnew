@@ -1,26 +1,13 @@
-import { MapSet, MapMap, MapMapMap } from './map';
+import { MapSet, MapMap } from './map';
 import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
 // Constants
 //----------------------------------------------------------------------------------------------------
 
-const LIFECYCLE_EVENTS = ['start', 'update', 'stop', 'finalize'] as const;
-type LifecycleEvent = typeof LIFECYCLE_EVENTS[number];
+const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
 
-const LIFECYCLE_STATES = {
-    INVOKED: 'invoked',
-    INITIALIZED: 'initialized',
-    STARTED: 'started',
-    STOPPED: 'stopped',
-    PRE_FINALIZED: 'pre finalized',
-    FINALIZED: 'finalized',
-} as const;
-
-const CUSTOM_EVENT_PREFIX = {
-    GLOBAL: '+',
-    INTERNAL: '-',
-} as const;
+export type UnitElement = HTMLElement | SVGElement;
 
 //----------------------------------------------------------------------------------------------------
 // Interfaces
@@ -35,7 +22,7 @@ interface Context {
 interface Snapshot {
     unit: Unit | null;
     context: Context | null;
-    element: HTMLElement | SVGElement | null;
+    element: UnitElement | null;
 }
 
 interface Capture {
@@ -49,19 +36,20 @@ interface UnitInternal {
     children: Unit[];
     target: Object | null;
     props?: Object;
-    nextNest: { element: HTMLElement | SVGElement, position: InsertPosition };
-    baseElement: HTMLElement | SVGElement;
-    currentElement: HTMLElement | SVGElement;
+    nextNest: { element: UnitElement, position: InsertPosition };
+    baseElement: UnitElement;
+    currentElement: UnitElement;
     baseContext: Context | null;
-    baseComponent: Function | null;
-    components: Function[];
+    baseComponent: Function;
+    components: Set<Function>;
+    listeners: MapMap<string, Function, [UnitElement, Function]>;
+    sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     captures: Capture[];
     state: string;
     tostart: boolean;
-    upcount: number;
     resolved: boolean;
     defines: Record<string, any>;
-    system: Record<LifecycleEvent, Function[]>;
+    system: Record<string, Function[]>;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -78,7 +66,7 @@ export class Unit {
     constructor(target: Object | null, component?: Function | string, props?: Object) {
         const parent = UnitScope.current;
 
-        let baseElement: HTMLElement | SVGElement;
+        let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
         } else if (parent !== null) {
@@ -87,11 +75,13 @@ export class Unit {
             baseElement = document.currentScript?.parentElement ?? document.body;
         }
 
-        let baseComponent: Function | null = null;
+        let baseComponent: Function;
         if (typeof component === 'function') {
             baseComponent = component;
         } else if (typeof component === 'string') {
             baseComponent = (self: Unit) => { self.element.textContent = component; };
+        } else {
+            baseComponent = (self: Unit) => {};
         }
 
         this._ = {
@@ -109,7 +99,7 @@ export class Unit {
         Unit.initialize(this);
     }
 
-    get element(): HTMLElement | SVGElement {
+    get element(): UnitElement {
         return this._.currentElement;
     }
 
@@ -139,7 +129,7 @@ export class Unit {
             trace = trace.parentElement as Element;
         }
         if (trace.parentElement === this._.baseElement) {
-            this._.nextNest.element = trace.nextElementSibling as HTMLElement | SVGElement;
+            this._.nextNest.element = trace.nextElementSibling as UnitElement;
             this._.nextNest.position = 'beforebegin';
         }
 
@@ -147,69 +137,16 @@ export class Unit {
         Unit.initialize(this);
     }
 
-    get components(): Function[] {
-        return this._.components;
-    }
-
-    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit {
-        try {
-            if (typeof type === 'string') {
-                const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type as LifecycleEvent));
-                filtered.forEach((type) => {
-                    this._.system[type as LifecycleEvent].push(listener);
-                });
-            }
-
-            UnitEvent.on(this, type, listener, options);
-        } catch (error) {
-            console.error('unit.on(type, listener, option?): ', error);
-        }
-        return this;
-    }
-
-    off(type?: string, listener?: Function): Unit {
-        try {
-            if (type === undefined) {
-                this._.system = { start: [], update: [], stop: [], finalize: [] };
-            } else if (typeof type === 'string') {
-                const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type as LifecycleEvent));
-                filtered.forEach((type) => {
-                    if (listener === undefined) {
-                        this._.system[type as LifecycleEvent] = [];
-                    } else {
-                        this._.system[type as LifecycleEvent] = this._.system[type as LifecycleEvent].filter((l: Function) => l !== listener);
-                    }
-                });
-            }
-
-            UnitEvent.off(this, type, listener);
-        } catch (error) {
-            console.error('unit.off(type, listener): ', error);
-        }
-        return this;
-    }
-
-    emit(type: string, ...args: any[]) {
-        try {
-            UnitEvent.emit(this, type, ...args);
-        } catch (error: unknown) {
-            console.error('unit.emit(type, ...args): ', error);
-        }
-    }
-    
-    //----------------------------------------------------------------------------------------------------
-    // internal
-    //----------------------------------------------------------------------------------------------------
-
     static initialize(unit: Unit): void {
         unit._ = Object.assign(unit._, {
             children: [],
-            components: [],
+            components: new Set<Function>(),
+            listeners: new MapMap<string, Function, [UnitElement, Function]>(),
+            sublisteners: new MapMap<string, Function, [UnitElement | Window | Document, Function]>(),
             captures: [],
-            state: LIFECYCLE_STATES.INVOKED,
+            state: 'invoked',
             tostart: true,
             currentElement: unit._.baseElement,
-            upcount: 0,
             resolved: false,
             defines: {},
             system: { start: [], update: [], stop: [], finalize: [] },
@@ -235,7 +172,7 @@ export class Unit {
             unit._.resolved = true;
         });
 
-        unit._.state = LIFECYCLE_STATES.INITIALIZED;
+        unit._.state = 'initialized';
 
         let current: Unit | null = unit;
         while (current !== null) {
@@ -255,18 +192,21 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== LIFECYCLE_STATES.FINALIZED && unit._.state !== LIFECYCLE_STATES.PRE_FINALIZED) {
-            unit._.state = LIFECYCLE_STATES.PRE_FINALIZED;
+        if (unit._.state !== 'finalized' && unit._.state !== 'pre-finalized') {
+            unit._.state = 'pre-finalized';
 
             unit._.children.forEach((child: Unit) => child.finalize());
             unit._.system.finalize.forEach((listener: Function) => {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
 
-            UnitEvent.off(unit);
-            UnitEvent.suboff(unit, null);
+            Unit.off(unit);
+            Unit.suboff(unit, null);
+            unit._.components.forEach((component) => {
+                Unit.componentUnits.delete(component, unit);
+            });
+
             UnitScope.finalize(unit);
-            UnitComponent.finalize(unit);
             UnitPromise.finalize(unit);
 
             while (unit._.currentElement !== unit._.baseElement && unit._.currentElement.parentElement !== null) {
@@ -277,16 +217,16 @@ export class Unit {
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
-                if (!LIFECYCLE_EVENTS.includes(key as LifecycleEvent)) {
+                if (SYSTEM_EVENTS.includes(key) === false) {
                     delete unit[key as keyof Unit];
                 }
             });
             unit._.defines = {};
-            unit._.state = LIFECYCLE_STATES.FINALIZED;
+            unit._.state = 'finalized';
         }
     }
 
-    static nest(unit: Unit, tag: string): HTMLElement | SVGElement | null {
+    static nest(unit: Unit, tag: string): UnitElement | null {
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element: HTMLElement;
@@ -305,8 +245,8 @@ export class Unit {
     }
 
     static extend(unit: Unit, component: Function, props?: Object): void {
-        unit._.components.push(component);
-        UnitComponent.add(unit, component);
+        unit._.components.add(component);
+        Unit.componentUnits.add(component, unit);
 
         const defines = component(unit, props) ?? {};
         const snapshot = UnitScope.snapshot(unit);
@@ -342,20 +282,20 @@ export class Unit {
         if (!unit._.resolved || !unit._.tostart) return;
 
         const { state } = unit._;
-        if (state === LIFECYCLE_STATES.INVOKED || state === LIFECYCLE_STATES.INITIALIZED || state === LIFECYCLE_STATES.STOPPED) {
-            unit._.state = LIFECYCLE_STATES.STARTED;
+        if (state === 'invoked' || state === 'initialized' || state === 'stopped') {
+            unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
             unit._.system.start.forEach((listener: Function) => {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
-        } else if (state === LIFECYCLE_STATES.STARTED) {
+        } else if (state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
         }
     }
 
     static stop(unit: Unit): void {
-        if (unit._.state === LIFECYCLE_STATES.STARTED) {
-            unit._.state = LIFECYCLE_STATES.STOPPED;
+        if (unit._.state === 'started') {
+            unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
             unit._.system.stop.forEach((listener: Function) => {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
@@ -364,14 +304,13 @@ export class Unit {
     }
 
     static update(unit: Unit, time: number): void {
-        if (unit._.state === LIFECYCLE_STATES.STARTED) {
+        if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child, time));
 
-            if (unit._.state === LIFECYCLE_STATES.STARTED) {
+            if (unit._.state === 'started') {
                 unit._.system.update.forEach((listener: Function) => {
-                    UnitScope.execute(UnitScope.snapshot(unit), listener, unit._.upcount);
+                    UnitScope.execute(UnitScope.snapshot(unit), listener);
                 });
-                unit._.upcount++;
             }
         }
     }
@@ -388,6 +327,166 @@ export class Unit {
         Unit.roots = [];
         Ticker.clear(Unit.ticker);
         Ticker.set(Unit.ticker);
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // component
+    //----------------------------------------------------------------------------------------------------
+
+    static componentUnits: MapSet<Function, Unit> = new MapSet();
+
+    get components(): Set<Function> {
+        return this._.components;
+    }
+
+    static find(component: Function): Unit[] {
+        return [...(Unit.componentUnits.get(component) ?? [])];
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // event
+    //----------------------------------------------------------------------------------------------------
+    
+    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit {
+        try {
+            if (typeof type === 'string') {
+                const filtered = type.trim().split(/\s+/).filter((type) => SYSTEM_EVENTS.includes(type));
+                filtered.forEach((type) => {
+                    this._.system[type].push(listener);
+                });
+            }
+
+            Unit.on(this, type, listener, options);
+        } catch (error) {
+            console.error('unit.on(type, listener, option?): ', error);
+        }
+        return this;
+    }
+
+    off(type?: string, listener?: Function): Unit {
+        try {
+            if (type === undefined) {
+                this._.system = { start: [], update: [], stop: [], finalize: [] };
+            } else if (typeof type === 'string') {
+                const filtered = type.trim().split(/\s+/).filter((type) => SYSTEM_EVENTS.includes(type));
+                filtered.forEach((type) => {
+                    if (listener === undefined) {
+                        this._.system[type] = [];
+                    } else {
+                        this._.system[type] = this._.system[type].filter((l: Function) => l !== listener);
+                    }
+                });
+            }
+
+            Unit.off(this, type, listener);
+        } catch (error) {
+            console.error('unit.off(type, listener): ', error);
+        }
+        return this;
+    }
+
+    emit(type: string, ...args: any[]) {
+        try {
+            Unit.emit(this, type, ...args);
+        } catch (error: unknown) {
+            console.error('unit.emit(type, ...args): ', error);
+        }
+    }
+    
+    static typeUnits = new MapSet<string, Unit>();
+
+    static divtype(type: string): string[] {
+        if (typeof type !== 'string' || type.trim() === '') {
+            throw new Error('"type" is invalid.');
+        }
+        return type.trim().split(/\s+/);
+    }
+
+    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+
+        const snapshot = UnitScope.snapshot();
+        Unit.divtype(type).forEach((type) => {
+            if (!unit._.listeners.has(type, listener)) {
+                const execute = (...args: any[]) => UnitScope.execute(snapshot, listener, ...args);
+                unit._.listeners.set(type, listener, [unit.element, execute]);
+                Unit.typeUnits.add(type, unit);
+                if (/^[A-Za-z]/.test(type)) {
+                    unit.element.addEventListener(type, execute, options);
+                }
+            }
+        });
+    }
+
+    static off(unit: Unit, type?: string, listener?: Function): void {
+        if (typeof type === 'string' && type.trim() === '') {
+            throw new Error('"type" is invalid.');
+        } else if (listener !== undefined && typeof listener !== 'function') {
+            throw new Error('"listener" is invalid.');
+        }
+
+        const types = typeof type === 'string' ? Unit.divtype(type) : [...unit._.listeners.keys()];
+        types.forEach((type) => {
+            const listeners = listener ? [listener] : [...unit._.listeners.keys(type)];
+            listeners.forEach((lis) => {
+                const tuple = unit._.listeners.get(type, lis);
+                if (tuple !== undefined) {
+                    const [target, execute] = tuple;
+                    unit._.listeners.delete(type, lis);
+                    if (/^[A-Za-z]/.test(type)) {
+                        target.removeEventListener(type, execute as EventListener);
+                    }
+                }
+            });
+            if (!unit._.listeners.has(type)) {
+                Unit.typeUnits.delete(type, unit);
+            }
+        });
+    }
+
+    static emit(unit: Unit, type: string, ...args: any[]): void {
+        if (typeof type !== 'string') {
+            throw new Error('The argument [type] is invalid.');
+        } else if (unit?._.state === 'finalized') {
+            throw new Error('This function can not be called after finalized.');
+        }
+        if (type[0] === '+') {
+            Unit.typeUnits.get(type)?.forEach((unit) => {
+                unit._.listeners.get(type)?.forEach(([_, execute]) => execute(...args));
+            });
+        } else if (type[0] === '-' && unit !== null) {
+            unit._.listeners.get(type)?.forEach(([_, execute]) => execute(...args));
+        }
+    }
+
+    static subon(unit: any, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        const snapshot = UnitScope.snapshot();
+        Unit.divtype(type).forEach((type) => {
+            if (!unit._.sublisteners.has(type, listener)) {
+                const execute = (...args: any[]) => {
+                    UnitScope.execute(snapshot, listener, ...args);
+                };
+                unit._.sublisteners.set(type, listener, [target, execute]);
+                target.addEventListener(type, execute, options);
+            }
+        });
+    }
+
+    static suboff(unit: any, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void {
+
+        const types = typeof type === 'string' ? Unit.divtype(type) : [...unit._.sublisteners.keys()];
+        types.forEach((type) => {
+            const listeners = listener ? [listener] : [...unit._.sublisteners.keys(type)];
+            listeners.forEach((lis) => {
+                const tuple = unit._.sublisteners.get(type, lis);
+                if (tuple !== undefined) {
+                    const [element, execute] = tuple;
+                    if (target === null || target === element) {
+                        unit._.sublisteners.delete(type, lis);
+                        element.removeEventListener(type, execute as EventListener);
+                    }
+                }
+            });
+        });
     }
 }
 
@@ -424,7 +523,7 @@ export class UnitScope {
 
         const current = UnitScope.current;
         let context: Context | null = null;
-        let element: HTMLElement | SVGElement | null = null;
+        let element: UnitElement | null = null;
 
         try {
             UnitScope.current = snapshot.unit;
@@ -474,152 +573,6 @@ export class UnitScope {
         }
     }
 }
-
-//----------------------------------------------------------------------------------------------------
-// unit component
-//----------------------------------------------------------------------------------------------------
-
-export class UnitComponent {
-    static components: MapSet<Unit, Function> = new MapSet();
-    static units: MapSet<Function, Unit> = new MapSet();
-
-    static finalize(unit: Unit): void {
-        UnitComponent.components.get(unit)?.forEach((component) => {
-            UnitComponent.units.delete(component, unit);
-        });
-        UnitComponent.components.delete(unit);
-    }
-
-    static add(unit: Unit, component: Function): void {
-        UnitComponent.components.add(unit, component);
-        UnitComponent.units.add(component, unit);
-    }
-
-    static find(component: Function): Unit[] {
-        return [...(UnitComponent.units.get(component) ?? [])];
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
-// unit event
-//----------------------------------------------------------------------------------------------------
-
-export class UnitEvent {
-    static units: MapSet<string, Unit> = new MapSet;
-    static listeners: MapMapMap<Unit, string, Function, [HTMLElement | SVGElement, (...args: any[]) => void]> =
-        new MapMapMap;
-
-    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        if (typeof type !== 'string' || type.trim() === '') {
-            throw new Error('"type" is invalid.');
-        } else if (typeof listener !== 'function') {
-            throw new Error('"listener" is invalid.');
-        }
-
-        const snapshot = UnitScope.snapshot();
-        const types = type.trim().split(/\s+/);
-        types.forEach((type) => {
-            if (!UnitEvent.listeners.has(unit, type, listener)) {
-                const execute = (...args: any[]) => {
-                    UnitScope.execute(snapshot, listener, ...args);
-                };
-                UnitEvent.listeners.set(unit, type, listener, [unit.element, execute]);
-                UnitEvent.units.add(type, unit);
-                if (/^[A-Za-z]/.test(type)) {
-                    unit.element.addEventListener(type, execute, options);
-                }
-            }
-        });
-    }
-
-    static off(unit: Unit, type?: string, listener?: Function): void {
-        if (typeof type === 'string' && type.trim() === '') {
-            throw new Error('"type" is invalid.');
-        } else if (listener !== undefined && typeof listener !== 'function') {
-            throw new Error('"listener" is invalid.');
-        }
-
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.listeners.keys(unit)];
-        types.forEach((type) => {
-            const listeners = listener ? [listener] : [...UnitEvent.listeners.keys(unit, type)];
-            listeners.forEach((lis) => {
-                const tuple = UnitEvent.listeners.get(unit, type, lis);
-                if (tuple !== undefined) {
-                    const [target, execute] = tuple;
-                    UnitEvent.listeners.delete(unit, type, lis);
-                    if (/^[A-Za-z]/.test(type)) {
-                        target.removeEventListener(type, execute);
-                    }
-                }
-            });
-            if (!UnitEvent.listeners.has(unit, type)) {
-                UnitEvent.units.delete(type, unit);
-            }
-        });
-    }
-
-    static emit(unit: Unit, type: string, ...args: any[]): void {
-        if (typeof type !== 'string') {
-            throw new Error('The argument [type] is invalid.');
-        } else if (unit?._.state === LIFECYCLE_STATES.FINALIZED) {
-            throw new Error('This function can not be called after finalized.');
-        }
-        if (type[0] === CUSTOM_EVENT_PREFIX.GLOBAL) {
-            UnitEvent.units.get(type)?.forEach((unit) => {
-                UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
-            });
-        } else if (type[0] === CUSTOM_EVENT_PREFIX.INTERNAL && unit !== null) {
-            UnitEvent.listeners.get(unit, type)?.forEach(([_, execute]) => execute(...args));
-        }
-    }
-
-    static sublisteners: MapMapMap<Unit | null, string, Function, [HTMLElement | SVGElement | Window | Document, (...args: any[]) => void]> =
-        new MapMapMap;
-
-    static subon(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        if (typeof type !== 'string' || type.trim() === '') {
-            throw new Error('"type" is invalid.');
-        } else if (typeof listener !== 'function') {
-            throw new Error('"listener" is invalid.');
-        }
-
-        const snapshot = UnitScope.snapshot();
-        const types = type.trim().split(/\s+/);
-        types.forEach((type) => {
-            if (!UnitEvent.sublisteners.has(unit, type, listener)) {
-                const execute = (...args: any[]) => {
-                    UnitScope.execute(snapshot, listener, ...args);
-                };
-                UnitEvent.sublisteners.set(unit, type, listener, [target, execute]);
-                target.addEventListener(type, execute, options);
-            }
-        });
-    }
-
-    static suboff(unit: Unit | null, target: HTMLElement | SVGElement | Window | Document | null, type?: string, listener?: Function): void {
-        if (typeof type === 'string' && type.trim() === '') {
-            throw new Error('"type" is invalid.');
-        } else if (listener !== undefined && typeof listener !== 'function') {
-            throw new Error('"listener" is invalid.');
-        }
-
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...UnitEvent.sublisteners.keys(unit)];
-        types.forEach((type) => {
-            const listeners = listener ? [listener] : [...UnitEvent.sublisteners.keys(unit, type)];
-            listeners.forEach((lis) => {
-                const tuple = UnitEvent.sublisteners.get(unit, type, lis);
-                if (tuple !== undefined) {
-                    const [element, execute] = tuple;
-                    if (target === null || target === element) {
-                        UnitEvent.sublisteners.delete(unit, type, lis);
-                        element.removeEventListener(type, execute);
-                    }
-                }
-            });
-        });
-    }
-}
-
 
 //----------------------------------------------------------------------------------------------------
 // unit promise

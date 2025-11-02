@@ -1,5 +1,5 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitComponent, UnitPromise, UnitEvent } from './unit';
+import { Unit, UnitScope, UnitPromise,UnitElement } from './unit';
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
@@ -7,7 +7,7 @@ export namespace xnew {
 
 export interface xnewtype {
     (...args: any[]): Unit;
-    // nest(html: string): HTMLElement | SVGElement;
+    // nest(html: string): UnitElement;
     [key: string]: any;
 }
 
@@ -36,7 +36,7 @@ export const xnew: xnewtype = (() => {
     }
   
 
-    fn.nest = (tag: string): HTMLElement | SVGElement => {
+    fn.nest = (tag: string): UnitElement => {
         const current = UnitScope.current;
         if (current?._.state === 'invoked') {
             const element = Unit.nest(current, tag);
@@ -151,7 +151,7 @@ export const xnew: xnewtype = (() => {
 
     fn.find = (component: Function): Unit[] => {
         if (typeof component === 'function') {
-            return UnitComponent.find(component);
+            return Unit.find(component);
         } else {
             throw new Error(`The argument [component] is invalid.`);
         }
@@ -159,7 +159,7 @@ export const xnew: xnewtype = (() => {
 
     fn.append = (base: Function | Unit, ...args: any[]): void => {
         if (typeof base === 'function') {
-            for (let unit of UnitComponent.find(base)) {
+            for (let unit of Unit.find(base)) {
                 UnitScope.execute(UnitScope.snapshot(unit), xnew, ...args);
             }
         } else if (base instanceof Unit) {
@@ -252,16 +252,17 @@ export const xnew: xnewtype = (() => {
         return timer;
     }
 
-    fn.listener = function (target: HTMLElement | SVGElement | Window | Document) {
+    fn.listener = function (target: UnitElement | Window | Document) {
         return {
             on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-                UnitEvent.subon(UnitScope.current, target, type, listener, options);
+                Unit.subon(UnitScope.current, target, type, listener, options);
             },
             off(type?: string, listener?: Function) {
-                UnitEvent.suboff(UnitScope.current, target, type, listener);
-            }  
+                Unit.suboff(UnitScope.current, target, type, listener);
+            }
         }
     }
+
     fn.capture = function (checker: (unit: xnew.Unit) => boolean, execute: (unit: xnew.Unit) => void) {
         const current = UnitScope.current as xnew.Unit;
         const snapshot = UnitScope.snapshot();

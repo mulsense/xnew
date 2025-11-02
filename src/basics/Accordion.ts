@@ -6,7 +6,7 @@ export function AccordionFrame(frame: xnew.Unit,
     xnew.context('xnew.accordionframe', frame);
 
     let content: xnew.Unit | null = null;
-    xnew.capture((unit: xnew.Unit) => unit.components.includes(AccordionContent), (unit: xnew.Unit) => {
+    xnew.capture((unit: xnew.Unit) => unit.components.has(AccordionContent), (unit: xnew.Unit) => {
         content = unit;
     });
 

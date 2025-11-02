@@ -26,8 +26,9 @@
       .next((x) => box.style.opacity = 1.0 - x, 1000)
       .next((x) => unit.finalize());
 
-      unit.on('update', (count) => {
-        box.style.transform = `rotate(${count}deg)`;
+      let count = 0;
+      unit.on('update', () => {
+        box.style.transform = `rotate(${count++}deg)`;
       });
     }
   </script>

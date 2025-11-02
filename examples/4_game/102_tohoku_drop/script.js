@@ -79,8 +79,9 @@ function TouchMessage(unit) {
   const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 50);
   object.anchor.set(0.5);
-  unit.on('update', (count) => {
-      object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
+  let count = 0;
+  unit.on('update', () => {
+      object.alpha = 0.6 + Math.sin(count++ * 0.08) * 0.4;
   });
 }
 
@@ -198,7 +199,8 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
 
   const offset = Math.random() * 10;
 
-  unit.on('update', (count) => {
+  let count = 0;
+  unit.on('update', () => {
     const neck = vrm.humanoid.getNormalizedBoneNode('neck');
     const chest = vrm.humanoid.getNormalizedBoneNode('chest');
     const hips = vrm.humanoid.getNormalizedBoneNode('hips');
@@ -219,6 +221,7 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
     rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
     rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
     vrm.update(t);
+    count++;
   });
 
   return {

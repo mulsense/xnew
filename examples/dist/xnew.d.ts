@@ -1,7 +1,28 @@
 declare function ResizeEvent(self: any): void;
 
-declare const LIFECYCLE_EVENTS: readonly ["start", "update", "stop", "finalize"];
-type LifecycleEvent = typeof LIFECYCLE_EVENTS[number];
+declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
+    has(key: Key): boolean;
+    has(key: Key, value: Value): boolean;
+    add(key: Key, value: Value): MapSet<Key, Value>;
+    keys(): IterableIterator<Key>;
+    keys(key: Key): IterableIterator<Value>;
+    delete(key: Key): boolean;
+    delete(key: Key, value: Value): boolean;
+}
+declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
+    has(key1: Key1): boolean;
+    has(key1: Key1, key2: Key2): boolean;
+    set(key1: Key1, value: Map<Key2, Value>): this;
+    set(key1: Key1, key2: Key2, value: Value): this;
+    get(key1: Key1): Map<Key2, Value> | undefined;
+    get(key1: Key1, key2: Key2): Value | undefined;
+    keys(): IterableIterator<Key1>;
+    keys(key1: Key1): IterableIterator<Key2>;
+    delete(key1: Key1): boolean;
+    delete(key1: Key1, key2: Key2): boolean;
+}
+
+type UnitElement = HTMLElement | SVGElement;
 interface Context {
     stack: Context | null;
     key: string;
@@ -18,45 +39,56 @@ interface UnitInternal {
     target: Object | null;
     props?: Object;
     nextNest: {
-        element: HTMLElement | SVGElement;
+        element: UnitElement;
         position: InsertPosition;
     };
-    baseElement: HTMLElement | SVGElement;
-    currentElement: HTMLElement | SVGElement;
+    baseElement: UnitElement;
+    currentElement: UnitElement;
     baseContext: Context | null;
     baseComponent: Function | null;
-    components: Function[];
+    components: Set<Function>;
+    listeners: MapMap<string, Function, [UnitElement, Function]>;
+    sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     captures: Capture[];
     state: string;
     tostart: boolean;
     upcount: number;
     resolved: boolean;
     defines: Record<string, any>;
-    system: Record<LifecycleEvent, Function[]>;
+    system: Record<string, Function[]>;
 }
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
     static roots: Unit[];
     constructor(target: Object | null, component?: Function | string, props?: Object);
-    get element(): HTMLElement | SVGElement;
+    get element(): UnitElement;
     start(): void;
     stop(): void;
     finalize(): void;
     reboot(): void;
-    get components(): Function[];
+    get components(): Set<Function>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit;
     off(type?: string, listener?: Function): Unit;
     emit(type: string, ...args: any[]): void;
     static initialize(unit: Unit): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, tag: string): HTMLElement | SVGElement | null;
+    static nest(unit: Unit, tag: string): UnitElement | null;
     static extend(unit: Unit, component: Function, props?: Object): void;
     static start(unit: Unit, time: number): void;
     static stop(unit: Unit): void;
     static update(unit: Unit, time: number): void;
     static ticker(time: number): void;
     static reset(): void;
+    static componentUnits: MapSet<Function, Unit>;
+    static find(component: Function): Unit[];
+    static typeUnits: MapSet<string, Unit>;
+    static divtype(type: string): string[];
+    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    static off(unit: Unit, type?: string, listener?: Function): void;
+    static emit(unit: Unit, type: string, ...args: any[]): void;
+    static subon(unit: any, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    static suboff(unit: any, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
 
 interface xnewtype$1 {

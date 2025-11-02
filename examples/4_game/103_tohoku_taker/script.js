@@ -57,8 +57,10 @@ function StartMessage(unit) {
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 + 30);
   object.anchor.set(0.5);
 
-  unit.on('update', (count) => {
+  let count = 0;
+  unit.on('update', () => {
     object.alpha = 0.6 + Math.sin(count * 0.08) * 0.4;
+    count++;
   });
 }
 

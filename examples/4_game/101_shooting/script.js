@@ -188,7 +188,7 @@ function Enemy(unit) {
     if (object.y > xpixi.canvas.height - 10) velocity.y = -Math.abs(velocity.y);
     object.position.set(object.x + velocity.x, object.y + velocity.y);
   });
-  
+
   return {
     clash(score) {
       unit.sound(score);
@@ -223,8 +223,10 @@ function CrashText(unit, { x, y, score }) {
   object.anchor.set(0.5);
 
   xnew.timeout(() => unit.finalize(), 1000); // remove after 1 second
-  unit.on('update', (count) => { // bounding
-    object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180)); 
+  let count = 0;
+  unit.on('update', () => { // bounding
+    object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180));
+    count++;
   });
 }
 
@@ -239,12 +241,14 @@ function Crash(unit, { x, y, score }) {
 
   xnew.timeout(() => unit.finalize(), 800); // remove after 800ms
 
-  unit.on('update', (count) => {
+  let count = 0;
+  unit.on('update', () => {
     object.x += velocity.x;
     object.y += velocity.y;
     object.rotation = count / 10;
     object.alpha = 1 - count / 100; // fade out
-
+    count++;
+    
     // detect collision
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.distance(object) < 30) {

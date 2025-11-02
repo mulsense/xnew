@@ -28,9 +28,10 @@
         text.element.textContent = 'start';
       });
 
-      unit.on('update', (count) => {
+      let count = 0;
+      unit.on('update', () => {
         console.log('update');
-        unit.element.style.transform = `rotate(${count}deg)`;
+        unit.element.style.transform = `rotate(${count++}deg)`;
       });
       
       unit.on('stop', () => {

@@ -202,8 +202,9 @@ Now let's add events and animations! This example creates an interactive rotatin
       });
 
       // Update animation frame
-      unit.on('update', (count) => {
-        unit.element.style.transform = `rotate(${count}deg)`;
+      let count = 0;
+      unit.on('update', () => {
+        unit.element.style.transform = `rotate(${count++}deg)`;
       });
       
       // When animation stops
@@ -220,7 +221,7 @@ Now let's add events and animations! This example creates an interactive rotatin
 **Key concepts:**
 - `unit.on()` adds event listeners to your component
 - `unit.start()` and `unit.stop()` control animations
-- The 'update' event fires continuously during animation, providing a frame count
+- The 'update' event fires continuously during animation
 
 ## Next Steps
 
