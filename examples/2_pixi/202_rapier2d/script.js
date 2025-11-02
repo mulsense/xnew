@@ -1,41 +1,28 @@
 import xnew from 'xnew';
 import xpixi from 'xnew/addons/xpixi';
+import xrapier2d from 'xnew/addons/xrapier2d';
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
-
-let gravity = { x: 0.0, y: 9.81 };
-let world = null;
-// Create the ground
 
 xnew('#main', Main);
 
 function Main(self) {
-  const width = 800, height = 400;
-  const screen = xnew(xnew.basics.Screen, { width, height });
-  xpixi.initialize({ canvas: screen.element });
-  xnew.promise(RAPIER.init()).then(() => {
-    world = new RAPIER.World(gravity);
-    world.timestep = 3 / 60;
-    // let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.1);
-    // world.createCollider(groundColliderDesc);
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
+  // xpixi.initialize({ canvas: screen.element });
+  xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 }, timestep: 3 / 60 });
 
-    const contents = xnew(Contents);
-    const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
-    button.on('click', () => contents.reboot());
+  xnew.then(() => {
+    // const contents = xnew(Contents);
+    // const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
+    // button.on('click', () => contents.reboot());
   });
 }
 
 function Contents(self) {
-  // xmatter.initialize();
-
   // xnew(Circle, { x: 350, y: 50, r: 40, color: 0xFF0000 });
   xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
   xnew(Rectangle, { x: 400, y: 400, w: 380, h: 40, color: 0xFFFF00 , dynamic: false });
   // xnew(Polygon, { x: 450, y: 50, s: 6, r: 40, color: 0x0000FF });
-  // xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888 }, { isStatic: true });
-  self.on('update', () => {
-      world.step();
-  });
 }
 
 function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
@@ -51,20 +38,23 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
 
 function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
-  // const pyshics = xmatter.nest(Matter.Bodies.rectangle(x, y, w, h, options));
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-w / 2, -h / 2, w, h).fill(color));
 
-  // Create a dynamic rigid-body.
-  let rigidBodyDesc = dynamic ? RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y) : RAPIER.RigidBodyDesc.fixed().setTranslation(x, y);
-  let rigidBody = world.createRigidBody(rigidBodyDesc);
-  
-  // Create a cuboid collider attached to the dynamic rigidBody.
-  let colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2);
-  let collider = world.createCollider(colliderDesc, rigidBody);
+  // Create a dynamic rigid-body using xrapier2d
+  const world = xrapier2d.world;
+  const rigidBodyDesc = dynamic
+    ? RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y)
+    : RAPIER.RigidBodyDesc.fixed().setTranslation(x, y);
+  const rigidBody = xrapier2d.nest(world.createRigidBody(rigidBodyDesc));
+
+  // Create a cuboid collider attached to the dynamic rigidBody
+  const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2);
+  const collider = xrapier2d.nest(world.createCollider(colliderDesc, rigidBody));
+
   self.on('update', () => {
-      let position = rigidBody.translation();
-      object.position.set(position.x, position.y);
+    const position = rigidBody.translation();
+    object.position.set(position.x, position.y);
   });
 }
 
