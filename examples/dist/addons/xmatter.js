@@ -1,6 +1,6 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew'), require('matter-js')) :
-    typeof define === 'function' && define.amd ? define(['xnew', 'matter-js'], factory) :
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('@mulsense/xnew'), require('matter-js')) :
+    typeof define === 'function' && define.amd ? define(['@mulsense/xnew', 'matter-js'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xmatter = factory(global.xnew, global.Matter));
 })(this, (function (xnew, Matter) { 'use strict';
 

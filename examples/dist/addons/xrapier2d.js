@@ -1,6 +1,6 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew'), require('@dimforge/rapier2d-compat')) :
-    typeof define === 'function' && define.amd ? define(['xnew', '@dimforge/rapier2d-compat'], factory) :
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('@mulsense/xnew'), require('@dimforge/rapier2d-compat')) :
+    typeof define === 'function' && define.amd ? define(['@mulsense/xnew', '@dimforge/rapier2d-compat'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xrapier2d = factory(global.xnew, global.RAPIER));
 })(this, (function (xnew, RAPIER) { 'use strict';
 

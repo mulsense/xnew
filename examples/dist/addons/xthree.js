@@ -1,6 +1,6 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew'), require('three')) :
-    typeof define === 'function' && define.amd ? define(['xnew', 'three'], factory) :
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('@mulsense/xnew'), require('three')) :
+    typeof define === 'function' && define.amd ? define(['@mulsense/xnew', 'three'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xthree = factory(global.xnew, global.THREE));
 })(this, (function (xnew, THREE) { 'use strict';
 
@@ -56,7 +56,7 @@
         root.renderer.setClearColor(0x000000, 0);
         root.camera = camera !== null && camera !== void 0 ? camera : new THREE__namespace.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
         root.scene = new THREE__namespace.Scene();
-        xnew.extend(Nest, root.scene);
+        xnew.context('xthree.object', root.scene);
         self.on('update', () => {
             root.renderer.render(root.scene, root.camera);
         });

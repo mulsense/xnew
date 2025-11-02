@@ -16,15 +16,15 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@5.0.x/dist/xnew.mjs",
-    "xnew/addons/xpixi": "https://unpkg.com/xnew@5.0.x/dist/addons/xpixi.mjs"
+    "xnew": "https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.mjs",
+    "xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.1.x/dist/addons/xpixi.mjs"
   }
 }
 </script>
 
 <script type="module">
-import xnew from 'xnew'
-import xpixi from 'xnew/addons/xpixi'
+import xnew from '@mulsense/xnew'
+import xpixi from '@mulsense/xnew/addons/xpixi'
 
 // ...
 </script>
@@ -32,11 +32,11 @@ import xpixi from 'xnew/addons/xpixi'
 
 ### via npm
 ```bash
-npm install xnew@5.0.x
+npm install @mulsense/xnew@0.1.x
 ```
 ```js
-import xnew from 'xnew'
-import xpixi from 'xnew/addons/xpixi'
+import xnew from '@mulsense/xnew'
+import xpixi from '@mulsense/xnew/addons/xpixi'
 ```
 
 # basic API

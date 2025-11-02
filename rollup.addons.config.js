@@ -19,7 +19,7 @@ export default [
                 format: 'umd',
                 extend: true,
                 name: 'xpixi',
-                globals: { 'xnew': 'xnew', 'pixi.js': 'PIXI' },
+                globals: { '@mulsense/xnew': 'xnew', 'pixi.js': 'PIXI' },
             },
             {
                 file: './dist/addons/xpixi.mjs',
@@ -42,7 +42,7 @@ export default [
                 format: 'umd',
                 extend: true,
                 name: 'xthree',
-                globals: { 'xnew': 'xnew', 'three': 'THREE' },
+                globals: { '@mulsense/xnew': 'xnew', 'three': 'THREE' },
             },
             {
                 file: './dist/addons/xthree.mjs',
@@ -65,7 +65,7 @@ export default [
                 format: 'umd',
                 extend: true,
                 name: 'xmatter',
-                globals: { 'xnew': 'xnew', 'matter-js': 'Matter' },
+                globals: { '@mulsense/xnew': 'xnew', 'matter-js': 'Matter' },
             },
             {
                 file: './dist/addons/xmatter.mjs',
@@ -88,7 +88,7 @@ export default [
                 format: 'umd',
                 extend: true,
                 name: 'xrapier2d',
-                globals: { 'xnew': 'xnew', '@dimforge/rapier2d-compat': 'RAPIER' },
+                globals: { '@mulsense/xnew': 'xnew', '@dimforge/rapier2d-compat': 'RAPIER' },
             },
             {
                 file: './dist/addons/xrapier2d.mjs',

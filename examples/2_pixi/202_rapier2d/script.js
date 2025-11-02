@@ -1,6 +1,6 @@
-import xnew from 'xnew';
-import xpixi from 'xnew/addons/xpixi';
-import xrapier2d from 'xnew/addons/xrapier2d';
+import xnew from '@mulsense/xnew';
+import xpixi from '@mulsense/xnew/addons/xpixi';
+import xrapier2d from '@mulsense/xnew/addons/xrapier2d';
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
 

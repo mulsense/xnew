@@ -61,6 +61,7 @@
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
     "@dimforge/rapier2d-compat": "^0.19.2",
+    "@mulsense/xnew": "^0.1.0",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
     "@types/matter-js": "^0.19.8",
@@ -78,8 +79,5 @@
     "ts-jest": "^29.3.2",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3"
-  },
-  "dependencies": {
-    "xnew": "^4.0.0"
   }
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import xnew from 'xnew';
-import xthree from 'xnew/addons/xthree';
+import xnew from '@mulsense/xnew';
+import xthree from '@mulsense/xnew/addons/xthree';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 

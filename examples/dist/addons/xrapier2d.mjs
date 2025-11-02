@@ -1,4 +1,4 @@
-import xnew from 'xnew';
+import xnew from '@mulsense/xnew';
 import RAPIER from '@dimforge/rapier2d-compat';
 
 var xrapier2d = {

@@ -1,6 +1,6 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('xnew'), require('pixi.js')) :
-    typeof define === 'function' && define.amd ? define(['xnew', 'pixi.js'], factory) :
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('@mulsense/xnew'), require('pixi.js')) :
+    typeof define === 'function' && define.amd ? define(['@mulsense/xnew', 'pixi.js'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xpixi = factory(global.xnew, global.PIXI));
 })(this, (function (xnew, PIXI) { 'use strict';
 

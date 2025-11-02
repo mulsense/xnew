@@ -1,4 +1,4 @@
-import xnew from 'xnew';
+import xnew from '@mulsense/xnew';
 import * as THREE from 'three';
 
 var xthree = {
@@ -34,7 +34,7 @@ function Root(self, { canvas, camera }) {
     root.renderer.setClearColor(0x000000, 0);
     root.camera = camera !== null && camera !== void 0 ? camera : new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
-    xnew.extend(Nest, root.scene);
+    xnew.context('xthree.object', root.scene);
     self.on('update', () => {
         root.renderer.render(root.scene, root.camera);
     });
