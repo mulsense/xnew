@@ -62,7 +62,7 @@ function TouchMessage(unit) {
   });
 }
 
-function TitleScene(unit) {
+function TitleScene(scene) {
   xnew(Background);
   xnew(ShadowPlane);
   xnew(TitleText);
@@ -71,7 +71,7 @@ function TitleScene(unit) {
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
-    const model = xnew(Model, { id: i, scale: 1.4 });
+    const model = xnew(Model, { id: i, scale: 0.7 });
     model.setPosition(140 + i * 90, 450, 0);
     model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
     model.object.rotation.x = 10 / 180 * Math.PI;
@@ -79,7 +79,7 @@ function TitleScene(unit) {
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
   xnew.listener(window).on('keydown pointerdown', () => {
-    unit.finalize();
+    scene.finalize();
     xnew.append(Main, GameScene);
   });
 }
@@ -114,9 +114,6 @@ function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
   object.castShadow = true;
-  object.shadow.camera.near = 0.1;
-  object.shadow.camera.far = 100.0;
-  object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
@@ -124,10 +121,9 @@ function AmbientLight(unit) {
 }
 
 function Controller(unit) {
-  const screen = xnew.find(xnew.basics.Screen)[0];
-  const user = xnew(screen.canvas, xnew.basics.UserEvent);
+  const user = xnew(xpixi.canvas, xnew.basics.UserEvent);
   user.on('-pointermove -pointerdown', ({ position }) => {
-    unit.emit('+move', { x: position.x * screen.scale.x });
+    unit.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
   });
   user.on('-pointerdown', () => unit.emit('+action'));
   unit.on('+gameover', () => unit.finalize());
@@ -154,7 +150,7 @@ function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
   unit.emit('+reloadcomplete', 0);
 
-  let model = xnew(Model, { id: balls[0], scale: 1 });
+  let model = xnew(Model, { id: balls[0], scale: 0.5 });
   model.setPosition(70, 60, 0);
   model.object.rotation.y = 60 / 180 * Math.PI;
   model.object.rotation.x = 30 / 180 * Math.PI;
@@ -162,7 +158,7 @@ function Queue(unit) {
   unit.on('+reload', () => {
     const next = balls.shift();
     model.finalize();
-    model = xnew(Model, { id: balls[0], scale: 1 });
+    model = xnew(Model, { id: balls[0], scale: 0.5 });
     model.setPosition(0, 60, 0);
     model.object.rotation.y = 60 / 180 * Math.PI;
     model.object.rotation.x = 30 / 180 * Math.PI;
@@ -177,19 +173,17 @@ function Queue(unit) {
   });
 }
 
-function Model(unit, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
+function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
   object.rotation.z = -r;
 
-  const list = ['./models/zundamon.vrm', './models/usagi.vrm', './models/kiritan.vrm', './models/metan.vrm', './models/sora.vrm', './models/zunko.vrm', './models/itako.vrm'];
-  const path = id < 7 ? list[id] : list[0];
+  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
+  const path = './models/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
   xnew.promise(new Promise((resolve) => {
     const loader = new GLTFLoader();
-    loader.register((parser) => {
-      return new VRMLoaderPlugin(parser);
-    });
+    loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.load(path, (gltf) => resolve(gltf));
   })).then((gltf) => {
     vrm = gltf.userData.vrm;
@@ -197,8 +191,8 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
       if (object.isMesh) object.castShadow = true;
       if (object.isMesh) object.receiveShadow = true;
     });
-    vrm.scene.position.y = -scale * 0.5;
-    vrm.scene.scale.set(scale * 0.5, scale * 0.5, scale * 0.5);
+    vrm.scene.position.y = -scale;
+    vrm.scene.scale.set(scale, scale, scale);
     object.add(vrm.scene);
   });
 
@@ -229,13 +223,9 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale = 1.0 }) {
 
   return {
     object,
-    setPosition(x, y, r) {
-      const cx = xpixi.canvas.width / 2;
-      const cy = xpixi.canvas.height / 2;
-      const X = (x - cx) / 70;
-      const Y = - (y - cy) / 70;
-      object.position.set(X, Y, 0);
-      object.rotation.z = -r;
+    setPosition(x, y, a) {
+      object.position.set((x - xpixi.canvas.width / 2) / 70, - (y - xpixi.canvas.height / 2) / 70, 0);
+      object.rotation.z = -a;
     },
   }
 }
@@ -244,10 +234,10 @@ function Cursor(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 40);
 
-  const circle = new PIXI.Graphics();
-  object.addChild(circle);
-  object.addChild(new PIXI.Graphics().moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 }));
-  object.addChild(new PIXI.Graphics().moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 }));
+  const graphics = new PIXI.Graphics();
+  graphics.moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 })
+  graphics.moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 });
+  object.addChild(graphics);
 
   unit.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
 
@@ -256,34 +246,27 @@ function Cursor(unit) {
   let offset = 50;
   unit.on('+reloadcomplete', (level) => {
     next = level;
-    circle.circle(0, 0, 32).fill(0xAACCAA);
-    model = xnew(Model, { id: next, scale: 1 });
+    model = xnew(Model, { id: next, scale: 0.5 });
     model.setPosition(object.x, object.y + offset, 0);
   });
   unit.on('+action', () => {
     if (next !== null) {
-      circle.clear();
       xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
-      if (model) {
-        model.finalize();
-        model = null;
-      }
+      model?.finalize();
+      model = null;
       unit.emit('+reload');
       next = null;
     } 
   });
-
   unit.on('update', () => {
     object.rotation += 0.02;
-    if (model) {
-      model.setPosition(object.x, object.y + offset, 0);
-    }
+    model?.setPosition(object.x, object.y + offset, 0);
   });
 }
 
 function ModelBall(unit, { x, y, a = 0, id = 0, score = 1 }) {
-  const scale = [1.5, 2.0, 2.5, 2.9, 3.3, 3.6, 3.8, 3.8, 3.8][id];
-  const r = 35 + Math.pow(3.0, scale);
+  const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
+  const r = 35 + Math.pow(3.0, scale * 2.0);
   xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
   
   const model = xnew(Model, { r, id, scale });
@@ -342,10 +325,5 @@ function Circle(unit, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) 
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
-  return {
-    object,
-    set color(color) {
-      graphics.clear().circle(0, 0, r).fill(color);
-    },
-  };
+  return { object };
 }

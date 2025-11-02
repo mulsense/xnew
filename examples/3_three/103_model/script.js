@@ -18,8 +18,8 @@ function Main(unit) {
   controls.target.set(0, 1, 0);
   controls.update();
 
-  xnew(HemisphereLight);
-  xnew(DirectionalLight);
+  xnew(HemisphereLight, { x: 0, y: 20, z: 0 });
+  xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
   xnew(Ground);
 
   xnew.promise(new Promise((resolve) => {
@@ -30,14 +30,14 @@ function Main(unit) {
   });
 }
 
-function HemisphereLight(unit, { x, y, z}) {
+function HemisphereLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 3));
-  object.position.set(0, 20, 0);
+  object.position.set(x, y, z);
 }
 
-function DirectionalLight(unit) {
+function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
-  object.position.set(3, 10, 10);
+  object.position.set(x, y, z);
   object.castShadow = true;
 }
 
