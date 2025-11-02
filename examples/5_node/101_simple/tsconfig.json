@@ -1,8 +1,9 @@
 {
     "compilerOptions": {
         "target": "ES6",
-        "module": "ES2015",
-        "moduleResolution": "node",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "allowSyntheticDefaultImports": true,
         "strict": true,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
