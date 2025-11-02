@@ -5,8 +5,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 xnew('#main', Main);
 
 function Main(unit) {
-  const width = 800, height = 600;
-  const screen = xnew(xnew.basics.Screen, { width, height });
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
   xpixi.initialize({ canvas: screen.element });
 
   xnew(Background);
@@ -24,13 +23,11 @@ function Background(unit) {
 
 function Dot(unit) {
   const object = xpixi.nest(new PIXI.Container());
-
-  // random position
   object.position.set(Math.random() * xpixi.canvas.width, Math.random() * xpixi.canvas.height);
   object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
 
   let velocity = Math.random() + 0.1;
-  unit.on('update', (count) => {
+  unit.on('update', () => {
     object.y += velocity;
     if (object.y > xpixi.canvas.height) {
       object.position.set(Math.random() * xpixi.canvas.width, 0);
@@ -40,7 +37,6 @@ function Dot(unit) {
 
 function TitleScene(unit) {
   xnew(TitleText);
-
   xnew.listener(window).on('keydown pointerdown', () => {
     unit.finalize();
     xnew.append(Main, GameScene);
@@ -112,7 +108,7 @@ function GameOverText(unit) {
 function Player(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
-  xnew.extend(Texture, { object, rects: [[0, 0, 32, 32], [32, 0, 32, 32]] });
+  xnew(Sprite, { rects: [[0, 0, 32, 32], [32, 0, 32, 32]] });
 
   // actions
   let velocity = { x: 0, y: 0 };
@@ -177,7 +173,7 @@ function Shot(unit, { x, y }) {
 function Enemy(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * xpixi.canvas.width, 0);
-  xnew.extend(Texture, { object, rects: [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]] });
+  xnew(Sprite, { rects: [[0, 32, 32, 32], [32, 32, 32, 32], [64, 32, 32, 32]] });
 
   // set velocity and angle of the object
   const v = Math.random() * 2 + 1;
@@ -190,10 +186,9 @@ function Enemy(unit) {
     if (object.x > xpixi.canvas.width - 10) velocity.x = -Math.abs(velocity.x);
     if (object.y < 10) velocity.y = +Math.abs(velocity.y);
     if (object.y > xpixi.canvas.height - 10) velocity.y = -Math.abs(velocity.y);
-
-    object.x += velocity.x;
-    object.y += velocity.y;
+    object.position.set(object.x + velocity.x, object.y + velocity.y);
   });
+  
   return {
     clash(score) {
       unit.sound(score);
@@ -227,10 +222,8 @@ function CrashText(unit, { x, y, score }) {
   object.position.set(x, y);
   object.anchor.set(0.5);
 
-  // remove this unit after 1 second
-  xnew.timeout(() => unit.finalize(), 1000);
-  unit.on('update', (count) => {
-    // bounding
+  xnew.timeout(() => unit.finalize(), 1000); // remove after 1 second
+  unit.on('update', (count) => { // bounding
     object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180)); 
   });
 }
@@ -238,14 +231,13 @@ function CrashText(unit, { x, y, score }) {
 function Crash(unit, { x, y, score }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
-  xnew.extend(Texture, { object, rects: [[0, 64, 32, 32]] });
+  xnew(Sprite, { rects: [[0, 64, 32, 32]] });
 
   const v = Math.random() * 4 + 1; // 1 ~ 5
   const a = Math.random() * 2 * Math.PI; // 0 ~ 2PI
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
 
-  // remove this unit after 800ms
-  xnew.timeout(() => unit.finalize(), 800);
+  xnew.timeout(() => unit.finalize(), 800); // remove after 800ms
 
   unit.on('update', (count) => {
     object.x += velocity.x;
@@ -264,7 +256,8 @@ function Crash(unit, { x, y, score }) {
   });
 }
 
-function Texture(unit, {object, rects}) {
+function Sprite(unit, { rects }) {
+  const object = xpixi.nest(new PIXI.Container());
   xnew.promise(PIXI.Assets.load('texture.png')).then((texture) => {
     texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
     const textures = rects.map((rect) => new PIXI.Texture({ source: texture, frame: new PIXI.Rectangle(...rect) }));

@@ -11,6 +11,13 @@
   <div id="main" class="relative w-full h-full"></div>
   
   <script>
+    function Component(props) {
+      return (
+        <div className={`component ${props.color}`}>
+          <h3>Hello Component</h3>
+        </div>
+      );
+    }
     xnew('#main', (unit) => {
       xnew(MyDiv);
       xnew(MyInput);
@@ -25,10 +32,7 @@
 
     function MyDiv(unit) {
       xnew.extend(Template, { name: 'my div' });
-      xnew.timeout(() => {
-        console.log('reboot');
-        unit.reboot();
-      }, 1000);
+
       xnew('<div class="w-32 h-8 bg-red-400 border rounded">', '1');
       xnew('<div class="w-32 h-8 bg-green-400 border rounded">', (unit) => {
         unit.element.textContent = '2';
