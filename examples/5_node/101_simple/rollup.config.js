@@ -7,7 +7,7 @@ export default [
         output: [
             {
                 file: './dist/index.js',
-                format: 'umd',
+                format: 'iife',
             },
         ],
         plugins: [
