@@ -20,7 +20,6 @@ Include the following script in your HTML file:
 ```html
 <script src="https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.js"></script>
 ```
-
 ### Via CDN (ESM)
 Use the ES module version with an import map:
 ```html
@@ -51,7 +50,6 @@ import xnew from '@mulsense/xnew';
 ```
 
 ## Tutorial
-
 ### Units and Components
 - **unit**: When you call `xnew()`, it creates a "unit" - a building block of your application
 - **Component**: A function that defines what a unit does and how it behaves
