@@ -30,7 +30,7 @@ function Main(unit) {
   });
 }
 
-function HemisphereLight(unit) {
+function HemisphereLight(unit, { x, y, z}) {
   const object = xthree.nest(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 3));
   object.position.set(0, 20, 0);
 }
@@ -39,12 +39,6 @@ function DirectionalLight(unit) {
   const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
   object.position.set(3, 10, 10);
   object.castShadow = true;
-  object.shadow.camera.top = 2;
-  object.shadow.camera.bottom = - 2;
-  object.shadow.camera.left = - 2;
-  object.shadow.camera.right = 2;
-  object.shadow.camera.near = 0.1;
-  object.shadow.camera.far = 40;
 }
 
 function Ground(unit) {

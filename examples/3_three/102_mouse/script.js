@@ -9,7 +9,7 @@ function Main(unit) {
   xthree.initialize({ canvas: screen.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  xthree.camera.position.set(0, 0, +200);
+  xthree.camera.position.set(0, 0, +20);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
 
   xnew(Controller);
@@ -56,26 +56,15 @@ function ThreeMain(unit) {
   xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
   xnew(AmbientLight);
 
-  xnew(Ground, { size: 1000, color: 0xF8F8FF });
-  xnew(Dorm, { size: 500 });
-  xnew(Cube, { x: 0, y: 0, z: 20, size: 40, color: 0xAAAAFF });
+  xnew(Ground, { size: 100, color: 0xF8F8FF });
+  xnew(Dorm, { size: 50 });
+  xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 }
 
 function DirectionaLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
   object.position.set(x, y, z);
-
-  const s = object.position.length();
   object.castShadow = true;
-  object.shadow.mapSize.width = 1024;
-  object.shadow.mapSize.height = 1024;
-  object.shadow.camera.left = -s * 1.0;
-  object.shadow.camera.right = +s * 1.0;
-  object.shadow.camera.top = -s * 1.0;
-  object.shadow.camera.bottom = +s * 1.0;
-  object.shadow.camera.near = +s * 0.1;
-  object.shadow.camera.far = +s * 10.0;
-  object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
