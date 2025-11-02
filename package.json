@@ -14,11 +14,6 @@
       "import": "./dist/xnew.mjs",
       "require": "./dist/xnew.js"
     },
-    "./addons/xaudio": {
-      "types": "./dist/addons/xaudio.d.ts",
-      "import": "./dist/addons/xaudio.mjs",
-      "require": "./dist/addons/xaudio.js"
-    },
     "./addons/xmatter": {
       "types": "./dist/addons/xmatter.d.ts",
       "import": "./dist/addons/xmatter.mjs",
@@ -29,15 +24,15 @@
       "import": "./dist/addons/xpixi.mjs",
       "require": "./dist/addons/xpixi.js"
     },
+    "./addons/xrapier2d": {
+      "types": "./dist/addons/xrapier2d.d.ts",
+      "import": "./dist/addons/xrapier2d.mjs",
+      "require": "./dist/addons/xrapier2d.js"
+    },
     "./addons/xthree": {
       "types": "./dist/addons/xthree.d.ts",
       "import": "./dist/addons/xthree.mjs",
       "require": "./dist/addons/xthree.js"
-    },
-    "./addons/xutil": {
-      "types": "./dist/addons/xutil.d.ts",
-      "import": "./dist/addons/xutil.mjs",
-      "require": "./dist/addons/xutil.js"
     }
   },
   "files": [

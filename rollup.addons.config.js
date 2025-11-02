@@ -26,7 +26,7 @@ export default [
                 format: 'es',
             },
         ],
-        external: ['xnew', 'pixi.js'],
+        external: ['@mulsense/xnew', 'pixi.js'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
             copyto('./dist/addons/xpixi.d.ts', './examples/dist/addons/xpixi.d.ts'),
@@ -49,7 +49,7 @@ export default [
                 format: 'es',
             },
         ],
-        external: ['xnew', 'three'],
+        external: ['@mulsense/xnew', 'three'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
             copyto('./dist/addons/xthree.d.ts', './examples/dist/addons/xthree.d.ts'),
@@ -72,7 +72,7 @@ export default [
                 format: 'es',
             },
         ],
-        external: ['xnew', 'matter-js'],
+        external: ['@mulsense/xnew', 'matter-js'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
             copyto('./dist/addons/xmatter.d.ts', './examples/dist/addons/xthree.d.ts'),
@@ -95,7 +95,7 @@ export default [
                 format: 'es',
             },
         ],
-        external: ['xnew', '@dimforge/rapier2d-compat'],
+        external: ['@mulsense/xnew', '@dimforge/rapier2d-compat'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
             copyto('./dist/addons/xrapier2d.d.ts', './examples/dist/addons/xrapier2d.d.ts'),
