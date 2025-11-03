@@ -206,16 +206,15 @@
     }
 
     //----------------------------------------------------------------------------------------------------
-    // Constants
+    // Definitions
     //----------------------------------------------------------------------------------------------------
-    const LIFECYCLE_EVENTS = ['start', 'update', 'stop', 'finalize'];
-    const CUSTOM_EVENT_PREFIX = { GLOBAL: '+', INTERNAL: '-' };
+    const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
     //----------------------------------------------------------------------------------------------------
-    // unit main
+    // Unit
     //----------------------------------------------------------------------------------------------------
     class Unit {
         constructor(target, component, props) {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c;
             const parent = UnitScope.current;
             let baseElement;
             if (target instanceof HTMLElement || target instanceof SVGElement) {
@@ -225,27 +224,28 @@
                 baseElement = (_a = parent._.currentElement) !== null && _a !== void 0 ? _a : parent._.baseElement;
             }
             else {
-                baseElement = (_c = (_b = document.currentScript) === null || _b === void 0 ? void 0 : _b.parentElement) !== null && _c !== void 0 ? _c : document.body;
+                baseElement = document.body;
             }
-            let baseComponent = null;
+            let baseComponent;
             if (typeof component === 'function') {
                 baseComponent = component;
             }
             else if (typeof component === 'string') {
                 baseComponent = (self) => { self.element.textContent = component; };
             }
+            else {
+                baseComponent = (self) => { };
+            }
             this._ = {
-                root: (_d = parent === null || parent === void 0 ? void 0 : parent._.root) !== null && _d !== void 0 ? _d : this,
                 parent,
                 target,
+                baseContext: (_b = UnitScope.contexts.get(parent)) !== null && _b !== void 0 ? _b : null,
+                baseElement,
                 baseComponent,
                 props,
-                baseElement,
-                nextNest: { element: baseElement, position: 'beforeend' },
-                baseContext: UnitScope.get(parent),
             };
-            ((_e = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _e !== void 0 ? _e : Unit.roots).push(this);
-            Unit.initialize(this);
+            ((_c = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _c !== void 0 ? _c : Unit.roots).push(this);
+            Unit.initialize(this, { element: baseElement, position: 'beforeend' });
         }
         get element() {
             return this._.currentElement;
@@ -269,72 +269,24 @@
         }
         reboot() {
             Unit.stop(this);
-            let trace = this._.currentElement;
-            while (trace.parentElement && trace.parentElement !== this._.baseElement) {
-                trace = trace.parentElement;
+            let first = this._.currentElement;
+            while (first.parentElement && first.parentElement !== this._.baseElement) {
+                first = first.parentElement;
             }
-            if (trace.parentElement === this._.baseElement) {
-                this._.nextNest.element = trace.nextElementSibling;
-                this._.nextNest.position = 'beforebegin';
+            let nextNest;
+            if (first.parentElement === this._.baseElement && first.nextElementSibling) {
+                nextNest = { element: first.nextElementSibling, position: 'beforebegin' };
+            }
+            else {
+                nextNest = { element: this._.baseElement, position: 'beforeend' };
             }
             Unit.finalize(this);
-            Unit.initialize(this);
+            Unit.initialize(this, nextNest);
         }
-        get components() {
-            return this._.components;
-        }
-        on(type, listener, options) {
-            try {
-                if (typeof type === 'string') {
-                    const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type));
-                    filtered.forEach((type) => {
-                        this._.system[type].push(listener);
-                    });
-                }
-                Unit.on(this, type, listener, options);
-            }
-            catch (error) {
-                console.error('unit.on(type, listener, option?): ', error);
-            }
-            return this;
-        }
-        off(type, listener) {
-            try {
-                if (type === undefined) {
-                    this._.system = { start: [], update: [], stop: [], finalize: [] };
-                }
-                else if (typeof type === 'string') {
-                    const filtered = type.trim().split(/\s+/).filter((type) => LIFECYCLE_EVENTS.includes(type));
-                    filtered.forEach((type) => {
-                        if (listener === undefined) {
-                            this._.system[type] = [];
-                        }
-                        else {
-                            this._.system[type] = this._.system[type].filter((l) => l !== listener);
-                        }
-                    });
-                }
-                Unit.off(this, type, listener);
-            }
-            catch (error) {
-                console.error('unit.off(type, listener): ', error);
-            }
-            return this;
-        }
-        emit(type, ...args) {
-            try {
-                Unit.emit(this, type, ...args);
-            }
-            catch (error) {
-                console.error('unit.emit(type, ...args): ', error);
-            }
-        }
-        //----------------------------------------------------------------------------------------------------
-        // internal
-        //----------------------------------------------------------------------------------------------------
-        static initialize(unit) {
+        static initialize(unit, nextNest) {
             var _a;
             unit._ = Object.assign(unit._, {
+                nextNest,
                 children: [],
                 components: new Set(),
                 listeners: new MapMap(),
@@ -343,8 +295,6 @@
                 state: 'invoked',
                 tostart: true,
                 currentElement: unit._.baseElement,
-                upcount: 0,
-                resolved: false,
                 defines: {},
                 system: { start: [], update: [], stop: [], finalize: [] },
             });
@@ -358,12 +308,10 @@
                 UnitScope.execute({ unit, context: null, element: null }, () => Unit.extend(unit, unit._.baseComponent, unit._.props));
             }
             // whether the unit promise was resolved
-            (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => {
-                unit._.resolved = true;
-            });
-            unit._.state = 'initialized';
+            (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => unit._.state = 'initialized');
+            // setup capture
             let current = unit;
-            while (current !== null) {
+            while (1) {
                 let captured = false;
                 for (const capture of current._.captures) {
                     if (capture.checker(unit)) {
@@ -371,7 +319,7 @@
                         captured = true;
                     }
                 }
-                if (captured === false) {
+                if (captured === false && current._.parent !== null) {
                     current = current._.parent;
                 }
                 else {
@@ -386,7 +334,7 @@
                 unit._.system.finalize.forEach((listener) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener);
                 });
-                Unit.off(unit);
+                unit.off();
                 Unit.suboff(unit, null);
                 unit._.components.forEach((component) => {
                     Unit.componentUnits.delete(component, unit);
@@ -400,7 +348,7 @@
                 }
                 // reset defines
                 Object.keys(unit._.defines).forEach((key) => {
-                    if (LIFECYCLE_EVENTS.includes(key) === false) {
+                    if (SYSTEM_EVENTS.includes(key) === false) {
                         delete unit[key];
                     }
                 });
@@ -430,42 +378,40 @@
             unit._.components.add(component);
             Unit.componentUnits.add(component, unit);
             const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
-            const snapshot = UnitScope.snapshot(unit);
             Object.keys(defines).forEach((key) => {
-                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
                 }
-                const newDescriptor = { configurable: true, enumerable: true };
+                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+                const wrappedDesc = { configurable: true, enumerable: true };
                 if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) {
-                    newDescriptor.get = (...args) => UnitScope.execute(snapshot, descriptor.get, ...args);
+                    wrappedDesc.get = UnitScope.wrap(descriptor.get);
                 }
                 if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set) {
-                    newDescriptor.set = (...args) => UnitScope.execute(snapshot, descriptor.set, ...args);
+                    wrappedDesc.set = UnitScope.wrap(descriptor.set);
                 }
                 if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
-                    newDescriptor.value = (...args) => UnitScope.execute(snapshot, descriptor.value, ...args);
+                    wrappedDesc.value = UnitScope.wrap(descriptor.value);
                 }
                 else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                    newDescriptor.writable = true;
-                    newDescriptor.value = descriptor.value;
+                    wrappedDesc.writable = true;
+                    wrappedDesc.value = descriptor.value;
                 }
-                Object.defineProperty(unit._.defines, key, newDescriptor);
-                Object.defineProperty(unit, key, newDescriptor);
+                Object.defineProperty(unit._.defines, key, wrappedDesc);
+                Object.defineProperty(unit, key, wrappedDesc);
             });
         }
         static start(unit, time) {
-            if (!unit._.resolved || !unit._.tostart)
+            if (unit._.tostart === false)
                 return;
-            const { state } = unit._;
-            if (state === 'invoked' || state === 'initialized' || state === 'stopped') {
+            if (unit._.state === 'initialized' || unit._.state === 'stopped') {
                 unit._.state = 'started';
                 unit._.children.forEach((child) => Unit.start(child, time));
                 unit._.system.start.forEach((listener) => {
                     UnitScope.execute(UnitScope.snapshot(unit), listener);
                 });
             }
-            else if (state === 'started') {
+            else if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.start(child, time));
             }
         }
@@ -481,12 +427,9 @@
         static update(unit, time) {
             if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.update(child, time));
-                if (unit._.state === 'started') {
-                    unit._.system.update.forEach((listener) => {
-                        UnitScope.execute(UnitScope.snapshot(unit), listener, unit._.upcount);
-                    });
-                    unit._.upcount++;
-                }
+                unit._.system.update.forEach((listener) => {
+                    UnitScope.execute(UnitScope.snapshot(unit), listener);
+                });
             }
         }
         static ticker(time) {
@@ -501,89 +444,78 @@
             Ticker.clear(Unit.ticker);
             Ticker.set(Unit.ticker);
         }
+        get components() {
+            return this._.components;
+        }
         static find(component) {
             var _a;
             return [...((_a = Unit.componentUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
         }
-        static divtype(type) {
-            if (typeof type !== 'string' || type.trim() === '') {
-                throw new Error('"type" is invalid.');
-            }
-            return type.trim().split(/\s+/);
-        }
-        static on(unit, type, listener, options) {
-            const snapshot = UnitScope.snapshot();
-            Unit.divtype(type).forEach((type) => {
-                if (!unit._.listeners.has(type, listener)) {
-                    const execute = (...args) => UnitScope.execute(snapshot, listener, ...args);
-                    unit._.listeners.set(type, listener, [unit.element, execute]);
-                    Unit.typeUnits.add(type, unit);
+        on(type, listener, options) {
+            if (this._.state === 'finalized')
+                return;
+            type.trim().split(/\s+/).forEach((type) => {
+                if (SYSTEM_EVENTS.includes(type)) {
+                    this._.system[type].push(listener);
+                }
+                if (this._.listeners.has(type, listener) === false) {
+                    const execute = UnitScope.wrap(listener);
+                    this._.listeners.set(type, listener, [this.element, execute]);
+                    Unit.typeUnits.add(type, this);
                     if (/^[A-Za-z]/.test(type)) {
-                        unit.element.addEventListener(type, execute, options);
+                        this.element.addEventListener(type, execute, options);
                     }
                 }
             });
         }
-        static off(unit, type, listener) {
-            if (typeof type === 'string' && type.trim() === '') {
-                throw new Error('"type" is invalid.');
-            }
-            else if (listener !== undefined && typeof listener !== 'function') {
-                throw new Error('"listener" is invalid.');
-            }
-            const types = typeof type === 'string' ? Unit.divtype(type) : [...unit._.listeners.keys()];
+        off(type, listener) {
+            const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
             types.forEach((type) => {
-                const listeners = listener ? [listener] : [...unit._.listeners.keys(type)];
-                listeners.forEach((lis) => {
-                    const tuple = unit._.listeners.get(type, lis);
+                if (SYSTEM_EVENTS.includes(type)) {
+                    this._.system[type] = this._.system[type].filter((lis) => listener ? lis !== listener : false);
+                }
+                (listener ? [listener] : [...this._.listeners.keys(type)]).forEach((lis) => {
+                    const tuple = this._.listeners.get(type, lis);
                     if (tuple !== undefined) {
                         const [target, execute] = tuple;
-                        unit._.listeners.delete(type, lis);
+                        this._.listeners.delete(type, lis);
                         if (/^[A-Za-z]/.test(type)) {
                             target.removeEventListener(type, execute);
                         }
                     }
                 });
-                if (!unit._.listeners.has(type)) {
-                    Unit.typeUnits.delete(type, unit);
+                if (this._.listeners.has(type) === false) {
+                    Unit.typeUnits.delete(type, this);
                 }
             });
         }
-        static emit(unit, type, ...args) {
+        emit(type, ...args) {
             var _a, _b;
-            if (typeof type !== 'string') {
-                throw new Error('The argument [type] is invalid.');
-            }
-            else if ((unit === null || unit === void 0 ? void 0 : unit._.state) === 'finalized') {
-                throw new Error('This function can not be called after finalized.');
-            }
-            if (type[0] === CUSTOM_EVENT_PREFIX.GLOBAL) {
+            if (this._.state === 'finalized')
+                return;
+            if (type[0] === '+') {
                 (_a = Unit.typeUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                     var _a;
                     (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
                 });
             }
-            else if (type[0] === CUSTOM_EVENT_PREFIX.INTERNAL && unit !== null) {
-                (_b = unit._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
+            else if (type[0] === '-') {
+                (_b = this._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
             }
         }
         static subon(unit, target, type, listener, options) {
-            const snapshot = UnitScope.snapshot();
-            Unit.divtype(type).forEach((type) => {
-                if (!unit._.sublisteners.has(type, listener)) {
-                    const execute = (...args) => {
-                        UnitScope.execute(snapshot, listener, ...args);
-                    };
+            type.trim().split(/\s+/).forEach((type) => {
+                if (unit._.sublisteners.has(type, listener) === false) {
+                    const execute = UnitScope.wrap(listener);
                     unit._.sublisteners.set(type, listener, [target, execute]);
                     target.addEventListener(type, execute, options);
                 }
             });
         }
         static suboff(unit, target, type, listener) {
-            const types = typeof type === 'string' ? Unit.divtype(type) : [...unit._.sublisteners.keys()];
+            const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.sublisteners.keys()];
             types.forEach((type) => {
-                const listeners = listener ? [listener] : [...unit._.sublisteners.keys(type)];
-                listeners.forEach((lis) => {
+                (listener ? [listener] : [...unit._.sublisteners.keys(type)]).forEach((lis) => {
                     const tuple = unit._.sublisteners.get(type, lis);
                     if (tuple !== undefined) {
                         const [element, execute] = tuple;
@@ -618,15 +550,13 @@
         static finalize(unit) {
             UnitScope.contexts.delete(unit);
         }
-        static set(unit, context) {
-            UnitScope.contexts.set(unit, context);
-        }
-        static get(unit) {
-            var _a;
-            return (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null;
+        static wrap(listener) {
+            const snapshot = UnitScope.snapshot();
+            return (...args) => UnitScope.execute(snapshot, listener, ...args);
         }
         static execute(snapshot, func, ...args) {
-            if (!snapshot)
+            var _a;
+            if (snapshot === null)
                 return;
             const current = UnitScope.current;
             let context = null;
@@ -635,7 +565,7 @@
                 UnitScope.current = snapshot.unit;
                 if (snapshot.unit !== null) {
                     if (snapshot.context !== null) {
-                        context = UnitScope.get(snapshot.unit);
+                        context = (_a = UnitScope.contexts.get(snapshot.unit)) !== null && _a !== void 0 ? _a : null;
                         UnitScope.contexts.set(snapshot.unit, snapshot.context);
                     }
                     if (snapshot.element !== null) {
@@ -661,16 +591,19 @@
             }
         }
         static snapshot(unit = UnitScope.current) {
+            var _a;
             if (unit !== null) {
-                return { unit, context: UnitScope.get(unit), element: unit.element };
+                return { unit, context: (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null, element: unit.element };
             }
             return null;
         }
         static stack(unit, key, value) {
-            UnitScope.contexts.set(unit, { stack: UnitScope.get(unit), key, value });
+            var _a;
+            UnitScope.contexts.set(unit, { stack: (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null, key, value });
         }
         static trace(unit, key) {
-            for (let context = UnitScope.get(unit); context !== null; context = context.stack) {
+            var _a;
+            for (let context = (_a = UnitScope.contexts.get(unit)) !== null && _a !== void 0 ? _a : null; context !== null; context = context.stack) {
                 if (context.key === key) {
                     return context.value;
                 }
@@ -687,18 +620,15 @@
             this.promise = new Promise(executor);
         }
         then(callback) {
-            const snapshot = UnitScope.snapshot();
-            this.promise = this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
+            this.promise = this.promise.then(UnitScope.wrap(callback));
             return this;
         }
         catch(callback) {
-            const snapshot = UnitScope.snapshot();
-            this.promise = this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
+            this.promise = this.promise.catch(UnitScope.wrap(callback));
             return this;
         }
         finally(callback) {
-            const snapshot = UnitScope.snapshot();
-            this.promise = this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
+            this.promise = this.promise.finally(UnitScope.wrap(callback));
             return this;
         }
         static get(unit) {
@@ -709,20 +639,14 @@
             UnitPromise.promises.delete(unit);
         }
         static execute(unit, promise) {
+            const inner = promise !== null && promise !== void 0 ? promise : UnitPromise.get(unit);
+            const unitPromise = new UnitPromise((resolve, reject) => {
+                inner.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+            });
             if (promise !== undefined) {
-                const upromise = new UnitPromise((resolve, reject) => {
-                    promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-                });
-                UnitPromise.promises.add(unit, upromise);
-                return upromise;
+                UnitPromise.promises.add(unit, unitPromise);
             }
-            else {
-                const promiseall = UnitPromise.get(unit);
-                const upromise = new UnitPromise((resolve, reject) => {
-                    promiseall.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-                });
-                return upromise;
-            }
+            return unitPromise;
         }
     }
     UnitPromise.promises = new MapSet();
@@ -735,8 +659,7 @@
             }
             else if (typeof args[0] === 'string') {
                 const str = args.shift(); // a selector for an existing html element
-                const match = str.match(/<([^>]*)\/?>/);
-                if (match) {
+                if (str.match(/<([^>]*)\/?>/)) {
                     target = str;
                 }
                 else {

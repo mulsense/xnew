@@ -2,16 +2,12 @@ import { MapSet, MapMap } from './map';
 import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
-// Constants
+// Definitions
 //----------------------------------------------------------------------------------------------------
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
 
 export type UnitElement = HTMLElement | SVGElement;
-
-//----------------------------------------------------------------------------------------------------
-// Interfaces
-//----------------------------------------------------------------------------------------------------
 
 interface Context {
     stack: Context | null;
@@ -31,29 +27,27 @@ interface Capture {
 }
 
 interface UnitInternal {
-    root: Unit;
     parent: Unit | null;
     children: Unit[];
     target: Object | null;
     props?: Object;
-    nextNest: { element: UnitElement, position: InsertPosition };
     baseElement: UnitElement;
-    currentElement: UnitElement;
     baseContext: Context | null;
     baseComponent: Function;
+    currentElement: UnitElement;
+    nextNest: { element: UnitElement, position: InsertPosition };
     components: Set<Function>;
     listeners: MapMap<string, Function, [UnitElement, Function]>;
     sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     captures: Capture[];
     state: string;
     tostart: boolean;
-    resolved: boolean;
     defines: Record<string, any>;
     system: Record<string, Function[]>;
 }
 
 //----------------------------------------------------------------------------------------------------
-// unit main
+// Unit
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
@@ -72,7 +66,7 @@ export class Unit {
         } else if (parent !== null) {
             baseElement = parent._.currentElement ?? parent._.baseElement;
         } else {
-            baseElement = document.currentScript?.parentElement ?? document.body;
+            baseElement = document.body;
         }
 
         let baseComponent: Function;
@@ -85,18 +79,16 @@ export class Unit {
         }
 
         this._ = {
-            root: parent?._.root ?? this,
             parent,
             target,
+            baseContext: UnitScope.contexts.get(parent) ?? null,
+            baseElement,
             baseComponent,
             props,
-            baseElement,
-            nextNest: { element: baseElement, position: 'beforeend' },
-            baseContext: UnitScope.get(parent),
         } as UnitInternal;
 
         (parent?._.children ?? Unit.roots).push(this);
-        Unit.initialize(this);
+        Unit.initialize(this, { element: baseElement, position: 'beforeend' });
     }
 
     get element(): UnitElement {
@@ -124,21 +116,25 @@ export class Unit {
 
     reboot(): void {
         Unit.stop(this);
-        let trace: Element = this._.currentElement;
-        while (trace.parentElement && trace.parentElement !== this._.baseElement) {
-            trace = trace.parentElement as Element;
+        let first: Element = this._.currentElement;
+        while (first.parentElement && first.parentElement !== this._.baseElement) {
+            first = first.parentElement as Element;
         }
-        if (trace.parentElement === this._.baseElement) {
-            this._.nextNest.element = trace.nextElementSibling as UnitElement;
-            this._.nextNest.position = 'beforebegin';
+
+        let nextNest: { element: UnitElement, position: InsertPosition };
+        if (first.parentElement === this._.baseElement && first.nextElementSibling) {
+            nextNest = { element: first.nextElementSibling as UnitElement, position: 'beforebegin' as InsertPosition };
+        } else {
+            nextNest = { element: this._.baseElement, position: 'beforeend' as InsertPosition };
         }
 
         Unit.finalize(this);
-        Unit.initialize(this);
+        Unit.initialize(this, nextNest);
     }
 
-    static initialize(unit: Unit): void {
+    static initialize(unit: Unit, nextNest: { element: UnitElement, position: InsertPosition }): void {
         unit._ = Object.assign(unit._, {
+            nextNest,
             children: [],
             components: new Set<Function>(),
             listeners: new MapMap<string, Function, [UnitElement, Function]>(),
@@ -147,7 +143,6 @@ export class Unit {
             state: 'invoked',
             tostart: true,
             currentElement: unit._.baseElement,
-            resolved: false,
             defines: {},
             system: { start: [], update: [], stop: [], finalize: [] },
         });
@@ -168,14 +163,11 @@ export class Unit {
         }
 
         // whether the unit promise was resolved
-        UnitPromise.get(unit)?.then(() => {
-            unit._.resolved = true;
-        });
+        UnitPromise.get(unit)?.then(() => unit._.state = 'initialized');
 
-        unit._.state = 'initialized';
-
-        let current: Unit | null = unit;
-        while (current !== null) {
+        // setup capture
+        let current = unit;
+        while (1) {
             let captured = false;
             for (const capture of current._.captures) {
                 if (capture.checker(unit)) {
@@ -183,7 +175,7 @@ export class Unit {
                     captured = true;
                 }
             }
-            if (captured === false) {
+            if (captured === false && current._.parent !== null) {
                 current = current._.parent;
             } else {
                 break;
@@ -200,7 +192,7 @@ export class Unit {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
 
-            Unit.off(unit);
+            unit.off();
             Unit.suboff(unit, null);
             unit._.components.forEach((component) => {
                 Unit.componentUnits.delete(component, unit);
@@ -238,7 +230,6 @@ export class Unit {
             }
             unit._.nextNest.element = element;
             unit._.nextNest.position = 'beforeend';
-
             unit._.currentElement = element;
         }
         return unit.element;
@@ -249,46 +240,40 @@ export class Unit {
         Unit.componentUnits.add(component, unit);
 
         const defines = component(unit, props) ?? {};
-        const snapshot = UnitScope.snapshot(unit);
 
         Object.keys(defines).forEach((key) => {
-            const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-
             if (unit[key as keyof Unit] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
-
-            const newDescriptor: PropertyDescriptor = { configurable: true, enumerable: true };
+            const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+            const wrappedDesc: PropertyDescriptor = { configurable: true, enumerable: true };
 
             if (descriptor?.get) {
-                newDescriptor.get = (...args: any[]) => UnitScope.execute(snapshot, descriptor.get!, ...args);
+                wrappedDesc.get = UnitScope.wrap(descriptor.get);
             }
             if (descriptor?.set) {
-                newDescriptor.set = (...args: any[]) => UnitScope.execute(snapshot, descriptor.set!, ...args);
+                wrappedDesc.set = UnitScope.wrap(descriptor.set);
             }
             if (typeof descriptor?.value === 'function') {
-                newDescriptor.value = (...args: any[]) => UnitScope.execute(snapshot, descriptor.value, ...args);
+                wrappedDesc.value = UnitScope.wrap(descriptor.value);
             } else if (descriptor?.value !== undefined) {
-                newDescriptor.writable = true;
-                newDescriptor.value = descriptor.value;
+                wrappedDesc.writable = true;
+                wrappedDesc.value = descriptor.value;
             }
-
-            Object.defineProperty(unit._.defines, key, newDescriptor);
-            Object.defineProperty(unit, key, newDescriptor);
+            Object.defineProperty(unit._.defines, key, wrappedDesc);
+            Object.defineProperty(unit, key, wrappedDesc);
         });
     }
 
     static start(unit: Unit, time: number): void {
-        if (!unit._.resolved || !unit._.tostart) return;
-
-        const { state } = unit._;
-        if (state === 'invoked' || state === 'initialized' || state === 'stopped') {
+        if (unit._.tostart === false) return;
+        if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
             unit._.system.start.forEach((listener: Function) => {
                 UnitScope.execute(UnitScope.snapshot(unit), listener);
             });
-        } else if (state === 'started') {
+        } else if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
         }
     }
@@ -306,12 +291,9 @@ export class Unit {
     static update(unit: Unit, time: number): void {
         if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child, time));
-
-            if (unit._.state === 'started') {
-                unit._.system.update.forEach((listener: Function) => {
-                    UnitScope.execute(UnitScope.snapshot(unit), listener);
-                });
-            }
+            unit._.system.update.forEach((listener: Function) => {
+                UnitScope.execute(UnitScope.snapshot(unit), listener);
+            });
         }
     }
 
@@ -347,136 +329,72 @@ export class Unit {
     // event
     //----------------------------------------------------------------------------------------------------
     
-    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit {
-        try {
-            if (typeof type === 'string') {
-                const filtered = type.trim().split(/\s+/).filter((type) => SYSTEM_EVENTS.includes(type));
-                filtered.forEach((type) => {
-                    this._.system[type].push(listener);
-                });
-            }
-
-            Unit.on(this, type, listener, options);
-        } catch (error) {
-            console.error('unit.on(type, listener, option?): ', error);
-        }
-        return this;
-    }
-
-    off(type?: string, listener?: Function): Unit {
-        try {
-            if (type === undefined) {
-                this._.system = { start: [], update: [], stop: [], finalize: [] };
-            } else if (typeof type === 'string') {
-                const filtered = type.trim().split(/\s+/).filter((type) => SYSTEM_EVENTS.includes(type));
-                filtered.forEach((type) => {
-                    if (listener === undefined) {
-                        this._.system[type] = [];
-                    } else {
-                        this._.system[type] = this._.system[type].filter((l: Function) => l !== listener);
-                    }
-                });
-            }
-
-            Unit.off(this, type, listener);
-        } catch (error) {
-            console.error('unit.off(type, listener): ', error);
-        }
-        return this;
-    }
-
-    emit(type: string, ...args: any[]) {
-        try {
-            Unit.emit(this, type, ...args);
-        } catch (error: unknown) {
-            console.error('unit.emit(type, ...args): ', error);
-        }
-    }
-    
     static typeUnits = new MapSet<string, Unit>();
-
-    static divtype(type: string): string[] {
-        if (typeof type !== 'string' || type.trim() === '') {
-            throw new Error('"type" is invalid.');
-        }
-        return type.trim().split(/\s+/);
-    }
-
-    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-
-        const snapshot = UnitScope.snapshot();
-        Unit.divtype(type).forEach((type) => {
-            if (!unit._.listeners.has(type, listener)) {
-                const execute = (...args: any[]) => UnitScope.execute(snapshot, listener, ...args);
-                unit._.listeners.set(type, listener, [unit.element, execute]);
-                Unit.typeUnits.add(type, unit);
+  
+    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        if (this._.state === 'finalized') return;
+        type.trim().split(/\s+/).forEach((type) => {
+            if (SYSTEM_EVENTS.includes(type)) {
+                this._.system[type].push(listener);
+            }
+            if (this._.listeners.has(type, listener) === false) {
+                const execute = UnitScope.wrap(listener);
+                this._.listeners.set(type, listener, [this.element, execute]);
+                Unit.typeUnits.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
-                    unit.element.addEventListener(type, execute, options);
+                    this.element.addEventListener(type, execute, options);
                 }
             }
         });
     }
 
-    static off(unit: Unit, type?: string, listener?: Function): void {
-        if (typeof type === 'string' && type.trim() === '') {
-            throw new Error('"type" is invalid.');
-        } else if (listener !== undefined && typeof listener !== 'function') {
-            throw new Error('"listener" is invalid.');
-        }
-
-        const types = typeof type === 'string' ? Unit.divtype(type) : [...unit._.listeners.keys()];
+    off(type?: string, listener?: Function): void {
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
         types.forEach((type) => {
-            const listeners = listener ? [listener] : [...unit._.listeners.keys(type)];
-            listeners.forEach((lis) => {
-                const tuple = unit._.listeners.get(type, lis);
+            if (SYSTEM_EVENTS.includes(type)) {
+                this._.system[type] = this._.system[type].filter((lis: Function) => listener ? lis !== listener : false);
+            }
+            (listener ? [listener] : [...this._.listeners.keys(type)]).forEach((lis) => {
+                const tuple = this._.listeners.get(type, lis);
                 if (tuple !== undefined) {
                     const [target, execute] = tuple;
-                    unit._.listeners.delete(type, lis);
+                    this._.listeners.delete(type, lis);
                     if (/^[A-Za-z]/.test(type)) {
                         target.removeEventListener(type, execute as EventListener);
                     }
                 }
             });
-            if (!unit._.listeners.has(type)) {
-                Unit.typeUnits.delete(type, unit);
+            if (this._.listeners.has(type) === false) {
+                Unit.typeUnits.delete(type, this);
             }
         });
     }
 
-    static emit(unit: Unit, type: string, ...args: any[]): void {
-        if (typeof type !== 'string') {
-            throw new Error('The argument [type] is invalid.');
-        } else if (unit?._.state === 'finalized') {
-            throw new Error('This function can not be called after finalized.');
-        }
+    emit(type: string, ...args: any[]) {
+        if (this._.state === 'finalized') return;
         if (type[0] === '+') {
             Unit.typeUnits.get(type)?.forEach((unit) => {
                 unit._.listeners.get(type)?.forEach(([_, execute]) => execute(...args));
             });
-        } else if (type[0] === '-' && unit !== null) {
-            unit._.listeners.get(type)?.forEach(([_, execute]) => execute(...args));
+        } else if (type[0] === '-') {
+            this._.listeners.get(type)?.forEach(([_, execute]) => execute(...args));
         }
     }
 
     static subon(unit: any, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        const snapshot = UnitScope.snapshot();
-        Unit.divtype(type).forEach((type) => {
-            if (!unit._.sublisteners.has(type, listener)) {
-                const execute = (...args: any[]) => {
-                    UnitScope.execute(snapshot, listener, ...args);
-                };
+        type.trim().split(/\s+/).forEach((type) => {
+            if (unit._.sublisteners.has(type, listener) === false) {
+                const execute = UnitScope.wrap(listener);
                 unit._.sublisteners.set(type, listener, [target, execute]);
-                target.addEventListener(type, execute, options);
+                target.addEventListener(type, execute as EventListener, options);
             }
         });
     }
 
     static suboff(unit: any, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void {
-
-        const types = typeof type === 'string' ? Unit.divtype(type) : [...unit._.sublisteners.keys()];
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.sublisteners.keys()];
         types.forEach((type) => {
-            const listeners = listener ? [listener] : [...unit._.sublisteners.keys(type)];
-            listeners.forEach((lis) => {
+            (listener ? [listener] : [...unit._.sublisteners.keys(type)]).forEach((lis) => {
                 const tuple = unit._.sublisteners.get(type, lis);
                 if (tuple !== undefined) {
                     const [element, execute] = tuple;
@@ -510,27 +428,22 @@ export class UnitScope {
         UnitScope.contexts.delete(unit);
     }
 
-    static set(unit: Unit, context: Context): void {
-        UnitScope.contexts.set(unit, context);
-    }
-
-    static get(unit: Unit | null): Context | null {
-        return UnitScope.contexts.get(unit) ?? null;
+    static wrap(listener: Function): (...args: any[]) => any {
+        const snapshot = UnitScope.snapshot();
+        return (...args: any[]) => UnitScope.execute(snapshot, listener, ...args);
     }
 
     static execute(snapshot: Snapshot | null, func: Function, ...args: any[]): any {
-        if (!snapshot) return;
-
+        if (snapshot === null) return;
         const current = UnitScope.current;
         let context: Context | null = null;
         let element: UnitElement | null = null;
 
         try {
             UnitScope.current = snapshot.unit;
-
             if (snapshot.unit !== null) {
                 if (snapshot.context !== null) {
-                    context = UnitScope.get(snapshot.unit);
+                    context = UnitScope.contexts.get(snapshot.unit) ?? null;
                     UnitScope.contexts.set(snapshot.unit, snapshot.context);
                 }
                 if (snapshot.element !== null) {
@@ -556,17 +469,17 @@ export class UnitScope {
 
     static snapshot(unit: Unit | null = UnitScope.current): Snapshot | null {
         if (unit !== null) {
-            return { unit, context: UnitScope.get(unit), element: unit.element };
+            return { unit, context: UnitScope.contexts.get(unit) ?? null, element: unit.element };
         }
         return null;
     }
 
     static stack(unit: Unit, key: string, value: any): void {
-        UnitScope.contexts.set(unit, { stack: UnitScope.get(unit), key, value });
+        UnitScope.contexts.set(unit, { stack: UnitScope.contexts.get(unit) ?? null, key, value });
     }
 
     static trace(unit: Unit, key: string): any {
-        for (let context = UnitScope.get(unit); context !== null; context = context.stack) {
+        for (let context = UnitScope.contexts.get(unit) ?? null; context !== null; context = context.stack) {
             if (context.key === key) {
                 return context.value;
             }
@@ -586,20 +499,17 @@ export class UnitPromise {
     }
 
     then(callback: Function): UnitPromise {
-        const snapshot = UnitScope.snapshot();
-        this.promise = this.promise.then((...args) => UnitScope.execute(snapshot, callback, ...args));
+        this.promise = this.promise.then(UnitScope.wrap(callback));
         return this;
     }
 
     catch(callback: Function): UnitPromise {
-        const snapshot = UnitScope.snapshot();
-        this.promise = this.promise.catch((...args) => UnitScope.execute(snapshot, callback, ...args));
+        this.promise = this.promise.catch(UnitScope.wrap(callback));
         return this;
     }
 
     finally(callback: Function): UnitPromise {
-        const snapshot = UnitScope.snapshot();
-        this.promise = this.promise.finally((...args) => UnitScope.execute(snapshot, callback, ...args));
+        this.promise = this.promise.finally(UnitScope.wrap(callback));
         return this;
     }
 
@@ -614,18 +524,13 @@ export class UnitPromise {
     }
 
     static execute(unit: Unit, promise?: Promise<any>): UnitPromise {
+        const inner = promise ?? UnitPromise.get(unit);
+        const unitPromise = new UnitPromise((resolve, reject) => {
+            inner.then((...args) => resolve(...args)).catch((...args) => reject(...args));
+        });
         if (promise !== undefined) {
-            const upromise = new UnitPromise((resolve, reject) => {
-                promise.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-            });
-            UnitPromise.promises.add(unit, upromise);
-            return upromise;
-        } else {
-            const promiseall: Promise<any> = UnitPromise.get(unit);
-            const upromise = new UnitPromise((resolve, reject) => {
-                promiseall.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-            });
-            return upromise;
+            UnitPromise.promises.add(unit, unitPromise);
         }
+        return unitPromise;
     }
 }

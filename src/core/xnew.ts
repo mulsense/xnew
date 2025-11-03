@@ -1,5 +1,5 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitPromise,UnitElement } from './unit';
+import { Unit, UnitScope, UnitPromise, UnitElement } from './unit';
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
@@ -18,8 +18,7 @@ export const xnew: xnewtype = (() => {
             target = args.shift(); // an existing html element
         } else if (typeof args[0] === 'string') {
             const str = args.shift(); // a selector for an existing html element
-            const match = str.match(/<([^>]*)\/?>/);
-            if (match) {
+            if (str.match(/<([^>]*)\/?>/)) {
                 target = str;
             } else {
                 target = document.querySelector(str); 
@@ -34,7 +33,6 @@ export const xnew: xnewtype = (() => {
         const unit = new Unit(target, ...args);
         return unit;
     }
-  
 
     fn.nest = (tag: string): UnitElement => {
         const current = UnitScope.current;

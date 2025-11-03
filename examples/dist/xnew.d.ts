@@ -33,27 +33,24 @@ interface Capture {
     execute: (unit: Unit) => any;
 }
 interface UnitInternal {
-    root: Unit;
     parent: Unit | null;
     children: Unit[];
     target: Object | null;
     props?: Object;
+    baseElement: UnitElement;
+    baseContext: Context | null;
+    baseComponent: Function;
+    currentElement: UnitElement;
     nextNest: {
         element: UnitElement;
         position: InsertPosition;
     };
-    baseElement: UnitElement;
-    currentElement: UnitElement;
-    baseContext: Context | null;
-    baseComponent: Function | null;
     components: Set<Function>;
     listeners: MapMap<string, Function, [UnitElement, Function]>;
     sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     captures: Capture[];
     state: string;
     tostart: boolean;
-    upcount: number;
-    resolved: boolean;
     defines: Record<string, any>;
     system: Record<string, Function[]>;
 }
@@ -67,11 +64,10 @@ declare class Unit {
     stop(): void;
     finalize(): void;
     reboot(): void;
-    get components(): Set<Function>;
-    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): Unit;
-    off(type?: string, listener?: Function): Unit;
-    emit(type: string, ...args: any[]): void;
-    static initialize(unit: Unit): void;
+    static initialize(unit: Unit, nextNest: {
+        element: UnitElement;
+        position: InsertPosition;
+    }): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement | null;
     static extend(unit: Unit, component: Function, props?: Object): void;
@@ -81,12 +77,12 @@ declare class Unit {
     static ticker(time: number): void;
     static reset(): void;
     static componentUnits: MapSet<Function, Unit>;
+    get components(): Set<Function>;
     static find(component: Function): Unit[];
     static typeUnits: MapSet<string, Unit>;
-    static divtype(type: string): string[];
-    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
-    static off(unit: Unit, type?: string, listener?: Function): void;
-    static emit(unit: Unit, type: string, ...args: any[]): void;
+    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    off(type?: string, listener?: Function): void;
+    emit(type: string, ...args: any[]): void;
     static subon(unit: any, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static suboff(unit: any, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
