@@ -1,4 +1,4 @@
-declare function ResizeEvent(self: any): void;
+declare function ResizeEvent(resize: any): void;
 
 declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     has(key: Key): boolean;
@@ -120,9 +120,7 @@ declare function ModalContent(content: xnew$1.Unit, { duration, easing, backgrou
     duration?: number;
     easing?: string;
     background?: string;
-}): {
-    transition(status: number): void;
-};
+}): void;
 
 declare function TabFrame(frame: xnew$1.Unit, { select }?: {
     select?: number | undefined;
@@ -141,7 +139,7 @@ declare function AccordionFrame(frame: xnew$1.Unit, {}?: {}): {
     open(): void;
     close(): void;
 };
-declare function AccordionButton(button: xnew$1.Unit, {}?: {}): void;
+declare function AccordionHeader(header: xnew$1.Unit, {}?: {}): void;
 declare function AccordionBullet(bullet: xnew$1.Unit, { type }?: {
     type?: string;
 }): {
@@ -156,19 +154,13 @@ declare function AccordionContent(content: xnew$1.Unit, { open, duration, easing
     transition(status: number): void;
 };
 
-declare function PanelFrame(frame: xnew$1.Unit): void;
-declare function PanelGroup(group: xnew$1.Unit, { name, open }?: {
-    name?: string;
-    open?: boolean;
-}): void;
-
 declare function DragFrame(frame: xnew$1.Unit, { x, y }?: {
     x?: number;
     y?: number;
 }): void;
 declare function DragTarget(target: xnew$1.Unit, {}?: {}): void;
 
-declare function VirtualStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function TouchStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number | undefined;
     fill?: string | undefined;
     fillOpacity?: number | undefined;
@@ -177,7 +169,7 @@ declare function VirtualStick(self: xnew$1.Unit, { size, fill, fillOpacity, stro
     strokeWidth?: number | undefined;
     strokeLinejoin?: string | undefined;
 }): void;
-declare function VirtualDPad(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function TouchDPad(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number | undefined;
     fill?: string | undefined;
     fillOpacity?: number | undefined;
@@ -186,7 +178,7 @@ declare function VirtualDPad(self: xnew$1.Unit, { size, fill, fillOpacity, strok
     strokeWidth?: number | undefined;
     strokeLinejoin?: string | undefined;
 }): void;
-declare function VirtualButton(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function TouchButton(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number | undefined;
     fill?: string | undefined;
     fillOpacity?: number | undefined;
@@ -271,20 +263,18 @@ declare const basics: {
     ModalFrame: typeof ModalFrame;
     ModalContent: typeof ModalContent;
     AccordionFrame: typeof AccordionFrame;
-    AccordionButton: typeof AccordionButton;
+    AccordionHeader: typeof AccordionHeader;
     AccordionBullet: typeof AccordionBullet;
     AccordionContent: typeof AccordionContent;
     TabFrame: typeof TabFrame;
     TabButton: typeof TabButton;
     TabContent: typeof TabContent;
-    PanelFrame: typeof PanelFrame;
-    PanelGroup: typeof PanelGroup;
     InputFrame: typeof InputFrame;
     DragFrame: typeof DragFrame;
     DragTarget: typeof DragTarget;
-    VirtualStick: typeof VirtualStick;
-    VirtualDPad: typeof VirtualDPad;
-    VirtualButton: typeof VirtualButton;
+    TouchStick: typeof TouchStick;
+    TouchDPad: typeof TouchDPad;
+    TouchButton: typeof TouchButton;
 };
 declare const audio: {
     synthesizer: typeof synthesizer;

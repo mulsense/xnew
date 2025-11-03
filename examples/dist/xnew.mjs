@@ -1,3 +1,20 @@
+function ResizeEvent(resize) {
+    const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            resize.emit('-resize');
+            break;
+        }
+    });
+    if (resize.element) {
+        observer.observe(resize.element);
+    }
+    resize.on('finalize', () => {
+        if (resize.element) {
+            observer.unobserve(resize.element);
+        }
+    });
+}
+
 //----------------------------------------------------------------------------------------------------
 // ticker
 //----------------------------------------------------------------------------------------------------
@@ -906,23 +923,6 @@ const xnew$1 = (() => {
     return fn;
 })();
 
-function ResizeEvent(self) {
-    const observer = new ResizeObserver(xnew$1.scope((entries) => {
-        for (const entry of entries) {
-            self.emit('-resize');
-            break;
-        }
-    }));
-    if (self.element) {
-        observer.observe(self.element);
-    }
-    self.on('finalize', () => {
-        if (self.element) {
-            observer.unobserve(self.element);
-        }
-    });
-}
-
 function UserEvent(self) {
     const unit = xnew$1();
     unit.on('pointerdown', (event) => self.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
@@ -1133,18 +1133,13 @@ function InputFrame(frame, {} = {}) {
 
 function ModalFrame(frame, {} = {}) {
     xnew$1.context('xnew.modalframe', frame);
-    xnew$1.nest('<div style="position: fixed; inset: 0;">');
-    let content = null;
+    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
     xnew$1.capture((unit) => unit.components.has(ModalContent), (unit) => {
-        content = unit;
     });
-    xnew$1().on('click', (event) => {
-        frame === null || frame === void 0 ? void 0 : frame.close();
-    });
+    xnew$1().on('click', (event) => frame === null || frame === void 0 ? void 0 : frame.close());
     return {
         close() {
             frame.emit('-close');
-            content === null || content === void 0 ? void 0 : content.deselect();
         }
     };
 }
@@ -1153,30 +1148,18 @@ function ModalContent(content, { duration = 200, easing = 'ease', background = '
     const div = xnew$1.nest('<div style="width: 100%; height: 100%; opacity: 0;">');
     div.style.background = background;
     xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-    xnew$1().on('click', (event) => {
-        event.stopPropagation();
-    });
-    let status = 0;
+    xnew$1().on('click', (event) => event.stopPropagation());
     xnew$1.timeout(() => frame.emit('-open'));
     frame.on('-open', () => {
         xnew$1.transition((x) => {
-            status = x;
-            frame.emit('-transition', { status });
-            content.transition(status);
+            div.style.opacity = x.toString();
         }, duration, easing);
     });
     frame.on('-close', () => {
         xnew$1.transition((x) => {
-            status = 1.0 - x;
-            frame.emit('-transition', { status });
-            content.transition(status);
+            div.style.opacity = (1.0 - x).toString();
         }, duration, easing).next(() => frame.finalize());
     });
-    return {
-        transition(status) {
-            div.style.opacity = status.toString();
-        }
-    };
 }
 
 function TabFrame(frame, { select = 0 } = {}) {
@@ -1254,10 +1237,10 @@ function AccordionFrame(frame, {} = {}) {
         }
     };
 }
-function AccordionButton(button, {} = {}) {
+function AccordionHeader(header, {} = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
     xnew$1.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
-    button.on('click', () => frame.toggle());
+    header.on('click', () => frame.toggle());
 }
 function AccordionBullet(bullet, { type = 'arrow' } = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
@@ -1322,20 +1305,6 @@ function AccordionContent(content, { open = false, duration = 200, easing = 'eas
     };
 }
 
-function PanelFrame(frame) {
-    xnew$1.context('xnew.panelframe', frame);
-}
-function PanelGroup(group, { name, open = false } = {}) {
-    xnew$1.extend(AccordionFrame);
-    xnew$1((button) => {
-        xnew$1.nest('<div style="margin: 0.2em 0;">');
-        xnew$1.extend(AccordionButton);
-        xnew$1(AccordionBullet);
-        xnew$1('<div>', name);
-    });
-    xnew$1.extend(AccordionContent, { open });
-}
-
 function DragFrame(frame, { x = 0, y = 0 } = {}) {
     const absolute = xnew$1.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
     xnew$1.context('xnew.dragframe', { frame, absolute });
@@ -1368,7 +1337,7 @@ function SVGTemplate(self, { fill = null, fillOpacity = 0.8, stroke = null, stro
         ${stroke ? `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};` : ''}
     ">`);
 }
-function VirtualStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+function TouchStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
     strokeWidth /= (size / 100);
     xnew$1.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
     xnew$1((self) => {
@@ -1412,7 +1381,7 @@ function VirtualStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stro
         return { x: Math.cos(a) * d, y: Math.sin(a) * d };
     }
 }
-function VirtualDPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+function TouchDPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
     strokeWidth /= (size / 100);
     xnew$1.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
     const polygons = [
@@ -1474,7 +1443,7 @@ function VirtualDPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, strok
         return vector;
     }
 }
-function VirtualButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+function TouchButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
     strokeWidth /= (size / 100);
     xnew$1.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
     const target = xnew$1((self) => {
@@ -1799,20 +1768,18 @@ const basics = {
     ModalFrame,
     ModalContent,
     AccordionFrame,
-    AccordionButton,
+    AccordionHeader,
     AccordionBullet,
     AccordionContent,
     TabFrame,
     TabButton,
     TabContent,
-    PanelFrame,
-    PanelGroup,
     InputFrame,
     DragFrame,
     DragTarget,
-    VirtualStick,
-    VirtualDPad,
-    VirtualButton,
+    TouchStick,
+    TouchDPad,
+    TouchButton,
 };
 const audio = {
     synthesizer

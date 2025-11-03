@@ -17,7 +17,7 @@ function SVGTemplate(self: xnew.Unit,
     ">`);
 }
 
-export function VirtualStick(self: xnew.Unit,
+export function TouchStick(self: xnew.Unit,
     { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
@@ -69,7 +69,7 @@ export function VirtualStick(self: xnew.Unit,
     }
 }
 
-export function VirtualDPad(self: xnew.Unit,
+export function TouchDPad(self: xnew.Unit,
     { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
@@ -139,7 +139,7 @@ export function VirtualDPad(self: xnew.Unit,
     }
 }
 
-export function VirtualButton(self: xnew.Unit,
+export function TouchButton(self: xnew.Unit,
     { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
@@ -151,7 +151,6 @@ export function VirtualButton(self: xnew.Unit,
     });
 
     const user = xnew(UserEvent);
-
     user.on('-dragstart', (event: any) => {
         target.element.style.filter = 'brightness(90%)';
         self.emit('-down', event);

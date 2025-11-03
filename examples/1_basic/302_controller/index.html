@@ -21,15 +21,15 @@
       unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
       // virtual joyscick
-      const stick = xnew('<div class="absolute left-4 bottom-4">', xnew.basics.VirtualStick, { size: 130 });
+      const stick = xnew('<div class="absolute left-4 bottom-4">', xnew.basics.TouchStick, { size: 130 });
       stick.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));
 
       // virtual D-pad
-      const dpad = xnew('<div class="absolute left-4 bottom-40">', xnew.basics.VirtualDPad, { size: 130 });
+      const dpad = xnew('<div class="absolute left-4 bottom-40">', xnew.basics.TouchDPad, { size: 130 });
       dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));
 
       // virtual button
-      const button = xnew('<div class="absolute right-8 bottom-8">', xnew.basics.VirtualButton);
+      const button = xnew('<div class="absolute right-8 bottom-8">', xnew.basics.TouchButton);
       button.on('-down', () => unit.emit('+action'));
 
       // keyboard

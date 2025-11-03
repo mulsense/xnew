@@ -16,20 +16,19 @@
     });
 
     function MyPanel(unit) {
-      xnew.extend(xnew.basics.PanelFrame);
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
 
       xnew('<div">', 'My Panel');
 
       xnew((unit) => {
-        xnew.extend(xnew.basics.PanelGroup, { name: 'group 1', open: false });
+        xnew.extend(PanelGroup, { name: 'group 1', open: false });
         xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 1');
         xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 2');
         xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 3');
       });
 
       xnew((unit) => {
-        xnew.extend(xnew.basics.PanelGroup, { name: 'group 2', open: true });
+        xnew.extend(PanelGroup, { name: 'group 2', open: true });
 
         xnew((frame) => {
           xnew.extend(xnew.basics.InputFrame);
@@ -77,6 +76,18 @@
         })
       });
     }
+
+    function PanelGroup(group, { name, open = false }) {
+      xnew.extend(xnew.basics.AccordionFrame);
+      xnew((header) => {
+          xnew.nest('<div style="margin: 0.2em 0;">');
+          xnew.extend(xnew.basics.AccordionHeader);
+          xnew(xnew.basics.AccordionBullet);
+          xnew('<div>', name);
+      });
+      xnew.extend(xnew.basics.AccordionContent, { open });
+    }
+
   </script>
 </body>
 

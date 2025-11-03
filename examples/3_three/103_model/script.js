@@ -127,13 +127,12 @@ function Model(unit, { gltf }) {
 }
 
 function Panel(frame) {
-  xnew.extend(xnew.basics.PanelFrame);
   xnew.nest('<div class="p-1 bg-white border border-gray-300 rounded shadow-lg">');
   xnew('<div>', 'Panel');
 
   let select = 'idle';
   xnew((group) => {
-    xnew.extend(xnew.basics.PanelGroup, { name: 'actions', open: true });
+    xnew.extend(PanelGroup, { name: 'actions', open: true });
 
     for (const name of ['none', ...Object.keys(baseActions)]) {
       const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
@@ -154,7 +153,7 @@ function Panel(frame) {
   });
   
   xnew((group) => {
-    xnew.extend(xnew.basics.PanelGroup, { name: 'action weights', open: true });
+    xnew.extend(PanelGroup, { name: 'action weights', open: true });
 
     for (const name of Object.keys(additiveActions)) {
       xnew((frame) => {
@@ -180,7 +179,7 @@ function Panel(frame) {
   });
 
   xnew((group) => {
-    xnew.extend(xnew.basics.PanelGroup, { name: 'options', open: true });
+    xnew.extend(PanelGroup, { name: 'options', open: true });
     xnew((frame) => {
       xnew.extend(xnew.basics.InputFrame);
       xnew('<div class="text-sm flex justify-between">', (unit) => {
@@ -197,4 +196,14 @@ function Panel(frame) {
       });
     });
   });
+}
+function PanelGroup(group, { name, open = false }) {
+  xnew.extend(xnew.basics.AccordionFrame);
+  xnew((header) => {
+      xnew.nest('<div style="margin: 0.2em 0;">');
+      xnew.extend(xnew.basics.AccordionHeader);
+      xnew(xnew.basics.AccordionBullet);
+      xnew('<div>', name);
+  });
+  xnew.extend(xnew.basics.AccordionContent, { open });
 }

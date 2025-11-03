@@ -4,21 +4,18 @@ export function ModalFrame(frame: xnew.Unit,
     {}: {} = {}
 ) {
     xnew.context('xnew.modalframe', frame);
-    const div = xnew.nest('<div style="position: fixed; inset: 0;">');
+    xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
 
     let content: xnew.Unit | null = null;
     xnew.capture((unit: xnew.Unit) => unit.components.has(ModalContent), (unit: xnew.Unit) => {
         content = unit;
     });
 
-    xnew().on('click', (event: Event) => {
-        frame?.close();
-    });
+    xnew().on('click', (event: Event) => frame?.close());
 
     return {
         close() {
             frame.emit('-close');
-            content?.deselect();
         }
     }
 }
@@ -33,31 +30,18 @@ export function ModalContent(content: xnew.Unit,
 
     xnew.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
 
-    xnew().on('click', (event: Event) => {
-        event.stopPropagation();
-    });
+    xnew().on('click', (event: Event) => event.stopPropagation());
 
-    let status = 0;
     xnew.timeout(() => frame.emit('-open'));
 
     frame.on('-open', () => {
         xnew.transition((x: number) => {
-            status = x;
-            frame.emit('-transition', { status });
-            content.transition(status);
+            div.style.opacity = x.toString();
         }, duration, easing);
     });
     frame.on('-close', () => {
         xnew.transition((x: number) => {
-            status = 1.0 - x;
-            frame.emit('-transition', { status });
-            content.transition(status);
+            div.style.opacity = (1.0 - x).toString();
         }, duration, easing).next(() => frame.finalize());
     });
-
-    return {
-        transition(status: number) {
-            div.style.opacity = status.toString();
-        }
-    }
 }

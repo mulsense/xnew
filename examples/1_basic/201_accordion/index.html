@@ -19,10 +19,10 @@
       xnew.extend(xnew.basics.AccordionFrame);
       xnew.nest('<div class="w-64 border rounded-lg">');
 
-      xnew((button) => {
-        xnew.extend(xnew.basics.AccordionButton);
+      xnew((header) => {
+        xnew.extend(xnew.basics.AccordionHeader);
         xnew(xnew.basics.AccordionBullet, { type: 'arrow' });
-        xnew('<div class="my-2 select-none cursor-pointer">', 'accordion (click me!)');
+        xnew('<div class="my-2 w-full select-none cursor-pointer">', 'accordion (click me!)');
       });
 
       xnew((content) => {

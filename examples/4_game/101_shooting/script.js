@@ -73,11 +73,11 @@ function Controller(unit) {
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // virtual D-Pad
-  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xnew.basics.VirtualDPad, { size: 130 });
+  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xnew.basics.TouchDPad, { size: 130 });
   dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', vector));
 
   // virtual button
-  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xnew.basics.VirtualButton);
+  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xnew.basics.TouchButton);
   button.on('-down', () => unit.emit('+shot'));
 
   // keyboard
@@ -248,7 +248,7 @@ function Crash(unit, { x, y, score }) {
     object.rotation = count / 10;
     object.alpha = 1 - count / 100; // fade out
     count++;
-    
+
     // detect collision
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.distance(object) < 30) {

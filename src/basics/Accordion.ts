@@ -18,7 +18,7 @@ export function AccordionFrame(frame: xnew.Unit,
                 frame.emit('-open');
             }
         },
-        open () {
+        open() {
             if (content?.status === 0.0) {
                 frame.emit('-open');
             }
@@ -31,13 +31,13 @@ export function AccordionFrame(frame: xnew.Unit,
     }
 }
 
-export function AccordionButton(button: xnew.Unit,
+export function AccordionHeader(header: xnew.Unit,
     {}: {} = {}
 ) {
     const frame = xnew.context('xnew.accordionframe');
     xnew.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
 
-    button.on('click', () => frame.toggle());       
+    header.on('click', () => frame.toggle());
 }
 
 export function AccordionBullet(bullet: xnew.Unit,
