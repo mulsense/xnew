@@ -28,6 +28,11 @@ interface Context {
     key: string;
     value: any;
 }
+interface Snapshot {
+    unit: Unit;
+    context: Context | null;
+    element: UnitElement | null;
+}
 interface Capture {
     checker: (unit: Unit) => boolean;
     execute: (unit: Unit) => any;
@@ -41,6 +46,7 @@ interface UnitInternal {
     baseContext: Context | null;
     baseComponent: Function;
     currentElement: UnitElement;
+    currentContext: Context | null;
     nextNest: {
         element: UnitElement;
         position: InsertPosition;
@@ -58,6 +64,7 @@ declare class Unit {
     [key: string]: any;
     _: UnitInternal;
     static roots: Unit[];
+    static current: Unit | null;
     constructor(target: Object | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
     start(): void;
@@ -76,6 +83,11 @@ declare class Unit {
     static update(unit: Unit, time: number): void;
     static ticker(time: number): void;
     static reset(): void;
+    static wrap(listener: Function): (...args: any[]) => any;
+    static scope(snapshot: Snapshot | null, func: Function, ...args: any[]): any;
+    static snapshot(unit: Unit): Snapshot | null;
+    static stack(unit: Unit, key: string, value: any): void;
+    static trace(unit: Unit, key: string): any;
     static componentUnits: MapSet<Function, Unit>;
     get components(): Set<Function>;
     static find(component: Function): Unit[];

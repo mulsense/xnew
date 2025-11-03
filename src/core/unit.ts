@@ -16,7 +16,7 @@ interface Context {
 }
 
 interface Snapshot {
-    unit: Unit | null;
+    unit: Unit;
     context: Context | null;
     element: UnitElement | null;
 }
@@ -35,6 +35,7 @@ interface UnitInternal {
     baseContext: Context | null;
     baseComponent: Function;
     currentElement: UnitElement;
+    currentContext: Context | null;
     nextNest: { element: UnitElement, position: InsertPosition };
     components: Set<Function>;
     listeners: MapMap<string, Function, [UnitElement, Function]>;
@@ -56,9 +57,10 @@ export class Unit {
     public _!: UnitInternal;
 
     static roots: Unit[] = [];
+    static current: Unit | null = null;
 
     constructor(target: Object | null, component?: Function | string, props?: Object) {
-        const parent = UnitScope.current;
+        const parent = Unit.current;
 
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
@@ -78,16 +80,19 @@ export class Unit {
             baseComponent = (self: Unit) => {};
         }
 
+        const baseContext = parent?._.currentContext ?? null;
+
         this._ = {
             parent,
             target,
-            baseContext: UnitScope.contexts.get(parent) ?? null,
             baseElement,
+            baseContext,
             baseComponent,
             props,
         } as UnitInternal;
 
         (parent?._.children ?? Unit.roots).push(this);
+
         Unit.initialize(this, { element: baseElement, position: 'beforeend' });
     }
 
@@ -143,11 +148,11 @@ export class Unit {
             state: 'invoked',
             tostart: true,
             currentElement: unit._.baseElement,
+            currentContext: unit._.baseContext,
             defines: {},
             system: { start: [], update: [], stop: [], finalize: [] },
         });
-
-        UnitScope.initialize(unit, unit._.baseContext);
+        Unit.current = unit;
 
         // nest html element
         if (typeof unit._.target === 'string') {
@@ -156,10 +161,7 @@ export class Unit {
 
         // setup component
         if (typeof unit._.baseComponent === 'function') {
-            UnitScope.execute(
-                { unit, context: null, element: null },
-                () => Unit.extend(unit, unit._.baseComponent as Function, unit._.props)
-            );
+            Unit.extend(unit, unit._.baseComponent, unit._.props);
         }
 
         // whether the unit promise was resolved
@@ -181,6 +183,7 @@ export class Unit {
                 break;
             }
         }
+        Unit.current = unit._.parent;
     }
 
     static finalize(unit: Unit): void {
@@ -189,7 +192,7 @@ export class Unit {
 
             unit._.children.forEach((child: Unit) => child.finalize());
             unit._.system.finalize.forEach((listener: Function) => {
-                UnitScope.execute(UnitScope.snapshot(unit), listener);
+                Unit.scope(Unit.snapshot(unit), listener);
             });
 
             unit.off();
@@ -198,7 +201,6 @@ export class Unit {
                 Unit.componentUnits.delete(component, unit);
             });
 
-            UnitScope.finalize(unit);
             UnitPromise.finalize(unit);
 
             while (unit._.currentElement !== unit._.baseElement && unit._.currentElement.parentElement !== null) {
@@ -249,13 +251,13 @@ export class Unit {
             const wrappedDesc: PropertyDescriptor = { configurable: true, enumerable: true };
 
             if (descriptor?.get) {
-                wrappedDesc.get = UnitScope.wrap(descriptor.get);
+                wrappedDesc.get = Unit.wrap(descriptor.get);
             }
             if (descriptor?.set) {
-                wrappedDesc.set = UnitScope.wrap(descriptor.set);
+                wrappedDesc.set = Unit.wrap(descriptor.set);
             }
             if (typeof descriptor?.value === 'function') {
-                wrappedDesc.value = UnitScope.wrap(descriptor.value);
+                wrappedDesc.value = Unit.wrap(descriptor.value);
             } else if (descriptor?.value !== undefined) {
                 wrappedDesc.writable = true;
                 wrappedDesc.value = descriptor.value;
@@ -271,7 +273,7 @@ export class Unit {
             unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
             unit._.system.start.forEach((listener: Function) => {
-                UnitScope.execute(UnitScope.snapshot(unit), listener);
+                Unit.scope(Unit.snapshot(unit), listener);
             });
         } else if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child, time));
@@ -283,7 +285,7 @@ export class Unit {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
             unit._.system.stop.forEach((listener: Function) => {
-                UnitScope.execute(UnitScope.snapshot(unit), listener);
+                Unit.scope(Unit.snapshot(unit), listener);
             });
         }
     }
@@ -292,7 +294,7 @@ export class Unit {
         if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child, time));
             unit._.system.update.forEach((listener: Function) => {
-                UnitScope.execute(UnitScope.snapshot(unit), listener);
+                Unit.scope(Unit.snapshot(unit), listener);
             });
         }
     }
@@ -309,6 +311,65 @@ export class Unit {
         Unit.roots = [];
         Ticker.clear(Unit.ticker);
         Ticker.set(Unit.ticker);
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // scope
+    //----------------------------------------------------------------------------------------------------
+
+    static wrap(listener: Function): (...args: any[]) => any {
+        const snapshot = Unit.snapshot(Unit.current as Unit);
+        return (...args: any[]) => Unit.scope(snapshot, listener, ...args);
+    }
+
+    static scope(snapshot: Snapshot | null, func: Function, ...args: any[]): any {
+        if (snapshot === null) return;
+        const current = Unit.current;
+        let context: Context | null = null;
+        let element: UnitElement | null = null;
+
+        try {
+            Unit.current = snapshot.unit;
+            if (snapshot.unit !== null) {
+                if (snapshot.context !== null) {
+                    context = snapshot.unit._.currentContext;
+                    snapshot.unit._.currentContext = snapshot.context;
+                }
+                if (snapshot.element !== null) {
+                    element = snapshot.unit._.currentElement;
+                    snapshot.unit._.currentElement = snapshot.element;
+                }
+            }
+            return func(...args);
+        } catch (error) {
+            throw error;
+        } finally {
+            Unit.current = current;
+            if (snapshot.unit !== null) {
+                if (context !== null) {
+                    snapshot.unit._.currentContext = context;
+                }
+                if (element !== null) {
+                    snapshot.unit._.currentElement = element;
+                }
+            }
+        }
+    }
+
+    static snapshot(unit: Unit): Snapshot | null {
+        return { unit, context: unit._.currentContext, element: unit._.currentElement };
+    }
+
+    static stack(unit: Unit, key: string, value: any): void {
+        unit._.currentContext = { stack: unit._.currentContext, key, value };
+    }
+
+    static trace(unit: Unit, key: string): any {
+        for (let context = unit._.currentContext; context !== null; context = context.stack) {
+            if (context.key === key) {
+                return context.value;
+            }
+        }
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -338,7 +399,7 @@ export class Unit {
                 this._.system[type].push(listener);
             }
             if (this._.listeners.has(type, listener) === false) {
-                const execute = UnitScope.wrap(listener);
+                const execute = Unit.wrap(listener);
                 this._.listeners.set(type, listener, [this.element, execute]);
                 Unit.typeUnits.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
@@ -384,7 +445,7 @@ export class Unit {
     static subon(unit: any, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         type.trim().split(/\s+/).forEach((type) => {
             if (unit._.sublisteners.has(type, listener) === false) {
-                const execute = UnitScope.wrap(listener);
+                const execute = Unit.wrap(listener);
                 unit._.sublisteners.set(type, listener, [target, execute]);
                 target.addEventListener(type, execute as EventListener, options);
             }
@@ -411,83 +472,6 @@ export class Unit {
 Unit.reset();
 
 //----------------------------------------------------------------------------------------------------
-// unit scope
-//----------------------------------------------------------------------------------------------------
-
-export class UnitScope {
-    static current: Unit | null = null;
-    static contexts: Map<Unit | null, Context> = new Map();
-
-    static initialize(unit: Unit | null, context: Context | null): void {
-        if (context !== null) {
-            UnitScope.contexts.set(unit, context);
-        }
-    }
-
-    static finalize(unit: Unit): void {
-        UnitScope.contexts.delete(unit);
-    }
-
-    static wrap(listener: Function): (...args: any[]) => any {
-        const snapshot = UnitScope.snapshot();
-        return (...args: any[]) => UnitScope.execute(snapshot, listener, ...args);
-    }
-
-    static execute(snapshot: Snapshot | null, func: Function, ...args: any[]): any {
-        if (snapshot === null) return;
-        const current = UnitScope.current;
-        let context: Context | null = null;
-        let element: UnitElement | null = null;
-
-        try {
-            UnitScope.current = snapshot.unit;
-            if (snapshot.unit !== null) {
-                if (snapshot.context !== null) {
-                    context = UnitScope.contexts.get(snapshot.unit) ?? null;
-                    UnitScope.contexts.set(snapshot.unit, snapshot.context);
-                }
-                if (snapshot.element !== null) {
-                    element = snapshot.unit._.currentElement;
-                    snapshot.unit._.currentElement = snapshot.element;
-                }
-            }
-            return func(...args);
-        } catch (error) {
-            throw error;
-        } finally {
-            UnitScope.current = current;
-            if (snapshot.unit !== null) {
-                if (context !== null) {
-                    UnitScope.contexts.set(snapshot.unit, context);
-                }
-                if (element !== null) {
-                    snapshot.unit._.currentElement = element;
-                }
-            }
-        }
-    }
-
-    static snapshot(unit: Unit | null = UnitScope.current): Snapshot | null {
-        if (unit !== null) {
-            return { unit, context: UnitScope.contexts.get(unit) ?? null, element: unit.element };
-        }
-        return null;
-    }
-
-    static stack(unit: Unit, key: string, value: any): void {
-        UnitScope.contexts.set(unit, { stack: UnitScope.contexts.get(unit) ?? null, key, value });
-    }
-
-    static trace(unit: Unit, key: string): any {
-        for (let context = UnitScope.contexts.get(unit) ?? null; context !== null; context = context.stack) {
-            if (context.key === key) {
-                return context.value;
-            }
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
 // unit promise
 //----------------------------------------------------------------------------------------------------
 
@@ -499,17 +483,17 @@ export class UnitPromise {
     }
 
     then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(UnitScope.wrap(callback));
+        this.promise = this.promise.then(Unit.wrap(callback));
         return this;
     }
 
     catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(UnitScope.wrap(callback));
+        this.promise = this.promise.catch(Unit.wrap(callback));
         return this;
     }
 
     finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(UnitScope.wrap(callback));
+        this.promise = this.promise.finally(Unit.wrap(callback));
         return this;
     }
 

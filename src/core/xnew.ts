@@ -1,5 +1,5 @@
 import { Timer } from './time';
-import { Unit, UnitScope, UnitPromise, UnitElement } from './unit';
+import { Unit, UnitPromise, UnitElement } from './unit';
 
 export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
@@ -35,7 +35,7 @@ export const xnew: xnewtype = (() => {
     }
 
     fn.nest = (tag: string): UnitElement => {
-        const current = UnitScope.current;
+        const current = Unit.current;
         if (current?._.state === 'invoked') {
             const element = Unit.nest(current, tag);
             if (element instanceof HTMLElement || element instanceof SVGElement) {
@@ -49,7 +49,7 @@ export const xnew: xnewtype = (() => {
     }
 
     fn.extend = (component: Function, props?: Object): any => {
-        const current = UnitScope.current;
+        const current = Unit.current;
         if (current?._.state === 'invoked') {
             return Unit.extend(current, component, props);
         } else {
@@ -59,14 +59,14 @@ export const xnew: xnewtype = (() => {
 
     fn.context = (key: string, value: any = undefined): any => {
         try {
-            const unit = UnitScope.current;
+            const unit = Unit.current;
             if (typeof key !== 'string') {
                 throw new Error('The argument [key] is invalid.');
             } else if (unit !== null) {
                 if (value !== undefined) {
-                    UnitScope.stack(unit, key, value);
+                    Unit.stack(unit, key, value);
                 } else {
-                    return UnitScope.trace(unit, key);
+                    return Unit.trace(unit, key);
                 }
             } else {
                 return undefined;
@@ -78,8 +78,8 @@ export const xnew: xnewtype = (() => {
         
     fn.promise = (promise: Promise<any>): UnitPromise => {
         try {
-            if (UnitScope.current !== null) {
-                return UnitPromise.execute(UnitScope.current, promise);
+            if (Unit.current !== null) {
+                return UnitPromise.execute(Unit.current, promise);
             } else {
                 throw new Error('No current unit.');
             }
@@ -91,8 +91,8 @@ export const xnew: xnewtype = (() => {
 
     fn.then = (callback: Function): UnitPromise => {
         try {
-            if (UnitScope.current !== null) {
-                return UnitPromise.execute(UnitScope.current).then(callback);
+            if (Unit.current !== null) {
+                return UnitPromise.execute(Unit.current).then(callback);
             } else {
                 throw new Error('No current unit.');
             }
@@ -104,8 +104,8 @@ export const xnew: xnewtype = (() => {
 
     fn.catch = (callback: Function): UnitPromise => {
         try {
-            if (UnitScope.current !== null) {
-                return UnitPromise.execute(UnitScope.current).catch(callback);
+            if (Unit.current !== null) {
+                return UnitPromise.execute(Unit.current).catch(callback);
             } else {
                 throw new Error('No current unit.');
             }
@@ -117,8 +117,8 @@ export const xnew: xnewtype = (() => {
 
     fn.finally = (callback: Function): UnitPromise => {
         try {
-            if (UnitScope.current !== null) {
-                return UnitPromise.execute(UnitScope.current).finally(callback);
+            if (Unit.current !== null) {
+                return UnitPromise.execute(Unit.current).finally(callback);
             } else {
                 throw new Error('No current unit.');
             }
@@ -131,8 +131,8 @@ export const xnew: xnewtype = (() => {
     fn.fetch = (url: string, options?: object): UnitPromise => {
         try {
             const promise = fetch(url, options);
-            if (UnitScope.current !== null) {
-                return UnitPromise.execute(UnitScope.current, promise);
+            if (Unit.current !== null) {
+                return UnitPromise.execute(Unit.current, promise);
             } else {
                 throw new Error('No current unit.');
             }
@@ -143,8 +143,10 @@ export const xnew: xnewtype = (() => {
     }
 
     fn.scope = (callback: any): any => {
-        const snapshot = UnitScope.snapshot();
-        return (...args: any[]) => UnitScope.execute(snapshot, callback, ...args);
+        if (Unit.current !== null) {
+            const snapshot = Unit.snapshot(Unit.current);
+            return (...args: any[]) => Unit.scope(snapshot, callback, ...args);
+        }
     }
 
     fn.find = (component: Function): Unit[] => {
@@ -158,20 +160,20 @@ export const xnew: xnewtype = (() => {
     fn.append = (base: Function | Unit, ...args: any[]): void => {
         if (typeof base === 'function') {
             for (let unit of Unit.find(base)) {
-                UnitScope.execute(UnitScope.snapshot(unit), xnew, ...args);
+                Unit.scope(Unit.snapshot(unit), xnew, ...args);
             }
         } else if (base instanceof Unit) {
-            UnitScope.execute(UnitScope.snapshot(base), xnew, ...args);
+            Unit.scope(Unit.snapshot(base), xnew, ...args);
         } else {
             throw new Error(`The argument [component] is invalid.`);
         }
     }
 
     fn.timeout = (callback: Function, delay: number): any => {
-        const snapshot = UnitScope.snapshot();
+        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
         const unit = xnew((self: Unit) => {
             const timer = new Timer(() => {
-                UnitScope.execute(snapshot, callback);
+                Unit.scope(snapshot, callback);
                 self.finalize();
             }, null, delay);
             self.on('finalize', () => {
@@ -182,10 +184,10 @@ export const xnew: xnewtype = (() => {
     }
 
     fn.interval = (callback: Function, delay: number): any => {
-        const snapshot = UnitScope.snapshot();
+        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
         const unit = xnew((self: Unit) => {
             const timer = new Timer(() => {
-                UnitScope.execute(snapshot, callback);
+                Unit.scope(snapshot, callback);
             }, null, delay, true);
             self.on('finalize', () => {
                 timer.clear();
@@ -195,7 +197,7 @@ export const xnew: xnewtype = (() => {
     }
 
     fn.transition = (callback: Function, interval: number, easing: string = 'linear'): any => {
-        const snapshot = UnitScope.snapshot();
+        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
 
         let stacks: any = [];
         let unit = xnew(Local, { callback, interval, easing });
@@ -203,7 +205,7 @@ export const xnew: xnewtype = (() => {
 
         function Local(self: Unit, { callback, interval, easing }: { callback: Function, interval: number, easing: string }) {
             const timer = new Timer(() => {
-                UnitScope.execute(snapshot, callback, 1.0);
+                Unit.scope(snapshot, callback, 1.0);
                 self.finalize();
             }, (progress: number) => {
                 if (progress < 1.0) {
@@ -216,7 +218,7 @@ export const xnew: xnewtype = (() => {
                     } else if (easing === 'ease-in-out') {
                         progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
                     }
-                    UnitScope.execute(snapshot, callback, progress);
+                    Unit.scope(snapshot, callback, progress);
                 }
             }, interval);
             self.on('finalize', () => {
@@ -253,18 +255,18 @@ export const xnew: xnewtype = (() => {
     fn.listener = function (target: UnitElement | Window | Document) {
         return {
             on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-                Unit.subon(UnitScope.current, target, type, listener, options);
+                Unit.subon(Unit.current, target, type, listener, options);
             },
             off(type?: string, listener?: Function) {
-                Unit.suboff(UnitScope.current, target, type, listener);
+                Unit.suboff(Unit.current, target, type, listener);
             }
         }
     }
 
     fn.capture = function (checker: (unit: xnew.Unit) => boolean, execute: (unit: xnew.Unit) => void) {
-        const current = UnitScope.current as xnew.Unit;
-        const snapshot = UnitScope.snapshot();
-        current._.captures.push({ checker, execute: (unit: xnew.Unit) => UnitScope.execute(snapshot, execute, unit) });
+        const current = Unit.current as xnew.Unit;
+        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
+        current._.captures.push({ checker, execute: (unit: xnew.Unit) => Unit.scope(snapshot, execute, unit) });
     }
 
     return fn;
