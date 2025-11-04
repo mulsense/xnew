@@ -7,7 +7,7 @@ export function ModalFrame(frame: xnew.Unit,
     xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
 
     let content: xnew.Unit | null = null;
-    xnew.capture((unit: xnew.Unit) => unit.components.has(ModalContent), (unit: xnew.Unit) => {
+    xnew.capture((unit: xnew.Unit) => unit.components.includes(ModalContent), (unit: xnew.Unit) => {
         content = unit;
     });
 

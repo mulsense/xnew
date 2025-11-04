@@ -7,8 +7,8 @@ sidebar_position: 501
 ## setup
 ### via cdn
 ```html
-<script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/xnew@5.0.x/dist/addons/xthree.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@5.0.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@5.0.x/dist/addons/xthree.js"></script>
 ```
 
 ### via cdn (ESM)
@@ -16,8 +16,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "xnew": "https://unpkg.com/xnew@5.0.x/dist/xnew.mjs",
-    "xnew/addons/xthree": "https://unpkg.com/xnew@5.0.x/dist/addons/xthree.mjs"
+    "@mulsense/xnew": "https://unpkg.com/xnew@5.0.x/dist/xnew.mjs",
+    "@mulsense/xnew/addons/xthree": "https://unpkg.com/xnew@5.0.x/dist/addons/xthree.mjs"
   }
 }
 </script>

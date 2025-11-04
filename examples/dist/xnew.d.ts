@@ -25,13 +25,13 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
 type UnitElement = HTMLElement | SVGElement;
 interface Context {
     stack: Context | null;
-    key: string;
-    value: any;
+    key?: string;
+    value?: any;
 }
 interface Snapshot {
     unit: Unit;
-    context: Context | null;
-    element: UnitElement | null;
+    context: Context;
+    element: UnitElement;
 }
 interface Capture {
     checker: (unit: Unit) => boolean;
@@ -43,15 +43,12 @@ interface UnitInternal {
     target: Object | null;
     props?: Object;
     baseElement: UnitElement;
-    baseContext: Context | null;
+    baseContext: Context;
     baseComponent: Function;
     currentElement: UnitElement;
-    currentContext: Context | null;
-    nextNest: {
-        element: UnitElement;
-        position: InsertPosition;
-    };
-    components: Set<Function>;
+    currentContext: Context;
+    promises: Promise<any>[];
+    components: Function[];
     listeners: MapMap<string, Function, [UnitElement, Function]>;
     sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     captures: Capture[];
@@ -67,6 +64,7 @@ declare class Unit {
     static current: Unit | null;
     constructor(target: Object | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
+    get components(): Function[];
     start(): void;
     stop(): void;
     finalize(): void;
@@ -76,7 +74,7 @@ declare class Unit {
         position: InsertPosition;
     }): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, tag: string): UnitElement | null;
+    static nest(unit: Unit, baseElement: Element, position: InsertPosition, tag: string): UnitElement | null;
     static extend(unit: Unit, component: Function, props?: Object): void;
     static start(unit: Unit, time: number): void;
     static stop(unit: Unit): void;
@@ -85,11 +83,10 @@ declare class Unit {
     static reset(): void;
     static wrap(listener: Function): (...args: any[]) => any;
     static scope(snapshot: Snapshot | null, func: Function, ...args: any[]): any;
-    static snapshot(unit: Unit): Snapshot | null;
+    static snapshot(unit: Unit): Snapshot;
     static stack(unit: Unit, key: string, value: any): void;
     static trace(unit: Unit, key: string): any;
     static componentUnits: MapSet<Function, Unit>;
-    get components(): Set<Function>;
     static find(component: Function): Unit[];
     static typeUnits: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;

@@ -2,7 +2,7 @@ import { MapSet, MapMap } from './map';
 import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
-// Definitions
+// Utils
 //----------------------------------------------------------------------------------------------------
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
@@ -11,19 +11,39 @@ export type UnitElement = HTMLElement | SVGElement;
 
 interface Context {
     stack: Context | null;
-    key: string;
-    value: any;
+    key?: string;
+    value?: any;
 }
 
 interface Snapshot {
     unit: Unit;
-    context: Context | null;
-    element: UnitElement | null;
+    context: Context;
+    element: UnitElement;
 }
 
 interface Capture {
     checker: (unit: Unit) => boolean;
     execute: (unit: Unit) => any;
+}
+
+export class UnitPromise {
+    private promise: Promise<any>;
+
+    constructor(promise: Promise<any>) {
+        this.promise = promise;
+    }
+    then(callback: Function): UnitPromise {
+        this.promise = this.promise.then(Unit.wrap(callback));
+        return this;
+    }
+    catch(callback: Function): UnitPromise {
+        this.promise = this.promise.catch(Unit.wrap(callback));
+        return this;
+    }
+    finally(callback: Function): UnitPromise {
+        this.promise = this.promise.finally(Unit.wrap(callback));
+        return this;
+    }
 }
 
 interface UnitInternal {
@@ -32,12 +52,13 @@ interface UnitInternal {
     target: Object | null;
     props?: Object;
     baseElement: UnitElement;
-    baseContext: Context | null;
+    baseContext: Context;
     baseComponent: Function;
     currentElement: UnitElement;
-    currentContext: Context | null;
-    nextNest: { element: UnitElement, position: InsertPosition };
-    components: Set<Function>;
+    currentContext: Context;
+
+    promises: Promise<any>[];
+    components: Function[];
     listeners: MapMap<string, Function, [UnitElement, Function]>;
     sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     captures: Capture[];
@@ -80,24 +101,20 @@ export class Unit {
             baseComponent = (self: Unit) => {};
         }
 
-        const baseContext = parent?._.currentContext ?? null;
+        const baseContext = parent ? parent._.currentContext : { stack: null };
 
-        this._ = {
-            parent,
-            target,
-            baseElement,
-            baseContext,
-            baseComponent,
-            props,
-        } as UnitInternal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as UnitInternal;
 
         (parent?._.children ?? Unit.roots).push(this);
-
         Unit.initialize(this, { element: baseElement, position: 'beforeend' });
     }
 
     get element(): UnitElement {
         return this._.currentElement;
+    }
+
+    get components(): Function[] {
+        return this._.components;
     }
 
     start(): void {
@@ -139,16 +156,16 @@ export class Unit {
 
     static initialize(unit: Unit, nextNest: { element: UnitElement, position: InsertPosition }): void {
         unit._ = Object.assign(unit._, {
-            nextNest,
+            currentElement: unit._.baseElement,
+            currentContext: unit._.baseContext,
             children: [],
-            components: new Set<Function>(),
+            promises: [],
+            components: [],
             listeners: new MapMap<string, Function, [UnitElement, Function]>(),
             sublisteners: new MapMap<string, Function, [UnitElement | Window | Document, Function]>(),
             captures: [],
             state: 'invoked',
             tostart: true,
-            currentElement: unit._.baseElement,
-            currentContext: unit._.baseContext,
             defines: {},
             system: { start: [], update: [], stop: [], finalize: [] },
         });
@@ -156,16 +173,14 @@ export class Unit {
 
         // nest html element
         if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target);
+            Unit.nest(unit, nextNest.element, nextNest.position, unit._.target);
         }
 
         // setup component
-        if (typeof unit._.baseComponent === 'function') {
-            Unit.extend(unit, unit._.baseComponent, unit._.props);
-        }
+        Unit.extend(unit, unit._.baseComponent, unit._.props);
 
         // whether the unit promise was resolved
-        UnitPromise.get(unit)?.then(() => unit._.state = 'initialized');
+        Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
 
         // setup capture
         let current = unit;
@@ -201,8 +216,6 @@ export class Unit {
                 Unit.componentUnits.delete(component, unit);
             });
 
-            UnitPromise.finalize(unit);
-
             while (unit._.currentElement !== unit._.baseElement && unit._.currentElement.parentElement !== null) {
                 const parent = unit._.currentElement.parentElement;
                 parent.removeChild(unit._.currentElement);
@@ -220,25 +233,23 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, tag: string): UnitElement | null {
+    static nest(unit: Unit, baseElement: Element, position: InsertPosition, tag: string): UnitElement | null {
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
-            let element: HTMLElement;
-            unit._.nextNest.element.insertAdjacentHTML(unit._.nextNest.position, `<${match[1]}></${match[2]}>`);
-            if (unit._.nextNest.position === 'beforebegin') {
-                element = unit._.nextNest.element.previousElementSibling as HTMLElement;
+            let element: UnitElement;
+            baseElement.insertAdjacentHTML(position, `<${match[1]}></${match[2]}>`);
+            if (position === 'beforebegin') {
+                element = baseElement.previousElementSibling as UnitElement;
             } else {
-                element = unit.element.children[unit.element.children.length - 1] as HTMLElement;
+                element = baseElement.children[baseElement.children.length - 1] as UnitElement;
             }
-            unit._.nextNest.element = element;
-            unit._.nextNest.position = 'beforeend';
             unit._.currentElement = element;
         }
         return unit.element;
     }
 
     static extend(unit: Unit, component: Function, props?: Object): void {
-        unit._.components.add(component);
+        unit._.components.push(component);
         Unit.componentUnits.add(component, unit);
 
         const defines = component(unit, props) ?? {};
@@ -325,38 +336,23 @@ export class Unit {
     static scope(snapshot: Snapshot | null, func: Function, ...args: any[]): any {
         if (snapshot === null) return;
         const current = Unit.current;
-        let context: Context | null = null;
-        let element: UnitElement | null = null;
+        const backup = Unit.snapshot(snapshot.unit);
 
         try {
             Unit.current = snapshot.unit;
-            if (snapshot.unit !== null) {
-                if (snapshot.context !== null) {
-                    context = snapshot.unit._.currentContext;
-                    snapshot.unit._.currentContext = snapshot.context;
-                }
-                if (snapshot.element !== null) {
-                    element = snapshot.unit._.currentElement;
-                    snapshot.unit._.currentElement = snapshot.element;
-                }
-            }
+            snapshot.unit._.currentContext = snapshot.context;
+            snapshot.unit._.currentElement = snapshot.element;
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
             Unit.current = current;
-            if (snapshot.unit !== null) {
-                if (context !== null) {
-                    snapshot.unit._.currentContext = context;
-                }
-                if (element !== null) {
-                    snapshot.unit._.currentElement = element;
-                }
-            }
+            snapshot.unit._.currentContext = backup.context;
+            snapshot.unit._.currentElement = backup.element;
         }
     }
 
-    static snapshot(unit: Unit): Snapshot | null {
+    static snapshot(unit: Unit): Snapshot {
         return { unit, context: unit._.currentContext, element: unit._.currentElement };
     }
 
@@ -372,15 +368,7 @@ export class Unit {
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // component
-    //----------------------------------------------------------------------------------------------------
-
     static componentUnits: MapSet<Function, Unit> = new MapSet();
-
-    get components(): Set<Function> {
-        return this._.components;
-    }
 
     static find(component: Function): Unit[] {
         return [...(Unit.componentUnits.get(component) ?? [])];
@@ -470,51 +458,3 @@ export class Unit {
 }
 
 Unit.reset();
-
-//----------------------------------------------------------------------------------------------------
-// unit promise
-//----------------------------------------------------------------------------------------------------
-
-export class UnitPromise {
-    private promise: Promise<any>;
-
-    constructor(executor: (resolve: (value: any) => void, reject: (reason?: any) => void) => void) {
-        this.promise = new Promise(executor);
-    }
-
-    then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(Unit.wrap(callback));
-        return this;
-    }
-
-    catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(Unit.wrap(callback));
-        return this;
-    }
-
-    finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(Unit.wrap(callback));
-        return this;
-    }
-
-    static promises: MapSet<Unit, UnitPromise> = new MapSet();
-
-    static get(unit: Unit) {
-        return Promise.all([...(UnitPromise.promises.get(unit) ?? [])].map((unitPromise) => unitPromise.promise));
-    }
-
-    static finalize(unit: Unit) {
-        UnitPromise.promises.delete(unit);
-    }
-
-    static execute(unit: Unit, promise?: Promise<any>): UnitPromise {
-        const inner = promise ?? UnitPromise.get(unit);
-        const unitPromise = new UnitPromise((resolve, reject) => {
-            inner.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-        });
-        if (promise !== undefined) {
-            UnitPromise.promises.add(unit, unitPromise);
-        }
-        return unitPromise;
-    }
-}

@@ -146,7 +146,8 @@ Use `unit.on()` or `unit.on()` to add event listeners:
 
 ```js
 function MyComponent(unit) {
-  xnew.nest('<div>', 'click here');
+  xnew.nest('<div>');
+  unit.element.textContent = 'click here';
 
   // Listen for click events on the element
   unit.on('click', (event) => {
@@ -226,7 +227,8 @@ function AnimatedCounter(unit, { maxCount }) {
     unit.element.textContent = '0';
   });
   
-  unit.on('update', (count) => {
+  let count = 0;
+  unit.on('update', () => {
     if (count < maxCount) {
       unit.element.textContent = count++;
     } else {
@@ -253,6 +255,7 @@ Starts the update loop. Components start automatically by default.
 const unit = xnew((unit) => {
   unit.stop(); // Prevent auto-start
   
+  let count = 0;
   unit.on('update', (count) => {
     console.log('Updating...', count);
   });
@@ -383,7 +386,8 @@ Global events can be heard by any component in your application:
 
 ```js
 function Sender(unit) {
-  xnew.nest('<button>', 'Send Message');
+  xnew.nest('<button>');
+  unit.element.textContent = 'Send Message';
 
   unit.on('click', () => {
     // Emit global event
@@ -395,7 +399,8 @@ function Sender(unit) {
 }
 
 function Receiver(unit) {
-  xnew.nest('<div>', 'Waiting for message...');
+  xnew.nest('<div>');
+  unit.element.textContent = 'Waiting for message...';
  
  // Listen for global events
   unit.on('+message', (data) => {

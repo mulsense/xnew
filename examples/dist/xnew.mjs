@@ -217,15 +217,32 @@ class MapMap extends Map {
 }
 
 //----------------------------------------------------------------------------------------------------
-// Definitions
+// Utils
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
+class UnitPromise {
+    constructor(promise) {
+        this.promise = promise;
+    }
+    then(callback) {
+        this.promise = this.promise.then(Unit.wrap(callback));
+        return this;
+    }
+    catch(callback) {
+        this.promise = this.promise.catch(Unit.wrap(callback));
+        return this;
+    }
+    finally(callback) {
+        this.promise = this.promise.finally(Unit.wrap(callback));
+        return this;
+    }
+}
 //----------------------------------------------------------------------------------------------------
 // Unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
     constructor(target, component, props) {
-        var _a, _b, _c;
+        var _a, _b;
         const parent = Unit.current;
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
@@ -247,20 +264,16 @@ class Unit {
         else {
             baseComponent = (self) => { };
         }
-        const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : null;
-        this._ = {
-            parent,
-            target,
-            baseElement,
-            baseContext,
-            baseComponent,
-            props,
-        };
-        ((_c = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _c !== void 0 ? _c : Unit.roots).push(this);
+        const baseContext = parent ? parent._.currentContext : { stack: null };
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props };
+        ((_b = parent === null || parent === void 0 ? void 0 : parent._.children) !== null && _b !== void 0 ? _b : Unit.roots).push(this);
         Unit.initialize(this, { element: baseElement, position: 'beforeend' });
     }
     get element() {
         return this._.currentElement;
+    }
+    get components() {
+        return this._.components;
     }
     start() {
         this._.tostart = true;
@@ -296,32 +309,29 @@ class Unit {
         Unit.initialize(this, nextNest);
     }
     static initialize(unit, nextNest) {
-        var _a;
         unit._ = Object.assign(unit._, {
-            nextNest,
+            currentElement: unit._.baseElement,
+            currentContext: unit._.baseContext,
             children: [],
-            components: new Set(),
+            promises: [],
+            components: [],
             listeners: new MapMap(),
             sublisteners: new MapMap(),
             captures: [],
             state: 'invoked',
             tostart: true,
-            currentElement: unit._.baseElement,
-            currentContext: unit._.baseContext,
             defines: {},
             system: { start: [], update: [], stop: [], finalize: [] },
         });
         Unit.current = unit;
         // nest html element
         if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target);
+            Unit.nest(unit, nextNest.element, nextNest.position, unit._.target);
         }
         // setup component
-        if (typeof unit._.baseComponent === 'function') {
-            Unit.extend(unit, unit._.baseComponent, unit._.props);
-        }
+        Unit.extend(unit, unit._.baseComponent, unit._.props);
         // whether the unit promise was resolved
-        (_a = UnitPromise.get(unit)) === null || _a === void 0 ? void 0 : _a.then(() => unit._.state = 'initialized');
+        Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
         // setup capture
         let current = unit;
         while (1) {
@@ -353,7 +363,6 @@ class Unit {
             unit._.components.forEach((component) => {
                 Unit.componentUnits.delete(component, unit);
             });
-            UnitPromise.finalize(unit);
             while (unit._.currentElement !== unit._.baseElement && unit._.currentElement.parentElement !== null) {
                 const parent = unit._.currentElement.parentElement;
                 parent.removeChild(unit._.currentElement);
@@ -369,26 +378,24 @@ class Unit {
             unit._.state = 'finalized';
         }
     }
-    static nest(unit, tag) {
+    static nest(unit, baseElement, position, tag) {
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element;
-            unit._.nextNest.element.insertAdjacentHTML(unit._.nextNest.position, `<${match[1]}></${match[2]}>`);
-            if (unit._.nextNest.position === 'beforebegin') {
-                element = unit._.nextNest.element.previousElementSibling;
+            baseElement.insertAdjacentHTML(position, `<${match[1]}></${match[2]}>`);
+            if (position === 'beforebegin') {
+                element = baseElement.previousElementSibling;
             }
             else {
-                element = unit.element.children[unit.element.children.length - 1];
+                element = baseElement.children[baseElement.children.length - 1];
             }
-            unit._.nextNest.element = element;
-            unit._.nextNest.position = 'beforeend';
             unit._.currentElement = element;
         }
         return unit.element;
     }
     static extend(unit, component, props) {
         var _a;
-        unit._.components.add(component);
+        unit._.components.push(component);
         Unit.componentUnits.add(component, unit);
         const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
         Object.keys(defines).forEach((key) => {
@@ -468,20 +475,11 @@ class Unit {
         if (snapshot === null)
             return;
         const current = Unit.current;
-        let context = null;
-        let element = null;
+        const backup = Unit.snapshot(snapshot.unit);
         try {
             Unit.current = snapshot.unit;
-            if (snapshot.unit !== null) {
-                if (snapshot.context !== null) {
-                    context = snapshot.unit._.currentContext;
-                    snapshot.unit._.currentContext = snapshot.context;
-                }
-                if (snapshot.element !== null) {
-                    element = snapshot.unit._.currentElement;
-                    snapshot.unit._.currentElement = snapshot.element;
-                }
-            }
+            snapshot.unit._.currentContext = snapshot.context;
+            snapshot.unit._.currentElement = snapshot.element;
             return func(...args);
         }
         catch (error) {
@@ -489,14 +487,8 @@ class Unit {
         }
         finally {
             Unit.current = current;
-            if (snapshot.unit !== null) {
-                if (context !== null) {
-                    snapshot.unit._.currentContext = context;
-                }
-                if (element !== null) {
-                    snapshot.unit._.currentElement = element;
-                }
-            }
+            snapshot.unit._.currentContext = backup.context;
+            snapshot.unit._.currentElement = backup.element;
         }
     }
     static snapshot(unit) {
@@ -511,9 +503,6 @@ class Unit {
                 return context.value;
             }
         }
-    }
-    get components() {
-        return this._.components;
     }
     static find(component) {
         var _a;
@@ -598,53 +587,12 @@ class Unit {
 }
 Unit.roots = [];
 Unit.current = null;
-//----------------------------------------------------------------------------------------------------
-// component
-//----------------------------------------------------------------------------------------------------
 Unit.componentUnits = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
 //----------------------------------------------------------------------------------------------------
 Unit.typeUnits = new MapSet();
 Unit.reset();
-//----------------------------------------------------------------------------------------------------
-// unit promise
-//----------------------------------------------------------------------------------------------------
-class UnitPromise {
-    constructor(executor) {
-        this.promise = new Promise(executor);
-    }
-    then(callback) {
-        this.promise = this.promise.then(Unit.wrap(callback));
-        return this;
-    }
-    catch(callback) {
-        this.promise = this.promise.catch(Unit.wrap(callback));
-        return this;
-    }
-    finally(callback) {
-        this.promise = this.promise.finally(Unit.wrap(callback));
-        return this;
-    }
-    static get(unit) {
-        var _a;
-        return Promise.all([...((_a = UnitPromise.promises.get(unit)) !== null && _a !== void 0 ? _a : [])].map((unitPromise) => unitPromise.promise));
-    }
-    static finalize(unit) {
-        UnitPromise.promises.delete(unit);
-    }
-    static execute(unit, promise) {
-        const inner = promise !== null && promise !== void 0 ? promise : UnitPromise.get(unit);
-        const unitPromise = new UnitPromise((resolve, reject) => {
-            inner.then((...args) => resolve(...args)).catch((...args) => reject(...args));
-        });
-        if (promise !== undefined) {
-            UnitPromise.promises.add(unit, unitPromise);
-        }
-        return unitPromise;
-    }
-}
-UnitPromise.promises = new MapSet();
 
 const xnew$1 = (() => {
     const fn = function (...args) {
@@ -673,7 +621,7 @@ const xnew$1 = (() => {
     fn.nest = (tag) => {
         const current = Unit.current;
         if ((current === null || current === void 0 ? void 0 : current._.state) === 'invoked') {
-            const element = Unit.nest(current, tag);
+            const element = Unit.nest(current, current._.currentElement, 'beforeend', tag);
             if (element instanceof HTMLElement || element instanceof SVGElement) {
                 return element;
             }
@@ -719,7 +667,8 @@ const xnew$1 = (() => {
     fn.promise = (promise) => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current, promise);
+                Unit.current._.promises.push(promise);
+                return new UnitPromise(promise);
             }
             else {
                 throw new Error('No current unit.');
@@ -733,7 +682,7 @@ const xnew$1 = (() => {
     fn.then = (callback) => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current).then(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
             }
             else {
                 throw new Error('No current unit.');
@@ -747,7 +696,7 @@ const xnew$1 = (() => {
     fn.catch = (callback) => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current).catch(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
             }
             else {
                 throw new Error('No current unit.');
@@ -761,7 +710,7 @@ const xnew$1 = (() => {
     fn.finally = (callback) => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current).finally(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
             }
             else {
                 throw new Error('No current unit.');
@@ -776,7 +725,8 @@ const xnew$1 = (() => {
         try {
             const promise = fetch(url, options);
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current, promise);
+                Unit.current._.promises.push(promise);
+                return new UnitPromise(promise);
             }
             else {
                 throw new Error('No current unit.');
@@ -1120,7 +1070,7 @@ function InputFrame(frame, {} = {}) {
 function ModalFrame(frame, {} = {}) {
     xnew$1.context('xnew.modalframe', frame);
     xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-    xnew$1.capture((unit) => unit.components.has(ModalContent), (unit) => {
+    xnew$1.capture((unit) => unit.components.includes(ModalContent), (unit) => {
     });
     xnew$1().on('click', (event) => frame === null || frame === void 0 ? void 0 : frame.close());
     return {
@@ -1152,10 +1102,10 @@ function TabFrame(frame, { select = 0 } = {}) {
     xnew$1.context('xnew.tabframe', frame);
     const buttons = [];
     const contents = [];
-    xnew$1.capture((unit) => unit.components.has(TabButton), (unit) => {
+    xnew$1.capture((unit) => unit.components.includes(TabButton), (unit) => {
         buttons.push(unit);
     });
-    xnew$1.capture((unit) => unit.components.has(TabContent), (unit) => {
+    xnew$1.capture((unit) => unit.components.includes(TabContent), (unit) => {
         contents.push(unit);
     });
     frame.on('-click', ({ unit }) => execute(buttons.indexOf(unit)));
@@ -1199,7 +1149,7 @@ function TabContent(self, {} = {}) {
 function AccordionFrame(frame, {} = {}) {
     xnew$1.context('xnew.accordionframe', frame);
     let content = null;
-    xnew$1.capture((unit) => unit.components.has(AccordionContent), (unit) => {
+    xnew$1.capture((unit) => unit.components.includes(AccordionContent), (unit) => {
         content = unit;
     });
     return {

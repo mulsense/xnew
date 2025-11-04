@@ -37,7 +37,7 @@ export const xnew: xnewtype = (() => {
     fn.nest = (tag: string): UnitElement => {
         const current = Unit.current;
         if (current?._.state === 'invoked') {
-            const element = Unit.nest(current, tag);
+            const element = Unit.nest(current, current._.currentElement, 'beforeend' as InsertPosition, tag);
             if (element instanceof HTMLElement || element instanceof SVGElement) {
                 return element;
             } else {
@@ -79,7 +79,8 @@ export const xnew: xnewtype = (() => {
     fn.promise = (promise: Promise<any>): UnitPromise => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current, promise);
+                Unit.current._.promises.push(promise);
+                return new UnitPromise(promise);
             } else {
                 throw new Error('No current unit.');
             }
@@ -92,7 +93,7 @@ export const xnew: xnewtype = (() => {
     fn.then = (callback: Function): UnitPromise => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current).then(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
             } else {
                 throw new Error('No current unit.');
             }
@@ -105,7 +106,7 @@ export const xnew: xnewtype = (() => {
     fn.catch = (callback: Function): UnitPromise => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current).catch(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
             } else {
                 throw new Error('No current unit.');
             }
@@ -118,7 +119,7 @@ export const xnew: xnewtype = (() => {
     fn.finally = (callback: Function): UnitPromise => {
         try {
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current).finally(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
             } else {
                 throw new Error('No current unit.');
             }
@@ -132,7 +133,8 @@ export const xnew: xnewtype = (() => {
         try {
             const promise = fetch(url, options);
             if (Unit.current !== null) {
-                return UnitPromise.execute(Unit.current, promise);
+                Unit.current._.promises.push(promise);
+                return new UnitPromise(promise);
             } else {
                 throw new Error('No current unit.');
             }

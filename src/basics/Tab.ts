@@ -8,10 +8,10 @@ export function TabFrame(frame: xnew.Unit,
     const buttons: xnew.Unit[] = [];
     const contents: xnew.Unit[] = [];
 
-    xnew.capture((unit: xnew.Unit) => unit.components.has(TabButton), (unit: xnew.Unit) => {
+    xnew.capture((unit: xnew.Unit) => unit.components.includes(TabButton), (unit: xnew.Unit) => {
         buttons.push(unit);
     });
-    xnew.capture((unit: xnew.Unit) => unit.components.has(TabContent), (unit: xnew.Unit) => {
+    xnew.capture((unit: xnew.Unit) => unit.components.includes(TabContent), (unit: xnew.Unit) => {
         contents.push(unit);
     });
     frame.on('-click', ({ unit } : { unit: xnew.Unit }) => execute(buttons.indexOf(unit)));

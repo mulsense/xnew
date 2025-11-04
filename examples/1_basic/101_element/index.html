@@ -25,7 +25,6 @@
 
     function MyDiv(unit) {
       xnew.extend(Template, { name: 'my div' });
-
       xnew('<div class="w-32 h-8 bg-red-400 border rounded">', '1');
       xnew('<div class="w-32 h-8 bg-green-400 border rounded">', (unit) => {
         unit.element.textContent = '2';
