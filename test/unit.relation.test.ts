@@ -9,7 +9,7 @@ describe('unit relation', () => {
     it('basic', () => {
         xnew((self: xnew.Unit) => {
             const unit2 = xnew();
-            expect(self._.parent).toBe(null);
+            expect(self._.parent).toBe(Unit.root);
             expect(unit2._.parent).toBe(self);
         })
     });
@@ -17,7 +17,7 @@ describe('unit relation', () => {
     it('delete', () => {
         xnew((self: xnew.Unit) => {
             const unit2 = xnew();
-            expect(self._.parent).toBe(null);
+            expect(self._.parent).toBe(Unit.root);
             expect(unit2._.parent).toBe(self);
         })
     });
