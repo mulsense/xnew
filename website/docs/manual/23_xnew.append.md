@@ -1,70 +1,93 @@
 # xnew.append
 
-`xnew.append` creates new units as children of specified units or all units using a specific component.
+`xnew.append` dynamically adds child components to existing units. You can append to a specific unit or to all units of a particular component type. This enables powerful patterns for extending functionality after component creation.
 
 ## Usage
 
 ### Append to a Specific Unit
 
 ```js
-const unit = xnew(Component);
-xnew.append(unit, ChildComponent, props); // Adds ChildComponent as a child of unit
+xnew.append(unit, ChildComponent, props);
 ```
 
-### Append to All Units Using a Component
+### Append to All Units of a Component Type
 
 ```js
-xnew.append(Component, ChildComponent, props); // Adds ChildComponent to all units using Component
+xnew.append(Component, ChildComponent, props);
 ```
 
-## Examples
+**Parameters:**
+- `unit` or `Component`: Target unit instance or component function
+- `ChildComponent`: Component function to create as a child
+- `props`: Optional properties to pass to the child component
+
+## Example
 
 ### Appending to a Specific Unit
 
 ```js
-function ParentComponent(unit) {
-  unit.count = 0;
+function Container(unit) {
+  xnew.nest('<div>');
+  unit.element.style.border = '1px solid #ccc';
+  unit.element.style.padding = '10px';
 }
 
-function ChildComponent(unit) {
-  console.log('Child created');
+function Item(unit, { text }) {
+  xnew.nest('<div>');
+  unit.element.textContent = text;
+  unit.element.style.margin = '5px';
 }
 
-const parent = xnew(ParentComponent);
+const container = xnew(Container);
 
-// Add a child to the specific unit
-xnew.append(parent, ChildComponent);
-// Output: "Child created"
+// Add items dynamically
+xnew.append(container, Item, { text: 'First item' });
+xnew.append(container, Item, { text: 'Second item' });
+xnew.append(container, Item, { text: 'Third item' });
 ```
 
-### Appending to All Units of a Component Type
+### Appending to All Units of a Type
 
 ```js
-function Container(unit) {
-  unit.name = 'Container';
+function Card(unit, { title }) {
+  xnew.nest('<div>');
+  unit.element.style.border = '1px solid #ddd';
+  unit.element.style.padding = '10px';
+  unit.element.style.margin = '5px';
+  unit.element.innerHTML = `<h3>${title}</h3>`;
 }
 
-function Item(unit) {
-  console.log('Item added to', unit.parent.name);
+function DeleteButton(unit) {
+  xnew.nest('<button>');
+  unit.element.textContent = 'Delete';
+  unit.element.style.marginTop = '10px';
+
+  unit.on('click', () => {
+    // Find the parent Card unit and remove it
+    unit._.parent.finalize();
+  });
 }
 
-// Create multiple containers
-const container1 = xnew(Container);
-const container2 = xnew(Container);
+// Create multiple cards
+xnew(Card, { title: 'Card 1' });
+xnew(Card, { title: 'Card 2' });
+xnew(Card, { title: 'Card 3' });
 
-// Add Item to all units using Container component
-xnew.append(Container, Item);
-// Output: "Item added to Container" (twice)
+// Add delete buttons to all existing cards
+xnew.append(Card, DeleteButton);
 ```
 
 ## Use Cases
 
-`xnew.append` is particularly useful when:
+`xnew.append` is particularly useful for:
 
-- **Dynamically adding components**: Adding new functionality to existing units after creation
-- **Bulk operations**: Adding the same child component to multiple parent units at once
-- **Event-driven architecture**: Responding to events by attaching new components to existing units
+- **Dynamic feature addition**: Add functionality to components after creation
+- **Plugin systems**: Extend components with optional plugins
+- **Bulk operations**: Add the same child to multiple parents at once
+- **Conditional enhancements**: Add features based on runtime conditions
+- **Event-driven architecture**: Respond to events by attaching components
+- **Lazy loading**: Add components only when needed
 
 :::note
-The newly created child units will be automatically cleaned up when their parent units are finalized.
+Child units created with `xnew.append` are automatically cleaned up when their parent units are finalized, ensuring proper memory management.
 :::

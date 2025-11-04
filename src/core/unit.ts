@@ -354,7 +354,7 @@ export class Unit {
                 this._.systems[type].push(listener);
             }
             if (this._.listeners1.has(type, listener) === false) {
-                const execute = Unit.wrap(this, listener);
+                const execute = Unit.wrap(Unit.current, listener);
                 this._.listeners1.set(type, listener, [this.element, execute]);
                 Unit.typeUnits.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
@@ -424,4 +424,3 @@ export class Unit {
     }
 }
 
-Unit.reset();

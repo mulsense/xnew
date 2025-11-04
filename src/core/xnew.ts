@@ -6,6 +6,10 @@ export namespace xnew {
 }
 
 export const xnew: any = function(...args: any[]): Unit {
+    if (Unit.root === null) {
+        Unit.reset();
+    }
+    
     let target;
     if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
         target = args.shift(); // an existing html element

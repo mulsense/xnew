@@ -496,7 +496,7 @@ class Unit {
                 this._.systems[type].push(listener);
             }
             if (this._.listeners1.has(type, listener) === false) {
-                const execute = Unit.wrap(this, listener);
+                const execute = Unit.wrap(Unit.current, listener);
                 this._.listeners1.set(type, listener, [this.element, execute]);
                 Unit.typeUnits.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
@@ -571,9 +571,11 @@ Unit.componentUnits = new MapSet();
 // event
 //----------------------------------------------------------------------------------------------------
 Unit.typeUnits = new MapSet();
-Unit.reset();
 
 const xnew$1 = function (...args) {
+    if (Unit.root === null) {
+        Unit.reset();
+    }
     let target;
     if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
         target = args.shift(); // an existing html element

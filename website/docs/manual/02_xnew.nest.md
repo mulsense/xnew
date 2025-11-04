@@ -1,127 +1,95 @@
 # xnew.nest
 
-`xnew.nest` creates a new HTML element inside the current element and makes it the new target for subsequent child elements.
+`xnew.nest` creates a new HTML element as a child of the current element and shifts the context to that new element. After calling `xnew.nest`, subsequent operations work on the newly created element instead of the original parent.
 
-## Basic Usage
-
-```js
-xnew((unit) => {
-  const element = xnew.nest('<div>');
-
-  element; // Access the newly created element
-  unit.element === element; // true - unit.element now points to the nested element
-})
-```
-
-## How `unit.element` Changes with `xnew.nest`
-
-When you call `xnew.nest()`, it changes what `unit.element` refers to:
+## Usage
 
 ```js
-const unit = xnew('<div id="A">', (unit) => {
-  unit.element; // div#A
-
-  unit.on('click', () => {
-    unit.element; // div#A (captured at this point)
-  });
-
-  xnew.nest('<div id="B">');
-  unit.element; // div#B (now points to the nested element)
-
-  unit.on('click', () => {
-    unit.element; // div#B (captured at this new point)
-  });
-
-  const child = xnew('<div id="C">');
-  child.element; // div#C (child of div#B because B is the current element)
-})
+const element = xnew.nest(htmlString);
 ```
 
-**Key points:**
-- Before `xnew.nest()`: `unit.element` points to the parent element (div#A)
-- After `xnew.nest('<div id="B">')`: `unit.element` changes to point to the nested element (div#B)
-- New child elements are created inside the current `unit.element`
-- Event handlers capture the value of `unit.element` at the time they are registered
+**Parameters:**
+- `htmlString`: HTML string to create the element (e.g., `'<div>'`, `'<span class="highlight">'`)
+
+**Returns:**
+- The newly created HTMLElement
+
+**Side effect:**
+- `unit.element` now points to the newly created element
+
+## How It Works
+
+`xnew.nest` serves two purposes:
+
+1. **Creates a new element** as a child of the current element
+2. **Changes the context** so `unit.element` points to the new element
+
+This allows you to build nested structures naturally by working "inside" elements as you create them.
+
 ## Example
 
-### Without `xnew.nest`
+### Basic Nesting
 
 ```js
-// Case 1: Create div#A and add a paragraph inside it
-xnew('<div id="A">', (unit) => {
-  unit.element; // div#A
-
-  xnew('<p>', 'in A'); // Creates <p> inside div#A
-});
-
-// Result: <div id="A"><p>in A</p></div>
-```
-
-### With `xnew.nest`
-
-```js
-// Case 2: Using nest changes the target element
 xnew((unit) => {
-  const div = xnew.nest('<div id="B">');
+  // Initially, unit.element is document.body
 
-  unit.element; // div#B (changed by nest)
-  div; // div#B (same reference)
+  const header = xnew.nest('<header>');
+  // Now unit.element === header
 
-  xnew('<p>', 'in B'); // Creates <p> inside div#B
+  xnew.nest('<h1>');
+  unit.element.textContent = 'Welcome';
+  // h1 is created inside header
 });
 
-// Result: <div id="B"><p>in B</p></div>
+// Result:
+// <header>
+//   <h1>Welcome</h1>
+// </header>
 ```
 
-### Nesting Inside an Element
+### Managing Nesting Levels
 
 ```js
-// Case 3: Nesting creates a child element
-xnew('<div id="C">', (unit) => {
-  const div = xnew.nest('<div id="D">');
+function Card(unit, { title, content }) {
+  xnew.nest('<div class="card">');
+  unit.element.style.border = '1px solid #ddd';
+  unit.element.style.padding = '15px';
 
-  unit.element; // div#D (changed by nest)
-  div; // div#D (same reference)
+  // Create and immediately exit header
+  xnew((unit) => {
+    xnew.nest('<div class="card-header">');
+    unit.element.style.fontWeight = 'bold';
+    unit.element.textContent = title;
+  });
+  // After the nested xnew, we're back to the card level
 
-  xnew('<p>', 'in D'); // Creates <p> inside div#D
+  // Create body at card level
+  xnew((unit) => {
+    xnew.nest('<div class="card-body">');
+    unit.element.textContent = content;
+  });
+}
+
+xnew(Card, {
+  title: 'My Card',
+  content: 'This is the card content'
 });
 
-// Result: <div id="C"><div id="D"><p>in D</p></div></div>
+// Result:
+// <div class="card">
+//   <div class="card-header">My Card</div>
+//   <div class="card-body">This is the card content</div>
+// </div>
 ```
 
-### Simple Element Creation
+## Key Concepts
 
-```js
-// Case 4: Create element with text content only
-const unit = xnew('<div id="E">', 'in E');
-unit.element; // div#E
+- **Context shift**: `xnew.nest` changes `unit.element` to point to the newly created element
+- **Nesting scope**: Use nested `xnew()` calls to control which element is the parent
+- **Return value**: `xnew.nest` returns the created element for immediate access
+- **Automatic cleanup**: Nested elements are automatically removed when the parent unit is finalized
 
-// Result: <div id="E">in E</div>
-```
-
-### Final HTML Structure
-
-The above code produces:
-
-```html
-<body>
-  <div id="A">
-    <p>in A</p>
-  </div>
-  <div id="B">
-    <p>in B</p>
-  </div>
-  <div id="C">
-    <div id="D">
-      <p>in D</p>
-    </div>
-  </div>
-  <div id="E">
-    in E
-  </div>
-</body>
-```
-
-:::note
-The created elements are automatically removed when the units are finalized.
+:::tip
+Use nested `xnew()` calls to maintain proper element hierarchy. After a nested `xnew()` completes, the context returns to the parent level.
 :::
