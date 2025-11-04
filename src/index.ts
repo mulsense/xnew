@@ -11,7 +11,7 @@ import { DragFrame, DragTarget } from './basics/SubWIndow';
 import { TouchStick, TouchDPad, TouchButton } from './basics/Touch';
 
 import { Unit } from './core/unit';
-import { xnew as base, xnewtype as basetype } from './core/xnew';
+import { xnew as base } from './core/xnew';
 
 import { synthesizer } from './audio/synthesizer';
 
@@ -39,16 +39,19 @@ const audio = {
     synthesizer
 };
 
-interface xnewtype extends basetype {
+export interface xnew_interface {
+    (...args: any[]): Unit;
+    [key: string]: any;
     basics: typeof basics;
     audio: typeof audio;
 }
+
 
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-const xnew: xnewtype = Object.assign(base, {
+const xnew: xnew_interface = Object.assign(base, {
     basics,
     audio,
 });

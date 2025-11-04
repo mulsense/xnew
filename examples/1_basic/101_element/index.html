@@ -11,6 +11,7 @@
   <div id="main" class="relative w-full h-full"></div>
   
   <script>
+    let count = 0;
     xnew('#main', (unit) => {
       xnew(MyDiv);
       xnew(MyInput);
@@ -22,7 +23,6 @@
       xnew('<div class="my-2">', name);
       xnew.nest('<div class="flex gap-x-2 flex-wrap">');
     }
-
     function MyDiv(unit) {
       xnew.extend(Template, { name: 'my div' });
       xnew('<div class="w-32 h-8 bg-red-400 border rounded">', '1');

@@ -39,7 +39,6 @@ interface Capture {
 }
 interface UnitInternal {
     parent: Unit | null;
-    children: Unit[];
     target: Object | null;
     props?: Object;
     baseElement: UnitElement;
@@ -47,42 +46,42 @@ interface UnitInternal {
     baseComponent: Function;
     currentElement: UnitElement;
     currentContext: Context;
-    promises: Promise<any>[];
-    components: Function[];
-    listeners: MapMap<string, Function, [UnitElement, Function]>;
-    sublisteners: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
-    captures: Capture[];
+    anchor: UnitElement | null;
     state: string;
     tostart: boolean;
+    children: Unit[];
+    promises: Promise<any>[];
+    captures: Capture[];
+    elements: UnitElement[];
+    components: Function[];
+    listeners1: MapMap<string, Function, [UnitElement, Function]>;
+    listeners2: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     defines: Record<string, any>;
-    system: Record<string, Function[]>;
+    systems: Record<string, Function[]>;
 }
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
-    static roots: Unit[];
-    static current: Unit | null;
-    constructor(target: Object | null, component?: Function | string, props?: Object);
+    static current: Unit;
+    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
     get components(): Function[];
     start(): void;
     stop(): void;
     finalize(): void;
     reboot(): void;
-    static initialize(unit: Unit, nextNest: {
-        element: UnitElement;
-        position: InsertPosition;
-    }): void;
+    static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, baseElement: Element, position: InsertPosition, tag: string): UnitElement | null;
+    static nest(unit: Unit, tag: string): UnitElement;
     static extend(unit: Unit, component: Function, props?: Object): void;
     static start(unit: Unit, time: number): void;
     static stop(unit: Unit): void;
     static update(unit: Unit, time: number): void;
+    static root: Unit | null;
     static ticker(time: number): void;
     static reset(): void;
-    static wrap(listener: Function): (...args: any[]) => any;
-    static scope(snapshot: Snapshot | null, func: Function, ...args: any[]): any;
+    static wrap(unit: Unit, listener: Function): (...args: any[]) => any;
+    static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static stack(unit: Unit, key: string, value: any): void;
     static trace(unit: Unit, key: string): any;
@@ -92,18 +91,14 @@ declare class Unit {
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
     emit(type: string, ...args: any[]): void;
-    static subon(unit: any, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
-    static suboff(unit: any, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
+    static subon(unit: Unit, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
 
-interface xnewtype$1 {
-    (...args: any[]): Unit;
-    [key: string]: any;
-}
 declare namespace xnew$1 {
     type Unit = InstanceType<typeof Unit>;
 }
-declare const xnew$1: xnewtype$1;
+declare const xnew$1: any;
 
 declare function UserEvent(self: xnew$1.Unit): void;
 
@@ -288,13 +283,16 @@ declare const basics: {
 declare const audio: {
     synthesizer: typeof synthesizer;
 };
-interface xnewtype extends xnewtype$1 {
+interface xnew_interface {
+    (...args: any[]): Unit;
+    [key: string]: any;
     basics: typeof basics;
     audio: typeof audio;
 }
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
-declare const xnew: xnewtype;
+declare const xnew: xnew_interface;
 
 export { xnew as default };
+export type { xnew_interface };

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (unit) => {
+      const screen = xnew(xnew.basics.Screen, { width: 512, height: 512 });
+      xnew(screen.element, Content);
+
+      const button = xnew('<button class="absolute top-0 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-300">', 'reset');
+      button.on('pointerdown', () => {
+        const canvas = screen.element;
+        const context = canvas.getContext('2d');
+        context.fillStyle = "rgb(0,0,0)";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      });
+    });
+
+    function Content(unit) {
+      const canvas = unit.element;
+      const context = canvas.getContext('2d');
+      context.fillStyle = "rgb(0,0,0)";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const user = xnew(xnew.basics.UserEvent);
+
+      user.on('-dragstart -dragmove', ({ position, delta }) => {
+        const scaleX = canvas.width / canvas.clientWidth;
+        const scaleY = canvas.height / canvas.clientHeight;
+
+        context.beginPath();
+        context.fillStyle = 'white';
+        if (delta) {
+          const length = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
+          for (let i = 0; i < length; i++) {
+            context.arc((position.x - delta.x * i / length) * scaleX, (position.y - delta.y * i / length) * scaleY, 1, 0, Math.PI * 2, true);
+          }
+        } else {
+          context.arc(position.x * scaleX, position.y * scaleY, 1, 0, Math.PI * 2, true);
+        }
+        context.fill();
+      });
+    }
+
+  </script>
+</body>
+
+</html>

@@ -5,272 +5,221 @@ export namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-export interface xnewtype {
-    (...args: any[]): Unit;
-    // nest(html: string): UnitElement;
-    [key: string]: any;
+export const xnew: any = function(...args: any[]): Unit {
+    let target;
+    if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+        target = args.shift(); // an existing html element
+    } else if (typeof args[0] === 'string') {
+        const str = args.shift(); // a selector for an existing html element
+        if (str.match(/<([^>]*)\/?>/)) {
+            target = str;
+        } else {
+            target = document.querySelector(str); 
+            if (target == null) {
+                throw new Error(`'${str}' can not be found.`);
+            }
+        }
+    } else {
+        target = null;
+    }
+    return new Unit(Unit.current, target, ...args);
 }
 
-export const xnew: xnewtype = (() => {
-    const fn = function (...args: any[]): Unit {
-        let target;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        } else if (typeof args[0] === 'string') {
-            const str = args.shift(); // a selector for an existing html element
-            if (str.match(/<([^>]*)\/?>/)) {
-                target = str;
-            } else {
-                target = document.querySelector(str); 
-                if (target == null) {
-                    throw new Error(`'${str}' can not be found.`);
-                }
-            }
+xnew.nest = (tag: string): UnitElement => {
+    if (Unit.current?._.state === 'invoked') {
+        return Unit.nest(Unit.current, tag);
+    } else {
+        throw new Error('This function can not be called after initialized.');
+    }
+}
+
+xnew.extend = (component: Function, props?: Object): any => {
+    if (Unit.current?._.state === 'invoked') {
+        return Unit.extend(Unit.current, component, props);
+    } else {
+        throw new Error('This function can not be called after initialized.');
+    }
+}
+
+xnew.context = (key: string, value: any = undefined): any => {
+    try {
+        if (value !== undefined) {
+            Unit.stack(Unit.current, key, value);
         } else {
-            target = null;
+            return Unit.trace(Unit.current, key);
         }
-
-        const unit = new Unit(target, ...args);
-        return unit;
+    } catch (error: unknown) {
+        console.error('xnew.context(key, value?): ', error);
     }
-
-    fn.nest = (tag: string): UnitElement => {
-        const current = Unit.current;
-        if (current?._.state === 'invoked') {
-            const element = Unit.nest(current, current._.currentElement, 'beforeend' as InsertPosition, tag);
-            if (element instanceof HTMLElement || element instanceof SVGElement) {
-                return element;
-            } else {
-                throw new Error('');
-            }
-        } else {
-            throw new Error('This function can not be called after initialized.');
-        }
+}
+    
+xnew.promise = (promise: Promise<any>): UnitPromise => {
+    try {
+        Unit.current._.promises.push(promise);
+        return new UnitPromise(promise);
+    } catch (error: unknown) {
+        console.error('xnew.promise(mix): ', error);
+        throw error;
     }
+}
 
-    fn.extend = (component: Function, props?: Object): any => {
-        const current = Unit.current;
-        if (current?._.state === 'invoked') {
-            return Unit.extend(current, component, props);
-        } else {
-            throw new Error('This function can not be called after initialized.');
-        }
+xnew.then = (callback: Function): UnitPromise => {
+    try {
+        return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
+    } catch (error: unknown) {
+        console.error('xnew.then(mix): ', error);
+        throw error;
     }
+}
 
-    fn.context = (key: string, value: any = undefined): any => {
-        try {
-            const unit = Unit.current;
-            if (typeof key !== 'string') {
-                throw new Error('The argument [key] is invalid.');
-            } else if (unit !== null) {
-                if (value !== undefined) {
-                    Unit.stack(unit, key, value);
-                } else {
-                    return Unit.trace(unit, key);
-                }
-            } else {
-                return undefined;
-            }
-        } catch (error: unknown) {
-            console.error('xnew.context(key, value?): ', error);
-        }
+xnew.catch = (callback: Function): UnitPromise => {
+    try {
+        return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
+    } catch (error: unknown) {
+        console.error('xnew.catch(mix): ', error);
+        throw error;
     }
-        
-    fn.promise = (promise: Promise<any>): UnitPromise => {
-        try {
-            if (Unit.current !== null) {
-                Unit.current._.promises.push(promise);
-                return new UnitPromise(promise);
-            } else {
-                throw new Error('No current unit.');
-            }
-        } catch (error: unknown) {
-            console.error('xnew.promise(mix): ', error);
-            throw error;
-        }
+}
+
+xnew.finally = (callback: Function): UnitPromise => {
+    try {
+        return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
+    } catch (error: unknown) {
+        console.error('xnew.finally(mix): ', error);
+        throw error;
     }
+}   
 
-    fn.then = (callback: Function): UnitPromise => {
-        try {
-            if (Unit.current !== null) {
-                return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
-            } else {
-                throw new Error('No current unit.');
-            }
-        } catch (error: unknown) {
-            console.error('xnew.then(mix): ', error);
-            throw error;
-        }
+xnew.fetch = (url: string, options?: object): UnitPromise => {
+    try {
+        const promise = fetch(url, options);
+        Unit.current._.promises.push(promise);
+        return new UnitPromise(promise);
+    } catch (error: unknown) {
+        console.error('xnew.promise(mix): ', error);
+        throw error;
     }
+}
 
-    fn.catch = (callback: Function): UnitPromise => {
-        try {
-            if (Unit.current !== null) {
-                return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
-            } else {
-                throw new Error('No current unit.');
-            }
-        } catch (error: unknown) {
-            console.error('xnew.catch(mix): ', error);
-            throw error;
-        }
+xnew.scope = (callback: any): any => {
+    const snapshot = Unit.snapshot(Unit.current);
+    return (...args: any[]) => Unit.scope(snapshot, callback, ...args);
+}
+
+xnew.find = (component: Function): Unit[] => {
+    if (typeof component === 'function') {
+        return Unit.find(component);
+    } else {
+        throw new Error(`The argument [component] is invalid.`);
     }
+}
 
-    fn.finally = (callback: Function): UnitPromise => {
-        try {
-            if (Unit.current !== null) {
-                return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
-            } else {
-                throw new Error('No current unit.');
-            }
-        } catch (error: unknown) {
-            console.error('xnew.finally(mix): ', error);
-            throw error;
+xnew.append = (base: Function | Unit, ...args: any[]): void => {
+    if (typeof base === 'function') {
+        for (let unit of Unit.find(base)) {
+            Unit.scope(Unit.snapshot(unit), xnew, ...args);
         }
-    }   
-
-    fn.fetch = (url: string, options?: object): UnitPromise => {
-        try {
-            const promise = fetch(url, options);
-            if (Unit.current !== null) {
-                Unit.current._.promises.push(promise);
-                return new UnitPromise(promise);
-            } else {
-                throw new Error('No current unit.');
-            }
-        } catch (error: unknown) {
-            console.error('xnew.promise(mix): ', error);
-            throw error;
-        }
+    } else if (base instanceof Unit) {
+        Unit.scope(Unit.snapshot(base), xnew, ...args);
+    } else {
+        throw new Error(`The argument [component] is invalid.`);
     }
+}
 
-    fn.scope = (callback: any): any => {
-        if (Unit.current !== null) {
-            const snapshot = Unit.snapshot(Unit.current);
-            return (...args: any[]) => Unit.scope(snapshot, callback, ...args);
-        }
-    }
-
-    fn.find = (component: Function): Unit[] => {
-        if (typeof component === 'function') {
-            return Unit.find(component);
-        } else {
-            throw new Error(`The argument [component] is invalid.`);
-        }
-    }
-
-    fn.append = (base: Function | Unit, ...args: any[]): void => {
-        if (typeof base === 'function') {
-            for (let unit of Unit.find(base)) {
-                Unit.scope(Unit.snapshot(unit), xnew, ...args);
-            }
-        } else if (base instanceof Unit) {
-            Unit.scope(Unit.snapshot(base), xnew, ...args);
-        } else {
-            throw new Error(`The argument [component] is invalid.`);
-        }
-    }
-
-    fn.timeout = (callback: Function, delay: number): any => {
-        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
-        const unit = xnew((self: Unit) => {
-            const timer = new Timer(() => {
-                Unit.scope(snapshot, callback);
-                self.finalize();
-            }, null, delay);
-            self.on('finalize', () => {
-                timer.clear();
-            });
+xnew.timeout = (callback: Function, delay: number): any => {
+    const snapshot = Unit.snapshot(Unit.current);
+    const unit = xnew((self: Unit) => {
+        const timer = new Timer(() => {
+            Unit.scope(snapshot, callback);
+            self.finalize();
+        }, null, delay);
+        self.on('finalize', () => {
+            timer.clear();
         });
-        return { clear: () => unit.finalize() };
-    }
+    });
+    return { clear: () => unit.finalize() };
+}
 
-    fn.interval = (callback: Function, delay: number): any => {
-        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
-        const unit = xnew((self: Unit) => {
-            const timer = new Timer(() => {
-                Unit.scope(snapshot, callback);
-            }, null, delay, true);
-            self.on('finalize', () => {
-                timer.clear();
-            });
+xnew.interval = (callback: Function, delay: number): any => {
+    const snapshot = Unit.snapshot(Unit.current);
+    const unit = xnew((self: Unit) => {
+        const timer = new Timer(() => {
+            Unit.scope(snapshot, callback);
+        }, null, delay, true);
+        self.on('finalize', () => {
+            timer.clear();
         });
-        return { clear: () => unit.finalize() };
-    }
+    });
+    return { clear: () => unit.finalize() };
+}
 
-    fn.transition = (callback: Function, interval: number, easing: string = 'linear'): any => {
-        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
+xnew.transition = (callback: Function, interval: number, easing: string = 'linear'): any => {
+    const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
 
-        let stacks: any = [];
-        let unit = xnew(Local, { callback, interval, easing });
-        let isRunning = true;
+    let stacks: any = [];
+    let unit = xnew(Local, { callback, interval, easing });
+    let isRunning = true;
 
-        function Local(self: Unit, { callback, interval, easing }: { callback: Function, interval: number, easing: string }) {
-            const timer = new Timer(() => {
-                Unit.scope(snapshot, callback, 1.0);
-                self.finalize();
-            }, (progress: number) => {
-                if (progress < 1.0) {
-                    if (easing === 'ease-out') {
-                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
-                    } else if (easing === 'ease-in') {
-                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
-                    } else if (easing === 'ease') {
-                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
-                    } else if (easing === 'ease-in-out') {
-                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
-                    }
-                    Unit.scope(snapshot, callback, progress);
+    function Local(self: Unit, { callback, interval, easing }: { callback: Function, interval: number, easing: string }) {
+        const timer = new Timer(() => {
+            Unit.scope(snapshot, callback, 1.0);
+            self.finalize();
+        }, (progress: number) => {
+            if (progress < 1.0) {
+                if (easing === 'ease-out') {
+                    progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
+                } else if (easing === 'ease-in') {
+                    progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
+                } else if (easing === 'ease') {
+                    progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                } else if (easing === 'ease-in-out') {
+                    progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
                 }
-            }, interval);
-            self.on('finalize', () => {
-                timer.clear();
-                isRunning = false;
-                execute();
-            });
-        }
-        
-        let timer: any = null;
-
-        function execute() {
-            if (isRunning === false && stacks.length > 0) {
-                const props: any = stacks.shift();
-                unit = xnew(Local, props);
-                isRunning = true;
+                Unit.scope(snapshot, callback, progress);
             }
-        }
-
-        function clear() {
-            stacks = [];
-            unit.finalize();
-        }
-
-        function next(callback: Function, interval: number, easing: string = 'linear'): any {
-            stacks.push({ callback, interval, easing });
+        }, interval);
+        self.on('finalize', () => {
+            timer.clear();
+            isRunning = false;
             execute();
-            return timer;
+        });
+    }
+    
+    let timer: any = null;
+
+    function execute() {
+        if (isRunning === false && stacks.length > 0) {
+            const props: any = stacks.shift();
+            unit = xnew(Local, props);
+            isRunning = true;
         }
-        timer = { clear, next };
+    }
+
+    function clear() {
+        stacks = [];
+        unit.finalize();
+    }
+
+    function next(callback: Function, interval: number, easing: string = 'linear'): any {
+        stacks.push({ callback, interval, easing });
+        execute();
         return timer;
     }
+    timer = { clear, next };
+    return timer;
+}
 
-    fn.listener = function (target: UnitElement | Window | Document) {
-        return {
-            on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-                Unit.subon(Unit.current, target, type, listener, options);
-            },
-            off(type?: string, listener?: Function) {
-                Unit.suboff(Unit.current, target, type, listener);
-            }
+xnew.listener = function (target: UnitElement | Window | Document) {
+    return {
+        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
+            Unit.subon(Unit.current, target, type, listener, options);
+        },
+        off(type?: string, listener?: Function) {
+            Unit.suboff(Unit.current, target, type, listener);
         }
     }
+}
 
-    fn.capture = function (checker: (unit: xnew.Unit) => boolean, execute: (unit: xnew.Unit) => void) {
-        const current = Unit.current as xnew.Unit;
-        const snapshot = Unit.snapshot(Unit.current as xnew.Unit);
-        current._.captures.push({ checker, execute: (unit: xnew.Unit) => Unit.scope(snapshot, execute, unit) });
-    }
-
-    return fn;
-})();
-
+xnew.capture = function (checker: (unit: xnew.Unit) => boolean, execute: (unit: xnew.Unit) => void) {
+    Unit.current._.captures.push({ checker, execute: Unit.wrap(Unit.current, (unit: xnew.Unit) => execute(unit)) });
+}
