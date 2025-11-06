@@ -16,10 +16,10 @@
     });
 
     function MyModal(frame) {
-      xnew.extend(xnew.basics.ModalFrame);
+      xnew.extend(xnew.basics.ModalFrame, { duration: 300, easing: 'ease' });
 
       xnew((content) => {
-        xnew.extend(xnew.basics.ModalContent, { duration: 300, easing: 'ease' });
+        xnew.extend(xnew.basics.ModalContent);
         xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
 
         // Title Bar
@@ -39,9 +39,6 @@
         });
       });
    
-      frame.on('-close', () => {
-        console.log('-close');
-      })
     }
   </script>
 </body>

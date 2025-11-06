@@ -1,47 +1,42 @@
 import { xnew } from '../core/xnew';
 
 export function ModalFrame(frame: xnew.Unit, 
-    {}: {} = {}
+    { duration = 200, easing = 'ease' }: { duration?: number, easing?: string } = {}
 ) {
-    xnew.context('xnew.modalframe', frame);
+    const internal = xnew((internal: xnew.Unit) => {
+        return {};
+    });
+    xnew.context('xnew.modalframe', internal);
     xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
 
-    let content: xnew.Unit | null = null;
-    xnew.capture((unit: xnew.Unit) => unit.components.includes(ModalContent), (unit: xnew.Unit) => {
-        content = unit;
-    });
-
-    xnew().on('click', (event: Event) => frame?.close());
+    xnew().on('click', (event: Event) => frame.close());
+    xnew.transition((x: number) => internal.emit('-transition', { rate: x }), duration, easing);
 
     return {
         close() {
-            frame.emit('-close');
+            xnew.transition((x: number) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing)
+            .next(() => frame.finalize());
         }
     }
 }
 
 export function ModalContent(content: xnew.Unit,
-    { duration = 200, easing = 'ease', background = 'rgba(0, 0, 0, 0.1)' }: { duration?: number, easing?: string, background?: string } = {}
+    { background = 'rgba(0, 0, 0, 0.1)' }: { background?: string } = {}
 ) {
-    const frame = xnew.context('xnew.modalframe');
-
-    const div = xnew.nest('<div style="width: 100%; height: 100%; opacity: 0;">');
-    div.style.background = background;
-
+    const internal = xnew.context('xnew.modalframe');
+    xnew.nest(`<div style="width: 100%; height: 100%; opacity: 0; background: ${background}">`);
     xnew.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
 
     xnew().on('click', (event: Event) => event.stopPropagation());
 
-    xnew.timeout(() => frame.emit('-open'));
+    internal.on('-transition', ({ rate }: { rate: number }) => {
+        content.transition({ element: content.element, rate });
+    });
 
-    frame.on('-open', () => {
-        xnew.transition((x: number) => {
-            div.style.opacity = x.toString();
-        }, duration, easing);
-    });
-    frame.on('-close', () => {
-        xnew.transition((x: number) => {
-            div.style.opacity = (1.0 - x).toString();
-        }, duration, easing).next(() => frame.finalize());
-    });
+    return {
+        transition({ element, rate }: { element: HTMLElement, rate: number }) {
+            const wrapper = element.parentElement as HTMLElement;
+            wrapper.style.opacity = rate.toString();
+        }
+    }
 }

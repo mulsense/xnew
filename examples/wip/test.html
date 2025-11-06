@@ -92,7 +92,9 @@
       // Create hamburger lines
       const lines = [];
       for (let i = 0; i < 3; i++) {
-        const line = xnew(hamburger, '<div>');
+        const line = xnew(hamburger.element, (self) => {
+          xnew.nest('<div>');
+        });
         const lineStyles = {
           background: 'white',
           borderRadius: '2px',
@@ -108,7 +110,10 @@
 
       // Create menu items
       menuItemsData.forEach(item => {
-        const menuItem = xnew(menu, '<div>', item);
+        const menuItem = xnew(menu.element, (self) => {
+          xnew.nest('<div>');
+          self.element.textContent = item;
+        });
         const itemStyles = {
           cursor: 'pointer',
           transition: 'all 0.2s ease'

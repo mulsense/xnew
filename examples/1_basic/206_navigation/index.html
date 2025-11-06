@@ -70,40 +70,17 @@
 
       }
 
-      return;
-      // // Toggle function
-      // function toggle() {
-      //     isActive = !isActive;
-
-      //     if (isActive) {
-      //         // Transform to X
-      //         lines[0].element.style.transform = 'translateY(9px) rotate(45deg)';
-      //         lines[1].element.style.opacity = '0';
-      //         lines[1].element.style.transform = 'translateX(-20px)';
-      //         lines[2].element.style.transform = 'translateY(-9px) rotate(-45deg)';
-      //         hamburger.element.style.background = '#667eea';
-      //         console.log('Hamburger menu opened');
-      //     } else {
-      //         // Transform back to hamburger
-      //         lines[0].element.style.transform = '';
-      //         lines[1].element.style.opacity = '1';
-      //         lines[1].element.style.transform = '';
-      //         lines[2].element.style.transform = '';
-      //         hamburger.element.style.background = '#333';
-      //         console.log('Hamburger menu closed');
-      //     }
-      // }
 
       // Hover effect
-      hamburger.on('mouseenter', () => {
+      xnew.listener(hamburger).on('mouseenter', () => {
           if (!isActive) {
-              hamburger.element.style.background = '#555';
+              hamburger.style.background = '#555';
           }
       });
 
-      hamburger.on('mouseleave', () => {
+      xnew.listener(hamburger).on('mouseleave', () => {
           if (!isActive) {
-              hamburger.element.style.background = '#333';
+              hamburger.style.background = '#333';
           }
       });
 

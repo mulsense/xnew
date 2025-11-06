@@ -19,9 +19,9 @@
         xnew(TabButton, { name: 'Tab 2' });
         xnew(TabButton, { name: 'Tab 3' });
       });
-      xnew(Content1);
-      xnew(Content2);
-      xnew(Content3);
+      xnew(TabContent1);
+      xnew(TabContent2);
+      xnew(TabContent3);
     });
 
     function TabButton(unit, { name }) {
@@ -29,19 +29,19 @@
       xnew('<div class="m-2">', name);
     }
 
-    function Content1(unit) {
+    function TabContent1(unit) {
       xnew.extend(xnew.basics.TabContent);
       xnew.nest('<div class="p-2 border rounded-lg bg-red-100">');
       xnew('<p>', 'content 1');
     }
  
-    function Content2(unit) {
+    function TabContent2(unit) {
       xnew.extend(xnew.basics.TabContent);
       xnew.nest('<div class="p-2 border rounded-lg bg-green-100">');
       xnew('<p>', 'content 2');
     }
 
-    function Content3(unit) {
+    function TabContent3(unit) {
       xnew.extend(xnew.basics.TabContent);
       xnew.nest('<div class="p-2 border rounded-lg bg-blue-100">');
       xnew('<p>', 'content 3');

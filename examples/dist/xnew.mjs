@@ -986,7 +986,9 @@ function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
 
 function InputFrame(frame, {} = {}) {
     xnew$1.nest('<div>');
-    xnew$1.capture((unit) => unit.element.tagName.toLowerCase() === 'input', (unit) => {
+    xnew$1.capture((unit) => {
+        return unit.element.tagName.toLowerCase() === 'input';
+    }, (unit) => {
         const element = unit.element;
         xnew$1.listener(element).on('input', (event) => {
             frame.emit('-input', { event });
@@ -1000,177 +1002,171 @@ function InputFrame(frame, {} = {}) {
     });
 }
 
-function ModalFrame(frame, {} = {}) {
-    xnew$1.context('xnew.modalframe', frame);
-    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-    xnew$1.capture((unit) => unit.components.includes(ModalContent), (unit) => {
+function ModalFrame(frame, { duration = 200, easing = 'ease' } = {}) {
+    const internal = xnew$1((internal) => {
+        return {};
     });
-    xnew$1().on('click', (event) => frame === null || frame === void 0 ? void 0 : frame.close());
+    xnew$1.context('xnew.modalframe', internal);
+    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
+    xnew$1().on('click', (event) => frame.close());
+    xnew$1.transition((x) => internal.emit('-transition', { rate: x }), duration, easing);
     return {
         close() {
-            frame.emit('-close');
+            xnew$1.transition((x) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing)
+                .next(() => frame.finalize());
         }
     };
 }
-function ModalContent(content, { duration = 200, easing = 'ease', background = 'rgba(0, 0, 0, 0.1)' } = {}) {
-    const frame = xnew$1.context('xnew.modalframe');
-    const div = xnew$1.nest('<div style="width: 100%; height: 100%; opacity: 0;">');
-    div.style.background = background;
+function ModalContent(content, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+    const internal = xnew$1.context('xnew.modalframe');
+    xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0; background: ${background}">`);
     xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
     xnew$1().on('click', (event) => event.stopPropagation());
-    xnew$1.timeout(() => frame.emit('-open'));
-    frame.on('-open', () => {
-        xnew$1.transition((x) => {
-            div.style.opacity = x.toString();
-        }, duration, easing);
+    internal.on('-transition', ({ rate }) => {
+        content.transition({ element: content.element, rate });
     });
-    frame.on('-close', () => {
-        xnew$1.transition((x) => {
-            div.style.opacity = (1.0 - x).toString();
-        }, duration, easing).next(() => frame.finalize());
-    });
-}
-
-function TabFrame(frame, { select = 0 } = {}) {
-    xnew$1.context('xnew.tabframe', frame);
-    const buttons = [];
-    const contents = [];
-    xnew$1.capture((unit) => unit.components.includes(TabButton), (unit) => {
-        buttons.push(unit);
-    });
-    xnew$1.capture((unit) => unit.components.includes(TabContent), (unit) => {
-        contents.push(unit);
-    });
-    frame.on('-click', ({ unit }) => execute(buttons.indexOf(unit)));
-    const timeout = xnew$1.timeout(() => execute(select));
-    function execute(index) {
-        timeout.clear();
-        const button = buttons[index];
-        const content = contents[index];
-        buttons.filter((item) => item !== button).forEach((item) => item.deselect());
-        contents.filter((item) => item !== content).forEach((item) => item.deselect());
-        button.select();
-        content.select();
-    }
-}
-function TabButton(button, {} = {}) {
-    const frame = xnew$1.context('xnew.tabframe');
-    xnew$1.nest('<div>');
-    button.on('click', () => frame.emit('-click', { unit: button }));
     return {
-        select() {
-            Object.assign(button.element.style, { opacity: 1.0, cursor: 'text' });
-        },
-        deselect() {
-            Object.assign(button.element.style, { opacity: 0.6, cursor: 'pointer' });
-        }
-    };
-}
-function TabContent(self, {} = {}) {
-    xnew$1.context('xnew.tabframe');
-    xnew$1.nest('<div>');
-    return {
-        select() {
-            Object.assign(self.element.style, { display: 'block' });
-        },
-        deselect() {
-            Object.assign(self.element.style, { display: 'none' });
+        transition({ element, rate }) {
+            const wrapper = element.parentElement;
+            wrapper.style.opacity = rate.toString();
         }
     };
 }
 
-function AccordionFrame(frame, {} = {}) {
-    xnew$1.context('xnew.accordionframe', frame);
-    let content = null;
-    xnew$1.capture((unit) => unit.components.includes(AccordionContent), (unit) => {
-        content = unit;
+function TabFrame(frame, { key } = {}) {
+    const internal = xnew$1((internal) => {
+        const buttons = new Map();
+        const contents = new Map();
+        return { frame, buttons, contents };
     });
+    xnew$1.context('xnew.tabframe', internal);
+    xnew$1.timeout(() => internal.emit('-select', { key: key !== null && key !== void 0 ? key : [...internal.buttons.keys()][0] }));
+}
+function TabButton(button, { key } = {}) {
+    const internal = xnew$1.context('xnew.tabframe');
+    const div = xnew$1.nest('<div>');
+    key = key !== null && key !== void 0 ? key : (internal.buttons.size).toString();
+    internal.buttons.set(key, button);
+    button.on('click', () => {
+        internal.emit('-select', { key });
+    });
+    internal.on('-select', ({ key }) => {
+        const select = internal.buttons.get(key);
+        if (select === button) {
+            button.select({ element: div });
+        }
+        else {
+            button.deselect({ element: div });
+        }
+    });
+    return {
+        select({ element }) {
+            Object.assign(element.style, { opacity: 1.0, cursor: 'text' });
+        },
+        deselect({ element }) {
+            Object.assign(element.style, { opacity: 0.6, cursor: 'pointer' });
+        }
+    };
+}
+function TabContent(content, { key } = {}) {
+    const internal = xnew$1.context('xnew.tabframe');
+    const div = xnew$1.nest('<div style="display: none;">');
+    key = key !== null && key !== void 0 ? key : (internal.contents.size).toString();
+    internal.contents.set(key, content);
+    internal.on('-select', ({ key }) => {
+        const select = internal.contents.get(key);
+        if (select === content) {
+            content.select({ element: div });
+        }
+        else {
+            content.deselect({ element: div });
+        }
+    });
+    return {
+        select({ element }) {
+            Object.assign(element.style, { display: 'block' });
+        },
+        deselect({ element }) {
+            Object.assign(element.style, { display: 'none' });
+        }
+    };
+}
+
+function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {
+    const internal = xnew$1((internal) => {
+        return { frame, open, rate: 0.0, };
+    });
+    xnew$1.context('xnew.accordionframe', internal);
+    internal.on('-transition', ({ rate }) => internal.rate = rate);
+    internal.emit('-transition', { rate: open ? 1.0 : 0.0 });
     return {
         toggle() {
-            if ((content === null || content === void 0 ? void 0 : content.status) === 1.0) {
-                frame.emit('-close');
+            if (internal.rate === 1.0) {
+                frame.close();
             }
-            else if ((content === null || content === void 0 ? void 0 : content.status) === 0.0) {
-                frame.emit('-open');
+            else if (internal.rate === 0.0) {
+                frame.open();
             }
         },
         open() {
-            if ((content === null || content === void 0 ? void 0 : content.status) === 0.0) {
-                frame.emit('-open');
+            if (internal.rate === 0.0) {
+                xnew$1.transition((x) => internal.emit('-transition', { rate: x }), duration, easing);
             }
         },
         close() {
-            if ((content === null || content === void 0 ? void 0 : content.status) === 1.0) {
-                frame.emit('-close');
+            if (internal.rate === 1.0) {
+                xnew$1.transition((x) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing);
             }
         }
     };
 }
 function AccordionHeader(header, {} = {}) {
-    const frame = xnew$1.context('xnew.accordionframe');
+    const internal = xnew$1.context('xnew.accordionframe');
     xnew$1.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
-    header.on('click', () => frame.toggle());
+    header.on('click', () => internal.frame.toggle());
 }
 function AccordionBullet(bullet, { type = 'arrow' } = {}) {
-    const frame = xnew$1.context('xnew.accordionframe');
-    xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.5em; margin: 0 0.3em;">');
-    frame.on('-transition', ({ status }) => { var _a; return (_a = bullet.transition) === null || _a === void 0 ? void 0 : _a.call(bullet, status); });
+    const internal = xnew$1.context('xnew.accordionframe');
+    xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
     if (type === 'arrow') {
-        const arrow = xnew$1(`<div style="width: 100%; height: 0.5em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
-        return {
-            transition(status) {
-                arrow.element.style.transform = `rotate(${status * 90 - 45}deg)`;
-            }
-        };
+        const arrow = xnew$1(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+        arrow.element.style.transform = `rotate(${internal.rate * 90 - 45}deg)`;
+        internal.on('-transition', ({ rate }) => {
+            arrow.element.style.transform = `rotate(${rate * 90 - 45}deg)`;
+        });
     }
     else if (type === 'plusminus') {
-        xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
-        const line2 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center center;">`);
+        const line1 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+        const line2 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
         line2.element.style.transform = `rotate(90deg)`;
-        return {
-            transition(status) {
-                line2.element.style.opacity = `${1.0 - status}`;
-            }
-        };
+        line2.element.style.opacity = `${1.0 - internal.rate}`;
+        internal.on('-transition', ({ rate }) => {
+            line1.element.style.transform = `rotate(${90 + rate * 90}deg)`;
+            line2.element.style.transform = `rotate(${rate * 180}deg)`;
+        });
     }
 }
-function AccordionContent(content, { open = false, duration = 200, easing = 'ease' } = {}) {
-    const frame = xnew$1.context('xnew.accordionframe');
-    const outer = xnew$1.nest('<div>');
-    const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-    let status = open ? 1.0 : 0.0;
-    outer.style.display = status ? 'block' : 'none';
-    frame.emit('-transition', { status });
-    frame.on('-open', () => {
-        xnew$1.transition((x) => {
-            status = x;
-            frame.emit('-transition', { status });
-            content.transition(status);
-        }, duration, easing);
-    });
-    frame.on('-close', () => {
-        xnew$1.transition((x) => {
-            status = 1.0 - x;
-            frame.emit('-transition', { status });
-            content.transition(status);
-        }, duration, easing);
+function AccordionContent(content, {} = {}) {
+    const internal = xnew$1.context('xnew.accordionframe');
+    xnew$1.nest(`<div style="display: ${internal.open ? 'block' : 'none'};">`);
+    xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
+    internal.on('-transition', ({ rate }) => {
+        content.transition({ element: content.element, rate });
     });
     return {
-        get status() {
-            return status;
-        },
-        transition(status) {
-            outer.style.display = 'block';
-            if (status === 0.0) {
-                outer.style.display = 'none';
+        transition({ element, rate }) {
+            const wrapper = element.parentElement;
+            wrapper.style.display = 'block';
+            if (rate === 0.0) {
+                wrapper.style.display = 'none';
             }
-            else if (status < 1.0) {
-                Object.assign(outer.style, { height: inner.offsetHeight * status + 'px', overflow: 'hidden', opacity: status });
+            else if (rate < 1.0) {
+                Object.assign(wrapper.style, { height: element.offsetHeight * rate + 'px', overflow: 'hidden', opacity: rate });
             }
             else {
-                Object.assign(outer.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
+                Object.assign(wrapper.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
             }
-        },
+        }
     };
 }
 

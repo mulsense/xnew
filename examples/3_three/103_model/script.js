@@ -198,12 +198,12 @@ function Panel(frame) {
   });
 }
 function PanelGroup(group, { name, open = false }) {
-  xnew.extend(xnew.basics.AccordionFrame);
+  xnew.extend(xnew.basics.AccordionFrame, { open });
   xnew((header) => {
       xnew.nest('<div style="margin: 0.2em 0;">');
       xnew.extend(xnew.basics.AccordionHeader);
       xnew(xnew.basics.AccordionBullet);
       xnew('<div>', name);
   });
-  xnew.extend(xnew.basics.AccordionContent, { open });
+  xnew.extend(xnew.basics.AccordionContent);
 }

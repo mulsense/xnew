@@ -16,7 +16,7 @@
     });
 
     function MyAccordion(frame) {
-      xnew.extend(xnew.basics.AccordionFrame);
+      xnew.extend(xnew.basics.AccordionFrame, { open: true, duration: 300, easing: 'ease' });
       xnew.nest('<div class="w-64 border rounded-lg">');
 
       xnew((header) => {
@@ -26,7 +26,7 @@
       });
 
       xnew((content) => {
-        xnew.extend(xnew.basics.AccordionContent, { open: true, duration: 300, easing: 'ease' });
+        xnew.extend(xnew.basics.AccordionContent);
         xnew.nest('<div class="p-2 border-t">');
         xnew('<span>', 'Content');
         xnew('<ul>', () => {
@@ -36,12 +36,6 @@
         });
       });
 
-      frame.on('-open', () => {
-        console.log('-open');
-      })
-      frame.on('-close', () => {
-        console.log('-close');
-      })
     }
   </script>
 </body>

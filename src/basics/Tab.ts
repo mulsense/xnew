@@ -1,65 +1,73 @@
 import { xnew } from '../core/xnew';
 
 export function TabFrame(frame: xnew.Unit, 
-    { select = 0 } = {}
+    { key }: { key?: string } = {}
 ) {
-    xnew.context('xnew.tabframe', frame);
-
-    const buttons: xnew.Unit[] = [];
-    const contents: xnew.Unit[] = [];
-
-    xnew.capture((unit: xnew.Unit) => unit.components.includes(TabButton), (unit: xnew.Unit) => {
-        buttons.push(unit);
+    const internal = xnew((internal: xnew.Unit) => {
+        const buttons = new Map<string, xnew.Unit>();
+        const contents = new Map<string, xnew.Unit>();
+        return { frame, buttons, contents };
     });
-    xnew.capture((unit: xnew.Unit) => unit.components.includes(TabContent), (unit: xnew.Unit) => {
-        contents.push(unit);
-    });
-    frame.on('-click', ({ unit } : { unit: xnew.Unit }) => execute(buttons.indexOf(unit)));
+    xnew.context('xnew.tabframe', internal);
 
-    const timeout = xnew.timeout(() => execute(select));
-
-    function execute(index: number) {
-        timeout.clear();
-        const button = buttons[index];
-        const content = contents[index];
-        buttons.filter((item: xnew.Unit) => item !== button).forEach((item: xnew.Unit) => item.deselect());
-        contents.filter((item: xnew.Unit) => item !== content).forEach((item: xnew.Unit) => item.deselect());
-        button.select();
-        content.select();
-    }
+    xnew.timeout(() => internal.emit('-select', { key: key ?? [...internal.buttons.keys()][0] }));
 }
 
 export function TabButton(button: xnew.Unit, 
-    {}: {} = {}
+    { key }: { key?: string } = {}
 ) {
-    const frame = xnew.context('xnew.tabframe');
+    const internal = xnew.context('xnew.tabframe');
 
-    xnew.nest('<div>');
+    const div = xnew.nest('<div>');
 
-    button.on('click', () => frame.emit('-click', { unit: button }));
+    key = key ?? (internal.buttons.size).toString();
+    internal.buttons.set(key, button);
+
+    button.on('click', () => {
+        internal.emit('-select', { key });
+    });
+    internal.on('-select', ({ key } : { key: string }) => {
+        const select = internal.buttons.get(key);
+        if (select === button) {
+            button.select({ element: div });
+        } else {
+            button.deselect({ element: div });
+        }
+    });
     return {
-        select() {
-            Object.assign(button.element.style, { opacity: 1.0, cursor: 'text' });
+        select({ element }: { element: HTMLElement }) {
+            Object.assign(element.style, { opacity: 1.0, cursor: 'text' });
         },
-        deselect() {
-            Object.assign(button.element.style, { opacity: 0.6, cursor: 'pointer' });
+        deselect({ element }: { element: HTMLElement }) {
+            Object.assign(element.style, { opacity: 0.6, cursor: 'pointer' });
         }
     }
 }
 
-export function TabContent(self: xnew.Unit,
-    {}: {} = {}
+export function TabContent(content: xnew.Unit,
+    { key }: { key?: string } = {}
 ) {
-    const frame = xnew.context('xnew.tabframe');
+    const internal = xnew.context('xnew.tabframe');
 
-    xnew.nest('<div>');
+    const div = xnew.nest('<div style="display: none;">');
 
+    key = key ?? (internal.contents.size).toString();
+    internal.contents.set(key, content);
+
+    internal.on('-select', ({ key } : { key: string }) => {
+        const select = internal.contents.get(key);
+        if (select === content) {
+            content.select({ element: div });
+        } else {
+            content.deselect({ element: div });
+        }
+    });
     return {
-        select() {
-            Object.assign(self.element.style, { display: 'block' });
+        select({ element }: { element: HTMLElement }) {
+            Object.assign(element.style, { display: 'block' });
         },
-        deselect() {
-            Object.assign(self.element.style, { display: 'none' });
+        deselect({ element }: { element: HTMLElement }) {
+            Object.assign(element.style, { display: 'none' });
         }
     }
 }

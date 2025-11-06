@@ -117,28 +117,50 @@ declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
 
 declare function InputFrame(frame: xnew$1.Unit, {}?: {}): void;
 
-declare function ModalFrame(frame: xnew$1.Unit, {}?: {}): {
-    close(): void;
-};
-declare function ModalContent(content: xnew$1.Unit, { duration, easing, background }?: {
+declare function ModalFrame(frame: xnew$1.Unit, { duration, easing }?: {
     duration?: number;
     easing?: string;
+}): {
+    close(): void;
+};
+declare function ModalContent(content: xnew$1.Unit, { background }?: {
     background?: string;
-}): void;
-
-declare function TabFrame(frame: xnew$1.Unit, { select }?: {
-    select?: number | undefined;
-}): void;
-declare function TabButton(button: xnew$1.Unit, {}?: {}): {
-    select(): void;
-    deselect(): void;
-};
-declare function TabContent(self: xnew$1.Unit, {}?: {}): {
-    select(): void;
-    deselect(): void;
+}): {
+    transition({ element, rate }: {
+        element: HTMLElement;
+        rate: number;
+    }): void;
 };
 
-declare function AccordionFrame(frame: xnew$1.Unit, {}?: {}): {
+declare function TabFrame(frame: xnew$1.Unit, { key }?: {
+    key?: string;
+}): void;
+declare function TabButton(button: xnew$1.Unit, { key }?: {
+    key?: string;
+}): {
+    select({ element }: {
+        element: HTMLElement;
+    }): void;
+    deselect({ element }: {
+        element: HTMLElement;
+    }): void;
+};
+declare function TabContent(content: xnew$1.Unit, { key }?: {
+    key?: string;
+}): {
+    select({ element }: {
+        element: HTMLElement;
+    }): void;
+    deselect({ element }: {
+        element: HTMLElement;
+    }): void;
+};
+
+declare function AccordionFrame(frame: xnew$1.Unit, { open, duration, easing }?: {
+    open?: boolean;
+    duration?: number;
+    easing?: string;
+}): {
     toggle(): void;
     open(): void;
     close(): void;
@@ -146,16 +168,12 @@ declare function AccordionFrame(frame: xnew$1.Unit, {}?: {}): {
 declare function AccordionHeader(header: xnew$1.Unit, {}?: {}): void;
 declare function AccordionBullet(bullet: xnew$1.Unit, { type }?: {
     type?: string;
-}): {
-    transition(status: number): void;
-} | undefined;
-declare function AccordionContent(content: xnew$1.Unit, { open, duration, easing }?: {
-    open?: boolean;
-    duration?: number;
-    easing?: string;
-}): {
-    readonly status: number;
-    transition(status: number): void;
+}): void;
+declare function AccordionContent(content: xnew$1.Unit, {}?: {}): {
+    transition({ element, rate }: {
+        element: HTMLElement;
+        rate: number;
+    }): void;
 };
 
 declare function DragFrame(frame: xnew$1.Unit, { x, y }?: {
