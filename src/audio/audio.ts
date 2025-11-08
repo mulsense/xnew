@@ -3,7 +3,7 @@ const master: GainNode = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
 
-export class AudioNodeMap {
+export class AudioNodeClass {
     nodes: { [key: string]: AudioNode & { [key: string]: any } };
 
     constructor(params: { [key: string]: any[] }) {
@@ -45,9 +45,10 @@ export class AudioNodeMap {
     }
 }
 
+export type AudioNodeMap = { [key: string]: AudioNode & { [key: string]: any } };
 export function connect(params: { [key: string]: any[] }): AudioNodeMap {
-    
-    const nodes: { [key: string]: AudioNode & { [key: string]: any } } = {};
+
+    const nodes: AudioNodeMap = {};
     Object.keys(params).forEach((key) => {
         const [type, props, ...to] = params[key];
         nodes[key] = (context as any)[`create${type}`]();

@@ -61,7 +61,6 @@ class Synthesizer {
     amp: AmpOptions;
     bmp: number;
     reverb: ReverbOptions;
-    options: { bmp: number };
 
     static initialize() {
         window.addEventListener('touchstart', initialize, true);
@@ -91,7 +90,6 @@ class Synthesizer {
         this.amp.LFO = setLFO(this.amp.LFO as Partial<LFO>, 36);
 
         this.bmp = isNumber(bmp) ? clamp(bmp, 60, 240) : 120;
-        this.options = { bmp: this.bmp };
 
         this.reverb = isObject(reverb) ? reverb : {};
         this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
@@ -149,7 +147,7 @@ class Synthesizer {
     press(frequency: number | string, duration: number | string | null = null, wait: number = 0.0) {
         frequency = typeof frequency === 'string' ? Synthesizer.keymap[frequency] : frequency;
 
-        duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.options.bmp) : (duration !== null ? (duration / 1000) : duration);
+        duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.bmp) : (duration !== null ? (duration / 1000) : duration);
         const start = context!.currentTime + wait / 1000;
         let stop: number | null = null;
 

@@ -1260,67 +1260,87 @@ function TouchStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke
         return { x: Math.cos(a) * d, y: Math.sin(a) * d };
     }
 }
-function TouchDPad(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
-    strokeWidth /= (size / 100);
-    xnew$1.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
-    const polygons = [
-        '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
-        '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
-        '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65">',
-        '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65">'
-    ];
-    const targets = polygons.map((polygon) => {
-        return xnew$1((self) => {
-            xnew$1.extend(SVGTemplate, { fill, fillOpacity });
-            xnew$1(polygon);
+function DirectionalPad(self, { size = null, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+    let internal;
+    let newsize = size;
+    if (size === null) {
+        newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
+        xnew$1(self.element.parentElement, ResizeEvent).on('-resize', () => {
+            newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
+            internal === null || internal === void 0 ? void 0 : internal.reboot();
         });
-    });
-    xnew$1((self) => {
-        xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-        xnew$1('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
-        xnew$1('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
-        xnew$1('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
-        xnew$1('<polyline points="65 35 95 35 97 37 97 63 95 65 65 65">');
-        xnew$1('<polygon points="50 11 42 20 58 20">');
-        xnew$1('<polygon points="50 89 42 80 58 80">');
-        xnew$1('<polygon points="11 50 20 42 20 58">');
-        xnew$1('<polygon points="89 50 80 42 80 58">');
-    });
-    const user = xnew$1(UserEvent);
-    user.on('-dragstart', ({ event, position }) => {
-        const vector = getVector(position);
-        targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
-        targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
-        targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
-        targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-        self.emit('-down', { vector });
-    });
-    user.on('-dragmove', ({ event, position }) => {
-        const vector = getVector(position);
-        targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
-        targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
-        targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
-        targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-        self.emit('-move', { vector });
-    });
-    user.on('-dragend', ({ event }) => {
-        const vector = { x: 0, y: 0 };
-        targets[0].element.style.filter = '';
-        targets[1].element.style.filter = '';
-        targets[2].element.style.filter = '';
-        targets[3].element.style.filter = '';
-        self.emit('-up', { vector });
-    });
-    function getVector(position) {
-        const x = position.x - size / 2;
-        const y = position.y - size / 2;
-        const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
-        const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
-        vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
-        return vector;
     }
+    internal = xnew$1(() => {
+        xnew$1.nest(`<div style="position: relative; width: ${newsize}px; height: ${newsize}px; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
+        const polygons = [
+            '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
+            '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
+            '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65">',
+            '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65">'
+        ];
+        const targets = polygons.map((polygon) => {
+            return xnew$1((self) => {
+                xnew$1.extend(SVGTemplate, { fill, fillOpacity });
+                xnew$1(polygon);
+            });
+        });
+        xnew$1((self) => {
+            xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+            xnew$1('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
+            xnew$1('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
+            xnew$1('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
+            xnew$1('<polyline points="65 35 95 35 97 37 97 63 95 65 65 65">');
+            xnew$1('<polygon points="50 11 42 20 58 20">');
+            xnew$1('<polygon points="50 89 42 80 58 80">');
+            xnew$1('<polygon points="11 50 20 42 20 58">');
+            xnew$1('<polygon points="89 50 80 42 80 58">');
+        });
+        const user = xnew$1(UserEvent);
+        user.on('-dragstart', ({ event, position }) => {
+            const vector = getVector(position);
+            targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
+            targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
+            targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
+            targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
+            self.emit('-down', { vector });
+        });
+        user.on('-dragmove', ({ event, position }) => {
+            const vector = getVector(position);
+            targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
+            targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
+            targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
+            targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
+            self.emit('-move', { vector });
+        });
+        user.on('-dragend', ({ event }) => {
+            const vector = { x: 0, y: 0 };
+            targets[0].element.style.filter = '';
+            targets[1].element.style.filter = '';
+            targets[2].element.style.filter = '';
+            targets[3].element.style.filter = '';
+            self.emit('-up', { vector });
+        });
+        function getVector(position) {
+            const x = position.x - newsize / 2;
+            const y = position.y - newsize / 2;
+            const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
+            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+            const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
+            if (diagonal === true) {
+                vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
+                vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
+            }
+            else if (Math.abs(vector.x) > Math.abs(vector.y)) {
+                vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
+                vector.y = 0;
+            }
+            else {
+                vector.x = 0;
+                vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
+            }
+            return vector;
+        }
+    });
 }
 function TouchButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
     strokeWidth /= (size / 100);
@@ -1438,7 +1458,7 @@ class AudioFile {
             this.promise.then(() => this.play());
         }
     }
-    stop() {
+    pause() {
         if (this.startTime === null)
             return;
         this.nodes.source.stop(context.currentTime);
@@ -1482,7 +1502,6 @@ class Synthesizer {
         this.amp.envelope = setEnvelope(this.amp.envelope, 0, 1);
         this.amp.LFO = setLFO(this.amp.LFO, 36);
         this.bmp = isNumber(bmp) ? clamp(bmp, 60, 240) : 120;
-        this.options = { bmp: this.bmp };
         this.reverb = isObject(reverb) ? reverb : {};
         this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
         this.reverb.mix = isNumber(this.reverb.mix) ? clamp(this.reverb.mix, 0, 1.0) : 0.0;
@@ -1521,7 +1540,7 @@ class Synthesizer {
     }
     press(frequency, duration = null, wait = 0.0) {
         frequency = typeof frequency === 'string' ? Synthesizer.keymap[frequency] : frequency;
-        duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.options.bmp) : (duration !== null ? (duration / 1000) : duration);
+        duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.bmp) : (duration !== null ? (duration / 1000) : duration);
         const start = context.currentTime + wait / 1000;
         let stop = null;
         const params = {};
@@ -1677,7 +1696,7 @@ const basics = {
     DragFrame,
     DragTarget,
     TouchStick,
-    TouchDPad,
+    DirectionalPad,
     TouchButton,
 };
 const audio = {

@@ -8,7 +8,7 @@ import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } from './basics/Accordion';
 import { DragFrame, DragTarget } from './basics/SubWIndow';
-import { TouchStick, TouchDPad, TouchButton } from './basics/Touch';
+import { TouchStick, DirectionalPad, TouchButton } from './basics/Touch';
 
 import { Unit } from './core/unit';
 import { xnew as base } from './core/xnew';
@@ -33,7 +33,7 @@ const basics = {
     DragFrame,
     DragTarget,
     TouchStick,
-    TouchDPad,
+    DirectionalPad,
     TouchButton,
 };
 const audio = {

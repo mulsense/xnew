@@ -2,6 +2,8 @@ name: deploy
 
 on:
   push:
+    branches:
+      - v0.1/main
 
 jobs:
   build:

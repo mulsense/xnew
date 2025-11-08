@@ -191,14 +191,15 @@ declare function TouchStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke
     strokeWidth?: number | undefined;
     strokeLinejoin?: string | undefined;
 }): void;
-declare function TouchDPad(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
-    size?: number | undefined;
-    fill?: string | undefined;
-    fillOpacity?: number | undefined;
-    stroke?: string | undefined;
-    strokeOpacity?: number | undefined;
-    strokeWidth?: number | undefined;
-    strokeLinejoin?: string | undefined;
+declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+    size?: number | null;
+    diagonal?: boolean;
+    fill?: string;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeLinejoin?: string;
 }): void;
 declare function TouchButton(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number | undefined;
@@ -210,17 +211,11 @@ declare function TouchButton(self: xnew$1.Unit, { size, fill, fillOpacity, strok
     strokeLinejoin?: string | undefined;
 }): void;
 
-declare class AudioNodeMap {
-    nodes: {
-        [key: string]: AudioNode & {
-            [key: string]: any;
-        };
+type AudioNodeMap = {
+    [key: string]: AudioNode & {
+        [key: string]: any;
     };
-    constructor(params: {
-        [key: string]: any[];
-    });
-    cleanup(): void;
-}
+};
 
 declare function load(path: string): AudioFile;
 declare class AudioFile {
@@ -235,7 +230,7 @@ declare class AudioFile {
     set loop(value: boolean);
     get loop(): boolean;
     play(offset?: number): void;
-    stop(): number | undefined;
+    pause(): number | undefined;
 }
 
 type SynthProps = {
@@ -280,9 +275,6 @@ declare class Synthesizer {
     amp: AmpOptions;
     bmp: number;
     reverb: ReverbOptions;
-    options: {
-        bmp: number;
-    };
     static initialize(): void;
     constructor({ oscillator, filter, amp }?: SynthProps, { bmp, reverb }?: SynthEffects);
     static keymap: {
@@ -313,7 +305,7 @@ declare const basics: {
     DragFrame: typeof DragFrame;
     DragTarget: typeof DragTarget;
     TouchStick: typeof TouchStick;
-    TouchDPad: typeof TouchDPad;
+    DirectionalPad: typeof DirectionalPad;
     TouchButton: typeof TouchButton;
 };
 declare const audio: {
