@@ -1,6 +1,18 @@
-import { Audio } from './audio';
+import { context, connect } from './audio';
 
-// types
+//----------------------------------------------------------------------------------------------------
+// defines
+//----------------------------------------------------------------------------------------------------
+
+type SynthProps = {
+    oscillator?: OscillatorOptions | null;
+    filter?: FilterOptions | null;
+    amp?: AmpOptions | null;
+};
+type SynthEffects = {
+    bmp?: number | null;
+    reverb?: ReverbOptions | null;
+};
 type Envelope = {
     amount: number;
     ADSR: [number, number, number, number];
@@ -17,10 +29,7 @@ type OscillatorOptions = {
 };
 type FilterOptions = {
     type?: BiquadFilterType;
-    Q?: number;
     cutoff?: number;
-    envelope?: Envelope | null;
-    LFO?: LFO | null;
 };
 type AmpOptions = {
     envelope?: Envelope | null;
@@ -29,21 +38,6 @@ type AmpOptions = {
 type ReverbOptions = {
     time?: number;
     mix?: number;
-};
-type DelayOptions = {
-    time?: number;
-    feedback?: number;
-    mix?: number;
-};
-type SynthProps = {
-    oscillator?: OscillatorOptions | null;
-    filter?: FilterOptions | null;
-    amp?: AmpOptions | null;
-};
-type SynthEffects = {
-    bmp?: number | null;
-    reverb?: ReverbOptions | null;
-    delay?: DelayOptions | null;
 };
 
 export function synthesizer(props?: SynthProps, effects?: SynthEffects) {
@@ -67,7 +61,6 @@ class Synthesizer {
     amp: AmpOptions;
     bmp: number;
     reverb: ReverbOptions;
-    delay: DelayOptions;
     options: { bmp: number };
 
     static initialize() {
@@ -82,7 +75,7 @@ class Synthesizer {
 
     constructor(
         { oscillator = null, filter = null, amp = null }: SynthProps = {},
-        { bmp = null, reverb = null, delay = null }: SynthEffects = {}
+        { bmp = null, reverb = null }: SynthEffects = {}
     ) {
         this.oscillator = isObject(oscillator) ? oscillator : {};
         this.oscillator.type = setType(this.oscillator.type, ['sine', 'triangle', 'square', 'sawtooth']);
@@ -91,11 +84,7 @@ class Synthesizer {
 
         this.filter = isObject(filter) ? filter : {};
         this.filter.type = setType(this.filter.type, ['lowpass', 'highpass', 'bandpass']);
-        this.filter.Q = isNumber(this.filter.Q) ? clamp(this.filter.Q, 0, 32) : 0;
-        // cutoffはundefinedを使う
         this.filter.cutoff = isNumber((this.filter as any).cutoff) ? clamp((this.filter as any).cutoff, 4, 8192) : undefined;
-        this.filter.envelope = setEnvelope(this.filter.envelope as Partial<Envelope>, -36, +36);
-        this.filter.LFO = setLFO(this.filter.LFO as Partial<LFO>, 36);
 
         this.amp = isObject(amp) ? amp : {};
         this.amp.envelope = setEnvelope(this.amp.envelope as Partial<Envelope>, 0, 1);
@@ -107,11 +96,6 @@ class Synthesizer {
         this.reverb = isObject(reverb) ? reverb : {};
         this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
         this.reverb.mix = isNumber(this.reverb.mix) ? clamp(this.reverb.mix, 0, 1.0) : 0.0;
-
-        this.delay = isObject(delay) ? delay : {};
-        this.delay.time = isNumber(this.delay.time) ? clamp(this.delay.time, 0, 2000) : 0.0;
-        this.delay.feedback = isNumber(this.delay.feedback) ? clamp(this.delay.feedback, 0.0, 0.9) : 0.0;
-        this.delay.mix = isNumber(this.delay.mix) ? clamp(this.delay.mix, 0.0, 1.0) : 0.0;
 
         function setType<T>(type: any, list: T[], value = 0): T {
             return list.includes(type) ? type : list[value];
@@ -166,7 +150,7 @@ class Synthesizer {
         frequency = typeof frequency === 'string' ? Synthesizer.keymap[frequency] : frequency;
 
         duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.options.bmp) : (duration !== null ? (duration / 1000) : duration);
-        const start = Audio.context!.currentTime + wait / 1000;
+        const start = context!.currentTime + wait / 1000;
         let stop: number | null = null;
 
         const params: { [key: string]: any[] } = {};
@@ -185,27 +169,17 @@ class Synthesizer {
             params.convolver = ['Convolver', { buffer: impulseResponse({ time: this.reverb.time! }) }, 'convolverDepth'];
             params.convolverDepth = ['Gain', { gain: 1.0 }, 'master'];
         }
-        if (this.delay.time! > 0.0 && this.delay.mix! > 0.0) {
-            params.amp.push('delay');
-            params.delay = ['Delay', {}, 'delayDepth', 'delayFeedback'];
-            params.delayDepth = ['Gain', { gain: 1.0 }, 'master'];
-            params.delayFeedback = ['Gain', { gain: this.delay.feedback }, 'delay'];
-        }
 
         if (this.oscillator.LFO) {
             params.oscillatorLFO = ['Oscillator', {}, 'oscillatorLFODepth'];
             params.oscillatorLFODepth = ['Gain', {}, 'oscillator.frequency'];
-        }
-        if (this.filter.LFO) {
-            params.filterLFO = ['Oscillator', {}, 'filterLFODepth'];
-            params.filterLFODepth = ['Gain', {}, 'filter.frequency'];
         }
         if (this.amp.LFO) {
             params.ampLFO = ['Oscillator', {}, 'ampLFODepth'];
             params.ampLFODepth = ['Gain', {}, 'amp.gain'];
         }
 
-        const nodes = Audio.connect(params);
+        const nodes = connect(params);
 
         nodes.oscillator.type = this.oscillator.type;
         nodes.oscillator.frequency.value = clamp(frequency as number, 10.0, 5000.0);
@@ -218,12 +192,6 @@ class Synthesizer {
             nodes.target.gain.value *= (1.0 - this.reverb.mix!);
             nodes.convolverDepth.gain.value *= this.reverb.mix!;
         }
-        if (this.delay.time! > 0.0 && this.delay.mix! > 0.0) {
-            console.log(this.delay.time! / 1000);
-            nodes.delay.delayTime.value = this.delay.time! / 1000;
-            nodes.target.gain.value *= (1.0 - this.delay.mix!);
-            nodes.delayDepth.gain.value *= this.delay.mix!;
-        }
 
         {
             if (this.oscillator.LFO) {
@@ -231,12 +199,6 @@ class Synthesizer {
                 nodes.oscillatorLFO.type = this.oscillator.LFO.type;
                 nodes.oscillatorLFO.frequency.value = this.oscillator.LFO.rate;
                 nodes.oscillatorLFO.start(start);
-            }
-            if (this.filter.LFO) {
-                nodes.filterLFODepth.gain.value = (frequency as number) * (Math.pow(2.0, this.filter.LFO.amount / 12.0) - 1.0);
-                nodes.filterLFO.type = this.filter.LFO.type;
-                nodes.filterLFO.frequency.value = this.filter.LFO.rate;
-                nodes.filterLFO.start(start);
             }
             if (this.amp.LFO) {
                 nodes.ampLFODepth.gain.value = this.amp.LFO.amount;
@@ -249,10 +211,6 @@ class Synthesizer {
                 const amount = (frequency as number) * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
                 startEnvelope(nodes.oscillator.frequency, frequency as number, amount, this.oscillator.envelope.ADSR);
             }
-            if (this.filter.envelope) {
-                const amount = this.filter.cutoff! * (Math.pow(2.0, this.filter.envelope.amount / 12.0) - 1.0);
-                startEnvelope(nodes.filter.frequency, this.filter.cutoff!, amount, this.filter.envelope.ADSR);
-            }
             if (this.amp.envelope) {
                 startEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
             }
@@ -264,7 +222,7 @@ class Synthesizer {
         }
 
         function release(this: Synthesizer) {
-            duration = duration ?? (Audio.context!.currentTime - start);
+            duration = duration ?? (context!.currentTime - start);
             if (this.amp.envelope) {
                 const ADSR = this.amp.envelope.ADSR;
                 const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
@@ -284,10 +242,6 @@ class Synthesizer {
             if (this.oscillator.envelope) {
                 const amount = (frequency as number) * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
                 stopEnvelope(nodes.oscillator.frequency, frequency as number, amount, this.oscillator.envelope.ADSR);
-            }
-            if (this.filter.envelope) {
-                const amount = this.filter.cutoff! * (Math.pow(2.0, this.filter.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.filter.frequency, this.filter.cutoff!, amount, this.filter.envelope.ADSR);
             }
             if (this.amp.envelope) {
                 stopEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
@@ -325,8 +279,8 @@ class Synthesizer {
 
 Synthesizer.initialize();
 function impulseResponse({ time, decay = 2.0 }: { time: number, decay?: number }): AudioBuffer {
-    const length = Audio.context!.sampleRate * time / 1000;
-    const impulse = Audio.context!.createBuffer(2, length, Audio.context!.sampleRate);
+    const length = context!.sampleRate * time / 1000;
+    const impulse = context!.createBuffer(2, length, context!.sampleRate);
 
     const ch0 = impulse.getChannelData(0);
     const ch1 = impulse.getChannelData(1);

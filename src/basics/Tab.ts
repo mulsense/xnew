@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 
 export function TabFrame(frame: xnew.Unit, 
-    { key }: { key?: string } = {}
+    { select }: { select?: string } = {}
 ) {
     const internal = xnew((internal: xnew.Unit) => {
         const buttons = new Map<string, xnew.Unit>();
@@ -10,7 +10,7 @@ export function TabFrame(frame: xnew.Unit,
     });
     xnew.context('xnew.tabframe', internal);
 
-    xnew.timeout(() => internal.emit('-select', { key: key ?? [...internal.buttons.keys()][0] }));
+    xnew.timeout(() => internal.emit('-select', { key: select ?? [...internal.buttons.keys()][0] }));
 }
 
 export function TabButton(button: xnew.Unit, 

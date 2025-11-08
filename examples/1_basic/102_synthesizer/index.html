@@ -89,26 +89,24 @@
           return { type: waveform.value, ...envelope.value, ...lfo.value };
         },
         get json() {
-          return `oscillator: { type: '${waveform.value}', ${envelope.json}${lfo.json} }, `;
+          return `oscillator: { type: '${waveform.value}', ${envelope.json}${lfo.json}}, `;
         },
       }
     }
 
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      xnew.extend(PanelGroup, { name: 'type', open: true });
+      xnew.extend(PanelGroup, { name: 'filter', open: true });
 
       const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
       const cutoff = xnew(Slider, { name: 'cutoff', value: 1000, min: 100, max: 4000, step: 10 });
-      const envelope = xnew(Envelope, { value: 0, min: -36, max: 36, step: 1, checkable: true });
-      const lfo = xnew(LFO, { value: 4, min: 0, max: 36, step: 1 });
 
       return {
         get value() {
-          return unit.checked ? { filter: { type: type.value, cutoff: cutoff.value, ...envelope.value, ...lfo.value }} : {};
+          return unit.checked ? { filter: { type: type.value, cutoff: cutoff.value }} : {};
         },
         get json() {
-          return unit.checked ? `filter: { type: '${type.value}', cutoff: ${cutoff.value}, ${envelope.json}${lfo.json}}, ` : '';
+          return unit.checked ? `filter: { type: '${type.value}', cutoff: ${cutoff.value}}, ` : '';
         },
       }
     }
@@ -118,14 +116,13 @@
       xnew.extend(PanelGroup, { name: 'amp', open: true });
 
       const envelope = xnew(Envelope, { value: 0.1, min: 0.0, max: 1.0, step: 0.1 });
-      const lfo = xnew(LFO, { value: 0.1, min: 0.0, max: 1.0, step: 0.1 });
 
       return {
         get value() {
-          return { amp: { ...envelope.value, ...lfo.value, }};
+          return { amp: { ...envelope.value, }};
         },
         get json() {
-          return `amp: { ${envelope.json}${lfo.json}}, `;
+          return `amp: { ${envelope.json}}, `;
         },
       }
     }
@@ -146,29 +143,12 @@
         };
       });
 
-      const delay = xnew((unit) => {
-        xnew.extend(PanelGroup, { name: 'delay', open: true });
-        xnew.extend(Check, { checkable: true });
-
-        const time = xnew(Slider, { name: 'time', value: 500, min: 0, max: 2000, step: 100 });
-        const feedback = xnew(Slider, { name: 'feedback', value: 0.5, min: 0.0, max: 0.9, step: 0.1 });
-        const mix = xnew(Slider, { name: 'mix', value: 0.5, min: 0.0, max: 1.0, step: 0.1 });
-
-        return {
-          get value() {
-            return unit.checked ? { delay: { time: time.value, feedback: feedback.value, mix: mix.value }} : {};
-          },
-          get json() {
-            return unit.checked ? `delay: { time: ${time.value}, feedback: ${feedback.value}, mix: ${mix.value}, }, ` : '';
-          }
-        };
-      });
       return {
         get value() {
-          return { ...reverb.value, ...delay.value, };
+          return { ...reverb.value, };
         },
         get json() {
-          return (reverb.value || delay.value) ? `, { ${reverb.json}${delay.json}}` : '';
+          return (reverb.value) ? `, { ${reverb.json}}` : '';
         },
       }
     }
@@ -309,14 +289,14 @@
       }
     }
     function PanelGroup(group, { name, open = false }) {
-      xnew.extend(xnew.basics.AccordionFrame);
+      xnew.extend(xnew.basics.AccordionFrame, { open });
       xnew((header) => {
           xnew.nest('<div style="margin: 0.2em 0;">');
           xnew.extend(xnew.basics.AccordionHeader);
           xnew(xnew.basics.AccordionBullet);
           xnew('<div>', name);
       });
-      xnew.extend(xnew.basics.AccordionContent, { open });
+      xnew.extend(xnew.basics.AccordionContent);
     }
   </script>
 </body>

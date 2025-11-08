@@ -2,7 +2,7 @@ import { MapSet, MapMap } from './map';
 import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
-// Utils
+// defines
 //----------------------------------------------------------------------------------------------------
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
@@ -12,25 +12,6 @@ export type UnitElement = HTMLElement | SVGElement;
 interface Context { stack: Context | null; key?: string; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; }
 interface Capture { checker: (unit: Unit) => boolean; execute: (unit: Unit) => any; }
-
-export class UnitPromise {
-    private promise: Promise<any>;
-    constructor(promise: Promise<any>) {
-        this.promise = promise;
-    }
-    then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-    catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-    finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-}
 
 interface UnitInternal {
     parent: Unit | null;
@@ -55,6 +36,25 @@ interface UnitInternal {
     listeners2: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
+}
+
+export class UnitPromise {
+    private promise: Promise<any>;
+    constructor(promise: Promise<any>) {
+        this.promise = promise;
+    }
+    then(callback: Function): UnitPromise {
+        this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
+        return this;
+    }
+    catch(callback: Function): UnitPromise {
+        this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
+        return this;
+    }
+    finally(callback: Function): UnitPromise {
+        this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
+        return this;
+    }
 }
 
 //----------------------------------------------------------------------------------------------------

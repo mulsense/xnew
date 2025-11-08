@@ -13,6 +13,7 @@ import { TouchStick, TouchDPad, TouchButton } from './basics/Touch';
 import { Unit } from './core/unit';
 import { xnew as base } from './core/xnew';
 
+import { load } from './audio/loader';
 import { synthesizer } from './audio/synthesizer';
 
 const basics = {
@@ -36,7 +37,7 @@ const basics = {
     TouchButton,
 };
 const audio = {
-    synthesizer
+    synthesizer, load
 };
 
 export interface xnew_interface {

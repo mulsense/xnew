@@ -1,29 +1,22 @@
-export type AudioNodeMap = { [key: string]: AudioNode & { [key: string]: any } };
+export const context: AudioContext = new AudioContext();
+const master: GainNode = context.createGain();
+master.gain.value = 1.0;
+master.connect(context.destination);
 
-export class Audio {
-    static context: AudioContext | null = null;
-    static master: GainNode | null = null;
+export class AudioNodeMap {
+    nodes: { [key: string]: AudioNode & { [key: string]: any } };
 
-    static initialize() {
-        if (typeof window !== 'undefined' && window instanceof Window) {
-            Audio.context = new (window.AudioContext ?? (window as any).webkitAudioContext)();
-            Audio.master = Audio.context.createGain();
-            Audio.master.gain.value = 1.0;
-            Audio.master.connect(Audio.context.destination);
-        }
-    }
-
-    static connect(params: { [key: string]: any[] }): AudioNodeMap {
-        if (!Audio.context) throw new Error("Audio context not initialized");
-        const nodes: AudioNodeMap = {};
+    constructor(params: { [key: string]: any[] }) {
+        if (!context) throw new Error("Audio context not initialized");
+        this.nodes = {};
         Object.keys(params).forEach((key) => {
             const [type, props, ...to] = params[key];
-            nodes[key] = (Audio.context as any)[`create${type}`]();
+            this.nodes[key] = (context as any)[`create${type}`]();
             Object.keys(props).forEach((name) => {
-                if (nodes[key][name]?.value !== undefined) {
-                    nodes[key][name].value = props[name];
+                if (this.nodes[key][name]?.value !== undefined) {
+                    this.nodes[key][name].value = props[name];
                 } else {
-                    nodes[key][name] = props[name];
+                    this.nodes[key][name] = props[name];
                 }
             });
         });
@@ -34,17 +27,53 @@ export class Audio {
             to.forEach((to: string) => {
                 let dest: any = null;
                 if (to.indexOf('.') > 0) {
-                    dest = nodes[to.split('.')[0]][to.split('.')[1]];
-                } else if (nodes[to]) {
-                    dest = nodes[to];
+                    dest = this.nodes[to.split('.')[0]][to.split('.')[1]];
+                } else if (this.nodes[to]) {
+                    dest = this.nodes[to];
                 } else if (to === 'master') {
-                    dest = Audio.master;
+                    dest = master;
                 }
-                nodes[key].connect(dest);
+                this.nodes[key].connect(dest);
             });
         });
-        return nodes;
+    }
+
+    cleanup() {
+        Object.keys(this.nodes).forEach((key) => {
+            this.nodes[key].disconnect();
+        });
     }
 }
 
-Audio.initialize();
+export function connect(params: { [key: string]: any[] }): AudioNodeMap {
+    
+    const nodes: { [key: string]: AudioNode & { [key: string]: any } } = {};
+    Object.keys(params).forEach((key) => {
+        const [type, props, ...to] = params[key];
+        nodes[key] = (context as any)[`create${type}`]();
+        Object.keys(props).forEach((name) => {
+            if (nodes[key][name]?.value !== undefined) {
+                nodes[key][name].value = props[name];
+            } else {
+                nodes[key][name] = props[name];
+            }
+        });
+    });
+
+    Object.keys(params).forEach((key) => {
+        const [type, props, ...to] = params[key];
+
+        to.forEach((to: string) => {
+            let dest: any = null;
+            if (to.indexOf('.') > 0) {
+                dest = nodes[to.split('.')[0]][to.split('.')[1]];
+            } else if (nodes[to]) {
+                dest = nodes[to];
+            } else if (to === 'master') {
+                dest = master;
+            }
+            nodes[key].connect(dest);
+        });
+    });
+    return nodes;
+}

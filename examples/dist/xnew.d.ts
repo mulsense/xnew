@@ -100,7 +100,7 @@ declare namespace xnew$1 {
 }
 declare const xnew$1: any;
 
-declare function UserEvent(self: xnew$1.Unit): void;
+declare function UserEvent(unit: xnew$1.Unit): void;
 
 declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
     width?: number | undefined;
@@ -132,8 +132,8 @@ declare function ModalContent(content: xnew$1.Unit, { background }?: {
     }): void;
 };
 
-declare function TabFrame(frame: xnew$1.Unit, { key }?: {
-    key?: string;
+declare function TabFrame(frame: xnew$1.Unit, { select }?: {
+    select?: string;
 }): void;
 declare function TabButton(button: xnew$1.Unit, { key }?: {
     key?: string;
@@ -210,6 +210,43 @@ declare function TouchButton(self: xnew$1.Unit, { size, fill, fillOpacity, strok
     strokeLinejoin?: string | undefined;
 }): void;
 
+declare class AudioNodeMap {
+    nodes: {
+        [key: string]: AudioNode & {
+            [key: string]: any;
+        };
+    };
+    constructor(params: {
+        [key: string]: any[];
+    });
+    cleanup(): void;
+}
+
+declare function load(path: string): AudioFile;
+declare class AudioFile {
+    data: any;
+    startTime: number | null;
+    nodes: AudioNodeMap;
+    constructor(path: string);
+    isReady(): boolean;
+    get promise(): Promise<void>;
+    set volume(value: number);
+    get volume(): number;
+    set loop(value: boolean);
+    get loop(): boolean;
+    play(offset?: number): void;
+    stop(): number | undefined;
+}
+
+type SynthProps = {
+    oscillator?: OscillatorOptions | null;
+    filter?: FilterOptions | null;
+    amp?: AmpOptions | null;
+};
+type SynthEffects = {
+    bmp?: number | null;
+    reverb?: ReverbOptions | null;
+};
 type Envelope = {
     amount: number;
     ADSR: [number, number, number, number];
@@ -226,10 +263,7 @@ type OscillatorOptions = {
 };
 type FilterOptions = {
     type?: BiquadFilterType;
-    Q?: number;
     cutoff?: number;
-    envelope?: Envelope | null;
-    LFO?: LFO | null;
 };
 type AmpOptions = {
     envelope?: Envelope | null;
@@ -239,21 +273,6 @@ type ReverbOptions = {
     time?: number;
     mix?: number;
 };
-type DelayOptions = {
-    time?: number;
-    feedback?: number;
-    mix?: number;
-};
-type SynthProps = {
-    oscillator?: OscillatorOptions | null;
-    filter?: FilterOptions | null;
-    amp?: AmpOptions | null;
-};
-type SynthEffects = {
-    bmp?: number | null;
-    reverb?: ReverbOptions | null;
-    delay?: DelayOptions | null;
-};
 declare function synthesizer(props?: SynthProps, effects?: SynthEffects): Synthesizer;
 declare class Synthesizer {
     oscillator: OscillatorOptions;
@@ -261,12 +280,11 @@ declare class Synthesizer {
     amp: AmpOptions;
     bmp: number;
     reverb: ReverbOptions;
-    delay: DelayOptions;
     options: {
         bmp: number;
     };
     static initialize(): void;
-    constructor({ oscillator, filter, amp }?: SynthProps, { bmp, reverb, delay }?: SynthEffects);
+    constructor({ oscillator, filter, amp }?: SynthProps, { bmp, reverb }?: SynthEffects);
     static keymap: {
         [key: string]: number;
     };
@@ -300,6 +318,7 @@ declare const basics: {
 };
 declare const audio: {
     synthesizer: typeof synthesizer;
+    load: typeof load;
 };
 interface xnew_interface {
     (...args: any[]): Unit;

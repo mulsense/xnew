@@ -217,7 +217,7 @@ class MapMap extends Map {
 }
 
 //----------------------------------------------------------------------------------------------------
-// Utils
+// defines
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
 class UnitPromise {
@@ -792,61 +792,63 @@ xnew$1.capture = function (checker, execute) {
     Unit.current._.captures.push({ checker, execute: Unit.wrap(Unit.current, (unit) => execute(unit)) });
 };
 
-function UserEvent(self) {
-    const unit = xnew$1();
-    unit.on('pointerdown', (event) => self.emit('-pointerdown', { event, position: getPosition(self.element, event) }));
-    unit.on('pointermove', (event) => self.emit('-pointermove', { event, position: getPosition(self.element, event) }));
-    unit.on('pointerup', (event) => self.emit('-pointerup', { event, position: getPosition(self.element, event) }));
-    unit.on('wheel', (event) => self.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
+function UserEvent(unit) {
+    const internal = xnew$1();
+    internal.on('pointerdown', (event) => unit.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
+    internal.on('pointermove', (event) => unit.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
+    internal.on('pointerup', (event) => unit.emit('-pointerup', { event, position: getPosition(unit.element, event) }));
+    internal.on('wheel', (event) => unit.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
+    internal.on('mouseover', (event) => unit.emit('-mouseover', { event, position: getPosition(unit.element, event) }));
+    internal.on('mouseout', (event) => unit.emit('-mouseout', { event, position: getPosition(unit.element, event) }));
     const drag = xnew$1(DragEvent);
-    drag.on('-dragstart', (...args) => self.emit('-dragstart', ...args));
-    drag.on('-dragmove', (...args) => self.emit('-dragmove', ...args));
-    drag.on('-dragend', (...args) => self.emit('-dragend', ...args));
-    drag.on('-dragcancel', (...args) => self.emit('-dragcancel', ...args));
+    drag.on('-dragstart', (...args) => unit.emit('-dragstart', ...args));
+    drag.on('-dragmove', (...args) => unit.emit('-dragmove', ...args));
+    drag.on('-dragend', (...args) => unit.emit('-dragend', ...args));
+    drag.on('-dragcancel', (...args) => unit.emit('-dragcancel', ...args));
     const gesture = xnew$1(GestureEvent);
-    gesture.on('-gesturestart', (...args) => self.emit('-gesturestart', ...args));
-    gesture.on('-gesturemove', (...args) => self.emit('-gesturemove', ...args));
-    gesture.on('-gestureend', (...args) => self.emit('-gestureend', ...args));
-    gesture.on('-gesturecancel', (...args) => self.emit('-gesturecancel', ...args));
+    gesture.on('-gesturestart', (...args) => unit.emit('-gesturestart', ...args));
+    gesture.on('-gesturemove', (...args) => unit.emit('-gesturemove', ...args));
+    gesture.on('-gestureend', (...args) => unit.emit('-gestureend', ...args));
+    gesture.on('-gesturecancel', (...args) => unit.emit('-gesturecancel', ...args));
     const keyborad = xnew$1(Keyboard);
-    keyborad.on('-keydown', (...args) => self.emit('-keydown', ...args));
-    keyborad.on('-keyup', (...args) => self.emit('-keyup', ...args));
-    keyborad.on('-arrowkeydown', (...args) => self.emit('-arrowkeydown', ...args));
-    keyborad.on('-arrowkeyup', (...args) => self.emit('-arrowkeyup', ...args));
+    keyborad.on('-keydown', (...args) => unit.emit('-keydown', ...args));
+    keyborad.on('-keyup', (...args) => unit.emit('-keyup', ...args));
+    keyborad.on('-arrowkeydown', (...args) => unit.emit('-arrowkeydown', ...args));
+    keyborad.on('-arrowkeyup', (...args) => unit.emit('-arrowkeyup', ...args));
 }
-function DragEvent(self) {
+function DragEvent(unit) {
     xnew$1().on('pointerdown', (event) => {
         const id = event.pointerId;
-        const position = getPosition(self.element, event);
+        const position = getPosition(unit.element, event);
         let previous = position;
         xnew$1(() => {
             xnew$1.listener(window).on('pointermove', (event) => {
                 if (event.pointerId === id) {
-                    const position = getPosition(self.element, event);
+                    const position = getPosition(unit.element, event);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                    self.emit('-dragmove', { event, position, delta });
+                    unit.emit('-dragmove', { event, position, delta });
                     previous = position;
                 }
             });
             xnew$1.listener(window).on('pointerup', (event) => {
                 if (event.pointerId === id) {
-                    const position = getPosition(self.element, event);
-                    self.emit('-dragend', { event, position, });
+                    const position = getPosition(unit.element, event);
+                    unit.emit('-dragend', { event, position, });
                     xnew$1.listener(window).off();
                 }
             });
             xnew$1.listener(window).on('pointercancel', (event) => {
                 if (event.pointerId === id) {
-                    const position = getPosition(self.element, event);
-                    self.emit('-dragcancel', { event, position, });
+                    const position = getPosition(unit.element, event);
+                    unit.emit('-dragcancel', { event, position, });
                     xnew$1.listener(window).off();
                 }
             });
         });
-        self.emit('-dragstart', { event, position });
+        unit.emit('-dragstart', { event, position });
     });
 }
-function GestureEvent(self) {
+function GestureEvent(unit) {
     const drag = xnew$1(DragEvent);
     let isActive = false;
     const map = new Map();
@@ -854,7 +856,7 @@ function GestureEvent(self) {
         map.set(event.pointerId, Object.assign({}, position));
         isActive = map.size === 2 ? true : false;
         if (isActive === true) {
-            self.emit('-gesturestart', {});
+            unit.emit('-gesturestart', {});
         }
     });
     drag.on('-dragmove', ({ event, position, delta }) => {
@@ -880,20 +882,20 @@ function GestureEvent(self) {
             //         rotate = sign > 0.0 ? +angle : -angle;
             //     }
             // }
-            self.emit('-gesturemove', { event, position, delta, scale });
+            unit.emit('-gesturemove', { event, position, delta, scale });
         }
         map.set(event.pointerId, position);
     });
     drag.on('-dragend', ({ event }) => {
         if (isActive === true) {
-            self.emit('-gestureend', {});
+            unit.emit('-gestureend', {});
         }
         isActive = false;
         map.delete(event.pointerId);
     });
     drag.on('-dragcancel', ({ event }) => {
         if (isActive === true) {
-            self.emit('-gesturecancel', { event });
+            unit.emit('-gesturecancel', { event });
         }
         isActive = false;
         map.delete(event.pointerId);
@@ -906,21 +908,21 @@ function GestureEvent(self) {
         return others;
     }
 }
-function Keyboard(self) {
+function Keyboard(unit) {
     const state = {};
     xnew$1.listener(window).on('keydown', (event) => {
         state[event.code] = 1;
-        self.emit('-keydown', { event, code: event.code });
+        unit.emit('-keydown', { event, code: event.code });
     });
     xnew$1.listener(window).on('keyup', (event) => {
         state[event.code] = 0;
-        self.emit('-keyup', { event, code: event.code });
+        unit.emit('-keyup', { event, code: event.code });
     });
     xnew$1.listener(window).on('keydown', (event) => {
-        self.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
+        unit.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
     });
     xnew$1.listener(window).on('keyup', (event) => {
-        self.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
+        unit.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
     });
     function getVector() {
         return {
@@ -1033,14 +1035,14 @@ function ModalContent(content, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
     };
 }
 
-function TabFrame(frame, { key } = {}) {
+function TabFrame(frame, { select } = {}) {
     const internal = xnew$1((internal) => {
         const buttons = new Map();
         const contents = new Map();
         return { frame, buttons, contents };
     });
     xnew$1.context('xnew.tabframe', internal);
-    xnew$1.timeout(() => internal.emit('-select', { key: key !== null && key !== void 0 ? key : [...internal.buttons.keys()][0] }));
+    xnew$1.timeout(() => internal.emit('-select', { key: select !== null && select !== void 0 ? select : [...internal.buttons.keys()][0] }));
 }
 function TabButton(button, { key } = {}) {
     const internal = xnew$1.context('xnew.tabframe');
@@ -1179,15 +1181,27 @@ function DragTarget(target, {} = {}) {
     xnew$1.nest('<div>');
     const user = xnew$1(absolute.parentElement, UserEvent);
     const current = { x: 0, y: 0 };
+    const offset = { x: 0, y: 0 };
+    let dragged = false;
     user.on('-dragstart', ({ event, position }) => {
-        current.x = parseFloat(absolute.style.left || '0') + position.x;
-        current.y = parseFloat(absolute.style.top || '0') + position.y;
+        if (target.element.contains(event.target) === false)
+            return;
+        dragged = true;
+        offset.x = position.x - parseFloat(absolute.style.left || '0');
+        offset.y = position.y - parseFloat(absolute.style.top || '0');
+        current.x = position.x - offset.x;
+        current.y = position.y - offset.y;
     });
     user.on('-dragmove', ({ event, delta }) => {
+        if (dragged !== true)
+            return;
         current.x += delta.x;
         current.y += delta.y;
         absolute.style.left = `${current.x}px`;
         absolute.style.top = `${current.y}px`;
+    });
+    user.on('-dragcancel -dragend', ({ event }) => {
+        dragged = false;
     });
 }
 
@@ -1326,55 +1340,113 @@ function TouchButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke
     });
 }
 
-class Audio {
-    static initialize() {
-        var _a;
-        if (typeof window !== 'undefined' && window instanceof Window) {
-            Audio.context = new ((_a = window.AudioContext) !== null && _a !== void 0 ? _a : window.webkitAudioContext)();
-            Audio.master = Audio.context.createGain();
-            Audio.master.gain.value = 1.0;
-            Audio.master.connect(Audio.context.destination);
+const context = new AudioContext();
+const master = context.createGain();
+master.gain.value = 1.0;
+master.connect(context.destination);
+function connect(params) {
+    const nodes = {};
+    Object.keys(params).forEach((key) => {
+        const [type, props, ...to] = params[key];
+        nodes[key] = context[`create${type}`]();
+        Object.keys(props).forEach((name) => {
+            var _a;
+            if (((_a = nodes[key][name]) === null || _a === void 0 ? void 0 : _a.value) !== undefined) {
+                nodes[key][name].value = props[name];
+            }
+            else {
+                nodes[key][name] = props[name];
+            }
+        });
+    });
+    Object.keys(params).forEach((key) => {
+        const [type, props, ...to] = params[key];
+        to.forEach((to) => {
+            let dest = null;
+            if (to.indexOf('.') > 0) {
+                dest = nodes[to.split('.')[0]][to.split('.')[1]];
+            }
+            else if (nodes[to]) {
+                dest = nodes[to];
+            }
+            else if (to === 'master') {
+                dest = master;
+            }
+            nodes[key].connect(dest);
+        });
+    });
+    return nodes;
+}
+
+const store = new Map();
+function load(path) {
+    return new AudioFile(path);
+}
+class AudioFile {
+    constructor(path) {
+        this.data = {};
+        if (store.has(path)) {
+            this.data = store.get(path);
+        }
+        else {
+            this.data.buffer = null;
+            this.data.promise = fetch(path)
+                .then((response) => response.arrayBuffer())
+                .then((response) => context.decodeAudioData(response))
+                .then((response) => {
+                this.data.buffer = response;
+                this.nodes.source.buffer = this.data.buffer;
+            })
+                .catch(() => {
+                console.warn(`"${path}" could not be loaded.`);
+            });
+            store.set(path, this.data);
+        }
+        this.startTime = null;
+        this.nodes = connect({
+            source: ['BufferSource', {}, 'volume'],
+            volume: ['Gain', { gain: 1.0 }, 'master'],
+        });
+    }
+    isReady() {
+        return this.data.buffer ? true : false;
+    }
+    get promise() {
+        return this.data.promise;
+    }
+    set volume(value) {
+        this.nodes.volume.gain.value = value;
+    }
+    get volume() {
+        return this.nodes.volume.gain.value;
+    }
+    set loop(value) {
+        this.nodes.source.loop = value;
+    }
+    get loop() {
+        return this.nodes.source.loop;
+    }
+    play(offset = 0) {
+        if (this.startTime !== null)
+            return;
+        if (this.isReady()) {
+            this.startTime = context.currentTime;
+            this.nodes.source.playbackRate.value = 1;
+            this.nodes.source.start(context.currentTime, offset / 1000);
+        }
+        else {
+            this.promise.then(() => this.play());
         }
     }
-    static connect(params) {
-        if (!Audio.context)
-            throw new Error("Audio context not initialized");
-        const nodes = {};
-        Object.keys(params).forEach((key) => {
-            const [type, props, ...to] = params[key];
-            nodes[key] = Audio.context[`create${type}`]();
-            Object.keys(props).forEach((name) => {
-                var _a;
-                if (((_a = nodes[key][name]) === null || _a === void 0 ? void 0 : _a.value) !== undefined) {
-                    nodes[key][name].value = props[name];
-                }
-                else {
-                    nodes[key][name] = props[name];
-                }
-            });
-        });
-        Object.keys(params).forEach((key) => {
-            const [type, props, ...to] = params[key];
-            to.forEach((to) => {
-                let dest = null;
-                if (to.indexOf('.') > 0) {
-                    dest = nodes[to.split('.')[0]][to.split('.')[1]];
-                }
-                else if (nodes[to]) {
-                    dest = nodes[to];
-                }
-                else if (to === 'master') {
-                    dest = Audio.master;
-                }
-                nodes[key].connect(dest);
-            });
-        });
-        return nodes;
+    stop() {
+        if (this.startTime === null)
+            return;
+        this.nodes.source.stop(context.currentTime);
+        const elapsed = (context.currentTime - this.startTime) % this.data.buffer.duration * 1000;
+        this.startTime = null;
+        return elapsed;
     }
 }
-Audio.context = null;
-Audio.master = null;
-Audio.initialize();
 
 function synthesizer(props, effects) {
     return new Synthesizer(props, effects);
@@ -1398,18 +1470,14 @@ class Synthesizer {
             window.removeEventListener('mousedown', initialize, true);
         }
     }
-    constructor({ oscillator = null, filter = null, amp = null } = {}, { bmp = null, reverb = null, delay = null } = {}) {
+    constructor({ oscillator = null, filter = null, amp = null } = {}, { bmp = null, reverb = null } = {}) {
         this.oscillator = isObject(oscillator) ? oscillator : {};
         this.oscillator.type = setType(this.oscillator.type, ['sine', 'triangle', 'square', 'sawtooth']);
         this.oscillator.envelope = setEnvelope(this.oscillator.envelope, -36, +36);
         this.oscillator.LFO = setLFO(this.oscillator.LFO, 36);
         this.filter = isObject(filter) ? filter : {};
         this.filter.type = setType(this.filter.type, ['lowpass', 'highpass', 'bandpass']);
-        this.filter.Q = isNumber(this.filter.Q) ? clamp(this.filter.Q, 0, 32) : 0;
-        // cutoffはundefinedを使う
         this.filter.cutoff = isNumber(this.filter.cutoff) ? clamp(this.filter.cutoff, 4, 8192) : undefined;
-        this.filter.envelope = setEnvelope(this.filter.envelope, -36, +36);
-        this.filter.LFO = setLFO(this.filter.LFO, 36);
         this.amp = isObject(amp) ? amp : {};
         this.amp.envelope = setEnvelope(this.amp.envelope, 0, 1);
         this.amp.LFO = setLFO(this.amp.LFO, 36);
@@ -1418,10 +1486,6 @@ class Synthesizer {
         this.reverb = isObject(reverb) ? reverb : {};
         this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
         this.reverb.mix = isNumber(this.reverb.mix) ? clamp(this.reverb.mix, 0, 1.0) : 0.0;
-        this.delay = isObject(delay) ? delay : {};
-        this.delay.time = isNumber(this.delay.time) ? clamp(this.delay.time, 0, 2000) : 0.0;
-        this.delay.feedback = isNumber(this.delay.feedback) ? clamp(this.delay.feedback, 0.0, 0.9) : 0.0;
-        this.delay.mix = isNumber(this.delay.mix) ? clamp(this.delay.mix, 0.0, 1.0) : 0.0;
         function setType(type, list, value = 0) {
             return list.includes(type) ? type : list[value];
         }
@@ -1458,7 +1522,7 @@ class Synthesizer {
     press(frequency, duration = null, wait = 0.0) {
         frequency = typeof frequency === 'string' ? Synthesizer.keymap[frequency] : frequency;
         duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.options.bmp) : (duration !== null ? (duration / 1000) : duration);
-        const start = Audio.context.currentTime + wait / 1000;
+        const start = context.currentTime + wait / 1000;
         let stop = null;
         const params = {};
         if (this.filter.type && this.filter.cutoff) {
@@ -1475,25 +1539,15 @@ class Synthesizer {
             params.convolver = ['Convolver', { buffer: impulseResponse({ time: this.reverb.time }) }, 'convolverDepth'];
             params.convolverDepth = ['Gain', { gain: 1.0 }, 'master'];
         }
-        if (this.delay.time > 0.0 && this.delay.mix > 0.0) {
-            params.amp.push('delay');
-            params.delay = ['Delay', {}, 'delayDepth', 'delayFeedback'];
-            params.delayDepth = ['Gain', { gain: 1.0 }, 'master'];
-            params.delayFeedback = ['Gain', { gain: this.delay.feedback }, 'delay'];
-        }
         if (this.oscillator.LFO) {
             params.oscillatorLFO = ['Oscillator', {}, 'oscillatorLFODepth'];
             params.oscillatorLFODepth = ['Gain', {}, 'oscillator.frequency'];
-        }
-        if (this.filter.LFO) {
-            params.filterLFO = ['Oscillator', {}, 'filterLFODepth'];
-            params.filterLFODepth = ['Gain', {}, 'filter.frequency'];
         }
         if (this.amp.LFO) {
             params.ampLFO = ['Oscillator', {}, 'ampLFODepth'];
             params.ampLFODepth = ['Gain', {}, 'amp.gain'];
         }
-        const nodes = Audio.connect(params);
+        const nodes = connect(params);
         nodes.oscillator.type = this.oscillator.type;
         nodes.oscillator.frequency.value = clamp(frequency, 10.0, 5000.0);
         if (this.filter.type && this.filter.cutoff) {
@@ -1504,24 +1558,12 @@ class Synthesizer {
             nodes.target.gain.value *= (1.0 - this.reverb.mix);
             nodes.convolverDepth.gain.value *= this.reverb.mix;
         }
-        if (this.delay.time > 0.0 && this.delay.mix > 0.0) {
-            console.log(this.delay.time / 1000);
-            nodes.delay.delayTime.value = this.delay.time / 1000;
-            nodes.target.gain.value *= (1.0 - this.delay.mix);
-            nodes.delayDepth.gain.value *= this.delay.mix;
-        }
         {
             if (this.oscillator.LFO) {
                 nodes.oscillatorLFODepth.gain.value = frequency * (Math.pow(2.0, this.oscillator.LFO.amount / 12.0) - 1.0);
                 nodes.oscillatorLFO.type = this.oscillator.LFO.type;
                 nodes.oscillatorLFO.frequency.value = this.oscillator.LFO.rate;
                 nodes.oscillatorLFO.start(start);
-            }
-            if (this.filter.LFO) {
-                nodes.filterLFODepth.gain.value = frequency * (Math.pow(2.0, this.filter.LFO.amount / 12.0) - 1.0);
-                nodes.filterLFO.type = this.filter.LFO.type;
-                nodes.filterLFO.frequency.value = this.filter.LFO.rate;
-                nodes.filterLFO.start(start);
             }
             if (this.amp.LFO) {
                 nodes.ampLFODepth.gain.value = this.amp.LFO.amount;
@@ -1533,10 +1575,6 @@ class Synthesizer {
                 const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
                 startEnvelope(nodes.oscillator.frequency, frequency, amount, this.oscillator.envelope.ADSR);
             }
-            if (this.filter.envelope) {
-                const amount = this.filter.cutoff * (Math.pow(2.0, this.filter.envelope.amount / 12.0) - 1.0);
-                startEnvelope(nodes.filter.frequency, this.filter.cutoff, amount, this.filter.envelope.ADSR);
-            }
             if (this.amp.envelope) {
                 startEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
             }
@@ -1546,7 +1584,7 @@ class Synthesizer {
             release.call(this);
         }
         function release() {
-            duration = duration !== null && duration !== void 0 ? duration : (Audio.context.currentTime - start);
+            duration = duration !== null && duration !== void 0 ? duration : (context.currentTime - start);
             if (this.amp.envelope) {
                 const ADSR = this.amp.envelope.ADSR;
                 const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
@@ -1565,10 +1603,6 @@ class Synthesizer {
             if (this.oscillator.envelope) {
                 const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
                 stopEnvelope(nodes.oscillator.frequency, frequency, amount, this.oscillator.envelope.ADSR);
-            }
-            if (this.filter.envelope) {
-                const amount = this.filter.cutoff * (Math.pow(2.0, this.filter.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.filter.frequency, this.filter.cutoff, amount, this.filter.envelope.ADSR);
             }
             if (this.amp.envelope) {
                 stopEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
@@ -1615,8 +1649,8 @@ Synthesizer.notemap = {
 };
 Synthesizer.initialize();
 function impulseResponse({ time, decay = 2.0 }) {
-    const length = Audio.context.sampleRate * time / 1000;
-    const impulse = Audio.context.createBuffer(2, length, Audio.context.sampleRate);
+    const length = context.sampleRate * time / 1000;
+    const impulse = context.createBuffer(2, length, context.sampleRate);
     const ch0 = impulse.getChannelData(0);
     const ch1 = impulse.getChannelData(1);
     for (let i = 0; i < length; i++) {
@@ -1647,7 +1681,7 @@ const basics = {
     TouchButton,
 };
 const audio = {
-    synthesizer
+    synthesizer, load
 };
 const xnew = Object.assign(xnew$1, {
     basics,
