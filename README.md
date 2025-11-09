@@ -1,40 +1,46 @@
-# xnew.js
-xnew is a javascript library for component based programming.  
-Suitable for a dynamic web site, web games and animation.
+# xnew
+`xnew` is a JavaScript / TypeScript library for component-oriented programming,
+providing a flexible architecture well-suited for applications with dynamic scenes and games.
 
-[**xnew website**](https://wisroot-com.github.io/xnew.js)
+[**Visit the xnew website**](https://mulsense.github.io/xnew)
 
-## setup
+<div>
+    <img src="website/static/img/introduction.svg" width="500" alt="xnew introduction" />
+</div>
 
-### via cdn  
-  
+## Setup
+
+### Via CDN
+Include the following script in your HTML file:
+```html
+<script src="https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.js"></script>
 ```
-<script src="https://unpkg.com/xnew@2.0.x/dist/xnew.js"></script>
-```
 
-### via cdn (ESM)
-
-```
+### Via CDN (ESM)
+Use the ES module version with an import map:
+```html
 <script type="importmap">
 {
     "imports": {
-        "xnew": "https://unpkg.com/xnew@2.0.x/dist/xnew.mjs"
+        "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.mjs"
     }
 }
 </script>
 
 <script type="module">
-import { xnew, xthis, xnest, xextend, xcontext, xfind, xtimer, xbasics } from 'xnew'
+import xnew from '@mulsense/xnew';
 
-// ...
-
+// Your code here
 </script>
 ```
 
-### via npm
+### Via npm
+Install `xnew` using npm:
+```bash
+npm install @mulsense/xnew@0.1.x
 ```
-npm install xnew@1.6.x
-```
-```
-import { xnew, xnest, xextend, xcontext, xfind, xtimer, xbasics } from 'xnew'
+
+Then import it in your JavaScript file:
+```js
+import xnew from '@mulsense/xnew';
 ```

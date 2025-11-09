@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (unit) => {
+      xnew.nest('<div class="absolute w-128 h-64 inset-0 m-auto border rounded-lg overflow-hidden">');
+      
+      xnew.interval(() => xnew(Box), 10);
+    });
+    
+    function Box(unit) {
+      const box = xnew.nest('<div class="absolute w-8 h-8 bg-orange-400">');
+      box.style.left = (Math.random() * 512 - 15) + 'px';
+      box.style.top = (Math.random() * 256 - 15) + 'px';
+
+      // fade in -> fade out -> finalize
+      xnew.transition((x) => box.style.opacity = x, 1000)
+      .next((x) => box.style.opacity = 1.0 - x, 1000)
+      .next((x) => unit.finalize());
+
+      let count = 0;
+      unit.on('update', () => {
+        box.style.transform = `rotate(${count++}deg)`;
+      });
+    }
+  </script>
+</body>
+
+</html>

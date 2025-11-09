@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (unit) => {
+      xnew.nest('<div class="m-2">')
+      xnew(Keyboard);
+      xnew(CodeBlock);
+      xnew('<div class="flex my-3">', () => {
+        xnew(Oscillator);
+        xnew(Filter);
+        xnew(Amp);
+        xnew(Options);
+      });
+    });
+  
+    function Keyboard() {
+      xnew.nest('<div class="flex">');
+      for (let i = 2; i < 6; i++) {
+        xnew(Keyset, i);
+      }
+      function Keyset(unit, number) {
+        xnew.nest('<div class="flex relative select-none">');
+        for (let i = 0; i < 12; i++) {
+          xnew(Key, { key: i, number });
+        }
+      }
+      function Key(unit, { key, number }) {
+        const list = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', ];
+        const offset = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+        const w = 24, h = 128;
+
+        if (list[key].indexOf('#') < 0) {
+          xnew.nest(`<div class="word-break-normal box-border cursor-pointer flex flex-col-reverse items-center" style="width: ${w}px; height: ${h}px; border: 1px solid #000000;">`);
+          unit.element.textContent = list[key] + number;
+        } else {
+          xnew.nest(`<div class="absolute word-break-normal box-border cursor-pointer flex flex-col-reverse items-center" style="width: ${w * 6 / 8}px; height: ${h * 9 / 16}px; left: ${offset[list[key][0]] * w + w * 5 / 8}px; border: 1px solid #000000; background: #000000">`);
+        }
+
+        let press = null;
+        let startTime = 0;
+        unit.on('touchstart mousedown mouseover', (event) => {
+          if (event.buttons === 1 || event.type === 'touchstart') {
+            startTime = Date.now();
+            const [oscillator, filter, amp, options] = [xnew.find(Oscillator)[0], xnew.find(Filter)[0], xnew.find(Amp)[0], xnew.find(Options)[0]];
+            const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, };
+            unit.emit('+code1', ' ');
+            unit.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}}${options.json});\nsynth.press('${list[key] + number}', duration);`);
+            const synth = xnew.audio.synthesizer(param, options.value);
+            press = synth.press(list[key] + number);
+          }
+        });
+        unit.on('touchend mouseup mouseout', () => {
+          if (press) {
+            unit.emit('+code1',`const duration = ${Date.now() - startTime};`);
+            press.release();
+            press = null;
+          }
+        });
+      }
+    }
+
+    function CodeBlock() {
+      xnew.nest('<div class="w-[670px] p-1 border rounded-lg text-sm">');
+      const code1 = xnew('<pre class="user-select-text whitespace-pre-wrap p-1 m-1">');
+      const code2 = xnew('<pre class="user-select-text whitespace-pre-wrap p-1 m-1">');
+      code1.on('+code1', (text) => code1.element.textContent = text);
+      code2.on('+code2', (text) => code2.element.textContent = text);
+    }
+    
+    function Oscillator(unit) {
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(PanelGroup, { name: 'oscillator', open: true });
+      const data = {};
+      const waveform = xnew(Waveform, { value: 2 });
+      const envelope = xnew(Envelope, { value: 0.0, min: -36.0, max: +36.0, step: 1, checkable: true });
+      const lfo = xnew(LFO, { value: 4, min: 0, max: 36, step: 1 });
+
+      return {
+        get value() {
+          return { type: waveform.value, ...envelope.value, ...lfo.value };
+        },
+        get json() {
+          return `oscillator: { type: '${waveform.value}', ${envelope.json}${lfo.json}}, `;
+        },
+      }
+    }
+
+    function Filter(unit) {
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(PanelGroup, { name: 'filter', open: true });
+
+      const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
+      const cutoff = xnew(Slider, { name: 'cutoff', value: 1000, min: 100, max: 4000, step: 10 });
+
+      return {
+        get value() {
+          return unit.checked ? { filter: { type: type.value, cutoff: cutoff.value }} : {};
+        },
+        get json() {
+          return unit.checked ? `filter: { type: '${type.value}', cutoff: ${cutoff.value}}, ` : '';
+        },
+      }
+    }
+
+    function Amp(unit) {
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(PanelGroup, { name: 'amp', open: true });
+
+      const envelope = xnew(Envelope, { value: 0.1, min: 0.0, max: 1.0, step: 0.1 });
+
+      return {
+        get value() {
+          return { amp: { ...envelope.value, }};
+        },
+        get json() {
+          return `amp: { ${envelope.json}}, `;
+        },
+      }
+    }
+
+    function Options(unit) {
+      xnew.nest('<div class="w-40 p-1 border rounded-lg">');
+      xnew.extend(PanelGroup, { name: 'effect', open: true });
+
+      const reverb = xnew((unit) => {
+        xnew.extend(PanelGroup, { name: 'reverb', open: true });
+        xnew.extend(Check, { checkable: true });
+
+        const time = xnew(Slider, { name: 'time', value: 1000, min: 0.0, max: 2000, step: 100 });
+        const mix = xnew(Slider, { name: 'mix', value: 0.5, min: 0.0, max: 1.0, step: 0.1 });
+        return {
+          get value() { return unit.checked ? { reverb: { time: time.value, mix: mix.value }} : {}; },
+          get json() { return unit.checked ? `reverb: { time: ${time.value}, mix: ${mix.value}, }, ` : ''; }
+        };
+      });
+
+      return {
+        get value() {
+          return { ...reverb.value, };
+        },
+        get json() {
+          return (reverb.value) ? `, { ${reverb.json}}` : '';
+        },
+      }
+    }
+
+    function Waveform(unit, { value = 0 }) {
+      xnew.extend(PanelGroup, { name: 'type', open: true });
+      xnew.nest('<div class="flex">');
+      const name = 'waveform' + xnew.find(Waveform).length;
+      const labels = ['sine', 'triangle', 'square', 'sawtooth'];
+      labels.forEach((label, i) => {
+        xnew(`<label class="inline-block">`, (unit) => {
+          xnew.nest('<div class="flex flex-col items-center">');
+          const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
+          const svg = xnew(`<svg class="block w-6 h-5 m-1" viewBox="0 0 20 20">`);
+          let points = null;
+          if (label === 'sine') {
+            points = '0 10 2 3 5 0 8 3 10 10 12 17 15 20 18 17 20 10';
+          } else if(label === 'triangle') {
+            points = '0 10 5 0 10 10 15 20 20 10';
+          } else if(label === 'square') {
+            points = '0 10 0 0 10 0 10 20 20 20 20 10';
+          } else if(label === 'sawtooth') {
+            points = '0 20 0 0 20 20';
+          }
+          svg.element.innerHTML = `<polyline stroke="#000" fill="none" stroke-width="2" points="${points}" />`;
+          input.on('change', () => {
+            if (input.element.checked) value = i;
+          });
+          if (i === value) {
+            input.element.checked = true;
+          }
+        });
+      });
+      return {
+        get value() { return labels[value]; },
+      }
+    }
+    function Envelope(unit, { value, min, max, step, checkable = false }) {
+      xnew.extend(PanelGroup, { name: 'envelope', open: true });
+      xnew.extend(Check, { checkable });
+
+      const svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
+      const amount = xnew(Slider, { name: 'amount', value, min, max, step });
+      const attack = xnew(Slider, { name: 'attack', value: 200, min: 0, max: 500, step: 20 });
+      const decay = xnew(Slider, { name: 'decay', value: 200, min: 0, max: 500, step: 20 });
+      const sustain = xnew(Slider, { name: 'sustain', value: 0.2, min: 0.0, max: 1.0, step: 0.1 });
+      const release = xnew(Slider, { name: 'release', value: 200, min: 0, max: 500, step: 20 });
+
+      render();
+      attack.on('-change -input', () => { render(); });
+      decay.on('-change -input', () => { render(); });
+      sustain.on('-change -input', () => { render(); });
+      release.on('-change -input', () => { render(); });
+
+      function render() {
+        const [A, D, S, R] = [attack.value, decay.value, sustain.value, release.value];
+        svg.element.innerHTML = `
+            <polyline stroke="#2B2" stroke-width="4" points="0 150 ${0.1 * A} ${10} ${0.1 * (A + D)} ${150 - 140 * S} ${0.1 * (A + D + 500)} ${150 - 140 * S} ${0.1 * (A + D + 500 + R)} 150" />
+        `;
+      }
+      return {
+        get value() {
+          return unit.checked ? { envelope: { amount: amount.value, ADSR: [attack.value, decay.value, sustain.value, release.value] }} : {};
+        },
+        get json() { return unit.checked ? `envelope: { amount: ${amount.value}, ADSR: [${attack.value}, ${decay.value}, ${sustain.value}, ${release.value}], }, ` : ''; }
+      };
+    }
+
+    function LFO(unit, { value, min, max, step }) {
+      xnew.extend(PanelGroup, { name: 'LFO', open: true });
+      xnew.extend(Check, { checkable: true });
+
+      const waveform = xnew(Waveform, { value: 2 });
+      const amount = xnew(Slider, { name: 'amount', value, min, max, step });
+      const rate = xnew(Slider, { name: 'rate', value: 8, min: 2, max: 36, step: 1 });
+
+      return {
+        get value() {
+          return unit.checked ? { LFO: { type: waveform.value, amount: amount.value, rate: rate.value }} : {};
+        },
+        get json() { return unit.checked ? `LFO: { type: '${waveform.value}', amount: ${amount.value}, rate: ${rate.value}, }, ` : ''; }
+      };
+    }
+
+    function Slider(frame, { name, value, max, min, step }) {
+      xnew.extend(xnew.basics.InputFrame);
+      xnew('<div class="flex justify-between text-sm">', (unit) => {
+          xnew('<div class="flex-1">', name);
+          const status = xnew('<div class="flex-none">', `${value}`);
+          frame.on('-input', ({ event }) => {
+            status.element.textContent = event.target.value;
+          })
+      });
+      const input = xnew(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
+      return {
+        get value() { return Number(input.element.value); },
+      }
+    }
+
+    function Radio(unit, { name, labels, value = 0 }) {
+      xnew.nest('<div>');
+      labels.forEach((label, i) => {
+        xnew(`<label class="inline-block">`, () => {
+          const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
+          xnew('<span>', label);
+          input.on('change', () => {
+            if (input.element.checked) value = i;
+          });
+          if (i === value) {
+            input.element.checked = true;
+          }
+        });
+      });
+      return {
+        get value() { return labels[value]; },
+      }
+    }
+
+    function Block(unit, { name, checkable = false }) {
+      xnew.nest('<div class="w-[160px] p-[4px] border border-[#000000] rounded-[4px]">');
+      xnew.extend(Check, { name, checkable });
+    }
+
+    function Check(unit, { checkable = false }) {
+      xnew.nest('<div>');
+      let check = null;
+
+      if (checkable) {
+        check = xnew(`<input type="checkbox" >`);
+      }
+
+      xnew.nest(`<div class="${checkable ? 'hidden' : ''}">`);
+      check?.on('change', () => {
+        unit.element.style.display = check.element.checked ? 'block' : 'none';
+      });
+      return {
+        get checked() { return check ? check.element.checked : true; },
+      }
+    }
+    function PanelGroup(group, { name, open = false }) {
+      xnew.extend(xnew.basics.AccordionFrame, { open });
+      xnew((header) => {
+          xnew.nest('<div style="margin: 0.2em 0;">');
+          xnew.extend(xnew.basics.AccordionHeader);
+          xnew(xnew.basics.AccordionBullet);
+          xnew('<div>', name);
+      });
+      xnew.extend(xnew.basics.AccordionContent);
+    }
+  </script>
+</body>
+</html>

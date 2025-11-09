@@ -1,0 +1,332 @@
+import * as PIXI from 'pixi.js';
+import Matter from 'matter-js';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import xnew from '@mulsense/xnew';
+import xpixi from '@mulsense/xnew/addons/xpixi';
+import xthree from '@mulsense/xnew/addons/xthree';
+import xmatter from '@mulsense/xnew/addons/xmatter';
+
+xnew('#main', Main);
+
+function Main(unit) {
+  // three 
+  xthree.initialize({ canvas: new OffscreenCanvas(800, 600) });
+  xthree.renderer.shadowMap.enabled = true;
+  xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  xthree.camera.position.set(0, 0, +10);
+
+  // pixi
+  const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
+  xpixi.initialize({ canvas: screen.element });
+
+  xnew(TitleScene);
+}
+
+function TitleScene(scene) {
+  xnew(Background);
+  xnew(ShadowPlane);
+  xnew(TitleText);
+  xnew(TouchMessage);
+  xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
+  xnew(AmbientLight);
+
+  for (let i = 0; i < 7; i++) {
+    const model = xnew(Model, { id: i, scale: 0.7 });
+    model.setPosition(140 + i * 90, 450, 0);
+    model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
+    model.object.rotation.x = 10 / 180 * Math.PI;
+  }
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+
+  xnew.listener(window).on('keydown pointerdown', () => {
+    scene.finalize();
+    xnew.append(Main, GameScene);
+  });
+}
+
+function Background(unit) {
+  const object = xpixi.nest(new PIXI.Container());
+  xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
+    const sprite = new PIXI.Sprite(texture);
+    sprite.anchor.set(0);
+    sprite.scale.set(1.0 / 1.4);
+    object.addChild(sprite);
+  });
+}
+
+function ShadowPlane(unit) {
+  const geometry = new THREE.PlaneGeometry(16, 14);
+  const material = new THREE.ShadowMaterial({ opacity: 0.25 });
+  const plane = xthree.nest(new THREE.Mesh(geometry, material));
+  plane.receiveShadow = true;
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(0.0, -2.9, -2.0);
+}
+
+function Texture(unit, { texture } = {}) {
+  const object = xpixi.nest(new PIXI.Sprite(texture));
+}
+
+function TitleText(unit) {
+  const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 150);
+  object.anchor.set(0.5);
+}
+
+function TouchMessage(unit) {
+  const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 50);
+  object.anchor.set(0.5);
+  let count = 0;
+  unit.on('update', () => {
+      object.alpha = 0.6 + Math.sin(count++ * 0.08) * 0.4;
+  });
+}
+
+function GameScene(scene) {
+  xmatter.initialize();
+
+  xnew(Background);
+  xnew(ShadowPlane);
+  xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
+  xnew(AmbientLight);
+  xnew(Controller);
+  xnew(ScoreText);
+  xnew(Bowl);
+  xnew(Cursor);
+  xnew(Queue);
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+
+  scene.on('+gameover', () => {
+    xnew(GameOverText);
+
+    xnew.timeout(() => {
+      xnew.listener(window).on('keydown pointerdown', () => {
+        scene.finalize();
+        xnew.append(Main, TitleScene);
+      });
+    }, 1000);
+  });
+}
+
+function DirectionalLight(unit, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
+  object.position.set(x, y, z);
+  object.castShadow = true;
+}
+
+function AmbientLight(unit) {
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
+}
+
+function Controller(unit) {
+  const user = xnew(xpixi.canvas, xnew.basics.UserEvent);
+  user.on('-pointermove -pointerdown', ({ position }) => {
+    unit.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
+  });
+  user.on('-pointerdown', () => unit.emit('+action'));
+  unit.on('+gameover', () => unit.finalize());
+}
+
+function ScoreText(unit) {
+  const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0x000000 }));
+  object.position.set(xpixi.canvas.width - 10, 10);
+  object.anchor.set(1, 0);
+
+  let sum = 0;
+  unit.on('+scoreup', (score) => object.text = `score ${sum += score}`);
+}
+
+function Bowl(unit) {
+  for (let angle = 10; angle <= 170; angle++) {
+    const x = 400 + Math.cos(angle * Math.PI / 180) * 240;
+    const y = 360 + Math.sin(angle * Math.PI / 180) * 200;
+    xnew(Circle, { x, y, r: 12, color: 0x00AAAA, options: { isStatic: true } });
+  }
+}
+
+function Queue(unit) {
+  const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
+  unit.emit('+reloadcomplete', 0);
+
+  let model = xnew(Model, { id: balls[0], scale: 0.5 });
+  model.setPosition(70, 60, 0);
+  model.object.rotation.y = 60 / 180 * Math.PI;
+  model.object.rotation.x = 30 / 180 * Math.PI;
+
+  unit.on('+reload', () => {
+    const next = balls.shift();
+    model.finalize();
+    model = xnew(Model, { id: balls[0], scale: 0.5 });
+    model.setPosition(0, 60, 0);
+    model.object.rotation.y = 60 / 180 * Math.PI;
+    model.object.rotation.x = 30 / 180 * Math.PI;
+
+    balls.push(Math.floor(Math.random() * 3));
+    xnew.transition((progress) => {
+      model.setPosition(0 + progress * 70, 60, 0);
+      if (progress === 1.0) {
+        unit.emit('+reloadcomplete', next);
+      }
+    }, 500);
+  });
+}
+
+function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
+  const object = xthree.nest(new THREE.Object3D());
+  object.rotation.z = -r;
+
+  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
+  const path = './models/' + (id < 7 ? list[id] : list[0]);
+
+  let vrm = null;
+  xnew.promise(new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    loader.load(path, (gltf) => resolve(gltf));
+  })).then((gltf) => {
+    vrm = gltf.userData.vrm;
+    vrm.scene.traverse((object) => {
+      if (object.isMesh) object.castShadow = true;
+      if (object.isMesh) object.receiveShadow = true;
+    });
+    vrm.scene.position.y = -scale;
+    vrm.scene.scale.set(scale, scale, scale);
+    object.add(vrm.scene);
+  });
+
+  const offset = Math.random() * 10;
+
+  let count = 0;
+  unit.on('update', () => {
+    const neck = vrm.humanoid.getNormalizedBoneNode('neck');
+    const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+    const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+    const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+    const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+    const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
+    const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
+    const t = (count + offset) * 0.03;
+    neck.rotation.x = Math.sin(t * 6) * +0.1;
+    chest.rotation.x = Math.sin(t * 12) * +0.1;
+    hips.position.z = Math.sin(t * 12) * 0.1;
+    leftUpperArm.rotation.z = Math.sin(t * 12 + offset) * +0.7;
+    leftUpperArm.rotation.x = Math.sin(t * 6 + offset) * +0.8;
+    rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
+    rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
+    leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
+    leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.7;
+    rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
+    rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
+    vrm.update(t);
+    count++;
+  });
+
+  return {
+    object,
+    setPosition(x, y, a) {
+      object.position.set((x - xpixi.canvas.width / 2) / 70, - (y - xpixi.canvas.height / 2) / 70, 0);
+      object.rotation.z = -a;
+    },
+  }
+}
+
+function Cursor(unit) {
+  const object = xpixi.nest(new PIXI.Container());
+  object.position.set(400, 40);
+
+  const graphics = new PIXI.Graphics();
+  graphics.moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 })
+  graphics.moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 });
+  object.addChild(graphics);
+
+  unit.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
+
+  let next = null;
+  let model = null
+  let offset = 50;
+  unit.on('+reloadcomplete', (level) => {
+    next = level;
+    model = xnew(Model, { id: next, scale: 0.5 });
+    model.setPosition(object.x, object.y + offset, 0);
+  });
+  unit.on('+action', () => {
+    if (next !== null) {
+      xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
+      model?.finalize();
+      model = null;
+      unit.emit('+reload');
+      next = null;
+    } 
+  });
+  unit.on('update', () => {
+    object.rotation += 0.02;
+    model?.setPosition(object.x, object.y + offset, 0);
+  });
+}
+
+function ModelBall(unit, { x, y, a = 0, id = 0, score = 1 }) {
+  const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
+  const r = 35 + Math.pow(3.0, scale * 2.0);
+  xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
+  
+  const model = xnew(Model, { r, id, scale });
+  unit.emit('+scoreup', score);
+  
+  unit.on('update', () => {
+    model.setPosition(unit.object.x, unit.object.y, unit.object.rotation);
+    if (unit.object.y > xpixi.canvas.height - 10) {
+      unit.emit('+gameover');
+      unit.finalize();
+      return;
+    }
+    for (const target of xnew.find(ModelBall)) {
+      if (unit.mergeCheck(target)) {
+        const score = unit.score + target.score;
+        const id = unit.id + 1;
+        const x = (unit.object.x + target.object.x) / 2;
+        const y = (unit.object.y + target.object.y) / 2;
+        const a = (unit.object.rotation + target.object.rotation) / 2;
+        unit.finalize();
+        target.finalize();
+        xnew.append(GameScene, ModelBall, { x, y, a, id, score });
+        break;
+      }
+    }
+  });
+  return {
+    r, score, id, isMearged: false,
+    mergeCheck(target) {
+      if (unit === target || unit.score !== target.score) return false;
+      if (unit.isMearged === true || target.isMearged === true) return false;
+      const dx = target.object.x - unit.object.x;
+      const dy = target.object.y - unit.object.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > unit.r + target.r + 0.01) return false;
+      return true;
+    }
+  }
+}
+
+function GameOverText(unit) {
+  const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0x000000 }));
+  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
+  object.anchor.set(0.5);
+}
+
+function Circle(unit, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
+  const object = xpixi.nest(new PIXI.Container());
+  const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
+  const graphics = new PIXI.Graphics().circle(0, 0, r).fill(color);
+  object.position.set(x, y);
+  object.addChild(graphics);
+  object.alpha = alpha;
+
+  unit.on('update', () => {
+    object.rotation = pyshics.angle;
+    object.position.set(pyshics.position.x, pyshics.position.y);
+  });
+  return { object };
+}
