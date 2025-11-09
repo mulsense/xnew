@@ -1,5 +1,5 @@
 import { xnew } from '../core/xnew';
-import { UserEvent } from './UserEvent';
+import { PointerEvent } from './PointerEvent';
 import { ResizeEvent } from './ResizeEvent';
 
 //----------------------------------------------------------------------------------------------------
@@ -12,75 +12,26 @@ function SVGTemplate(self: xnew.Unit,
 ) {
     xnew.nest(`<svg
         viewBox="0 0 100 100"
-        style="position: absolute; width: 100%; height: 100%; user-select: none;
+        style="position: absolute; width: 100%; height: 100%; pointer-select: none;
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
         ${stroke ? `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};` : ''}
     ">`);
 }
 
-export function TouchStick(self: xnew.Unit,
-    { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
+
+
+export function AnalogStick(self: xnew.Unit,
+    { size, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
+    { size?: number, diagonal?: boolean,fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
+
 ) {
-    strokeWidth /= (size / 100);
-
-    xnew.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
-
-    xnew((self: xnew.Unit) => {
-        xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-        xnew('<polygon points="50  7 40 18 60 18">');
-        xnew('<polygon points="50 93 40 83 60 83">');
-        xnew('<polygon points=" 7 50 18 40 18 60">');
-        xnew('<polygon points="93 50 83 40 83 60">');
-    });
-    
-    const target = xnew((self: xnew.Unit) => {
-        xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-        xnew('<circle cx="50" cy="50" r="23">');
-    });
-
-    const user = xnew(UserEvent);
-
-    user.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
-        const vector = getVector(position);
-        target.element.style.filter = 'brightness(90%)';
-        target.element.style.left = vector.x * size / 4 + 'px';
-        target.element.style.top = vector.y * size / 4 + 'px';
-        self.emit('-down', { vector });
-    });
-    user.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
-        const vector = getVector(position);
-        target.element.style.filter = 'brightness(90%)';
-        target.element.style.left = vector.x * size / 4 + 'px';
-        target.element.style.top = vector.y * size / 4 + 'px';
-        self.emit('-move', { vector });
-    });
-    user.on('-dragend', ({ event }: { event: any }) => {
-        const vector = { x: 0, y: 0 };
-        target.element.style.filter = '';
-        target.element.style.left = vector.x * size / 4 + 'px';
-        target.element.style.top = vector.y * size / 4 + 'px';
-        self.emit('-up', { vector });
-    });
-    function getVector(position: { x: number, y: number }) {
-        const x = position.x - size / 2;
-        const y = position.y - size / 2;
-        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
-        const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-        return { x: Math.cos(a) * d, y: Math.sin(a) * d };
-    }
-}
-
-export function DirectionalPad(self: xnew.Unit,
-    { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
-    { size?: number, diagonal?: boolean, fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
-) {
+    xnew.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
     let internal: xnew.Unit;
     let newsize: number;
     if (size) {
         newsize = size;
     } else {
         newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
-        console.log(self.element.parentElement, self.element);
         xnew(self.element, ResizeEvent).on('-resize', () => {
             newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
             internal?.reboot();
@@ -88,7 +39,73 @@ export function DirectionalPad(self: xnew.Unit,
     }
 
     internal = xnew(() => {
-        xnew.nest(`<div style="position: relative; width: ${newsize}px; height: ${newsize}px; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
+        xnew.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+
+        xnew((self: xnew.Unit) => {
+            xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+            xnew('<polygon points="50  7 40 18 60 18">');
+            xnew('<polygon points="50 93 40 83 60 83">');
+            xnew('<polygon points=" 7 50 18 40 18 60">');
+            xnew('<polygon points="93 50 83 40 83 60">');
+        });
+
+        const target = xnew((self: xnew.Unit) => {
+            xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+            xnew('<circle cx="50" cy="50" r="23">');
+        });
+
+        const pointer = xnew(PointerEvent);
+
+        pointer.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+            const vector = getVector(position);
+            target.element.style.filter = 'brightness(90%)';
+            target.element.style.left = vector.x * newsize / 4 + 'px';
+            target.element.style.top = vector.y * newsize / 4 + 'px';
+            self.emit('-down', { vector });
+        });
+        pointer.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+            const vector = getVector(position);
+            target.element.style.filter = 'brightness(90%)';
+            target.element.style.left = vector.x * newsize / 4 + 'px';
+            target.element.style.top = vector.y * newsize / 4 + 'px';
+            self.emit('-move', { vector });
+        });
+        pointer.on('-dragend', ({ event }: { event: any }) => {
+            const vector = { x: 0, y: 0 };
+            target.element.style.filter = '';
+            target.element.style.left = vector.x * newsize / 4 + 'px';
+            target.element.style.top = vector.y * newsize / 4 + 'px';
+            self.emit('-up', { vector });
+        });
+        function getVector(position: { x: number, y: number }) {
+            const x = position.x - newsize / 2;
+            const y = position.y - newsize / 2;
+            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+            const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
+            return { x: Math.cos(a) * d, y: Math.sin(a) * d };
+        }
+    });
+}
+
+export function DirectionalPad(self: xnew.Unit,
+    { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
+    { size?: number, diagonal?: boolean, fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
+) {
+    xnew.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
+    let internal: xnew.Unit;
+    let newsize: number;
+    if (size) {
+        newsize = size;
+    } else {
+        newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
+        xnew(self.element, ResizeEvent).on('-resize', () => {
+            newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
+            internal?.reboot();
+        });
+    }
+
+    internal = xnew(() => {
+        xnew.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
 
         const polygons = [
             '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
@@ -116,9 +133,9 @@ export function DirectionalPad(self: xnew.Unit,
             xnew('<polygon points="89 50 80 42 80 58">');
         });
 
-        const user = xnew(UserEvent);
+        const pointer = xnew(PointerEvent);
 
-        user.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        pointer.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -126,7 +143,7 @@ export function DirectionalPad(self: xnew.Unit,
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             self.emit('-down', { vector });
         });
-        user.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        pointer.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -134,7 +151,7 @@ export function DirectionalPad(self: xnew.Unit,
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             self.emit('-move', { vector });
         });
-        user.on('-dragend', ({ event }: { event: any }) => {
+        pointer.on('-dragend', ({ event }: { event: any }) => {
             const vector = { x: 0, y: 0 };
             targets[0].element.style.filter = '';
             targets[1].element.style.filter = '';
@@ -168,19 +185,19 @@ export function TouchButton(self: xnew.Unit,
     { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
-    xnew.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
+    xnew.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; pointer-select: none; overflow: hidden;">`);
 
     const target = xnew((self: xnew.Unit) => {
         xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
         xnew('<circle cx="50" cy="50" r="40">');
     });
 
-    const user = xnew(UserEvent);
-    user.on('-dragstart', (event: any) => {
+    const pointer = xnew(PointerEvent);
+    pointer.on('-dragstart', (event: any) => {
         target.element.style.filter = 'brightness(90%)';
         self.emit('-down', event);
     });
-    user.on('-dragend', (event: any) => {
+    pointer.on('-dragend', (event: any) => {
         target.element.style.filter = '';
         self.emit('-up', event);
     });

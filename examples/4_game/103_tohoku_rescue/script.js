@@ -119,7 +119,7 @@ function Texture(unit, { texture, position = { x: 0, y: 0} }) {
 
 function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
-  object.addChild(new PIXI.Graphics().rect(0, 0, xpixi.canvas.width, xpixi.canvas.height).fill(0x1a1a2e));
+  object.addChild(new PIXI.Graphics().rect(0, 0, xpixi.canvas.width, xpixi.canvas.height).fill(0xAAEEAA));
 }
 
 function TitleText(unit) {
@@ -305,7 +305,7 @@ function Controller(unit) {
 
   xnew('<div class="@container absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200">', () => {
     xnew.nest('<div class="absolute inset-[1cqw] bottom-[1cqw] bg-red-200">');
-    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.5 });
+    const dpad = xnew(xnew.basics.DirectionalPad, { size: 130, diagonal: false, fillOpacity: 0.5 });
 
     dpad.on('-down', ({ vector }) => {
       if (moving === false) {
@@ -339,7 +339,7 @@ function InfoPanel(unit, { id }) {
       xnew('<button class="text-gray-200 border border-gray-200 text-[5cqw] rounded-full px-[4cqw] py-[1cqw] hover:bg-gray-500">', 'reset');
     });
   });
-  xnew('<div class="absolute bottom-0 right-0 w-[30%] h-[30%]">', () => {
+  xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', () => {
     const screen = xnew(xnew.basics.Screen, { width: 300, height: 300 });
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);

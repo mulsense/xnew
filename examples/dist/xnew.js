@@ -798,7 +798,7 @@
         Unit.current._.captures.push({ checker, execute: Unit.wrap(Unit.current, (unit) => execute(unit)) });
     };
 
-    function UserEvent(unit) {
+    function PointerEvent(unit) {
         const internal = xnew$1();
         internal.on('pointerdown', (event) => unit.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
         internal.on('pointermove', (event) => unit.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
@@ -816,11 +816,6 @@
         gesture.on('-gesturemove', (...args) => unit.emit('-gesturemove', ...args));
         gesture.on('-gestureend', (...args) => unit.emit('-gestureend', ...args));
         gesture.on('-gesturecancel', (...args) => unit.emit('-gesturecancel', ...args));
-        const keyborad = xnew$1(Keyboard);
-        keyborad.on('-keydown', (...args) => unit.emit('-keydown', ...args));
-        keyborad.on('-keyup', (...args) => unit.emit('-keyup', ...args));
-        keyborad.on('-arrowkeydown', (...args) => unit.emit('-arrowkeydown', ...args));
-        keyborad.on('-arrowkeyup', (...args) => unit.emit('-arrowkeyup', ...args));
     }
     function DragEvent(unit) {
         xnew$1().on('pointerdown', (event) => {
@@ -914,21 +909,26 @@
             return others;
         }
     }
-    function Keyboard(unit) {
+    function getPosition(element, event) {
+        const rect = element.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function KeyEvent(unit) {
         const state = {};
         xnew$1.listener(window).on('keydown', (event) => {
             state[event.code] = 1;
-            unit.emit('-keydown', { event, code: event.code });
+            unit.emit('-keydown', { event, type: '-keydown', code: event.code });
         });
         xnew$1.listener(window).on('keyup', (event) => {
             state[event.code] = 0;
-            unit.emit('-keyup', { event, code: event.code });
+            unit.emit('-keyup', { event, type: '-keyup', code: event.code });
         });
         xnew$1.listener(window).on('keydown', (event) => {
-            unit.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
+            unit.emit('-arrowkeydown', { event, type: '-arrowkeydown', code: event.code, vector: getVector() });
         });
         xnew$1.listener(window).on('keyup', (event) => {
-            unit.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
+            unit.emit('-arrowkeyup', { event, type: '-arrowkeyup', code: event.code, vector: getVector() });
         });
         function getVector() {
             return {
@@ -936,10 +936,6 @@
                 y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
             };
         }
-    }
-    function getPosition(element, event) {
-        const rect = element.getBoundingClientRect();
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
 
     function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
@@ -1185,11 +1181,11 @@
     function DragTarget(target, {} = {}) {
         const { frame, absolute } = xnew$1.context('xnew.dragframe');
         xnew$1.nest('<div>');
-        const user = xnew$1(absolute.parentElement, UserEvent);
+        const pointer = xnew$1(absolute.parentElement, PointerEvent);
         const current = { x: 0, y: 0 };
         const offset = { x: 0, y: 0 };
         let dragged = false;
-        user.on('-dragstart', ({ event, position }) => {
+        pointer.on('-dragstart', ({ event, position }) => {
             if (target.element.contains(event.target) === false)
                 return;
             dragged = true;
@@ -1198,7 +1194,7 @@
             current.x = position.x - offset.x;
             current.y = position.y - offset.y;
         });
-        user.on('-dragmove', ({ event, delta }) => {
+        pointer.on('-dragmove', ({ event, delta }) => {
             if (dragged !== true)
                 return;
             current.x += delta.x;
@@ -1206,7 +1202,7 @@
             absolute.style.left = `${current.x}px`;
             absolute.style.top = `${current.y}px`;
         });
-        user.on('-dragcancel -dragend', ({ event }) => {
+        pointer.on('-dragcancel -dragend', ({ event }) => {
             dragged = false;
         });
     }
@@ -1217,56 +1213,13 @@
     function SVGTemplate(self, { fill = null, fillOpacity = 0.8, stroke = null, strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }) {
         xnew$1.nest(`<svg
         viewBox="0 0 100 100"
-        style="position: absolute; width: 100%; height: 100%; user-select: none;
+        style="position: absolute; width: 100%; height: 100%; pointer-select: none;
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
         ${stroke ? `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};` : ''}
     ">`);
     }
-    function TouchStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
-        strokeWidth /= (size / 100);
-        xnew$1.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
-        xnew$1((self) => {
-            xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<polygon points="50  7 40 18 60 18">');
-            xnew$1('<polygon points="50 93 40 83 60 83">');
-            xnew$1('<polygon points=" 7 50 18 40 18 60">');
-            xnew$1('<polygon points="93 50 83 40 83 60">');
-        });
-        const target = xnew$1((self) => {
-            xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<circle cx="50" cy="50" r="23">');
-        });
-        const user = xnew$1(UserEvent);
-        user.on('-dragstart', ({ event, position }) => {
-            const vector = getVector(position);
-            target.element.style.filter = 'brightness(90%)';
-            target.element.style.left = vector.x * size / 4 + 'px';
-            target.element.style.top = vector.y * size / 4 + 'px';
-            self.emit('-down', { vector });
-        });
-        user.on('-dragmove', ({ event, position }) => {
-            const vector = getVector(position);
-            target.element.style.filter = 'brightness(90%)';
-            target.element.style.left = vector.x * size / 4 + 'px';
-            target.element.style.top = vector.y * size / 4 + 'px';
-            self.emit('-move', { vector });
-        });
-        user.on('-dragend', ({ event }) => {
-            const vector = { x: 0, y: 0 };
-            target.element.style.filter = '';
-            target.element.style.left = vector.x * size / 4 + 'px';
-            target.element.style.top = vector.y * size / 4 + 'px';
-            self.emit('-up', { vector });
-        });
-        function getVector(position) {
-            const x = position.x - size / 2;
-            const y = position.y - size / 2;
-            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
-            const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-            return { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        }
-    }
-    function DirectionalPad(self, { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+    function AnalogStick(self, { size, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+        xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
         let internal;
         let newsize;
         if (size) {
@@ -1274,14 +1227,71 @@
         }
         else {
             newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
-            console.log(self.element.parentElement, self.element);
             xnew$1(self.element, ResizeEvent).on('-resize', () => {
                 newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
                 internal === null || internal === void 0 ? void 0 : internal.reboot();
             });
         }
         internal = xnew$1(() => {
-            xnew$1.nest(`<div style="position: relative; width: ${newsize}px; height: ${newsize}px; margin: auto; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
+            xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+            xnew$1((self) => {
+                xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+                xnew$1('<polygon points="50  7 40 18 60 18">');
+                xnew$1('<polygon points="50 93 40 83 60 83">');
+                xnew$1('<polygon points=" 7 50 18 40 18 60">');
+                xnew$1('<polygon points="93 50 83 40 83 60">');
+            });
+            const target = xnew$1((self) => {
+                xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+                xnew$1('<circle cx="50" cy="50" r="23">');
+            });
+            const pointer = xnew$1(PointerEvent);
+            pointer.on('-dragstart', ({ event, position }) => {
+                const vector = getVector(position);
+                target.element.style.filter = 'brightness(90%)';
+                target.element.style.left = vector.x * newsize / 4 + 'px';
+                target.element.style.top = vector.y * newsize / 4 + 'px';
+                self.emit('-down', { vector });
+            });
+            pointer.on('-dragmove', ({ event, position }) => {
+                const vector = getVector(position);
+                target.element.style.filter = 'brightness(90%)';
+                target.element.style.left = vector.x * newsize / 4 + 'px';
+                target.element.style.top = vector.y * newsize / 4 + 'px';
+                self.emit('-move', { vector });
+            });
+            pointer.on('-dragend', ({ event }) => {
+                const vector = { x: 0, y: 0 };
+                target.element.style.filter = '';
+                target.element.style.left = vector.x * newsize / 4 + 'px';
+                target.element.style.top = vector.y * newsize / 4 + 'px';
+                self.emit('-up', { vector });
+            });
+            function getVector(position) {
+                const x = position.x - newsize / 2;
+                const y = position.y - newsize / 2;
+                const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+                const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
+                return { x: Math.cos(a) * d, y: Math.sin(a) * d };
+            }
+        });
+    }
+    function DirectionalPad(self, { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+        xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
+        let internal;
+        let newsize;
+        if (size) {
+            newsize = size;
+        }
+        else {
+            newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
+            xnew$1(self.element, ResizeEvent).on('-resize', () => {
+                newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
+                internal === null || internal === void 0 ? void 0 : internal.reboot();
+            });
+        }
+        internal = xnew$1(() => {
+            xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
             const polygons = [
                 '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
                 '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
@@ -1305,8 +1315,8 @@
                 xnew$1('<polygon points="11 50 20 42 20 58">');
                 xnew$1('<polygon points="89 50 80 42 80 58">');
             });
-            const user = xnew$1(UserEvent);
-            user.on('-dragstart', ({ event, position }) => {
+            const pointer = xnew$1(PointerEvent);
+            pointer.on('-dragstart', ({ event, position }) => {
                 const vector = getVector(position);
                 targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
                 targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -1314,7 +1324,7 @@
                 targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
                 self.emit('-down', { vector });
             });
-            user.on('-dragmove', ({ event, position }) => {
+            pointer.on('-dragmove', ({ event, position }) => {
                 const vector = getVector(position);
                 targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
                 targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -1322,7 +1332,7 @@
                 targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
                 self.emit('-move', { vector });
             });
-            user.on('-dragend', ({ event }) => {
+            pointer.on('-dragend', ({ event }) => {
                 const vector = { x: 0, y: 0 };
                 targets[0].element.style.filter = '';
                 targets[1].element.style.filter = '';
@@ -1350,23 +1360,6 @@
                 }
                 return vector;
             }
-        });
-    }
-    function TouchButton(self, { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
-        strokeWidth /= (size / 100);
-        xnew$1.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;">`);
-        const target = xnew$1((self) => {
-            xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<circle cx="50" cy="50" r="40">');
-        });
-        const user = xnew$1(UserEvent);
-        user.on('-dragstart', (event) => {
-            target.element.style.filter = 'brightness(90%)';
-            self.emit('-down', event);
-        });
-        user.on('-dragend', (event) => {
-            target.element.style.filter = '';
-            self.emit('-up', event);
         });
     }
 
@@ -1691,8 +1684,9 @@
 
     const basics = {
         Screen,
-        UserEvent,
+        PointerEvent,
         ResizeEvent,
+        KeyEvent,
         ModalFrame,
         ModalContent,
         AccordionFrame,
@@ -1705,9 +1699,8 @@
         InputFrame,
         DragFrame,
         DragTarget,
-        TouchStick,
+        AnalogStick,
         DirectionalPad,
-        TouchButton,
     };
     const audio = {
         synthesizer, load

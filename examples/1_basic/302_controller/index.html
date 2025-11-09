@@ -20,25 +20,21 @@
       xnew.listener(window).on('keydown', (event) => event.preventDefault());
       unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
-      // virtual joyscick
-      const stick = xnew('<div class="absolute left-4 bottom-4">', xnew.basics.TouchStick, { size: 130 });
-      stick.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));
 
-      // virtual D-pad
-      const dpad = xnew('<div class="absolute left-4 bottom-40">', xnew.basics.TouchDPad, { size: 130 });
-      dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));
+      xnew.nest('<div class="absolute left-0 right-0 bottom-0 w-full h-[30%]" style="container-type: size;">');
 
-      // virtual button
-      const button = xnew('<div class="absolute right-8 bottom-8">', xnew.basics.TouchButton);
-      button.on('-down', () => unit.emit('+action'));
+      // left bottom
+      xnew('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">', () => {
+        // directional pad
+        const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
+        dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));        
+      });
 
-      // keyboard
-      const user = xnew(xnew.basics.UserEvent);
-      user.on('-arrowkeydown -arrowkeyup', ({ vector }) => unit.emit('+move', { vector }));
-      user.on('-keydown', ({ code }) => {
-        if (code === 'Space') {
-          unit.emit('+action')
-        }
+      // right bottom
+      xnew('<div class="absolute right-0 top-0 bottom-0 w-[100cqh] h-full">', () => {
+        // analog stick
+        const stick = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.AnalogStick, {});
+        stick.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));
       });
 
       // xnew(Gamepad);
