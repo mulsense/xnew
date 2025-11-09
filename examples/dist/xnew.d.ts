@@ -100,7 +100,9 @@ declare namespace xnew$1 {
 }
 declare const xnew$1: any;
 
-declare function UserEvent(unit: xnew$1.Unit): void;
+declare function PointerEvent(unit: xnew$1.Unit): void;
+
+declare function KeyboardEvent(unit: xnew$1.Unit): void;
 
 declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
     width?: number | undefined;
@@ -109,10 +111,6 @@ declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
 }): {
     readonly canvas: any;
     resize(width: number, height: number): void;
-    readonly scale: {
-        x: number;
-        y: number;
-    };
 };
 
 declare function InputFrame(frame: xnew$1.Unit, {}?: {}): void;
@@ -182,45 +180,30 @@ declare function DragFrame(frame: xnew$1.Unit, { x, y }?: {
 }): void;
 declare function DragTarget(target: xnew$1.Unit, {}?: {}): void;
 
-declare function TouchStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
-    size?: number | undefined;
-    fill?: string | undefined;
-    fillOpacity?: number | undefined;
-    stroke?: string | undefined;
-    strokeOpacity?: number | undefined;
-    strokeWidth?: number | undefined;
-    strokeLinejoin?: string | undefined;
+declare function AnalogStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+    size?: number;
+    diagonal?: boolean;
+    fill?: string;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeLinejoin?: string;
 }): void;
-declare function TouchDPad(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
-    size?: number | undefined;
-    fill?: string | undefined;
-    fillOpacity?: number | undefined;
-    stroke?: string | undefined;
-    strokeOpacity?: number | undefined;
-    strokeWidth?: number | undefined;
-    strokeLinejoin?: string | undefined;
-}): void;
-declare function TouchButton(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
-    size?: number | undefined;
-    fill?: string | undefined;
-    fillOpacity?: number | undefined;
-    stroke?: string | undefined;
-    strokeOpacity?: number | undefined;
-    strokeWidth?: number | undefined;
-    strokeLinejoin?: string | undefined;
+declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+    size?: number;
+    diagonal?: boolean;
+    fill?: string;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeLinejoin?: string;
 }): void;
 
-declare class AudioNodeMap {
-    nodes: {
-        [key: string]: AudioNode & {
-            [key: string]: any;
-        };
-    };
-    constructor(params: {
-        [key: string]: any[];
-    });
-    cleanup(): void;
-}
+type AudioNodeMap = {
+    [key: string]: AudioNode;
+};
 
 declare function load(path: string): AudioFile;
 declare class AudioFile {
@@ -235,7 +218,7 @@ declare class AudioFile {
     set loop(value: boolean);
     get loop(): boolean;
     play(offset?: number): void;
-    stop(): number | undefined;
+    pause(): number | undefined;
 }
 
 type SynthProps = {
@@ -267,7 +250,6 @@ type FilterOptions = {
 };
 type AmpOptions = {
     envelope?: Envelope | null;
-    LFO?: LFO | null;
 };
 type ReverbOptions = {
     time?: number;
@@ -280,9 +262,6 @@ declare class Synthesizer {
     amp: AmpOptions;
     bmp: number;
     reverb: ReverbOptions;
-    options: {
-        bmp: number;
-    };
     static initialize(): void;
     constructor({ oscillator, filter, amp }?: SynthProps, { bmp, reverb }?: SynthEffects);
     static keymap: {
@@ -298,8 +277,9 @@ declare class Synthesizer {
 
 declare const basics: {
     Screen: typeof Screen;
-    UserEvent: typeof UserEvent;
+    PointerEvent: typeof PointerEvent;
     ResizeEvent: typeof ResizeEvent;
+    KeyboardEvent: typeof KeyboardEvent;
     ModalFrame: typeof ModalFrame;
     ModalContent: typeof ModalContent;
     AccordionFrame: typeof AccordionFrame;
@@ -312,9 +292,8 @@ declare const basics: {
     InputFrame: typeof InputFrame;
     DragFrame: typeof DragFrame;
     DragTarget: typeof DragTarget;
-    TouchStick: typeof TouchStick;
-    TouchDPad: typeof TouchDPad;
-    TouchButton: typeof TouchButton;
+    AnalogStick: typeof AnalogStick;
+    DirectionalPad: typeof DirectionalPad;
 };
 declare const audio: {
     synthesizer: typeof synthesizer;

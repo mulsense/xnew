@@ -24,9 +24,9 @@
       context.fillStyle = "rgb(0,0,0)";
       context.fillRect(0, 0, canvas.width, canvas.height);
       
-      const user = xnew(screen.element, xnew.basics.UserEvent);
+      const pointer = xnew(screen.element, xnew.basics.PointerEvent);
 
-      user.on('-dragstart -dragmove', ({ position, delta }) => {
+      pointer.on('-dragstart -dragmove', ({ position, delta }) => {
         const scaleX = canvas.width / canvas.clientWidth;
         const scaleY = canvas.height / canvas.clientHeight;
 
@@ -47,29 +47,29 @@
         const text1 = xnew('<div class="text-white text-lg text-center">', 'mouse over/out');
         const text2 = xnew('<div class="text-white text-lg text-center">', 'pointer');
         const text3 = xnew('<div class="text-white text-lg text-center">', 'drag');
-        user.on('-mouseover', ({ position }) => {
+        pointer.on('-mouseover', ({ position }) => {
           text1.element.textContent = `-mouseover {x:${position.x}, y:${position.y}}`;
         });
-        user.on('-mouseout', ({ position }) => {
+        pointer.on('-mouseout', ({ position }) => {
           text1.element.textContent = `-mouseout {x:${position.x}, y:${position.y}}`;
         });
-        user.on('-pointerdown', ({ position }) => {
+        pointer.on('-pointerdown', ({ position }) => {
           text2.element.textContent = `-pointerdown {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
-        user.on('-pointermove', ({ position }) => {
+        pointer.on('-pointermove', ({ position }) => {
           text2.element.textContent = `-pointermove {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
-        user.on('-pointerup', ({ position }) => {
+        pointer.on('-pointerup', ({ position }) => {
           text2.element.textContent = `-pointerup {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
 
-        user.on('-dragstart', ({ position }) => {
+        pointer.on('-dragstart', ({ position }) => {
           text3.element.textContent = `-dragstart {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
-        user.on('-dragmove', ({ position, delta }) => {
+        pointer.on('-dragmove', ({ position, delta }) => {
           text3.element.textContent = `-dragmove: {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}} delta {x:${Math.floor(delta.x)}, y:${Math.floor(delta.y)}}`;
         });
-        user.on('-dragend', ({ position }) => {
+        pointer.on('-dragend', ({ position }) => {
           text3.element.textContent = `-dragend: {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
       })

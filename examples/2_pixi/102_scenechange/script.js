@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew(Scene1);
 }

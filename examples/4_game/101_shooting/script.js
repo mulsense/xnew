@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew(Background);
   xnew(TitleScene);
@@ -72,18 +72,24 @@ function Controller(unit) {
   xnew.listener(window).on('keydown', (event) => event.preventDefault());
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
-  // virtual D-Pad
-  const dpad = xnew('<div style="position: absolute; left: 10px; bottom: 20px;">', xnew.basics.TouchDPad, { size: 130 });
-  dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', vector));
+  // left bottom
+  xnew(() => {
+    xnew.nest('<div class="absolute left-0 right-0 bottom-0 w-full h-[30%] pointer-events-none" style="container-type: size;">');
+    xnew.nest('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">');
+    // directional pad
+    const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
+    dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));        
+  });
 
-  // virtual button
-  const button = xnew('<div style="position: absolute; right: 20px; bottom: 20px;">', xnew.basics.TouchButton);
-  button.on('-down', () => unit.emit('+shot'));
+  const pointer = xnew(xpixi.canvas, xnew.basics.PointerEvent);
+  pointer.on('-pointerdown', () => {
+      unit.emit('+shot')
+  });
 
   // keyboard
-  const user = xnew(xnew.basics.UserEvent);
-  user.on('-arrowkeydown -arrowkeyup', ({ vector }) => unit.emit('+move', vector));
-  user.on('-keydown', ({ code }) => {
+  const keybord = xnew(xnew.basics.KeyboardEvent);
+  keybord.on('-arrowkeydown -arrowkeyup', ({ vector }) => unit.emit('+move', { vector }));
+  keybord.on('-keydown', ({ code }) => {
     if (code === 'Space') {
       unit.emit('+shot')
     }
@@ -112,7 +118,7 @@ function Player(unit) {
 
   // actions
   let velocity = { x: 0, y: 0 };
-  unit.on('+move', (vector) => velocity = vector);
+  unit.on('+move', ({ vector }) => velocity = vector);
   unit.on('+shot', () => xnew.append(GameScene, Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 

@@ -8,7 +8,7 @@ xnew('#main', Main);
 
 function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width: 1200, height: 600 });
-  xthree.initialize({ canvas: screen.element });
+  xthree.initialize({ canvas: screen.canvas });
   xthree.scene.background = new THREE.Color(0xa0a0a0);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
   xthree.renderer.shadowMap.enabled = true;

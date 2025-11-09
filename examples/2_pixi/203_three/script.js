@@ -13,7 +13,7 @@ function Main(unit) {
 
   // pixi
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew(Cubes);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });

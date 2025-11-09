@@ -8,7 +8,7 @@ xnew('#main', Main);
 
 function Main(self) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  // xpixi.initialize({ canvas: screen.element });
+  // xpixi.initialize({ canvas: screen.canvas });
   xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 }, timestep: 3 / 60 });
 
   xnew.then(() => {

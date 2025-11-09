@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 
-export function UserEvent(unit: xnew.Unit) {
+export function PointerEvent(unit: xnew.Unit) {
     const internal = xnew();
     internal.on('pointerdown', (event: any) => unit.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
     internal.on('pointermove', (event: any) => unit.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
@@ -21,12 +21,6 @@ export function UserEvent(unit: xnew.Unit) {
     gesture.on('-gesturemove', (...args: any[]) => unit.emit('-gesturemove', ...args));
     gesture.on('-gestureend', (...args: any[]) => unit.emit('-gestureend', ...args));
     gesture.on('-gesturecancel', (...args: any[]) => unit.emit('-gesturecancel', ...args));  
-    
-    const keyborad = xnew(Keyboard);
-    keyborad.on('-keydown', (...args: any[]) => unit.emit('-keydown', ...args));
-    keyborad.on('-keyup', (...args: any[]) => unit.emit('-keyup', ...args));
-    keyborad.on('-arrowkeydown', (...args: any[]) => unit.emit('-arrowkeydown', ...args));
-    keyborad.on('-arrowkeyup', (...args: any[]) => unit.emit('-arrowkeyup', ...args));
 }
 
 function DragEvent(unit: xnew.Unit) {
@@ -131,32 +125,6 @@ function GestureEvent(unit: xnew.Unit) {
         const others = [...map.values()];
         map.set(id, backup);
         return others;
-    }
-}
-
-function Keyboard(unit: xnew.Unit) {
-    const state: any = {};
-
-    xnew.listener(window).on('keydown', (event: any) => {
-        state[event.code] = 1;
-        unit.emit('-keydown', { event, code: event.code });
-    });
-    xnew.listener(window).on('keyup', (event: any) => {
-        state[event.code] = 0;
-        unit.emit('-keyup', { event, code: event.code });
-    });
-    xnew.listener(window).on('keydown', (event: any) => {
-        unit.emit('-arrowkeydown', { event, code: event.code, vector: getVector() });
-    });
-    xnew.listener(window).on('keyup', (event: any) => {
-        unit.emit('-arrowkeyup', { event, code: event.code, vector: getVector() });
-    });
-
-    function getVector() {
-        return {
-            x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
-            y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
-        };
     }
 }
 

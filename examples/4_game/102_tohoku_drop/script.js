@@ -19,7 +19,7 @@ function Main(unit) {
 
   // pixi
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew(TitleScene);
 }
@@ -43,6 +43,30 @@ function TitleScene(scene) {
   xnew.listener(window).on('keydown pointerdown', () => {
     scene.finalize();
     xnew.append(Main, GameScene);
+  });
+}
+
+function GameScene(scene) {
+  xmatter.initialize();
+
+  xnew(Background);
+  xnew(ShadowPlane);
+  xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
+  xnew(AmbientLight);
+  xnew(Controller);
+  xnew(ScoreText);
+  xnew(Bowl);
+  xnew(Cursor);
+  xnew(Queue);
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+
+  scene.on('+gameover', () => {
+    xnew(GameOverText);
+    xnew(Retry);
+  });
+  scene.on('+retry', () => {
+    scene.finalize();
+    xnew.append(Main, TitleScene);
   });
 }
 
@@ -85,32 +109,6 @@ function TouchMessage(unit) {
   });
 }
 
-function GameScene(scene) {
-  xmatter.initialize();
-
-  xnew(Background);
-  xnew(ShadowPlane);
-  xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
-  xnew(AmbientLight);
-  xnew(Controller);
-  xnew(ScoreText);
-  xnew(Bowl);
-  xnew(Cursor);
-  xnew(Queue);
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-
-  scene.on('+gameover', () => {
-    xnew(GameOverText);
-
-    xnew.timeout(() => {
-      xnew.listener(window).on('keydown pointerdown', () => {
-        scene.finalize();
-        xnew.append(Main, TitleScene);
-      });
-    }, 1000);
-  });
-}
-
 function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
@@ -122,11 +120,11 @@ function AmbientLight(unit) {
 }
 
 function Controller(unit) {
-  const user = xnew(xpixi.canvas, xnew.basics.UserEvent);
-  user.on('-pointermove -pointerdown', ({ position }) => {
+  const pointer = xnew(xpixi.canvas, xnew.basics.PointerEvent);
+  pointer.on('-pointermove -pointerdown', ({ position }) => {
     unit.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
   });
-  user.on('-pointerdown', () => unit.emit('+action'));
+  pointer.on('-pointerdown', () => unit.emit('+action'));
   unit.on('+gameover', () => unit.finalize());
 }
 
@@ -189,15 +187,17 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
   })).then((gltf) => {
     vrm = gltf.userData.vrm;
     vrm.scene.traverse((object) => {
-      if (object.isMesh) object.castShadow = true;
-      if (object.isMesh) object.receiveShadow = true;
+      if (object.isMesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
     });
     vrm.scene.position.y = -scale;
     vrm.scene.scale.set(scale, scale, scale);
     object.add(vrm.scene);
   });
 
-  const offset = Math.random() * 10;
+  const random = Math.random() * 10;
 
   let count = 0;
   unit.on('update', () => {
@@ -208,12 +208,12 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
     const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
     const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
     const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
-    const t = (count + offset) * 0.03;
+    const t = (count + random) * 0.03;
     neck.rotation.x = Math.sin(t * 6) * +0.1;
     chest.rotation.x = Math.sin(t * 12) * +0.1;
     hips.position.z = Math.sin(t * 12) * 0.1;
-    leftUpperArm.rotation.z = Math.sin(t * 12 + offset) * +0.7;
-    leftUpperArm.rotation.x = Math.sin(t * 6 + offset) * +0.8;
+    leftUpperArm.rotation.z = Math.sin(t * 12 + random) * +0.7;
+    leftUpperArm.rotation.x = Math.sin(t * 6 + random) * +0.8;
     rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
     rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
     leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
@@ -314,6 +314,15 @@ function GameOverText(unit) {
   const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0x000000 }));
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
   object.anchor.set(0.5);
+}
+
+function Retry(unit) {
+  xnew(xpixi.canvas.parentElement, () => {
+    xnew.nest('<div class="absolute inset-0 w-full h-full" style="container-type: size;">');
+    xnew.nest('<div class="absolute right-[4cqw] bottom-[4cqw]">');
+    const button = xnew('<button class="border-[0.5cqw] border-gray-800 text-[5cqw] rounded-full px-[2cqw] py-[0.5cqw] bg-blue-300 hover:bg-blue-500 cursor-pointer">', 'retry');
+    button.on('click', () => unit.emit('+retry'));
+  });
 }
 
 function Circle(unit, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) {

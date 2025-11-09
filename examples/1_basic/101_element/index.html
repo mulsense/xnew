@@ -40,7 +40,7 @@
 
       xnew('<div>', (unit) => {
         let count = 0;
-        const button = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer bg-blue-200 hover:opacity-50">', 'click me');
+        const button = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'click me');
         button.on('click', () => {
           button.element.textContent = `count: ${count++}`;
         });

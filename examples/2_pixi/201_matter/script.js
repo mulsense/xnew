@@ -8,10 +8,10 @@ xnew('#main', Main);
 
 function Main(self) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   const contents = xnew(Contents);
-  const button = xnew('<button class="absolute top-0 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-300">', 'reset');
+  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
   button.on('click', () => contents.reboot());
 }
 

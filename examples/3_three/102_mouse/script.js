@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xthree.initialize({ canvas: screen.element });
+  xthree.initialize({ canvas: screen.canvas });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +20);
@@ -70,15 +70,15 @@ function Cube(unit, { x, y, z, size, color }) {
 function Controller(unit) {
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
-  const user = xnew(xnew.basics.UserEvent);
+  const pointer = xnew(xnew.basics.PointerEvent);
   let isActive = false;
-  user.on('-gesturestart', () => isActive = true);
-  user.on('-gestureend', () => isActive = false);
-  user.on('-gesturemove', ({ scale }) => {
+  pointer.on('-gesturestart', () => isActive = true);
+  pointer.on('-gestureend', () => isActive = false);
+  pointer.on('-gesturemove', ({ scale }) => {
     unit.emit('+scale', { scale })
   });
   
-  user.on('-dragmove', ({ event, delta }) => {
+  pointer.on('-dragmove', ({ event, delta }) => {
     console.log(event);
     if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
@@ -88,5 +88,5 @@ function Controller(unit) {
       unit.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
     }
   });
-  user.on('-wheel', ({ delta }) => unit.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+  pointer.on('-wheel', ({ delta }) => unit.emit('+scale', { scale: 1 + 0.001 * delta.y }));
 }

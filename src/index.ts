@@ -1,5 +1,6 @@
 import { ResizeEvent } from './basics/ResizeEvent';
-import { UserEvent } from './basics/UserEvent';
+import { PointerEvent } from './basics/PointerEvent';
+import { KeyboardEvent } from './basics/KeyboardEvent';
 import { Screen } from './basics/Screen';
 
 import { InputFrame } from './basics/Input';
@@ -7,8 +8,8 @@ import { InputFrame } from './basics/Input';
 import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } from './basics/Accordion';
-import { DragFrame, DragTarget } from './basics/SubWIndow';
-import { TouchStick, TouchDPad, TouchButton } from './basics/Touch';
+import { DragFrame, DragTarget } from './basics/Drag';
+import { AnalogStick, DirectionalPad } from './basics/Controller';
 
 import { Unit } from './core/unit';
 import { xnew as base } from './core/xnew';
@@ -18,8 +19,9 @@ import { synthesizer } from './audio/synthesizer';
 
 const basics = {
     Screen,
-    UserEvent,
+    PointerEvent,
     ResizeEvent,
+    KeyboardEvent,
     ModalFrame,
     ModalContent,
     AccordionFrame,
@@ -32,10 +34,10 @@ const basics = {
     InputFrame,
     DragFrame,
     DragTarget,
-    TouchStick,
-    TouchDPad,
-    TouchButton,
+    AnalogStick,
+    DirectionalPad,
 };
+
 const audio = {
     synthesizer, load
 };
