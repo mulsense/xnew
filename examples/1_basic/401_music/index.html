@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (unit) => {
+      xnew.nest('<div class="m-2">');
+
+      const music = xnew.audio.load('b096.wav');
+      xnew(Button, { name: 'play!' }).on('click', () => {
+        music.play();
+      });
+      xnew(Button, { name: 'stop!' }).on('click', () => {
+        music.stop();
+      });
+    });
+
+    function Button(unit, { name }) {
+      xnew.nest('<button class="h-8 px-2 border rounded-lg cursor-pointer bg-blue-200 hover:opacity-50">');
+      unit.element.textContent = name;
+    }
+  </script>
+</body>
+</html>

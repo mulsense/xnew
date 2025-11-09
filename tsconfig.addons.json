@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "rootDir": "./src",
+        "target": "ES6",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "declaration": true,
+        "pretty": true,
+        "newLine": "lf",
+        "outDir": "./dist",
+        "lib": ["ES6", "DOM"]
+    },
+    "include": ["./src/addons/*.ts"],
+}

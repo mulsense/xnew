@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (unit) => {
+      xnew.nest('<div style="width: 100%; height: 100%; background: #eef;">');
+      xnew(MyDragFrame)
+    });
+
+    function MyDragFrame(frame) {
+      xnew.extend(xnew.basics.DragFrame);
+      xnew.nest('<div style="width: 300px; border: solid 1px #000; border-radius: 6px;">');
+
+      xnew((target) => {
+        xnew.extend(xnew.basics.DragTarget);
+        xnew('<div style="padding: 6px; user-select: none; cursor: pointer;">', 'drag (drag me!)');
+      });
+
+      xnew((content) => {
+        xnew.nest('<div style="padding: 6px; border-top: solid 1px #000;">');
+        xnew('<span>', 'Content');
+        xnew('<ul>', () => {
+          xnew('<li>', '1st item');
+          xnew('<li>', '2nd item');
+          xnew('<li>', '3rd item');
+        });
+      });
+    }
+  </script>
+</body>
+
+</html>

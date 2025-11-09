@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (self) => {
+      xnew.nest('<div class="p-2">')
+      xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer bg-blue-200 hover:opacity-50">', 'open modal!').on('click', () => xnew(MyModal));
+    });
+
+    function MyModal(frame) {
+      xnew.extend(xnew.basics.ModalFrame, { duration: 300, easing: 'ease' });
+
+      xnew((content) => {
+        xnew.extend(xnew.basics.ModalContent);
+        xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
+
+        // Title Bar
+        xnew('<div class="p-2 border-b flex justify-between">', () => {
+          xnew('<span>', 'Title');
+          xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => frame.close());
+        });
+
+        // Content
+        xnew('<div style="padding: 6px;">', () => {
+          xnew('<span>', 'Content');
+          xnew('<ul>', () => {
+            xnew('<li class="ml-2">', '1st item');
+            xnew('<li class="ml-2">', '2nd item');
+            xnew('<li class="ml-2">', '3rd item');
+          });
+        });
+      });
+   
+    }
+  </script>
+</body>
+
+</html>

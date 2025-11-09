@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  <script>
+    xnew('#main', (unit) => {
+      xnew.nest('<div class="p-2 flex gap-x-4 flex-wrap">');
+        
+      xnew('<div>', (unit) => {
+        xnew('<p>', 'canvas');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+
+        const unit = xnew('<canvas width="400" height="200" class="w-full">');
+        draw(unit)
+      });
+
+      xnew('<div>', (unit) => {
+        xnew('<p>', 'screen: contain');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'contain' });
+        draw(screen)
+      });
+      
+      xnew('<div>', (unit) => {
+        xnew('<p>', 'screen: cover');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'cover' });
+        draw(screen)
+      });
+
+      xnew('<div>', (unit) => {
+        xnew('<p>', 'screen: fill');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'fill' });
+        draw(screen)
+      });
+
+      function draw(unit) {
+        const canvas = unit.element;
+        const context = canvas.getContext('2d');
+        const [cx, cy] = [canvas.width / 2, canvas.height / 2];
+        const size = 80;
+
+        context.fillStyle = 'rgb(0,0,0)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = 'rgb(200,0,100)';
+        context.fillRect(cx - 0.6 * cx - size / 2, cy - size / 2, size, size);
+        context.fillStyle = 'rgb(100,200,0)';
+        context.fillRect(cx + 0.0 * cx - size / 2, cy - size / 2, size, size);
+        context.fillStyle = 'rgb(0,100,200)';
+        context.fillRect(cx + 0.6 * cx - size / 2, cy - size / 2, size, size);
+      }
+    });
+
+  </script>
+</body>
+
+</html>
