@@ -192,7 +192,7 @@ declare function TouchStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke
     strokeLinejoin?: string | undefined;
 }): void;
 declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
-    size?: number | null;
+    size?: number;
     diagonal?: boolean;
     fill?: string;
     fillOpacity?: number;

@@ -102,14 +102,14 @@ function GameScene(unit, { id }) {
 }
 
 function DirectionalLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.5));
   object.position.set(x, y, z);
   object.castShadow = true;
   object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 0.7));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.5));
 }
 
 function Texture(unit, { texture, position = { x: 0, y: 0} }) {
@@ -303,9 +303,8 @@ function Controller(unit) {
     }
   });
 
-  xnew('<div class="@container absolute left-0 bottom-0 w-[20%] h-[20%]">', () => {
-    xnew.nest('<div class="relative w-full h-full">');
-    xnew.nest('<div class="absolute left-[1cqw] bottom-[1cqw] w-full h-full">');
+  xnew('<div class="@container absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200">', () => {
+    xnew.nest('<div class="absolute inset-[1cqw] bottom-[1cqw] bg-red-200">');
     const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.5 });
 
     dpad.on('-down', ({ vector }) => {

@@ -1260,18 +1260,22 @@ function TouchStick(self, { size = 130, fill = '#FFF', fillOpacity = 0.8, stroke
         return { x: Math.cos(a) * d, y: Math.sin(a) * d };
     }
 }
-function DirectionalPad(self, { size = null, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
+function DirectionalPad(self, { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}) {
     let internal;
-    let newsize = size;
-    if (size === null) {
+    let newsize;
+    if (size) {
+        newsize = size;
+    }
+    else {
         newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
-        xnew$1(self.element.parentElement, ResizeEvent).on('-resize', () => {
+        console.log(self.element.parentElement, self.element);
+        xnew$1(self.element, ResizeEvent).on('-resize', () => {
             newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
             internal === null || internal === void 0 ? void 0 : internal.reboot();
         });
     }
     internal = xnew$1(() => {
-        xnew$1.nest(`<div style="position: relative; width: ${newsize}px; height: ${newsize}px; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
+        xnew$1.nest(`<div style="position: relative; width: ${newsize}px; height: ${newsize}px; margin: auto; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
         const polygons = [
             '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
             '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',

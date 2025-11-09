@@ -71,14 +71,17 @@ export function TouchStick(self: xnew.Unit,
 }
 
 export function DirectionalPad(self: xnew.Unit,
-    { size = null, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
-    { size?: number | null, diagonal?: boolean, fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
+    { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
+    { size?: number, diagonal?: boolean, fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
 ) {
     let internal: xnew.Unit;
-    let newsize = size as number;
-    if (size === null) {
+    let newsize: number;
+    if (size) {
+        newsize = size;
+    } else {
         newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
-        xnew(self.element.parentElement, ResizeEvent).on('-resize', () => {
+        console.log(self.element.parentElement, self.element);
+        xnew(self.element, ResizeEvent).on('-resize', () => {
             newsize = Math.min(self.element.clientWidth, self.element.clientHeight);
             internal?.reboot();
         });
