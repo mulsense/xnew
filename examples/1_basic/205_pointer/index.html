@@ -14,7 +14,7 @@
       const screen = xnew(xnew.basics.Screen, { width: 512, height: 512 });
 
       const button = xnew('<button class="absolute top-0 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-300">', 'reset');
-      const canvas = screen.element;
+      const canvas = screen.canvas;
       const context = canvas.getContext('2d');
       button.on('click', () => {
         context.fillStyle = "rgb(0,0,0)";
