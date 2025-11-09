@@ -22,7 +22,7 @@ function Main(unit) {
 
   // pixi 
   const screen = xnew(xnew.basics.Screen, { width: 700, height: 700 });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
     global.levels = levels;
@@ -332,7 +332,7 @@ function InfoPanel(unit, { id }) {
   // levelText.position.set(350, 10);
   // levelText.anchor.set(0.5);
   // panel.addChild(levelText);
-  xnew('<div class="@container absolute bottom-0 left-0 right-0 w-full h-[22%]">', () => {
+  xnew('<div class="absolute bottom-0 left-0 right-0 w-full h-[22%]" style="container-type: size;">', () => {
     const div = xnew.nest('<div class="relative w-full h-full text-[6cqw]" style="font-family: Arial;">');
     xnew('<div class="relative w-full text-center text-gray-200">', `Level: ${id + 1}`);
     xnew('<div class="relative w-full text-center">', () => {

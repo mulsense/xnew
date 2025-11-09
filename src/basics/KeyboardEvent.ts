@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 
-export function KeyEvent(unit: xnew.Unit) {
+export function KeyboardEvent(unit: xnew.Unit) {
     const state: any = {};
 
     xnew.listener(window).on('keydown', (event: any) => {

@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(unit) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xthree.initialize({ canvas: screen.element });
+  xthree.initialize({ canvas: screen.canvas });
   xthree.camera.position.set(0, 0, +100);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 300);
 

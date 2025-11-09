@@ -1,5 +1,5 @@
 export const context: AudioContext = new AudioContext();
-const master: GainNode = context.createGain();
+export const master: GainNode = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
 
@@ -11,7 +11,7 @@ export class AudioNodeClass {
         this.nodes = {};
         Object.keys(params).forEach((key) => {
             const [type, props, ...to] = params[key];
-            this.nodes[key] = (context as any)[`create${type}`]();
+            this.nodes[key] = (context as any)[type]();
             Object.keys(props).forEach((name) => {
                 if (this.nodes[key][name]?.value !== undefined) {
                     this.nodes[key][name].value = props[name];
@@ -45,18 +45,19 @@ export class AudioNodeClass {
     }
 }
 
-export type AudioNodeMap = { [key: string]: AudioNode & { [key: string]: any } };
+export type AudioNodeMap = { [key: string]: AudioNode };
 export function connect(params: { [key: string]: any[] }): AudioNodeMap {
 
     const nodes: AudioNodeMap = {};
     Object.keys(params).forEach((key) => {
         const [type, props, ...to] = params[key];
-        nodes[key] = (context as any)[`create${type}`]();
+        nodes[key] = (context as any)[`create${type}`]() as AudioNode;
+        const node = nodes[key] as { [key: string]: any };
         Object.keys(props).forEach((name) => {
-            if (nodes[key][name]?.value !== undefined) {
-                nodes[key][name].value = props[name];
+            if (node[name]?.value !== undefined) {
+                node[name].value = props[name];
             } else {
-                nodes[key][name] = props[name];
+                node[name] = props[name];
             }
         });
     });
@@ -67,7 +68,7 @@ export function connect(params: { [key: string]: any[] }): AudioNodeMap {
         to.forEach((to: string) => {
             let dest: any = null;
             if (to.indexOf('.') > 0) {
-                dest = nodes[to.split('.')[0]][to.split('.')[1]];
+                dest = (nodes[to.split('.')[0]] as { [key: string]: any })[to.split('.')[1]];
             } else if (nodes[to]) {
                 dest = nodes[to];
             } else if (to === 'master') {

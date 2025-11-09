@@ -97,6 +97,7 @@
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       xnew.extend(PanelGroup, { name: 'filter', open: true });
+      xnew.extend(Check, { checkable: true });
 
       const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
       const cutoff = xnew(Slider, { name: 'cutoff', value: 1000, min: 100, max: 4000, step: 10 });

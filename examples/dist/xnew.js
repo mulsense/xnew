@@ -914,7 +914,7 @@
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
 
-    function KeyEvent(unit) {
+    function KeyboardEvent(unit) {
         const state = {};
         xnew$1.listener(window).on('keydown', (event) => {
             state[event.code] = 1;
@@ -942,7 +942,7 @@
         const size = { width, height };
         const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
         const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
-        const canvas = xnew$1.nest(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
+        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
         xnew$1(wrapper, ResizeEvent).on('-resize', resize);
         resize();
         function resize() {
@@ -973,18 +973,15 @@
         }
         return {
             get canvas() {
-                return canvas;
+                return canvas.element;
             },
             resize(width, height) {
                 size.width = width;
                 size.height = height;
-                canvas.setAttribute('width', width + 'px');
-                canvas.setAttribute('height', height + 'px');
+                canvas.element.setAttribute('width', width + 'px');
+                canvas.element.setAttribute('height', height + 'px');
                 resize();
             },
-            get scale() {
-                return { x: size.width / canvas.clientWidth, y: size.height / canvas.clientHeight };
-            }
         };
     }
 
@@ -1372,13 +1369,14 @@
         Object.keys(params).forEach((key) => {
             const [type, props, ...to] = params[key];
             nodes[key] = context[`create${type}`]();
+            const node = nodes[key];
             Object.keys(props).forEach((name) => {
                 var _a;
-                if (((_a = nodes[key][name]) === null || _a === void 0 ? void 0 : _a.value) !== undefined) {
-                    nodes[key][name].value = props[name];
+                if (((_a = node[name]) === null || _a === void 0 ? void 0 : _a.value) !== undefined) {
+                    node[name].value = props[name];
                 }
                 else {
-                    nodes[key][name] = props[name];
+                    node[name] = props[name];
                 }
             });
         });
@@ -1503,7 +1501,6 @@
             this.filter.cutoff = isNumber(this.filter.cutoff) ? clamp(this.filter.cutoff, 4, 8192) : undefined;
             this.amp = isObject(amp) ? amp : {};
             this.amp.envelope = setEnvelope(this.amp.envelope, 0, 1);
-            this.amp.LFO = setLFO(this.amp.LFO, 36);
             this.bmp = isNumber(bmp) ? clamp(bmp, 60, 240) : 120;
             this.reverb = isObject(reverb) ? reverb : {};
             this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
@@ -1546,33 +1543,40 @@
             duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.bmp) : (duration !== null ? (duration / 1000) : duration);
             const start = context.currentTime + wait / 1000;
             let stop = null;
-            const params = {};
+            const nodes = {};
+            nodes.oscillator = context.createOscillator();
+            nodes.amp = context.createGain();
+            nodes.amp.gain.value = 0.0;
+            nodes.target = context.createGain();
+            nodes.target.gain.value = 1.0;
+            nodes.amp.connect(nodes.target);
+            nodes.target.connect(master);
             if (this.filter.type && this.filter.cutoff) {
-                params.oscillator = ['Oscillator', {}, 'filter'];
-                params.filter = ['BiquadFilter', {}, 'amp'];
+                nodes.filter = context.createBiquadFilter();
+                nodes.oscillator.connect(nodes.filter);
+                nodes.filter.connect(nodes.amp);
             }
             else {
-                params.oscillator = ['Oscillator', {}, 'amp'];
+                nodes.oscillator.connect(nodes.amp);
             }
-            params.amp = ['Gain', { gain: 0.0 }, 'target'];
-            params.target = ['Gain', { gain: 1.0 }, 'master'];
             if (this.reverb.time > 0.0 && this.reverb.mix > 0.0) {
-                params.amp.push('convolver');
-                params.convolver = ['Convolver', { buffer: impulseResponse({ time: this.reverb.time }) }, 'convolverDepth'];
-                params.convolverDepth = ['Gain', { gain: 1.0 }, 'master'];
+                nodes.convolver = context.createConvolver();
+                nodes.convolver.buffer = impulseResponse({ time: this.reverb.time });
+                nodes.convolverDepth = context.createGain();
+                nodes.convolverDepth.gain.value = 1.0;
+                nodes.amp.connect(nodes.convolver);
+                nodes.convolver.connect(nodes.convolverDepth);
+                nodes.convolverDepth.connect(master);
             }
             if (this.oscillator.LFO) {
-                params.oscillatorLFO = ['Oscillator', {}, 'oscillatorLFODepth'];
-                params.oscillatorLFODepth = ['Gain', {}, 'oscillator.frequency'];
+                nodes.oscillatorLFO = context.createOscillator();
+                nodes.oscillatorLFODepth = context.createGain();
+                nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
+                nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
             }
-            if (this.amp.LFO) {
-                params.ampLFO = ['Oscillator', {}, 'ampLFODepth'];
-                params.ampLFODepth = ['Gain', {}, 'amp.gain'];
-            }
-            const nodes = connect(params);
             nodes.oscillator.type = this.oscillator.type;
             nodes.oscillator.frequency.value = clamp(frequency, 10.0, 5000.0);
-            if (this.filter.type && this.filter.cutoff) {
+            if (this.filter.type && this.filter.cutoff && nodes.filter) {
                 nodes.filter.type = this.filter.type;
                 nodes.filter.frequency.value = this.filter.cutoff;
             }
@@ -1581,17 +1585,11 @@
                 nodes.convolverDepth.gain.value *= this.reverb.mix;
             }
             {
-                if (this.oscillator.LFO) {
+                if (this.oscillator.LFO && nodes.oscillatorLFO && nodes.oscillatorLFODepth) {
                     nodes.oscillatorLFODepth.gain.value = frequency * (Math.pow(2.0, this.oscillator.LFO.amount / 12.0) - 1.0);
                     nodes.oscillatorLFO.type = this.oscillator.LFO.type;
                     nodes.oscillatorLFO.frequency.value = this.oscillator.LFO.rate;
                     nodes.oscillatorLFO.start(start);
-                }
-                if (this.amp.LFO) {
-                    nodes.ampLFODepth.gain.value = this.amp.LFO.amount;
-                    nodes.ampLFO.type = this.amp.LFO.type;
-                    nodes.ampLFO.frequency.value = this.amp.LFO.rate;
-                    nodes.ampLFO.start(start);
                 }
                 if (this.oscillator.envelope) {
                     const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
@@ -1616,11 +1614,8 @@
                 else {
                     stop = start + duration;
                 }
-                if (this.oscillator.LFO) {
+                if (nodes.oscillatorLFO) {
                     nodes.oscillatorLFO.stop(stop);
-                }
-                if (this.amp.LFO) {
-                    nodes.ampLFO.stop(stop);
                 }
                 if (this.oscillator.envelope) {
                     const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
@@ -1686,7 +1681,7 @@
         Screen,
         PointerEvent,
         ResizeEvent,
-        KeyEvent,
+        KeyboardEvent,
         ModalFrame,
         ModalContent,
         AccordionFrame,

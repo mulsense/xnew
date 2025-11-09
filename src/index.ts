@@ -1,6 +1,6 @@
 import { ResizeEvent } from './basics/ResizeEvent';
 import { PointerEvent } from './basics/PointerEvent';
-import { KeyEvent } from './basics/KeyEvent';
+import { KeyboardEvent } from './basics/KeyboardEvent';
 import { Screen } from './basics/Screen';
 
 import { InputFrame } from './basics/Input';
@@ -21,7 +21,7 @@ const basics = {
     Screen,
     PointerEvent,
     ResizeEvent,
-    KeyEvent,
+    KeyboardEvent,
     ModalFrame,
     ModalContent,
     AccordionFrame,

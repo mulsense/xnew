@@ -6,7 +6,7 @@ xnew('#main', Main);
 
 function Main(self) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400, fit: 'contain' });
-  xpixi.initialize({ canvas: screen.element });
+  xpixi.initialize({ canvas: screen.canvas });
 
   const sub1 = xnew(SubScreen, { color: 0xEA1E63 });
   const sub2 = xnew(SubScreen, { color: 0x63EA1E });

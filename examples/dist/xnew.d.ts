@@ -102,7 +102,7 @@ declare const xnew$1: any;
 
 declare function PointerEvent(unit: xnew$1.Unit): void;
 
-declare function KeyEvent(unit: xnew$1.Unit): void;
+declare function KeyboardEvent(unit: xnew$1.Unit): void;
 
 declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
     width?: number | undefined;
@@ -111,10 +111,6 @@ declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
 }): {
     readonly canvas: any;
     resize(width: number, height: number): void;
-    readonly scale: {
-        x: number;
-        y: number;
-    };
 };
 
 declare function InputFrame(frame: xnew$1.Unit, {}?: {}): void;
@@ -206,9 +202,7 @@ declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillO
 }): void;
 
 type AudioNodeMap = {
-    [key: string]: AudioNode & {
-        [key: string]: any;
-    };
+    [key: string]: AudioNode;
 };
 
 declare function load(path: string): AudioFile;
@@ -256,7 +250,6 @@ type FilterOptions = {
 };
 type AmpOptions = {
     envelope?: Envelope | null;
-    LFO?: LFO | null;
 };
 type ReverbOptions = {
     time?: number;
@@ -286,7 +279,7 @@ declare const basics: {
     Screen: typeof Screen;
     PointerEvent: typeof PointerEvent;
     ResizeEvent: typeof ResizeEvent;
-    KeyEvent: typeof KeyEvent;
+    KeyboardEvent: typeof KeyboardEvent;
     ModalFrame: typeof ModalFrame;
     ModalContent: typeof ModalContent;
     AccordionFrame: typeof AccordionFrame;
