@@ -1364,40 +1364,6 @@
     const master = context.createGain();
     master.gain.value = 1.0;
     master.connect(context.destination);
-    function connect(params) {
-        const nodes = {};
-        Object.keys(params).forEach((key) => {
-            const [type, props, ...to] = params[key];
-            nodes[key] = context[`create${type}`]();
-            const node = nodes[key];
-            Object.keys(props).forEach((name) => {
-                var _a;
-                if (((_a = node[name]) === null || _a === void 0 ? void 0 : _a.value) !== undefined) {
-                    node[name].value = props[name];
-                }
-                else {
-                    node[name] = props[name];
-                }
-            });
-        });
-        Object.keys(params).forEach((key) => {
-            const [type, props, ...to] = params[key];
-            to.forEach((to) => {
-                let dest = null;
-                if (to.indexOf('.') > 0) {
-                    dest = nodes[to.split('.')[0]][to.split('.')[1]];
-                }
-                else if (nodes[to]) {
-                    dest = nodes[to];
-                }
-                else if (to === 'master') {
-                    dest = master;
-                }
-                nodes[key].connect(dest);
-            });
-        });
-        return nodes;
-    }
 
     const store = new Map();
     function load(path) {
@@ -1416,7 +1382,6 @@
                     .then((response) => context.decodeAudioData(response))
                     .then((response) => {
                     this.data.buffer = response;
-                    this.nodes.source.buffer = this.data.buffer;
                 })
                     .catch(() => {
                     console.warn(`"${path}" could not be loaded.`);
@@ -1424,10 +1389,6 @@
                 store.set(path, this.data);
             }
             this.startTime = null;
-            this.nodes = connect({
-                source: ['BufferSource', {}, 'volume'],
-                volume: ['Gain', { gain: 1.0 }, 'master'],
-            });
         }
         isReady() {
             return this.data.buffer ? true : false;
@@ -1435,25 +1396,39 @@
         get promise() {
             return this.data.promise;
         }
-        set volume(value) {
-            this.nodes.volume.gain.value = value;
-        }
-        get volume() {
-            return this.nodes.volume.gain.value;
-        }
-        set loop(value) {
-            this.nodes.source.loop = value;
-        }
-        get loop() {
-            return this.nodes.source.loop;
-        }
+        // set volume(value: number) {
+        //     this.amp.gain.value = value;
+        // }
+        // get volume(): number {
+        //     return this.amp.gain.value;
+        // }
+        // set loop(value: boolean) {
+        //     this.source.loop = value;
+        // }
+        // get loop(): boolean {
+        //     return this.source.loop;
+        // }
         play(offset = 0) {
             if (this.startTime !== null)
                 return;
             if (this.isReady()) {
+                console.log('start');
+                this.source = context.createBufferSource();
+                this.source.buffer = this.data.buffer;
+                this.source.loop = true;
+                this.amp = context.createGain();
+                this.amp.gain.value = 1.0;
+                this.source.connect(this.amp);
+                this.amp.connect(master);
                 this.startTime = context.currentTime;
-                this.nodes.source.playbackRate.value = 1;
-                this.nodes.source.start(context.currentTime, offset / 1000);
+                this.source.playbackRate.value = 1;
+                this.source.start(context.currentTime, offset / 1000);
+                this.source.onended = () => {
+                    console.log('ended');
+                    this.startTime = null;
+                    this.source.disconnect();
+                    this.amp.disconnect();
+                };
             }
             else {
                 this.promise.then(() => this.play());
@@ -1462,7 +1437,7 @@
         pause() {
             if (this.startTime === null)
                 return;
-            this.nodes.source.stop(context.currentTime);
+            this.source.stop(context.currentTime);
             const elapsed = (context.currentTime - this.startTime) % this.data.buffer.duration * 1000;
             this.startTime = null;
             return elapsed;

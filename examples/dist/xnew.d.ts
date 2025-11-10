@@ -201,22 +201,15 @@ declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillO
     strokeLinejoin?: string;
 }): void;
 
-type AudioNodeMap = {
-    [key: string]: AudioNode;
-};
-
 declare function load(path: string): AudioFile;
 declare class AudioFile {
     data: any;
     startTime: number | null;
-    nodes: AudioNodeMap;
+    source: AudioBufferSourceNode;
+    amp: GainNode;
     constructor(path: string);
     isReady(): boolean;
     get promise(): Promise<void>;
-    set volume(value: number);
-    get volume(): number;
-    set loop(value: boolean);
-    get loop(): boolean;
     play(offset?: number): void;
     pause(): number | undefined;
 }
