@@ -75,7 +75,7 @@ export default [
         external: ['@mulsense/xnew', 'matter-js'],
         plugins: [
             typescript({ tsconfig: 'tsconfig.addons.json' }),
-            copyto('./dist/addons/xmatter.d.ts', './examples/dist/addons/xthree.d.ts'),
+            copyto('./dist/addons/xmatter.d.ts', './examples/dist/addons/xmatter.d.ts'),
             copyto('./dist/addons/xmatter.js', './examples/dist/addons/xmatter.js'),
             copyto('./dist/addons/xmatter.mjs', './examples/dist/addons/xmatter.mjs'),
         ],
