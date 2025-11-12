@@ -79,9 +79,9 @@ declare class Unit {
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
     static extend(unit: Unit, component: Function, props?: Object): void;
-    static start(unit: Unit, time: number): void;
+    static start(unit: Unit): void;
     static stop(unit: Unit): void;
-    static update(unit: Unit, time: number): void;
+    static update(unit: Unit): void;
     static root: Unit;
     static current: Unit;
     static ticker: Ticker;

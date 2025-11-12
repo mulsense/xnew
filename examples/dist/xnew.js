@@ -52,7 +52,7 @@
     //----------------------------------------------------------------------------------------------------
     class Timer {
         constructor(timeout, transition, delay, loop = false) {
-            var _a, _b;
+            var _a;
             this.timeout = timeout;
             this.transition = transition;
             this.delay = delay;
@@ -61,33 +61,19 @@
             this.time = 0.0;
             this.offset = 0.0;
             this.status = 0;
-            this.ticker = (time) => {
-                var _a;
-                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay);
-            };
+            this.ticker = new Ticker((time) => { var _a; return (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay); });
+            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+            document.addEventListener('visibilitychange', this.visibilitychange);
             (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
-            if (this.delay <= 0) {
-                timeout();
-                (_b = this.transition) === null || _b === void 0 ? void 0 : _b.call(this, 1.0);
-            }
-            else {
-                if (document instanceof Document) {
-                    this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-                    document.addEventListener('visibilitychange', this.visibilitychange);
-                }
-                this.start();
-                Ticker.set(this.ticker);
-            }
+            this.start();
         }
         clear() {
             if (this.id !== null) {
                 clearTimeout(this.id);
                 this.id = null;
             }
-            if (document instanceof Document && this.visibilitychange !== undefined) {
-                document.removeEventListener('visibilitychange', this.visibilitychange);
-            }
-            Ticker.clear(this.ticker);
+            document.removeEventListener('visibilitychange', this.visibilitychange);
+            this.ticker.clear();
         }
         elapsed() {
             return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
@@ -103,12 +89,17 @@
         _start() {
             if (this.status === 1 && this.id === null) {
                 this.id = setTimeout(() => {
+                    var _a;
                     this.timeout();
+                    (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 1.0);
                     this.id = null;
                     this.time = 0.0;
                     this.offset = 0.0;
                     if (this.loop) {
                         this.start();
+                    }
+                    else {
+                        this.clear();
                     }
                 }, this.delay - this.offset);
                 this.time = Date.now();
@@ -327,9 +318,9 @@
             Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
             // setup capture
             for (let current = unit; current !== null; current = current._.parent) {
-                const finds = current._.captures.filter((capture) => capture.checker(unit));
-                finds.forEach((capture) => capture.execute(unit));
-                if (finds.length > 0)
+                const find = current._.captures.find((capture) => capture.checker(unit));
+                find === null || find === void 0 ? void 0 : find.execute(unit);
+                if (find !== undefined)
                     break;
             }
             Unit.current = backup;
@@ -404,16 +395,16 @@
                 Object.defineProperty(unit, key, wrapper);
             });
         }
-        static start(unit, time) {
+        static start(unit) {
             if (unit._.tostart === false)
                 return;
             if (unit._.state === 'initialized' || unit._.state === 'stopped') {
                 unit._.state = 'started';
-                unit._.children.forEach((child) => Unit.start(child, time));
+                unit._.children.forEach((child) => Unit.start(child));
                 unit._.systems.start.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
             else if (unit._.state === 'started') {
-                unit._.children.forEach((child) => Unit.start(child, time));
+                unit._.children.forEach((child) => Unit.start(child));
             }
         }
         static stop(unit) {
@@ -423,9 +414,9 @@
                 unit._.systems.stop.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
         }
-        static update(unit, time) {
+        static update(unit) {
             if (unit._.state === 'started') {
-                unit._.children.forEach((child) => Unit.update(child, time));
+                unit._.children.forEach((child) => Unit.update(child));
                 unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
         }
@@ -435,8 +426,8 @@
             Unit.current = Unit.root = new Unit(null, null);
             (_b = Unit.ticker) === null || _b === void 0 ? void 0 : _b.clear();
             Unit.ticker = new Ticker((time) => {
-                Unit.start(Unit.root, time);
-                Unit.update(Unit.root, time);
+                Unit.start(Unit.root);
+                Unit.update(Unit.root);
             });
         }
         static wrap(unit, listener) {
@@ -593,7 +584,7 @@
             return Unit.nest(Unit.current, tag);
         }
         else {
-            throw new Error('This function can not be called after initialized.');
+            throw new Error('xnew.nest: This function can not be called after initialized.');
         }
     };
     xnew$1.extend = (component, props) => {
@@ -602,7 +593,7 @@
             return Unit.extend(Unit.current, component, props);
         }
         else {
-            throw new Error('This function can not be called after initialized.');
+            throw new Error('xnew.extend: This function can not be called after initialized.');
         }
     };
     xnew$1.context = (key, value = undefined) => {
@@ -610,7 +601,8 @@
             return Unit.context(Unit.current, key, value);
         }
         catch (error) {
-            console.error('xnew.context(key, value?): ', error);
+            console.error('xnew.context(key: string, value?: any): ', error);
+            throw error;
         }
     };
     xnew$1.promise = (promise) => {
@@ -619,7 +611,7 @@
             return new UnitPromise(promise);
         }
         catch (error) {
-            console.error('xnew.promise(mix): ', error);
+            console.error('xnew.promise(promise: Promise<any>): ', error);
             throw error;
         }
     };
@@ -628,7 +620,7 @@
             return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
         }
         catch (error) {
-            console.error('xnew.then(mix): ', error);
+            console.error('xnew.then(callback: Function): ', error);
             throw error;
         }
     };
@@ -637,7 +629,7 @@
             return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
         }
         catch (error) {
-            console.error('xnew.catch(mix): ', error);
+            console.error('xnew.catch(callback: Function): ', error);
             throw error;
         }
     };
@@ -646,7 +638,7 @@
             return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
         }
         catch (error) {
-            console.error('xnew.finally(mix): ', error);
+            console.error('xnew.finally(callback: Function): ', error);
             throw error;
         }
     };
@@ -657,7 +649,7 @@
             return new UnitPromise(promise);
         }
         catch (error) {
-            console.error('xnew.promise(mix): ', error);
+            console.error('xnew.promise(url: string, options?: object): ', error);
             throw error;
         }
     };
@@ -670,20 +662,20 @@
             return Unit.find(component);
         }
         else {
-            throw new Error(`The argument [component] is invalid.`);
+            throw new Error('xnew.find(component: Function): [component] is invalid.');
         }
     };
-    xnew$1.append = (base, ...args) => {
-        if (typeof base === 'function') {
-            for (let unit of Unit.find(base)) {
+    xnew$1.append = (anchor, ...args) => {
+        if (typeof anchor === 'function') {
+            for (let unit of Unit.find(anchor)) {
                 Unit.scope(Unit.snapshot(unit), xnew$1, ...args);
             }
         }
-        else if (base instanceof Unit) {
-            Unit.scope(Unit.snapshot(base), xnew$1, ...args);
+        else if (anchor instanceof Unit) {
+            Unit.scope(Unit.snapshot(anchor), xnew$1, ...args);
         }
         else {
-            throw new Error(`The argument [component] is invalid.`);
+            throw new Error('xnew.append(anchor: Function | Unit, xnew arguments): [anchor] is invalid.');
         }
     };
     xnew$1.timeout = (callback, delay) => {
@@ -692,10 +684,8 @@
             const timer = new Timer(() => {
                 Unit.scope(snapshot, callback);
                 self.finalize();
-            }, null, delay);
-            self.on('finalize', () => {
-                timer.clear();
-            });
+            }, null, delay, false);
+            self.on('finalize', () => timer.clear());
         });
         return { clear: () => unit.finalize() };
     };
@@ -705,9 +695,7 @@
             const timer = new Timer(() => {
                 Unit.scope(snapshot, callback);
             }, null, delay, true);
-            self.on('finalize', () => {
-                timer.clear();
-            });
+            self.on('finalize', () => timer.clear());
         });
         return { clear: () => unit.finalize() };
     };
@@ -716,6 +704,23 @@
         let stacks = [];
         let unit = xnew$1(Local, { callback, interval, easing });
         let isRunning = true;
+        const timer = { clear, next };
+        return timer;
+        function execute() {
+            if (isRunning === false && stacks.length > 0) {
+                unit = xnew$1(Local, stacks.shift());
+                isRunning = true;
+            }
+        }
+        function clear() {
+            stacks = [];
+            unit.finalize();
+        }
+        function next(callback, interval, easing = 'linear') {
+            stacks.push({ callback, interval, easing });
+            execute();
+            return timer;
+        }
         function Local(self, { callback, interval, easing }) {
             const timer = new Timer(() => {
                 Unit.scope(snapshot, callback, 1.0);
@@ -743,25 +748,6 @@
                 execute();
             });
         }
-        let timer = null;
-        function execute() {
-            if (isRunning === false && stacks.length > 0) {
-                const props = stacks.shift();
-                unit = xnew$1(Local, props);
-                isRunning = true;
-            }
-        }
-        function clear() {
-            stacks = [];
-            unit.finalize();
-        }
-        function next(callback, interval, easing = 'linear') {
-            stacks.push({ callback, interval, easing });
-            execute();
-            return timer;
-        }
-        timer = { clear, next };
-        return timer;
     };
     xnew$1.listener = function (target) {
         return {

@@ -83,8 +83,8 @@ export class Unit {
         }
 
         const baseContext = parent?._.currentContext ?? { stack: null };
+        
         this._ = { parent, target, baseElement, baseContext, baseComponent, props } as UnitInternal;
-
         parent?._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -135,8 +135,8 @@ export class Unit {
             promises: [],
             captures: [],
             components: [],
-            listeners1: new MapMap<string, Function, [UnitElement, Function]>(),
-            listeners2: new MapMap<string, Function, [UnitElement | Window | Document, Function]>(),
+            listeners1: new MapMap(),
+            listeners2: new MapMap(),
             defines: {},
             systems: { start: [], update: [], stop: [], finalize: [] },
         });
@@ -154,9 +154,9 @@ export class Unit {
 
         // setup capture
         for (let current: Unit | null = unit; current !== null; current = current._.parent) {
-            const finds = current._.captures.filter((capture) => capture.checker(unit));
-            finds.forEach((capture) => capture.execute(unit));
-            if (finds.length > 0) break;
+            const find = current._.captures.find((capture) => capture.checker(unit));
+            find?.execute(unit);
+            if (find !== undefined) break;
         }
         Unit.current = backup;
     }
@@ -236,14 +236,14 @@ export class Unit {
         });
     }
 
-    static start(unit: Unit, time: number): void {
+    static start(unit: Unit): void {
         if (unit._.tostart === false) return;
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
-            unit._.children.forEach((child: Unit) => Unit.start(child, time));
+            unit._.children.forEach((child: Unit) => Unit.start(child));
             unit._.systems.start.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         } else if (unit._.state === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.start(child, time));
+            unit._.children.forEach((child: Unit) => Unit.start(child));
         }
     }
 
@@ -255,9 +255,9 @@ export class Unit {
         }
     }
 
-    static update(unit: Unit, time: number): void {
+    static update(unit: Unit): void {
         if (unit._.state === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.update(child, time));
+            unit._.children.forEach((child: Unit) => Unit.update(child));
             unit._.systems.update.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
@@ -271,8 +271,8 @@ export class Unit {
         Unit.current = Unit.root = new Unit(null, null);
         Unit.ticker?.clear();
         Unit.ticker = new Ticker((time: number) => {
-            Unit.start(Unit.root!, time);
-            Unit.update(Unit.root!, time);
+            Unit.start(Unit.root);
+            Unit.update(Unit.root);
         });
     }
 

@@ -44,12 +44,13 @@ export class Timer {
     private time: number;
     private offset: number;
     private status: 0 | 1;
-    private visibilitychange?: ((this: Document, event: Event) => any);
-    private ticker: (time: number) => void;
+    private visibilitychange: ((this: Document, event: Event) => any);
+    private ticker: Ticker;
 
     constructor(timeout: Function, transition: Function | null, delay: number, loop: boolean = false) {
         this.timeout = timeout;
         this.transition = transition;
+
         this.delay = delay;
         this.loop = loop;
 
@@ -58,24 +59,13 @@ export class Timer {
         this.offset = 0.0;
 
         this.status = 0;
-
-        this.ticker = (time: number): void => {
-            this.transition?.(this.elapsed() / this.delay);
-        };
+        this.ticker = new Ticker((time: number) => this.transition?.(this.elapsed() / this.delay));
+  
+        this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+        document.addEventListener('visibilitychange', this.visibilitychange);
 
         this.transition?.(0.0);
-
-        if (this.delay <= 0) {
-            timeout();
-            this.transition?.(1.0);
-        } else {
-            if (document instanceof Document) {
-                this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-                document.addEventListener('visibilitychange', this.visibilitychange);
-            }
-            this.start();
-            Ticker.set(this.ticker);
-        }
+        this.start();
     }
 
     public clear(): void {
@@ -83,10 +73,8 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        if (document instanceof Document && this.visibilitychange !== undefined) {
-            document.removeEventListener('visibilitychange', this.visibilitychange);
-        }
-        Ticker.clear(this.ticker);
+        document.removeEventListener('visibilitychange', this.visibilitychange);
+        this.ticker.clear();
     }
 
     public elapsed(): number {
@@ -107,6 +95,7 @@ export class Timer {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
                 this.timeout();
+                this.transition?.(1.0);
 
                 this.id = null;
                 this.time = 0.0;
@@ -114,6 +103,8 @@ export class Timer {
 
                 if (this.loop) {
                     this.start();
+                } else {
+                    this.clear();
                 }
             }, this.delay - this.offset);
             this.time = Date.now();
