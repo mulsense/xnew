@@ -312,9 +312,7 @@ class Unit {
         Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
         // setup capture
         for (let current = unit; current !== null; current = current._.parent) {
-            const find = current._.captures.find((capture) => capture.checker(unit));
-            find === null || find === void 0 ? void 0 : find.execute(unit);
-            if (find !== undefined)
+            if (current._.captures.find((capture) => capture(unit)) !== undefined)
                 break;
         }
         Unit.current = backup;
@@ -388,6 +386,7 @@ class Unit {
             Object.defineProperty(unit._.defines, key, wrapper);
             Object.defineProperty(unit, key, wrapper);
         });
+        return Object.assign({}, unit._.defines);
     }
     static start(unit) {
         if (unit._.tostart === false)
@@ -753,8 +752,8 @@ xnew$1.listener = function (target) {
         }
     };
 };
-xnew$1.capture = function (checker, execute) {
-    Unit.current._.captures.push({ checker, execute: Unit.wrap(Unit.current, (unit) => execute(unit)) });
+xnew$1.capture = function (execute) {
+    Unit.current._.captures.push(Unit.wrap(Unit.current, (unit) => execute(unit)));
 };
 
 function PointerEvent(unit) {
@@ -947,18 +946,19 @@ function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
 function InputFrame(frame, {} = {}) {
     xnew$1.nest('<div>');
     xnew$1.capture((unit) => {
-        return unit.element.tagName.toLowerCase() === 'input';
-    }, (unit) => {
-        const element = unit.element;
-        xnew$1.listener(element).on('input', (event) => {
-            frame.emit('-input', { event });
-        });
-        xnew$1.listener(element).on('change', (event) => {
-            frame.emit('-change', { event });
-        });
-        xnew$1.listener(element).on('click', (event) => {
-            frame.emit('-click', { event });
-        });
+        if (unit.element.tagName.toLowerCase() === 'input') {
+            const element = unit.element;
+            xnew$1.listener(element).on('input', (event) => {
+                frame.emit('-input', { event });
+            });
+            xnew$1.listener(element).on('change', (event) => {
+                frame.emit('-change', { event });
+            });
+            xnew$1.listener(element).on('click', (event) => {
+                frame.emit('-click', { event });
+            });
+            return true;
+        }
     });
 }
 

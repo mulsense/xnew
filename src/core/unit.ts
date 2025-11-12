@@ -11,7 +11,6 @@ export type UnitElement = HTMLElement | SVGElement;
 
 interface Context { stack: Context | null; key?: string; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; }
-interface Capture { checker: (unit: Unit) => boolean; execute: (unit: Unit) => any; }
 
 interface UnitInternal {
     parent: Unit | null;
@@ -29,7 +28,7 @@ interface UnitInternal {
 
     children: Unit[];
     promises: Promise<any>[];
-    captures: Capture[];
+    captures: ((unit: Unit) => boolean | void)[];
     elements: UnitElement[];
     components: Function[];
     listeners1: MapMap<string, Function, [UnitElement, Function]>;
@@ -154,9 +153,7 @@ export class Unit {
 
         // setup capture
         for (let current: Unit | null = unit; current !== null; current = current._.parent) {
-            const find = current._.captures.find((capture) => capture.checker(unit));
-            find?.execute(unit);
-            if (find !== undefined) break;
+            if (current._.captures.find((capture) => capture(unit)) !== undefined) break;
         }
         Unit.current = backup;
     }
@@ -207,7 +204,7 @@ export class Unit {
         }
     }
 
-    static extend(unit: Unit, component: Function, props?: Object): void {
+    static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
         unit._.components.push(component);
         Unit.componentUnits.add(component, unit);
 
@@ -234,6 +231,7 @@ export class Unit {
             Object.defineProperty(unit._.defines, key, wrapper);
             Object.defineProperty(unit, key, wrapper);
         });
+        return Object.assign({}, unit._.defines);
     }
 
     static start(unit: Unit): void {

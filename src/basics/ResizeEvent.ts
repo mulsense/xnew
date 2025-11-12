@@ -1,6 +1,7 @@
 import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
 
-export function ResizeEvent(resize: any) {
+export function ResizeEvent(resize: Unit) {
     const observer = new ResizeObserver((entries: any) => {
         for (const entry of entries) {
             resize.emit('-resize');

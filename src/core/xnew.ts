@@ -1,11 +1,23 @@
 import { Timer } from './time';
 import { Unit, UnitPromise, UnitElement } from './unit';
 
-export namespace xnew {
-    export type Unit = InstanceType<typeof Unit>;
+interface xnew {
+    [key: string]: any;
+    (...args: any[]): Unit;
+
+    nest(tag: string): UnitElement;
+    extend(component: Function, props?: Object): { [key: string]: any };
+    context(key: string, value?: any): any;
+    promise(promise: Promise<any>): UnitPromise;
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+    fetch(url: string, options?: object): UnitPromise;
+    scope(callback: any): any;
+    find(component: Function): Unit[];
 }
 
-export const xnew: any = function(...args: any[]): Unit {
+export const xnew: xnew = function(...args: any[]): Unit {
     if (Unit.root === undefined) {
         Unit.reset();
     }
@@ -37,7 +49,7 @@ xnew.nest = (tag: string): UnitElement => {
     }
 }
 
-xnew.extend = (component: Function, props?: Object): any => {
+xnew.extend = (component: Function, props?: Object): { [key: string]: any } => {
     if (Unit.current?._.state === 'invoked') {
         return Unit.extend(Unit.current, component, props);
     } else {
@@ -215,6 +227,6 @@ xnew.listener = function (target: UnitElement | Window | Document) {
     }
 }
 
-xnew.capture = function (checker: (unit: xnew.Unit) => boolean, execute: (unit: xnew.Unit) => void) {
-    Unit.current._.captures.push({ checker, execute: Unit.wrap(Unit.current, (unit: xnew.Unit) => execute(unit)) });
+xnew.capture = function (execute: (unit: Unit) => boolean | void) {
+    Unit.current._.captures.push(Unit.wrap(Unit.current, (unit: Unit) => execute(unit)));
 }
