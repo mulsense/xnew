@@ -6,7 +6,7 @@ export default {
         xnew.extend(Root, { renderer, canvas, camera });
     },
     nest (object: any) {
-        xnew.extend(Nest, object);
+        xnew.extend(Nest, { object });
         return object;
     },
     get renderer() {
@@ -39,7 +39,7 @@ function Root(self: xnew.Unit, { canvas, camera }: any) {
     });
 }
 
-function Nest(self: xnew.Unit, object: any) {
+function Nest(self: xnew.Unit, { object }: { object: any }) {
     const parent = xnew.context('xthree.object');
     xnew.context('xthree.object', object);
 

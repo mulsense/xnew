@@ -2,7 +2,7 @@ import { MapSet, MapMap } from './map';
 import { Ticker } from './time';
 
 //----------------------------------------------------------------------------------------------------
-// defines
+// utils
 //----------------------------------------------------------------------------------------------------
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
@@ -40,9 +40,7 @@ interface UnitInternal {
 
 export class UnitPromise {
     private promise: Promise<any>;
-    constructor(promise: Promise<any>) {
-        this.promise = promise;
-    }
+    constructor(promise: Promise<any>) { this.promise = promise; }
     then(callback: Function): UnitPromise {
         this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
         return this;
@@ -58,15 +56,12 @@ export class UnitPromise {
 }
 
 //----------------------------------------------------------------------------------------------------
-// Unit
+// unit
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
     [key: string]: any;
-
-    public _!: UnitInternal;
-
-    static current: Unit;
+    public _: UnitInternal;
 
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object) {
         let baseElement: UnitElement;
@@ -82,13 +77,12 @@ export class Unit {
         if (typeof component === 'function') {
             baseComponent = component;
         } else if (typeof component === 'string') {
-            baseComponent = (self: Unit) => { self.element.textContent = component; };
+            baseComponent = (unit: Unit) => { unit.element.textContent = component; };
         } else {
-            baseComponent = (self: Unit) => {};
+            baseComponent = (unit: Unit) => {};
         }
 
         const baseContext = parent?._.currentContext ?? { stack: null };
-
         this._ = { parent, target, baseElement, baseContext, baseComponent, props } as UnitInternal;
 
         parent?._.children.push(this);
@@ -121,10 +115,10 @@ export class Unit {
     }
 
     reboot(): void {
+        const anchor = (this._.elements[0]?.nextElementSibling as UnitElement) ?? null;
         Unit.stop(this);
-        const anchorElement = (this._.elements[0]?.nextElementSibling as UnitElement) ?? null;
         Unit.finalize(this);
-        Unit.initialize(this, anchorElement);
+        Unit.initialize(this, anchor);
     }
 
     static initialize(unit: Unit, anchor: UnitElement | null): void {
@@ -149,40 +143,34 @@ export class Unit {
 
         // nest html element
         if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target);
+            Unit.nest(unit, unit._.target); 
         }
 
         // setup component
-        Unit.extend(unit, unit._.baseComponent, unit._.props);
+        Unit.extend(unit, unit._.baseComponent, unit._.props); 
 
         // whether the unit promise was resolved
         Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
 
         // setup capture
-        let captured = false;
-        for (let current: Unit | null = unit; current !== null && captured === false; current = current._.parent) {
-            for (const capture of current._.captures) {
-                if (capture.checker(unit)) {
-                    capture.execute(unit);
-                    captured = true;
-                }
-            }
+        for (let current: Unit | null = unit; current !== null; current = current._.parent) {
+            const finds = current._.captures.filter((capture) => capture.checker(unit));
+            finds.forEach((capture) => capture.execute(unit));
+            if (finds.length > 0) break;
         }
         Unit.current = backup;
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized' && unit._.state !== 'pre-finalized') {
-            unit._.state = 'pre-finalized';
+        if (unit._.state !== 'finalized') {
+            unit._.state = 'finalized';
 
             unit._.children.forEach((child: Unit) => child.finalize());
             unit._.systems.finalize.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
 
             unit.off();
             Unit.suboff(unit, null);
-            unit._.components.forEach((component) => {
-                Unit.componentUnits.delete(component, unit);
-            });
+            unit._.components.forEach((component) => Unit.componentUnits.delete(component, unit));
 
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
@@ -196,7 +184,6 @@ export class Unit {
                 }
             });
             unit._.defines = {};
-            unit._.state = 'finalized';
         }
     }
 
@@ -225,28 +212,27 @@ export class Unit {
         Unit.componentUnits.add(component, unit);
 
         const defines = component(unit, props) ?? {};
-
         Object.keys(defines).forEach((key) => {
-            if (unit[key as keyof Unit] !== undefined && unit._.defines[key] === undefined) {
+            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrappedDesc: PropertyDescriptor = { configurable: true, enumerable: true };
+            const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
 
             if (descriptor?.get) {
-                wrappedDesc.get = Unit.wrap(unit, descriptor.get);
+                wrapper.get = Unit.wrap(unit, descriptor.get);
             }
             if (descriptor?.set) {
-                wrappedDesc.set = Unit.wrap(unit, descriptor.set);
+                wrapper.set = Unit.wrap(unit, descriptor.set);
             }
             if (typeof descriptor?.value === 'function') {
-                wrappedDesc.value = Unit.wrap(unit, descriptor.value);
+                wrapper.value = Unit.wrap(unit, descriptor.value);
             } else if (descriptor?.value !== undefined) {
-                wrappedDesc.writable = true;
-                wrappedDesc.value = descriptor.value;
+                wrapper.writable = true;
+                wrapper.value = descriptor.value;
             }
-            Object.defineProperty(unit._.defines, key, wrappedDesc);
-            Object.defineProperty(unit, key, wrappedDesc);
+            Object.defineProperty(unit._.defines, key, wrapper);
+            Object.defineProperty(unit, key, wrapper);
         });
     }
 
@@ -276,26 +262,19 @@ export class Unit {
         }
     }
 
-    static root: Unit | null = null;
-   
-    static ticker(time: number) {
-        if (Unit.root !== null) {
-            Unit.start(Unit.root, time);
-            Unit.update(Unit.root, time);
-        }
-    }
+    static root: Unit;
+    static current: Unit;
+    static ticker: Ticker;
 
     static reset(): void {
         Unit.root?.finalize();
-        Unit.root = new Unit(null, null);
-        Unit.current = Unit.root;
-        Ticker.clear(Unit.ticker);
-        Ticker.set(Unit.ticker);
+        Unit.current = Unit.root = new Unit(null, null);
+        Unit.ticker?.clear();
+        Unit.ticker = new Ticker((time: number) => {
+            Unit.start(Unit.root!, time);
+            Unit.update(Unit.root!, time);
+        });
     }
-
-    //----------------------------------------------------------------------------------------------------
-    // scope
-    //----------------------------------------------------------------------------------------------------
 
     static wrap(unit: Unit, listener: Function): (...args: any[]) => any {
         const snapshot = Unit.snapshot(unit);
@@ -323,14 +302,12 @@ export class Unit {
         return { unit, context: unit._.currentContext, element: unit._.currentElement };
     }
 
-    static stack(unit: Unit, key: string, value: any): void {
-        unit._.currentContext = { stack: unit._.currentContext, key, value };
-    }
-
-    static trace(unit: Unit, key: string): any {
-        for (let context: Context | null = unit._.currentContext; context !== null; context = context.stack) {
-            if (context.key === key) {
-                return context.value;
+    static context(unit: Unit, key: string, value?: any): any {
+        if (value !== undefined) {
+            unit._.currentContext = { stack: unit._.currentContext, key, value };
+        } else {
+            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
+                if (context.key === key) return context.value;
             }
         }
     }
@@ -423,4 +400,3 @@ export class Unit {
         });
     }
 }
-

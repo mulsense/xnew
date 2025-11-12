@@ -6,7 +6,7 @@ export default {
         xnew.extend(Root, { renderer, canvas });
     },
     nest(object: any) {
-        xnew.extend(Nest, object);
+        xnew.extend(Nest, { object });
         return object;
     },
     sync(canvas: any) {
@@ -45,9 +45,9 @@ function Root(self: xnew.Unit, { canvas }: any) {
     }
 
     root.updates = [];
-
     root.scene = new PIXI.Container();
     xnew.context('xpixi.object', root.scene);
+
     self.on('update', () => {
         root.updates.forEach((update: any) => {
             update();
@@ -58,16 +58,14 @@ function Root(self: xnew.Unit, { canvas }: any) {
     });
 }
 
-function Nest(self: xnew.Unit, object: any) {
+function Nest(self: xnew.Unit, { object }: { object: any }) {
     const parent = xnew.context('xpixi.object');
     xnew.context('xpixi.object', object);
 
-    if (parent) {
-        parent.addChild(object);
-        self.on('finalize', () => {
-            parent.removeChild(object);
-        });
-    }
+    parent.addChild(object);
+    self.on('finalize', () => {
+        parent.removeChild(object);
+    });
 }
 
 function PreUpdate(self: xnew.Unit, callback: any) {

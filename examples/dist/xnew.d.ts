@@ -22,6 +22,12 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
+declare class Ticker {
+    private id;
+    constructor(callback: Function);
+    clear(): void;
+}
+
 type UnitElement = HTMLElement | SVGElement;
 interface Context {
     stack: Context | null;
@@ -62,7 +68,6 @@ interface UnitInternal {
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
-    static current: Unit;
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
     get components(): Function[];
@@ -77,14 +82,14 @@ declare class Unit {
     static start(unit: Unit, time: number): void;
     static stop(unit: Unit): void;
     static update(unit: Unit, time: number): void;
-    static root: Unit | null;
-    static ticker(time: number): void;
+    static root: Unit;
+    static current: Unit;
+    static ticker: Ticker;
     static reset(): void;
     static wrap(unit: Unit, listener: Function): (...args: any[]) => any;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
-    static stack(unit: Unit, key: string, value: any): void;
-    static trace(unit: Unit, key: string): any;
+    static context(unit: Unit, key: string, value?: any): any;
     static componentUnits: MapSet<Function, Unit>;
     static find(component: Function): Unit[];
     static typeUnits: MapSet<string, Unit>;
@@ -203,25 +208,39 @@ declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillO
 
 declare function load(path: string): AudioFile;
 declare class AudioFile {
-    data: any;
-    startTime: number | null;
-    source: AudioBufferSourceNode;
-    amp: GainNode;
+    buffer?: AudioBuffer;
+    promise: Promise<void>;
+    source?: AudioBufferSourceNode;
+    amp?: GainNode;
+    start: number | null;
     constructor(path: string);
-    isReady(): boolean;
-    get promise(): Promise<void>;
-    play(offset?: number): void;
+    play(offset?: number, loop?: boolean): void;
     pause(): number | undefined;
 }
 
+declare function synthesizer(props: SynthProps): Synthesizer;
 type SynthProps = {
-    oscillator?: OscillatorOptions | null;
-    filter?: FilterOptions | null;
-    amp?: AmpOptions | null;
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
 };
-type SynthEffects = {
-    bmp?: number | null;
-    reverb?: ReverbOptions | null;
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
 };
 type Envelope = {
     amount: number;
@@ -232,40 +251,12 @@ type LFO = {
     type: OscillatorType;
     rate: number;
 };
-type OscillatorOptions = {
-    type?: OscillatorType;
-    envelope?: Envelope | null;
-    LFO?: LFO | null;
-};
-type FilterOptions = {
-    type?: BiquadFilterType;
-    cutoff?: number;
-};
-type AmpOptions = {
-    envelope?: Envelope | null;
-};
-type ReverbOptions = {
-    time?: number;
-    mix?: number;
-};
-declare function synthesizer(props?: SynthProps, effects?: SynthEffects): Synthesizer;
 declare class Synthesizer {
-    oscillator: OscillatorOptions;
-    filter: FilterOptions;
-    amp: AmpOptions;
-    bmp: number;
-    reverb: ReverbOptions;
-    static initialize(): void;
-    constructor({ oscillator, filter, amp }?: SynthProps, { bmp, reverb }?: SynthEffects);
-    static keymap: {
-        [key: string]: number;
-    };
-    static notemap: {
-        [key: string]: number;
-    };
-    press(frequency: number | string, duration?: number | string | null, wait?: number): {
+    props: SynthProps;
+    constructor(props: SynthProps);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
         release: () => void;
-    };
+    } | undefined;
 }
 
 declare const basics: {
@@ -289,6 +280,8 @@ declare const basics: {
     DirectionalPad: typeof DirectionalPad;
 };
 declare const audio: {
+    master: GainNode;
+    context: AudioContext;
     synthesizer: typeof synthesizer;
     load: typeof load;
 };

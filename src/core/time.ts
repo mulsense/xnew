@@ -3,30 +3,30 @@
 //----------------------------------------------------------------------------------------------------
 
 export class Ticker {
-    static animation: number | null = null;
-    static callbacks = new Set<Function>;
-    static previous: number = 0.0;
+    private id: number | null;
 
-    static ticker() {
-        const time = Date.now();
-        const interval = 1000 / 60;
-        if (time - Ticker.previous > interval * 0.8) {
-            Ticker.callbacks.forEach((callback) => callback(time));
-            Ticker.previous = time;
+    constructor(callback: Function) {
+        const self = this;
+        this.id = null;
+        let previous = 0;
+        ticker();
+
+        function ticker() {
+            const time = Date.now();
+            const interval = 1000 / 60;
+            if (time - previous > interval * 0.9) {
+                callback(time);
+                previous = time;
+            }
+            self.id = requestAnimationFrame(ticker);
         }
-        Ticker.animation = requestAnimationFrame(Ticker.ticker);
     }
-
-    static set(callback: (time: number) => void) : void {
-        if (Ticker.animation === null && typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
-            Ticker.previous = Date.now();
-            Ticker.animation = requestAnimationFrame(Ticker.ticker);
+ 
+    clear(): void {
+        if (this.id !== null) {
+            cancelAnimationFrame(this.id);
+            this.id = null;
         }
-        Ticker.callbacks.add(callback);
-    }
-
-    static clear(callback: (time: number) => void): void {
-        Ticker.callbacks.delete(callback);
     }
 }
 

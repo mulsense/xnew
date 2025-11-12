@@ -14,7 +14,8 @@ import { AnalogStick, DirectionalPad } from './basics/Controller';
 import { Unit } from './core/unit';
 import { xnew as base } from './core/xnew';
 
-import { load } from './audio/loader';
+import { master, context } from './audio/audio';
+import { load } from './audio/file';
 import { synthesizer } from './audio/synthesizer';
 
 const basics = {
@@ -39,7 +40,10 @@ const basics = {
 };
 
 const audio = {
-    synthesizer, load
+    master,
+    context,
+    synthesizer,
+    load
 };
 
 export interface xnew_interface {

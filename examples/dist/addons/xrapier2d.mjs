@@ -5,8 +5,8 @@ var xrapier2d = {
     initialize({ gravity = { x: 0.0, y: 9.81 }, timestep = null } = {}) {
         xnew.extend(Root, { gravity, timestep });
     },
-    nest(object) {
-        xnew.extend(Nest, object);
+    connect(type, object) {
+        xnew.extend(Connect, { type, object });
         return object;
     },
     get world() {
@@ -22,7 +22,7 @@ function Root(self, { gravity, timestep }) {
         if (timestep !== null) {
             root.world.timestep = timestep;
         }
-        xnew.extend(Nest, root.world);
+        // xnew.extend(Nest, root.world);
     });
     self.on('update', () => {
         if (root.world) {
@@ -30,32 +30,35 @@ function Root(self, { gravity, timestep }) {
         }
     });
 }
-function Nest(self, object) {
-    const parent = xnew.context('xrapier2d.object');
-    xnew.context('xrapier2d.object', object);
-    if (parent) {
-        // Rapier2D objects (RigidBody, Collider, etc.) are already added to the world
-        // when created, so we only need to handle removal on finalize
-        self.on('finalize', () => {
-            try {
-                // Check if object is a RigidBody
-                if (object.translation && typeof object.translation === 'function') {
-                    parent.removeRigidBody(object);
-                }
-                // Check if object is a Collider
-                else if (object.shape && typeof object.shape === 'function') {
-                    parent.removeCollider(object);
-                }
-                // Check if object is an ImpulseJoint
-                else if (object.impulse !== undefined) {
-                    parent.removeImpulseJoint(object);
-                }
+let count = 0;
+function Connect(self, { type, object }) {
+    const root = xnew.context('xrapier2d.root');
+    let temp = count++;
+    console.log(temp, type, object);
+    // Rapier2D objects (RigidBody, Collider, etc.) are already added to the world
+    // when created, so we only need to handle removal on finalize
+    self.on('finalize', () => {
+        try {
+            // Check if object is a RigidBody
+            if (type === 'rigidBody') {
+                console.log('Removing RigidBody');
+                root.world.removeRigidBody(object);
             }
-            catch (e) {
-                // Object may have already been removed
+            // Check if object is a Collider
+            else if (type === 'collider') {
+                console.log('Removing Collider');
+                root.world.removeCollider(object);
             }
-        });
-    }
+            // Check if object is an ImpulseJoint
+            else if (type === 'impulseJoint') {
+                console.log('Removing ImpulseJoint');
+                root.world.removeImpulseJoint(object);
+            }
+        }
+        catch (e) {
+            // Object may have already been removed
+        }
+    });
 }
 
 export { xrapier2d as default };

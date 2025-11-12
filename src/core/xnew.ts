@@ -6,7 +6,7 @@ export namespace xnew {
 }
 
 export const xnew: any = function(...args: any[]): Unit {
-    if (Unit.root === null) {
+    if (Unit.root === undefined) {
         Unit.reset();
     }
     
@@ -47,11 +47,7 @@ xnew.extend = (component: Function, props?: Object): any => {
 
 xnew.context = (key: string, value: any = undefined): any => {
     try {
-        if (value !== undefined) {
-            Unit.stack(Unit.current, key, value);
-        } else {
-            return Unit.trace(Unit.current, key);
-        }
+        return Unit.context(Unit.current, key, value);
     } catch (error: unknown) {
         console.error('xnew.context(key, value?): ', error);
     }

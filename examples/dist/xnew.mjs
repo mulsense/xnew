@@ -19,29 +19,28 @@ function ResizeEvent(resize) {
 // ticker
 //----------------------------------------------------------------------------------------------------
 class Ticker {
-    static ticker() {
-        const time = Date.now();
-        const interval = 1000 / 60;
-        if (time - Ticker.previous > interval * 0.8) {
-            Ticker.callbacks.forEach((callback) => callback(time));
-            Ticker.previous = time;
+    constructor(callback) {
+        const self = this;
+        this.id = null;
+        let previous = 0;
+        ticker();
+        function ticker() {
+            const time = Date.now();
+            const interval = 1000 / 60;
+            if (time - previous > interval * 0.9) {
+                callback(time);
+                previous = time;
+            }
+            self.id = requestAnimationFrame(ticker);
         }
-        Ticker.animation = requestAnimationFrame(Ticker.ticker);
     }
-    static set(callback) {
-        if (Ticker.animation === null && typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
-            Ticker.previous = Date.now();
-            Ticker.animation = requestAnimationFrame(Ticker.ticker);
+    clear() {
+        if (this.id !== null) {
+            cancelAnimationFrame(this.id);
+            this.id = null;
         }
-        Ticker.callbacks.add(callback);
-    }
-    static clear(callback) {
-        Ticker.callbacks.delete(callback);
     }
 }
-Ticker.animation = null;
-Ticker.callbacks = new Set;
-Ticker.previous = 0.0;
 //----------------------------------------------------------------------------------------------------
 // timer
 //----------------------------------------------------------------------------------------------------
@@ -217,13 +216,11 @@ class MapMap extends Map {
 }
 
 //----------------------------------------------------------------------------------------------------
-// defines
+// utils
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
 class UnitPromise {
-    constructor(promise) {
-        this.promise = promise;
-    }
+    constructor(promise) { this.promise = promise; }
     then(callback) {
         this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
         return this;
@@ -238,7 +235,7 @@ class UnitPromise {
     }
 }
 //----------------------------------------------------------------------------------------------------
-// Unit
+// unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
     constructor(parent, target, component, props) {
@@ -258,10 +255,10 @@ class Unit {
             baseComponent = component;
         }
         else if (typeof component === 'string') {
-            baseComponent = (self) => { self.element.textContent = component; };
+            baseComponent = (unit) => { unit.element.textContent = component; };
         }
         else {
-            baseComponent = (self) => { };
+            baseComponent = (unit) => { };
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
         this._ = { parent, target, baseElement, baseContext, baseComponent, props };
@@ -290,10 +287,10 @@ class Unit {
     }
     reboot() {
         var _a, _b;
+        const anchor = (_b = (_a = this._.elements[0]) === null || _a === void 0 ? void 0 : _a.nextElementSibling) !== null && _b !== void 0 ? _b : null;
         Unit.stop(this);
-        const anchorElement = (_b = (_a = this._.elements[0]) === null || _a === void 0 ? void 0 : _a.nextElementSibling) !== null && _b !== void 0 ? _b : null;
         Unit.finalize(this);
-        Unit.initialize(this, anchorElement);
+        Unit.initialize(this, anchor);
     }
     static initialize(unit, anchor) {
         const backup = Unit.current;
@@ -323,27 +320,22 @@ class Unit {
         // whether the unit promise was resolved
         Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
         // setup capture
-        let captured = false;
-        for (let current = unit; current !== null && captured === false; current = current._.parent) {
-            for (const capture of current._.captures) {
-                if (capture.checker(unit)) {
-                    capture.execute(unit);
-                    captured = true;
-                }
-            }
+        for (let current = unit; current !== null; current = current._.parent) {
+            const finds = current._.captures.filter((capture) => capture.checker(unit));
+            finds.forEach((capture) => capture.execute(unit));
+            if (finds.length > 0)
+                break;
         }
         Unit.current = backup;
     }
     static finalize(unit) {
-        if (unit._.state !== 'finalized' && unit._.state !== 'pre-finalized') {
-            unit._.state = 'pre-finalized';
+        if (unit._.state !== 'finalized') {
+            unit._.state = 'finalized';
             unit._.children.forEach((child) => child.finalize());
             unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             unit.off();
             Unit.suboff(unit, null);
-            unit._.components.forEach((component) => {
-                Unit.componentUnits.delete(component, unit);
-            });
+            unit._.components.forEach((component) => Unit.componentUnits.delete(component, unit));
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
                 unit._.currentElement = unit._.baseElement;
@@ -355,7 +347,6 @@ class Unit {
                 }
             });
             unit._.defines = {};
-            unit._.state = 'finalized';
         }
     }
     static nest(unit, tag) {
@@ -389,22 +380,22 @@ class Unit {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrappedDesc = { configurable: true, enumerable: true };
+            const wrapper = { configurable: true, enumerable: true };
             if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) {
-                wrappedDesc.get = Unit.wrap(unit, descriptor.get);
+                wrapper.get = Unit.wrap(unit, descriptor.get);
             }
             if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set) {
-                wrappedDesc.set = Unit.wrap(unit, descriptor.set);
+                wrapper.set = Unit.wrap(unit, descriptor.set);
             }
             if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
-                wrappedDesc.value = Unit.wrap(unit, descriptor.value);
+                wrapper.value = Unit.wrap(unit, descriptor.value);
             }
             else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                wrappedDesc.writable = true;
-                wrappedDesc.value = descriptor.value;
+                wrapper.writable = true;
+                wrapper.value = descriptor.value;
             }
-            Object.defineProperty(unit._.defines, key, wrappedDesc);
-            Object.defineProperty(unit, key, wrappedDesc);
+            Object.defineProperty(unit._.defines, key, wrapper);
+            Object.defineProperty(unit, key, wrapper);
         });
     }
     static start(unit, time) {
@@ -432,23 +423,16 @@ class Unit {
             unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
-    static ticker(time) {
-        if (Unit.root !== null) {
+    static reset() {
+        var _a, _b;
+        (_a = Unit.root) === null || _a === void 0 ? void 0 : _a.finalize();
+        Unit.current = Unit.root = new Unit(null, null);
+        (_b = Unit.ticker) === null || _b === void 0 ? void 0 : _b.clear();
+        Unit.ticker = new Ticker((time) => {
             Unit.start(Unit.root, time);
             Unit.update(Unit.root, time);
-        }
+        });
     }
-    static reset() {
-        var _a;
-        (_a = Unit.root) === null || _a === void 0 ? void 0 : _a.finalize();
-        Unit.root = new Unit(null, null);
-        Unit.current = Unit.root;
-        Ticker.clear(Unit.ticker);
-        Ticker.set(Unit.ticker);
-    }
-    //----------------------------------------------------------------------------------------------------
-    // scope
-    //----------------------------------------------------------------------------------------------------
     static wrap(unit, listener) {
         const snapshot = Unit.snapshot(unit);
         return (...args) => Unit.scope(snapshot, listener, ...args);
@@ -474,13 +458,14 @@ class Unit {
     static snapshot(unit) {
         return { unit, context: unit._.currentContext, element: unit._.currentElement };
     }
-    static stack(unit, key, value) {
-        unit._.currentContext = { stack: unit._.currentContext, key, value };
-    }
-    static trace(unit, key) {
-        for (let context = unit._.currentContext; context !== null; context = context.stack) {
-            if (context.key === key) {
-                return context.value;
+    static context(unit, key, value) {
+        if (value !== undefined) {
+            unit._.currentContext = { stack: unit._.currentContext, key, value };
+        }
+        else {
+            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
+                if (context.key === key)
+                    return context.value;
             }
         }
     }
@@ -565,7 +550,6 @@ class Unit {
         });
     }
 }
-Unit.root = null;
 Unit.componentUnits = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
@@ -573,7 +557,7 @@ Unit.componentUnits = new MapSet();
 Unit.typeUnits = new MapSet();
 
 const xnew$1 = function (...args) {
-    if (Unit.root === null) {
+    if (Unit.root === undefined) {
         Unit.reset();
     }
     let target;
@@ -617,12 +601,7 @@ xnew$1.extend = (component, props) => {
 };
 xnew$1.context = (key, value = undefined) => {
     try {
-        if (value !== undefined) {
-            Unit.stack(Unit.current, key, value);
-        }
-        else {
-            return Unit.trace(Unit.current, key);
-        }
+        return Unit.context(Unit.current, key, value);
     }
     catch (error) {
         console.error('xnew.context(key, value?): ', error);
@@ -1359,36 +1338,29 @@ const master = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
 
-const store = new Map();
 function load(path) {
     return new AudioFile(path);
 }
+const store = new Map();
 class AudioFile {
     constructor(path) {
-        this.data = {};
         if (store.has(path)) {
-            this.data = store.get(path);
+            this.buffer = store.get(path);
+            this.promise = Promise.resolve();
         }
         else {
-            this.data.buffer = null;
-            this.data.promise = fetch(path)
+            this.promise = fetch(path)
                 .then((response) => response.arrayBuffer())
                 .then((response) => context.decodeAudioData(response))
                 .then((response) => {
-                this.data.buffer = response;
+                this.buffer = response;
             })
                 .catch(() => {
                 console.warn(`"${path}" could not be loaded.`);
             });
-            store.set(path, this.data);
+            store.set(path, this.buffer);
         }
-        this.startTime = null;
-    }
-    isReady() {
-        return this.data.buffer ? true : false;
-    }
-    get promise() {
-        return this.data.promise;
+        this.start = null;
     }
     // set volume(value: number) {
     //     this.amp.gain.value = value;
@@ -1396,230 +1368,48 @@ class AudioFile {
     // get volume(): number {
     //     return this.amp.gain.value;
     // }
-    // set loop(value: boolean) {
-    //     this.source.loop = value;
-    // }
-    // get loop(): boolean {
-    //     return this.source.loop;
-    // }
-    play(offset = 0) {
-        if (this.startTime !== null)
-            return;
-        if (this.isReady()) {
-            console.log('start');
+    play(offset = 0, loop = false) {
+        if (this.buffer !== undefined && this.start === null) {
             this.source = context.createBufferSource();
-            this.source.buffer = this.data.buffer;
-            this.source.loop = true;
+            this.source.buffer = this.buffer;
+            this.source.loop = loop;
             this.amp = context.createGain();
             this.amp.gain.value = 1.0;
             this.source.connect(this.amp);
             this.amp.connect(master);
-            this.startTime = context.currentTime;
+            this.start = context.currentTime;
             this.source.playbackRate.value = 1;
             this.source.start(context.currentTime, offset / 1000);
             this.source.onended = () => {
-                console.log('ended');
-                this.startTime = null;
-                this.source.disconnect();
-                this.amp.disconnect();
+                var _a, _b;
+                this.start = null;
+                (_a = this.source) === null || _a === void 0 ? void 0 : _a.disconnect();
+                (_b = this.amp) === null || _b === void 0 ? void 0 : _b.disconnect();
             };
-        }
-        else {
-            this.promise.then(() => this.play());
         }
     }
     pause() {
-        if (this.startTime === null)
-            return;
-        this.source.stop(context.currentTime);
-        const elapsed = (context.currentTime - this.startTime) % this.data.buffer.duration * 1000;
-        this.startTime = null;
-        return elapsed;
+        var _a;
+        if (this.buffer !== undefined && this.start !== null) {
+            (_a = this.source) === null || _a === void 0 ? void 0 : _a.stop(context.currentTime);
+            const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
+            this.start = null;
+            return elapsed;
+        }
     }
 }
 
-function synthesizer(props, effects) {
-    return new Synthesizer(props, effects);
+function synthesizer(props) {
+    return new Synthesizer(props);
 }
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
+window.addEventListener('touchstart', initialize, true);
+window.addEventListener('mousedown', initialize, true);
+function initialize() {
+    new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
+    window.removeEventListener('touchstart', initialize, true);
+    window.removeEventListener('mousedown', initialize, true);
 }
-function isObject(val) {
-    return val !== null && typeof val === 'object';
-}
-function isNumber(val) {
-    return typeof val === 'number' && !isNaN(val);
-}
-class Synthesizer {
-    static initialize() {
-        window.addEventListener('touchstart', initialize, true);
-        window.addEventListener('mousedown', initialize, true);
-        function initialize() {
-            new Synthesizer().press(440);
-            window.removeEventListener('touchstart', initialize, true);
-            window.removeEventListener('mousedown', initialize, true);
-        }
-    }
-    constructor({ oscillator = null, filter = null, amp = null } = {}, { bmp = null, reverb = null } = {}) {
-        this.oscillator = isObject(oscillator) ? oscillator : {};
-        this.oscillator.type = setType(this.oscillator.type, ['sine', 'triangle', 'square', 'sawtooth']);
-        this.oscillator.envelope = setEnvelope(this.oscillator.envelope, -36, +36);
-        this.oscillator.LFO = setLFO(this.oscillator.LFO, 36);
-        this.filter = isObject(filter) ? filter : {};
-        this.filter.type = setType(this.filter.type, ['lowpass', 'highpass', 'bandpass']);
-        this.filter.cutoff = isNumber(this.filter.cutoff) ? clamp(this.filter.cutoff, 4, 8192) : undefined;
-        this.amp = isObject(amp) ? amp : {};
-        this.amp.envelope = setEnvelope(this.amp.envelope, 0, 1);
-        this.bmp = isNumber(bmp) ? clamp(bmp, 60, 240) : 120;
-        this.reverb = isObject(reverb) ? reverb : {};
-        this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
-        this.reverb.mix = isNumber(this.reverb.mix) ? clamp(this.reverb.mix, 0, 1.0) : 0.0;
-        function setType(type, list, value = 0) {
-            return list.includes(type) ? type : list[value];
-        }
-        function setEnvelope(envelope, minAmount, maxAmount) {
-            var _a, _b, _c, _d;
-            if (!isObject(envelope))
-                return null;
-            const result = {
-                amount: isNumber(envelope.amount) ? clamp(envelope.amount, minAmount, maxAmount) : 0,
-                ADSR: [
-                    isNumber((_a = envelope.ADSR) === null || _a === void 0 ? void 0 : _a[0]) ? clamp(envelope.ADSR[0], 0, 8000) : 0,
-                    isNumber((_b = envelope.ADSR) === null || _b === void 0 ? void 0 : _b[1]) ? clamp(envelope.ADSR[1], 0, 8000) : 0,
-                    isNumber((_c = envelope.ADSR) === null || _c === void 0 ? void 0 : _c[2]) ? clamp(envelope.ADSR[2], 0, 1) : 0,
-                    isNumber((_d = envelope.ADSR) === null || _d === void 0 ? void 0 : _d[3]) ? clamp(envelope.ADSR[3], 0, 8000) : 0,
-                ]
-            };
-            return result;
-        }
-        function setLFO(LFO, maxAmount) {
-            if (!isObject(LFO))
-                return null;
-            const oscTypes = ['sine', 'triangle', 'square', 'sawtooth'];
-            const type = oscTypes.includes(LFO.type)
-                ? LFO.type
-                : 'sine';
-            const result = {
-                amount: isNumber(LFO.amount) ? clamp(LFO.amount, 0, maxAmount) : 0,
-                type,
-                rate: isNumber(LFO.rate) ? clamp(LFO.rate, 1, 128) : 1,
-            };
-            return result;
-        }
-    }
-    press(frequency, duration = null, wait = 0.0) {
-        frequency = typeof frequency === 'string' ? Synthesizer.keymap[frequency] : frequency;
-        duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.bmp) : (duration !== null ? (duration / 1000) : duration);
-        const start = context.currentTime + wait / 1000;
-        let stop = null;
-        const nodes = {};
-        nodes.oscillator = context.createOscillator();
-        nodes.amp = context.createGain();
-        nodes.amp.gain.value = 0.0;
-        nodes.target = context.createGain();
-        nodes.target.gain.value = 1.0;
-        nodes.amp.connect(nodes.target);
-        nodes.target.connect(master);
-        if (this.filter.type && this.filter.cutoff) {
-            nodes.filter = context.createBiquadFilter();
-            nodes.oscillator.connect(nodes.filter);
-            nodes.filter.connect(nodes.amp);
-        }
-        else {
-            nodes.oscillator.connect(nodes.amp);
-        }
-        if (this.reverb.time > 0.0 && this.reverb.mix > 0.0) {
-            nodes.convolver = context.createConvolver();
-            nodes.convolver.buffer = impulseResponse({ time: this.reverb.time });
-            nodes.convolverDepth = context.createGain();
-            nodes.convolverDepth.gain.value = 1.0;
-            nodes.amp.connect(nodes.convolver);
-            nodes.convolver.connect(nodes.convolverDepth);
-            nodes.convolverDepth.connect(master);
-        }
-        if (this.oscillator.LFO) {
-            nodes.oscillatorLFO = context.createOscillator();
-            nodes.oscillatorLFODepth = context.createGain();
-            nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
-            nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
-        }
-        nodes.oscillator.type = this.oscillator.type;
-        nodes.oscillator.frequency.value = clamp(frequency, 10.0, 5000.0);
-        if (this.filter.type && this.filter.cutoff && nodes.filter) {
-            nodes.filter.type = this.filter.type;
-            nodes.filter.frequency.value = this.filter.cutoff;
-        }
-        if (this.reverb.time > 0.0 && this.reverb.mix > 0.0) {
-            nodes.target.gain.value *= (1.0 - this.reverb.mix);
-            nodes.convolverDepth.gain.value *= this.reverb.mix;
-        }
-        {
-            if (this.oscillator.LFO && nodes.oscillatorLFO && nodes.oscillatorLFODepth) {
-                nodes.oscillatorLFODepth.gain.value = frequency * (Math.pow(2.0, this.oscillator.LFO.amount / 12.0) - 1.0);
-                nodes.oscillatorLFO.type = this.oscillator.LFO.type;
-                nodes.oscillatorLFO.frequency.value = this.oscillator.LFO.rate;
-                nodes.oscillatorLFO.start(start);
-            }
-            if (this.oscillator.envelope) {
-                const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
-                startEnvelope(nodes.oscillator.frequency, frequency, amount, this.oscillator.envelope.ADSR);
-            }
-            if (this.amp.envelope) {
-                startEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
-            }
-            nodes.oscillator.start(start);
-        }
-        if (duration !== null) {
-            release.call(this);
-        }
-        function release() {
-            duration = duration !== null && duration !== void 0 ? duration : (context.currentTime - start);
-            if (this.amp.envelope) {
-                const ADSR = this.amp.envelope.ADSR;
-                const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(duration / adsr[0], 1.0);
-                stop = start + Math.max((adsr[0] + adsr[1]) * rate, duration) + adsr[3];
-            }
-            else {
-                stop = start + duration;
-            }
-            if (nodes.oscillatorLFO) {
-                nodes.oscillatorLFO.stop(stop);
-            }
-            if (this.oscillator.envelope) {
-                const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.oscillator.frequency, frequency, amount, this.oscillator.envelope.ADSR);
-            }
-            if (this.amp.envelope) {
-                stopEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
-            }
-            nodes.oscillator.stop(stop);
-        }
-        function startEnvelope(param, base, amount, ADSR) {
-            const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-            param.value = base;
-            param.setValueAtTime(base, start);
-            param.linearRampToValueAtTime(base + amount, start + adsr[0]);
-            param.linearRampToValueAtTime(base + amount * adsr[2], start + (adsr[0] + adsr[1]));
-        }
-        function stopEnvelope(param, base, amount, ADSR) {
-            const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-            const rate = adsr[0] === 0.0 ? 1.0 : Math.min(duration / adsr[0], 1.0);
-            if (rate < 1.0) {
-                param.cancelScheduledValues(start);
-                param.setValueAtTime(base, start);
-                param.linearRampToValueAtTime(base + amount * rate, start + adsr[0] * rate);
-                param.linearRampToValueAtTime(base + amount * rate * adsr[2], start + (adsr[0] + adsr[1]) * rate);
-            }
-            param.linearRampToValueAtTime(base + amount * rate * adsr[2], start + Math.max((adsr[0] + adsr[1]) * rate, duration));
-            param.linearRampToValueAtTime(base, start + Math.max((adsr[0] + adsr[1]) * rate, duration) + adsr[3]);
-        }
-        return {
-            release: release.bind(this),
-        };
-    }
-}
-Synthesizer.keymap = {
+const keymap = {
     'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
     'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735,
     'C2': 65.406, 'C#2': 69.296, 'D2': 73.416, 'D#2': 77.782, 'E2': 82.407, 'F2': 87.307, 'F#2': 92.499, 'G2': 97.999, 'G#2': 103.826, 'A2': 110.000, 'A#2': 116.541, 'B2': 123.471,
@@ -1630,20 +1420,138 @@ Synthesizer.keymap = {
     'C7': 2093.005, 'C#7': 2217.461, 'D7': 2349.318, 'D#7': 2489.016, 'E7': 2637.020, 'F7': 2793.826, 'F#7': 2959.955, 'G7': 3135.963, 'G#7': 3322.438, 'A7': 3520.000, 'A#7': 3729.310, 'B7': 3951.066,
     'C8': 4186.009,
 };
-Synthesizer.notemap = {
+const notemap = {
     '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
 };
-Synthesizer.initialize();
-function impulseResponse({ time, decay = 2.0 }) {
-    const length = context.sampleRate * time / 1000;
-    const impulse = context.createBuffer(2, length, context.sampleRate);
-    const ch0 = impulse.getChannelData(0);
-    const ch1 = impulse.getChannelData(1);
-    for (let i = 0; i < length; i++) {
-        ch0[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-        ch1[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+class Synthesizer {
+    constructor(props) {
+        this.props = props;
     }
-    return impulse;
+    press(frequency, duration, wait) {
+        var _a;
+        const props = this.props;
+        const freq = typeof frequency === 'string' ? keymap[frequency] : frequency;
+        const dura = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
+        const start = context.currentTime + (wait !== null && wait !== void 0 ? wait : 0) / 1000;
+        const nodes = {};
+        nodes.oscillator = context.createOscillator();
+        nodes.oscillator.type = props.oscillator.type;
+        nodes.oscillator.frequency.value = freq;
+        if (props.oscillator.LFO) {
+            nodes.oscillatorLFO = context.createOscillator();
+            nodes.oscillatorLFODepth = context.createGain();
+            nodes.oscillatorLFODepth.gain.value = freq * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
+            nodes.oscillatorLFO.type = props.oscillator.LFO.type;
+            nodes.oscillatorLFO.frequency.value = props.oscillator.LFO.rate;
+            nodes.oscillatorLFO.start(start);
+            nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
+            nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
+        }
+        nodes.amp = context.createGain();
+        nodes.amp.gain.value = 0.0;
+        nodes.target = context.createGain();
+        nodes.target.gain.value = 1.0;
+        nodes.amp.connect(nodes.target);
+        nodes.target.connect(master);
+        if (props.filter && props.filter.type && props.filter.cutoff) {
+            nodes.filter = context.createBiquadFilter();
+            nodes.filter.type = props.filter.type;
+            nodes.filter.frequency.value = props.filter.cutoff;
+            nodes.oscillator.connect(nodes.filter);
+            nodes.filter.connect(nodes.amp);
+        }
+        else {
+            nodes.oscillator.connect(nodes.amp);
+        }
+        if (props.reverb) {
+            nodes.convolver = context.createConvolver();
+            nodes.convolver.buffer = impulseResponse({ time: props.reverb.time });
+            nodes.convolverDepth = context.createGain();
+            nodes.convolverDepth.gain.value = 1.0;
+            nodes.convolverDepth.gain.value *= props.reverb.mix;
+            nodes.target.gain.value *= (1.0 - props.reverb.mix);
+            nodes.amp.connect(nodes.convolver);
+            nodes.convolver.connect(nodes.convolverDepth);
+            nodes.convolverDepth.connect(master);
+        }
+        if (props.oscillator.envelope) {
+            const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+            startEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+        }
+        if (props.amp.envelope) {
+            startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+        }
+        let stop = null;
+        nodes.oscillator.start(start);
+        if (dura > 0) {
+            release();
+        }
+        else {
+            return { release };
+        }
+        function release() {
+            const end = dura > 0 ? dura : (context.currentTime - start);
+            if (props.amp.envelope) {
+                const ADSR = props.amp.envelope.ADSR;
+                const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
+                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / adsr[0], 1.0);
+                stop = start + Math.max((adsr[0] + adsr[1]) * rate, end) + adsr[3];
+            }
+            else {
+                stop = start + end;
+            }
+            if (nodes.oscillatorLFO) {
+                nodes.oscillatorLFO.stop(stop);
+            }
+            if (props.oscillator.envelope) {
+                const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+                stopEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+            }
+            if (props.amp.envelope) {
+                stopEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+            }
+            nodes.oscillator.stop(stop);
+            setTimeout(() => {
+                var _a, _b, _c, _d, _e;
+                nodes.oscillator.disconnect();
+                nodes.amp.disconnect();
+                nodes.target.disconnect();
+                (_a = nodes.oscillatorLFO) === null || _a === void 0 ? void 0 : _a.disconnect();
+                (_b = nodes.oscillatorLFODepth) === null || _b === void 0 ? void 0 : _b.disconnect();
+                (_c = nodes.filter) === null || _c === void 0 ? void 0 : _c.disconnect();
+                (_d = nodes.convolver) === null || _d === void 0 ? void 0 : _d.disconnect();
+                (_e = nodes.convolverDepth) === null || _e === void 0 ? void 0 : _e.disconnect();
+            }, 2000);
+        }
+        function stopEnvelope(param, base, amount, ADSR) {
+            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dura / (ADSR[0] / 1000), 1.0);
+            if (rate < 1.0) {
+                param.cancelScheduledValues(start);
+                param.setValueAtTime(base, start);
+                param.linearRampToValueAtTime(base + amount * rate, start + ADSR[0] / 1000 * rate);
+                param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
+            }
+            param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura));
+            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura) + ADSR[3] / 1000);
+        }
+        function startEnvelope(param, base, amount, ADSR) {
+            param.value = base;
+            param.setValueAtTime(base, start);
+            param.linearRampToValueAtTime(base + amount, start + ADSR[0] / 1000);
+            param.linearRampToValueAtTime(base + amount * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000);
+        }
+        function impulseResponse({ time, decay = 2.0 }) {
+            const length = context.sampleRate * time / 1000;
+            const impulse = context.createBuffer(2, length, context.sampleRate);
+            const ch0 = impulse.getChannelData(0);
+            const ch1 = impulse.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+                ch0[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+                ch1[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+            }
+            return impulse;
+        }
+    }
 }
 
 const basics = {
@@ -1667,7 +1575,10 @@ const basics = {
     DirectionalPad,
 };
 const audio = {
-    synthesizer, load
+    master,
+    context,
+    synthesizer,
+    load
 };
 const xnew = Object.assign(xnew$1, {
     basics,

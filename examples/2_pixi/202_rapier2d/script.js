@@ -8,13 +8,13 @@ xnew('#main', Main);
 
 function Main(self) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  // xpixi.initialize({ canvas: screen.canvas });
-  xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 }, timestep: 3 / 60 });
+  xpixi.initialize({ canvas: screen.canvas });
+  xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 }, timestep: 3 / 60 });
 
   xnew.then(() => {
-    // const contents = xnew(Contents);
-    // const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
-    // button.on('click', () => contents.reboot());
+    const contents = xnew(Contents);
+    const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
+    button.on('click', () => contents.reboot());
   });
 }
 
@@ -46,12 +46,12 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options
   const rigidBodyDesc = dynamic
     ? RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y)
     : RAPIER.RigidBodyDesc.fixed().setTranslation(x, y);
-  const rigidBody = xrapier2d.nest(world.createRigidBody(rigidBodyDesc));
+  const rigidBody = xrapier2d.connect('rigidBody', world.createRigidBody(rigidBodyDesc));
 
   // Create a cuboid collider attached to the dynamic rigidBody
   const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2);
-  const collider = xrapier2d.nest(world.createCollider(colliderDesc, rigidBody));
-
+  const collider = xrapier2d.connect('collider', world.createCollider(colliderDesc, rigidBody));
+  console.log(rigidBody, collider);
   self.on('update', () => {
     const position = rigidBody.translation();
     object.position.set(position.x, position.y);
