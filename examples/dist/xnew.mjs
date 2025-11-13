@@ -1,20 +1,3 @@
-function ResizeEvent(resize) {
-    const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-            resize.emit('-resize');
-            break;
-        }
-    });
-    if (resize.element) {
-        observer.observe(resize.element);
-    }
-    resize.on('finalize', () => {
-        if (resize.element) {
-            observer.unobserve(resize.element);
-        }
-    });
-}
-
 //----------------------------------------------------------------------------------------------------
 // ticker
 //----------------------------------------------------------------------------------------------------
@@ -574,7 +557,7 @@ const xnew$1 = Object.assign(function (...args) {
     /**
      * Creates a nested HTML/SVG element within the current component
      * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
-     * @returns The created UnitElement
+     * @returns The created HTML/SVG element
      * @throws Error if called after component initialization
      * @example
      * const div = xnew.nest('<div>')
@@ -898,6 +881,23 @@ const xnew$1 = Object.assign(function (...args) {
         Unit.current._.captures.push(Unit.wrap(Unit.current, (unit) => execute(unit)));
     },
 });
+
+function ResizeEvent(resize) {
+    const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            resize.emit('-resize');
+            break;
+        }
+    });
+    if (resize.element) {
+        observer.observe(resize.element);
+    }
+    resize.on('finalize', () => {
+        if (resize.element) {
+            observer.unobserve(resize.element);
+        }
+    });
+}
 
 function PointerEvent(unit) {
     const internal = xnew$1();
@@ -1711,7 +1711,7 @@ const audio = {
 };
 const xnew = Object.assign(xnew$1, {
     basics,
-    audio,
+    audio
 });
 
 export { xnew as default };

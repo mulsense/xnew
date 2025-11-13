@@ -1,23 +1,27 @@
 import { Timer } from './time';
-import { Unit, UnitPromise, UnitElement } from './unit';
+import { Unit, UnitPromise } from './unit';
 
 interface CreateUnit {
     /**
-     * Creates a new Unit component
+     * Creates a new Unit component  
      * @param Component - component function
-     * @param props properties for component function
+     * @param props - properties for component function
      * @returns A new Unit instance
      * @example
-     * xnew(MyComponent, { count: 0 })
+     * const unit = xnew(MyComponent, { data: 0 })
      */
     (Component?: Function | string, props?: Object): Unit;
 
     /**
      * Creates a new Unit component
      * @param target - HTMLElement, SVGElement, selector string, or HTML tag for new element
+     * @param Component - component function
+     * @param props - properties for component function
      * @returns A new Unit instance
      * @example
-     * xnew('<div>', MyComponent, { count: 0 })
+     * const unit = xnew(element, MyComponent, { data: 0 })
+     * const unit = xnew('#selector', MyComponent, { data: 0 })
+     * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
     (target: HTMLElement | SVGElement, Component?: Function | string, props?: Object): Unit;
 }
@@ -50,13 +54,13 @@ export const xnew = Object.assign(
         /**
          * Creates a nested HTML/SVG element within the current component
          * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
-         * @returns The created UnitElement
+         * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(tag: string): UnitElement {
+        nest(tag: string): HTMLElement | SVGElement {
             if (Unit.current?._.state === 'invoked') {
                 return Unit.nest(Unit.current, tag);
             } else {
@@ -355,7 +359,7 @@ export const xnew = Object.assign(
          * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
          * // Automatically cleaned up when component finalizes
          */
-        listener(target: UnitElement | Window | Document) {
+        listener(target: HTMLElement | SVGElement | Window | Document) {
             return {
                 on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
                     Unit.subon(Unit.current, target, type, listener, options);

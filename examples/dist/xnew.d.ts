@@ -59,6 +59,13 @@ interface UnitInternal {
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 }
+declare class UnitPromise {
+    private promise;
+    constructor(promise: Promise<any>);
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+}
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
@@ -95,6 +102,195 @@ declare class Unit {
     static subon(unit: Unit, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
+
+interface CreateUnit {
+    /**
+     * Creates a new Unit component
+     * @param Component - component function
+     * @param props - properties for component function
+     * @returns A new Unit instance
+     * @example
+     * const unit = xnew(MyComponent, { data: 0 })
+     */
+    (Component?: Function | string, props?: Object): Unit;
+    /**
+     * Creates a new Unit component
+     * @param target - HTMLElement, SVGElement, selector string, or HTML tag for new element
+     * @param Component - component function
+     * @param props - properties for component function
+     * @returns A new Unit instance
+     * @example
+     * const unit = xnew(element, MyComponent, { data: 0 })
+     * const unit = xnew('#selector', MyComponent, { data: 0 })
+     * const unit = xnew('<div>', MyComponent, { data: 0 })
+     */
+    (target: HTMLElement | SVGElement, Component?: Function | string, props?: Object): Unit;
+}
+declare const xnew$1: CreateUnit & {
+    /**
+     * Creates a nested HTML/SVG element within the current component
+     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+     * @returns The created HTML/SVG element
+     * @throws Error if called after component initialization
+     * @example
+     * const div = xnew.nest('<div>')
+     * div.textContent = 'Hello'
+     */
+    nest(tag: string): HTMLElement | SVGElement;
+    /**
+     * Extends the current component with another component's functionality
+     * @param component - Component function to extend with
+     * @param props - Optional properties to pass to the extended component
+     * @returns The extended component's return value
+     * @throws Error if called after component initialization
+     * @example
+     * const api = xnew.extend(BaseComponent, { data: {} })
+     */
+    extend(component: Function, props?: Object): {
+        [key: string]: any;
+    };
+    /**
+     * Gets or sets a context value that can be accessed by child components
+     * @param key - Context key
+     * @param value - Optional value to set (if undefined, gets the value)
+     * @returns The context value if getting, undefined if setting
+     * @example
+     * // Set context in parent
+     * xnew.context('theme', 'dark')
+     *
+     * // Get context in child
+     * const theme = xnew.context('theme')
+     */
+    context(key: string, value?: any): any;
+    /**
+     * Registers a promise with the current component for lifecycle management
+     * @param promise - Promise to register
+     * @returns UnitPromise wrapper for chaining
+     * @example
+     * xnew.promise(fetchData()).then(data => console.log(data))
+     */
+    promise(promise: Promise<any>): UnitPromise;
+    /**
+     * Handles successful resolution of all registered promises in the current component
+     * @param callback - Function to call when all promises resolve
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.then(results => console.log('All promises resolved', results))
+     */
+    then(callback: Function): UnitPromise;
+    /**
+     * Handles rejection of any registered promise in the current component
+     * @param callback - Function to call if any promise rejects
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.catch(error => console.error('Promise failed', error))
+     */
+    catch(callback: Function): UnitPromise;
+    /**
+     * Executes callback after all registered promises settle (resolve or reject)
+     * @param callback - Function to call after promises settle
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.finally(() => console.log('All promises settled'))
+     */
+    finally(callback: Function): UnitPromise;
+    /**
+     * Fetches a resource and registers the promise with the current component
+     * @param url - URL to fetch
+     * @param options - Optional fetch options (method, headers, body, etc.)
+     * @returns UnitPromise wrapping the fetch promise
+     * @example
+     * xnew.fetch('/api/users').then(res => res.json()).then(data => console.log(data))
+     */
+    fetch(url: string, options?: object): UnitPromise;
+    /**
+     * Creates a scoped callback that captures the current component context
+     * @param callback - Function to wrap with current scope
+     * @returns Function that executes callback in the captured scope
+     * @example
+     * setTimeout(xnew.scope(() => {
+     *   console.log('This runs in the xnew component scope')
+     * }), 1000)
+     */
+    scope(callback: any): any;
+    /**
+     * Finds all instances of a component in the component tree
+     * @param component - Component function to search for
+     * @returns Array of Unit instances matching the component
+     * @throws Error if component parameter is invalid
+     * @example
+     * const buttons = xnew.find(ButtonComponent)
+     * buttons.forEach(btn => btn.finalize())
+     */
+    find(component: Function): Unit[];
+    /**
+     * Appends new components to existing component(s) in the tree
+     * @param anchor - Component function or Unit instance to append to
+     * @param args - Arguments to pass to xnew for creating child components
+     * @throws Error if anchor parameter is invalid
+     * @example
+     * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
+     * xnew.append(unitInstance, AnotherComponent)
+     */
+    append(anchor: Function | Unit, ...args: any[]): void;
+    /**
+     * Executes a callback once after a delay, managed by component lifecycle
+     * @param callback - Function to execute after delay
+     * @param delay - Delay in milliseconds
+     * @returns Object with clear() method to cancel the timeout
+     * @example
+     * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
+     * // Cancel if needed: timer.clear()
+     */
+    timeout(callback: Function, delay: number): any;
+    /**
+     * Executes a callback repeatedly at specified intervals, managed by component lifecycle
+     * @param callback - Function to execute at each interval
+     * @param delay - Interval duration in milliseconds
+     * @returns Object with clear() method to stop the interval
+     * @example
+     * const timer = xnew.interval(() => console.log('Tick'), 1000)
+     * // Stop when needed: timer.clear()
+     */
+    interval(callback: Function, delay: number): any;
+    /**
+     * Creates a transition animation with easing, executing callback with progress values
+     * @param callback - Function called with progress value (0.0 to 1.0)
+     * @param interval - Duration of transition in milliseconds
+     * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
+     * @returns Object with clear() and next() methods for controlling transitions
+     * @example
+     * xnew.transition(progress => {
+     *   element.style.opacity = progress
+     * }, 500, 'ease-out').next(progress => {
+     *   element.style.transform = `scale(${progress})`
+     * }, 300)
+     */
+    transition(callback: Function, interval: number, easing?: string): any;
+    /**
+     * Creates an event listener manager for a target element with automatic cleanup
+     * @param target - Element, Window, or Document to attach listeners to
+     * @returns Object with on() and off() methods for managing event listeners
+     * @example
+     * const mouse = xnew.listener(window)
+     * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
+     * // Automatically cleaned up when component finalizes
+     */
+    listener(target: HTMLElement | SVGElement | Window | Document): {
+        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+        off(type?: string, listener?: Function): void;
+    };
+    /**
+     * Registers a capture function that can intercept and handle child component events
+     * @param execute - Function that receives child unit and returns boolean (true to stop propagation)
+     * @example
+     * xnew.capture((childUnit) => {
+     *   console.log('Child component created:', childUnit)
+     *   return false // Continue propagation
+     * })
+     */
+    capture(execute: (unit: Unit) => boolean | void): void;
+};
 
 declare function ResizeEvent(resize: Unit): void;
 
@@ -278,16 +474,12 @@ declare const audio: {
     synthesizer: typeof synthesizer;
     load: typeof load;
 };
-interface xnew_interface {
-    (...args: any[]): Unit;
-    [key: string]: any;
-    basics: typeof basics;
-    audio: typeof audio;
-}
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
-declare const xnew: xnew_interface;
+declare const xnew: (typeof xnew$1) & {
+    basics: typeof basics;
+    audio: typeof audio;
+};
 
 export { xnew as default };
-export type { xnew_interface };
