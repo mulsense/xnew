@@ -1,5 +1,3 @@
-declare function ResizeEvent(resize: any): void;
-
 declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     has(key: Key): boolean;
     has(key: Key, value: Value): boolean;
@@ -22,6 +20,12 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
+declare class Ticker {
+    private id;
+    constructor(callback: Function);
+    clear(): void;
+}
+
 type UnitElement = HTMLElement | SVGElement;
 interface Context {
     stack: Context | null;
@@ -32,10 +36,6 @@ interface Snapshot {
     unit: Unit;
     context: Context;
     element: UnitElement;
-}
-interface Capture {
-    checker: (unit: Unit) => boolean;
-    execute: (unit: Unit) => any;
 }
 interface UnitInternal {
     parent: Unit | null;
@@ -51,7 +51,7 @@ interface UnitInternal {
     tostart: boolean;
     children: Unit[];
     promises: Promise<any>[];
-    captures: Capture[];
+    captures: ((unit: Unit) => boolean | void)[];
     elements: UnitElement[];
     components: Function[];
     listeners1: MapMap<string, Function, [UnitElement, Function]>;
@@ -59,10 +59,16 @@ interface UnitInternal {
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 }
+declare class UnitPromise {
+    private promise;
+    constructor(promise: Promise<any>);
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+}
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
-    static current: Unit;
     constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
     get components(): Function[];
@@ -73,18 +79,20 @@ declare class Unit {
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
-    static extend(unit: Unit, component: Function, props?: Object): void;
-    static start(unit: Unit, time: number): void;
+    static extend(unit: Unit, component: Function, props?: Object): {
+        [key: string]: any;
+    };
+    static start(unit: Unit): void;
     static stop(unit: Unit): void;
-    static update(unit: Unit, time: number): void;
-    static root: Unit | null;
-    static ticker(time: number): void;
+    static update(unit: Unit): void;
+    static root: Unit;
+    static current: Unit;
+    static ticker: Ticker;
     static reset(): void;
     static wrap(unit: Unit, listener: Function): (...args: any[]) => any;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
-    static stack(unit: Unit, key: string, value: any): void;
-    static trace(unit: Unit, key: string): any;
+    static context(unit: Unit, key: string, value?: any): any;
     static componentUnits: MapSet<Function, Unit>;
     static find(component: Function): Unit[];
     static typeUnits: MapSet<string, Unit>;
@@ -95,33 +103,219 @@ declare class Unit {
     static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
 
-declare namespace xnew$1 {
-    type Unit = InstanceType<typeof Unit>;
+interface CreateUnit {
+    /**
+     * Creates a new Unit component
+     * @param Component - component function
+     * @param props - properties for component function
+     * @returns A new Unit instance
+     * @example
+     * const unit = xnew(MyComponent, { data: 0 })
+     */
+    (Component?: Function | string, props?: Object): Unit;
+    /**
+     * Creates a new Unit component
+     * @param target - HTMLElement, SVGElement, selector string, or HTML tag for new element
+     * @param Component - component function
+     * @param props - properties for component function
+     * @returns A new Unit instance
+     * @example
+     * const unit = xnew(element, MyComponent, { data: 0 })
+     * const unit = xnew('#selector', MyComponent, { data: 0 })
+     * const unit = xnew('<div>', MyComponent, { data: 0 })
+     */
+    (target: HTMLElement | SVGElement, Component?: Function | string, props?: Object): Unit;
 }
-declare const xnew$1: any;
+declare const xnew$1: CreateUnit & {
+    /**
+     * Creates a nested HTML/SVG element within the current component
+     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+     * @returns The created HTML/SVG element
+     * @throws Error if called after component initialization
+     * @example
+     * const div = xnew.nest('<div>')
+     * div.textContent = 'Hello'
+     */
+    nest(tag: string): HTMLElement | SVGElement;
+    /**
+     * Extends the current component with another component's functionality
+     * @param component - Component function to extend with
+     * @param props - Optional properties to pass to the extended component
+     * @returns The extended component's return value
+     * @throws Error if called after component initialization
+     * @example
+     * const api = xnew.extend(BaseComponent, { data: {} })
+     */
+    extend(component: Function, props?: Object): {
+        [key: string]: any;
+    };
+    /**
+     * Gets or sets a context value that can be accessed by child components
+     * @param key - Context key
+     * @param value - Optional value to set (if undefined, gets the value)
+     * @returns The context value if getting, undefined if setting
+     * @example
+     * // Set context in parent
+     * xnew.context('theme', 'dark')
+     *
+     * // Get context in child
+     * const theme = xnew.context('theme')
+     */
+    context(key: string, value?: any): any;
+    /**
+     * Registers a promise with the current component for lifecycle management
+     * @param promise - Promise to register
+     * @returns UnitPromise wrapper for chaining
+     * @example
+     * xnew.promise(fetchData()).then(data => console.log(data))
+     */
+    promise(promise: Promise<any>): UnitPromise;
+    /**
+     * Handles successful resolution of all registered promises in the current component
+     * @param callback - Function to call when all promises resolve
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.then(results => console.log('All promises resolved', results))
+     */
+    then(callback: Function): UnitPromise;
+    /**
+     * Handles rejection of any registered promise in the current component
+     * @param callback - Function to call if any promise rejects
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.catch(error => console.error('Promise failed', error))
+     */
+    catch(callback: Function): UnitPromise;
+    /**
+     * Executes callback after all registered promises settle (resolve or reject)
+     * @param callback - Function to call after promises settle
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.finally(() => console.log('All promises settled'))
+     */
+    finally(callback: Function): UnitPromise;
+    /**
+     * Fetches a resource and registers the promise with the current component
+     * @param url - URL to fetch
+     * @param options - Optional fetch options (method, headers, body, etc.)
+     * @returns UnitPromise wrapping the fetch promise
+     * @example
+     * xnew.fetch('/api/users').then(res => res.json()).then(data => console.log(data))
+     */
+    fetch(url: string, options?: object): UnitPromise;
+    /**
+     * Creates a scoped callback that captures the current component context
+     * @param callback - Function to wrap with current scope
+     * @returns Function that executes callback in the captured scope
+     * @example
+     * setTimeout(xnew.scope(() => {
+     *   console.log('This runs in the xnew component scope')
+     * }), 1000)
+     */
+    scope(callback: any): any;
+    /**
+     * Finds all instances of a component in the component tree
+     * @param component - Component function to search for
+     * @returns Array of Unit instances matching the component
+     * @throws Error if component parameter is invalid
+     * @example
+     * const buttons = xnew.find(ButtonComponent)
+     * buttons.forEach(btn => btn.finalize())
+     */
+    find(component: Function): Unit[];
+    /**
+     * Appends new components to existing component(s) in the tree
+     * @param anchor - Component function or Unit instance to append to
+     * @param args - Arguments to pass to xnew for creating child components
+     * @throws Error if anchor parameter is invalid
+     * @example
+     * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
+     * xnew.append(unitInstance, AnotherComponent)
+     */
+    append(anchor: Unit, ...args: any[]): void;
+    /**
+     * Executes a callback once after a delay, managed by component lifecycle
+     * @param callback - Function to execute after delay
+     * @param delay - Delay in milliseconds
+     * @returns Object with clear() method to cancel the timeout
+     * @example
+     * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
+     * // Cancel if needed: timer.clear()
+     */
+    timeout(callback: Function, delay: number): any;
+    /**
+     * Executes a callback repeatedly at specified intervals, managed by component lifecycle
+     * @param callback - Function to execute at each interval
+     * @param delay - Interval duration in milliseconds
+     * @returns Object with clear() method to stop the interval
+     * @example
+     * const timer = xnew.interval(() => console.log('Tick'), 1000)
+     * // Stop when needed: timer.clear()
+     */
+    interval(callback: Function, delay: number): any;
+    /**
+     * Creates a transition animation with easing, executing callback with progress values
+     * @param callback - Function called with progress value (0.0 to 1.0)
+     * @param interval - Duration of transition in milliseconds
+     * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
+     * @returns Object with clear() and next() methods for controlling transitions
+     * @example
+     * xnew.transition(progress => {
+     *   element.style.opacity = progress
+     * }, 500, 'ease-out').next(progress => {
+     *   element.style.transform = `scale(${progress})`
+     * }, 300)
+     */
+    transition(callback: Function, interval: number, easing?: string): any;
+    /**
+     * Creates an event listener manager for a target element with automatic cleanup
+     * @param target - Element, Window, or Document to attach listeners to
+     * @returns Object with on() and off() methods for managing event listeners
+     * @example
+     * const mouse = xnew.listener(window)
+     * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
+     * // Automatically cleaned up when component finalizes
+     */
+    listener(target: HTMLElement | SVGElement | Window | Document): {
+        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+        off(type?: string, listener?: Function): void;
+    };
+    /**
+     * Registers a capture function that can intercept and handle child component events
+     * @param execute - Function that receives child unit and returns boolean (true to stop propagation)
+     * @example
+     * xnew.capture((childUnit) => {
+     *   console.log('Child component created:', childUnit)
+     *   return false // Continue propagation
+     * })
+     */
+    capture(execute: (unit: Unit) => boolean | void): void;
+};
 
-declare function PointerEvent(unit: xnew$1.Unit): void;
+declare function ResizeEvent(resize: Unit): void;
 
-declare function KeyboardEvent(unit: xnew$1.Unit): void;
+declare function PointerEvent(unit: Unit): void;
 
-declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
+declare function KeyboardEvent(unit: Unit): void;
+
+declare function Screen(screen: Unit, { width, height, fit }?: {
     width?: number | undefined;
     height?: number | undefined;
     fit?: string | undefined;
 }): {
-    readonly canvas: any;
+    readonly canvas: UnitElement;
     resize(width: number, height: number): void;
 };
 
-declare function InputFrame(frame: xnew$1.Unit, {}?: {}): void;
+declare function InputFrame(frame: Unit, {}?: {}): void;
 
-declare function ModalFrame(frame: xnew$1.Unit, { duration, easing }?: {
+declare function ModalFrame(frame: Unit, { duration, easing }?: {
     duration?: number;
     easing?: string;
 }): {
     close(): void;
 };
-declare function ModalContent(content: xnew$1.Unit, { background }?: {
+declare function ModalContent(content: Unit, { background }?: {
     background?: string;
 }): {
     transition({ element, rate }: {
@@ -130,10 +324,10 @@ declare function ModalContent(content: xnew$1.Unit, { background }?: {
     }): void;
 };
 
-declare function TabFrame(frame: xnew$1.Unit, { select }?: {
+declare function TabFrame(frame: Unit, { select }?: {
     select?: string;
 }): void;
-declare function TabButton(button: xnew$1.Unit, { key }?: {
+declare function TabButton(button: Unit, { key }?: {
     key?: string;
 }): {
     select({ element }: {
@@ -143,7 +337,7 @@ declare function TabButton(button: xnew$1.Unit, { key }?: {
         element: HTMLElement;
     }): void;
 };
-declare function TabContent(content: xnew$1.Unit, { key }?: {
+declare function TabContent(content: Unit, { key }?: {
     key?: string;
 }): {
     select({ element }: {
@@ -154,7 +348,7 @@ declare function TabContent(content: xnew$1.Unit, { key }?: {
     }): void;
 };
 
-declare function AccordionFrame(frame: xnew$1.Unit, { open, duration, easing }?: {
+declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
     open?: boolean;
     duration?: number;
     easing?: string;
@@ -163,24 +357,24 @@ declare function AccordionFrame(frame: xnew$1.Unit, { open, duration, easing }?:
     open(): void;
     close(): void;
 };
-declare function AccordionHeader(header: xnew$1.Unit, {}?: {}): void;
-declare function AccordionBullet(bullet: xnew$1.Unit, { type }?: {
+declare function AccordionHeader(header: Unit, {}?: {}): void;
+declare function AccordionBullet(bullet: Unit, { type }?: {
     type?: string;
 }): void;
-declare function AccordionContent(content: xnew$1.Unit, {}?: {}): {
+declare function AccordionContent(content: Unit, {}?: {}): {
     transition({ element, rate }: {
         element: HTMLElement;
         rate: number;
     }): void;
 };
 
-declare function DragFrame(frame: xnew$1.Unit, { x, y }?: {
+declare function DragFrame(frame: Unit, { x, y }?: {
     x?: number;
     y?: number;
 }): void;
-declare function DragTarget(target: xnew$1.Unit, {}?: {}): void;
+declare function DragTarget(target: Unit, {}?: {}): void;
 
-declare function AnalogStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function AnalogStick(self: Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number;
     diagonal?: boolean;
     fill?: string;
@@ -190,7 +384,7 @@ declare function AnalogStick(self: xnew$1.Unit, { size, fill, fillOpacity, strok
     strokeWidth?: number;
     strokeLinejoin?: string;
 }): void;
-declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number;
     diagonal?: boolean;
     fill?: string;
@@ -200,35 +394,42 @@ declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillO
     strokeWidth?: number;
     strokeLinejoin?: string;
 }): void;
-
-type AudioNodeMap = {
-    [key: string]: AudioNode;
-};
 
 declare function load(path: string): AudioFile;
 declare class AudioFile {
-    data: any;
-    startTime: number | null;
-    nodes: AudioNodeMap;
+    buffer?: AudioBuffer;
+    promise: Promise<void>;
+    source?: AudioBufferSourceNode;
+    amp?: GainNode;
+    start: number | null;
     constructor(path: string);
-    isReady(): boolean;
-    get promise(): Promise<void>;
-    set volume(value: number);
-    get volume(): number;
-    set loop(value: boolean);
-    get loop(): boolean;
-    play(offset?: number): void;
+    play(offset?: number, loop?: boolean): void;
     pause(): number | undefined;
 }
 
+declare function synthesizer(props: SynthProps): Synthesizer;
 type SynthProps = {
-    oscillator?: OscillatorOptions | null;
-    filter?: FilterOptions | null;
-    amp?: AmpOptions | null;
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
 };
-type SynthEffects = {
-    bmp?: number | null;
-    reverb?: ReverbOptions | null;
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
 };
 type Envelope = {
     amount: number;
@@ -239,40 +440,12 @@ type LFO = {
     type: OscillatorType;
     rate: number;
 };
-type OscillatorOptions = {
-    type?: OscillatorType;
-    envelope?: Envelope | null;
-    LFO?: LFO | null;
-};
-type FilterOptions = {
-    type?: BiquadFilterType;
-    cutoff?: number;
-};
-type AmpOptions = {
-    envelope?: Envelope | null;
-};
-type ReverbOptions = {
-    time?: number;
-    mix?: number;
-};
-declare function synthesizer(props?: SynthProps, effects?: SynthEffects): Synthesizer;
 declare class Synthesizer {
-    oscillator: OscillatorOptions;
-    filter: FilterOptions;
-    amp: AmpOptions;
-    bmp: number;
-    reverb: ReverbOptions;
-    static initialize(): void;
-    constructor({ oscillator, filter, amp }?: SynthProps, { bmp, reverb }?: SynthEffects);
-    static keymap: {
-        [key: string]: number;
-    };
-    static notemap: {
-        [key: string]: number;
-    };
-    press(frequency: number | string, duration?: number | string | null, wait?: number): {
+    props: SynthProps;
+    constructor(props: SynthProps);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
         release: () => void;
-    };
+    } | undefined;
 }
 
 declare const basics: {
@@ -296,19 +469,17 @@ declare const basics: {
     DirectionalPad: typeof DirectionalPad;
 };
 declare const audio: {
+    master: GainNode;
+    context: AudioContext;
     synthesizer: typeof synthesizer;
     load: typeof load;
 };
-interface xnew_interface {
-    (...args: any[]): Unit;
-    [key: string]: any;
-    basics: typeof basics;
-    audio: typeof audio;
-}
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
-declare const xnew: xnew_interface;
+declare const xnew: (typeof xnew$1) & {
+    basics: typeof basics;
+    audio: typeof audio;
+};
 
 export { xnew as default };
-export type { xnew_interface };

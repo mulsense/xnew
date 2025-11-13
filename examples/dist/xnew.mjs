@@ -1,53 +1,35 @@
-function ResizeEvent(resize) {
-    const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-            resize.emit('-resize');
-            break;
-        }
-    });
-    if (resize.element) {
-        observer.observe(resize.element);
-    }
-    resize.on('finalize', () => {
-        if (resize.element) {
-            observer.unobserve(resize.element);
-        }
-    });
-}
-
 //----------------------------------------------------------------------------------------------------
 // ticker
 //----------------------------------------------------------------------------------------------------
 class Ticker {
-    static ticker() {
-        const time = Date.now();
-        const interval = 1000 / 60;
-        if (time - Ticker.previous > interval * 0.8) {
-            Ticker.callbacks.forEach((callback) => callback(time));
-            Ticker.previous = time;
+    constructor(callback) {
+        const self = this;
+        this.id = null;
+        let previous = 0;
+        ticker();
+        function ticker() {
+            const time = Date.now();
+            const interval = 1000 / 60;
+            if (time - previous > interval * 0.9) {
+                callback(time);
+                previous = time;
+            }
+            self.id = requestAnimationFrame(ticker);
         }
-        Ticker.animation = requestAnimationFrame(Ticker.ticker);
     }
-    static set(callback) {
-        if (Ticker.animation === null && typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
-            Ticker.previous = Date.now();
-            Ticker.animation = requestAnimationFrame(Ticker.ticker);
+    clear() {
+        if (this.id !== null) {
+            cancelAnimationFrame(this.id);
+            this.id = null;
         }
-        Ticker.callbacks.add(callback);
-    }
-    static clear(callback) {
-        Ticker.callbacks.delete(callback);
     }
 }
-Ticker.animation = null;
-Ticker.callbacks = new Set;
-Ticker.previous = 0.0;
 //----------------------------------------------------------------------------------------------------
 // timer
 //----------------------------------------------------------------------------------------------------
 class Timer {
     constructor(timeout, transition, delay, loop = false) {
-        var _a, _b;
+        var _a;
         this.timeout = timeout;
         this.transition = transition;
         this.delay = delay;
@@ -56,33 +38,21 @@ class Timer {
         this.time = 0.0;
         this.offset = 0.0;
         this.status = 0;
-        this.ticker = (time) => {
-            var _a;
-            (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay);
-        };
-        (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
-        if (this.delay <= 0) {
-            timeout();
-            (_b = this.transition) === null || _b === void 0 ? void 0 : _b.call(this, 1.0);
+        this.ticker = new Ticker((time) => { var _a; return (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay); });
+        this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+        document.addEventListener('visibilitychange', this.visibilitychange);
+        if (this.delay > 0.0) {
+            (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
         }
-        else {
-            if (document instanceof Document) {
-                this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-                document.addEventListener('visibilitychange', this.visibilitychange);
-            }
-            this.start();
-            Ticker.set(this.ticker);
-        }
+        this.start();
     }
     clear() {
         if (this.id !== null) {
             clearTimeout(this.id);
             this.id = null;
         }
-        if (document instanceof Document && this.visibilitychange !== undefined) {
-            document.removeEventListener('visibilitychange', this.visibilitychange);
-        }
-        Ticker.clear(this.ticker);
+        document.removeEventListener('visibilitychange', this.visibilitychange);
+        this.ticker.clear();
     }
     elapsed() {
         return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
@@ -98,12 +68,17 @@ class Timer {
     _start() {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
+                var _a;
                 this.timeout();
+                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 1.0);
                 this.id = null;
                 this.time = 0.0;
                 this.offset = 0.0;
                 if (this.loop) {
                     this.start();
+                }
+                else {
+                    this.clear();
                 }
             }, this.delay - this.offset);
             this.time = Date.now();
@@ -217,13 +192,11 @@ class MapMap extends Map {
 }
 
 //----------------------------------------------------------------------------------------------------
-// defines
+// utils
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
 class UnitPromise {
-    constructor(promise) {
-        this.promise = promise;
-    }
+    constructor(promise) { this.promise = promise; }
     then(callback) {
         this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
         return this;
@@ -238,7 +211,7 @@ class UnitPromise {
     }
 }
 //----------------------------------------------------------------------------------------------------
-// Unit
+// unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
     constructor(parent, target, component, props) {
@@ -258,10 +231,10 @@ class Unit {
             baseComponent = component;
         }
         else if (typeof component === 'string') {
-            baseComponent = (self) => { self.element.textContent = component; };
+            baseComponent = (unit) => { unit.element.textContent = component; };
         }
         else {
-            baseComponent = (self) => { };
+            baseComponent = (unit) => { };
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
         this._ = { parent, target, baseElement, baseContext, baseComponent, props };
@@ -290,10 +263,10 @@ class Unit {
     }
     reboot() {
         var _a, _b;
+        const anchor = (_b = (_a = this._.elements[0]) === null || _a === void 0 ? void 0 : _a.nextElementSibling) !== null && _b !== void 0 ? _b : null;
         Unit.stop(this);
-        const anchorElement = (_b = (_a = this._.elements[0]) === null || _a === void 0 ? void 0 : _a.nextElementSibling) !== null && _b !== void 0 ? _b : null;
         Unit.finalize(this);
-        Unit.initialize(this, anchorElement);
+        Unit.initialize(this, anchor);
     }
     static initialize(unit, anchor) {
         const backup = Unit.current;
@@ -323,27 +296,20 @@ class Unit {
         // whether the unit promise was resolved
         Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
         // setup capture
-        let captured = false;
-        for (let current = unit; current !== null && captured === false; current = current._.parent) {
-            for (const capture of current._.captures) {
-                if (capture.checker(unit)) {
-                    capture.execute(unit);
-                    captured = true;
-                }
-            }
+        for (let current = unit; current !== null; current = current._.parent) {
+            if (current._.captures.find((capture) => capture(unit)) !== undefined)
+                break;
         }
         Unit.current = backup;
     }
     static finalize(unit) {
-        if (unit._.state !== 'finalized' && unit._.state !== 'pre-finalized') {
-            unit._.state = 'pre-finalized';
+        if (unit._.state !== 'finalized') {
+            unit._.state = 'finalized';
             unit._.children.forEach((child) => child.finalize());
             unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             unit.off();
             Unit.suboff(unit, null);
-            unit._.components.forEach((component) => {
-                Unit.componentUnits.delete(component, unit);
-            });
+            unit._.components.forEach((component) => Unit.componentUnits.delete(component, unit));
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
                 unit._.currentElement = unit._.baseElement;
@@ -355,7 +321,6 @@ class Unit {
                 }
             });
             unit._.defines = {};
-            unit._.state = 'finalized';
         }
     }
     static nest(unit, tag) {
@@ -389,34 +354,35 @@ class Unit {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrappedDesc = { configurable: true, enumerable: true };
+            const wrapper = { configurable: true, enumerable: true };
             if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) {
-                wrappedDesc.get = Unit.wrap(unit, descriptor.get);
+                wrapper.get = Unit.wrap(unit, descriptor.get);
             }
             if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set) {
-                wrappedDesc.set = Unit.wrap(unit, descriptor.set);
+                wrapper.set = Unit.wrap(unit, descriptor.set);
             }
             if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
-                wrappedDesc.value = Unit.wrap(unit, descriptor.value);
+                wrapper.value = Unit.wrap(unit, descriptor.value);
             }
             else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                wrappedDesc.writable = true;
-                wrappedDesc.value = descriptor.value;
+                wrapper.writable = true;
+                wrapper.value = descriptor.value;
             }
-            Object.defineProperty(unit._.defines, key, wrappedDesc);
-            Object.defineProperty(unit, key, wrappedDesc);
+            Object.defineProperty(unit._.defines, key, wrapper);
+            Object.defineProperty(unit, key, wrapper);
         });
+        return Object.assign({}, unit._.defines);
     }
-    static start(unit, time) {
+    static start(unit) {
         if (unit._.tostart === false)
             return;
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
-            unit._.children.forEach((child) => Unit.start(child, time));
+            unit._.children.forEach((child) => Unit.start(child));
             unit._.systems.start.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }
         else if (unit._.state === 'started') {
-            unit._.children.forEach((child) => Unit.start(child, time));
+            unit._.children.forEach((child) => Unit.start(child));
         }
     }
     static stop(unit) {
@@ -426,29 +392,22 @@ class Unit {
             unit._.systems.stop.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
-    static update(unit, time) {
+    static update(unit) {
         if (unit._.state === 'started') {
-            unit._.children.forEach((child) => Unit.update(child, time));
+            unit._.children.forEach((child) => Unit.update(child));
             unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
-    static ticker(time) {
-        if (Unit.root !== null) {
-            Unit.start(Unit.root, time);
-            Unit.update(Unit.root, time);
-        }
-    }
     static reset() {
-        var _a;
+        var _a, _b;
         (_a = Unit.root) === null || _a === void 0 ? void 0 : _a.finalize();
-        Unit.root = new Unit(null, null);
-        Unit.current = Unit.root;
-        Ticker.clear(Unit.ticker);
-        Ticker.set(Unit.ticker);
+        Unit.current = Unit.root = new Unit(null, null);
+        (_b = Unit.ticker) === null || _b === void 0 ? void 0 : _b.clear();
+        Unit.ticker = new Ticker((time) => {
+            Unit.start(Unit.root);
+            Unit.update(Unit.root);
+        });
     }
-    //----------------------------------------------------------------------------------------------------
-    // scope
-    //----------------------------------------------------------------------------------------------------
     static wrap(unit, listener) {
         const snapshot = Unit.snapshot(unit);
         return (...args) => Unit.scope(snapshot, listener, ...args);
@@ -474,13 +433,14 @@ class Unit {
     static snapshot(unit) {
         return { unit, context: unit._.currentContext, element: unit._.currentElement };
     }
-    static stack(unit, key, value) {
-        unit._.currentContext = { stack: unit._.currentContext, key, value };
-    }
-    static trace(unit, key) {
-        for (let context = unit._.currentContext; context !== null; context = context.stack) {
-            if (context.key === key) {
-                return context.value;
+    static context(unit, key, value) {
+        if (value !== undefined) {
+            unit._.currentContext = { stack: unit._.currentContext, key, value };
+        }
+        else {
+            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
+                if (context.key === key)
+                    return context.value;
             }
         }
     }
@@ -565,15 +525,14 @@ class Unit {
         });
     }
 }
-Unit.root = null;
 Unit.componentUnits = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
 //----------------------------------------------------------------------------------------------------
 Unit.typeUnits = new MapSet();
 
-const xnew$1 = function (...args) {
-    if (Unit.root === null) {
+const xnew$1 = Object.assign(function (...args) {
+    if (Unit.root === undefined) {
         Unit.reset();
     }
     let target;
@@ -596,201 +555,350 @@ const xnew$1 = function (...args) {
         target = null;
     }
     return new Unit(Unit.current, target, ...args);
-};
-xnew$1.nest = (tag) => {
-    var _a;
-    if (((_a = Unit.current) === null || _a === void 0 ? void 0 : _a._.state) === 'invoked') {
-        return Unit.nest(Unit.current, tag);
-    }
-    else {
-        throw new Error('This function can not be called after initialized.');
-    }
-};
-xnew$1.extend = (component, props) => {
-    var _a;
-    if (((_a = Unit.current) === null || _a === void 0 ? void 0 : _a._.state) === 'invoked') {
-        return Unit.extend(Unit.current, component, props);
-    }
-    else {
-        throw new Error('This function can not be called after initialized.');
-    }
-};
-xnew$1.context = (key, value = undefined) => {
-    try {
-        if (value !== undefined) {
-            Unit.stack(Unit.current, key, value);
+}, {
+    /**
+     * Creates a nested HTML/SVG element within the current component
+     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+     * @returns The created HTML/SVG element
+     * @throws Error if called after component initialization
+     * @example
+     * const div = xnew.nest('<div>')
+     * div.textContent = 'Hello'
+     */
+    nest(tag) {
+        var _a;
+        if (((_a = Unit.current) === null || _a === void 0 ? void 0 : _a._.state) === 'invoked') {
+            return Unit.nest(Unit.current, tag);
         }
         else {
-            return Unit.trace(Unit.current, key);
+            throw new Error('xnew.nest: This function can not be called after initialized.');
         }
-    }
-    catch (error) {
-        console.error('xnew.context(key, value?): ', error);
-    }
-};
-xnew$1.promise = (promise) => {
-    try {
-        Unit.current._.promises.push(promise);
-        return new UnitPromise(promise);
-    }
-    catch (error) {
-        console.error('xnew.promise(mix): ', error);
-        throw error;
-    }
-};
-xnew$1.then = (callback) => {
-    try {
-        return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
-    }
-    catch (error) {
-        console.error('xnew.then(mix): ', error);
-        throw error;
-    }
-};
-xnew$1.catch = (callback) => {
-    try {
-        return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
-    }
-    catch (error) {
-        console.error('xnew.catch(mix): ', error);
-        throw error;
-    }
-};
-xnew$1.finally = (callback) => {
-    try {
-        return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
-    }
-    catch (error) {
-        console.error('xnew.finally(mix): ', error);
-        throw error;
-    }
-};
-xnew$1.fetch = (url, options) => {
-    try {
-        const promise = fetch(url, options);
-        Unit.current._.promises.push(promise);
-        return new UnitPromise(promise);
-    }
-    catch (error) {
-        console.error('xnew.promise(mix): ', error);
-        throw error;
-    }
-};
-xnew$1.scope = (callback) => {
-    const snapshot = Unit.snapshot(Unit.current);
-    return (...args) => Unit.scope(snapshot, callback, ...args);
-};
-xnew$1.find = (component) => {
-    if (typeof component === 'function') {
-        return Unit.find(component);
-    }
-    else {
-        throw new Error(`The argument [component] is invalid.`);
-    }
-};
-xnew$1.append = (base, ...args) => {
-    if (typeof base === 'function') {
-        for (let unit of Unit.find(base)) {
-            Unit.scope(Unit.snapshot(unit), xnew$1, ...args);
+    },
+    /**
+     * Extends the current component with another component's functionality
+     * @param component - Component function to extend with
+     * @param props - Optional properties to pass to the extended component
+     * @returns The extended component's return value
+     * @throws Error if called after component initialization
+     * @example
+     * const api = xnew.extend(BaseComponent, { data: {} })
+     */
+    extend(component, props) {
+        var _a;
+        if (((_a = Unit.current) === null || _a === void 0 ? void 0 : _a._.state) === 'invoked') {
+            return Unit.extend(Unit.current, component, props);
         }
-    }
-    else if (base instanceof Unit) {
-        Unit.scope(Unit.snapshot(base), xnew$1, ...args);
-    }
-    else {
-        throw new Error(`The argument [component] is invalid.`);
-    }
-};
-xnew$1.timeout = (callback, delay) => {
-    const snapshot = Unit.snapshot(Unit.current);
-    const unit = xnew$1((self) => {
-        const timer = new Timer(() => {
-            Unit.scope(snapshot, callback);
-            self.finalize();
-        }, null, delay);
-        self.on('finalize', () => {
-            timer.clear();
-        });
-    });
-    return { clear: () => unit.finalize() };
-};
-xnew$1.interval = (callback, delay) => {
-    const snapshot = Unit.snapshot(Unit.current);
-    const unit = xnew$1((self) => {
-        const timer = new Timer(() => {
-            Unit.scope(snapshot, callback);
-        }, null, delay, true);
-        self.on('finalize', () => {
-            timer.clear();
-        });
-    });
-    return { clear: () => unit.finalize() };
-};
-xnew$1.transition = (callback, interval, easing = 'linear') => {
-    const snapshot = Unit.snapshot(Unit.current);
-    let stacks = [];
-    let unit = xnew$1(Local, { callback, interval, easing });
-    let isRunning = true;
-    function Local(self, { callback, interval, easing }) {
-        const timer = new Timer(() => {
-            Unit.scope(snapshot, callback, 1.0);
-            self.finalize();
-        }, (progress) => {
-            if (progress < 1.0) {
-                if (easing === 'ease-out') {
-                    progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
-                }
-                else if (easing === 'ease-in') {
-                    progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
-                }
-                else if (easing === 'ease') {
-                    progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
-                }
-                else if (easing === 'ease-in-out') {
-                    progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
-                }
-                Unit.scope(snapshot, callback, progress);
-            }
-        }, interval);
-        self.on('finalize', () => {
-            timer.clear();
-            isRunning = false;
-            execute();
-        });
-    }
-    let timer = null;
-    function execute() {
-        if (isRunning === false && stacks.length > 0) {
-            const props = stacks.shift();
-            unit = xnew$1(Local, props);
-            isRunning = true;
+        else {
+            throw new Error('xnew.extend: This function can not be called after initialized.');
         }
-    }
-    function clear() {
-        stacks = [];
-        unit.finalize();
-    }
-    function next(callback, interval, easing = 'linear') {
-        stacks.push({ callback, interval, easing });
-        execute();
+    },
+    /**
+     * Gets or sets a context value that can be accessed by child components
+     * @param key - Context key
+     * @param value - Optional value to set (if undefined, gets the value)
+     * @returns The context value if getting, undefined if setting
+     * @example
+     * // Set context in parent
+     * xnew.context('theme', 'dark')
+     *
+     * // Get context in child
+     * const theme = xnew.context('theme')
+     */
+    context(key, value = undefined) {
+        try {
+            return Unit.context(Unit.current, key, value);
+        }
+        catch (error) {
+            console.error('xnew.context(key: string, value?: any): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Registers a promise with the current component for lifecycle management
+     * @param promise - Promise to register
+     * @returns UnitPromise wrapper for chaining
+     * @example
+     * xnew.promise(fetchData()).then(data => console.log(data))
+     */
+    promise(promise) {
+        try {
+            Unit.current._.promises.push(promise);
+            return new UnitPromise(promise);
+        }
+        catch (error) {
+            console.error('xnew.promise(promise: Promise<any>): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Handles successful resolution of all registered promises in the current component
+     * @param callback - Function to call when all promises resolve
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.then(results => console.log('All promises resolved', results))
+     */
+    then(callback) {
+        try {
+            return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
+        }
+        catch (error) {
+            console.error('xnew.then(callback: Function): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Handles rejection of any registered promise in the current component
+     * @param callback - Function to call if any promise rejects
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.catch(error => console.error('Promise failed', error))
+     */
+    catch(callback) {
+        try {
+            return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
+        }
+        catch (error) {
+            console.error('xnew.catch(callback: Function): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Executes callback after all registered promises settle (resolve or reject)
+     * @param callback - Function to call after promises settle
+     * @returns UnitPromise for chaining
+     * @example
+     * xnew.finally(() => console.log('All promises settled'))
+     */
+    finally(callback) {
+        try {
+            return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
+        }
+        catch (error) {
+            console.error('xnew.finally(callback: Function): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Fetches a resource and registers the promise with the current component
+     * @param url - URL to fetch
+     * @param options - Optional fetch options (method, headers, body, etc.)
+     * @returns UnitPromise wrapping the fetch promise
+     * @example
+     * xnew.fetch('/api/users').then(res => res.json()).then(data => console.log(data))
+     */
+    fetch(url, options) {
+        try {
+            const promise = fetch(url, options);
+            Unit.current._.promises.push(promise);
+            return new UnitPromise(promise);
+        }
+        catch (error) {
+            console.error('xnew.promise(url: string, options?: object): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Creates a scoped callback that captures the current component context
+     * @param callback - Function to wrap with current scope
+     * @returns Function that executes callback in the captured scope
+     * @example
+     * setTimeout(xnew.scope(() => {
+     *   console.log('This runs in the xnew component scope')
+     * }), 1000)
+     */
+    scope(callback) {
+        const snapshot = Unit.snapshot(Unit.current);
+        return (...args) => Unit.scope(snapshot, callback, ...args);
+    },
+    /**
+     * Finds all instances of a component in the component tree
+     * @param component - Component function to search for
+     * @returns Array of Unit instances matching the component
+     * @throws Error if component parameter is invalid
+     * @example
+     * const buttons = xnew.find(ButtonComponent)
+     * buttons.forEach(btn => btn.finalize())
+     */
+    find(component) {
+        if (typeof component === 'function') {
+            return Unit.find(component);
+        }
+        else {
+            throw new Error('xnew.find(component: Function): [component] is invalid.');
+        }
+    },
+    /**
+     * Appends new components to existing component(s) in the tree
+     * @param anchor - Component function or Unit instance to append to
+     * @param args - Arguments to pass to xnew for creating child components
+     * @throws Error if anchor parameter is invalid
+     * @example
+     * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
+     * xnew.append(unitInstance, AnotherComponent)
+     */
+    append(anchor, ...args) {
+        if (typeof anchor === 'function') {
+            const units = Unit.find(anchor);
+            Unit.scope(Unit.snapshot(units[0]), xnew$1, ...args);
+        }
+        else if (anchor instanceof Unit) {
+            Unit.scope(Unit.snapshot(anchor), xnew$1, ...args);
+        }
+        else {
+            throw new Error('xnew.append(anchor: Function | Unit, xnew arguments): [anchor] is invalid.');
+        }
+    },
+    /**
+     * Executes a callback once after a delay, managed by component lifecycle
+     * @param callback - Function to execute after delay
+     * @param delay - Delay in milliseconds
+     * @returns Object with clear() method to cancel the timeout
+     * @example
+     * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
+     * // Cancel if needed: timer.clear()
+     */
+    timeout(callback, delay) {
+        const snapshot = Unit.snapshot(Unit.current);
+        const unit = xnew$1((self) => {
+            const timer = new Timer(() => {
+                Unit.scope(snapshot, callback);
+                self.finalize();
+            }, null, delay, false);
+            self.on('finalize', () => timer.clear());
+        });
+        return { clear: () => unit.finalize() };
+    },
+    /**
+     * Executes a callback repeatedly at specified intervals, managed by component lifecycle
+     * @param callback - Function to execute at each interval
+     * @param delay - Interval duration in milliseconds
+     * @returns Object with clear() method to stop the interval
+     * @example
+     * const timer = xnew.interval(() => console.log('Tick'), 1000)
+     * // Stop when needed: timer.clear()
+     */
+    interval(callback, delay) {
+        const snapshot = Unit.snapshot(Unit.current);
+        const unit = xnew$1((self) => {
+            const timer = new Timer(() => {
+                Unit.scope(snapshot, callback);
+            }, null, delay, true);
+            self.on('finalize', () => timer.clear());
+        });
+        return { clear: () => unit.finalize() };
+    },
+    /**
+     * Creates a transition animation with easing, executing callback with progress values
+     * @param callback - Function called with progress value (0.0 to 1.0)
+     * @param interval - Duration of transition in milliseconds
+     * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
+     * @returns Object with clear() and next() methods for controlling transitions
+     * @example
+     * xnew.transition(progress => {
+     *   element.style.opacity = progress
+     * }, 500, 'ease-out').next(progress => {
+     *   element.style.transform = `scale(${progress})`
+     * }, 300)
+     */
+    transition(callback, interval, easing = 'linear') {
+        const snapshot = Unit.snapshot(Unit.current);
+        let stacks = [];
+        let unit = xnew$1(Local, { callback, interval, easing });
+        let isRunning = true;
+        const timer = { clear, next };
         return timer;
-    }
-    timer = { clear, next };
-    return timer;
-};
-xnew$1.listener = function (target) {
-    return {
-        on(type, listener, options) {
-            Unit.subon(Unit.current, target, type, listener, options);
-        },
-        off(type, listener) {
-            Unit.suboff(Unit.current, target, type, listener);
+        function execute() {
+            if (isRunning === false && stacks.length > 0) {
+                unit = xnew$1(Local, stacks.shift());
+                isRunning = true;
+            }
         }
-    };
-};
-xnew$1.capture = function (checker, execute) {
-    Unit.current._.captures.push({ checker, execute: Unit.wrap(Unit.current, (unit) => execute(unit)) });
-};
+        function clear() {
+            stacks = [];
+            unit.finalize();
+        }
+        function next(callback, interval = 0, easing = 'linear') {
+            stacks.push({ callback, interval, easing });
+            execute();
+            return timer;
+        }
+        function Local(self, { callback, interval, easing }) {
+            const timer = new Timer(() => {
+                Unit.scope(snapshot, callback, 1.0);
+                self.finalize();
+            }, (progress) => {
+                if (progress < 1.0) {
+                    if (easing === 'ease-out') {
+                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
+                    }
+                    else if (easing === 'ease-in') {
+                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
+                    }
+                    else if (easing === 'ease') {
+                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                    }
+                    else if (easing === 'ease-in-out') {
+                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                    }
+                    Unit.scope(snapshot, callback, progress);
+                }
+            }, interval);
+            self.on('finalize', () => {
+                timer.clear();
+                isRunning = false;
+                execute();
+            });
+        }
+    },
+    /**
+     * Creates an event listener manager for a target element with automatic cleanup
+     * @param target - Element, Window, or Document to attach listeners to
+     * @returns Object with on() and off() methods for managing event listeners
+     * @example
+     * const mouse = xnew.listener(window)
+     * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
+     * // Automatically cleaned up when component finalizes
+     */
+    listener(target) {
+        return {
+            on(type, listener, options) {
+                Unit.subon(Unit.current, target, type, listener, options);
+            },
+            off(type, listener) {
+                Unit.suboff(Unit.current, target, type, listener);
+            }
+        };
+    },
+    /**
+     * Registers a capture function that can intercept and handle child component events
+     * @param execute - Function that receives child unit and returns boolean (true to stop propagation)
+     * @example
+     * xnew.capture((childUnit) => {
+     *   console.log('Child component created:', childUnit)
+     *   return false // Continue propagation
+     * })
+     */
+    capture(execute) {
+        Unit.current._.captures.push(Unit.wrap(Unit.current, (unit) => execute(unit)));
+    },
+});
+
+function ResizeEvent(resize) {
+    const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            resize.emit('-resize');
+            break;
+        }
+    });
+    if (resize.element) {
+        observer.observe(resize.element);
+    }
+    resize.on('finalize', () => {
+        if (resize.element) {
+            observer.unobserve(resize.element);
+        }
+    });
+}
 
 function PointerEvent(unit) {
     const internal = xnew$1();
@@ -936,7 +1044,7 @@ function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
     const size = { width, height };
     const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
     const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
-    const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
+    const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
     xnew$1(wrapper, ResizeEvent).on('-resize', resize);
     resize();
     function resize() {
@@ -982,18 +1090,19 @@ function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
 function InputFrame(frame, {} = {}) {
     xnew$1.nest('<div>');
     xnew$1.capture((unit) => {
-        return unit.element.tagName.toLowerCase() === 'input';
-    }, (unit) => {
-        const element = unit.element;
-        xnew$1.listener(element).on('input', (event) => {
-            frame.emit('-input', { event });
-        });
-        xnew$1.listener(element).on('change', (event) => {
-            frame.emit('-change', { event });
-        });
-        xnew$1.listener(element).on('click', (event) => {
-            frame.emit('-click', { event });
-        });
+        if (unit.element.tagName.toLowerCase() === 'input') {
+            const element = unit.element;
+            xnew$1.listener(element).on('input', (event) => {
+                frame.emit('-input', { event });
+            });
+            xnew$1.listener(element).on('change', (event) => {
+                frame.emit('-change', { event });
+            });
+            xnew$1.listener(element).on('click', (event) => {
+                frame.emit('-click', { event });
+            });
+            return true;
+        }
     });
 }
 
@@ -1358,293 +1467,79 @@ const context = new AudioContext();
 const master = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
-function connect(params) {
-    const nodes = {};
-    Object.keys(params).forEach((key) => {
-        const [type, props, ...to] = params[key];
-        nodes[key] = context[`create${type}`]();
-        const node = nodes[key];
-        Object.keys(props).forEach((name) => {
-            var _a;
-            if (((_a = node[name]) === null || _a === void 0 ? void 0 : _a.value) !== undefined) {
-                node[name].value = props[name];
-            }
-            else {
-                node[name] = props[name];
-            }
-        });
-    });
-    Object.keys(params).forEach((key) => {
-        const [type, props, ...to] = params[key];
-        to.forEach((to) => {
-            let dest = null;
-            if (to.indexOf('.') > 0) {
-                dest = nodes[to.split('.')[0]][to.split('.')[1]];
-            }
-            else if (nodes[to]) {
-                dest = nodes[to];
-            }
-            else if (to === 'master') {
-                dest = master;
-            }
-            nodes[key].connect(dest);
-        });
-    });
-    return nodes;
-}
 
-const store = new Map();
 function load(path) {
     return new AudioFile(path);
 }
+const store = new Map();
 class AudioFile {
     constructor(path) {
-        this.data = {};
         if (store.has(path)) {
-            this.data = store.get(path);
+            this.buffer = store.get(path);
+            this.promise = Promise.resolve();
         }
         else {
-            this.data.buffer = null;
-            this.data.promise = fetch(path)
+            this.promise = fetch(path)
                 .then((response) => response.arrayBuffer())
                 .then((response) => context.decodeAudioData(response))
                 .then((response) => {
-                this.data.buffer = response;
-                this.nodes.source.buffer = this.data.buffer;
+                this.buffer = response;
             })
                 .catch(() => {
                 console.warn(`"${path}" could not be loaded.`);
             });
-            store.set(path, this.data);
+            store.set(path, this.buffer);
         }
-        this.startTime = null;
-        this.nodes = connect({
-            source: ['BufferSource', {}, 'volume'],
-            volume: ['Gain', { gain: 1.0 }, 'master'],
-        });
+        this.start = null;
     }
-    isReady() {
-        return this.data.buffer ? true : false;
-    }
-    get promise() {
-        return this.data.promise;
-    }
-    set volume(value) {
-        this.nodes.volume.gain.value = value;
-    }
-    get volume() {
-        return this.nodes.volume.gain.value;
-    }
-    set loop(value) {
-        this.nodes.source.loop = value;
-    }
-    get loop() {
-        return this.nodes.source.loop;
-    }
-    play(offset = 0) {
-        if (this.startTime !== null)
-            return;
-        if (this.isReady()) {
-            this.startTime = context.currentTime;
-            this.nodes.source.playbackRate.value = 1;
-            this.nodes.source.start(context.currentTime, offset / 1000);
-        }
-        else {
-            this.promise.then(() => this.play());
+    // set volume(value: number) {
+    //     this.amp.gain.value = value;
+    // }
+    // get volume(): number {
+    //     return this.amp.gain.value;
+    // }
+    play(offset = 0, loop = false) {
+        if (this.buffer !== undefined && this.start === null) {
+            this.source = context.createBufferSource();
+            this.source.buffer = this.buffer;
+            this.source.loop = loop;
+            this.amp = context.createGain();
+            this.amp.gain.value = 1.0;
+            this.source.connect(this.amp);
+            this.amp.connect(master);
+            this.start = context.currentTime;
+            this.source.playbackRate.value = 1;
+            this.source.start(context.currentTime, offset / 1000);
+            this.source.onended = () => {
+                var _a, _b;
+                this.start = null;
+                (_a = this.source) === null || _a === void 0 ? void 0 : _a.disconnect();
+                (_b = this.amp) === null || _b === void 0 ? void 0 : _b.disconnect();
+            };
         }
     }
     pause() {
-        if (this.startTime === null)
-            return;
-        this.nodes.source.stop(context.currentTime);
-        const elapsed = (context.currentTime - this.startTime) % this.data.buffer.duration * 1000;
-        this.startTime = null;
-        return elapsed;
+        var _a;
+        if (this.buffer !== undefined && this.start !== null) {
+            (_a = this.source) === null || _a === void 0 ? void 0 : _a.stop(context.currentTime);
+            const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
+            this.start = null;
+            return elapsed;
+        }
     }
 }
 
-function synthesizer(props, effects) {
-    return new Synthesizer(props, effects);
+function synthesizer(props) {
+    return new Synthesizer(props);
 }
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
+window.addEventListener('touchstart', initialize, true);
+window.addEventListener('mousedown', initialize, true);
+function initialize() {
+    new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
+    window.removeEventListener('touchstart', initialize, true);
+    window.removeEventListener('mousedown', initialize, true);
 }
-function isObject(val) {
-    return val !== null && typeof val === 'object';
-}
-function isNumber(val) {
-    return typeof val === 'number' && !isNaN(val);
-}
-class Synthesizer {
-    static initialize() {
-        window.addEventListener('touchstart', initialize, true);
-        window.addEventListener('mousedown', initialize, true);
-        function initialize() {
-            new Synthesizer().press(440);
-            window.removeEventListener('touchstart', initialize, true);
-            window.removeEventListener('mousedown', initialize, true);
-        }
-    }
-    constructor({ oscillator = null, filter = null, amp = null } = {}, { bmp = null, reverb = null } = {}) {
-        this.oscillator = isObject(oscillator) ? oscillator : {};
-        this.oscillator.type = setType(this.oscillator.type, ['sine', 'triangle', 'square', 'sawtooth']);
-        this.oscillator.envelope = setEnvelope(this.oscillator.envelope, -36, +36);
-        this.oscillator.LFO = setLFO(this.oscillator.LFO, 36);
-        this.filter = isObject(filter) ? filter : {};
-        this.filter.type = setType(this.filter.type, ['lowpass', 'highpass', 'bandpass']);
-        this.filter.cutoff = isNumber(this.filter.cutoff) ? clamp(this.filter.cutoff, 4, 8192) : undefined;
-        this.amp = isObject(amp) ? amp : {};
-        this.amp.envelope = setEnvelope(this.amp.envelope, 0, 1);
-        this.bmp = isNumber(bmp) ? clamp(bmp, 60, 240) : 120;
-        this.reverb = isObject(reverb) ? reverb : {};
-        this.reverb.time = isNumber(this.reverb.time) ? clamp(this.reverb.time, 0, 2000) : 0.0;
-        this.reverb.mix = isNumber(this.reverb.mix) ? clamp(this.reverb.mix, 0, 1.0) : 0.0;
-        function setType(type, list, value = 0) {
-            return list.includes(type) ? type : list[value];
-        }
-        function setEnvelope(envelope, minAmount, maxAmount) {
-            var _a, _b, _c, _d;
-            if (!isObject(envelope))
-                return null;
-            const result = {
-                amount: isNumber(envelope.amount) ? clamp(envelope.amount, minAmount, maxAmount) : 0,
-                ADSR: [
-                    isNumber((_a = envelope.ADSR) === null || _a === void 0 ? void 0 : _a[0]) ? clamp(envelope.ADSR[0], 0, 8000) : 0,
-                    isNumber((_b = envelope.ADSR) === null || _b === void 0 ? void 0 : _b[1]) ? clamp(envelope.ADSR[1], 0, 8000) : 0,
-                    isNumber((_c = envelope.ADSR) === null || _c === void 0 ? void 0 : _c[2]) ? clamp(envelope.ADSR[2], 0, 1) : 0,
-                    isNumber((_d = envelope.ADSR) === null || _d === void 0 ? void 0 : _d[3]) ? clamp(envelope.ADSR[3], 0, 8000) : 0,
-                ]
-            };
-            return result;
-        }
-        function setLFO(LFO, maxAmount) {
-            if (!isObject(LFO))
-                return null;
-            const oscTypes = ['sine', 'triangle', 'square', 'sawtooth'];
-            const type = oscTypes.includes(LFO.type)
-                ? LFO.type
-                : 'sine';
-            const result = {
-                amount: isNumber(LFO.amount) ? clamp(LFO.amount, 0, maxAmount) : 0,
-                type,
-                rate: isNumber(LFO.rate) ? clamp(LFO.rate, 1, 128) : 1,
-            };
-            return result;
-        }
-    }
-    press(frequency, duration = null, wait = 0.0) {
-        frequency = typeof frequency === 'string' ? Synthesizer.keymap[frequency] : frequency;
-        duration = typeof duration === 'string' ? (Synthesizer.notemap[duration] * 60 / this.bmp) : (duration !== null ? (duration / 1000) : duration);
-        const start = context.currentTime + wait / 1000;
-        let stop = null;
-        const nodes = {};
-        nodes.oscillator = context.createOscillator();
-        nodes.amp = context.createGain();
-        nodes.amp.gain.value = 0.0;
-        nodes.target = context.createGain();
-        nodes.target.gain.value = 1.0;
-        nodes.amp.connect(nodes.target);
-        nodes.target.connect(master);
-        if (this.filter.type && this.filter.cutoff) {
-            nodes.filter = context.createBiquadFilter();
-            nodes.oscillator.connect(nodes.filter);
-            nodes.filter.connect(nodes.amp);
-        }
-        else {
-            nodes.oscillator.connect(nodes.amp);
-        }
-        if (this.reverb.time > 0.0 && this.reverb.mix > 0.0) {
-            nodes.convolver = context.createConvolver();
-            nodes.convolver.buffer = impulseResponse({ time: this.reverb.time });
-            nodes.convolverDepth = context.createGain();
-            nodes.convolverDepth.gain.value = 1.0;
-            nodes.amp.connect(nodes.convolver);
-            nodes.convolver.connect(nodes.convolverDepth);
-            nodes.convolverDepth.connect(master);
-        }
-        if (this.oscillator.LFO) {
-            nodes.oscillatorLFO = context.createOscillator();
-            nodes.oscillatorLFODepth = context.createGain();
-            nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
-            nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
-        }
-        nodes.oscillator.type = this.oscillator.type;
-        nodes.oscillator.frequency.value = clamp(frequency, 10.0, 5000.0);
-        if (this.filter.type && this.filter.cutoff && nodes.filter) {
-            nodes.filter.type = this.filter.type;
-            nodes.filter.frequency.value = this.filter.cutoff;
-        }
-        if (this.reverb.time > 0.0 && this.reverb.mix > 0.0) {
-            nodes.target.gain.value *= (1.0 - this.reverb.mix);
-            nodes.convolverDepth.gain.value *= this.reverb.mix;
-        }
-        {
-            if (this.oscillator.LFO && nodes.oscillatorLFO && nodes.oscillatorLFODepth) {
-                nodes.oscillatorLFODepth.gain.value = frequency * (Math.pow(2.0, this.oscillator.LFO.amount / 12.0) - 1.0);
-                nodes.oscillatorLFO.type = this.oscillator.LFO.type;
-                nodes.oscillatorLFO.frequency.value = this.oscillator.LFO.rate;
-                nodes.oscillatorLFO.start(start);
-            }
-            if (this.oscillator.envelope) {
-                const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
-                startEnvelope(nodes.oscillator.frequency, frequency, amount, this.oscillator.envelope.ADSR);
-            }
-            if (this.amp.envelope) {
-                startEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
-            }
-            nodes.oscillator.start(start);
-        }
-        if (duration !== null) {
-            release.call(this);
-        }
-        function release() {
-            duration = duration !== null && duration !== void 0 ? duration : (context.currentTime - start);
-            if (this.amp.envelope) {
-                const ADSR = this.amp.envelope.ADSR;
-                const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(duration / adsr[0], 1.0);
-                stop = start + Math.max((adsr[0] + adsr[1]) * rate, duration) + adsr[3];
-            }
-            else {
-                stop = start + duration;
-            }
-            if (nodes.oscillatorLFO) {
-                nodes.oscillatorLFO.stop(stop);
-            }
-            if (this.oscillator.envelope) {
-                const amount = frequency * (Math.pow(2.0, this.oscillator.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.oscillator.frequency, frequency, amount, this.oscillator.envelope.ADSR);
-            }
-            if (this.amp.envelope) {
-                stopEnvelope(nodes.amp.gain, 0.0, this.amp.envelope.amount, this.amp.envelope.ADSR);
-            }
-            nodes.oscillator.stop(stop);
-        }
-        function startEnvelope(param, base, amount, ADSR) {
-            const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-            param.value = base;
-            param.setValueAtTime(base, start);
-            param.linearRampToValueAtTime(base + amount, start + adsr[0]);
-            param.linearRampToValueAtTime(base + amount * adsr[2], start + (adsr[0] + adsr[1]));
-        }
-        function stopEnvelope(param, base, amount, ADSR) {
-            const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-            const rate = adsr[0] === 0.0 ? 1.0 : Math.min(duration / adsr[0], 1.0);
-            if (rate < 1.0) {
-                param.cancelScheduledValues(start);
-                param.setValueAtTime(base, start);
-                param.linearRampToValueAtTime(base + amount * rate, start + adsr[0] * rate);
-                param.linearRampToValueAtTime(base + amount * rate * adsr[2], start + (adsr[0] + adsr[1]) * rate);
-            }
-            param.linearRampToValueAtTime(base + amount * rate * adsr[2], start + Math.max((adsr[0] + adsr[1]) * rate, duration));
-            param.linearRampToValueAtTime(base, start + Math.max((adsr[0] + adsr[1]) * rate, duration) + adsr[3]);
-        }
-        return {
-            release: release.bind(this),
-        };
-    }
-}
-Synthesizer.keymap = {
+const keymap = {
     'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
     'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735,
     'C2': 65.406, 'C#2': 69.296, 'D2': 73.416, 'D#2': 77.782, 'E2': 82.407, 'F2': 87.307, 'F#2': 92.499, 'G2': 97.999, 'G#2': 103.826, 'A2': 110.000, 'A#2': 116.541, 'B2': 123.471,
@@ -1655,20 +1550,138 @@ Synthesizer.keymap = {
     'C7': 2093.005, 'C#7': 2217.461, 'D7': 2349.318, 'D#7': 2489.016, 'E7': 2637.020, 'F7': 2793.826, 'F#7': 2959.955, 'G7': 3135.963, 'G#7': 3322.438, 'A7': 3520.000, 'A#7': 3729.310, 'B7': 3951.066,
     'C8': 4186.009,
 };
-Synthesizer.notemap = {
+const notemap = {
     '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
 };
-Synthesizer.initialize();
-function impulseResponse({ time, decay = 2.0 }) {
-    const length = context.sampleRate * time / 1000;
-    const impulse = context.createBuffer(2, length, context.sampleRate);
-    const ch0 = impulse.getChannelData(0);
-    const ch1 = impulse.getChannelData(1);
-    for (let i = 0; i < length; i++) {
-        ch0[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-        ch1[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+class Synthesizer {
+    constructor(props) {
+        this.props = props;
     }
-    return impulse;
+    press(frequency, duration, wait) {
+        var _a;
+        const props = this.props;
+        const freq = typeof frequency === 'string' ? keymap[frequency] : frequency;
+        const dura = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
+        const start = context.currentTime + (wait !== null && wait !== void 0 ? wait : 0) / 1000;
+        const nodes = {};
+        nodes.oscillator = context.createOscillator();
+        nodes.oscillator.type = props.oscillator.type;
+        nodes.oscillator.frequency.value = freq;
+        if (props.oscillator.LFO) {
+            nodes.oscillatorLFO = context.createOscillator();
+            nodes.oscillatorLFODepth = context.createGain();
+            nodes.oscillatorLFODepth.gain.value = freq * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
+            nodes.oscillatorLFO.type = props.oscillator.LFO.type;
+            nodes.oscillatorLFO.frequency.value = props.oscillator.LFO.rate;
+            nodes.oscillatorLFO.start(start);
+            nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
+            nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
+        }
+        nodes.amp = context.createGain();
+        nodes.amp.gain.value = 0.0;
+        nodes.target = context.createGain();
+        nodes.target.gain.value = 1.0;
+        nodes.amp.connect(nodes.target);
+        nodes.target.connect(master);
+        if (props.filter && props.filter.type && props.filter.cutoff) {
+            nodes.filter = context.createBiquadFilter();
+            nodes.filter.type = props.filter.type;
+            nodes.filter.frequency.value = props.filter.cutoff;
+            nodes.oscillator.connect(nodes.filter);
+            nodes.filter.connect(nodes.amp);
+        }
+        else {
+            nodes.oscillator.connect(nodes.amp);
+        }
+        if (props.reverb) {
+            nodes.convolver = context.createConvolver();
+            nodes.convolver.buffer = impulseResponse({ time: props.reverb.time });
+            nodes.convolverDepth = context.createGain();
+            nodes.convolverDepth.gain.value = 1.0;
+            nodes.convolverDepth.gain.value *= props.reverb.mix;
+            nodes.target.gain.value *= (1.0 - props.reverb.mix);
+            nodes.amp.connect(nodes.convolver);
+            nodes.convolver.connect(nodes.convolverDepth);
+            nodes.convolverDepth.connect(master);
+        }
+        if (props.oscillator.envelope) {
+            const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+            startEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+        }
+        if (props.amp.envelope) {
+            startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+        }
+        let stop = null;
+        nodes.oscillator.start(start);
+        if (dura > 0) {
+            release();
+        }
+        else {
+            return { release };
+        }
+        function release() {
+            const end = dura > 0 ? dura : (context.currentTime - start);
+            if (props.amp.envelope) {
+                const ADSR = props.amp.envelope.ADSR;
+                const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
+                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / adsr[0], 1.0);
+                stop = start + Math.max((adsr[0] + adsr[1]) * rate, end) + adsr[3];
+            }
+            else {
+                stop = start + end;
+            }
+            if (nodes.oscillatorLFO) {
+                nodes.oscillatorLFO.stop(stop);
+            }
+            if (props.oscillator.envelope) {
+                const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+                stopEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+            }
+            if (props.amp.envelope) {
+                stopEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+            }
+            nodes.oscillator.stop(stop);
+            setTimeout(() => {
+                var _a, _b, _c, _d, _e;
+                nodes.oscillator.disconnect();
+                nodes.amp.disconnect();
+                nodes.target.disconnect();
+                (_a = nodes.oscillatorLFO) === null || _a === void 0 ? void 0 : _a.disconnect();
+                (_b = nodes.oscillatorLFODepth) === null || _b === void 0 ? void 0 : _b.disconnect();
+                (_c = nodes.filter) === null || _c === void 0 ? void 0 : _c.disconnect();
+                (_d = nodes.convolver) === null || _d === void 0 ? void 0 : _d.disconnect();
+                (_e = nodes.convolverDepth) === null || _e === void 0 ? void 0 : _e.disconnect();
+            }, 2000);
+        }
+        function stopEnvelope(param, base, amount, ADSR) {
+            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dura / (ADSR[0] / 1000), 1.0);
+            if (rate < 1.0) {
+                param.cancelScheduledValues(start);
+                param.setValueAtTime(base, start);
+                param.linearRampToValueAtTime(base + amount * rate, start + ADSR[0] / 1000 * rate);
+                param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
+            }
+            param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura));
+            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura) + ADSR[3] / 1000);
+        }
+        function startEnvelope(param, base, amount, ADSR) {
+            param.value = base;
+            param.setValueAtTime(base, start);
+            param.linearRampToValueAtTime(base + amount, start + ADSR[0] / 1000);
+            param.linearRampToValueAtTime(base + amount * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000);
+        }
+        function impulseResponse({ time, decay = 2.0 }) {
+            const length = context.sampleRate * time / 1000;
+            const impulse = context.createBuffer(2, length, context.sampleRate);
+            const ch0 = impulse.getChannelData(0);
+            const ch1 = impulse.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+                ch0[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+                ch1[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+            }
+            return impulse;
+        }
+    }
 }
 
 const basics = {
@@ -1692,11 +1705,14 @@ const basics = {
     DirectionalPad,
 };
 const audio = {
-    synthesizer, load
+    master,
+    context,
+    synthesizer,
+    load
 };
 const xnew = Object.assign(xnew$1, {
     basics,
-    audio,
+    audio
 });
 
 export { xnew as default };

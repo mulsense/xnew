@@ -6,7 +6,7 @@ var xthree = {
         xnew.extend(Root, { renderer, canvas, camera });
     },
     nest(object) {
-        xnew.extend(Nest, object);
+        xnew.extend(Nest, { object });
         return object;
     },
     get renderer() {
@@ -39,7 +39,7 @@ function Root(self, { canvas, camera }) {
         root.renderer.render(root.scene, root.camera);
     });
 }
-function Nest(self, object) {
+function Nest(self, { object }) {
     const parent = xnew.context('xthree.object');
     xnew.context('xthree.object', object);
     if (parent) {

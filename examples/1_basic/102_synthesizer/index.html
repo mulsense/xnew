@@ -51,10 +51,10 @@
           if (event.buttons === 1 || event.type === 'touchstart') {
             startTime = Date.now();
             const [oscillator, filter, amp, options] = [xnew.find(Oscillator)[0], xnew.find(Filter)[0], xnew.find(Amp)[0], xnew.find(Options)[0]];
-            const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, };
+            const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, ...options.value};
             unit.emit('+code1', ' ');
-            unit.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}}${options.json});\nsynth.press('${list[key] + number}', duration);`);
-            const synth = xnew.audio.synthesizer(param, options.value);
+            unit.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}${options.json} });\nsynth.press('${list[key] + number}', duration);`);
+            const synth = xnew.audio.synthesizer(param);
             press = synth.press(list[key] + number);
           }
         });
@@ -149,7 +149,7 @@
           return { ...reverb.value, };
         },
         get json() {
-          return (reverb.value) ? `, { ${reverb.json}}` : '';
+          return (reverb.value) ? `${reverb.json}` : '';
         },
       }
     }

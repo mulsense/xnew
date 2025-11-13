@@ -3,30 +3,30 @@
 //----------------------------------------------------------------------------------------------------
 
 export class Ticker {
-    static animation: number | null = null;
-    static callbacks = new Set<Function>;
-    static previous: number = 0.0;
+    private id: number | null;
 
-    static ticker() {
-        const time = Date.now();
-        const interval = 1000 / 60;
-        if (time - Ticker.previous > interval * 0.8) {
-            Ticker.callbacks.forEach((callback) => callback(time));
-            Ticker.previous = time;
+    constructor(callback: Function) {
+        const self = this;
+        this.id = null;
+        let previous = 0;
+        ticker();
+
+        function ticker() {
+            const time = Date.now();
+            const interval = 1000 / 60;
+            if (time - previous > interval * 0.9) {
+                callback(time);
+                previous = time;
+            }
+            self.id = requestAnimationFrame(ticker);
         }
-        Ticker.animation = requestAnimationFrame(Ticker.ticker);
     }
-
-    static set(callback: (time: number) => void) : void {
-        if (Ticker.animation === null && typeof requestAnimationFrame === 'function' && typeof cancelAnimationFrame === 'function') {
-            Ticker.previous = Date.now();
-            Ticker.animation = requestAnimationFrame(Ticker.ticker);
+ 
+    clear(): void {
+        if (this.id !== null) {
+            cancelAnimationFrame(this.id);
+            this.id = null;
         }
-        Ticker.callbacks.add(callback);
-    }
-
-    static clear(callback: (time: number) => void): void {
-        Ticker.callbacks.delete(callback);
     }
 }
 
@@ -44,12 +44,13 @@ export class Timer {
     private time: number;
     private offset: number;
     private status: 0 | 1;
-    private visibilitychange?: ((this: Document, event: Event) => any);
-    private ticker: (time: number) => void;
+    private visibilitychange: ((this: Document, event: Event) => any);
+    private ticker: Ticker;
 
     constructor(timeout: Function, transition: Function | null, delay: number, loop: boolean = false) {
         this.timeout = timeout;
         this.transition = transition;
+
         this.delay = delay;
         this.loop = loop;
 
@@ -58,24 +59,15 @@ export class Timer {
         this.offset = 0.0;
 
         this.status = 0;
+        this.ticker = new Ticker((time: number) => this.transition?.(this.elapsed() / this.delay));
+  
+        this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+        document.addEventListener('visibilitychange', this.visibilitychange);
 
-        this.ticker = (time: number): void => {
-            this.transition?.(this.elapsed() / this.delay);
-        };
-
-        this.transition?.(0.0);
-
-        if (this.delay <= 0) {
-            timeout();
-            this.transition?.(1.0);
-        } else {
-            if (document instanceof Document) {
-                this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-                document.addEventListener('visibilitychange', this.visibilitychange);
-            }
-            this.start();
-            Ticker.set(this.ticker);
+        if (this.delay > 0.0) {
+            this.transition?.(0.0);
         }
+        this.start();
     }
 
     public clear(): void {
@@ -83,10 +75,8 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        if (document instanceof Document && this.visibilitychange !== undefined) {
-            document.removeEventListener('visibilitychange', this.visibilitychange);
-        }
-        Ticker.clear(this.ticker);
+        document.removeEventListener('visibilitychange', this.visibilitychange);
+        this.ticker.clear();
     }
 
     public elapsed(): number {
@@ -107,6 +97,7 @@ export class Timer {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
                 this.timeout();
+                this.transition?.(1.0);
 
                 this.id = null;
                 this.time = 0.0;
@@ -114,6 +105,8 @@ export class Timer {
 
                 if (this.loop) {
                     this.start();
+                } else {
+                    this.clear();
                 }
             }, this.delay - this.offset);
             this.time = Date.now();

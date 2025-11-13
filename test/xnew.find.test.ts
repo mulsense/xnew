@@ -18,11 +18,11 @@ describe('unit context', () => {
             expect(xnew.find(C)[0]).toBe(unit3);
         });
 
-        function A(self: xnew.Unit) {
+        function A(unit: Unit) {
         }
-        function B(self: xnew.Unit) {
+        function B(unit: Unit) {
         }
-        function C(self: xnew.Unit) {
+        function C(unit: Unit) {
         }
     });
 });

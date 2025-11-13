@@ -9,7 +9,7 @@
             xnew.extend(Root, { engine });
         },
         nest(object) {
-            xnew.extend(Nest, object);
+            xnew.extend(Nest, { object });
             return object;
         },
         get engine() {
@@ -22,22 +22,20 @@
         xnew.context('xmatter.root', root);
         root.isActive = true;
         root.engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
-        xnew.extend(Nest, root.engine.world);
+        xnew.context('xmatter.object', root.engine.world);
         self.on('update', () => {
             if (root.isActive) {
                 Matter.Engine.update(root.engine);
             }
         });
     }
-    function Nest(self, object) {
+    function Nest(self, { object }) {
         const parent = xnew.context('xmatter.object');
         xnew.context('xmatter.object', object);
-        if (parent) {
-            Matter.Composite.add(parent, object);
-            self.on('finalize', () => {
-                Matter.Composite.remove(parent, object);
-            });
-        }
+        Matter.Composite.add(parent, object);
+        self.on('finalize', () => {
+            Matter.Composite.remove(parent, object);
+        });
     }
 
     return xmatter;

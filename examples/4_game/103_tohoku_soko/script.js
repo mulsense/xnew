@@ -8,26 +8,26 @@ import xthree from '@mulsense/xnew/addons/xthree';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  const global = { GRID: 10, levels: null };
+function Main(main) {
+  const global = { GRID: 10, anchor: main, levels: null };
   xnew.context('global', global);
+  xnew.extend(xnew.basics.Screen, { width: 700, height: 700 });
 
   // three
   const camera = new THREE.OrthographicCamera(-global.GRID / 2, +global.GRID / 2, +global.GRID / 2, -global.GRID / 2, 0, 100);
-  xthree.initialize({ canvas: new OffscreenCanvas(700, 700), camera });
+  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -45 / 180 * Math.PI;
 
   // pixi 
-  const screen = xnew(xnew.basics.Screen, { width: 700, height: 700 });
-  xpixi.initialize({ canvas: screen.canvas });
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
-    global.levels = levels;
-    // xnew(TitleScene);
-    xnew(GameScene, { id: 0 });
+      global.levels = levels;
+      // xnew(TitleScene);
+      xnew(GameScene, { id: 0 });
   });
 }
 
@@ -54,11 +54,8 @@ function GameScene(unit, { id }) {
   xnew(Floor);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 0, y: -60 } });
 
-  xnew(xpixi.canvas.parentElement, () => {
-    xnew(InfoPanel, { id });
-    xnew(Controller);
-  });
-
+  xnew(InfoPanel, { id });
+  xnew(Controller);
   for (let y = 0; y < global.GRID; y++) {
     state.level[y] = [];
     for (let x = 0; x < global.GRID; x++) {
@@ -303,9 +300,9 @@ function Controller(unit) {
     }
   });
 
-  xnew('<div class="@container absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200">', () => {
+  xnew('<div class="absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200" style="container-type: size;">', () => {
     xnew.nest('<div class="absolute inset-[1cqw] bottom-[1cqw] bg-red-200">');
-    const dpad = xnew(xnew.basics.DirectionalPad, { size: 130, diagonal: false, fillOpacity: 0.5 });
+    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.5 });
 
     dpad.on('-down', ({ vector }) => {
       if (moving === false) {
@@ -343,7 +340,7 @@ function InfoPanel(unit, { id }) {
     const screen = xnew(xnew.basics.Screen, { width: 300, height: 300 });
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);
-    xthree.initialize({ canvas: screen.element, camera });
+    xthree.initialize({ canvas: screen.canvas, camera });
     xthree.renderer.shadowMap.enabled = true;
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);
@@ -361,7 +358,7 @@ function Model(unit, { x = 0, y = 0, id = 0, scale = 1.0 }) {
   const object = xthree.nest(new THREE.Object3D());
 
   const list = ['zundamon.vrm', 'kiritan.vrm', 'usagi.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
-  const path = './models/' + (id < 7 ? list[id] : list[0]);
+  const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
   xnew.promise(new Promise((resolve) => {

@@ -10,7 +10,7 @@ describe('unit extend', () => {
     it('basic', () => {
         const unit = xnew(Derived);
 
-        function Base(self: xnew.Unit) {
+        function Base(unit: Unit) {
             return {
                 test1() {
                     return 1;
@@ -18,11 +18,11 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Base);
             return {
                 test2() {
-                    return self.test1() + 1;
+                    return unit.test1() + 1;
                 }
             }
         }
@@ -30,7 +30,7 @@ describe('unit extend', () => {
     });
 
     it('multiple extends', () => {
-        function Base1(self: xnew.Unit) {
+        function Base1(unit: Unit) {
             return {
                 getValue1() {
                     return 10;
@@ -38,7 +38,7 @@ describe('unit extend', () => {
             }
         }
 
-        function Base2(self: xnew.Unit) {
+        function Base2(unit: Unit) {
             return {
                 getValue2() {
                     return 20;
@@ -46,12 +46,12 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Base1);
             xnew.extend(Base2);
             return {
                 getSum() {
-                    return self.getValue1() + self.getValue2();
+                    return unit.getValue1() + unit.getValue2();
                 }
             }
         }
@@ -63,7 +63,7 @@ describe('unit extend', () => {
     });
 
     it('multi-level inheritance', () => {
-        function Base(self: xnew.Unit) {
+        function Base(unit: Unit) {
             return {
                 baseMethod() {
                     return 'base';
@@ -71,20 +71,20 @@ describe('unit extend', () => {
             }
         }
 
-        function Middle(self: xnew.Unit) {
+        function Middle(unit: Unit) {
             xnew.extend(Base);
             return {
                 middleMethod() {
-                    return self.baseMethod() + '-middle';
+                    return unit.baseMethod() + '-middle';
                 }
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Middle);
             return {
                 derivedMethod() {
-                    return self.middleMethod() + '-derived';
+                    return unit.middleMethod() + '-derived';
                 }
             }
         }
@@ -96,18 +96,18 @@ describe('unit extend', () => {
     });
 
     it('method override', () => {
-        function Base(self: xnew.Unit) {
+        function Base(unit: Unit) {
             return {
                 getValue() {
                     return 100;
                 },
                 getDouble() {
-                    return self.getValue() * 2;
+                    return unit.getValue() * 2;
                 }
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Base);
             return {
                 getValue() {
@@ -122,26 +122,26 @@ describe('unit extend', () => {
     });
 
     it('property inheritance', () => {
-        function Base(self: xnew.Unit) {
-            self.counter = 0;
+        function Base(unit: Unit) {
+            unit.counter = 0;
             return {
                 increment() {
-                    self.counter++;
+                    unit.counter++;
                 },
                 getCounter() {
-                    return self.counter;
+                    return unit.counter;
                 }
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Base);
             return {
                 reset() {
-                    self.counter = 0;
+                    unit.counter = 0;
                 },
                 incrementBy(value: number) {
-                    self.counter += value;
+                    unit.counter += value;
                 }
             }
         }
@@ -158,7 +158,7 @@ describe('unit extend', () => {
     });
 
     it('access to extended methods from same level', () => {
-        function Base1(self: xnew.Unit) {
+        function Base1(unit: Unit) {
             return {
                 add(a: number, b: number) {
                     return a + b;
@@ -166,7 +166,7 @@ describe('unit extend', () => {
             }
         }
 
-        function Base2(self: xnew.Unit) {
+        function Base2(unit: Unit) {
             return {
                 multiply(a: number, b: number) {
                     return a * b;
@@ -174,12 +174,12 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Base1);
             xnew.extend(Base2);
             return {
                 calculate(a: number, b: number, c: number) {
-                    return self.multiply(self.add(a, b), c);
+                    return unit.multiply(unit.add(a, b), c);
                 }
             }
         }
@@ -191,7 +191,7 @@ describe('unit extend', () => {
     it('initialization order', () => {
         const log: string[] = [];
 
-        function Base(self: xnew.Unit) {
+        function Base(unit: Unit) {
             log.push('base-init');
             return {
                 baseMethod() {
@@ -200,14 +200,14 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             log.push('derived-init-start');
             xnew.extend(Base);
             log.push('derived-init-end');
             return {
                 derivedMethod() {
                     log.push('derived-method');
-                    self.baseMethod();
+                    unit.baseMethod();
                 }
             }
         }
@@ -225,37 +225,37 @@ describe('unit extend', () => {
     });
 
     it('complex inheritance chain', () => {
-        function Logger(self: xnew.Unit) {
-            self.logs = [];
+        function Logger(unit: Unit) {
+            unit.logs = [];
             return {
                 log(message: string) {
-                    self.logs.push(message);
+                    unit.logs.push(message);
                 },
                 getLogs() {
-                    return self.logs;
+                    return unit.logs;
                 }
             }
         }
 
-        function Counter(self: xnew.Unit) {
-            self.count = 0;
+        function Counter(unit: Unit) {
+            unit.count = 0;
             return {
                 increment() {
-                    self.count++;
+                    unit.count++;
                 },
                 getCount() {
-                    return self.count;
+                    return unit.count;
                 }
             }
         }
 
-        function Component(self: xnew.Unit) {
+        function Component(unit: Unit) {
             xnew.extend(Logger);
             xnew.extend(Counter);
             return {
                 performAction() {
-                    self.increment();
-                    self.log(`Action performed, count: ${self.getCount()}`);
+                    unit.increment();
+                    unit.log(`Action performed, count: ${unit.getCount()}`);
                 }
             }
         }
@@ -274,7 +274,7 @@ describe('unit extend', () => {
     });
 
     it('extend with same method names from different bases', () => {
-        function Base1(self: xnew.Unit) {
+        function Base1(unit: Unit) {
             return {
                 getName() {
                     return 'Base1';
@@ -282,7 +282,7 @@ describe('unit extend', () => {
             }
         }
 
-        function Base2(self: xnew.Unit) {
+        function Base2(unit: Unit) {
             return {
                 getName() {
                     return 'Base2';
@@ -290,7 +290,7 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(Base1);
             xnew.extend(Base2); // Base2のgetNameがBase1を上書き
             return {}
@@ -301,7 +301,7 @@ describe('unit extend', () => {
     });
 
     it('extend with parameters passed to base', () => {
-        function ConfigurableBase(self: xnew.Unit, options: { prefix: string }) {
+        function ConfigurableBase(unit: Unit, options: { prefix: string }) {
             return {
                 format(text: string) {
                     return `${options.prefix}: ${text}`;
@@ -309,11 +309,11 @@ describe('unit extend', () => {
             }
         }
 
-        function Derived(self: xnew.Unit) {
+        function Derived(unit: Unit) {
             xnew.extend(ConfigurableBase, { prefix: 'LOG' });
             return {
                 logMessage(message: string) {
-                    return self.format(message);
+                    return unit.format(message);
                 }
             }
         }

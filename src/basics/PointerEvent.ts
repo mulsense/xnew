@@ -1,6 +1,7 @@
 import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
 
-export function PointerEvent(unit: xnew.Unit) {
+export function PointerEvent(unit: Unit) {
     const internal = xnew();
     internal.on('pointerdown', (event: any) => unit.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
     internal.on('pointermove', (event: any) => unit.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
@@ -23,7 +24,7 @@ export function PointerEvent(unit: xnew.Unit) {
     gesture.on('-gesturecancel', (...args: any[]) => unit.emit('-gesturecancel', ...args));  
 }
 
-function DragEvent(unit: xnew.Unit) {
+function DragEvent(unit: Unit) {
     xnew().on('pointerdown', (event: any) => {
 
         const id = event.pointerId;
@@ -57,7 +58,7 @@ function DragEvent(unit: xnew.Unit) {
     });
 }
 
-function GestureEvent(unit: xnew.Unit) {
+function GestureEvent(unit: Unit) {
     const drag = xnew(DragEvent);
 
     let isActive = false;

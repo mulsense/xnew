@@ -13,12 +13,12 @@
     xnew('#main', (unit) => {
       xnew.nest('<div class="m-2">');
 
-      const music = xnew.audio.load('b096.wav');
+      const music = xnew.audio.load('b096.mp3');
       xnew(Button, { name: 'play!' }).on('click', () => {
         music.play();
       });
       xnew(Button, { name: 'stop!' }).on('click', () => {
-        music.stop();
+        music.pause();
       });
     });
 

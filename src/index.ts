@@ -1,3 +1,6 @@
+import { xnew as base } from './core/xnew';
+import { Unit } from './core/unit';
+
 import { ResizeEvent } from './basics/ResizeEvent';
 import { PointerEvent } from './basics/PointerEvent';
 import { KeyboardEvent } from './basics/KeyboardEvent';
@@ -11,10 +14,8 @@ import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } fr
 import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 
-import { Unit } from './core/unit';
-import { xnew as base } from './core/xnew';
-
-import { load } from './audio/loader';
+import { master, context } from './audio/audio';
+import { load } from './audio/file';
 import { synthesizer } from './audio/synthesizer';
 
 const basics = {
@@ -39,24 +40,19 @@ const basics = {
 };
 
 const audio = {
-    synthesizer, load
+    master,
+    context,
+    synthesizer,
+    load
 };
-
-export interface xnew_interface {
-    (...args: any[]): Unit;
-    [key: string]: any;
-    basics: typeof basics;
-    audio: typeof audio;
-}
-
 
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
 
-const xnew: xnew_interface = Object.assign(base, {
+const xnew: (typeof base) & { basics: typeof basics; audio: typeof audio } = Object.assign(base, {
     basics,
-    audio,
+    audio
 });
 
 export default xnew;

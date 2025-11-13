@@ -7,18 +7,18 @@ beforeEach(() => {
 
 describe('unit relation', () => {
     it('basic', () => {
-        xnew((self: xnew.Unit) => {
+        xnew((unit: Unit) => {
             const unit2 = xnew();
-            expect(self._.parent).toBe(Unit.root);
-            expect(unit2._.parent).toBe(self);
+            expect(unit._.parent).toBe(Unit.root);
+            expect(unit2._.parent).toBe(unit);
         })
     });
 
     it('delete', () => {
-        xnew((self: xnew.Unit) => {
+        xnew((unit: Unit) => {
             const unit2 = xnew();
-            expect(self._.parent).toBe(Unit.root);
-            expect(unit2._.parent).toBe(self);
+            expect(unit._.parent).toBe(Unit.root);
+            expect(unit2._.parent).toBe(unit);
         })
     });
 });

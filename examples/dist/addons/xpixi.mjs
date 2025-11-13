@@ -6,7 +6,7 @@ var xpixi = {
         xnew.extend(Root, { renderer, canvas });
     },
     nest(object) {
-        xnew.extend(Nest, object);
+        xnew.extend(Nest, { object });
         return object;
     },
     sync(canvas) {
@@ -56,15 +56,13 @@ function Root(self, { canvas }) {
         }
     });
 }
-function Nest(self, object) {
+function Nest(self, { object }) {
     const parent = xnew.context('xpixi.object');
     xnew.context('xpixi.object', object);
-    if (parent) {
-        parent.addChild(object);
-        self.on('finalize', () => {
-            parent.removeChild(object);
-        });
-    }
+    parent.addChild(object);
+    self.on('finalize', () => {
+        parent.removeChild(object);
+    });
 }
 function PreUpdate(self, callback) {
     const root = xnew.context('xpixi.root');
