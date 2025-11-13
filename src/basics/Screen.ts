@@ -8,7 +8,7 @@ export function Screen(screen: Unit,
     const size = { width, height };
     const wrapper = xnew.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
     const absolute = xnew.nest('<div style="position: absolute; margin: auto;">');
-    const canvas = xnew(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
+    const canvas = xnew(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
   
     xnew(wrapper, ResizeEvent).on('-resize', resize);
 

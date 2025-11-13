@@ -11,7 +11,7 @@ describe('unit timer', () => {
             let state = 0;
             let start = Date.now();
             const margin = 100;
-            xnew((self: xnew.Unit) => {
+            xnew((unit: Unit) => {
                 xnew.timeout(() => {
                     const d = Date.now() - start;
                     expect(d).toBeGreaterThan(500 - margin);

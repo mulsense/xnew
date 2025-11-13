@@ -10,16 +10,18 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  // three 
-  xthree.initialize({ canvas: new OffscreenCanvas(800, 600) });
+function Main(main) {
+  // create as screen
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+
+  // setup three 
+  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
 
-  // pixi
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
-  xpixi.initialize({ canvas: screen.canvas });
+  // setup pixi
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew(TitleScene);
 }
@@ -33,14 +35,13 @@ function TitleScene(scene) {
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
-    const model = xnew(Model, { id: i, scale: 0.7 });
-    model.setPosition(140 + i * 90, 450, 0);
-    model.object.rotation.y = (-10 - 3 * i) / 180 * Math.PI;
-    model.object.rotation.x = 10 / 180 * Math.PI;
+    const position = pos3d(140 + i * 90, 450);
+    const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * i) / 180 * Math.PI, z: 0 };
+    xnew(Model, { position, rotation, id: i, scale: 0.8 });
   }
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
-  xnew.listener(window).on('keydown pointerdown', () => {
+  scene.on('pointerdown', () => {
     scene.finalize();
     xnew.append(Main, GameScene);
   });
@@ -48,19 +49,20 @@ function TitleScene(scene) {
 
 function GameScene(scene) {
   xmatter.initialize();
-
   xnew(Background);
   xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
   xnew(AmbientLight);
-  xnew(Controller);
   xnew(ScoreText);
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+  const controller = xnew(Controller);
 
   scene.on('+gameover', () => {
+    scene.off('+gameover');
+    controller.finalize();
     xnew(GameOverText);
     xnew(Retry);
   });
@@ -74,8 +76,7 @@ function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
   xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
     const sprite = new PIXI.Sprite(texture);
-    sprite.anchor.set(0);
-    sprite.scale.set(1.0 / 1.4);
+    sprite.scale.set(xpixi.canvas.width / texture.frame.width, xpixi.canvas.height / texture.frame.height);
     object.addChild(sprite);
   });
 }
@@ -93,20 +94,22 @@ function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function TitleText(unit) {
-  const object = xpixi.nest(new PIXI.Text('とーほくドロップ', { fontSize: 42, fill: 0x000000 }));
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 150);
-  object.anchor.set(0.5);
+function HTMLLayer(unit) {
+  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800" style="container-type: size;">');
 }
 
-function TouchMessage(unit) {
-  const object = xpixi.nest(new PIXI.Text('touch start', { fontSize: 26, fill: 0x000000 }));
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 50);
-  object.anchor.set(0.5);
+function TitleText(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[7cqw] font-bold">');
+  text.element.textContent = 'とーほく ドロップ';
+}
+
+function TouchMessage(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[5cqw]">');
+  text.element.textContent = 'touch start';
   let count = 0;
-  unit.on('update', () => {
-      object.alpha = 0.6 + Math.sin(count++ * 0.08) * 0.4;
-  });
+  text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -124,60 +127,57 @@ function Controller(unit) {
   pointer.on('-pointermove -pointerdown', ({ position }) => {
     unit.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
   });
-  pointer.on('-pointerdown', () => unit.emit('+action'));
-  unit.on('+gameover', () => unit.finalize());
+  pointer.on('-pointerdown', () => unit.emit('+drop'));
 }
 
-function ScoreText(unit) {
-  const object = xpixi.nest(new PIXI.Text('score 0', { fontSize: 32, fill: 0x000000 }));
-  object.position.set(xpixi.canvas.width - 10, 10);
-  object.anchor.set(1, 0);
-
+function ScoreText(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw] text-sky-800 font-bold">');
+  text.element.textContent = 'score 0';
   let sum = 0;
-  unit.on('+scoreup', (score) => object.text = `score ${sum += score}`);
+  text.on('+scoreup', (score) => text.element.textContent = `score ${sum += score}`);
 }
 
 function Bowl(unit) {
   for (let angle = 10; angle <= 170; angle++) {
     const x = 400 + Math.cos(angle * Math.PI / 180) * 240;
     const y = 360 + Math.sin(angle * Math.PI / 180) * 200;
-    xnew(Circle, { x, y, r: 12, color: 0x00AAAA, options: { isStatic: true } });
+    xnew(Circle, { x, y, radius: 12, color: 0x00AAAA, options: { isStatic: true } });
   }
 }
 
-function Queue(unit) {
+function Queue(queue) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  unit.emit('+reloadcomplete', 0);
+  queue.emit('+reloadcomplete', 0);
 
-  let model = xnew(Model, { id: balls[0], scale: 0.5 });
-  model.setPosition(70, 60, 0);
-  model.object.rotation.y = 60 / 180 * Math.PI;
-  model.object.rotation.x = 30 / 180 * Math.PI;
+  const position = pos3d(70, 60);
+  const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
+  let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.5 });
 
-  unit.on('+reload', () => {
+  queue.on('+reload', () => {
     const next = balls.shift();
     model.finalize();
-    model = xnew(Model, { id: balls[0], scale: 0.5 });
-    model.setPosition(0, 60, 0);
-    model.object.rotation.y = 60 / 180 * Math.PI;
-    model.object.rotation.x = 30 / 180 * Math.PI;
+    const position = pos3d(0, 60);
+    const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
+    model = xnew(Model, { position, rotation, id: balls[0], scale: 0.5 });
 
     balls.push(Math.floor(Math.random() * 3));
     xnew.transition((progress) => {
-      model.setPosition(0 + progress * 70, 60, 0);
-      if (progress === 1.0) {
-        unit.emit('+reloadcomplete', next);
-      }
-    }, 500);
+      const position = pos3d(0 + progress * 70, 60);
+      model.object.position.set(position.x, position.y, position.z);
+    }, 500).next(() => {
+      queue.emit('+reloadcomplete', next);
+    });
   });
 }
 
-function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
+function Model(unit, { id = 0, position = null, rotation = null, scale }) {
   const object = xthree.nest(new THREE.Object3D());
-  object.rotation.z = -r;
+  if (position) object.position.set(position.x, position.y, position.z);
+  if (rotation) object.rotation.set(rotation.x, rotation.y, rotation.z);
 
   const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
-  const path = './models/' + (id < 7 ? list[id] : list[0]);
+  const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
   xnew.promise(new Promise((resolve) => {
@@ -187,10 +187,7 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
   })).then((gltf) => {
     vrm = gltf.userData.vrm;
     vrm.scene.traverse((object) => {
-      if (object.isMesh) {
-        object.castShadow = true;
-        object.receiveShadow = true;
-      }
+      if (object.isMesh) object.castShadow = object.receiveShadow = true;
     });
     vrm.scene.position.y = -scale;
     vrm.scene.scale.set(scale, scale, scale);
@@ -224,13 +221,7 @@ function Model(unit, { x, y, r = 0.0, id = 0, scale }) {
     count++;
   });
 
-  return {
-    object,
-    setPosition(x, y, a) {
-      object.position.set((x - xpixi.canvas.width / 2) / 70, - (y - xpixi.canvas.height / 2) / 70, 0);
-      object.rotation.z = -a;
-    },
-  }
+  return { id, object }
 }
 
 function Cursor(unit) {
@@ -238,97 +229,88 @@ function Cursor(unit) {
   object.position.set(400, 40);
 
   const graphics = new PIXI.Graphics();
-  graphics.moveTo(-12, 0).lineTo(12, 0).stroke({ color: 0xFFFFFF, width: 4 })
-  graphics.moveTo(0, -12).lineTo(0, 12).stroke({ color: 0xFFFFFF, width: 4 });
+  graphics.moveTo(-16, 0).lineTo(16, 0).stroke({ color: 0xE84A57, width: 8 })
+  graphics.moveTo(0, -16).lineTo(0, 16).stroke({ color: 0xE84A57, width: 8 });
   object.addChild(graphics);
 
   unit.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
 
-  let next = null;
+  const offset = 50;
   let model = null
-  let offset = 50;
-  unit.on('+reloadcomplete', (level) => {
-    next = level;
-    model = xnew(Model, { id: next, scale: 0.5 });
-    model.setPosition(object.x, object.y + offset, 0);
+  unit.on('+reloadcomplete', (id) => {
+    const position = pos3d(object.x, object.y + offset);
+    model = xnew(Model, { position, id, scale: 0.5 });
   });
-  unit.on('+action', () => {
-    if (next !== null) {
-      xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: next, score: Math.pow(2, next)});
-      model?.finalize();
+  unit.on('+drop', () => {
+    if (model !== null) {
+      xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      model.finalize();
       model = null;
       unit.emit('+reload');
-      next = null;
     } 
   });
   unit.on('update', () => {
     object.rotation += 0.02;
-    model?.setPosition(object.x, object.y + offset, 0);
+    const position = pos3d(object.x, object.y + offset);
+    model?.object.position.set(position.x, position.y, position.z);
   });
 }
 
-function ModelBall(unit, { x, y, a = 0, id = 0, score = 1 }) {
+function ModelBall(ball, { x, y, id = 0 }) {
   const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
-  const r = 35 + Math.pow(3.0, scale * 2.0);
-  xnew.extend(Circle, { x, y, r, color: 0, alpha: 0.0 });
+  const radius = 35 + Math.pow(3.0, scale * 2.0);
+  xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });
   
-  const model = xnew(Model, { r, id, scale });
-  unit.emit('+scoreup', score);
+  const model = xnew(Model, { id, scale });
+  ball.emit('+scoreup', Math.pow(2, id));
   
-  unit.on('update', () => {
-    model.setPosition(unit.object.x, unit.object.y, unit.object.rotation);
-    if (unit.object.y > xpixi.canvas.height - 10) {
-      unit.emit('+gameover');
-      unit.finalize();
+  ball.on('update', () => {
+    const position = pos3d(ball.object.x, ball.object.y);
+    model.object.position.set(position.x, position.y, position.z);
+    model.object.rotation.z = -ball.object.rotation;
+    if (ball.object.y > xpixi.canvas.height - 10) {
+      ball.emit('+gameover');
+      ball.finalize();
       return;
     }
-    for (const target of xnew.find(ModelBall)) {
-      if (unit.mergeCheck(target)) {
-        const score = unit.score + target.score;
-        const id = unit.id + 1;
-        const x = (unit.object.x + target.object.x) / 2;
-        const y = (unit.object.y + target.object.y) / 2;
-        const a = (unit.object.rotation + target.object.rotation) / 2;
-        unit.finalize();
+
+    // merge check
+    for (const target of xnew.find(ModelBall).filter((target) => target !== ball && target.id === ball.id)) {
+      const [a, b] = [ball.object, target.object];
+      const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+
+      if (dist < ball.radius + target.radius + 0.01) {
+        ball.finalize();
         target.finalize();
-        xnew.append(GameScene, ModelBall, { x, y, a, id, score });
+        xnew.append(GameScene, ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         break;
       }
     }
   });
-  return {
-    r, score, id, isMearged: false,
-    mergeCheck(target) {
-      if (unit === target || unit.score !== target.score) return false;
-      if (unit.isMearged === true || target.isMearged === true) return false;
-      const dx = target.object.x - unit.object.x;
-      const dy = target.object.y - unit.object.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > unit.r + target.r + 0.01) return false;
-      return true;
-    }
-  }
+  return { radius, id };
 }
 
-function GameOverText(unit) {
-  const object = xpixi.nest(new PIXI.Text('game over', { fontSize: 32, fill: 0x000000 }));
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2);
-  object.anchor.set(0.5);
+function GameOverText(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
+  text.element.textContent = 'GAME OVER';
+  xnew.transition((x) => {
+    text.element.style.opacity = x;
+    text.element.style.top = `${20 + x * 10}cqw`;
+  }, 1000, 'ease');
 }
 
 function Retry(unit) {
-  xnew(xpixi.canvas.parentElement, () => {
-    xnew.nest('<div class="absolute inset-0 w-full h-full" style="container-type: size;">');
-    xnew.nest('<div class="absolute right-[4cqw] bottom-[4cqw]">');
-    const button = xnew('<button class="border-[0.5cqw] border-gray-800 text-[5cqw] rounded-full px-[2cqw] py-[0.5cqw] bg-blue-300 hover:bg-blue-500 cursor-pointer">', 'retry');
-    button.on('click', () => unit.emit('+retry'));
-  });
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute right-[4cqw] bottom-[4cqw] text-[4cqw] pointer-events-auto">');
+  const button = xnew('<button class="border-[0.5cqw] border-gray-800 rounded-full px-[2cqw] py-[0.5cqw] bg-sky-300 hover:bg-sky-500 cursor-pointer">', 'retry');
+  button.on('click', () => unit.emit('+retry'));
 }
 
-function Circle(unit, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
+function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
-  const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
-  const graphics = new PIXI.Graphics().circle(0, 0, r).fill(color);
+  const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, radius, options));
+  const graphics = new PIXI.Graphics().circle(0, 0, radius).fill(color);
   object.position.set(x, y);
   object.addChild(graphics);
   object.alpha = alpha;
@@ -338,4 +320,9 @@ function Circle(unit, { x, y, r, color = 0xFFFFFF, alpha = 1.0, options = {} }) 
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
   return { object };
+}
+
+// helpers
+function pos3d(x, y, z = 0) {
+  return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }

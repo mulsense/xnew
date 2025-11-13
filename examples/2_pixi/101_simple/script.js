@@ -4,9 +4,9 @@ import * as PIXI from 'pixi.js';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400, fit: 'contain' });
-  xpixi.initialize({ canvas: screen.canvas });
+function Main(main) {
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew(Boxes);
 }

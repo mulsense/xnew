@@ -232,7 +232,7 @@ declare const xnew$1: CreateUnit & {
      * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
      * xnew.append(unitInstance, AnotherComponent)
      */
-    append(anchor: Function | Unit, ...args: any[]): void;
+    append(anchor: Unit, ...args: any[]): void;
     /**
      * Executes a callback once after a delay, managed by component lifecycle
      * @param callback - Function to execute after delay

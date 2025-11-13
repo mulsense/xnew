@@ -25,12 +25,9 @@ function Main(main) {
   xpixi.initialize({ canvas: main.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
-    xnew(screen.element, (anchor) => {
-        global.levels = levels;
-        global.anchor = anchor;
-        // xnew(TitleScene);
-        xnew(GameScene, { id: 0 });
-    });
+      global.levels = levels;
+      // xnew(TitleScene);
+      xnew(GameScene, { id: 0 });
   });
 }
 
@@ -41,7 +38,7 @@ function TitleScene(unit) {
 
   xnew.listener(window).on('keydown pointerdown', () => {
     unit.finalize();
-    xnew.append(xnew.context('global').anchor, GameScene, { id: 0 });
+    xnew.append(Main, GameScene, { id: 0 });
   });
 }
 
@@ -59,7 +56,6 @@ function GameScene(unit, { id }) {
 
   xnew(InfoPanel, { id });
   xnew(Controller);
-
   for (let y = 0; y < global.GRID; y++) {
     state.level[y] = [];
     for (let x = 0; x < global.GRID; x++) {
@@ -93,9 +89,9 @@ function GameScene(unit, { id }) {
       xnew.listener(window).on('keydown pointerdown', () => {
         unit.finalize();
         if (id + 1 < global.levels.length) {
-            xnew.append(xnew.context('global').anchor, GameScene, { id: id + 1 });
+            xnew.append(Main, GameScene, { id: id + 1 });
         } else {
-            xnew.append(xnew.context('global').anchor, TitleScene);
+            xnew.append(Main, TitleScene);
         }
       });
     }, 1000);
@@ -304,9 +300,9 @@ function Controller(unit) {
     }
   });
 
-  xnew('<div class="@container absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200">', () => {
+  xnew('<div class="absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200" style="container-type: size;">', () => {
     xnew.nest('<div class="absolute inset-[1cqw] bottom-[1cqw] bg-red-200">');
-    const dpad = xnew(xnew.basics.DirectionalPad, { size: 130, diagonal: false, fillOpacity: 0.5 });
+    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.5 });
 
     dpad.on('-down', ({ vector }) => {
       if (moving === false) {
@@ -344,7 +340,7 @@ function InfoPanel(unit, { id }) {
     const screen = xnew(xnew.basics.Screen, { width: 300, height: 300 });
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);
-    xthree.initialize({ canvas: screen.element, camera });
+    xthree.initialize({ canvas: screen.canvas, camera });
     xthree.renderer.shadowMap.enabled = true;
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);
@@ -362,7 +358,7 @@ function Model(unit, { x = 0, y = 0, id = 0, scale = 1.0 }) {
   const object = xthree.nest(new THREE.Object3D());
 
   const list = ['zundamon.vrm', 'kiritan.vrm', 'usagi.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
-  const path = '../models/' + (id < 7 ? list[id] : list[0]);
+  const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
   xnew.promise(new Promise((resolve) => {

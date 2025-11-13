@@ -230,11 +230,10 @@ export const xnew = Object.assign(
          * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
          * xnew.append(unitInstance, AnotherComponent)
          */
-        append(anchor: Function | Unit, ...args: any[]): void {
+        append(anchor: Unit, ...args: any[]): void {
             if (typeof anchor === 'function') {
-                for (let unit of Unit.find(anchor)) {
-                    Unit.scope(Unit.snapshot(unit), xnew, ...args);
-                }
+                const units = Unit.find(anchor);
+                Unit.scope(Unit.snapshot(units[0]), xnew, ...args);
             } else if (anchor instanceof Unit) {
                 Unit.scope(Unit.snapshot(anchor), xnew, ...args);
             } else {

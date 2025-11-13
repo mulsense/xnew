@@ -64,7 +64,9 @@ export class Timer {
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        this.transition?.(0.0);
+        if (this.delay > 0.0) {
+            this.transition?.(0.0);
+        }
         this.start();
     }
 

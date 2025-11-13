@@ -104,7 +104,7 @@ function CharacterModel(unit, { id }) {
   const object = xthree.nest(new THREE.Object3D());
   object.position.set(0, -1.0, 0);
 
-  const path = '../models/' + characterData[id].model;
+  const path = '../assets/' + characterData[id].model;
   let vrm = null;
   let loaded = false;
 

@@ -47,7 +47,9 @@
             this.ticker = new Ticker((time) => { var _a; return (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay); });
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.visibilitychange);
-            (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
+            if (this.delay > 0.0) {
+                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
+            }
             this.start();
         }
         clear() {
@@ -742,9 +744,8 @@
          */
         append(anchor, ...args) {
             if (typeof anchor === 'function') {
-                for (let unit of Unit.find(anchor)) {
-                    Unit.scope(Unit.snapshot(unit), xnew$1, ...args);
-                }
+                const units = Unit.find(anchor);
+                Unit.scope(Unit.snapshot(units[0]), xnew$1, ...args);
             }
             else if (anchor instanceof Unit) {
                 Unit.scope(Unit.snapshot(anchor), xnew$1, ...args);
@@ -1049,7 +1050,7 @@
         const size = { width, height };
         const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
         const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
-        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none;">`);
+        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
         xnew$1(wrapper, ResizeEvent).on('-resize', resize);
         resize();
         function resize() {
