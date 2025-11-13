@@ -1,9 +1,10 @@
 import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
 
-export function AccordionFrame(frame: xnew.Unit, 
+export function AccordionFrame(frame: Unit, 
     { open = false, duration = 200, easing = 'ease'}: { open?: boolean, duration?: number, easing?: string } = {}
 ) {
-    const internal = xnew((internal: xnew.Unit) => {
+    const internal = xnew((internal: Unit) => {
         return { frame, open, rate: 0.0, };
     });
     xnew.context('xnew.accordionframe', internal);
@@ -32,7 +33,7 @@ export function AccordionFrame(frame: xnew.Unit,
     }
 }
 
-export function AccordionHeader(header: xnew.Unit,
+export function AccordionHeader(header: Unit,
     {}: {} = {}
 ) {
     const internal = xnew.context('xnew.accordionframe');
@@ -42,7 +43,7 @@ export function AccordionHeader(header: xnew.Unit,
     header.on('click', () => internal.frame.toggle());
 }
 
-export function AccordionBullet(bullet: xnew.Unit,
+export function AccordionBullet(bullet: Unit,
     { type = 'arrow' }: { type?: string } = {}
 ) {
     const internal = xnew.context('xnew.accordionframe');
@@ -69,7 +70,7 @@ export function AccordionBullet(bullet: xnew.Unit,
     }
 }
 
-export function AccordionContent(content: xnew.Unit,
+export function AccordionContent(content: Unit,
     {}: {} = {}
 ) {
     const internal = xnew.context('xnew.accordionframe');

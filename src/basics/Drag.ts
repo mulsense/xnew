@@ -1,14 +1,15 @@
 import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
 import { PointerEvent } from './PointerEvent';
 
-export function DragFrame(frame: xnew.Unit, 
+export function DragFrame(frame: Unit, 
     { x = 0, y = 0 }: { x?: number, y?: number } = {}
 ) {
     const absolute = xnew.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
     xnew.context('xnew.dragframe', { frame, absolute });
 }
 
-export function DragTarget(target: xnew.Unit, 
+export function DragTarget(target: Unit, 
     {}: {} = {}
 ) {
     const { frame, absolute } = xnew.context('xnew.dragframe');

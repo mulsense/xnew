@@ -1,5 +1,3 @@
-declare function ResizeEvent(resize: any): void;
-
 declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     has(key: Key): boolean;
     has(key: Key, value: Value): boolean;
@@ -39,10 +37,6 @@ interface Snapshot {
     context: Context;
     element: UnitElement;
 }
-interface Capture {
-    checker: (unit: Unit) => boolean;
-    execute: (unit: Unit) => any;
-}
 interface UnitInternal {
     parent: Unit | null;
     target: Object | null;
@@ -57,7 +51,7 @@ interface UnitInternal {
     tostart: boolean;
     children: Unit[];
     promises: Promise<any>[];
-    captures: Capture[];
+    captures: ((unit: Unit) => boolean | void)[];
     elements: UnitElement[];
     components: Function[];
     listeners1: MapMap<string, Function, [UnitElement, Function]>;
@@ -78,7 +72,9 @@ declare class Unit {
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
-    static extend(unit: Unit, component: Function, props?: Object): void;
+    static extend(unit: Unit, component: Function, props?: Object): {
+        [key: string]: any;
+    };
     static start(unit: Unit): void;
     static stop(unit: Unit): void;
     static update(unit: Unit): void;
@@ -100,33 +96,30 @@ declare class Unit {
     static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
 
-declare namespace xnew$1 {
-    type Unit = InstanceType<typeof Unit>;
-}
-declare const xnew$1: any;
+declare function ResizeEvent(resize: Unit): void;
 
-declare function PointerEvent(unit: xnew$1.Unit): void;
+declare function PointerEvent(unit: Unit): void;
 
-declare function KeyboardEvent(unit: xnew$1.Unit): void;
+declare function KeyboardEvent(unit: Unit): void;
 
-declare function Screen(screen: xnew$1.Unit, { width, height, fit }?: {
+declare function Screen(screen: Unit, { width, height, fit }?: {
     width?: number | undefined;
     height?: number | undefined;
     fit?: string | undefined;
 }): {
-    readonly canvas: any;
+    readonly canvas: UnitElement;
     resize(width: number, height: number): void;
 };
 
-declare function InputFrame(frame: xnew$1.Unit, {}?: {}): void;
+declare function InputFrame(frame: Unit, {}?: {}): void;
 
-declare function ModalFrame(frame: xnew$1.Unit, { duration, easing }?: {
+declare function ModalFrame(frame: Unit, { duration, easing }?: {
     duration?: number;
     easing?: string;
 }): {
     close(): void;
 };
-declare function ModalContent(content: xnew$1.Unit, { background }?: {
+declare function ModalContent(content: Unit, { background }?: {
     background?: string;
 }): {
     transition({ element, rate }: {
@@ -135,10 +128,10 @@ declare function ModalContent(content: xnew$1.Unit, { background }?: {
     }): void;
 };
 
-declare function TabFrame(frame: xnew$1.Unit, { select }?: {
+declare function TabFrame(frame: Unit, { select }?: {
     select?: string;
 }): void;
-declare function TabButton(button: xnew$1.Unit, { key }?: {
+declare function TabButton(button: Unit, { key }?: {
     key?: string;
 }): {
     select({ element }: {
@@ -148,7 +141,7 @@ declare function TabButton(button: xnew$1.Unit, { key }?: {
         element: HTMLElement;
     }): void;
 };
-declare function TabContent(content: xnew$1.Unit, { key }?: {
+declare function TabContent(content: Unit, { key }?: {
     key?: string;
 }): {
     select({ element }: {
@@ -159,7 +152,7 @@ declare function TabContent(content: xnew$1.Unit, { key }?: {
     }): void;
 };
 
-declare function AccordionFrame(frame: xnew$1.Unit, { open, duration, easing }?: {
+declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
     open?: boolean;
     duration?: number;
     easing?: string;
@@ -168,24 +161,24 @@ declare function AccordionFrame(frame: xnew$1.Unit, { open, duration, easing }?:
     open(): void;
     close(): void;
 };
-declare function AccordionHeader(header: xnew$1.Unit, {}?: {}): void;
-declare function AccordionBullet(bullet: xnew$1.Unit, { type }?: {
+declare function AccordionHeader(header: Unit, {}?: {}): void;
+declare function AccordionBullet(bullet: Unit, { type }?: {
     type?: string;
 }): void;
-declare function AccordionContent(content: xnew$1.Unit, {}?: {}): {
+declare function AccordionContent(content: Unit, {}?: {}): {
     transition({ element, rate }: {
         element: HTMLElement;
         rate: number;
     }): void;
 };
 
-declare function DragFrame(frame: xnew$1.Unit, { x, y }?: {
+declare function DragFrame(frame: Unit, { x, y }?: {
     x?: number;
     y?: number;
 }): void;
-declare function DragTarget(target: xnew$1.Unit, {}?: {}): void;
+declare function DragTarget(target: Unit, {}?: {}): void;
 
-declare function AnalogStick(self: xnew$1.Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function AnalogStick(self: Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number;
     diagonal?: boolean;
     fill?: string;
@@ -195,7 +188,7 @@ declare function AnalogStick(self: xnew$1.Unit, { size, fill, fillOpacity, strok
     strokeWidth?: number;
     strokeLinejoin?: string;
 }): void;
-declare function DirectionalPad(self: xnew$1.Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
     size?: number;
     diagonal?: boolean;
     fill?: string;

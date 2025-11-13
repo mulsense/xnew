@@ -1,4 +1,5 @@
 import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
 import { PointerEvent } from './PointerEvent';
 import { ResizeEvent } from './ResizeEvent';
 
@@ -6,7 +7,7 @@ import { ResizeEvent } from './ResizeEvent';
 // controller
 //----------------------------------------------------------------------------------------------------
 
-function SVGTemplate(self: xnew.Unit,
+function SVGTemplate(self: Unit,
     { fill = null, fillOpacity = 0.8, stroke = null, strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } 
     : { fill: string | null, fillOpacity: number, stroke: string | null, strokeOpacity: number, strokeWidth: number, strokeLinejoin: string },
 ) {
@@ -20,13 +21,13 @@ function SVGTemplate(self: xnew.Unit,
 
 
 
-export function AnalogStick(self: xnew.Unit,
+export function AnalogStick(self: Unit,
     { size, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
     { size?: number, diagonal?: boolean,fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
 
 ) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-    let internal: xnew.Unit;
+    let internal: Unit;
     let newsize: number;
     if (size) {
         newsize = size;
@@ -41,7 +42,7 @@ export function AnalogStick(self: xnew.Unit,
     internal = xnew(() => {
         xnew.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
 
-        xnew((self: xnew.Unit) => {
+        xnew((self: Unit) => {
             xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew('<polygon points="50  7 40 18 60 18">');
             xnew('<polygon points="50 93 40 83 60 83">');
@@ -49,7 +50,7 @@ export function AnalogStick(self: xnew.Unit,
             xnew('<polygon points="93 50 83 40 83 60">');
         });
 
-        const target = xnew((self: xnew.Unit) => {
+        const target = xnew((self: Unit) => {
             xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew('<circle cx="50" cy="50" r="23">');
         });
@@ -87,12 +88,12 @@ export function AnalogStick(self: xnew.Unit,
     });
 }
 
-export function DirectionalPad(self: xnew.Unit,
+export function DirectionalPad(self: Unit,
     { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
     { size?: number, diagonal?: boolean, fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
 ) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-    let internal: xnew.Unit;
+    let internal: Unit;
     let newsize: number;
     if (size) {
         newsize = size;
@@ -115,13 +116,13 @@ export function DirectionalPad(self: xnew.Unit,
         ];
 
         const targets = polygons.map((polygon) => {
-            return xnew((self: xnew.Unit) => {
+            return xnew((self: Unit) => {
                 xnew.extend(SVGTemplate, { fill, fillOpacity });
                 xnew(polygon);
             });
         });
 
-        xnew((self: xnew.Unit) => {
+        xnew((self: Unit) => {
             xnew.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
             xnew('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
@@ -181,13 +182,13 @@ export function DirectionalPad(self: xnew.Unit,
     
 }
 
-export function TouchButton(self: xnew.Unit,
+export function TouchButton(self: Unit,
     { size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } = {}
 ) {
     strokeWidth /= (size / 100);
     xnew.nest(`<div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; pointer-select: none; overflow: hidden;">`);
 
-    const target = xnew((self: xnew.Unit) => {
+    const target = xnew((self: Unit) => {
         xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
         xnew('<circle cx="50" cy="50" r="40">');
     });

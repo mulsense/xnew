@@ -1,9 +1,10 @@
 import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
 
-export function ModalFrame(frame: xnew.Unit, 
+export function ModalFrame(frame: Unit, 
     { duration = 200, easing = 'ease' }: { duration?: number, easing?: string } = {}
 ) {
-    const internal = xnew((internal: xnew.Unit) => {
+    const internal = xnew((internal: Unit) => {
         return {};
     });
     xnew.context('xnew.modalframe', internal);
@@ -20,7 +21,7 @@ export function ModalFrame(frame: xnew.Unit,
     }
 }
 
-export function ModalContent(content: xnew.Unit,
+export function ModalContent(content: Unit,
     { background = 'rgba(0, 0, 0, 0.1)' }: { background?: string } = {}
 ) {
     const internal = xnew.context('xnew.modalframe');
