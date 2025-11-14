@@ -11,20 +11,47 @@
   <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew('#main', (unit) => {
-      xnew.nest('<div class="m-2">');
+      xnew.nest('<div class="m-2 space-y-4">');
 
       const music = xnew.audio.load('b096.mp3');
+
+      // Play and Stop buttons
+      xnew.nest('<div class="space-x-2">');
       xnew(Button, { name: 'play!' }).on('click', () => {
         music.play();
       });
       xnew(Button, { name: 'stop!' }).on('click', () => {
         music.pause();
       });
+
+      // Volume control
+      xnew(VolumeControl);
     });
 
     function Button(unit, { name }) {
       xnew.nest('<button class="h-8 px-2 border rounded-lg cursor-pointer bg-blue-200 hover:opacity-50">');
       unit.element.textContent = name;
+    }
+
+    function VolumeControl(unit) {
+      xnew.nest('<div class="flex items-center gap-3 p-3 bg-gray-100 rounded-lg w-fit">');
+
+      // Volume label
+      xnew('<span class="text-sm font-medium">', 'volume');
+
+      // Volume slider
+      const slider = xnew('<input type="range" min="0" max="100" value="100" class="w-48 h-2 bg-blue-300 rounded-lg appearance-none cursor-pointer">');
+
+      // Volume value display
+      const valueDisplay = xnew('<span class="text-sm font-medium w-12 text-center">', 'volume-value');
+      valueDisplay.element.textContent = '100%';
+
+      // Update volume on slider change
+      slider.on('input', (e) => {
+        const value = e.target.value;
+        xnew.audio.volume = value / 100; // Convert to 0-1 range
+        valueDisplay.element.textContent = value + '%';
+      });
     }
   </script>
 </body>

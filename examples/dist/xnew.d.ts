@@ -69,13 +69,14 @@ declare class UnitPromise {
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
-    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object);
+    constructor(parent: Unit | null, ...args: any[]);
     get element(): UnitElement;
     get components(): Function[];
     start(): void;
     stop(): void;
     finalize(): void;
     reboot(): void;
+    append(...args: any[]): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
@@ -93,9 +94,9 @@ declare class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static context(unit: Unit, key: string, value?: any): any;
-    static componentUnits: MapSet<Function, Unit>;
+    static component2units: MapSet<Function, Unit>;
     static find(component: Function): Unit[];
-    static typeUnits: MapSet<string, Unit>;
+    static type2units: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
     emit(type: string, ...args: any[]): void;
@@ -242,7 +243,7 @@ declare const xnew$1: CreateUnit & {
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(callback: Function, delay: number): any;
+    timeout(callback: Function, delay?: number): any;
     /**
      * Executes a callback repeatedly at specified intervals, managed by component lifecycle
      * @param callback - Function to execute at each interval
@@ -473,6 +474,7 @@ declare const audio: {
     context: AudioContext;
     synthesizer: typeof synthesizer;
     load: typeof load;
+    volume: number;
 };
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

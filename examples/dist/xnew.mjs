@@ -214,8 +214,26 @@ class UnitPromise {
 // unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
-    constructor(parent, target, component, props) {
+    constructor(parent, ...args) {
         var _a;
+        let target;
+        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+            target = args.shift(); // an existing html element
+        }
+        else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
+            target = args.shift();
+        }
+        else if (typeof args[0] === 'string') {
+            const query = args.shift();
+            target = document.querySelector(query);
+            if (target === null)
+                throw new Error(`'${query}' can not be found.`);
+        }
+        else {
+            target = null;
+        }
+        const component = args.shift();
+        const props = args.shift();
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -268,6 +286,9 @@ class Unit {
         Unit.finalize(this);
         Unit.initialize(this, anchor);
     }
+    append(...args) {
+        new Unit(this, ...args);
+    }
     static initialize(unit, anchor) {
         const backup = Unit.current;
         Unit.current = unit;
@@ -309,7 +330,7 @@ class Unit {
             unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             unit.off();
             Unit.suboff(unit, null);
-            unit._.components.forEach((component) => Unit.componentUnits.delete(component, unit));
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
                 unit._.currentElement = unit._.baseElement;
@@ -347,7 +368,7 @@ class Unit {
     static extend(unit, component, props) {
         var _a;
         unit._.components.push(component);
-        Unit.componentUnits.add(component, unit);
+        Unit.component2units.add(component, unit);
         const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
         Object.keys(defines).forEach((key) => {
             if (unit[key] !== undefined && unit._.defines[key] === undefined) {
@@ -355,12 +376,10 @@ class Unit {
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
             const wrapper = { configurable: true, enumerable: true };
-            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) {
+            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
                 wrapper.get = Unit.wrap(unit, descriptor.get);
-            }
-            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set) {
+            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
                 wrapper.set = Unit.wrap(unit, descriptor.set);
-            }
             if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
                 wrapper.value = Unit.wrap(unit, descriptor.value);
             }
@@ -446,7 +465,7 @@ class Unit {
     }
     static find(component) {
         var _a;
-        return [...((_a = Unit.componentUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
+        return [...((_a = Unit.component2units.get(component)) !== null && _a !== void 0 ? _a : [])];
     }
     on(type, listener, options) {
         if (this._.state === 'finalized')
@@ -458,7 +477,7 @@ class Unit {
             if (this._.listeners1.has(type, listener) === false) {
                 const execute = Unit.wrap(Unit.current, listener);
                 this._.listeners1.set(type, listener, [this.element, execute]);
-                Unit.typeUnits.add(type, this);
+                Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
                     this.element.addEventListener(type, execute, options);
                 }
@@ -482,7 +501,7 @@ class Unit {
                 }
             });
             if (this._.listeners1.has(type) === false) {
-                Unit.typeUnits.delete(type, this);
+                Unit.type2units.delete(type, this);
             }
         });
     }
@@ -491,7 +510,7 @@ class Unit {
         if (this._.state === 'finalized')
             return;
         if (type[0] === '+') {
-            (_a = Unit.typeUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+            (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
                 (_a = unit._.listeners1.get(type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
             });
@@ -525,36 +544,17 @@ class Unit {
         });
     }
 }
-Unit.componentUnits = new MapSet();
+Unit.component2units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
 //----------------------------------------------------------------------------------------------------
-Unit.typeUnits = new MapSet();
+Unit.type2units = new MapSet();
 
 const xnew$1 = Object.assign(function (...args) {
     if (Unit.root === undefined) {
         Unit.reset();
     }
-    let target;
-    if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-        target = args.shift(); // an existing html element
-    }
-    else if (typeof args[0] === 'string') {
-        const str = args.shift(); // a selector for an existing html element
-        if (str.match(/<([^>]*)\/?>/)) {
-            target = str;
-        }
-        else {
-            target = document.querySelector(str);
-            if (target == null) {
-                throw new Error(`'${str}' can not be found.`);
-            }
-        }
-    }
-    else {
-        target = null;
-    }
-    return new Unit(Unit.current, target, ...args);
+    return new Unit(Unit.current, ...args);
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
@@ -757,7 +757,7 @@ const xnew$1 = Object.assign(function (...args) {
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(callback, delay) {
+    timeout(callback, delay = 0) {
         const snapshot = Unit.snapshot(Unit.current);
         const unit = xnew$1((self) => {
             const timer = new Timer(() => {
@@ -826,21 +826,21 @@ const xnew$1 = Object.assign(function (...args) {
             const timer = new Timer(() => {
                 Unit.scope(snapshot, callback, 1.0);
                 self.finalize();
-            }, (progress) => {
-                if (progress < 1.0) {
+            }, (x) => {
+                if (x < 1.0) {
                     if (easing === 'ease-out') {
-                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
+                        x = Math.pow((1.0 - Math.pow((1.0 - x), 2.0)), 0.5);
                     }
                     else if (easing === 'ease-in') {
-                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
+                        x = Math.pow((1.0 - Math.pow((1.0 - x), 0.5)), 2.0);
                     }
                     else if (easing === 'ease') {
-                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                        x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
                     }
                     else if (easing === 'ease-in-out') {
-                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                        x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
                     }
-                    Unit.scope(snapshot, callback, progress);
+                    Unit.scope(snapshot, callback, x);
                 }
             }, interval);
             self.on('finalize', () => {
@@ -1467,6 +1467,14 @@ const context = new AudioContext();
 const master = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
+const config = {
+    get volume() {
+        return master.gain.value;
+    },
+    set volume(value) {
+        master.gain.value = value;
+    }
+};
 
 function load(path) {
     return new AudioFile(path);
@@ -1704,12 +1712,10 @@ const basics = {
     AnalogStick,
     DirectionalPad,
 };
-const audio = {
-    master,
+const audio = Object.assign(Object.assign({}, config), { master,
     context,
     synthesizer,
-    load
-};
+    load });
 const xnew = Object.assign(xnew$1, {
     basics,
     audio
