@@ -9,26 +9,27 @@ import xthree from '@mulsense/xnew/addons/xthree';
 
 xnew('#main', Main);
 
-function Main(main) {
-  const global = { GRID: 10, anchor: main, levels: null };
+function Main(screen) {
+  const global = { GRID: 10, levels: null };
   xnew.context('global', global);
   xnew.extend(xnew.basics.Screen, { width: 700, height: 700 });
 
   // three
   const camera = new THREE.OrthographicCamera(-global.GRID / 2, +global.GRID / 2, +global.GRID / 2, -global.GRID / 2, 0, 100);
-  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height), camera });
+  xthree.initialize({ canvas: new OffscreenCanvas(screen.canvas.width, screen.canvas.height), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -45 / 180 * Math.PI;
+  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 5, 30);
 
   // pixi 
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
       global.levels = levels;
-      // xnew(TitleScene);
-      xnew(GameScene, { id: 0 });
+      xnew(TitleScene);
+      // xnew(GameScene, { id: 0 });
   });
 }
 
@@ -39,7 +40,7 @@ function TitleScene(unit) {
 
   xnew.listener(window).on('keydown pointerdown', () => {
     unit.finalize();
-    xnew.append(Main, GameScene, { id: 0 });
+    xnew.find(Main)[0]?.append(GameScene, { id: 0 });
   });
 }
 
@@ -48,7 +49,6 @@ function GameScene(unit, { id }) {
 
   const state = { level: [] };
   xnew.context('state', state);
-
   xnew(DirectionalLight, { x: 2, y: -5, z: 10 });
   xnew(AmbientLight);
   xnew(Background);
@@ -90,9 +90,9 @@ function GameScene(unit, { id }) {
       xnew.listener(window).on('keydown pointerdown', () => {
         unit.finalize();
         if (id + 1 < global.levels.length) {
-            xnew.append(Main, GameScene, { id: id + 1 });
+            xnew.find(Main)[0]?.append(GameScene, { id: id + 1 });
         } else {
-            xnew.append(Main, TitleScene);
+            xnew.find(Main)[0]?.append(TitleScene);
         }
       });
     }, 1000);
@@ -100,18 +100,21 @@ function GameScene(unit, { id }) {
 }
 
 function HTMLLayer(unit) {
-  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800" style="container-type: size;">');
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    style="container-type: size;">
+    >`);
 }
 
 function DirectionalLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.5));
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2.5));
   object.position.set(x, y, z);
   object.castShadow = true;
   object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.5));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.0));
 }
 
 function Texture(unit, { texture, position = { x: 0, y: 0} }) {
@@ -121,32 +124,37 @@ function Texture(unit, { texture, position = { x: 0, y: 0} }) {
 
 function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
-  object.addChild(new PIXI.Graphics().rect(0, 0, xpixi.canvas.width, xpixi.canvas.height).fill(0xAAEEAA));
+  xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
+    const sprite = new PIXI.Sprite(texture);
+    sprite.scale.set(xpixi.canvas.width / texture.frame.width, xpixi.canvas.height / texture.frame.height);
+    object.addChild(sprite);
+  });
 }
 
-function TitleText(unit) {
-  const object = xpixi.nest(new PIXI.Text('倉庫', { fontSize: 48, fill: 0xFFFFFF, fontFamily: 'Arial' }));
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 50);
-  object.anchor.set(0.5);
+function TitleText(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
+  text.element.textContent = 'とーほく 倉庫';
 }
 
-function StartMessage(unit) {
-  const object = xpixi.nest(new PIXI.Text('Press any key to start', { fontSize: 24, fill: 0xAAAAAA, fontFamily: 'Arial' }));
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 + 30);
-  object.anchor.set(0.5);
-
+function StartMessage(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute top-[40cqw] w-full text-center text-[8cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
+  text.element.textContent = 'Touch Start';
   let count = 0;
-  unit.on('update', () => object.alpha = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function Floor(unit) {
   const global = xnew.context('global');
   const object = xthree.nest(new THREE.Group());
 
+  // タイルを作成
   for (let y = 0; y < global.GRID; y++) {
     for (let x = 0; x < global.GRID; x++) {
       const geometry = new THREE.PlaneGeometry(1, 1);
-      const material = new THREE.MeshStandardMaterial({ color: (x + y) % 2 === 0 ? 0xCCCCCC : 0xAAAAAA });
+      const color = (x + y) % 2 === 0 ? 0xDDDDDD : 0xAAAAAA;
+      const material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.7 });
       const tile = new THREE.Mesh(geometry, material);
 
       const pos = pos3d(x, y, 0);
@@ -155,30 +163,48 @@ function Floor(unit) {
       object.add(tile);
     }
   }
+
+  // グリッド線を作成（太く黄色に）
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xCCCCAA });
+  lineMaterial.transparent = true;
+  lineMaterial.opacity = 0.9;
+
+  // 横線を作成
+  for (let i = 0; i <= global.GRID; i++) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-global.GRID / 2, -global.GRID / 2 + i, 0.01),
+      new THREE.Vector3(global.GRID / 2, -global.GRID / 2 + i, 0.01)
+    ]);
+    const line = new THREE.Line(geometry, lineMaterial);
+    object.add(line);
+  }
+
+  // 縦線を作成
+  for (let i = 0; i <= global.GRID; i++) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-global.GRID / 2 + i, -global.GRID / 2, 0.01),
+      new THREE.Vector3(-global.GRID / 2 + i, global.GRID / 2, 0.01)
+    ]);
+    const line = new THREE.Line(geometry, lineMaterial);
+    object.add(line);
+  }
 }
 
 function Wall(unit, { position }) {
   const height = 1;
   const object = xthree.nest(new THREE.Object3D());
 
-  // PLYモデルをロード
   xnew.promise(new Promise((resolve) => {
     const loader = new PLYLoader();
     loader.load('../assets/soko_block_fixed.ply', (geometry) => resolve(geometry));
   })).then((geometry) => {
     geometry.computeVertexNormals();
-
-    // PLYファイルに色情報がある場合はvertexColorsを有効にする
-    const material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      color: 0xffffff  // vertexColorsと乗算されるベース色
-    });
+    const material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff });
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    // モデルのスケールと回転を調整（Boxと同じ設定）
     const scale = 0.6;
     mesh.rotation.x = 90 * Math.PI / 180;
     mesh.position.z = height;
@@ -213,13 +239,13 @@ function Goal(unit, { position }) {
   }
 }
 
-function Player(unit, { id, position }) {
+function Player(player, { id, position }) {
   const object = xthree.nest(new THREE.Object3D());
 
   xnew(Model, { id, scale: 0.7 });
   object.rotation.x = -Math.PI / 15;
 
-  unit.on('+playermove', ({ dx, dy }) => {
+  player.on('+playermove', ({ dx, dy }) => {
     if (canMove(position.x + dx, position.y + dy) === false) return;
 
     // 箱があったらそれを押せるかチェック
@@ -232,19 +258,19 @@ function Player(unit, { id, position }) {
       box.move(dx, dy);
     }
 
-    unit.move(dx, dy);
-    unit.emit('+moved');
+    player.move(dx, dy);
+    player.emit('+moved');
   });
 
   const offset = { x: 0, y: 0 };
-  unit.on('update', () => {
+  player.on('update', () => {
     const pos = pos3d(position.x - offset.x, position.y - offset.y + 0.3, 0);
     object.position.set(pos.x, pos.y, pos.z);
   });
   return {
     move(dx, dy) {
-      position.x = position.x + dx;
-      position.y = position.y + dy;
+      position.x += dx;
+      position.y += dy;
       if (dx > 0) {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2 - Math.PI / 4;
         object.rotation.x = -Math.PI / 6;
@@ -258,7 +284,7 @@ function Player(unit, { id, position }) {
       xnew.transition((x) => {
         offset.x = (1 - x) * dx;
         offset.y = (1 - x) * dy;
-      }, 150);
+      }, 250, 'ease');
     }
   };
 }
@@ -272,12 +298,12 @@ function Box(unit, { position }) {
     loader.load('../assets/soko_block.ply', (geometry) => resolve(geometry));
   })).then((geometry) => {
     geometry.computeVertexNormals();
-    material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff });
+    material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xEEEEEE });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    const scale = 0.6;
+    const scale = 0.55;
     mesh.rotation.x = 90 * Math.PI / 180;
     mesh.rotation.y = 90 * Math.PI / 180;
     mesh.position.z = boxSize;
@@ -285,7 +311,7 @@ function Box(unit, { position }) {
     object.add(mesh);
   });
 
-  const rondom = { x: Math.random() * 0.05 - 0.05, y: Math.random() * 0.1 - 0.05 };
+  let rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
   unit.on('update', () => {
     const pos = pos3d(position.x - offset.x, position.y - offset.y, boxSize / 2);
@@ -294,7 +320,7 @@ function Box(unit, { position }) {
     // ゴールに乗った時の色変更（materialがロード済みの場合のみ、PLYの色と乗算される）
     if (material) {
       const isOnGoal = xnew.find(Goal).some(g => g.position.x === position.x && g.position.y === position.y);
-      material.color.setHex(isOnGoal ? 0xffaa00 : 0xffffff);
+      material.color.setHex(isOnGoal ? 0xFFFFFF : 0xCCCCCC);
     }
   });
 
@@ -311,17 +337,17 @@ function Box(unit, { position }) {
 
       position.x = position.x + dx;
       position.y = position.y + dy;
+      rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
       xnew.transition((x) => {
         offset.x = (1 - x) * dx;
         offset.y = (1 - x) * dy;
-      }, 150);
+      }, 250, 'ease');
       return true;
     }
   }
 }
 
 function Controller(unit) {
-  let moving = false;
   xnew.listener(window).on('keydown', (event) => {
     event.preventDefault();
     let dx = 0, dy = 0;
@@ -336,52 +362,55 @@ function Controller(unit) {
     } else if (event.code === 'KeyR') {
       unit.emit('+restart');
     }
-    if (moving === false && (dx !== 0 || dy !== 0)) {
-      moving = true;  
-      xnew.timeout(() => { moving = false; }, 150);
-      unit.emit('+playermove', { dx, dy });
+    move({ x: dx, y: dy });
+  });
+  xnew.extend(HTMLLayer);
+
+  xnew('<div class="absolute left-0 bottom-0 w-[28%] h-[28%]">', () => {
+    xnew.nest('<div class="absolute inset-[1cqw]">');
+    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.7 });
+    dpad.on('-down', ({ vector }) => move(vector));
+  });
+
+  let stack = 0;
+  function move(vector) {
+    if (vector.x === 0 && vector.y == 0) return;
+    if (stack === 0) {
+      stack++;
+      xnew.timeout(() => { stack--; }, 250);
+      unit.emit('+playermove', { dx: vector.x, dy: vector.y });
+    } else if (stack <= 2) {
+      xnew.timeout(() => move(vector), 10);
     }
-  });
-
-  xnew('<div class="absolute left-0 bottom-0 w-[20%] h-[calc(160/700*100%)] bg-blue-200" style="container-type: size;">', () => {
-    xnew.nest('<div class="absolute inset-[1cqw] bottom-[1cqw] bg-red-200">');
-    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.5 });
-
-    dpad.on('-down', ({ vector }) => {
-      if (moving === false) {
-        moving = true;
-        xnew.timeout(() => { moving = false; }, 150);
-        unit.emit('+playermove', { dx: vector.x, dy: vector.y });
-      }
-    });
-  });
-
+  }
 }
 
-function GameClearText(unit) {
-  const object = xpixi.nest(new PIXI.Text('Stage Clear!', { fontSize: 36, fill: 0xFFFF00, fontFamily: 'Arial' }));
-  object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2 - 30);
-  object.anchor.set(0.5);
+function GameClearText(text) {
+  xnew.extend(HTMLLayer);
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[14cqw] font-bold text-yellow-300" style="-webkit-text-stroke: 0.2cqw white;">');
+  text.element.textContent = 'Stage Clear!';
+  xnew.transition((x) => {
+    text.element.style.opacity = x;
+    text.element.style.top = `${16 + x * 10}cqw`;
+  }, 1000, 'ease');
 }
 
 function InfoPanel(unit, { id }) {
   xnew.extend(HTMLLayer);
 
-  xnew('<div class="absolute bottom-0 left-0 right-0 w-full h-[22%] text-[5cqw]">', () => {
-    const div = xnew.nest('<div class="relative w-full h-full text-[6cqw] " style="font-family: Arial;">');
-    xnew('<div class="relative w-full text-center text-gray-700">', `Level: ${id + 1}`);
-    xnew('<div class="relative w-full text-center">', () => {
-      xnew('<button class="border border-gray-700 rounded-full px-[4cqw] hover:bg-green-400 pointer-events-auto">', 'reset');
-    });
+  xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700 font-bold" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
+  xnew('<div class="absolute bottom-[3cqw] w-full text-[5cqw] text-center">', () => {
+    const button = xnew('<button class="border-[0.5cqw] border-green-200 rounded-full px-[4cqw] pt-[0cqw] pb-[1cqw] text-green-200 font-bold hover:bg-green-400 pointer-events-auto cursor-pointer">', 'Reset');
+    button.on('click', () => unit.emit('+restart'));
   });
-  xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', () => {
-    const screen = xnew(xnew.basics.Screen, { width: 300, height: 300 });
+  xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', (screen) => {
+    xnew.extend(xnew.basics.Screen, { width: 300, height: 300 });
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);
     xthree.initialize({ canvas: screen.canvas, camera });
     xthree.renderer.shadowMap.enabled = true;
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    xthree.camera.position.set(0, 0, +10);
+    xthree.camera.position.set(-0.2, 0, +10);
     xthree.scene.rotation.x = -80 / 180 * Math.PI;
     xthree.scene.rotation.z = -30 / 180 * Math.PI;
     xthree.scene.position.y = -0.9;
@@ -451,7 +480,7 @@ function Model(unit, { x = 0, y = 0, id = 0, scale = 1.0 }) {
   }
 }
 
-// ヘルパー関数
+// helpers
 function pos3d(gridX, gridY, z = 0) {
   const global = xnew.context('global');
   return { x: (gridX + 0.5) - global.GRID / 2, y: -((gridY + 0.5) - global.GRID / 2), z: z };

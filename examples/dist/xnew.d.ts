@@ -225,16 +225,6 @@ declare const xnew$1: CreateUnit & {
      */
     find(component: Function): Unit[];
     /**
-     * Appends new components to existing component(s) in the tree
-     * @param anchor - Component function or Unit instance to append to
-     * @param args - Arguments to pass to xnew for creating child components
-     * @throws Error if anchor parameter is invalid
-     * @example
-     * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
-     * xnew.append(unitInstance, AnotherComponent)
-     */
-    append(anchor: Unit, ...args: any[]): void;
-    /**
      * Executes a callback once after a delay, managed by component lifecycle
      * @param callback - Function to execute after delay
      * @param delay - Delay in milliseconds
@@ -398,10 +388,8 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
 
 declare const audio: {
     load(path: string): AudioFile;
-    create(props: SynthProps): Synthesizer;
-    config: {
-        volume: number;
-    };
+    synthesizer(props: SynthProps): Synthesizer;
+    volume: number;
 };
 declare class AudioFile {
     buffer?: AudioBuffer;

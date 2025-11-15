@@ -10,18 +10,17 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 
 xnew('#main', Main);
 
-function Main(main) {
-  // create as screen
+function Main(screen) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // setup three 
-  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(screen.canvas.width, screen.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
 
   // setup pixi
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: screen.canvas });
 
   xnew(TitleScene);
 }
@@ -43,7 +42,7 @@ function TitleScene(scene) {
 
   scene.on('pointerdown', () => {
     scene.finalize();
-    xnew.append(Main, GameScene);
+    xnew.find(Main)[0]?.append(GameScene);
   });
 }
 
@@ -68,12 +67,15 @@ function GameScene(scene) {
   });
   scene.on('+retry', () => {
     scene.finalize();
-    xnew.append(Main, TitleScene);
+    xnew.find(Main)[0]?.append(TitleScene);
   });
 }
 
 function HTMLLayer(unit) {
-  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800" style="container-type: size;">');
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    style="container-type: size; -webkit-text-stroke: 0.15cqw white;">
+    >`);
 }
 
 function Background(unit) {
@@ -100,13 +102,13 @@ function Texture(unit, { texture } = {}) {
 
 function TitleText(text) {
   xnew.extend(HTMLLayer);
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[7cqw] font-bold">');
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw]">');
   text.element.textContent = 'とーほく ドロップ';
 }
 
 function TouchMessage(text) {
   xnew.extend(HTMLLayer);
-  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[5cqw]">');
+  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[8cqw]">');
   text.element.textContent = 'touch start';
   let count = 0;
   text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
@@ -132,7 +134,7 @@ function Controller(unit) {
 
 function ScoreText(text) {
   xnew.extend(HTMLLayer);
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw] text-sky-800 font-bold">');
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw]">');
   text.element.textContent = 'score 0';
   let sum = 0;
   text.on('+scoreup', (score) => text.element.textContent = `score ${sum += score}`);
@@ -150,20 +152,20 @@ function Queue(queue) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
   queue.emit('+reloadcomplete', 0);
 
-  const position = pos3d(70, 60);
+  const position = pos3d(10 + 70, 70);
   const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
-  let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.5 });
+  let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
   queue.on('+reload', () => {
     const next = balls.shift();
     model.finalize();
-    const position = pos3d(0, 60);
+    const position = pos3d(10, 70);
     const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
-    model = xnew(Model, { position, rotation, id: balls[0], scale: 0.5 });
+    model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
     balls.push(Math.floor(Math.random() * 3));
     xnew.transition((progress) => {
-      const position = pos3d(0 + progress * 70, 60);
+      const position = pos3d(10 + progress * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
     }, 500).next(() => {
       queue.emit('+reloadcomplete', next);
@@ -243,7 +245,7 @@ function Cursor(unit) {
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      xnew.append(GameScene, ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      xnew.find(GameScene)[0]?.append(ModelBall, { x: object.x, y: object.y + offset, id: model.id });
       model.finalize();
       model = null;
       unit.emit('+reload');
@@ -282,7 +284,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
       if (dist < ball.radius + target.radius + 0.01) {
         ball.finalize();
         target.finalize();
-        xnew.append(GameScene, ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
+        xnew.find(GameScene)[0]?.append(ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         break;
       }
     }
@@ -293,7 +295,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
 function GameOverText(text) {
   xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
-  text.element.textContent = 'GAME OVER';
+  text.element.textContent = 'Game Over';
   xnew.transition((x) => {
     text.element.style.opacity = x;
     text.element.style.top = `${20 + x * 10}cqw`;
@@ -302,8 +304,8 @@ function GameOverText(text) {
 
 function Retry(unit) {
   xnew.extend(HTMLLayer);
-  xnew.nest('<div class="absolute right-[4cqw] bottom-[4cqw] text-[4cqw] pointer-events-auto">');
-  const button = xnew('<button class="border-[0.5cqw] border-gray-800 rounded-full px-[2cqw] py-[0.5cqw] bg-sky-300 hover:bg-sky-500 cursor-pointer">', 'retry');
+  xnew.nest('<div class="absolute right-[3cqw] bottom-[3cqw] text-[6cqw] pointer-events-auto">');
+  const button = xnew('<button class="border-[0.2cqw] border-gray-800 rounded-full px-[2cqw] pb-[1cqw] bg-sky-300 hover:bg-sky-500 cursor-pointer">', 'retry');
   button.on('click', () => unit.emit('+retry'));
 }
 

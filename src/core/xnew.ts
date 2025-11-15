@@ -205,26 +205,6 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Appends new components to existing component(s) in the tree
-         * @param anchor - Component function or Unit instance to append to
-         * @param args - Arguments to pass to xnew for creating child components
-         * @throws Error if anchor parameter is invalid
-         * @example
-         * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
-         * xnew.append(unitInstance, AnotherComponent)
-         */
-        append(anchor: Unit, ...args: any[]): void {
-            if (typeof anchor === 'function') {
-                const units = Unit.find(anchor);
-                Unit.scope(Unit.snapshot(units[0]), xnew, ...args);
-            } else if (anchor instanceof Unit) {
-                Unit.scope(Unit.snapshot(anchor), xnew, ...args);
-            } else {
-                throw new Error('xnew.append(anchor: Function | Unit, xnew arguments): [anchor] is invalid.');
-            }
-        },
-
-        /**
          * Executes a callback once after a delay, managed by component lifecycle
          * @param callback - Function to execute after delay
          * @param delay - Delay in milliseconds

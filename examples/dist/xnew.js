@@ -734,27 +734,6 @@
             }
         },
         /**
-         * Appends new components to existing component(s) in the tree
-         * @param anchor - Component function or Unit instance to append to
-         * @param args - Arguments to pass to xnew for creating child components
-         * @throws Error if anchor parameter is invalid
-         * @example
-         * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
-         * xnew.append(unitInstance, AnotherComponent)
-         */
-        append(anchor, ...args) {
-            if (typeof anchor === 'function') {
-                const units = Unit.find(anchor);
-                Unit.scope(Unit.snapshot(units[0]), xnew$1, ...args);
-            }
-            else if (anchor instanceof Unit) {
-                Unit.scope(Unit.snapshot(anchor), xnew$1, ...args);
-            }
-            else {
-                throw new Error('xnew.append(anchor: Function | Unit, xnew arguments): [anchor] is invalid.');
-            }
-        },
-        /**
          * Executes a callback once after a delay, managed by component lifecycle
          * @param callback - Function to execute after delay
          * @param delay - Delay in milliseconds
@@ -1484,17 +1463,14 @@
         load(path) {
             return new AudioFile(path);
         },
-        create(props) {
+        synthesizer(props) {
             return new Synthesizer(props);
         },
-        config: {
-            get volume() {
-                return master.gain.value;
-            },
-            set volume(value) {
-                master.gain.value = value;
-                console.log('volume', master.gain.value);
-            }
+        get volume() {
+            return master.gain.value;
+        },
+        set volume(value) {
+            master.gain.value = value;
         }
     };
     //----------------------------------------------------------------------------------------------------
@@ -1591,7 +1567,7 @@
             nodes.target.gain.value = 1.0;
             nodes.amp.connect(nodes.target);
             nodes.target.connect(master);
-            if (props.filter && props.filter.type && props.filter.cutoff) {
+            if (props.filter) {
                 nodes.filter = context.createBiquadFilter();
                 nodes.filter.type = props.filter.type;
                 nodes.filter.frequency.value = props.filter.cutoff;
@@ -1619,7 +1595,6 @@
             if (props.amp.envelope) {
                 startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
             }
-            let stop = null;
             nodes.oscillator.start(start);
             if (dv > 0) {
                 release();
@@ -1628,6 +1603,7 @@
                 return { release };
             }
             function release() {
+                let stop = null;
                 const end = dv > 0 ? dv : (context.currentTime - start);
                 if (props.amp.envelope) {
                     const ADSR = props.amp.envelope.ADSR;
