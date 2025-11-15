@@ -12,6 +12,7 @@ xnew('#main', Main);
 
 function Main(screen) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+  screen.canvas.style.imageRendering = 'pixelated';
 
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(screen.canvas.width, screen.canvas.height) });
@@ -44,8 +45,8 @@ function TitleScene(scene) {
   });
 
   xnew(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
-    style="container-type: size; -webkit-text-stroke: 0.15cqw white;">
+    class="absolute inset-0 w-full h-full pointer-events-none text-green-800 font-bold"
+    style="container-type: size;">
   >`, () => {
     xnew(TitleText);
     xnew(TouchMessage);
@@ -53,6 +54,7 @@ function TitleScene(scene) {
 }
 
 function GameScene(scene) {
+  xnew.context('result', { counts: [0, 0, 0, 0, 0, 0, 0, 0] });
   xmatter.initialize();
   xnew(Background);
   xnew(ShadowPlane);
@@ -63,23 +65,82 @@ function GameScene(scene) {
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   const controller = xnew(Controller);
-  
-  xnew.nest(`<div 
+
+  xnew.nest(`<div
     class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
-    style="container-type: size; -webkit-text-stroke: 0.15cqw white;">
+    style="container-type: size;">
   >`);
   xnew(ScoreText);
 
+  // xnew.timeout(() => {
+  //   scene.emit('+gameover');
+  // }, 1100);
   scene.on('+gameover', () => {
     scene.off('+gameover');
     controller.finalize();
     xnew(GameOverText);
-    xnew(Retry);
+    const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
+    cover.element.style.opacity = 0.0;
+    const canvas = xpixi.renderer.extract.canvas(xpixi.scene);
+    const imageData = canvas.toDataURL('image/png', 1.0);
+    const result = xnew.context('result');
+
+    xnew.timeout(() => {
+      xnew.transition((x) => {
+        cover.element.style.opacity = x;
+      }, 1000, 'ease').next(() => {
+        scene.finalize();
+        xnew.find(Main)[0]?.append(ResultScene, { imageData, result });
+      });
+    }, 2000);
   });
-  scene.on('+retry', () => {
-    scene.finalize();
-    xnew.find(Main)[0]?.append(TitleScene);
+}
+
+function ResultScene(scene, { imageData, result }) {
+
+  xnew.nest(`<div
+    class="absolute inset-0 w-full h-full text-gray-800 font-bold border-[0.5cqw] rounded-[1cqw] border-gray-600"
+    style="container-type: size;">
+  >`);
+
+  // 左に画像を表示
+  xnew('<div class="absolute top-0 bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-white/50">', () => {
+    const img = xnew('<img class="w-full h-full object-cover">');
+    img.element.src = imageData;
   });
+
+  // スコアの内訳を表示
+  xnew('<div class="absolute top-[7cqw] right-[2cqw] w-[50cqw] text-green-600">', () => {
+    xnew('<div class="w-full text-[5cqw] mb-[2cqw] text-center">', '生み出した数');
+
+    const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '九州そら', '東北ずん子', '東北イタコ', '大ずんだもん'];
+    let totalScore = 0;
+    for (let i = 0; i < 8; i++) {
+      if (result.counts[i] >= 0) {
+        const score = result.counts[i] * Math.pow(2, i);
+        totalScore += score;
+        xnew('<div class="w-full text-[3.5cqw] text-center">', (text) => {
+          text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${result.counts[i]}`;
+        });
+      }
+    }
+
+    xnew('<div class="w-full text-[5cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] text-center border-green-600">', `合計スコア: ${totalScore}`);
+  });
+
+  xnew('<div class="absolute left-0 text-center w-1/2 bottom-[5cqw] text-[5cqw] pointer-events-auto">', () => {
+    const button = xnew('<button class="border-[0.2cqw] border-gray-800 rounded-full px-[2cqw] pb-[1cqw] hover:bg-sky-500 cursor-pointer">', 'retry');
+    button.on('click', () => {
+      scene.finalize();
+      xnew.find(Main)[0]?.append(TitleScene);
+    });
+
+  });
+
+  xnew.transition((x) => {
+    scene.element.style.opacity = x;
+    scene.element.style.transform = `scale(${0.8 + x * 0.2})`;
+  }, 500, 'ease');
 }
 
 function Background(unit) {
@@ -105,12 +166,12 @@ function Texture(unit, { texture } = {}) {
 }
 
 function TitleText(text) {
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw]">');
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw] font-bold" style="-webkit-text-stroke: 0.1cqw white;">');
   text.element.textContent = 'とーほく ドロップ';
 }
 
 function TouchMessage(text) {
-  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[8cqw]">');
+  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[6cqw]">');
   text.element.textContent = 'touch start';
   let count = 0;
   text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
@@ -135,7 +196,7 @@ function Controller(unit) {
 }
 
 function ScoreText(text) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw]">');
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw] text-green-800">');
   text.element.textContent = 'score 0';
   let sum = 0;
   text.on('+scoreup', (score) => text.element.textContent = `score ${sum += score}`);
@@ -260,6 +321,9 @@ function Cursor(unit) {
 }
 
 function ModelBall(ball, { x, y, id = 0 }) {
+  const result = xnew.context('result');
+  result.counts[id] += 1;
+
   const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
   const radius = 35 + Math.pow(3.0, scale * 2.0);
   xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });
@@ -300,12 +364,6 @@ function GameOverText(text) {
     text.element.style.opacity = x;
     text.element.style.top = `${20 + x * 10}cqw`;
   }, 1000, 'ease');
-}
-
-function Retry(unit) {
-  xnew.nest('<div class="absolute right-[3cqw] bottom-[3cqw] text-[6cqw] pointer-events-auto">');
-  const button = xnew('<button class="border-[0.2cqw] border-gray-800 rounded-full px-[2cqw] pb-[1cqw] bg-sky-300 hover:bg-sky-500 cursor-pointer">', 'retry');
-  button.on('click', () => unit.emit('+retry'));
 }
 
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {

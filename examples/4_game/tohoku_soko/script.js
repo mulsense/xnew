@@ -21,7 +21,7 @@ function Main(screen) {
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -45 / 180 * Math.PI;
-  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 5, 30);
+  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 18);
 
   // pixi 
   xpixi.initialize({ canvas: screen.canvas });
@@ -47,7 +47,7 @@ function TitleScene(unit) {
 function GameScene(scene, { id }) {
   const global = xnew.context('global');
 
-  const state = { level: [] };
+  const state = { map: [] };
   xnew.context('state', state);
   xnew(DirectionalLight, { x: 2, y: -5, z: 10 });
   xnew(AmbientLight);
@@ -63,11 +63,11 @@ function GameScene(scene, { id }) {
   xnew(InfoPanel, { id });
   xnew(Controller);
   for (let y = 0; y < global.GRID; y++) {
-    state.level[y] = [];
+    state.map[y] = [];
     for (let x = 0; x < global.GRID; x++) {
       // # = 壁, . = 床, @ = プレイヤー, $ = 箱, * = ゴール
-      const token = global.levels[id][y][x];
-      state.level[y][x] = token === '#' ? '#' : '.';
+      const token = global.levels[id].map[y][x];
+      state.map[y][x] = token === '#' ? '#' : '.';
       
       if (token === '#') {
         xnew(Wall, { x, y });
@@ -105,7 +105,7 @@ function GameScene(scene, { id }) {
 }
 
 function DirectionalLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2.5));
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2.0));
   object.position.set(x, y, z);
   object.castShadow = true;
   object.shadow.camera.updateProjectionMatrix();
@@ -144,19 +144,36 @@ function StartMessage(text) {
 function StageSelect(unit) {
   const global = xnew.context('global');
 
-  const message = xnew('<div class="absolute top-[35cqw] w-full text-center text-[6cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
+  const message = xnew('<div class="absolute top-[40cqw] w-full text-center text-[6cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
   message.element.textContent = 'Select Stage';
   let count = 0;
   message.on('update', () => message.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 
-  // ステージボタンを表示
-  xnew('<div class="absolute top-[65cqw] left-[10cqw] right-[10cqw] grid grid-cols-5 gap-[2cqw]">', () => {
-    for (let i = 0; i < global.levels.length; i++) {
+  // 上段: ステージ1-4
+  xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
+    for (let i = 0; i < 4 && i < global.levels.length; i++) {
       const button = xnew(`<button class="
         border-[0.5cqw] border-green-200 rounded-lg
-        text-[6cqw] text-green-200 font-bold
+        text-[8cqw] text-green-200 font-bold
         hover:bg-green-400 pointer-events-auto cursor-pointer
-        aspect-square
+        aspect-square w-[14cqw]
+      ">`, `${i + 1}`);
+
+      button.on('click', () => {
+        xnew.find(TitleScene)[0].finalize();
+        xnew.find(Main)[0].append(GameScene, { id: i });
+      });
+    }
+  });
+
+  // 下段: ステージ5-7
+  xnew('<div class="absolute top-[75cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
+    for (let i = 4; i < global.levels.length; i++) {
+      const button = xnew(`<button class="
+        border-[0.5cqw] border-green-200 rounded-lg
+        text-[8cqw] text-green-200 font-bold
+        hover:bg-green-400 pointer-events-auto cursor-pointer
+        aspect-square w-[14cqw]
       ">`, `${i + 1}`);
 
       button.on('click', () => {
@@ -171,7 +188,6 @@ function Floor(unit) {
   const global = xnew.context('global');
   const object = xthree.nest(new THREE.Group());
 
-  // タイルを作成
   for (let y = 0; y < global.GRID; y++) {
     for (let x = 0; x < global.GRID; x++) {
       const geometry = new THREE.PlaneGeometry(1, 1);
@@ -272,6 +288,7 @@ function Goal(goal, { x, y }) {
 function Player(player, { id, x, y }) {
   const object = xthree.nest(new THREE.Object3D());
   xnew(Model, { id, scale: 0.7 });
+  object.rotation.x = -30 * Math.PI / 180;
 
   player.on('+playermove', ({ dx, dy }) => {
     if (canMove(x + dx, y + dy) === false) return;
@@ -301,13 +318,10 @@ function Player(player, { id, x, y }) {
       y += dy;
       if (dx > 0) {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2 - Math.PI / 4;
-        object.rotation.x = -Math.PI / 6;
       } else if (dx < 0) {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2 + Math.PI / 4;
-        object.rotation.x = -Math.PI / 6;
       } else {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2;
-        object.rotation.x = -Math.PI / 15;
       }
       xnew.transition((p) => {
         offset.x = (1 - p) * dx;
@@ -456,7 +470,7 @@ function InfoPanel(unit, { id }) {
 function Model(unit, { id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
 
-  const list = ['zundamon.vrm', 'kiritan.vrm', 'usagi.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
+  const list = ['zundamon.vrm', 'kiritan.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
   const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
@@ -522,7 +536,7 @@ function canMove(x, y) {
   const global = xnew.context('global');
   const state = xnew.context('state');
   if (x < 0 || x >= global.GRID || y < 0 || y >= global.GRID) return false;
-  if (state.level[y][x] === '#') return false;
+  if (state.map[y][x] === '#') return false;
   return true;
 }
 
