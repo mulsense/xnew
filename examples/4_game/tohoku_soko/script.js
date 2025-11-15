@@ -470,7 +470,7 @@ function InfoPanel(unit, { id }) {
 function Model(unit, { id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
 
-  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
+  const list = ['zundamon.vrm', 'kiritan.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
   const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;

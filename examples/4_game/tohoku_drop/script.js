@@ -45,7 +45,7 @@ function TitleScene(scene) {
   });
 
   xnew(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    class="absolute inset-0 w-full h-full pointer-events-none text-green-800 font-bold"
     style="container-type: size;">
   >`, () => {
     xnew(TitleText);
@@ -72,9 +72,9 @@ function GameScene(scene) {
   >`);
   xnew(ScoreText);
 
-  xnew.timeout(() => {
-    scene.emit('+gameover');
-  }, 1100);
+  // xnew.timeout(() => {
+  //   scene.emit('+gameover');
+  // }, 1100);
   scene.on('+gameover', () => {
     scene.off('+gameover');
     controller.finalize();
@@ -103,7 +103,7 @@ function ResultScene(scene, { imageData, result }) {
     style="container-type: size;">
   >`);
 
-  // 左上に画像を表示
+  // 左に画像を表示
   xnew('<div class="absolute top-0 bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-white/50">', () => {
     const img = xnew('<img class="w-full h-full object-cover">');
     img.element.src = imageData;
@@ -128,7 +128,7 @@ function ResultScene(scene, { imageData, result }) {
     xnew('<div class="w-full text-[5cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] text-center border-green-600">', `合計スコア: ${totalScore}`);
   });
 
-  xnew('<div class="absolute left-0 text-center w-1/2 bottom-[6cqw] text-[5cqw] pointer-events-auto">', () => {
+  xnew('<div class="absolute left-0 text-center w-1/2 bottom-[5cqw] text-[5cqw] pointer-events-auto">', () => {
     const button = xnew('<button class="border-[0.2cqw] border-gray-800 rounded-full px-[2cqw] pb-[1cqw] hover:bg-sky-500 cursor-pointer">', 'retry');
     button.on('click', () => {
       scene.finalize();
@@ -166,12 +166,12 @@ function Texture(unit, { texture } = {}) {
 }
 
 function TitleText(text) {
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw]">');
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw] font-bold" style="-webkit-text-stroke: 0.1cqw white;">');
   text.element.textContent = 'とーほく ドロップ';
 }
 
 function TouchMessage(text) {
-  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[8cqw]">');
+  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[6cqw]">');
   text.element.textContent = 'touch start';
   let count = 0;
   text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
