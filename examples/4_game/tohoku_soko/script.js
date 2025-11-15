@@ -34,17 +34,17 @@ function Main(screen) {
 }
 
 function TitleScene(unit) {
+  xnew.nest(`<div
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    style="container-type: size;">
+  >`);
+
   xnew(Background);
   xnew(TitleText);
-  xnew(StartMessage);
-
-  xnew.listener(window).on('keydown pointerdown', () => {
-    unit.finalize();
-    xnew.find(Main)[0]?.append(GameScene, { id: 0 });
-  });
+  xnew(StageSelect);
 }
 
-function GameScene(unit, { id }) {
+function GameScene(scene, { id }) {
   const global = xnew.context('global');
 
   const state = { level: [] };
@@ -55,6 +55,11 @@ function GameScene(unit, { id }) {
   xnew(Floor);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 0, y: -60 } });
 
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    style="container-type: size;">
+  >`);
+
   xnew(InfoPanel, { id });
   xnew(Controller);
   for (let y = 0; y < global.GRID; y++) {
@@ -63,32 +68,32 @@ function GameScene(unit, { id }) {
       // # = 壁, . = 床, @ = プレイヤー, $ = 箱, * = ゴール
       const token = global.levels[id][y][x];
       state.level[y][x] = token === '#' ? '#' : '.';
-      const position = { x, y };
       
       if (token === '#') {
-        xnew(Wall, { position });
+        xnew(Wall, { x, y });
       } else if (token === '*') {
-        xnew(Goal, { position });
+        xnew(Goal, { x, y });
       } else if (token === '@') {
-        xnew(Player, { id, position });
+        xnew(Player, { id, x, y });
       } else if (token === '$') {
-        xnew(Box, { position });
+        xnew(Box, { x, y });
       }
     }
   }
-  unit.on('+restart', () => unit.reboot());
+  scene.on('+restart', () => scene.reboot());
 
-  unit.on('+moved', () => {
+  scene.on('+moved', () => {
     const boxes = xnew.find(Box);
     const goals = xnew.find(Goal);
-    const cleared = goals.every(goal => boxes.some(box => box.position.x === goal.position.x && box.position.y === goal.position.y));
+    const cleared = goals.every(g => boxes.some(b => b.x === g.x && b.y === g.y));
     if (cleared === false) return;
+    scene.off('+moved');
 
     xnew(GameClearText);
 
     xnew.timeout(() => {
       xnew.listener(window).on('keydown pointerdown', () => {
-        unit.finalize();
+        scene.finalize();
         if (id + 1 < global.levels.length) {
             xnew.find(Main)[0]?.append(GameScene, { id: id + 1 });
         } else {
@@ -97,13 +102,6 @@ function GameScene(unit, { id }) {
       });
     }, 1000);
   });
-}
-
-function HTMLLayer(unit) {
-  xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
-    style="container-type: size;">
-    >`);
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -132,17 +130,41 @@ function Background(unit) {
 }
 
 function TitleText(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'とーほく 倉庫';
 }
 
 function StartMessage(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute top-[40cqw] w-full text-center text-[8cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'Touch Start';
   let count = 0;
   text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+}
+
+function StageSelect(unit) {
+  const global = xnew.context('global');
+
+  const message = xnew('<div class="absolute top-[35cqw] w-full text-center text-[6cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
+  message.element.textContent = 'Select Stage';
+  let count = 0;
+  message.on('update', () => message.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+
+  // ステージボタンを表示
+  xnew('<div class="absolute top-[65cqw] left-[10cqw] right-[10cqw] grid grid-cols-5 gap-[2cqw]">', () => {
+    for (let i = 0; i < global.levels.length; i++) {
+      const button = xnew(`<button class="
+        border-[0.5cqw] border-green-200 rounded-lg
+        text-[6cqw] text-green-200 font-bold
+        hover:bg-green-400 pointer-events-auto cursor-pointer
+        aspect-square
+      ">`, `${i + 1}`);
+
+      button.on('click', () => {
+        xnew.find(TitleScene)[0].finalize();
+        xnew.find(Main)[0].append(GameScene, { id: i });
+      });
+    }
+  });
 }
 
 function Floor(unit) {
@@ -157,7 +179,7 @@ function Floor(unit) {
       const material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.7 });
       const tile = new THREE.Mesh(geometry, material);
 
-      const pos = pos3d(x, y, 0);
+      const pos = position3d(x, y, 0);
       tile.position.set(pos.x, pos.y, pos.z);
       tile.receiveShadow = true;
       object.add(tile);
@@ -190,7 +212,7 @@ function Floor(unit) {
   }
 }
 
-function Wall(unit, { position }) {
+function Wall(wall, { x, y }) {
   const height = 1;
   const object = xthree.nest(new THREE.Object3D());
 
@@ -213,48 +235,54 @@ function Wall(unit, { position }) {
     object.add(mesh);
   });
 
-  const pos = pos3d(position.x, position.y, height / 2);
-  object.position.set(pos.x, pos.y, pos.z);
+  const position = position3d(x, y, height / 2);
+  object.position.set(position.x, position.y, position.z);
 }
 
-function Goal(unit, { position }) {
-  const depth = 0.2;
-  const geometry = new THREE.CylinderGeometry(0.3, 0.3, depth, 32);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x6666ff,
-    emissive: 0x4444ff,
-    emissiveIntensity: 0.3
-  });
-  const object = xthree.nest(new THREE.Mesh(geometry, material));
-
-  const pos = pos3d(position.x, position.y, depth / 2);
-  object.position.set(pos.x, pos.y, pos.z);
-  object.rotation.x = Math.PI / 2;
-  object.receiveShadow = true;
-
+function Position(position, { x, y }) {
   return {
-    get position() {
-      return position;
-    }
+    set x(newX) { x = newX; },
+    set y(newY) { y = newY; },
+    get x() { return x; },
+    get y() { return y; },
   }
 }
 
-function Player(player, { id, position }) {
-  const object = xthree.nest(new THREE.Object3D());
+function Goal(goal, { x, y }) {
+  xnew.extend(Position, { x, y });
 
+  const depth = 0.2;
+  const geometry = new THREE.CylinderGeometry(0.3, 0.3, depth, 32);
+  const material = new THREE.MeshStandardMaterial({ color: 0x6666ff, emissive: 0x4444ff, emissiveIntensity: 0.3 });
+  const object = xthree.nest(new THREE.Mesh(geometry, material));
+
+  const position = position3d(goal.x, goal.y, depth / 2);
+  object.position.set(position.x, position.y, position.z);
+  object.rotation.x = Math.PI / 2;
+  object.receiveShadow = true;
+
+  let count = 0;
+  goal.on('update', () => {
+    const intensity = 0.3 + Math.sin(count * 0.1) * 0.5;
+    material.emissiveIntensity = Math.max(0, intensity);
+    count++;
+  });
+}
+
+function Player(player, { id, x, y }) {
+  const object = xthree.nest(new THREE.Object3D());
   xnew(Model, { id, scale: 0.7 });
-  object.rotation.x = -Math.PI / 15;
 
   player.on('+playermove', ({ dx, dy }) => {
-    if (canMove(position.x + dx, position.y + dy) === false) return;
+    if (canMove(x + dx, y + dy) === false) return;
 
     // 箱があったらそれを押せるかチェック
     const boxes = xnew.find(Box);
-    const boxIndex = boxes.findIndex(box => box.position.x === position.x + dx && box.position.y === position.y + dy);
+    const boxIndex = boxes.findIndex(box => box.x === x + dx && box.y === y + dy);
     if (boxIndex >= 0){
       const box = boxes[boxIndex];
-      if (canMove(box.position.x + dx, box.position.y + dy) === false) return;
-      if (boxes.some(b => b.position.x === box.position.x + dx && b.position.y === box.position.y + dy)) return;
+      if (canMove(box.x + dx, box.y + dy) === false) return;
+      if (boxes.some(b => b.x === box.x + dx && b.y === box.y + dy)) return;
       box.move(dx, dy);
     }
 
@@ -264,13 +292,13 @@ function Player(player, { id, position }) {
 
   const offset = { x: 0, y: 0 };
   player.on('update', () => {
-    const pos = pos3d(position.x - offset.x, position.y - offset.y + 0.3, 0);
-    object.position.set(pos.x, pos.y, pos.z);
+    const position = position3d(x - offset.x, y - offset.y + 0.3, 0);
+    object.position.set(position.x, position.y, position.z);
   });
   return {
     move(dx, dy) {
-      position.x += dx;
-      position.y += dy;
+      x += dx;
+      y += dy;
       if (dx > 0) {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2 - Math.PI / 4;
         object.rotation.x = -Math.PI / 6;
@@ -281,15 +309,15 @@ function Player(player, { id, position }) {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2;
         object.rotation.x = -Math.PI / 15;
       }
-      xnew.transition((x) => {
-        offset.x = (1 - x) * dx;
-        offset.y = (1 - x) * dy;
+      xnew.transition((p) => {
+        offset.x = (1 - p) * dx;
+        offset.y = (1 - p) * dy;
       }, 250, 'ease');
     }
   };
 }
 
-function Box(unit, { position }) {
+function Box(box, { x, y }) {
   const boxSize = 1;
   const object = xthree.nest(new THREE.Object3D());
   let material = null;
@@ -313,34 +341,29 @@ function Box(unit, { position }) {
 
   let rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
-  unit.on('update', () => {
-    const pos = pos3d(position.x - offset.x, position.y - offset.y, boxSize / 2);
-    object.position.set(pos.x + rondom.x, pos.y + rondom.y, pos.z);
+  box.on('update', () => {
+    const position = position3d(x - offset.x, y - offset.y, boxSize / 2);
+    object.position.set(position.x + rondom.x, position.y + rondom.y, position.z);
 
-    // ゴールに乗った時の色変更（materialがロード済みの場合のみ、PLYの色と乗算される）
-    if (material) {
-      const isOnGoal = xnew.find(Goal).some(g => g.position.x === position.x && g.position.y === position.y);
-      material.color.setHex(isOnGoal ? 0xFFFFFF : 0xCCCCCC);
-    }
+    const isOnGoal = xnew.find(Goal).some(g => g.x === x && g.y === y);
+    material.color.setHex(isOnGoal ? 0xFFFFFF : 0xCCCCCC);
   });
 
   return {
-    get position() {
-      return position;
-    },
+    get x() { return x; }, get y() { return y; },
     move(dx, dy) {
-      const next = { x: position.x + dx, y: position.y + dy };
+      const next = { x: x + dx, y: y + dy };
 
       const boxes = xnew.find(Box);
       if (canMove(next.x, next.y) === false) return false;
-      if (boxes.some(box => box.position.x === next.x && box.position.y === next.y)) return false;
+      if (boxes.some(b => b.x === next.x && b.y === next.y)) return false;
 
-      position.x = position.x + dx;
-      position.y = position.y + dy;
+      x += dx;
+      y += dy;
       rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
-      xnew.transition((x) => {
-        offset.x = (1 - x) * dx;
-        offset.y = (1 - x) * dy;
+      xnew.transition((p) => {
+        offset.x = (1 - p) * dx;
+        offset.y = (1 - p) * dy;
       }, 250, 'ease');
       return true;
     }
@@ -364,7 +387,6 @@ function Controller(unit) {
     }
     move({ x: dx, y: dy });
   });
-  xnew.extend(HTMLLayer);
 
   xnew('<div class="absolute left-0 bottom-0 w-[28%] h-[28%]">', () => {
     xnew.nest('<div class="absolute inset-[1cqw]">');
@@ -386,7 +408,6 @@ function Controller(unit) {
 }
 
 function GameClearText(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[14cqw] font-bold text-yellow-300" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'Stage Clear!';
   xnew.transition((x) => {
@@ -395,14 +416,25 @@ function GameClearText(text) {
   }, 1000, 'ease');
 }
 
+function Button(button, { text }) {
+  xnew.nest(`<button
+    class="border-[0.5cqw] border-green-200 rounded-full px-[4cqw] py-[1cqw] font-bold hover:bg-green-400 pointer-events-auto cursor-pointer"
+  >`);
+  button.element.textContent = text;
+}
+
 function InfoPanel(unit, { id }) {
-  xnew.extend(HTMLLayer);
 
   xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700 font-bold" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
-  xnew('<div class="absolute bottom-[3cqw] w-full text-[5cqw] text-center">', () => {
-    const button = xnew('<button class="border-[0.5cqw] border-green-200 rounded-full px-[4cqw] pt-[0cqw] pb-[1cqw] text-green-200 font-bold hover:bg-green-400 pointer-events-auto cursor-pointer">', 'Reset');
-    button.on('click', () => unit.emit('+restart'));
+  
+  xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {
+    xnew(Button, { text: 'Reset' }).on('click', () => unit.emit('+restart'));
+    xnew(Button, { text: 'Title' }).on('click', () => {
+      xnew.find(GameScene)[0].finalize();
+      xnew.find(Main)[0].append(TitleScene);
+    });
   });
+
   xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', (screen) => {
     xnew.extend(xnew.basics.Screen, { width: 300, height: 300 });
 
@@ -421,7 +453,7 @@ function InfoPanel(unit, { id }) {
 }
 
 
-function Model(unit, { x = 0, y = 0, id = 0, scale = 1.0 }) {
+function Model(unit, { id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
 
   const list = ['zundamon.vrm', 'kiritan.vrm', 'usagi.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
@@ -481,7 +513,7 @@ function Model(unit, { x = 0, y = 0, id = 0, scale = 1.0 }) {
 }
 
 // helpers
-function pos3d(gridX, gridY, z = 0) {
+function position3d(gridX, gridY, z = 0) {
   const global = xnew.context('global');
   return { x: (gridX + 0.5) - global.GRID / 2, y: -((gridY + 0.5) - global.GRID / 2), z: z };
 }

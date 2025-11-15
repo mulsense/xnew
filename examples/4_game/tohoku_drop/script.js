@@ -28,8 +28,6 @@ function Main(screen) {
 function TitleScene(scene) {
   xnew(Background);
   xnew(ShadowPlane);
-  xnew(TitleText);
-  xnew(TouchMessage);
   xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
   xnew(AmbientLight);
 
@@ -44,6 +42,14 @@ function TitleScene(scene) {
     scene.finalize();
     xnew.find(Main)[0]?.append(GameScene);
   });
+
+  xnew(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    style="container-type: size; -webkit-text-stroke: 0.15cqw white;">
+  >`, () => {
+    xnew(TitleText);
+    xnew(TouchMessage);
+  });
 }
 
 function GameScene(scene) {
@@ -52,12 +58,17 @@ function GameScene(scene) {
   xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
   xnew(AmbientLight);
-  xnew(ScoreText);
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   const controller = xnew(Controller);
+  
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    style="container-type: size; -webkit-text-stroke: 0.15cqw white;">
+  >`);
+  xnew(ScoreText);
 
   scene.on('+gameover', () => {
     scene.off('+gameover');
@@ -69,13 +80,6 @@ function GameScene(scene) {
     scene.finalize();
     xnew.find(Main)[0]?.append(TitleScene);
   });
-}
-
-function HTMLLayer(unit) {
-  xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
-    style="container-type: size; -webkit-text-stroke: 0.15cqw white;">
-    >`);
 }
 
 function Background(unit) {
@@ -101,13 +105,11 @@ function Texture(unit, { texture } = {}) {
 }
 
 function TitleText(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw]">');
   text.element.textContent = 'とーほく ドロップ';
 }
 
 function TouchMessage(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[8cqw]">');
   text.element.textContent = 'touch start';
   let count = 0;
@@ -133,7 +135,6 @@ function Controller(unit) {
 }
 
 function ScoreText(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw]">');
   text.element.textContent = 'score 0';
   let sum = 0;
@@ -293,7 +294,6 @@ function ModelBall(ball, { x, y, id = 0 }) {
 }
 
 function GameOverText(text) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
   text.element.textContent = 'Game Over';
   xnew.transition((x) => {
@@ -303,7 +303,6 @@ function GameOverText(text) {
 }
 
 function Retry(unit) {
-  xnew.extend(HTMLLayer);
   xnew.nest('<div class="absolute right-[3cqw] bottom-[3cqw] text-[6cqw] pointer-events-auto">');
   const button = xnew('<button class="border-[0.2cqw] border-gray-800 rounded-full px-[2cqw] pb-[1cqw] bg-sky-300 hover:bg-sky-500 cursor-pointer">', 'retry');
   button.on('click', () => unit.emit('+retry'));
