@@ -17,7 +17,7 @@ function Scene1(unit) {
 
   unit.on('pointerdown', () => {
     unit.finalize();
-    xnew.append(Main, Scene2);
+    xnew.find(Main)[0].append(Scene2);
   });
 }
 
@@ -27,7 +27,7 @@ function Scene2(unit) {
 
   unit.on('pointerdown', () => {
     unit.finalize();
-    xnew.append(Main, Scene1);
+    xnew.find(Main)[0].append(Scene1);
   });
 }
 

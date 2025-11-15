@@ -30,25 +30,8 @@ export const xnew = Object.assign(
     function(...args: any[]): Unit {
         if (Unit.root === undefined) {
             Unit.reset();
-        }
-        
-        let target;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        } else if (typeof args[0] === 'string') {
-            const str = args.shift(); // a selector for an existing html element
-            if (str.match(/<([^>]*)\/?>/)) {
-                target = str;
-            } else {
-                target = document.querySelector(str); 
-                if (target == null) {
-                    throw new Error(`'${str}' can not be found.`);
-                }
-            }
-        } else {
-            target = null;
-        }
-        return new Unit(Unit.current, target, ...args);
+        }        
+        return new Unit(Unit.current, ...args);
     } as CreateUnit,
     {
         /**
@@ -222,26 +205,6 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Appends new components to existing component(s) in the tree
-         * @param anchor - Component function or Unit instance to append to
-         * @param args - Arguments to pass to xnew for creating child components
-         * @throws Error if anchor parameter is invalid
-         * @example
-         * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
-         * xnew.append(unitInstance, AnotherComponent)
-         */
-        append(anchor: Unit, ...args: any[]): void {
-            if (typeof anchor === 'function') {
-                const units = Unit.find(anchor);
-                Unit.scope(Unit.snapshot(units[0]), xnew, ...args);
-            } else if (anchor instanceof Unit) {
-                Unit.scope(Unit.snapshot(anchor), xnew, ...args);
-            } else {
-                throw new Error('xnew.append(anchor: Function | Unit, xnew arguments): [anchor] is invalid.');
-            }
-        },
-
-        /**
          * Executes a callback once after a delay, managed by component lifecycle
          * @param callback - Function to execute after delay
          * @param delay - Delay in milliseconds
@@ -250,7 +213,7 @@ export const xnew = Object.assign(
          * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
          * // Cancel if needed: timer.clear()
          */
-        timeout(callback: Function, delay: number): any {
+        timeout(callback: Function, delay: number = 0): any {
             const snapshot = Unit.snapshot(Unit.current);
             const unit = xnew((self: Unit) => {
                 const timer = new Timer(() => {
@@ -327,18 +290,18 @@ export const xnew = Object.assign(
                 const timer = new Timer(() => {
                     Unit.scope(snapshot, callback, 1.0);
                     self.finalize();
-                }, (progress: number) => {
-                    if (progress < 1.0) {
+                }, (x: number) => {
+                    if (x < 1.0) {
                         if (easing === 'ease-out') {
-                            progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
+                            x = Math.pow((1.0 - Math.pow((1.0 - x), 2.0)), 0.5);
                         } else if (easing === 'ease-in') {
-                            progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
+                            x = Math.pow((1.0 - Math.pow((1.0 - x), 0.5)), 2.0);
                         } else if (easing === 'ease') {
-                            progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                            x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
                         } else if (easing === 'ease-in-out') {
-                            progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                            x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
                         }
-                        Unit.scope(snapshot, callback, progress);
+                        Unit.scope(snapshot, callback, x);
                     }
                 }, interval);
                 self.on('finalize', () => {

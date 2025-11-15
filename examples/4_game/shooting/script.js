@@ -39,7 +39,7 @@ function TitleScene(unit) {
   xnew(TitleText);
   xnew.listener(window).on('keydown pointerdown', () => {
     unit.finalize();
-    xnew.append(Main, GameScene);
+    xnew.find(Main)[0]?.append(GameScene);
   });
 }
 
@@ -61,7 +61,7 @@ function GameScene(unit) {
     xnew.timeout(() => {
       xnew.listener(window).on('keydown pointerdown', () => {
         unit.finalize();
-        xnew.append(Main, TitleScene);
+        xnew.find(Main)[0]?.append(TitleScene);
       });
     }, 1000);
   });
@@ -119,7 +119,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.append(GameScene, Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.find(GameScene)[0]?.append(Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('update', () => {
@@ -199,9 +199,9 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.append(GameScene, Crash, { x: object.x, y: object.y, score });
+        xnew.find(GameScene)[0]?.append(Crash, { x: object.x, y: object.y, score });
       }
-      xnew.append(GameScene, CrashText, { x: object.x, y: object.y, score });
+      xnew.find(GameScene)[0]?.append(CrashText, { x: object.x, y: object.y, score });
       unit.emit('+scoreup', score);
       unit.finalize();
     },

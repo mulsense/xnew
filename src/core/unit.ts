@@ -62,7 +62,23 @@ export class Unit {
     [key: string]: any;
     public _: UnitInternal;
 
-    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object) {
+    constructor(parent: Unit | null, ...args: any[]) {
+        let target: Object | string | null;
+        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+            target = args.shift(); // an existing html element
+        } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
+            target = args.shift();
+        } else if (typeof args[0] === 'string') {
+            const query = args.shift();
+            target = document.querySelector(query);
+            if (target === null) throw new Error(`'${query}' can not be found.`);
+        } else {
+            target = null;
+        }
+
+        const component: Function | string | undefined = args.shift();
+        const props: Object | undefined = args.shift();
+
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -120,6 +136,10 @@ export class Unit {
         Unit.initialize(this, anchor);
     }
 
+    append(...args: any[]): void {
+        new Unit(this, ...args)
+    }
+
     static initialize(unit: Unit, anchor: UnitElement | null): void {
         const backup = Unit.current;
         Unit.current = unit;
@@ -167,7 +187,7 @@ export class Unit {
 
             unit.off();
             Unit.suboff(unit, null);
-            unit._.components.forEach((component) => Unit.componentUnits.delete(component, unit));
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
 
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
@@ -206,7 +226,7 @@ export class Unit {
 
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
         unit._.components.push(component);
-        Unit.componentUnits.add(component, unit);
+        Unit.component2units.add(component, unit);
 
         const defines = component(unit, props) ?? {};
         Object.keys(defines).forEach((key) => {
@@ -216,12 +236,9 @@ export class Unit {
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
             const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
 
-            if (descriptor?.get) {
-                wrapper.get = Unit.wrap(unit, descriptor.get);
-            }
-            if (descriptor?.set) {
-                wrapper.set = Unit.wrap(unit, descriptor.set);
-            }
+            if (descriptor?.get) wrapper.get = Unit.wrap(unit, descriptor.get);
+            if (descriptor?.set) wrapper.set = Unit.wrap(unit, descriptor.set);
+
             if (typeof descriptor?.value === 'function') {
                 wrapper.value = Unit.wrap(unit, descriptor.value);
             } else if (descriptor?.value !== undefined) {
@@ -310,17 +327,17 @@ export class Unit {
         }
     }
 
-    static componentUnits: MapSet<Function, Unit> = new MapSet();
+    static component2units: MapSet<Function, Unit> = new MapSet();
 
     static find(component: Function): Unit[] {
-        return [...(Unit.componentUnits.get(component) ?? [])];
+        return [...(Unit.component2units.get(component) ?? [])];
     }
 
     //----------------------------------------------------------------------------------------------------
     // event
     //----------------------------------------------------------------------------------------------------
     
-    static typeUnits = new MapSet<string, Unit>();
+    static type2units = new MapSet<string, Unit>();
   
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (this._.state === 'finalized') return;
@@ -331,7 +348,7 @@ export class Unit {
             if (this._.listeners1.has(type, listener) === false) {
                 const execute = Unit.wrap(Unit.current, listener);
                 this._.listeners1.set(type, listener, [this.element, execute]);
-                Unit.typeUnits.add(type, this);
+                Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
                     this.element.addEventListener(type, execute, options);
                 }
@@ -356,7 +373,7 @@ export class Unit {
                 }
             });
             if (this._.listeners1.has(type) === false) {
-                Unit.typeUnits.delete(type, this);
+                Unit.type2units.delete(type, this);
             }
         });
     }
@@ -364,7 +381,7 @@ export class Unit {
     emit(type: string, ...args: any[]) {
         if (this._.state === 'finalized') return;
         if (type[0] === '+') {
-            Unit.typeUnits.get(type)?.forEach((unit) => {
+            Unit.type2units.get(type)?.forEach((unit) => {
                 unit._.listeners1.get(type)?.forEach(([_, execute]) => execute(...args));
             });
         } else if (type[0] === '-') {

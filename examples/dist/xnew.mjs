@@ -214,8 +214,26 @@ class UnitPromise {
 // unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
-    constructor(parent, target, component, props) {
+    constructor(parent, ...args) {
         var _a;
+        let target;
+        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+            target = args.shift(); // an existing html element
+        }
+        else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
+            target = args.shift();
+        }
+        else if (typeof args[0] === 'string') {
+            const query = args.shift();
+            target = document.querySelector(query);
+            if (target === null)
+                throw new Error(`'${query}' can not be found.`);
+        }
+        else {
+            target = null;
+        }
+        const component = args.shift();
+        const props = args.shift();
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -268,6 +286,9 @@ class Unit {
         Unit.finalize(this);
         Unit.initialize(this, anchor);
     }
+    append(...args) {
+        new Unit(this, ...args);
+    }
     static initialize(unit, anchor) {
         const backup = Unit.current;
         Unit.current = unit;
@@ -309,7 +330,7 @@ class Unit {
             unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             unit.off();
             Unit.suboff(unit, null);
-            unit._.components.forEach((component) => Unit.componentUnits.delete(component, unit));
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
                 unit._.currentElement = unit._.baseElement;
@@ -347,7 +368,7 @@ class Unit {
     static extend(unit, component, props) {
         var _a;
         unit._.components.push(component);
-        Unit.componentUnits.add(component, unit);
+        Unit.component2units.add(component, unit);
         const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
         Object.keys(defines).forEach((key) => {
             if (unit[key] !== undefined && unit._.defines[key] === undefined) {
@@ -355,12 +376,10 @@ class Unit {
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
             const wrapper = { configurable: true, enumerable: true };
-            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) {
+            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
                 wrapper.get = Unit.wrap(unit, descriptor.get);
-            }
-            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set) {
+            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
                 wrapper.set = Unit.wrap(unit, descriptor.set);
-            }
             if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
                 wrapper.value = Unit.wrap(unit, descriptor.value);
             }
@@ -446,7 +465,7 @@ class Unit {
     }
     static find(component) {
         var _a;
-        return [...((_a = Unit.componentUnits.get(component)) !== null && _a !== void 0 ? _a : [])];
+        return [...((_a = Unit.component2units.get(component)) !== null && _a !== void 0 ? _a : [])];
     }
     on(type, listener, options) {
         if (this._.state === 'finalized')
@@ -458,7 +477,7 @@ class Unit {
             if (this._.listeners1.has(type, listener) === false) {
                 const execute = Unit.wrap(Unit.current, listener);
                 this._.listeners1.set(type, listener, [this.element, execute]);
-                Unit.typeUnits.add(type, this);
+                Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
                     this.element.addEventListener(type, execute, options);
                 }
@@ -482,7 +501,7 @@ class Unit {
                 }
             });
             if (this._.listeners1.has(type) === false) {
-                Unit.typeUnits.delete(type, this);
+                Unit.type2units.delete(type, this);
             }
         });
     }
@@ -491,7 +510,7 @@ class Unit {
         if (this._.state === 'finalized')
             return;
         if (type[0] === '+') {
-            (_a = Unit.typeUnits.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+            (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
                 (_a = unit._.listeners1.get(type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
             });
@@ -525,36 +544,17 @@ class Unit {
         });
     }
 }
-Unit.componentUnits = new MapSet();
+Unit.component2units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
 //----------------------------------------------------------------------------------------------------
-Unit.typeUnits = new MapSet();
+Unit.type2units = new MapSet();
 
 const xnew$1 = Object.assign(function (...args) {
     if (Unit.root === undefined) {
         Unit.reset();
     }
-    let target;
-    if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-        target = args.shift(); // an existing html element
-    }
-    else if (typeof args[0] === 'string') {
-        const str = args.shift(); // a selector for an existing html element
-        if (str.match(/<([^>]*)\/?>/)) {
-            target = str;
-        }
-        else {
-            target = document.querySelector(str);
-            if (target == null) {
-                throw new Error(`'${str}' can not be found.`);
-            }
-        }
-    }
-    else {
-        target = null;
-    }
-    return new Unit(Unit.current, target, ...args);
+    return new Unit(Unit.current, ...args);
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
@@ -728,27 +728,6 @@ const xnew$1 = Object.assign(function (...args) {
         }
     },
     /**
-     * Appends new components to existing component(s) in the tree
-     * @param anchor - Component function or Unit instance to append to
-     * @param args - Arguments to pass to xnew for creating child components
-     * @throws Error if anchor parameter is invalid
-     * @example
-     * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
-     * xnew.append(unitInstance, AnotherComponent)
-     */
-    append(anchor, ...args) {
-        if (typeof anchor === 'function') {
-            const units = Unit.find(anchor);
-            Unit.scope(Unit.snapshot(units[0]), xnew$1, ...args);
-        }
-        else if (anchor instanceof Unit) {
-            Unit.scope(Unit.snapshot(anchor), xnew$1, ...args);
-        }
-        else {
-            throw new Error('xnew.append(anchor: Function | Unit, xnew arguments): [anchor] is invalid.');
-        }
-    },
-    /**
      * Executes a callback once after a delay, managed by component lifecycle
      * @param callback - Function to execute after delay
      * @param delay - Delay in milliseconds
@@ -757,7 +736,7 @@ const xnew$1 = Object.assign(function (...args) {
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(callback, delay) {
+    timeout(callback, delay = 0) {
         const snapshot = Unit.snapshot(Unit.current);
         const unit = xnew$1((self) => {
             const timer = new Timer(() => {
@@ -826,21 +805,21 @@ const xnew$1 = Object.assign(function (...args) {
             const timer = new Timer(() => {
                 Unit.scope(snapshot, callback, 1.0);
                 self.finalize();
-            }, (progress) => {
-                if (progress < 1.0) {
+            }, (x) => {
+                if (x < 1.0) {
                     if (easing === 'ease-out') {
-                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 2.0)), 0.5);
+                        x = Math.pow((1.0 - Math.pow((1.0 - x), 2.0)), 0.5);
                     }
                     else if (easing === 'ease-in') {
-                        progress = Math.pow((1.0 - Math.pow((1.0 - progress), 0.5)), 2.0);
+                        x = Math.pow((1.0 - Math.pow((1.0 - x), 0.5)), 2.0);
                     }
                     else if (easing === 'ease') {
-                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                        x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
                     }
                     else if (easing === 'ease-in-out') {
-                        progress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+                        x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
                     }
-                    Unit.scope(snapshot, callback, progress);
+                    Unit.scope(snapshot, callback, x);
                 }
             }, interval);
             self.on('finalize', () => {
@@ -1467,29 +1446,41 @@ const context = new AudioContext();
 const master = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
-
-function load(path) {
-    return new AudioFile(path);
+window.addEventListener('touchstart', initialize, true);
+window.addEventListener('mousedown', initialize, true);
+function initialize() {
+    new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
+    window.removeEventListener('touchstart', initialize, true);
+    window.removeEventListener('mousedown', initialize, true);
 }
-const store = new Map();
+const audio = {
+    load(path) {
+        return new AudioFile(path);
+    },
+    synthesizer(props) {
+        return new Synthesizer(props);
+    },
+    get volume() {
+        return master.gain.value;
+    },
+    set volume(value) {
+        master.gain.value = value;
+    }
+};
+//----------------------------------------------------------------------------------------------------
+// audio file
+//----------------------------------------------------------------------------------------------------
 class AudioFile {
     constructor(path) {
-        if (store.has(path)) {
-            this.buffer = store.get(path);
-            this.promise = Promise.resolve();
-        }
-        else {
-            this.promise = fetch(path)
-                .then((response) => response.arrayBuffer())
-                .then((response) => context.decodeAudioData(response))
-                .then((response) => {
-                this.buffer = response;
-            })
-                .catch(() => {
-                console.warn(`"${path}" could not be loaded.`);
-            });
-            store.set(path, this.buffer);
-        }
+        this.promise = fetch(path)
+            .then((response) => response.arrayBuffer())
+            .then((response) => context.decodeAudioData(response))
+            .then((response) => {
+            this.buffer = response;
+        })
+            .catch(() => {
+            console.warn(`"${path}" could not be loaded.`);
+        });
         this.start = null;
     }
     // set volume(value: number) {
@@ -1528,17 +1519,6 @@ class AudioFile {
         }
     }
 }
-
-function synthesizer(props) {
-    return new Synthesizer(props);
-}
-window.addEventListener('touchstart', initialize, true);
-window.addEventListener('mousedown', initialize, true);
-function initialize() {
-    new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
-    window.removeEventListener('touchstart', initialize, true);
-    window.removeEventListener('mousedown', initialize, true);
-}
 const keymap = {
     'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
     'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735,
@@ -1554,23 +1534,21 @@ const notemap = {
     '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
 };
 class Synthesizer {
-    constructor(props) {
-        this.props = props;
-    }
+    constructor(props) { this.props = props; }
     press(frequency, duration, wait) {
         var _a;
         const props = this.props;
-        const freq = typeof frequency === 'string' ? keymap[frequency] : frequency;
-        const dura = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
+        const fv = typeof frequency === 'string' ? keymap[frequency] : frequency;
+        const dv = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
         const start = context.currentTime + (wait !== null && wait !== void 0 ? wait : 0) / 1000;
         const nodes = {};
         nodes.oscillator = context.createOscillator();
         nodes.oscillator.type = props.oscillator.type;
-        nodes.oscillator.frequency.value = freq;
+        nodes.oscillator.frequency.value = fv;
         if (props.oscillator.LFO) {
             nodes.oscillatorLFO = context.createOscillator();
             nodes.oscillatorLFODepth = context.createGain();
-            nodes.oscillatorLFODepth.gain.value = freq * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
+            nodes.oscillatorLFODepth.gain.value = fv * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
             nodes.oscillatorLFO.type = props.oscillator.LFO.type;
             nodes.oscillatorLFO.frequency.value = props.oscillator.LFO.rate;
             nodes.oscillatorLFO.start(start);
@@ -1583,7 +1561,7 @@ class Synthesizer {
         nodes.target.gain.value = 1.0;
         nodes.amp.connect(nodes.target);
         nodes.target.connect(master);
-        if (props.filter && props.filter.type && props.filter.cutoff) {
+        if (props.filter) {
             nodes.filter = context.createBiquadFilter();
             nodes.filter.type = props.filter.type;
             nodes.filter.frequency.value = props.filter.cutoff;
@@ -1605,22 +1583,22 @@ class Synthesizer {
             nodes.convolverDepth.connect(master);
         }
         if (props.oscillator.envelope) {
-            const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-            startEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+            const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+            startEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
         }
         if (props.amp.envelope) {
             startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
         }
-        let stop = null;
         nodes.oscillator.start(start);
-        if (dura > 0) {
+        if (dv > 0) {
             release();
         }
         else {
             return { release };
         }
         function release() {
-            const end = dura > 0 ? dura : (context.currentTime - start);
+            let stop = null;
+            const end = dv > 0 ? dv : (context.currentTime - start);
             if (props.amp.envelope) {
                 const ADSR = props.amp.envelope.ADSR;
                 const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
@@ -1634,8 +1612,8 @@ class Synthesizer {
                 nodes.oscillatorLFO.stop(stop);
             }
             if (props.oscillator.envelope) {
-                const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+                const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+                stopEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
             }
             if (props.amp.envelope) {
                 stopEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
@@ -1654,15 +1632,15 @@ class Synthesizer {
             }, 2000);
         }
         function stopEnvelope(param, base, amount, ADSR) {
-            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dura / (ADSR[0] / 1000), 1.0);
+            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dv / (ADSR[0] / 1000), 1.0);
             if (rate < 1.0) {
                 param.cancelScheduledValues(start);
                 param.setValueAtTime(base, start);
                 param.linearRampToValueAtTime(base + amount * rate, start + ADSR[0] / 1000 * rate);
                 param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
             }
-            param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura));
-            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura) + ADSR[3] / 1000);
+            param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv));
+            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv) + ADSR[3] / 1000);
         }
         function startEnvelope(param, base, amount, ADSR) {
             param.value = base;
@@ -1703,12 +1681,6 @@ const basics = {
     DragTarget,
     AnalogStick,
     DirectionalPad,
-};
-const audio = {
-    master,
-    context,
-    synthesizer,
-    load
 };
 const xnew = Object.assign(xnew$1, {
     basics,

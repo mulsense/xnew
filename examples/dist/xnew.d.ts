@@ -69,13 +69,14 @@ declare class UnitPromise {
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
-    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object);
+    constructor(parent: Unit | null, ...args: any[]);
     get element(): UnitElement;
     get components(): Function[];
     start(): void;
     stop(): void;
     finalize(): void;
     reboot(): void;
+    append(...args: any[]): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
@@ -93,9 +94,9 @@ declare class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static context(unit: Unit, key: string, value?: any): any;
-    static componentUnits: MapSet<Function, Unit>;
+    static component2units: MapSet<Function, Unit>;
     static find(component: Function): Unit[];
-    static typeUnits: MapSet<string, Unit>;
+    static type2units: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
     emit(type: string, ...args: any[]): void;
@@ -224,16 +225,6 @@ declare const xnew$1: CreateUnit & {
      */
     find(component: Function): Unit[];
     /**
-     * Appends new components to existing component(s) in the tree
-     * @param anchor - Component function or Unit instance to append to
-     * @param args - Arguments to pass to xnew for creating child components
-     * @throws Error if anchor parameter is invalid
-     * @example
-     * xnew.append(MyContainer, ChildComponent, { prop: 'value' })
-     * xnew.append(unitInstance, AnotherComponent)
-     */
-    append(anchor: Unit, ...args: any[]): void;
-    /**
      * Executes a callback once after a delay, managed by component lifecycle
      * @param callback - Function to execute after delay
      * @param delay - Delay in milliseconds
@@ -242,7 +233,7 @@ declare const xnew$1: CreateUnit & {
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(callback: Function, delay: number): any;
+    timeout(callback: Function, delay?: number): any;
     /**
      * Executes a callback repeatedly at specified intervals, managed by component lifecycle
      * @param callback - Function to execute at each interval
@@ -395,7 +386,11 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
     strokeLinejoin?: string;
 }): void;
 
-declare function load(path: string): AudioFile;
+declare const audio: {
+    load(path: string): AudioFile;
+    synthesizer(props: SynthProps): Synthesizer;
+    volume: number;
+};
 declare class AudioFile {
     buffer?: AudioBuffer;
     promise: Promise<void>;
@@ -406,8 +401,6 @@ declare class AudioFile {
     play(offset?: number, loop?: boolean): void;
     pause(): number | undefined;
 }
-
-declare function synthesizer(props: SynthProps): Synthesizer;
 type SynthProps = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
@@ -467,12 +460,6 @@ declare const basics: {
     DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;
     DirectionalPad: typeof DirectionalPad;
-};
-declare const audio: {
-    master: GainNode;
-    context: AudioContext;
-    synthesizer: typeof synthesizer;
-    load: typeof load;
 };
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
