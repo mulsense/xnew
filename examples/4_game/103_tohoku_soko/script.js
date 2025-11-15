@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
@@ -157,16 +158,37 @@ function Floor(unit) {
 }
 
 function Wall(unit, { position }) {
-  const height = 0.5;
-  const geometry = new THREE.BoxGeometry(1.0 - 0.1, 1.0 - 0.1, height);
-  const material = new THREE.MeshStandardMaterial({ color: 0x666666 });
-  const object = xthree.nest(new THREE.Mesh(geometry, material));
+  const height = 1;
+  const object = xthree.nest(new THREE.Object3D());
 
-  const rondom = { x: Math.random() * 0.05 - 0.05, y: Math.random() * 0.1 - 0.05 };
+  // PLYモデルをロード
+  xnew.promise(new Promise((resolve) => {
+    const loader = new PLYLoader();
+    loader.load('../assets/soko_block_fixed.ply', (geometry) => resolve(geometry));
+  })).then((geometry) => {
+    geometry.computeVertexNormals();
+
+    // PLYファイルに色情報がある場合はvertexColorsを有効にする
+    const material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      color: 0xffffff  // vertexColorsと乗算されるベース色
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // モデルのスケールと回転を調整（Boxと同じ設定）
+    const scale = 0.6;
+    mesh.rotation.x = 90 * Math.PI / 180;
+    mesh.position.z = height;
+    mesh.scale.set(scale, scale, scale);
+
+    object.add(mesh);
+  });
+
   const pos = pos3d(position.x, position.y, height / 2);
-  object.position.set(pos.x + rondom.x, pos.y + rondom.y, pos.z);
-  object.castShadow = true;
-  object.receiveShadow = true;
+  object.position.set(pos.x, pos.y, pos.z);
 }
 
 function Goal(unit, { position }) {
@@ -243,11 +265,25 @@ function Player(unit, { id, position }) {
 
 function Box(unit, { position }) {
   const boxSize = 1;
-  const geometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
-  const material = new THREE.MeshStandardMaterial({ color: 0xaa5500 });
-  const object = xthree.nest(new THREE.Mesh(geometry, material));
-  object.castShadow = true;
-  object.receiveShadow = true;
+  const object = xthree.nest(new THREE.Object3D());
+  let material = null;
+  xnew.promise(new Promise((resolve) => {
+    const loader = new PLYLoader();
+    loader.load('../assets/soko_block.ply', (geometry) => resolve(geometry));
+  })).then((geometry) => {
+    geometry.computeVertexNormals();
+    material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    const scale = 0.6;
+    mesh.rotation.x = 90 * Math.PI / 180;
+    mesh.rotation.y = 90 * Math.PI / 180;
+    mesh.position.z = boxSize;
+    mesh.scale.set(scale, scale, scale);
+    object.add(mesh);
+  });
 
   const rondom = { x: Math.random() * 0.05 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
@@ -255,8 +291,11 @@ function Box(unit, { position }) {
     const pos = pos3d(position.x - offset.x, position.y - offset.y, boxSize / 2);
     object.position.set(pos.x + rondom.x, pos.y + rondom.y, pos.z);
 
-    const isOnGoal = xnew.find(Goal).some(g => g.position.x === position.x && g.position.y === position.y);
-    material.color.setHex(isOnGoal ? 0xffaa00 : 0xaa5500);
+    // ゴールに乗った時の色変更（materialがロード済みの場合のみ、PLYの色と乗算される）
+    if (material) {
+      const isOnGoal = xnew.find(Goal).some(g => g.position.x === position.x && g.position.y === position.y);
+      material.color.setHex(isOnGoal ? 0xffaa00 : 0xffffff);
+    }
   });
 
   return {
