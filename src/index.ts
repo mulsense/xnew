@@ -14,9 +14,7 @@ import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } fr
 import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 
-import { master, context, config } from './audio/audio';
-import { load } from './audio/file';
-import { synthesizer } from './audio/synthesizer';
+import { audio } from './audio/audio';
 
 const basics = {
     Screen,
@@ -37,14 +35,6 @@ const basics = {
     DragTarget,
     AnalogStick,
     DirectionalPad,
-};
-
-const audio = {
-    ...config,
-    master,
-    context,
-    synthesizer,
-    load
 };
 
 namespace xnew {

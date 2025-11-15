@@ -48,8 +48,11 @@
 
       // Update volume on slider change
       slider.on('input', (e) => {
+        console.log('input')
         const value = e.target.value;
-        xnew.audio.volume = value / 100; // Convert to 0-1 range
+        console.log(xnew.audio);
+        // xnew.audio.master.gain.value = value / 100; // Convert to 0-1 range
+        xnew.audio.config.volume = value / 100; // Convert to 0-1 range
         valueDisplay.element.textContent = value + '%';
       });
     }

@@ -98,6 +98,10 @@ function GameScene(unit, { id }) {
   });
 }
 
+function HTMLLayer(unit) {
+  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800" style="container-type: size;">');
+}
+
 function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.5));
   object.position.set(x, y, z);
@@ -322,18 +326,13 @@ function GameClearText(unit) {
 }
 
 function InfoPanel(unit, { id }) {
-  const panel = xpixi.nest(new PIXI.Container());
-  panel.position.set(0, 560);
+  xnew.extend(HTMLLayer);
 
-  // const levelText = new PIXI.Text(`Level: ${id + 1}`, { fontSize: 36, fill: 0xFFFFFF, fontFamily: 'Arial' });
-  // levelText.position.set(350, 10);
-  // levelText.anchor.set(0.5);
-  // panel.addChild(levelText);
-  xnew('<div class="absolute bottom-0 left-0 right-0 w-full h-[22%]" style="container-type: size;">', () => {
-    const div = xnew.nest('<div class="relative w-full h-full text-[6cqw]" style="font-family: Arial;">');
-    xnew('<div class="relative w-full text-center text-gray-200">', `Level: ${id + 1}`);
+  xnew('<div class="absolute bottom-0 left-0 right-0 w-full h-[22%] text-[5cqw]">', () => {
+    const div = xnew.nest('<div class="relative w-full h-full text-[6cqw] " style="font-family: Arial;">');
+    xnew('<div class="relative w-full text-center text-gray-700">', `Level: ${id + 1}`);
     xnew('<div class="relative w-full text-center">', () => {
-      xnew('<button class="text-gray-200 border border-gray-200 text-[5cqw] rounded-full px-[4cqw] py-[1cqw] hover:bg-gray-500">', 'reset');
+      xnew('<button class="border border-gray-700 rounded-full px-[4cqw] hover:bg-green-400 pointer-events-auto">', 'reset');
     });
   });
   xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', () => {

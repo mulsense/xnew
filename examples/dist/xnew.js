@@ -1473,37 +1473,44 @@
     const master = context.createGain();
     master.gain.value = 1.0;
     master.connect(context.destination);
-    const config = {
-        get volume() {
-            return master.gain.value;
+    window.addEventListener('touchstart', initialize, true);
+    window.addEventListener('mousedown', initialize, true);
+    function initialize() {
+        new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
+        window.removeEventListener('touchstart', initialize, true);
+        window.removeEventListener('mousedown', initialize, true);
+    }
+    const audio = {
+        load(path) {
+            return new AudioFile(path);
         },
-        set volume(value) {
-            master.gain.value = value;
+        create(props) {
+            return new Synthesizer(props);
+        },
+        config: {
+            get volume() {
+                return master.gain.value;
+            },
+            set volume(value) {
+                master.gain.value = value;
+                console.log('volume', master.gain.value);
+            }
         }
     };
-
-    function load(path) {
-        return new AudioFile(path);
-    }
-    const store = new Map();
+    //----------------------------------------------------------------------------------------------------
+    // audio file
+    //----------------------------------------------------------------------------------------------------
     class AudioFile {
         constructor(path) {
-            if (store.has(path)) {
-                this.buffer = store.get(path);
-                this.promise = Promise.resolve();
-            }
-            else {
-                this.promise = fetch(path)
-                    .then((response) => response.arrayBuffer())
-                    .then((response) => context.decodeAudioData(response))
-                    .then((response) => {
-                    this.buffer = response;
-                })
-                    .catch(() => {
-                    console.warn(`"${path}" could not be loaded.`);
-                });
-                store.set(path, this.buffer);
-            }
+            this.promise = fetch(path)
+                .then((response) => response.arrayBuffer())
+                .then((response) => context.decodeAudioData(response))
+                .then((response) => {
+                this.buffer = response;
+            })
+                .catch(() => {
+                console.warn(`"${path}" could not be loaded.`);
+            });
             this.start = null;
         }
         // set volume(value: number) {
@@ -1542,17 +1549,6 @@
             }
         }
     }
-
-    function synthesizer(props) {
-        return new Synthesizer(props);
-    }
-    window.addEventListener('touchstart', initialize, true);
-    window.addEventListener('mousedown', initialize, true);
-    function initialize() {
-        new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
-        window.removeEventListener('touchstart', initialize, true);
-        window.removeEventListener('mousedown', initialize, true);
-    }
     const keymap = {
         'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
         'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735,
@@ -1568,23 +1564,21 @@
         '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
     };
     class Synthesizer {
-        constructor(props) {
-            this.props = props;
-        }
+        constructor(props) { this.props = props; }
         press(frequency, duration, wait) {
             var _a;
             const props = this.props;
-            const freq = typeof frequency === 'string' ? keymap[frequency] : frequency;
-            const dura = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
+            const fv = typeof frequency === 'string' ? keymap[frequency] : frequency;
+            const dv = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
             const start = context.currentTime + (wait !== null && wait !== void 0 ? wait : 0) / 1000;
             const nodes = {};
             nodes.oscillator = context.createOscillator();
             nodes.oscillator.type = props.oscillator.type;
-            nodes.oscillator.frequency.value = freq;
+            nodes.oscillator.frequency.value = fv;
             if (props.oscillator.LFO) {
                 nodes.oscillatorLFO = context.createOscillator();
                 nodes.oscillatorLFODepth = context.createGain();
-                nodes.oscillatorLFODepth.gain.value = freq * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
+                nodes.oscillatorLFODepth.gain.value = fv * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
                 nodes.oscillatorLFO.type = props.oscillator.LFO.type;
                 nodes.oscillatorLFO.frequency.value = props.oscillator.LFO.rate;
                 nodes.oscillatorLFO.start(start);
@@ -1619,22 +1613,22 @@
                 nodes.convolverDepth.connect(master);
             }
             if (props.oscillator.envelope) {
-                const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-                startEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+                const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+                startEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
             }
             if (props.amp.envelope) {
                 startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
             }
             let stop = null;
             nodes.oscillator.start(start);
-            if (dura > 0) {
+            if (dv > 0) {
                 release();
             }
             else {
                 return { release };
             }
             function release() {
-                const end = dura > 0 ? dura : (context.currentTime - start);
+                const end = dv > 0 ? dv : (context.currentTime - start);
                 if (props.amp.envelope) {
                     const ADSR = props.amp.envelope.ADSR;
                     const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
@@ -1648,8 +1642,8 @@
                     nodes.oscillatorLFO.stop(stop);
                 }
                 if (props.oscillator.envelope) {
-                    const amount = freq * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-                    stopEnvelope(nodes.oscillator.frequency, freq, amount, props.oscillator.envelope.ADSR);
+                    const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
+                    stopEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
                 }
                 if (props.amp.envelope) {
                     stopEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
@@ -1668,15 +1662,15 @@
                 }, 2000);
             }
             function stopEnvelope(param, base, amount, ADSR) {
-                const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dura / (ADSR[0] / 1000), 1.0);
+                const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dv / (ADSR[0] / 1000), 1.0);
                 if (rate < 1.0) {
                     param.cancelScheduledValues(start);
                     param.setValueAtTime(base, start);
                     param.linearRampToValueAtTime(base + amount * rate, start + ADSR[0] / 1000 * rate);
                     param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
                 }
-                param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura));
-                param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dura) + ADSR[3] / 1000);
+                param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv));
+                param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv) + ADSR[3] / 1000);
             }
             function startEnvelope(param, base, amount, ADSR) {
                 param.value = base;
@@ -1718,10 +1712,6 @@
         AnalogStick,
         DirectionalPad,
     };
-    const audio = Object.assign(Object.assign({}, config), { master,
-        context,
-        synthesizer,
-        load });
     const xnew = Object.assign(xnew$1, {
         basics,
         audio

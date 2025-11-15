@@ -396,7 +396,13 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
     strokeLinejoin?: string;
 }): void;
 
-declare function load(path: string): AudioFile;
+declare const audio: {
+    load(path: string): AudioFile;
+    create(props: SynthProps): Synthesizer;
+    config: {
+        volume: number;
+    };
+};
 declare class AudioFile {
     buffer?: AudioBuffer;
     promise: Promise<void>;
@@ -407,8 +413,6 @@ declare class AudioFile {
     play(offset?: number, loop?: boolean): void;
     pause(): number | undefined;
 }
-
-declare function synthesizer(props: SynthProps): Synthesizer;
 type SynthProps = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
@@ -468,13 +472,6 @@ declare const basics: {
     DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;
     DirectionalPad: typeof DirectionalPad;
-};
-declare const audio: {
-    master: GainNode;
-    context: AudioContext;
-    synthesizer: typeof synthesizer;
-    load: typeof load;
-    volume: number;
 };
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

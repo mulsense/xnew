@@ -72,6 +72,10 @@ function GameScene(scene) {
   });
 }
 
+function HTMLLayer(unit) {
+  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800" style="container-type: size;">');
+}
+
 function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
   xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
@@ -92,10 +96,6 @@ function ShadowPlane(unit) {
 
 function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
-}
-
-function HTMLLayer(unit) {
-  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800" style="container-type: size;">');
 }
 
 function TitleText(text) {
