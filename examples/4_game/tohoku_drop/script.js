@@ -88,7 +88,7 @@ function GameScene(scene) {
     xnew.timeout(() => {
       xnew.transition((x) => {
         cover.element.style.opacity = x;
-      }, 1000, 'ease').next(() => {
+      }, 1000, 'ease').timeout(() => {
         scene.finalize();
         xnew.find(Main)[0]?.append(ResultScene, { imageData, result });
       });
@@ -229,7 +229,7 @@ function Queue(queue) {
     xnew.transition((progress) => {
       const position = pos3d(10 + progress * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
-    }, 500).next(() => {
+    }, 500).timeout(() => {
       queue.emit('+reloadcomplete', next);
     });
   });
