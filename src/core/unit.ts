@@ -28,11 +28,10 @@ interface UnitInternal {
 
     children: Unit[];
     promises: Promise<any>[];
-    captures: ((unit: Unit) => boolean | void)[];
     elements: UnitElement[];
     components: Function[];
-    listeners1: MapMap<string, Function, [UnitElement, Function]>;
-    listeners2: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
+    listeners1: MapMap<string, Function, { element: UnitElement, execute: Function }>;
+    listeners2: MapMap<string, Function, { element: UnitElement | Window | Document, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 }
@@ -135,7 +134,6 @@ export class Unit {
             children: [],
             elements: [],
             promises: [],
-            captures: [],
             components: [],
             listeners1: new MapMap(),
             listeners2: new MapMap(),
@@ -154,10 +152,6 @@ export class Unit {
         // whether the unit promise was resolved
         Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
 
-        // setup capture
-        for (let current: Unit | null = unit; current !== null; current = current._.parent) {
-            if (current._.captures.find((capture) => capture(unit)) !== undefined) break;
-        }
         Unit.current = backup;
     }
 
@@ -323,14 +317,13 @@ export class Unit {
     static type2units = new MapSet<string, Unit>();
   
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        if (this._.state === 'finalized') return;
         type.trim().split(/\s+/).forEach((type) => {
             if (SYSTEM_EVENTS.includes(type)) {
                 this._.systems[type].push(listener);
             }
             if (this._.listeners1.has(type, listener) === false) {
                 const execute = Unit.wrap(Unit.current, listener);
-                this._.listeners1.set(type, listener, [this.element, execute]);
+                this._.listeners1.set(type, listener, { element: this.element, execute });
                 Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
                     this.element.addEventListener(type, execute, options);
@@ -345,13 +338,12 @@ export class Unit {
             if (SYSTEM_EVENTS.includes(type)) {
                 this._.systems[type] = this._.systems[type].filter((lis: Function) => listener ? lis !== listener : false);
             }
-            (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((lis) => {
-                const tuple = this._.listeners1.get(type, lis);
-                if (tuple !== undefined) {
-                    const [target, execute] = tuple;
-                    this._.listeners1.delete(type, lis);
+            (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((listener) => {
+                const item = this._.listeners1.get(type, listener);
+                if (item !== undefined) {
+                    this._.listeners1.delete(type, listener);
                     if (/^[A-Za-z]/.test(type)) {
-                        target.removeEventListener(type, execute as EventListener);
+                        item.element.removeEventListener(type, item.execute as EventListener);
                     }
                 }
             });
@@ -362,13 +354,12 @@ export class Unit {
     }
 
     emit(type: string, ...args: any[]) {
-        if (this._.state === 'finalized') return;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
-                unit._.listeners1.get(type)?.forEach(([_, execute]) => execute(...args));
+                unit._.listeners1.get(type)?.forEach((item) => item.execute(...args));
             });
         } else if (type[0] === '-') {
-            this._.listeners1.get(type)?.forEach(([_, execute]) => execute(...args));
+            this._.listeners1.get(type)?.forEach((item) => item.execute(...args));
         }
     }
 
@@ -376,7 +367,7 @@ export class Unit {
         type.trim().split(/\s+/).forEach((type) => {
             if (unit._.listeners2.has(type, listener) === false) {
                 const execute = Unit.wrap(unit, listener);
-                unit._.listeners2.set(type, listener, [target, execute]);
+                unit._.listeners2.set(type, listener, { element: target, execute });
                 target.addEventListener(type, execute, options);
             }
         });
@@ -385,14 +376,11 @@ export class Unit {
     static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void {
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.listeners2.keys()];
         types.forEach((type) => {
-            (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((lis) => {
-                const tuple = unit._.listeners2.get(type, lis);
-                if (tuple !== undefined) {
-                    const [element, execute] = tuple;
-                    if (target === null || target === element) {
-                        unit._.listeners2.delete(type, lis);
-                        element.removeEventListener(type, execute as EventListener);
-                    }
+            (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((listener) => {
+                const item = unit._.listeners2.get(type, listener);
+                if (item !== undefined && (target === null || target === item.element)) {
+                    unit._.listeners2.delete(type, listener);
+                    item.element.removeEventListener(type, item.execute as EventListener);
                 }
             });
         });
@@ -429,10 +417,10 @@ export class UnitTimer {
     private stack: Object[] = [];
 
     constructor(
-        { transition, timeout, interval, easing, loop }:
-        { transition?: Function, timeout?: Function, interval: number, easing?: string, loop?: boolean }
+        { transition, timeout, duration, easing, loop }:
+        { transition?: Function, timeout?: Function, duration: number, easing?: string, loop?: boolean }
     ) {
-        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
     }
 
     clear() {
@@ -440,27 +428,27 @@ export class UnitTimer {
         this.unit.finalize();
     }
 
-    timeout(timeout: Function, interval: number = 0) {
-        UnitTimer.execute(this, { timeout, interval })
+    timeout(timeout: Function, duration: number = 0) {
+        UnitTimer.execute(this, { timeout, duration })
         return this;
     }
 
-    transition(transition: Function, interval: number = 0, easing: string = 'linear') {
-        UnitTimer.execute(this, { transition, interval, easing })
+    transition(transition: Function, duration: number = 0, easing: string = 'linear') {
+        UnitTimer.execute(this, { transition, duration, easing })
         return this;
     }
 
     static execute(timer: UnitTimer,
-        { transition, timeout, interval, easing, loop }:
-        { transition?: Function, timeout?: Function, interval: number, easing?: string, loop?: boolean }
+        { transition, timeout, duration, easing, loop }:
+        { transition?: Function, timeout?: Function, duration: number, easing?: string, loop?: boolean }
     ) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
         } else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });  
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         } else {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });  
         }
     }
 
@@ -472,8 +460,8 @@ export class UnitTimer {
     }
 
     static Component(unit: Unit,
-        { snapshot, transition, timeout, interval, loop, easing }:
-        { snapshot: Snapshot, transition?: Function, timeout?: Function, interval?: number, loop?: boolean, easing?: string }
+        { snapshot, transition, timeout, duration, loop, easing }:
+        { snapshot: Snapshot, transition?: Function, timeout?: Function, duration?: number, loop?: boolean, easing?: string }
     ) {
         const timer = new Timer((x: number) => {
             if (transition !== undefined) Unit.scope(snapshot, transition, x);
@@ -481,7 +469,7 @@ export class UnitTimer {
             if (transition !== undefined) Unit.scope(snapshot, transition, 1.0);
             if (timeout !== undefined) Unit.scope(snapshot, timeout);
             unit.finalize();
-        }, interval, { loop, easing });
+        }, duration, { loop, easing });
 
         unit.on('finalize', () => timer.clear());
     }

@@ -30,27 +30,21 @@
       xnew((unit) => {
         xnew.extend(PanelGroup, { name: 'group 2', open: true });
 
-        xnew((frame) => {
-          xnew.extend(xnew.basics.InputFrame);
+        xnew((unit) => {
+          let status;
           xnew('<div class="text-sm flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'range 1');
-              const status = xnew('<div class="flex-none">', '25');
-              frame.on('-input', ({ event }) => {
-                status.element.textContent = event.target.value;
-              })
+              status = xnew('<div class="flex-none">', '25');
           });
-          xnew('<input type="range" name="range 1" min="0" max="100" value="25" class="m-0 w-full">');
+          const input = xnew('<input type="range" name="range 1" min="0" max="100" value="25" class="m-0 w-full">');
+          input.on('input', (event) => {
+            status.element.textContent = event.target.value;
+          });
         });
 
-        xnew((frame) => {
-          xnew.extend(xnew.basics.InputFrame);
-
+        xnew((unit) => {
           xnew('<div class="flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'radio 1');
-              const status = xnew('<div class="flex-none">', 'radio A');
-              frame.on('-input', ({ event }) => {
-                status.element.textContent = event.target.value;
-              })
           });
           xnew('<label class="block">', () => {
             xnew('<input type="radio" name="radio 1" value="radio A" checked>');
@@ -67,8 +61,6 @@
         })
 
         xnew((unit) => {
-          xnew.extend(xnew.basics.InputFrame);
-
           xnew('<div class="flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'text 1');
           });
