@@ -106,8 +106,8 @@ class Ticker {
         ticker();
         function ticker() {
             const time = Date.now();
-            const interval = 1000 / 60;
-            if (time - previous > interval * 0.9) {
+            const fps = 60;
+            if (time - previous > (1000 / fps) * 0.9) {
                 callback(time);
                 previous = time;
             }
@@ -125,11 +125,11 @@ class Ticker {
 // timer
 //----------------------------------------------------------------------------------------------------
 class Timer {
-    constructor(transition, timeout, interval, { loop = false, easing = 'linear' } = {}) {
+    constructor(transition, timeout, duration, { loop = false, easing = 'linear' } = {}) {
         var _a;
         this.transition = transition;
         this.timeout = timeout;
-        this.interval = interval !== null && interval !== void 0 ? interval : 0;
+        this.duration = duration !== null && duration !== void 0 ? duration : 0;
         this.loop = loop;
         this.easing = easing;
         this.id = null;
@@ -138,7 +138,7 @@ class Timer {
         this.status = 0;
         this.ticker = new Ticker((time) => {
             var _a;
-            let p = Math.min(this.elapsed() / this.interval, 1.0);
+            let p = Math.min(this.elapsed() / this.duration, 1.0);
             if (easing === 'ease-out') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
             }
@@ -155,7 +155,7 @@ class Timer {
         });
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
-        if (this.interval > 0.0) {
+        if (this.duration > 0.0) {
             (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
         }
         this.start();
@@ -189,7 +189,7 @@ class Timer {
                 this.time = 0.0;
                 this.offset = 0.0;
                 this.loop ? this.start() : this.clear();
-            }, this.interval - this.offset);
+            }, this.duration - this.offset);
             this.time = Date.now();
         }
     }
@@ -298,7 +298,6 @@ class Unit {
             children: [],
             elements: [],
             promises: [],
-            captures: [],
             components: [],
             listeners1: new MapMap(),
             listeners2: new MapMap(),
@@ -313,11 +312,6 @@ class Unit {
         Unit.extend(unit, unit._.baseComponent, unit._.props);
         // whether the unit promise was resolved
         Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
-        // setup capture
-        for (let current = unit; current !== null; current = current._.parent) {
-            if (current._.captures.find((capture) => capture(unit)) !== undefined)
-                break;
-        }
         Unit.current = backup;
     }
     static finalize(unit) {
@@ -560,32 +554,32 @@ class UnitPromise {
 // unit timer
 //----------------------------------------------------------------------------------------------------
 class UnitTimer {
-    constructor({ transition, timeout, interval, easing, loop }) {
+    constructor({ transition, timeout, duration, easing, loop }) {
         this.stack = [];
-        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
     }
     clear() {
         this.unit.off();
         this.unit.finalize();
     }
-    timeout(timeout, interval = 0) {
-        UnitTimer.execute(this, { timeout, interval });
+    timeout(timeout, duration = 0) {
+        UnitTimer.execute(this, { timeout, duration });
         return this;
     }
-    transition(transition, interval = 0, easing = 'linear') {
-        UnitTimer.execute(this, { transition, interval, easing });
+    transition(transition, duration = 0, easing = 'linear') {
+        UnitTimer.execute(this, { transition, duration, easing });
         return this;
     }
-    static execute(timer, { transition, timeout, interval, easing, loop }) {
+    static execute(timer, { transition, timeout, duration, easing, loop }) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
         }
         else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
         else {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
         }
     }
     static next(timer) {
@@ -594,7 +588,7 @@ class UnitTimer {
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
     }
-    static Component(unit, { snapshot, transition, timeout, interval, loop, easing }) {
+    static Component(unit, { snapshot, transition, timeout, duration, loop, easing }) {
         const timer = new Timer((x) => {
             if (transition !== undefined)
                 Unit.scope(snapshot, transition, x);
@@ -604,7 +598,7 @@ class UnitTimer {
             if (timeout !== undefined)
                 Unit.scope(snapshot, timeout);
             unit.finalize();
-        }, interval, { loop, easing });
+        }, duration, { loop, easing });
         unit.on('finalize', () => timer.clear());
     }
 }
@@ -788,32 +782,32 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Executes a callback once after a delay, managed by component lifecycle
-     * @param timeout - Function to execute after Interval
-     * @param interval - Interval duration in milliseconds
+     * @param timeout - Function to execute after Duration
+     * @param duration - Duration in milliseconds
      * @returns Object with clear() method to cancel the timeout
      * @example
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(timeout, interval = 0) {
-        return new UnitTimer({ timeout, interval });
+    timeout(timeout, duration = 0) {
+        return new UnitTimer({ timeout, duration });
     },
     /**
      * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-     * @param timeout - Function to execute at each interval
-     * @param interval - Interval duration in milliseconds
+     * @param timeout - Function to execute at each duration
+     * @param duration - Duration in milliseconds
      * @returns Object with clear() method to stop the interval
      * @example
      * const timer = xnew.interval(() => console.log('Tick'), 1000)
      * // Stop when needed: timer.clear()
      */
-    interval(timeout, interval) {
-        return new UnitTimer({ timeout, interval, loop: true });
+    interval(timeout, duration) {
+        return new UnitTimer({ timeout, duration, loop: true });
     },
     /**
      * Creates a transition animation with easing, executing callback with progress values
      * @param callback - Function called with progress value (0.0 to 1.0)
-     * @param interval - Duration of transition in milliseconds
+     * @param duration - Duration of transition in milliseconds
      * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
      * @returns Object with clear() and next() methods for controlling transitions
      * @example
@@ -823,8 +817,8 @@ const xnew$1 = Object.assign(function (...args) {
      *   element.style.transform = `scale(${p})`
      * }, 300)
      */
-    transition(transition, interval = 0, easing = 'linear') {
-        return new UnitTimer({ transition, interval, easing });
+    transition(transition, duration = 0, easing = 'linear') {
+        return new UnitTimer({ transition, duration, easing });
     },
     /**
      * Creates an event listener manager for a target element with automatic cleanup

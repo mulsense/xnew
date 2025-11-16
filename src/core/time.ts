@@ -13,8 +13,8 @@ export class Ticker {
 
         function ticker() {
             const time = Date.now();
-            const interval = 1000 / 60;
-            if (time - previous > interval * 0.9) {
+            const fps = 60;
+            if (time - previous > (1000 / fps) * 0.9) {
                 callback(time);
                 previous = time;
             }
@@ -37,7 +37,7 @@ export class Ticker {
 export class Timer {
     private timeout: Function | null;
     private transition: Function | null;
-    private interval: number;
+    private duration: number;
     private loop: boolean;
     private easing: string;
     private id: NodeJS.Timeout | null;
@@ -48,11 +48,11 @@ export class Timer {
     private visibilitychange: ((this: Document, event: Event) => any);
     private ticker: Ticker;
 
-    constructor(transition: Function | null, timeout: Function | null, interval?: number, { loop = false, easing = 'linear' }: { loop?: boolean, easing?: string } = {}) {
+    constructor(transition: Function | null, timeout: Function | null, duration?: number, { loop = false, easing = 'linear' }: { loop?: boolean, easing?: string } = {}) {
         this.transition = transition;
         this.timeout = timeout;
 
-        this.interval = interval ?? 0;
+        this.duration = duration ?? 0;
         this.loop = loop;
         this.easing = easing;
 
@@ -62,7 +62,7 @@ export class Timer {
 
         this.status = 0;
         this.ticker = new Ticker((time: number) => {
-            let p = Math.min(this.elapsed() / this.interval, 1.0);
+            let p = Math.min(this.elapsed() / this.duration, 1.0);
             if (easing === 'ease-out') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
             } else if (easing === 'ease-in') {
@@ -78,7 +78,7 @@ export class Timer {
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        if (this.interval > 0.0) {
+        if (this.duration > 0.0) {
             this.transition?.(0.0);
         }
         this.start();
@@ -118,7 +118,7 @@ export class Timer {
                 this.offset = 0.0;
 
                 this.loop ? this.start() : this.clear();
-            }, this.interval - this.offset);
+            }, this.duration - this.offset);
             this.time = Date.now();
         }
     }

@@ -205,34 +205,34 @@ export const xnew = Object.assign(
 
         /**
          * Executes a callback once after a delay, managed by component lifecycle
-         * @param timeout - Function to execute after Interval
-         * @param interval - Interval duration in milliseconds
+         * @param timeout - Function to execute after Duration
+         * @param duration - Duration in milliseconds
          * @returns Object with clear() method to cancel the timeout
          * @example
          * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
          * // Cancel if needed: timer.clear()
          */
-        timeout(timeout: Function, interval: number = 0): any {
-            return new UnitTimer({ timeout, interval });
+        timeout(timeout: Function, duration: number = 0): any {
+            return new UnitTimer({ timeout, duration });
         },
 
         /**
          * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-         * @param timeout - Function to execute at each interval
-         * @param interval - Interval duration in milliseconds
+         * @param timeout - Function to execute at each duration
+         * @param duration - Duration in milliseconds
          * @returns Object with clear() method to stop the interval
          * @example
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(timeout: Function, interval: number): any {
-            return new UnitTimer({ timeout, interval, loop: true });
+        interval(timeout: Function, duration: number): any {
+            return new UnitTimer({ timeout, duration, loop: true });
         },
 
         /**
          * Creates a transition animation with easing, executing callback with progress values
          * @param callback - Function called with progress value (0.0 to 1.0)
-         * @param interval - Duration of transition in milliseconds
+         * @param duration - Duration of transition in milliseconds
          * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
          * @returns Object with clear() and next() methods for controlling transitions
          * @example
@@ -242,8 +242,8 @@ export const xnew = Object.assign(
          *   element.style.transform = `scale(${p})`
          * }, 300)
          */
-        transition(transition: Function, interval: number = 0, easing: string = 'linear'): any {
-            return new UnitTimer({ transition, interval, easing });
+        transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
+            return new UnitTimer({ transition, duration, easing });
         },
 
         /**
