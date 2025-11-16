@@ -35,10 +35,11 @@ export class Ticker {
 //----------------------------------------------------------------------------------------------------
 
 export class Timer {
-    private timeout: Function;
+    private timeout: Function | null;
     private transition: Function | null;
-    private delay: number;
+    private interval: number;
     private loop: boolean;
+    private easing: string;
     private id: NodeJS.Timeout | null;
 
     private time: number;
@@ -47,24 +48,37 @@ export class Timer {
     private visibilitychange: ((this: Document, event: Event) => any);
     private ticker: Ticker;
 
-    constructor(timeout: Function, transition: Function | null, delay: number, loop: boolean = false) {
-        this.timeout = timeout;
+    constructor(transition: Function | null, timeout: Function | null, interval?: number, { loop = false, easing = 'linear' }: { loop?: boolean, easing?: string } = {}) {
         this.transition = transition;
+        this.timeout = timeout;
 
-        this.delay = delay;
+        this.interval = interval ?? 0;
         this.loop = loop;
+        this.easing = easing;
 
         this.id = null;
         this.time = 0.0;
         this.offset = 0.0;
 
         this.status = 0;
-        this.ticker = new Ticker((time: number) => this.transition?.(this.elapsed() / this.delay));
+        this.ticker = new Ticker((time: number) => {
+            let p = Math.min(this.elapsed() / this.interval, 1.0);
+            if (easing === 'ease-out') {
+                p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
+            } else if (easing === 'ease-in') {
+                p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
+            } else if (easing === 'ease') {
+                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+            } else if (easing === 'ease-in-out') {
+                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+            }
+            this.transition?.(p);
+        });
   
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        if (this.delay > 0.0) {
+        if (this.interval > 0.0) {
             this.transition?.(0.0);
         }
         this.start();
@@ -96,19 +110,15 @@ export class Timer {
     private _start(): void {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
-                this.timeout();
+                this.timeout?.();
                 this.transition?.(1.0);
 
                 this.id = null;
                 this.time = 0.0;
                 this.offset = 0.0;
 
-                if (this.loop) {
-                    this.start();
-                } else {
-                    this.clear();
-                }
-            }, this.delay - this.offset);
+                this.loop ? this.start() : this.clear();
+            }, this.interval - this.offset);
             this.time = Date.now();
         }
     }

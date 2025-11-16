@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { ResizeEvent } from './ResizeEvent';
+import { ResizeEvent } from './Event';
 
 export function Screen(screen: Unit,
     { width = 640, height = 480, fit = 'contain' } = {}

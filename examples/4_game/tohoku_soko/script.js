@@ -21,7 +21,7 @@ function Main(screen) {
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -45 / 180 * Math.PI;
-  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 18);
+  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 16);
 
   // pixi 
   xpixi.initialize({ canvas: screen.canvas });
@@ -132,13 +132,6 @@ function Background(unit) {
 function TitleText(text) {
   xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'とーほく 倉庫';
-}
-
-function StartMessage(text) {
-  xnew.nest('<div class="absolute top-[40cqw] w-full text-center text-[8cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
-  text.element.textContent = 'Touch Start';
-  let count = 0;
-  text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function StageSelect(unit) {

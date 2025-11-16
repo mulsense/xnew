@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { PointerEvent } from './PointerEvent';
+import { PointerEvent } from './Event';
 
 export function DragFrame(frame: Unit, 
     { x = 0, y = 0 }: { x?: number, y?: number } = {}

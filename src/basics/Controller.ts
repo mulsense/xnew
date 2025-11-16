@@ -1,7 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { PointerEvent } from './PointerEvent';
-import { ResizeEvent } from './ResizeEvent';
+import { PointerEvent, ResizeEvent } from './Event';
 
 //----------------------------------------------------------------------------------------------------
 // controller

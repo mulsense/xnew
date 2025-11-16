@@ -1,6 +1,50 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 
+export function ResizeEvent(resize: Unit) {
+    const observer = new ResizeObserver((entries: any) => {
+        for (const entry of entries) {
+            resize.emit('-resize');
+            break;
+        }
+    });
+
+    if (resize.element) {
+        observer.observe(resize.element);
+    }
+    resize.on('finalize', () => {
+        if (resize.element) {
+            observer.unobserve(resize.element);
+        }
+    });
+}
+
+export function KeyboardEvent(unit: Unit) {
+    const state: any = {};
+
+    xnew.listener(window).on('keydown', (event: any) => {
+        state[event.code] = 1;
+        unit.emit('-keydown', { event, type: '-keydown', code: event.code });
+    });
+    xnew.listener(window).on('keyup', (event: any) => {
+        state[event.code] = 0;
+        unit.emit('-keyup', { event, type: '-keyup', code: event.code });
+    });
+    xnew.listener(window).on('keydown', (event: any) => {
+        unit.emit('-arrowkeydown', { event, type: '-arrowkeydown', code: event.code, vector: getVector() });
+    });
+    xnew.listener(window).on('keyup', (event: any) => {
+        unit.emit('-arrowkeyup', { event, type: '-arrowkeyup', code: event.code, vector: getVector() });
+    });
+
+    function getVector() {
+        return {
+            x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
+            y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
+        };
+    }
+}
+
 export function PointerEvent(unit: Unit) {
     const internal = xnew();
     internal.on('pointerdown', (event: any) => unit.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
@@ -133,4 +177,3 @@ function getPosition(element: any, event: any) {
     const rect = element.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
-
