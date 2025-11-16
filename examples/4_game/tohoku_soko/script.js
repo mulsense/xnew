@@ -35,7 +35,7 @@ function Main(screen) {
 
 function TitleScene(unit) {
   xnew.nest(`<div
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
     style="container-type: size;">
   >`);
 
@@ -56,7 +56,7 @@ function GameScene(scene, { id }) {
   xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 0, y: -60 } });
 
   xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
     style="container-type: size;">
   >`);
 
@@ -130,14 +130,14 @@ function Background(unit) {
 }
 
 function TitleText(text) {
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'とーほく 倉庫';
 }
 
 function StageSelect(unit) {
   const global = xnew.context('global');
 
-  const message = xnew('<div class="absolute top-[40cqw] w-full text-center text-[6cqw] font-bold" style="-webkit-text-stroke: 0.2cqw white;">');
+  const message = xnew('<div class="absolute top-[40cqw] w-full text-center text-[6cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
   message.element.textContent = 'Select Stage';
   let count = 0;
   message.on('update', () => message.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
@@ -145,12 +145,9 @@ function StageSelect(unit) {
   // 上段: ステージ1-4
   xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
     for (let i = 0; i < 4 && i < global.levels.length; i++) {
-      const button = xnew(`<button class="
-        border-[0.5cqw] border-green-200 rounded-lg
-        text-[8cqw] text-green-200 font-bold
-        hover:bg-green-400 pointer-events-auto cursor-pointer
-        aspect-square w-[14cqw]
-      ">`, `${i + 1}`);
+      const button = xnew(`<button
+        class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer aspect-square w-[14cqw]"
+      >`, `${i + 1}`);
 
       button.on('click', () => {
         xnew.find(TitleScene)[0].finalize();
@@ -162,12 +159,9 @@ function StageSelect(unit) {
   // 下段: ステージ5-7
   xnew('<div class="absolute top-[75cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
     for (let i = 4; i < global.levels.length; i++) {
-      const button = xnew(`<button class="
-        border-[0.5cqw] border-green-200 rounded-lg
-        text-[8cqw] text-green-200 font-bold
-        hover:bg-green-400 pointer-events-auto cursor-pointer
-        aspect-square w-[14cqw]
-      ">`, `${i + 1}`);
+      const button = xnew(`<button
+        class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer spect-square w-[14cqw]"
+      >`, `${i + 1}`);
 
       button.on('click', () => {
         xnew.find(TitleScene)[0].finalize();
@@ -395,7 +389,7 @@ function Controller(unit) {
     move({ x: dx, y: dy });
   });
 
-  xnew('<div class="absolute left-0 bottom-0 w-[28%] h-[28%]">', () => {
+  xnew('<div class="absolute left-0 bottom-0 w-[28%] h-[28%] select-none">', () => {
     xnew.nest('<div class="absolute inset-[1cqw]">');
     const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.7 });
     dpad.on('-down', ({ vector }) => move(vector));
@@ -415,7 +409,7 @@ function Controller(unit) {
 }
 
 function GameClearText(text) {
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[14cqw] font-bold text-yellow-300" style="-webkit-text-stroke: 0.2cqw white;">');
+  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[14cqw] text-yellow-300" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'Stage Clear!';
   xnew.transition((x) => {
     text.element.style.opacity = x;
@@ -425,14 +419,14 @@ function GameClearText(text) {
 
 function Button(button, { text }) {
   xnew.nest(`<button
-    class="border-[0.5cqw] border-green-200 rounded-full px-[4cqw] py-[1cqw] font-bold hover:bg-green-400 pointer-events-auto cursor-pointer"
+    class="border-[0.5cqw] border-green-200 rounded-full px-[4cqw] py-[1cqw] hover:bg-green-400 pointer-events-auto cursor-pointer"
   >`);
   button.element.textContent = text;
 }
 
 function InfoPanel(unit, { id }) {
 
-  xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700 font-bold" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
+  xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
   
   xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {
     xnew(Button, { text: 'Reset' }).on('click', () => unit.emit('+restart'));
