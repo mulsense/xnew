@@ -35,9 +35,9 @@ export class Ticker {
 //----------------------------------------------------------------------------------------------------
 
 export class Timer {
-    private timeout: Function;
     private transition: Function | null;
-    private delay: number;
+    private timeout: Function | null;
+    private interval: number;
     private loop: boolean;
     private id: NodeJS.Timeout | null;
 
@@ -47,11 +47,11 @@ export class Timer {
     private visibilitychange: ((this: Document, event: Event) => any);
     private ticker: Ticker;
 
-    constructor(timeout: Function, transition: Function | null, delay: number, loop: boolean = false) {
-        this.timeout = timeout;
+    constructor(transition: Function | null, timeout: Function | null, interval: number, loop: boolean = false) {
         this.transition = transition;
+        this.timeout = timeout;
 
-        this.delay = delay;
+        this.interval = interval;
         this.loop = loop;
 
         this.id = null;
@@ -64,7 +64,7 @@ export class Timer {
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        if (this.delay > 0.0) {
+        if (this.interval > 0.0) {
             this.transition?.(0.0);
         }
         this.start();
