@@ -37,7 +37,7 @@ function Dot(unit) {
 
 function TitleScene(unit) {
   xnew(TitleText);
-  xnew.listener(window).on('keydown pointerdown', () => {
+  xnew.listener(window) .on('keydown pointerdown', () => {
     unit.finalize();
     xnew.find(Main)[0]?.append(GameScene);
   });
@@ -69,7 +69,6 @@ function GameScene(unit) {
 
 function Controller(unit) {
   // prevent default event
-  xnew.listener(window).on('keydown', (event) => event.preventDefault());
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
   
   // left bottom

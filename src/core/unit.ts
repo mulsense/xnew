@@ -424,7 +424,7 @@ export class UnitTimer {
     }
 
     clear() {
-        this.unit.off();
+        this.stack = [];
         this.unit.finalize();
     }
 
@@ -468,7 +468,9 @@ export class UnitTimer {
         }, () => {
             if (transition !== undefined) Unit.scope(snapshot, transition, 1.0);
             if (timeout !== undefined) Unit.scope(snapshot, timeout);
-            unit.finalize();
+            if (loop === false) {
+                unit.finalize();
+            }
         }, duration, { loop, easing });
 
         unit.on('finalize', () => timer.clear());

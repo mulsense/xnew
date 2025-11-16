@@ -559,7 +559,7 @@ class UnitTimer {
         this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
     }
     clear() {
-        this.unit.off();
+        this.stack = [];
         this.unit.finalize();
     }
     timeout(timeout, duration = 0) {
@@ -597,7 +597,9 @@ class UnitTimer {
                 Unit.scope(snapshot, transition, 1.0);
             if (timeout !== undefined)
                 Unit.scope(snapshot, timeout);
-            unit.finalize();
+            if (loop === false) {
+                unit.finalize();
+            }
         }, duration, { loop, easing });
         unit.on('finalize', () => timer.clear());
     }
