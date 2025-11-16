@@ -59,13 +59,6 @@ interface UnitInternal {
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 }
-declare class UnitPromise {
-    private promise;
-    constructor(promise: Promise<any>);
-    then(callback: Function): UnitPromise;
-    catch(callback: Function): UnitPromise;
-    finally(callback: Function): UnitPromise;
-}
 declare class Unit {
     [key: string]: any;
     _: UnitInternal;
@@ -102,6 +95,13 @@ declare class Unit {
     emit(type: string, ...args: any[]): void;
     static subon(unit: Unit, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
+}
+declare class UnitPromise {
+    private promise;
+    constructor(promise: Promise<any>);
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
 }
 
 interface CreateUnit {
@@ -226,24 +226,24 @@ declare const xnew$1: CreateUnit & {
     find(component: Function): Unit[];
     /**
      * Executes a callback once after a delay, managed by component lifecycle
-     * @param callback - Function to execute after delay
-     * @param delay - Delay in milliseconds
+     * @param timeout - Function to execute after Interval
+     * @param interval - Interval duration in milliseconds
      * @returns Object with clear() method to cancel the timeout
      * @example
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(callback: Function, delay?: number): any;
+    timeout(timeout: Function, interval?: number): any;
     /**
      * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-     * @param callback - Function to execute at each interval
-     * @param delay - Interval duration in milliseconds
+     * @param timeout - Function to execute at each interval
+     * @param interval - Interval duration in milliseconds
      * @returns Object with clear() method to stop the interval
      * @example
      * const timer = xnew.interval(() => console.log('Tick'), 1000)
      * // Stop when needed: timer.clear()
      */
-    interval(callback: Function, delay: number): any;
+    interval(timeout: Function, interval: number): any;
     /**
      * Creates a transition animation with easing, executing callback with progress values
      * @param callback - Function called with progress value (0.0 to 1.0)
@@ -251,13 +251,13 @@ declare const xnew$1: CreateUnit & {
      * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
      * @returns Object with clear() and next() methods for controlling transitions
      * @example
-     * xnew.transition(progress => {
-     *   element.style.opacity = progress
-     * }, 500, 'ease-out').next(progress => {
-     *   element.style.transform = `scale(${progress})`
+     * xnew.transition(p => {
+     *   element.style.opacity = p
+     * }, 500, 'ease-out').transition(p => {
+     *   element.style.transform = `scale(${p})`
      * }, 300)
      */
-    transition(callback: Function, interval: number, easing?: string): any;
+    transition(transition: Function, interval?: number, easing?: string): any;
     /**
      * Creates an event listener manager for a target element with automatic cleanup
      * @param target - Element, Window, or Document to attach listeners to
@@ -283,11 +283,29 @@ declare const xnew$1: CreateUnit & {
     capture(execute: (unit: Unit) => boolean | void): void;
 };
 
+declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
+    open?: boolean;
+    duration?: number;
+    easing?: string;
+}): {
+    toggle(): void;
+    open(): void;
+    close(): void;
+};
+declare function AccordionHeader(header: Unit, {}?: {}): void;
+declare function AccordionBullet(bullet: Unit, { type }?: {
+    type?: string;
+}): void;
+declare function AccordionContent(content: Unit, {}?: {}): {
+    transition({ element, rate }: {
+        element: HTMLElement;
+        rate: number;
+    }): void;
+};
+
 declare function ResizeEvent(resize: Unit): void;
-
-declare function PointerEvent(unit: Unit): void;
-
 declare function KeyboardEvent(unit: Unit): void;
+declare function PointerEvent(unit: Unit): void;
 
 declare function Screen(screen: Unit, { width, height, fit }?: {
     width?: number | undefined;
@@ -336,26 +354,6 @@ declare function TabContent(content: Unit, { key }?: {
     }): void;
     deselect({ element }: {
         element: HTMLElement;
-    }): void;
-};
-
-declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
-    open?: boolean;
-    duration?: number;
-    easing?: string;
-}): {
-    toggle(): void;
-    open(): void;
-    close(): void;
-};
-declare function AccordionHeader(header: Unit, {}?: {}): void;
-declare function AccordionBullet(bullet: Unit, { type }?: {
-    type?: string;
-}): void;
-declare function AccordionContent(content: Unit, {}?: {}): {
-    transition({ element, rate }: {
-        element: HTMLElement;
-        rate: number;
     }): void;
 };
 

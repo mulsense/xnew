@@ -1,5 +1,4 @@
-import { Timer } from './time';
-import { Unit, UnitPromise } from './unit';
+import { Unit, UnitPromise, UnitTimer } from './unit';
 
 interface CreateUnit {
     /**
@@ -206,43 +205,28 @@ export const xnew = Object.assign(
 
         /**
          * Executes a callback once after a delay, managed by component lifecycle
-         * @param callback - Function to execute after delay
-         * @param delay - Delay in milliseconds
+         * @param timeout - Function to execute after Interval
+         * @param interval - Interval duration in milliseconds
          * @returns Object with clear() method to cancel the timeout
          * @example
          * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
          * // Cancel if needed: timer.clear()
          */
-        timeout(callback: Function, delay: number = 0): any {
-            const snapshot = Unit.snapshot(Unit.current);
-            const unit = xnew((self: Unit) => {
-                const timer = new Timer(() => {
-                    Unit.scope(snapshot, callback);
-                    self.finalize();
-                }, null, delay, false);
-                self.on('finalize', () => timer.clear());
-            });
-            return { clear: () => unit.finalize() };
+        timeout(timeout: Function, interval: number = 0): any {
+            return new UnitTimer({ timeout, interval });
         },
 
         /**
          * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-         * @param callback - Function to execute at each interval
-         * @param delay - Interval duration in milliseconds
+         * @param timeout - Function to execute at each interval
+         * @param interval - Interval duration in milliseconds
          * @returns Object with clear() method to stop the interval
          * @example
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(callback: Function, delay: number): any {
-            const snapshot = Unit.snapshot(Unit.current);
-            const unit = xnew((self: Unit) => {
-                const timer = new Timer(() => {
-                    Unit.scope(snapshot, callback);
-                }, null, delay, true);
-                self.on('finalize', () => timer.clear());
-            });
-            return { clear: () => unit.finalize() };
+        interval(timeout: Function, interval: number): any {
+            return new UnitTimer({ timeout, interval, loop: true });
         },
 
         /**
@@ -252,64 +236,14 @@ export const xnew = Object.assign(
          * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
          * @returns Object with clear() and next() methods for controlling transitions
          * @example
-         * xnew.transition(progress => {
-         *   element.style.opacity = progress
-         * }, 500, 'ease-out').next(progress => {
-         *   element.style.transform = `scale(${progress})`
+         * xnew.transition(p => {
+         *   element.style.opacity = p
+         * }, 500, 'ease-out').transition(p => {
+         *   element.style.transform = `scale(${p})`
          * }, 300)
          */
-        transition(callback: Function, interval: number, easing: string = 'linear'): any {
-            const snapshot = Unit.snapshot(Unit.current);
-
-            let stacks: any = [];
-            let unit = xnew(Local, { callback, interval, easing });
-            let isRunning = true;
-
-            const timer = { clear, next };
-            return timer;
-
-            function execute() {
-                if (isRunning === false && stacks.length > 0) {
-                    unit = xnew(Local, stacks.shift());
-                    isRunning = true;
-                }
-            }
-
-            function clear() {
-                stacks = [];
-                unit.finalize();
-            }
-
-            function next(callback: Function, interval: number = 0, easing: string = 'linear'): any {
-                stacks.push({ callback, interval, easing });
-                execute();
-                return timer;
-            }
-
-            function Local(self: Unit, { callback, interval, easing }: { callback: Function, interval: number, easing: string }) {
-                const timer = new Timer(() => {
-                    Unit.scope(snapshot, callback, 1.0);
-                    self.finalize();
-                }, (x: number) => {
-                    if (x < 1.0) {
-                        if (easing === 'ease-out') {
-                            x = Math.pow((1.0 - Math.pow((1.0 - x), 2.0)), 0.5);
-                        } else if (easing === 'ease-in') {
-                            x = Math.pow((1.0 - Math.pow((1.0 - x), 0.5)), 2.0);
-                        } else if (easing === 'ease') {
-                            x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
-                        } else if (easing === 'ease-in-out') {
-                            x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
-                        }
-                        Unit.scope(snapshot, callback, x);
-                    }
-                }, interval);
-                self.on('finalize', () => {
-                    timer.clear();
-                    isRunning = false;
-                    execute();
-                });
-            }
+        transition(transition: Function, interval: number = 0, easing: string = 'linear'): any {
+            return new UnitTimer({ transition, interval, easing });
         },
 
         /**
@@ -346,4 +280,3 @@ export const xnew = Object.assign(
         },
     }
 );
-

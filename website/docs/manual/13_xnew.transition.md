@@ -5,18 +5,19 @@
 ## Usage
 
 ```js
-const transition = xnew.transition(callback, duration, easing);
+const transition = xnew.transition(callback, interval, easing);
 ```
 
 **Parameters:**
 - `callback(progress)`: Function called on each frame with progress value (0.0 to 1.0)
-- `duration`: Animation duration in milliseconds (default: 0)
+- `interval`: Animation duration interval in milliseconds (default: 0)
 - `easing`: Easing function name (default: 'linear')
 
 **Returns:**
 - A transition object with:
   - `clear()`: Cancel the transition
-  - `next(callback, duration, easing)`: Chain another transition
+  - `timeout(callback, interval)`: Chain another timeout
+  - `transition(callback, interval, easing)`: Chain another transition
 
 ## Available Easing Functions
 

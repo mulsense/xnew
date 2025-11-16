@@ -5,102 +5,6 @@
 })(this, (function () { 'use strict';
 
     //----------------------------------------------------------------------------------------------------
-    // ticker
-    //----------------------------------------------------------------------------------------------------
-    class Ticker {
-        constructor(callback) {
-            const self = this;
-            this.id = null;
-            let previous = 0;
-            ticker();
-            function ticker() {
-                const time = Date.now();
-                const interval = 1000 / 60;
-                if (time - previous > interval * 0.9) {
-                    callback(time);
-                    previous = time;
-                }
-                self.id = requestAnimationFrame(ticker);
-            }
-        }
-        clear() {
-            if (this.id !== null) {
-                cancelAnimationFrame(this.id);
-                this.id = null;
-            }
-        }
-    }
-    //----------------------------------------------------------------------------------------------------
-    // timer
-    //----------------------------------------------------------------------------------------------------
-    class Timer {
-        constructor(timeout, transition, delay, loop = false) {
-            var _a;
-            this.timeout = timeout;
-            this.transition = transition;
-            this.delay = delay;
-            this.loop = loop;
-            this.id = null;
-            this.time = 0.0;
-            this.offset = 0.0;
-            this.status = 0;
-            this.ticker = new Ticker((time) => { var _a; return (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, this.elapsed() / this.delay); });
-            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-            document.addEventListener('visibilitychange', this.visibilitychange);
-            if (this.delay > 0.0) {
-                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
-            }
-            this.start();
-        }
-        clear() {
-            if (this.id !== null) {
-                clearTimeout(this.id);
-                this.id = null;
-            }
-            document.removeEventListener('visibilitychange', this.visibilitychange);
-            this.ticker.clear();
-        }
-        elapsed() {
-            return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
-        }
-        start() {
-            this.status = 1;
-            this._start();
-        }
-        stop() {
-            this._stop();
-            this.status = 0;
-        }
-        _start() {
-            if (this.status === 1 && this.id === null) {
-                this.id = setTimeout(() => {
-                    var _a;
-                    this.timeout();
-                    (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 1.0);
-                    this.id = null;
-                    this.time = 0.0;
-                    this.offset = 0.0;
-                    if (this.loop) {
-                        this.start();
-                    }
-                    else {
-                        this.clear();
-                    }
-                }, this.delay - this.offset);
-                this.time = Date.now();
-            }
-        }
-        _stop() {
-            if (this.status === 1 && this.id !== null) {
-                this.offset = this.offset + Date.now() - this.time;
-                clearTimeout(this.id);
-                this.id = null;
-                this.time = 0.0;
-            }
-        }
-    }
-
-    //----------------------------------------------------------------------------------------------------
     // map set
     //----------------------------------------------------------------------------------------------------
     class MapSet extends Map {
@@ -198,24 +102,117 @@
     }
 
     //----------------------------------------------------------------------------------------------------
+    // ticker
+    //----------------------------------------------------------------------------------------------------
+    class Ticker {
+        constructor(callback) {
+            const self = this;
+            this.id = null;
+            let previous = 0;
+            ticker();
+            function ticker() {
+                const time = Date.now();
+                const interval = 1000 / 60;
+                if (time - previous > interval * 0.9) {
+                    callback(time);
+                    previous = time;
+                }
+                self.id = requestAnimationFrame(ticker);
+            }
+        }
+        clear() {
+            if (this.id !== null) {
+                cancelAnimationFrame(this.id);
+                this.id = null;
+            }
+        }
+    }
+    //----------------------------------------------------------------------------------------------------
+    // timer
+    //----------------------------------------------------------------------------------------------------
+    class Timer {
+        constructor(transition, timeout, interval, { loop = false, easing = 'linear' } = {}) {
+            var _a;
+            this.transition = transition;
+            this.timeout = timeout;
+            this.interval = interval !== null && interval !== void 0 ? interval : 0;
+            this.loop = loop;
+            this.easing = easing;
+            this.id = null;
+            this.time = 0.0;
+            this.offset = 0.0;
+            this.status = 0;
+            this.ticker = new Ticker((time) => {
+                var _a;
+                let p = Math.min(this.elapsed() / this.interval, 1.0);
+                if (easing === 'ease-out') {
+                    p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
+                }
+                else if (easing === 'ease-in') {
+                    p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
+                }
+                else if (easing === 'ease') {
+                    p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+                }
+                else if (easing === 'ease-in-out') {
+                    p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+                }
+                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, p);
+            });
+            this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
+            document.addEventListener('visibilitychange', this.visibilitychange);
+            if (this.interval > 0.0) {
+                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
+            }
+            this.start();
+        }
+        clear() {
+            if (this.id !== null) {
+                clearTimeout(this.id);
+                this.id = null;
+            }
+            document.removeEventListener('visibilitychange', this.visibilitychange);
+            this.ticker.clear();
+        }
+        elapsed() {
+            return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+        }
+        start() {
+            this.status = 1;
+            this._start();
+        }
+        stop() {
+            this._stop();
+            this.status = 0;
+        }
+        _start() {
+            if (this.status === 1 && this.id === null) {
+                this.id = setTimeout(() => {
+                    var _a, _b;
+                    (_a = this.timeout) === null || _a === void 0 ? void 0 : _a.call(this);
+                    (_b = this.transition) === null || _b === void 0 ? void 0 : _b.call(this, 1.0);
+                    this.id = null;
+                    this.time = 0.0;
+                    this.offset = 0.0;
+                    this.loop ? this.start() : this.clear();
+                }, this.interval - this.offset);
+                this.time = Date.now();
+            }
+        }
+        _stop() {
+            if (this.status === 1 && this.id !== null) {
+                this.offset = this.offset + Date.now() - this.time;
+                clearTimeout(this.id);
+                this.id = null;
+                this.time = 0.0;
+            }
+        }
+    }
+
+    //----------------------------------------------------------------------------------------------------
     // utils
     //----------------------------------------------------------------------------------------------------
     const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
-    class UnitPromise {
-        constructor(promise) { this.promise = promise; }
-        then(callback) {
-            this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
-            return this;
-        }
-        catch(callback) {
-            this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
-            return this;
-        }
-        finally(callback) {
-            this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
-            return this;
-        }
-    }
     //----------------------------------------------------------------------------------------------------
     // unit
     //----------------------------------------------------------------------------------------------------
@@ -555,6 +552,76 @@
     // event
     //----------------------------------------------------------------------------------------------------
     Unit.type2units = new MapSet();
+    //----------------------------------------------------------------------------------------------------
+    // unit promise
+    //----------------------------------------------------------------------------------------------------
+    class UnitPromise {
+        constructor(promise) { this.promise = promise; }
+        then(callback) {
+            this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
+            return this;
+        }
+        catch(callback) {
+            this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
+            return this;
+        }
+        finally(callback) {
+            this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
+            return this;
+        }
+    }
+    //----------------------------------------------------------------------------------------------------
+    // unit timer
+    //----------------------------------------------------------------------------------------------------
+    class UnitTimer {
+        constructor({ transition, timeout, interval, easing, loop }) {
+            this.stack = [];
+            this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+        }
+        clear() {
+            this.unit.off();
+            this.unit.finalize();
+        }
+        timeout(timeout, interval = 0) {
+            UnitTimer.execute(this, { timeout, interval });
+            return this;
+        }
+        transition(transition, interval = 0, easing = 'linear') {
+            UnitTimer.execute(this, { transition, interval, easing });
+            return this;
+        }
+        static execute(timer, { transition, timeout, interval, easing, loop }) {
+            if (timer.unit._.state === 'finalized') {
+                timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+            }
+            else if (timer.stack.length === 0) {
+                timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+                timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+            }
+            else {
+                timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+            }
+        }
+        static next(timer) {
+            if (timer.stack.length > 0) {
+                timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
+                timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+            }
+        }
+        static Component(unit, { snapshot, transition, timeout, interval, loop, easing }) {
+            const timer = new Timer((x) => {
+                if (transition !== undefined)
+                    Unit.scope(snapshot, transition, x);
+            }, () => {
+                if (transition !== undefined)
+                    Unit.scope(snapshot, transition, 1.0);
+                if (timeout !== undefined)
+                    Unit.scope(snapshot, timeout);
+                unit.finalize();
+            }, interval, { loop, easing });
+            unit.on('finalize', () => timer.clear());
+        }
+    }
 
     const xnew$1 = Object.assign(function (...args) {
         if (Unit.root === undefined) {
@@ -735,42 +802,27 @@
         },
         /**
          * Executes a callback once after a delay, managed by component lifecycle
-         * @param callback - Function to execute after delay
-         * @param delay - Delay in milliseconds
+         * @param timeout - Function to execute after Interval
+         * @param interval - Interval duration in milliseconds
          * @returns Object with clear() method to cancel the timeout
          * @example
          * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
          * // Cancel if needed: timer.clear()
          */
-        timeout(callback, delay = 0) {
-            const snapshot = Unit.snapshot(Unit.current);
-            const unit = xnew$1((self) => {
-                const timer = new Timer(() => {
-                    Unit.scope(snapshot, callback);
-                    self.finalize();
-                }, null, delay, false);
-                self.on('finalize', () => timer.clear());
-            });
-            return { clear: () => unit.finalize() };
+        timeout(timeout, interval = 0) {
+            return new UnitTimer({ timeout, interval });
         },
         /**
          * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-         * @param callback - Function to execute at each interval
-         * @param delay - Interval duration in milliseconds
+         * @param timeout - Function to execute at each interval
+         * @param interval - Interval duration in milliseconds
          * @returns Object with clear() method to stop the interval
          * @example
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(callback, delay) {
-            const snapshot = Unit.snapshot(Unit.current);
-            const unit = xnew$1((self) => {
-                const timer = new Timer(() => {
-                    Unit.scope(snapshot, callback);
-                }, null, delay, true);
-                self.on('finalize', () => timer.clear());
-            });
-            return { clear: () => unit.finalize() };
+        interval(timeout, interval) {
+            return new UnitTimer({ timeout, interval, loop: true });
         },
         /**
          * Creates a transition animation with easing, executing callback with progress values
@@ -779,61 +831,14 @@
          * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
          * @returns Object with clear() and next() methods for controlling transitions
          * @example
-         * xnew.transition(progress => {
-         *   element.style.opacity = progress
-         * }, 500, 'ease-out').next(progress => {
-         *   element.style.transform = `scale(${progress})`
+         * xnew.transition(p => {
+         *   element.style.opacity = p
+         * }, 500, 'ease-out').transition(p => {
+         *   element.style.transform = `scale(${p})`
          * }, 300)
          */
-        transition(callback, interval, easing = 'linear') {
-            const snapshot = Unit.snapshot(Unit.current);
-            let stacks = [];
-            let unit = xnew$1(Local, { callback, interval, easing });
-            let isRunning = true;
-            const timer = { clear, next };
-            return timer;
-            function execute() {
-                if (isRunning === false && stacks.length > 0) {
-                    unit = xnew$1(Local, stacks.shift());
-                    isRunning = true;
-                }
-            }
-            function clear() {
-                stacks = [];
-                unit.finalize();
-            }
-            function next(callback, interval = 0, easing = 'linear') {
-                stacks.push({ callback, interval, easing });
-                execute();
-                return timer;
-            }
-            function Local(self, { callback, interval, easing }) {
-                const timer = new Timer(() => {
-                    Unit.scope(snapshot, callback, 1.0);
-                    self.finalize();
-                }, (x) => {
-                    if (x < 1.0) {
-                        if (easing === 'ease-out') {
-                            x = Math.pow((1.0 - Math.pow((1.0 - x), 2.0)), 0.5);
-                        }
-                        else if (easing === 'ease-in') {
-                            x = Math.pow((1.0 - Math.pow((1.0 - x), 0.5)), 2.0);
-                        }
-                        else if (easing === 'ease') {
-                            x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
-                        }
-                        else if (easing === 'ease-in-out') {
-                            x = (1.0 - Math.cos(x * Math.PI)) / 2.0;
-                        }
-                        Unit.scope(snapshot, callback, x);
-                    }
-                }, interval);
-                self.on('finalize', () => {
-                    timer.clear();
-                    isRunning = false;
-                    execute();
-                });
-            }
+        transition(transition, interval = 0, easing = 'linear') {
+            return new UnitTimer({ transition, interval, easing });
         },
         /**
          * Creates an event listener manager for a target element with automatic cleanup
@@ -868,6 +873,84 @@
         },
     });
 
+    function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {
+        const internal = xnew$1((internal) => {
+            return { frame, open, rate: 0.0, };
+        });
+        xnew$1.context('xnew.accordionframe', internal);
+        internal.on('-transition', ({ rate }) => internal.rate = rate);
+        internal.emit('-transition', { rate: open ? 1.0 : 0.0 });
+        return {
+            toggle() {
+                if (internal.rate === 1.0) {
+                    frame.close();
+                }
+                else if (internal.rate === 0.0) {
+                    frame.open();
+                }
+            },
+            open() {
+                if (internal.rate === 0.0) {
+                    xnew$1.transition((x) => internal.emit('-transition', { rate: x }), duration, easing);
+                }
+            },
+            close() {
+                if (internal.rate === 1.0) {
+                    xnew$1.transition((x) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing);
+                }
+            }
+        };
+    }
+    function AccordionHeader(header, {} = {}) {
+        const internal = xnew$1.context('xnew.accordionframe');
+        xnew$1.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
+        header.on('click', () => internal.frame.toggle());
+    }
+    function AccordionBullet(bullet, { type = 'arrow' } = {}) {
+        const internal = xnew$1.context('xnew.accordionframe');
+        xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
+        if (type === 'arrow') {
+            const arrow = xnew$1(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+            arrow.element.style.transform = `rotate(${internal.rate * 90 - 45}deg)`;
+            internal.on('-transition', ({ rate }) => {
+                arrow.element.style.transform = `rotate(${rate * 90 - 45}deg)`;
+            });
+        }
+        else if (type === 'plusminus') {
+            const line1 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+            const line2 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+            line2.element.style.transform = `rotate(90deg)`;
+            line2.element.style.opacity = `${1.0 - internal.rate}`;
+            internal.on('-transition', ({ rate }) => {
+                line1.element.style.transform = `rotate(${90 + rate * 90}deg)`;
+                line2.element.style.transform = `rotate(${rate * 180}deg)`;
+            });
+        }
+    }
+    function AccordionContent(content, {} = {}) {
+        const internal = xnew$1.context('xnew.accordionframe');
+        xnew$1.nest(`<div style="display: ${internal.open ? 'block' : 'none'};">`);
+        xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
+        internal.on('-transition', ({ rate }) => {
+            content.transition({ element: content.element, rate });
+        });
+        return {
+            transition({ element, rate }) {
+                const wrapper = element.parentElement;
+                wrapper.style.display = 'block';
+                if (rate === 0.0) {
+                    wrapper.style.display = 'none';
+                }
+                else if (rate < 1.0) {
+                    Object.assign(wrapper.style, { height: element.offsetHeight * rate + 'px', overflow: 'hidden', opacity: rate });
+                }
+                else {
+                    Object.assign(wrapper.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
+                }
+            }
+        };
+    }
+
     function ResizeEvent(resize) {
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
@@ -884,7 +967,29 @@
             }
         });
     }
-
+    function KeyboardEvent(unit) {
+        const state = {};
+        xnew$1.listener(window).on('keydown', (event) => {
+            state[event.code] = 1;
+            unit.emit('-keydown', { event, type: '-keydown', code: event.code });
+        });
+        xnew$1.listener(window).on('keyup', (event) => {
+            state[event.code] = 0;
+            unit.emit('-keyup', { event, type: '-keyup', code: event.code });
+        });
+        xnew$1.listener(window).on('keydown', (event) => {
+            unit.emit('-arrowkeydown', { event, type: '-arrowkeydown', code: event.code, vector: getVector() });
+        });
+        xnew$1.listener(window).on('keyup', (event) => {
+            unit.emit('-arrowkeyup', { event, type: '-arrowkeyup', code: event.code, vector: getVector() });
+        });
+        function getVector() {
+            return {
+                x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
+                y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
+            };
+        }
+    }
     function PointerEvent(unit) {
         const internal = xnew$1();
         internal.on('pointerdown', (event) => unit.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
@@ -999,30 +1104,6 @@
     function getPosition(element, event) {
         const rect = element.getBoundingClientRect();
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    }
-
-    function KeyboardEvent(unit) {
-        const state = {};
-        xnew$1.listener(window).on('keydown', (event) => {
-            state[event.code] = 1;
-            unit.emit('-keydown', { event, type: '-keydown', code: event.code });
-        });
-        xnew$1.listener(window).on('keyup', (event) => {
-            state[event.code] = 0;
-            unit.emit('-keyup', { event, type: '-keyup', code: event.code });
-        });
-        xnew$1.listener(window).on('keydown', (event) => {
-            unit.emit('-arrowkeydown', { event, type: '-arrowkeydown', code: event.code, vector: getVector() });
-        });
-        xnew$1.listener(window).on('keyup', (event) => {
-            unit.emit('-arrowkeyup', { event, type: '-arrowkeyup', code: event.code, vector: getVector() });
-        });
-        function getVector() {
-            return {
-                x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
-                y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
-            };
-        }
     }
 
     function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
@@ -1177,84 +1258,6 @@
             },
             deselect({ element }) {
                 Object.assign(element.style, { display: 'none' });
-            }
-        };
-    }
-
-    function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {
-        const internal = xnew$1((internal) => {
-            return { frame, open, rate: 0.0, };
-        });
-        xnew$1.context('xnew.accordionframe', internal);
-        internal.on('-transition', ({ rate }) => internal.rate = rate);
-        internal.emit('-transition', { rate: open ? 1.0 : 0.0 });
-        return {
-            toggle() {
-                if (internal.rate === 1.0) {
-                    frame.close();
-                }
-                else if (internal.rate === 0.0) {
-                    frame.open();
-                }
-            },
-            open() {
-                if (internal.rate === 0.0) {
-                    xnew$1.transition((x) => internal.emit('-transition', { rate: x }), duration, easing);
-                }
-            },
-            close() {
-                if (internal.rate === 1.0) {
-                    xnew$1.transition((x) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing);
-                }
-            }
-        };
-    }
-    function AccordionHeader(header, {} = {}) {
-        const internal = xnew$1.context('xnew.accordionframe');
-        xnew$1.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
-        header.on('click', () => internal.frame.toggle());
-    }
-    function AccordionBullet(bullet, { type = 'arrow' } = {}) {
-        const internal = xnew$1.context('xnew.accordionframe');
-        xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
-        if (type === 'arrow') {
-            const arrow = xnew$1(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
-            arrow.element.style.transform = `rotate(${internal.rate * 90 - 45}deg)`;
-            internal.on('-transition', ({ rate }) => {
-                arrow.element.style.transform = `rotate(${rate * 90 - 45}deg)`;
-            });
-        }
-        else if (type === 'plusminus') {
-            const line1 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
-            const line2 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
-            line2.element.style.transform = `rotate(90deg)`;
-            line2.element.style.opacity = `${1.0 - internal.rate}`;
-            internal.on('-transition', ({ rate }) => {
-                line1.element.style.transform = `rotate(${90 + rate * 90}deg)`;
-                line2.element.style.transform = `rotate(${rate * 180}deg)`;
-            });
-        }
-    }
-    function AccordionContent(content, {} = {}) {
-        const internal = xnew$1.context('xnew.accordionframe');
-        xnew$1.nest(`<div style="display: ${internal.open ? 'block' : 'none'};">`);
-        xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-        internal.on('-transition', ({ rate }) => {
-            content.transition({ element: content.element, rate });
-        });
-        return {
-            transition({ element, rate }) {
-                const wrapper = element.parentElement;
-                wrapper.style.display = 'block';
-                if (rate === 0.0) {
-                    wrapper.style.display = 'none';
-                }
-                else if (rate < 1.0) {
-                    Object.assign(wrapper.style, { height: element.offsetHeight * rate + 'px', overflow: 'hidden', opacity: rate });
-                }
-                else {
-                    Object.assign(wrapper.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
-                }
             }
         };
     }

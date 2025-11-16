@@ -1,5 +1,5 @@
 import { MapSet, MapMap } from './map';
-import { Ticker } from './time';
+import { Ticker, Timer } from './time';
 
 //----------------------------------------------------------------------------------------------------
 // utils
@@ -35,23 +35,6 @@ interface UnitInternal {
     listeners2: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
-}
-
-export class UnitPromise {
-    private promise: Promise<any>;
-    constructor(promise: Promise<any>) { this.promise = promise; }
-    then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-    catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-    finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
-        return this;
-    }
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -415,3 +398,92 @@ export class Unit {
         });
     }
 }
+
+//----------------------------------------------------------------------------------------------------
+// unit promise
+//----------------------------------------------------------------------------------------------------
+
+export class UnitPromise {
+    private promise: Promise<any>;
+    constructor(promise: Promise<any>) { this.promise = promise; }
+    then(callback: Function): UnitPromise {
+        this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
+        return this;
+    }
+    catch(callback: Function): UnitPromise {
+        this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
+        return this;
+    }
+    finally(callback: Function): UnitPromise {
+        this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
+        return this;
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// unit timer
+//----------------------------------------------------------------------------------------------------
+
+export class UnitTimer {
+    private unit: Unit;
+    private stack: Object[] = [];
+
+    constructor(
+        { transition, timeout, interval, easing, loop }:
+        { transition?: Function, timeout?: Function, interval: number, easing?: string, loop?: boolean }
+    ) {
+        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+    }
+
+    clear() {
+        this.unit.off();
+        this.unit.finalize();
+    }
+
+    timeout(timeout: Function, interval: number = 0) {
+        UnitTimer.execute(this, { timeout, interval })
+        return this;
+    }
+
+    transition(transition: Function, interval: number = 0, easing: string = 'linear') {
+        UnitTimer.execute(this, { transition, interval, easing })
+        return this;
+    }
+
+    static execute(timer: UnitTimer,
+        { transition, timeout, interval, easing, loop }:
+        { transition?: Function, timeout?: Function, interval: number, easing?: string, loop?: boolean }
+    ) {
+        if (timer.unit._.state === 'finalized') {
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });
+        } else if (timer.stack.length === 0) {
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });  
+            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+        } else {
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, interval, easing, loop });  
+        }
+    }
+
+    static next(timer: UnitTimer) {
+        if (timer.stack.length > 0) {
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
+            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+        }
+    }
+
+    static Component(unit: Unit,
+        { snapshot, transition, timeout, interval, loop, easing }:
+        { snapshot: Snapshot, transition?: Function, timeout?: Function, interval?: number, loop?: boolean, easing?: string }
+    ) {
+        const timer = new Timer((x: number) => {
+            if (transition !== undefined) Unit.scope(snapshot, transition, x);
+        }, () => {
+            if (transition !== undefined) Unit.scope(snapshot, transition, 1.0);
+            if (timeout !== undefined) Unit.scope(snapshot, timeout);
+            unit.finalize();
+        }, interval, { loop, easing });
+
+        unit.on('finalize', () => timer.clear());
+    }
+}
+
