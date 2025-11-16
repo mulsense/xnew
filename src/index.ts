@@ -4,7 +4,6 @@ import { Unit } from './core/unit';
 import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } from './basics/Accordion';
 import { ResizeEvent, PointerEvent, KeyboardEvent } from './basics/Event';
 import { Screen } from './basics/Screen';
-import { InputFrame } from './basics/Input';
 import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { DragFrame, DragTarget } from './basics/Drag';
@@ -26,7 +25,6 @@ const basics = {
     TabFrame,
     TabButton,
     TabContent,
-    InputFrame,
     DragFrame,
     DragTarget,
     AnalogStick,

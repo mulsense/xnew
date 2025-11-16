@@ -54,8 +54,14 @@ interface UnitInternal {
     captures: ((unit: Unit) => boolean | void)[];
     elements: UnitElement[];
     components: Function[];
-    listeners1: MapMap<string, Function, [UnitElement, Function]>;
-    listeners2: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
+    listeners1: MapMap<string, Function, {
+        element: UnitElement;
+        execute: Function;
+    }>;
+    listeners2: MapMap<string, Function, {
+        element: UnitElement | Window | Document;
+        execute: Function;
+    }>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 }
@@ -271,16 +277,6 @@ declare const xnew$1: CreateUnit & {
         on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
         off(type?: string, listener?: Function): void;
     };
-    /**
-     * Registers a capture function that can intercept and handle child component events
-     * @param execute - Function that receives child unit and returns boolean (true to stop propagation)
-     * @example
-     * xnew.capture((childUnit) => {
-     *   console.log('Child component created:', childUnit)
-     *   return false // Continue propagation
-     * })
-     */
-    capture(execute: (unit: Unit) => boolean | void): void;
 };
 
 declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
@@ -315,8 +311,6 @@ declare function Screen(screen: Unit, { width, height, fit }?: {
     readonly canvas: UnitElement;
     resize(width: number, height: number): void;
 };
-
-declare function InputFrame(frame: Unit, {}?: {}): void;
 
 declare function ModalFrame(frame: Unit, { duration, easing }?: {
     duration?: number;
@@ -453,7 +447,6 @@ declare const basics: {
     TabFrame: typeof TabFrame;
     TabButton: typeof TabButton;
     TabContent: typeof TabContent;
-    InputFrame: typeof InputFrame;
     DragFrame: typeof DragFrame;
     DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;

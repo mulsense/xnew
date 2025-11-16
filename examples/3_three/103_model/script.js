@@ -157,19 +157,16 @@ function Panel(frame) {
 
     for (const name of Object.keys(additiveActions)) {
       xnew((frame) => {
-        xnew.extend(xnew.basics.InputFrame);
+        let status;
         xnew('<div class="text-sm flex justify-between">', (unit) => {
             xnew('<div class="flex-auto">', name);
-            const status = xnew('<div class="flex-none">', '0');
-            frame.on('-input', ({ event }) => {
-              status.element.textContent = event.target.value;
-            })
+            status = xnew('<div class="flex-none">', '0');
         });
         
         const settings = additiveActions[name];
-        xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
-      
-        frame.on('-input', ({ event }) => {
+        const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
+        input.on('input', (event) => {
+          status.element.textContent = event.target.value;
           settings.weight = parseFloat(event.target.value);
           group.emit('+setWeight', settings.action, settings.weight);
         });
@@ -180,18 +177,16 @@ function Panel(frame) {
 
   xnew((group) => {
     xnew.extend(PanelGroup, { name: 'options', open: true });
-    xnew((frame) => {
-      xnew.extend(xnew.basics.InputFrame);
+    xnew((unit) => {
+      let status;
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', 'speed');
-        const status = xnew('<div class="flex-none">', '1.0');
-        frame.on('-input', ({ event }) => {
-          status.element.textContent = event.target.value;
-        })
+        status = xnew('<div class="flex-none">', '1.0');
       });
 
-      xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
-      frame.on('-input', ({ event }) => {
+      const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
+      input.on('input', (event) => {
+        status.element.textContent = event.target.value;
         group.emit('+speed', parseFloat(event.target.value));
       });
     });

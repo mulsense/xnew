@@ -465,15 +465,13 @@ class Unit {
         return [...((_a = Unit.component2units.get(component)) !== null && _a !== void 0 ? _a : [])];
     }
     on(type, listener, options) {
-        if (this._.state === 'finalized')
-            return;
         type.trim().split(/\s+/).forEach((type) => {
             if (SYSTEM_EVENTS.includes(type)) {
                 this._.systems[type].push(listener);
             }
             if (this._.listeners1.has(type, listener) === false) {
                 const execute = Unit.wrap(Unit.current, listener);
-                this._.listeners1.set(type, listener, [this.element, execute]);
+                this._.listeners1.set(type, listener, { element: this.element, execute });
                 Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
                     this.element.addEventListener(type, execute, options);
@@ -487,13 +485,12 @@ class Unit {
             if (SYSTEM_EVENTS.includes(type)) {
                 this._.systems[type] = this._.systems[type].filter((lis) => listener ? lis !== listener : false);
             }
-            (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((lis) => {
-                const tuple = this._.listeners1.get(type, lis);
-                if (tuple !== undefined) {
-                    const [target, execute] = tuple;
-                    this._.listeners1.delete(type, lis);
+            (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((listener) => {
+                const item = this._.listeners1.get(type, listener);
+                if (item !== undefined) {
+                    this._.listeners1.delete(type, listener);
                     if (/^[A-Za-z]/.test(type)) {
-                        target.removeEventListener(type, execute);
+                        item.element.removeEventListener(type, item.execute);
                     }
                 }
             });
@@ -504,23 +501,21 @@ class Unit {
     }
     emit(type, ...args) {
         var _a, _b;
-        if (this._.state === 'finalized')
-            return;
         if (type[0] === '+') {
             (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
-                (_a = unit._.listeners1.get(type)) === null || _a === void 0 ? void 0 : _a.forEach(([_, execute]) => execute(...args));
+                (_a = unit._.listeners1.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
             });
         }
         else if (type[0] === '-') {
-            (_b = this._.listeners1.get(type)) === null || _b === void 0 ? void 0 : _b.forEach(([_, execute]) => execute(...args));
+            (_b = this._.listeners1.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(...args));
         }
     }
     static subon(unit, target, type, listener, options) {
         type.trim().split(/\s+/).forEach((type) => {
             if (unit._.listeners2.has(type, listener) === false) {
                 const execute = Unit.wrap(unit, listener);
-                unit._.listeners2.set(type, listener, [target, execute]);
+                unit._.listeners2.set(type, listener, { element: target, execute });
                 target.addEventListener(type, execute, options);
             }
         });
@@ -528,14 +523,11 @@ class Unit {
     static suboff(unit, target, type, listener) {
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.listeners2.keys()];
         types.forEach((type) => {
-            (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((lis) => {
-                const tuple = unit._.listeners2.get(type, lis);
-                if (tuple !== undefined) {
-                    const [element, execute] = tuple;
-                    if (target === null || target === element) {
-                        unit._.listeners2.delete(type, lis);
-                        element.removeEventListener(type, execute);
-                    }
+            (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((listener) => {
+                const item = unit._.listeners2.get(type, listener);
+                if (item !== undefined && (target === null || target === item.element)) {
+                    unit._.listeners2.delete(type, listener);
+                    item.element.removeEventListener(type, item.execute);
                 }
             });
         });
@@ -853,18 +845,6 @@ const xnew$1 = Object.assign(function (...args) {
             }
         };
     },
-    /**
-     * Registers a capture function that can intercept and handle child component events
-     * @param execute - Function that receives child unit and returns boolean (true to stop propagation)
-     * @example
-     * xnew.capture((childUnit) => {
-     *   console.log('Child component created:', childUnit)
-     *   return false // Continue propagation
-     * })
-     */
-    capture(execute) {
-        Unit.current._.captures.push(Unit.wrap(Unit.current, (unit) => execute(unit)));
-    },
 });
 
 function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {
@@ -1145,25 +1125,6 @@ function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
             resize();
         },
     };
-}
-
-function InputFrame(frame, {} = {}) {
-    xnew$1.nest('<div>');
-    xnew$1.capture((unit) => {
-        if (unit.element.tagName.toLowerCase() === 'input') {
-            const element = unit.element;
-            xnew$1.listener(element).on('input', (event) => {
-                frame.emit('-input', { event });
-            });
-            xnew$1.listener(element).on('change', (event) => {
-                frame.emit('-change', { event });
-            });
-            xnew$1.listener(element).on('click', (event) => {
-                frame.emit('-click', { event });
-            });
-            return true;
-        }
-    });
 }
 
 function ModalFrame(frame, { duration = 200, easing = 'ease' } = {}) {
@@ -1679,7 +1640,6 @@ const basics = {
     TabFrame,
     TabButton,
     TabContent,
-    InputFrame,
     DragFrame,
     DragTarget,
     AnalogStick,

@@ -234,16 +234,16 @@
       };
     }
 
-    function Slider(frame, { name, value, max, min, step }) {
-      xnew.extend(xnew.basics.InputFrame);
+    function Slider(unit, { name, value, max, min, step }) {
+      let status;
       xnew('<div class="flex justify-between text-sm">', (unit) => {
           xnew('<div class="flex-1">', name);
-          const status = xnew('<div class="flex-none">', `${value}`);
-          frame.on('-input', ({ event }) => {
-            status.element.textContent = event.target.value;
-          })
+          status = xnew('<div class="flex-none">', `${value}`);
       });
       const input = xnew(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
+      input.on('input', (event) => {
+        status.element.textContent = event.target.value;
+      });
       return {
         get value() { return Number(input.element.value); },
       }

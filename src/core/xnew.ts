@@ -265,18 +265,5 @@ export const xnew = Object.assign(
                 }
             }
         },
-
-        /**
-         * Registers a capture function that can intercept and handle child component events
-         * @param execute - Function that receives child unit and returns boolean (true to stop propagation)
-         * @example
-         * xnew.capture((childUnit) => {
-         *   console.log('Child component created:', childUnit)
-         *   return false // Continue propagation
-         * })
-         */
-        capture(execute: (unit: Unit) => boolean | void) {
-            Unit.current._.captures.push(Unit.wrap(Unit.current, (unit: Unit) => execute(unit)));
-        },
     }
 );
