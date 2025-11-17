@@ -37,10 +37,13 @@ function Dot(unit) {
 
 function TitleScene(unit) {
   xnew(TitleText);
-  xnew.listener(window) .on('keydown pointerdown', () => {
+  xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
+  xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
+  
+  function next() {
     unit.finalize();
     xnew.find(Main)[0]?.append(GameScene);
-  });
+  }
 }
 
 function TitleText(unit) {
@@ -59,10 +62,12 @@ function GameScene(unit) {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      xnew.listener(window).on('keydown pointerdown', () => {
+      xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
+      xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
+      function next() {
         unit.finalize();
         xnew.find(Main)[0]?.append(TitleScene);
-      });
+      }
     }, 1000);
   });
 }
@@ -87,7 +92,7 @@ function Controller(unit) {
 
   // keyboard
   const keybord = xnew(xnew.basics.KeyboardEvent);
-  keybord.on('-arrowkeydown -arrowkeyup', ({ vector }) => unit.emit('+move', { vector }));
+  keybord.on('-keydown:arrow -keyup:arrow', ({ vector }) => unit.emit('+move', { vector }));
   keybord.on('-keydown', ({ code }) => {
     if (code === 'Space') {
       unit.emit('+shot')

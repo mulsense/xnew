@@ -245,25 +245,5 @@ export const xnew = Object.assign(
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
             return new UnitTimer({ transition, duration, easing });
         },
-
-        /**
-         * Creates an event listener manager for a target element with automatic cleanup
-         * @param target - Element, Window, or Document to attach listeners to
-         * @returns Object with on() and off() methods for managing event listeners
-         * @example
-         * const mouse = xnew.listener(window)
-         * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
-         * // Automatically cleaned up when component finalizes
-         */
-        listener(target: HTMLElement | SVGElement | Window | Document) {
-            return {
-                on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-                    Unit.subon(Unit.current, target, type, listener, options);
-                },
-                off(type?: string, listener?: Function) {
-                    Unit.suboff(Unit.current, target, type, listener);
-                }
-            }
-        },
     }
 );

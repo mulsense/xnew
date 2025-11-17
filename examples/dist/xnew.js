@@ -305,8 +305,7 @@
                 elements: [],
                 promises: [],
                 components: [],
-                listeners1: new MapMap(),
-                listeners2: new MapMap(),
+                listeners: new MapMap(),
                 defines: {},
                 systems: { start: [], update: [], stop: [], finalize: [] },
             });
@@ -326,7 +325,6 @@
                 unit._.children.forEach((child) => child.finalize());
                 unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
                 unit.off();
-                Unit.suboff(unit, null);
                 unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
                 if (unit._.elements.length > 0) {
                     unit._.baseElement.removeChild(unit._.elements[0]);
@@ -469,9 +467,9 @@
                 if (SYSTEM_EVENTS.includes(type)) {
                     this._.systems[type].push(listener);
                 }
-                if (this._.listeners1.has(type, listener) === false) {
+                if (this._.listeners.has(type, listener) === false) {
                     const execute = Unit.wrap(Unit.current, listener);
-                    this._.listeners1.set(type, listener, { element: this.element, execute });
+                    this._.listeners.set(type, listener, { element: this.element, execute });
                     Unit.type2units.add(type, this);
                     if (/^[A-Za-z]/.test(type)) {
                         this.element.addEventListener(type, execute, options);
@@ -480,21 +478,21 @@
             });
         }
         off(type, listener) {
-            const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners1.keys()];
+            const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
             types.forEach((type) => {
                 if (SYSTEM_EVENTS.includes(type)) {
                     this._.systems[type] = this._.systems[type].filter((lis) => listener ? lis !== listener : false);
                 }
-                (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((listener) => {
-                    const item = this._.listeners1.get(type, listener);
+                (listener ? [listener] : [...this._.listeners.keys(type)]).forEach((listener) => {
+                    const item = this._.listeners.get(type, listener);
                     if (item !== undefined) {
-                        this._.listeners1.delete(type, listener);
+                        this._.listeners.delete(type, listener);
                         if (/^[A-Za-z]/.test(type)) {
                             item.element.removeEventListener(type, item.execute);
                         }
                     }
                 });
-                if (this._.listeners1.has(type) === false) {
+                if (this._.listeners.has(type) === false) {
                     Unit.type2units.delete(type, this);
                 }
             });
@@ -504,33 +502,12 @@
             if (type[0] === '+') {
                 (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                     var _a;
-                    (_a = unit._.listeners1.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
+                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
                 });
             }
             else if (type[0] === '-') {
-                (_b = this._.listeners1.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(...args));
+                (_b = this._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(...args));
             }
-        }
-        static subon(unit, target, type, listener, options) {
-            type.trim().split(/\s+/).forEach((type) => {
-                if (unit._.listeners2.has(type, listener) === false) {
-                    const execute = Unit.wrap(unit, listener);
-                    unit._.listeners2.set(type, listener, { element: target, execute });
-                    target.addEventListener(type, execute, options);
-                }
-            });
-        }
-        static suboff(unit, target, type, listener) {
-            const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.listeners2.keys()];
-            types.forEach((type) => {
-                (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((listener) => {
-                    const item = unit._.listeners2.get(type, listener);
-                    if (item !== undefined && (target === null || target === item.element)) {
-                        unit._.listeners2.delete(type, listener);
-                        item.element.removeEventListener(type, item.execute);
-                    }
-                });
-            });
         }
     }
     Unit.component2units = new MapSet();
@@ -828,25 +805,6 @@
         transition(transition, duration = 0, easing = 'linear') {
             return new UnitTimer({ transition, duration, easing });
         },
-        /**
-         * Creates an event listener manager for a target element with automatic cleanup
-         * @param target - Element, Window, or Document to attach listeners to
-         * @returns Object with on() and off() methods for managing event listeners
-         * @example
-         * const mouse = xnew.listener(window)
-         * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
-         * // Automatically cleaned up when component finalizes
-         */
-        listener(target) {
-            return {
-                on(type, listener, options) {
-                    Unit.subon(Unit.current, target, type, listener, options);
-                },
-                off(type, listener) {
-                    Unit.suboff(Unit.current, target, type, listener);
-                }
-            };
-        },
     });
 
     function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {
@@ -943,28 +901,34 @@
             }
         });
     }
-    function KeyboardEvent(unit) {
+    function KeyboardEvent(keyboard) {
         const state = {};
-        xnew$1.listener(window).on('keydown', (event) => {
+        window.addEventListener('keydown', keydown);
+        window.addEventListener('keyup', keyup);
+        function keydown(event) {
             state[event.code] = 1;
-            unit.emit('-keydown', { event, type: '-keydown', code: event.code });
-        });
-        xnew$1.listener(window).on('keyup', (event) => {
+            keyboard.emit('-keydown', { event, type: '-keydown', code: event.code });
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+                keyboard.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+            }
+        }
+        function keyup(event) {
             state[event.code] = 0;
-            unit.emit('-keyup', { event, type: '-keyup', code: event.code });
-        });
-        xnew$1.listener(window).on('keydown', (event) => {
-            unit.emit('-arrowkeydown', { event, type: '-arrowkeydown', code: event.code, vector: getVector() });
-        });
-        xnew$1.listener(window).on('keyup', (event) => {
-            unit.emit('-arrowkeyup', { event, type: '-arrowkeyup', code: event.code, vector: getVector() });
-        });
+            keyboard.emit('-keyup', { event, type: '-keyup', code: event.code });
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+                keyboard.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+            }
+        }
         function getVector() {
             return {
                 x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
                 y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
             };
         }
+        keyboard.on('finalize', () => {
+            window.removeEventListener('keydown', keydown);
+            window.removeEventListener('keyup', keyup);
+        });
     }
     function PointerEvent(unit) {
         const internal = xnew$1();
@@ -986,36 +950,50 @@
         gesture.on('-gesturecancel', (...args) => unit.emit('-gesturecancel', ...args));
     }
     function DragEvent(unit) {
-        xnew$1().on('pointerdown', (event) => {
+        unit.on('pointerdown', pointerdown);
+        function pointerdown(event) {
             const id = event.pointerId;
             const position = getPosition(unit.element, event);
             let previous = position;
-            xnew$1(() => {
-                xnew$1.listener(window).on('pointermove', (event) => {
+            xnew$1((internal) => {
+                let connect = true;
+                window.addEventListener('pointermove', pointermove);
+                window.addEventListener('pointerup', pointerup);
+                window.addEventListener('pointercancel', pointercancel);
+                function pointermove(event) {
                     if (event.pointerId === id) {
                         const position = getPosition(unit.element, event);
                         const delta = { x: position.x - previous.x, y: position.y - previous.y };
                         unit.emit('-dragmove', { event, position, delta });
                         previous = position;
                     }
-                });
-                xnew$1.listener(window).on('pointerup', (event) => {
+                }
+                function pointerup(event) {
                     if (event.pointerId === id) {
                         const position = getPosition(unit.element, event);
                         unit.emit('-dragend', { event, position, });
-                        xnew$1.listener(window).off();
+                        remove();
                     }
-                });
-                xnew$1.listener(window).on('pointercancel', (event) => {
+                }
+                function pointercancel(event) {
                     if (event.pointerId === id) {
                         const position = getPosition(unit.element, event);
                         unit.emit('-dragcancel', { event, position, });
-                        xnew$1.listener(window).off();
+                        remove();
                     }
-                });
+                }
+                function remove() {
+                    if (connect === true) {
+                        window.removeEventListener('pointermove', pointermove);
+                        window.removeEventListener('pointerup', pointerup);
+                        window.removeEventListener('pointercancel', pointercancel);
+                        connect = false;
+                    }
+                }
+                internal.on('finalize', remove);
             });
             unit.emit('-dragstart', { event, position });
-        });
+        }
     }
     function GestureEvent(unit) {
         const drag = xnew$1(DragEvent);

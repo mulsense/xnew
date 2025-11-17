@@ -53,12 +53,8 @@ interface UnitInternal {
     promises: Promise<any>[];
     elements: UnitElement[];
     components: Function[];
-    listeners1: MapMap<string, Function, {
+    listeners: MapMap<string, Function, {
         element: UnitElement;
-        execute: Function;
-    }>;
-    listeners2: MapMap<string, Function, {
-        element: UnitElement | Window | Document;
         execute: Function;
     }>;
     defines: Record<string, any>;
@@ -98,8 +94,6 @@ declare class Unit {
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
     emit(type: string, ...args: any[]): void;
-    static subon(unit: Unit, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
-    static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void;
 }
 declare class UnitPromise {
     private promise;
@@ -263,19 +257,6 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
-    /**
-     * Creates an event listener manager for a target element with automatic cleanup
-     * @param target - Element, Window, or Document to attach listeners to
-     * @returns Object with on() and off() methods for managing event listeners
-     * @example
-     * const mouse = xnew.listener(window)
-     * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
-     * // Automatically cleaned up when component finalizes
-     */
-    listener(target: HTMLElement | SVGElement | Window | Document): {
-        on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
-        off(type?: string, listener?: Function): void;
-    };
 };
 
 declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
@@ -299,7 +280,7 @@ declare function AccordionContent(content: Unit, {}?: {}): {
 };
 
 declare function ResizeEvent(resize: Unit): void;
-declare function KeyboardEvent(unit: Unit): void;
+declare function KeyboardEvent(keyboard: Unit): void;
 declare function PointerEvent(unit: Unit): void;
 
 declare function Screen(screen: Unit, { width, height, fit }?: {
