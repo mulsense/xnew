@@ -574,7 +574,7 @@ class UnitTimer {
                 Unit.scope(snapshot, transition, 1.0);
             if (timeout !== undefined)
                 Unit.scope(snapshot, timeout);
-            if (loop === false) {
+            if (loop !== true) {
                 unit.finalize();
             }
         }, duration, { loop, easing });

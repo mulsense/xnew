@@ -12,7 +12,6 @@ xnew('#main', Main);
 
 function Main(screen) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
-  screen.canvas.style.imageRendering = 'pixelated';
 
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(screen.canvas.width, screen.canvas.height) });
@@ -43,14 +42,8 @@ function TitleScene(scene) {
     scene.finalize();
     xnew.find(Main)[0]?.append(GameScene);
   });
-
-  xnew(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-green-800 font-bold"
-    style="container-type: size;">
-  >`, () => {
-    xnew(TitleText);
-    xnew(TouchMessage);
-  });
+  xnew(TitleText);
+  xnew(TouchMessage);
 }
 
 function GameScene(scene) {
@@ -66,15 +59,8 @@ function GameScene(scene) {
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   const controller = xnew(Controller);
 
-  xnew.nest(`<div
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold"
-    style="container-type: size;">
-  >`);
   xnew(ScoreText);
 
-  // xnew.timeout(() => {
-  //   scene.emit('+gameover');
-  // }, 1100);
   scene.on('+gameover', () => {
     scene.off('+gameover');
     controller.finalize();
@@ -165,16 +151,26 @@ function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function TitleText(text) {
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[10cqw] font-bold" style="-webkit-text-stroke: 0.1cqw white;">');
-  text.element.textContent = 'とーほく ドロップ';
+function Text(unit, { text, strokeWidth, strokeColor }) {
+  xnew.nest(`<div
+    style="
+    text-shadow: -${strokeWidth} -${strokeWidth} 1px ${strokeColor}, ${strokeWidth} -${strokeWidth} 1px ${strokeColor}, -${strokeWidth} ${strokeWidth} 1px ${strokeColor}, ${strokeWidth} ${strokeWidth} 1px ${strokeColor};
+    ">`);
+  unit.element.textContent = text;
 }
 
-function TouchMessage(text) {
-  xnew.nest('<div class="absolute top-[30cqw] w-full text-center text-[6cqw]">');
-  text.element.textContent = 'touch start';
+function TitleText(text) {
+  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-green-800" style="container-type: size;">');
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center font-bold">');
+  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.2cqw', strokeColor: 'white' });
+}
+
+function TouchMessage(unit) {
+  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-green-800" style="container-type: size;">');
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center font-bold">');
+  const text = xnew(Text, { text: 'touch start', strokeWidth: '0.2cqw', strokeColor: 'white' });
   let count = 0;
-  text.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  unit.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -195,11 +191,13 @@ function Controller(unit) {
   pointer.on('-pointerdown', () => unit.emit('+drop'));
 }
 
-function ScoreText(text) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-[6cqw] text-green-800">');
-  text.element.textContent = 'score 0';
+function ScoreText(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-800">');
+  const text = xnew(Text, { text: 'score 0', strokeWidth: '0.2cqw', strokeColor: 'white' });
   let sum = 0;
-  text.on('+scoreup', (score) => text.element.textContent = `score ${sum += score}`);
+  unit.on('+scoreup', (score) => text.element.textContent = `score ${sum += score}`);
 }
 
 function Bowl(unit) {
@@ -226,8 +224,8 @@ function Queue(queue) {
     model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
     balls.push(Math.floor(Math.random() * 3));
-    xnew.transition((progress) => {
-      const position = pos3d(10 + progress * 70, 70);
+    xnew.transition((p) => {
+      const position = pos3d(10 + p * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
     }, 500).timeout(() => {
       queue.emit('+reloadcomplete', next);
