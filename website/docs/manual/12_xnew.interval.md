@@ -10,7 +10,7 @@ const interval = xnew.interval(callback, delay);
 
 **Parameters:**
 - `callback`: Function to execute at each interval
-- `delay`: Time in milliseconds between executions
+- `duration`: Time in milliseconds between executions
 
 **Returns:**
 - An interval object with a `clear()` method to stop the interval

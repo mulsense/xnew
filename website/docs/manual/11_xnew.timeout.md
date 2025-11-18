@@ -10,13 +10,13 @@ const timeout = xnew.timeout(callback, interval);
 
 **Parameters:**
 - `callback`: Function to execute after the delay
-- `interval`: Time in milliseconds before execution
+- `duration`: Time in milliseconds before execution
 
 **Returns:**
 - A transition object with:
   - `clear()`: Cancel the transition
-  - `timeout(callback, interval)`: Chain another timeout
-  - `transition(callback, interval, easing)`: Chain another transition
+  - `timeout(callback, duration)`: Chain another timeout
+  - `transition(callback, duration, easing)`: Chain another transition
 
 ## Example
 

@@ -5,7 +5,7 @@
 ## Usage
 
 ```js
-const response = await xnew.fetch(url, options);
+xnew.fetch(url, options);
 ```
 
 **Parameters:**
