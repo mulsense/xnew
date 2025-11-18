@@ -64,9 +64,9 @@ function GameScene(scene) {
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
   scene.on('+scoreup', (i) => scores[i]++);
 
-  xnew.timeout(() => {
-    scene.emit('+gameover');
-  }, 100);
+  // xnew.timeout(() => {
+  //   scene.emit('+gameover');
+  // }, 100);
   scene.on('+gameover', () => {
     scene.off('+gameover');
     xnew(GameOverText);
@@ -79,7 +79,7 @@ function GameScene(scene) {
         scene.finalize();
         xnew.find(Main)[0]?.append(ResultScene, { image, scores });
       });
-    }, 1);
+    }, 2000);
   });
 
 }
@@ -211,7 +211,7 @@ function ScoreText(unit) {
 
 function GameOverText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
+  xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold text-red-500">');
   unit.element.textContent = 'Game Over';
   xnew.transition((p) => {
     unit.element.style.opacity = p;
@@ -356,9 +356,6 @@ function Cursor(unit) {
 }
 
 function ModelBall(ball, { x, y, id = 0 }) {
-  const result = xnew.context('result');
-  result.counts[id] += 1;
-
   const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
   const radius = 35 + Math.pow(3.0, scale * 2.0);
   xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });

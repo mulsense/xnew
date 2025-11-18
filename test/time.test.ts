@@ -11,7 +11,7 @@ describe('timer', () => {
                 const d = Date.now() - start;
                 expect(d).toBeGreaterThan(500 - margin);
                 expect(d).toBeLessThan(500 + margin);
-            }, duration: 500 });
+            }, duration: 500, iterations: 1 });
             setTimeout(() => count === 1 ? resolve() : reject(), 500 + margin);
         });
     });
@@ -26,7 +26,7 @@ describe('timer', () => {
                 const d = Date.now() - start;
                 expect(d).toBeGreaterThan(500 * count - margin);
                 expect(d).toBeLessThan(500 * count + margin);
-            }, duration: 500, loop: true });
+            }, duration: 500 });
             setTimeout(() => count === 2 ? resolve() : reject(), 1000 + margin);
         });
     });

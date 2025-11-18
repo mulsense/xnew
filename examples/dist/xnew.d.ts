@@ -257,7 +257,6 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
-    style(text: string): void;
 };
 
 declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
@@ -360,20 +359,10 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
 }): void;
 
 declare const audio: {
-    load(path: string): AudioFile;
+    load(path: string): UnitPromise;
     synthesizer(props: SynthProps): Synthesizer;
     volume: number;
 };
-declare class AudioFile {
-    buffer?: AudioBuffer;
-    promise: Promise<void>;
-    source?: AudioBufferSourceNode;
-    amp?: GainNode;
-    start: number | null;
-    constructor(path: string);
-    play(offset?: number, loop?: boolean): void;
-    pause(): number | undefined;
-}
 type SynthProps = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;

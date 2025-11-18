@@ -803,15 +803,6 @@ const xnew$1 = Object.assign(function (...args) {
      */
     transition(transition, duration = 0, easing = 'linear') {
         return new UnitTimer({ transition, duration, easing, iterations: 1 });
-    },
-    style(text) {
-        const unit = new Unit(Unit.current);
-        const style = document.createElement('style');
-        style.textContent = text;
-        document.head.appendChild(style);
-        unit.on('finalize', () => {
-            document.head.removeChild(style);
-        });
     }
 });
 
@@ -1407,7 +1398,7 @@ function initialize() {
 }
 const audio = {
     load(path) {
-        return new AudioFile(path);
+        return AudioFile.load(path);
     },
     synthesizer(props) {
         return new Synthesizer(props);
@@ -1433,31 +1424,35 @@ class AudioFile {
             .catch(() => {
             console.warn(`"${path}" could not be loaded.`);
         });
+        this.amp = context.createGain();
+        this.amp.gain.value = 1.0;
+        this.amp.connect(master);
+        this.source = null;
         this.start = null;
     }
-    // set volume(value: number) {
-    //     this.amp.gain.value = value;
-    // }
-    // get volume(): number {
-    //     return this.amp.gain.value;
-    // }
-    play(offset = 0, loop = false) {
-        if (this.buffer !== undefined && this.start === null) {
+    set volume(value) {
+        this.amp.gain.value = value;
+    }
+    get volume() {
+        return this.amp.gain.value;
+    }
+    play({ offset = 0, loop = false } = {}) {
+        if (this.buffer === undefined) {
+            this.promise.then(() => this.play({ offset, loop }));
+        }
+        else if (this.start === null) {
             this.source = context.createBufferSource();
             this.source.buffer = this.buffer;
             this.source.loop = loop;
-            this.amp = context.createGain();
-            this.amp.gain.value = 1.0;
             this.source.connect(this.amp);
-            this.amp.connect(master);
             this.start = context.currentTime;
             this.source.playbackRate.value = 1;
             this.source.start(context.currentTime, offset / 1000);
             this.source.onended = () => {
-                var _a, _b;
+                var _a;
                 this.start = null;
                 (_a = this.source) === null || _a === void 0 ? void 0 : _a.disconnect();
-                (_b = this.amp) === null || _b === void 0 ? void 0 : _b.disconnect();
+                this.source = null;
             };
         }
     }
@@ -1469,6 +1464,15 @@ class AudioFile {
             this.start = null;
             return elapsed;
         }
+    }
+    static load(path) {
+        const music = new AudioFile(path);
+        return xnew$1.promise(music.promise).then(() => music);
+    }
+    static clear(file) {
+        var _a;
+        file.amp.disconnect();
+        (_a = file.source) === null || _a === void 0 ? void 0 : _a.disconnect();
     }
 }
 const keymap = {
