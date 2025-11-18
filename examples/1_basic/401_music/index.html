@@ -13,19 +13,18 @@
     xnew('#main', (unit) => {
       xnew.nest('<div class="m-2 space-y-4">');
 
-      const music = xnew.audio.load('b096.mp3');
-
+      xnew.audio.load('b096.mp3').then((music) => {
       // Play and Stop buttons
       xnew.nest('<div class="space-x-2">');
-      xnew(Button, { name: 'play!' }).on('click', () => {
-        music.play();
+        xnew(Button, { name: 'play!' }).on('click', () => {
+          music.play();
+        });
+        xnew(Button, { name: 'stop!' }).on('click', () => {
+          music.pause();
+        });
+        // Volume control
+        xnew(VolumeControl);
       });
-      xnew(Button, { name: 'stop!' }).on('click', () => {
-        music.pause();
-      });
-
-      // Volume control
-      xnew(VolumeControl);
     });
 
     function Button(unit, { name }) {
@@ -52,7 +51,7 @@
         const value = e.target.value;
         console.log(xnew.audio);
         // xnew.audio.master.gain.value = value / 100; // Convert to 0-1 range
-        xnew.audio.config.volume = value / 100; // Convert to 0-1 range
+        xnew.audio.volume = value / 100; // Convert to 0-1 range
         valueDisplay.element.textContent = value + '%';
       });
     }

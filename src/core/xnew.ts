@@ -213,7 +213,7 @@ export const xnew = Object.assign(
          * // Cancel if needed: timer.clear()
          */
         timeout(timeout: Function, duration: number = 0): any {
-            return new UnitTimer({ timeout, duration });
+            return new UnitTimer({ timeout, duration, iterations: 1 });
         },
 
         /**
@@ -225,8 +225,8 @@ export const xnew = Object.assign(
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(timeout: Function, duration: number): any {
-            return new UnitTimer({ timeout, duration, loop: true });
+        interval(timeout: Function, duration: number, iterations?: number): any {
+            return new UnitTimer({ timeout, duration, iterations });
         },
 
         /**
@@ -243,27 +243,7 @@ export const xnew = Object.assign(
          * }, 300)
          */
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
-            return new UnitTimer({ transition, duration, easing });
-        },
-
-        /**
-         * Creates an event listener manager for a target element with automatic cleanup
-         * @param target - Element, Window, or Document to attach listeners to
-         * @returns Object with on() and off() methods for managing event listeners
-         * @example
-         * const mouse = xnew.listener(window)
-         * mouse.on('mousemove', (e) => console.log(e.clientX, e.clientY))
-         * // Automatically cleaned up when component finalizes
-         */
-        listener(target: HTMLElement | SVGElement | Window | Document) {
-            return {
-                on(type: string, listener: Function, options?: boolean | AddEventListenerOptions) {
-                    Unit.subon(Unit.current, target, type, listener, options);
-                },
-                off(type?: string, listener?: Function) {
-                    Unit.suboff(Unit.current, target, type, listener);
-                }
-            }
-        },
+            return new UnitTimer({ transition, duration, easing, iterations: 1 });
+        }
     }
 );

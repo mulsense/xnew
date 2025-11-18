@@ -1,5 +1,6 @@
 import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js'
+import xpixi from '../../dist/addons/xpixi';
 
 export default {
     initialize({ renderer = null, canvas = null }: any = {}) {
@@ -24,7 +25,7 @@ export default {
     },
     get canvas() {
         return xnew.context('xpixi.root')?.canvas;
-    }
+    },
 };
 
 function Root(self: xnew.Unit, { canvas }: any) {

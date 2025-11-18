@@ -34,53 +34,52 @@ export class Ticker {
 // timer
 //----------------------------------------------------------------------------------------------------
 
+export interface TimerOptions {
+    transition?: Function,
+    timeout?: Function,
+    duration: number, 
+    iterations?: number,
+    easing?: string
+}
+
 export class Timer {
-    private timeout: Function | null;
-    private transition: Function | null;
-    private duration: number;
-    private loop: boolean;
-    private easing: string;
+    private options: TimerOptions;
     private id: NodeJS.Timeout | null;
 
     private time: number;
+    private counter: number;
     private offset: number;
     private status: 0 | 1;
     private visibilitychange: ((this: Document, event: Event) => any);
     private ticker: Ticker;
 
-    constructor(transition: Function | null, timeout: Function | null, duration?: number, { loop = false, easing = 'linear' }: { loop?: boolean, easing?: string } = {}) {
-        this.transition = transition;
-        this.timeout = timeout;
-
-        this.duration = duration ?? 0;
-        this.loop = loop;
-        this.easing = easing;
+    constructor(options: TimerOptions) {
+        this.options = options;
+        this.options.easing = this.options.easing ?? 'linear';
 
         this.id = null;
         this.time = 0.0;
+        this.counter = 0;
         this.offset = 0.0;
 
         this.status = 0;
         this.ticker = new Ticker((time: number) => {
-            let p = Math.min(this.elapsed() / this.duration, 1.0);
-            if (easing === 'ease-out') {
+            let p = Math.min(this.elapsed() / this.options.duration, 1.0);
+            if (this.options.easing === 'ease-out') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
-            } else if (easing === 'ease-in') {
+            } else if (this.options.easing === 'ease-in') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-            } else if (easing === 'ease') {
+            } else if (this.options.easing === 'ease') {
                 p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
-            } else if (easing === 'ease-in-out') {
+            } else if (this.options.easing === 'ease-in-out') {
                 p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
             }
-            this.transition?.(p);
+            this.options.transition?.(p);
         });
   
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        if (this.duration > 0.0) {
-            this.transition?.(0.0);
-        }
         this.start();
     }
 
@@ -110,15 +109,23 @@ export class Timer {
     private _start(): void {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
-                this.timeout?.();
-                this.transition?.(1.0);
+                this.options.transition?.(1.0);
+                this.options.timeout?.(this.counter);
 
                 this.id = null;
                 this.time = 0.0;
+                this.counter++;
                 this.offset = 0.0;
 
-                this.loop ? this.start() : this.clear();
-            }, this.duration - this.offset);
+                if (this.options.iterations === undefined) {
+                    this.start();
+                } else if (this.options.iterations > 1) {
+                    this.options.iterations--;
+                    this.start();
+                } else {
+                    this.clear();
+                }
+            }, this.options.duration - this.offset);
             this.time = Date.now();
         }
     }

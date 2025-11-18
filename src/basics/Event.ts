@@ -19,30 +19,37 @@ export function ResizeEvent(resize: Unit) {
     });
 }
 
-export function KeyboardEvent(unit: Unit) {
+export function KeyboardEvent(keyboard: Unit) {
     const state: any = {};
 
-    xnew.listener(window).on('keydown', (event: any) => {
-        state[event.code] = 1;
-        unit.emit('-keydown', { event, type: '-keydown', code: event.code });
-    });
-    xnew.listener(window).on('keyup', (event: any) => {
-        state[event.code] = 0;
-        unit.emit('-keyup', { event, type: '-keyup', code: event.code });
-    });
-    xnew.listener(window).on('keydown', (event: any) => {
-        unit.emit('-arrowkeydown', { event, type: '-arrowkeydown', code: event.code, vector: getVector() });
-    });
-    xnew.listener(window).on('keyup', (event: any) => {
-        unit.emit('-arrowkeyup', { event, type: '-arrowkeyup', code: event.code, vector: getVector() });
-    });
+    window.addEventListener('keydown', keydown);
+    window.addEventListener('keyup', keyup);
 
+    function keydown(event: any) {
+        state[event.code] = 1;
+        keyboard.emit('-keydown', { event, type: '-keydown', code: event.code });
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+            keyboard.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+        }
+    }
+    function keyup(event: any) {
+        state[event.code] = 0;
+        keyboard.emit('-keyup', { event, type: '-keyup', code: event.code });
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+            keyboard.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+        }
+    }
     function getVector() {
         return {
             x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
             y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
         };
     }
+
+    keyboard.on('finalize', () => {
+        window.removeEventListener('keydown', keydown);
+        window.removeEventListener('keyup', keyup);
+    });
 }
 
 export function PointerEvent(unit: Unit) {
@@ -69,37 +76,53 @@ export function PointerEvent(unit: Unit) {
 }
 
 function DragEvent(unit: Unit) {
-    xnew().on('pointerdown', (event: any) => {
+    unit.on('pointerdown', pointerdown);
+    
+    function pointerdown(event: any) {
 
         const id = event.pointerId;
         const position = getPosition(unit.element, event);
         let previous = position;
-        xnew(() => {
-            xnew.listener(window).on('pointermove', (event: any) => {
+        xnew((internal: Unit) => {
+            let connect = true;
+            window.addEventListener('pointermove', pointermove);
+            window.addEventListener('pointerup', pointerup);
+            window.addEventListener('pointercancel', pointercancel);
+
+            function pointermove(event: any) {
                 if (event.pointerId === id) {
                     const position = getPosition(unit.element, event);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     unit.emit('-dragmove', { event, position, delta });
                     previous = position;
                 }
-            });
-            xnew.listener(window).on('pointerup', (event: any) => {
+            }
+            function pointerup(event: any) {
                 if (event.pointerId === id) {
                     const position = getPosition(unit.element, event);
                     unit.emit('-dragend', { event, position, });
-                    xnew.listener(window).off();
+                    remove();
                 }
-            });
-            xnew.listener(window).on('pointercancel', (event: any) => {
+            }
+            function pointercancel (event: any) {
                 if (event.pointerId === id) {
                     const position = getPosition(unit.element, event);
                     unit.emit('-dragcancel', { event, position, });
-                    xnew.listener(window).off();
+                    remove();
                 }
-            });
+            }
+            function remove() {
+                if (connect === true) {
+                    window.removeEventListener('pointermove', pointermove);
+                    window.removeEventListener('pointerup', pointerup);
+                    window.removeEventListener('pointercancel', pointercancel);
+                    connect = false;
+                }
+            }
+            internal.on('finalize', remove);
         });
         unit.emit('-dragstart', { event, position });
-    });
+    }
 }
 
 function GestureEvent(unit: Unit) {

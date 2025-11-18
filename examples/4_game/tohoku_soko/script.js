@@ -34,11 +34,6 @@ function Main(screen) {
 }
 
 function TitleScene(unit) {
-  xnew.nest(`<div
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
-
   xnew(Background);
   xnew(TitleText);
   xnew(StageSelect);
@@ -55,13 +50,9 @@ function GameScene(scene, { id }) {
   xnew(Floor);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 0, y: -60 } });
 
-  xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
-
   xnew(InfoPanel, { id });
   xnew(Controller);
+
   for (let y = 0; y < global.GRID; y++) {
     state.map[y] = [];
     for (let x = 0; x < global.GRID; x++) {
@@ -86,20 +77,23 @@ function GameScene(scene, { id }) {
     const boxes = xnew.find(Box);
     const goals = xnew.find(Goal);
     const cleared = goals.every(g => boxes.some(b => b.x === g.x && b.y === g.y));
-    if (cleared === false) return;
+    // if (cleared === false) return;
     scene.off('+moved');
 
     xnew(GameClearText);
 
     xnew.timeout(() => {
-      xnew.listener(window).on('keydown pointerdown', () => {
+      xnew(xnew.basics.PointerEvent).on('-pointerdown', () => console.log('test'));
+      xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
+      xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
+      function next(){
         scene.finalize();
         if (id + 1 < global.levels.length) {
             xnew.find(Main)[0]?.append(GameScene, { id: id + 1 });
         } else {
             xnew.find(Main)[0]?.append(TitleScene);
         }
-      });
+      }
     }, 1000);
   });
 }
@@ -130,12 +124,21 @@ function Background(unit) {
 }
 
 function TitleText(text) {
+  xnew.nest(`<div
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
+    style="container-type: size;">
+  >`);
+
   xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'とーほく 倉庫';
 }
 
 function StageSelect(unit) {
   const global = xnew.context('global');
+  xnew.nest(`<div
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
+    style="container-type: size;">
+  >`);
 
   const message = xnew('<div class="absolute top-[40cqw] w-full text-center text-[6cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
   message.element.textContent = 'Select Stage';
@@ -372,21 +375,13 @@ function Box(box, { x, y }) {
 }
 
 function Controller(unit) {
-  xnew.listener(window).on('keydown', (event) => {
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
+    style="container-type: size;">
+  >`);
+  xnew(xnew.basics.KeyboardEvent).on('-keydown:arrow', ({ event, vector }) => {
     event.preventDefault();
-    let dx = 0, dy = 0;
-    if (event.code === 'ArrowUp' || event.code === 'KeyW') {
-      dy = -1;
-    } else if (event.code === 'ArrowDown' || event.code === 'KeyS') {
-      dy = 1;
-    } else if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
-      dx = -1;
-    } else if (event.code === 'ArrowRight' || event.code === 'KeyD') {
-      dx = 1;
-    } else if (event.code === 'KeyR') {
-      unit.emit('+restart');
-    }
-    move({ x: dx, y: dy });
+    move(vector);
   });
 
   xnew('<div class="absolute left-0 bottom-0 w-[28%] h-[28%] select-none">', () => {
@@ -409,6 +404,10 @@ function Controller(unit) {
 }
 
 function GameClearText(text) {
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
+    style="container-type: size;">
+  >`);
   xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[14cqw] text-yellow-300" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'Stage Clear!';
   xnew.transition((x) => {
@@ -425,7 +424,10 @@ function Button(button, { text }) {
 }
 
 function InfoPanel(unit, { id }) {
-
+  xnew.nest(`<div 
+    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
+    style="container-type: size;">
+  >`);
   xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
   
   xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {

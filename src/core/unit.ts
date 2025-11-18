@@ -1,5 +1,5 @@
 import { MapSet, MapMap } from './map';
-import { Ticker, Timer } from './time';
+import { Ticker, Timer, TimerOptions } from './time';
 
 //----------------------------------------------------------------------------------------------------
 // utils
@@ -30,8 +30,7 @@ interface UnitInternal {
     promises: Promise<any>[];
     elements: UnitElement[];
     components: Function[];
-    listeners1: MapMap<string, Function, { element: UnitElement, execute: Function }>;
-    listeners2: MapMap<string, Function, { element: UnitElement | Window | Document, execute: Function }>;
+    listeners: MapMap<string, Function, { element: UnitElement, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 }
@@ -135,8 +134,7 @@ export class Unit {
             elements: [],
             promises: [],
             components: [],
-            listeners1: new MapMap(),
-            listeners2: new MapMap(),
+            listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], stop: [], finalize: [] },
         });
@@ -163,7 +161,6 @@ export class Unit {
             unit._.systems.finalize.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
 
             unit.off();
-            Unit.suboff(unit, null);
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
 
             if (unit._.elements.length > 0) {
@@ -321,9 +318,9 @@ export class Unit {
             if (SYSTEM_EVENTS.includes(type)) {
                 this._.systems[type].push(listener);
             }
-            if (this._.listeners1.has(type, listener) === false) {
+            if (this._.listeners.has(type, listener) === false) {
                 const execute = Unit.wrap(Unit.current, listener);
-                this._.listeners1.set(type, listener, { element: this.element, execute });
+                this._.listeners.set(type, listener, { element: this.element, execute });
                 Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
                     this.element.addEventListener(type, execute, options);
@@ -333,21 +330,21 @@ export class Unit {
     }
 
     off(type?: string, listener?: Function): void {
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners1.keys()];
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
         types.forEach((type) => {
             if (SYSTEM_EVENTS.includes(type)) {
                 this._.systems[type] = this._.systems[type].filter((lis: Function) => listener ? lis !== listener : false);
             }
-            (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((listener) => {
-                const item = this._.listeners1.get(type, listener);
+            (listener ? [listener] : [...this._.listeners.keys(type)]).forEach((listener) => {
+                const item = this._.listeners.get(type, listener);
                 if (item !== undefined) {
-                    this._.listeners1.delete(type, listener);
+                    this._.listeners.delete(type, listener);
                     if (/^[A-Za-z]/.test(type)) {
                         item.element.removeEventListener(type, item.execute as EventListener);
                     }
                 }
             });
-            if (this._.listeners1.has(type) === false) {
+            if (this._.listeners.has(type) === false) {
                 Unit.type2units.delete(type, this);
             }
         });
@@ -356,34 +353,11 @@ export class Unit {
     emit(type: string, ...args: any[]) {
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
-                unit._.listeners1.get(type)?.forEach((item) => item.execute(...args));
+                unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
             });
         } else if (type[0] === '-') {
-            this._.listeners1.get(type)?.forEach((item) => item.execute(...args));
+            this._.listeners.get(type)?.forEach((item) => item.execute(...args));
         }
-    }
-
-    static subon(unit: Unit, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        type.trim().split(/\s+/).forEach((type) => {
-            if (unit._.listeners2.has(type, listener) === false) {
-                const execute = Unit.wrap(unit, listener);
-                unit._.listeners2.set(type, listener, { element: target, execute });
-                target.addEventListener(type, execute, options);
-            }
-        });
-    }
-
-    static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void {
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.listeners2.keys()];
-        types.forEach((type) => {
-            (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((listener) => {
-                const item = unit._.listeners2.get(type, listener);
-                if (item !== undefined && (target === null || target === item.element)) {
-                    unit._.listeners2.delete(type, listener);
-                    item.element.removeEventListener(type, item.execute as EventListener);
-                }
-            });
-        });
     }
 }
 
@@ -416,11 +390,8 @@ export class UnitTimer {
     private unit: Unit;
     private stack: Object[] = [];
 
-    constructor(
-        { transition, timeout, duration, easing, loop }:
-        { transition?: Function, timeout?: Function, duration: number, easing?: string, loop?: boolean }
-    ) {
-        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+    constructor(options: TimerOptions) {
+        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
     }
 
     clear() {
@@ -429,26 +400,23 @@ export class UnitTimer {
     }
 
     timeout(timeout: Function, duration: number = 0) {
-        UnitTimer.execute(this, { timeout, duration })
+        UnitTimer.execute(this, { timeout, duration, iterations: 1 })
         return this;
     }
 
     transition(transition: Function, duration: number = 0, easing: string = 'linear') {
-        UnitTimer.execute(this, { transition, duration, easing })
+        UnitTimer.execute(this, { transition, duration, easing, iterations: 1 })
         return this;
     }
 
-    static execute(timer: UnitTimer,
-        { transition, timeout, duration, easing, loop }:
-        { transition?: Function, timeout?: Function, duration: number, easing?: string, loop?: boolean }
-    ) {
+    static execute(timer: UnitTimer, options: TimerOptions) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
         } else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         } else {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
         }
     }
 
@@ -459,19 +427,19 @@ export class UnitTimer {
         }
     }
 
-    static Component(unit: Unit,
-        { snapshot, transition, timeout, duration, loop, easing }:
-        { snapshot: Snapshot, transition?: Function, timeout?: Function, duration?: number, loop?: boolean, easing?: string }
-    ) {
-        const timer = new Timer((x: number) => {
-            if (transition !== undefined) Unit.scope(snapshot, transition, x);
-        }, () => {
-            if (transition !== undefined) Unit.scope(snapshot, transition, 1.0);
-            if (timeout !== undefined) Unit.scope(snapshot, timeout);
-            if (loop === false) {
-                unit.finalize();
-            }
-        }, duration, { loop, easing });
+    static Component(unit: Unit, options: TimerOptions & { snapshot: Snapshot }) {
+        const timer = new Timer({
+            transition: (x: number) => {
+                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, x);
+            }, 
+            timeout: (count: number) => {
+                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, 1.0);
+                if (options.timeout !== undefined) Unit.scope(options.snapshot, options.timeout);
+                if (options.iterations !== undefined && count >= options.iterations - 1) {
+                    unit.finalize();
+                }
+            }, duration: options.duration, iterations: options.iterations, easing: options.easing
+        });
 
         unit.on('finalize', () => timer.clear());
     }

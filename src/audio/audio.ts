@@ -1,3 +1,6 @@
+import { xnew } from '../core/xnew';
+import { Unit } from '../core/unit';
+
 const context: AudioContext = new AudioContext();
 const master: GainNode = context.createGain();
 master.gain.value = 1.0;
@@ -13,7 +16,7 @@ function initialize() {
 
 export const audio = {
     load(path: string) {
-        return new AudioFile(path);
+        return AudioFile.load(path);
     },
     synthesizer(props: SynthProps) {
         return new Synthesizer(props);
@@ -31,12 +34,13 @@ export const audio = {
 //----------------------------------------------------------------------------------------------------
 
 class AudioFile {
-    buffer?: AudioBuffer;
-    promise: Promise<void>;
-    source?: AudioBufferSourceNode;
-    amp?: GainNode;
+    private buffer?: AudioBuffer;
+    private source: AudioBufferSourceNode | null;
+    private promise: Promise<void>;
+    private amp: GainNode;
 
-    start: number | null;
+    private start: number | null;
+
     constructor(path: string) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
@@ -47,26 +51,27 @@ class AudioFile {
             .catch(() => {
                 console.warn(`"${path}" could not be loaded.`)
             });
-
+        this.amp = context.createGain();
+        this.amp.gain.value = 1.0;
+        this.amp.connect(master);
+        this.source = null;
         this.start = null;
     }
 
-    // set volume(value: number) {
-    //     this.amp.gain.value = value;
-    // }
-    // get volume(): number {
-    //     return this.amp.gain.value;
-    // }
+    set volume(value: number) {
+        this.amp.gain.value = value;
+    }
 
-    play(offset: number = 0, loop: boolean = false) {
+    get volume(): number {
+        return this.amp.gain.value;
+    }
+
+    play({ offset = 0, loop = false }: { offset?: number, loop?: boolean } = {}) {
         if (this.buffer !== undefined && this.start === null) {
             this.source = context.createBufferSource();
             this.source.buffer = this.buffer;
             this.source.loop = loop;
-            this.amp = context.createGain();
-            this.amp.gain.value = 1.0;
             this.source.connect(this.amp);
-            this.amp.connect(master);
 
             this.start = context.currentTime;
             this.source.playbackRate.value = 1;
@@ -74,10 +79,11 @@ class AudioFile {
             this.source.onended = () => {
                 this.start = null;
                 this.source?.disconnect();
-                this.amp?.disconnect();
+                this.source = null;
             };
         }
     }
+
     pause() {
         if (this.buffer !== undefined && this.start !== null) {
             this.source?.stop(context.currentTime);
@@ -85,6 +91,16 @@ class AudioFile {
             this.start = null;
             return elapsed;
         }
+    }
+
+    static load(path: string) {
+        const music = new AudioFile(path);
+        return xnew.promise(music.promise).then(() => music);
+    }
+
+    static clear(file: AudioFile) {
+        file.amp.disconnect();
+        file.source?.disconnect();
     }
 };
 
