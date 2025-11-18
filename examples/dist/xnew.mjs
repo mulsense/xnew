@@ -121,43 +121,35 @@ class Ticker {
         }
     }
 }
-//----------------------------------------------------------------------------------------------------
-// timer
-//----------------------------------------------------------------------------------------------------
 class Timer {
-    constructor(transition, timeout, duration, { loop = false, easing = 'linear' } = {}) {
+    constructor(options) {
         var _a;
-        this.transition = transition;
-        this.timeout = timeout;
-        this.duration = duration !== null && duration !== void 0 ? duration : 0;
-        this.loop = loop;
-        this.easing = easing;
+        this.options = options;
+        this.options.easing = (_a = this.options.easing) !== null && _a !== void 0 ? _a : 'linear';
         this.id = null;
         this.time = 0.0;
+        this.counter = 0;
         this.offset = 0.0;
         this.status = 0;
         this.ticker = new Ticker((time) => {
-            var _a;
-            let p = Math.min(this.elapsed() / this.duration, 1.0);
-            if (easing === 'ease-out') {
+            var _a, _b;
+            let p = Math.min(this.elapsed() / this.options.duration, 1.0);
+            if (this.options.easing === 'ease-out') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
             }
-            else if (easing === 'ease-in') {
+            else if (this.options.easing === 'ease-in') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
             }
-            else if (easing === 'ease') {
+            else if (this.options.easing === 'ease') {
                 p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
             }
-            else if (easing === 'ease-in-out') {
+            else if (this.options.easing === 'ease-in-out') {
                 p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
             }
-            (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, p);
+            (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
         });
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
-        if (this.duration > 0.0) {
-            (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
-        }
         this.start();
     }
     clear() {
@@ -182,14 +174,24 @@ class Timer {
     _start() {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
-                var _a, _b;
-                (_a = this.timeout) === null || _a === void 0 ? void 0 : _a.call(this);
-                (_b = this.transition) === null || _b === void 0 ? void 0 : _b.call(this, 1.0);
+                var _a, _b, _c, _d;
+                (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 1.0);
+                (_d = (_c = this.options).timeout) === null || _d === void 0 ? void 0 : _d.call(_c, this.counter);
                 this.id = null;
                 this.time = 0.0;
+                this.counter++;
                 this.offset = 0.0;
-                this.loop ? this.start() : this.clear();
-            }, this.duration - this.offset);
+                if (this.options.iterations === undefined) {
+                    this.start();
+                }
+                else if (this.options.iterations > 1) {
+                    this.options.iterations--;
+                    this.start();
+                }
+                else {
+                    this.clear();
+                }
+            }, this.options.duration - this.offset);
             this.time = Date.now();
         }
     }
@@ -531,32 +533,32 @@ class UnitPromise {
 // unit timer
 //----------------------------------------------------------------------------------------------------
 class UnitTimer {
-    constructor({ transition, timeout, duration, easing, loop }) {
+    constructor(options) {
         this.stack = [];
-        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+        this.unit = new Unit(Unit.current, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
     }
     clear() {
         this.stack = [];
         this.unit.finalize();
     }
     timeout(timeout, duration = 0) {
-        UnitTimer.execute(this, { timeout, duration });
+        UnitTimer.execute(this, { timeout, duration, iterations: 1 });
         return this;
     }
     transition(transition, duration = 0, easing = 'linear') {
-        UnitTimer.execute(this, { transition, duration, easing });
+        UnitTimer.execute(this, { transition, duration, easing, iterations: 1 });
         return this;
     }
-    static execute(timer, { transition, timeout, duration, easing, loop }) {
+    static execute(timer, options) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
         }
         else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+            timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
         else {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+            timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
         }
     }
     static next(timer) {
@@ -565,19 +567,22 @@ class UnitTimer {
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
     }
-    static Component(unit, { snapshot, transition, timeout, duration, loop, easing }) {
-        const timer = new Timer((x) => {
-            if (transition !== undefined)
-                Unit.scope(snapshot, transition, x);
-        }, () => {
-            if (transition !== undefined)
-                Unit.scope(snapshot, transition, 1.0);
-            if (timeout !== undefined)
-                Unit.scope(snapshot, timeout);
-            if (loop !== true) {
-                unit.finalize();
-            }
-        }, duration, { loop, easing });
+    static Component(unit, options) {
+        const timer = new Timer({
+            transition: (x) => {
+                if (options.transition !== undefined)
+                    Unit.scope(options.snapshot, options.transition, x);
+            },
+            timeout: (count) => {
+                if (options.transition !== undefined)
+                    Unit.scope(options.snapshot, options.transition, 1.0);
+                if (options.timeout !== undefined)
+                    Unit.scope(options.snapshot, options.timeout);
+                if (options.iterations !== undefined && count >= options.iterations - 1) {
+                    unit.finalize();
+                }
+            }, duration: options.duration, iterations: options.iterations, easing: options.easing
+        });
         unit.on('finalize', () => timer.clear());
     }
 }
@@ -769,7 +774,7 @@ const xnew$1 = Object.assign(function (...args) {
      * // Cancel if needed: timer.clear()
      */
     timeout(timeout, duration = 0) {
-        return new UnitTimer({ timeout, duration });
+        return new UnitTimer({ timeout, duration, iterations: 1 });
     },
     /**
      * Executes a callback repeatedly at specified intervals, managed by component lifecycle
@@ -780,8 +785,8 @@ const xnew$1 = Object.assign(function (...args) {
      * const timer = xnew.interval(() => console.log('Tick'), 1000)
      * // Stop when needed: timer.clear()
      */
-    interval(timeout, duration) {
-        return new UnitTimer({ timeout, duration, loop: true });
+    interval(timeout, duration, iterations) {
+        return new UnitTimer({ timeout, duration, iterations });
     },
     /**
      * Creates a transition animation with easing, executing callback with progress values
@@ -797,8 +802,17 @@ const xnew$1 = Object.assign(function (...args) {
      * }, 300)
      */
     transition(transition, duration = 0, easing = 'linear') {
-        return new UnitTimer({ transition, duration, easing });
+        return new UnitTimer({ transition, duration, easing, iterations: 1 });
     },
+    style(text) {
+        const unit = new Unit(Unit.current);
+        const style = document.createElement('style');
+        style.textContent = text;
+        document.head.appendChild(style);
+        unit.on('finalize', () => {
+            document.head.removeChild(style);
+        });
+    }
 });
 
 function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {

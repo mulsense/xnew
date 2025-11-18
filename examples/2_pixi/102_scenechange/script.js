@@ -4,29 +4,31 @@ import * as PIXI from 'pixi.js';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.canvas });
+function Main(main) {
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+ 
+  // pixi setup
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew(Scene1);
 }
 
-function Scene1(unit) {
+function Scene1(scene) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  unit.on('pointerdown', () => {
-    unit.finalize();
+  scene.on('pointerdown', () => {
+    scene.finalize();
     xnew.find(Main)[0].append(Scene2);
   });
 }
 
-function Scene2(unit) {
+function Scene2(scene) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  unit.on('pointerdown', () => {
-    unit.finalize();
+  scene.on('pointerdown', () => {
+    scene.finalize();
     xnew.find(Main)[0].append(Scene1);
   });
 }

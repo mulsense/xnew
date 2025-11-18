@@ -6,16 +6,18 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  // three 
-  xthree.initialize({ canvas: new OffscreenCanvas(800, 400) });
+function Main(main) {
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+ 
+  // three setup
+  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
   xthree.camera.position.set(0, 0, +100);
 
-  // pixi
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.canvas });
+  // pixi setup
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew(Cubes);
+  
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   xnew(Boxes);
 }

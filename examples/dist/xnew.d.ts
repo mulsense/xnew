@@ -242,7 +242,7 @@ declare const xnew$1: CreateUnit & {
      * const timer = xnew.interval(() => console.log('Tick'), 1000)
      * // Stop when needed: timer.clear()
      */
-    interval(timeout: Function, duration: number): any;
+    interval(timeout: Function, duration: number, iterations?: number): any;
     /**
      * Creates a transition animation with easing, executing callback with progress values
      * @param callback - Function called with progress value (0.0 to 1.0)
@@ -257,6 +257,7 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
+    style(text: string): void;
 };
 
 declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {

@@ -12,8 +12,7 @@
   <script>
     xnew('#main', (unit) => {
       xnew.nest('<div class="absolute w-128 h-64 inset-0 m-auto border rounded-lg overflow-hidden">');
-      // xnew.interval(() => xnew(Box), 10);
-       xnew(Box);
+      xnew.interval(() => xnew(Box), 10);
     });
     
     function Box(unit) {

@@ -10,17 +10,17 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 
 xnew('#main', Main);
 
-function Main(screen) {
+function Main(main) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // setup three 
-  xthree.initialize({ canvas: new OffscreenCanvas(screen.canvas.width, screen.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
 
   // setup pixi
-  xpixi.initialize({ canvas: screen.canvas });
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew(TitleScene);
 }
@@ -49,6 +49,7 @@ function TitleScene(scene) {
 function GameScene(scene) {
   xnew.context('result', { counts: [0, 0, 0, 0, 0, 0, 0, 0] });
   xmatter.initialize();
+
   xnew(Background);
   xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
@@ -57,71 +58,124 @@ function GameScene(scene) {
   xnew(Cursor);
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-  const controller = xnew(Controller);
-
+  xnew(Controller);
   xnew(ScoreText);
 
+  xnew.timeout(() => {
+    scene.emit('+gameover');
+  }, 100);
   scene.on('+gameover', () => {
     scene.off('+gameover');
-    controller.finalize();
     xnew(GameOverText);
     const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
     cover.element.style.opacity = 0.0;
-    const canvas = xpixi.renderer.extract.canvas(xpixi.scene);
-    const imageData = canvas.toDataURL('image/png', 1.0);
+    const image = xpixi.capture();
     const result = xnew.context('result');
 
     xnew.timeout(() => {
-      xnew.transition((x) => {
-        cover.element.style.opacity = x;
-      }, 1000, 'ease').timeout(() => {
+      xnew.transition((p) => cover.element.style.opacity = p, 1, 'ease')
+      .timeout(() => {
         scene.finalize();
-        xnew.find(Main)[0]?.append(ResultScene, { imageData, result });
+        xnew.find(Main)[0]?.append(ResultScene, { image, result });
       });
-    }, 2000);
+    }, 1);
   });
+
 }
 
-function ResultScene(scene, { imageData, result }) {
+function ResultScene(scene, { image, result }) {
 
   xnew.nest(`<div
-    class="absolute inset-0 w-full h-full text-gray-800 font-bold border-[0.5cqw] rounded-[1cqw] border-gray-600"
+    class="absolute inset-0 w-full h-full 
+    text-gray-800 font-bold border-[0.2cqw] rounded-[1cqw] border-gray-400
+    bg-gradient-to-br from-gray-300 to-gray-400 overflow-hidden"
     style="container-type: size;">
   >`);
-
-  // 左に画像を表示
-  xnew('<div class="absolute top-0 bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-white/50">', () => {
+  xnew('<div class="absolute top-0 left-[2cqw] text-[10cqw] text-gray-400">', 'Result');
+  xnew('<div class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-white/50" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3), inset 0 0 20px rgba(255,255,255,0.2);">', () => {
     const img = xnew('<img class="w-full h-full object-cover">');
-    img.element.src = imageData;
+    img.element.src = image;
   });
 
-  // スコアの内訳を表示
-  xnew('<div class="absolute top-[7cqw] right-[2cqw] w-[50cqw] text-green-600">', () => {
-    xnew('<div class="w-full text-[5cqw] mb-[2cqw] text-center">', '生み出した数');
+  // float
+  xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">', () => {
+    for (let i = 0; i < 20; i++) {
+      const size = Math.random() * 30 + 10;
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const duration = Math.random() * 5000 + 3000;
 
-    const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '九州そら', '東北ずん子', '東北イタコ', '大ずんだもん'];
+      xnew(`<div
+        class="absolute rounded-full bg-white opacity-60"
+        style="width: ${size}px; height: ${size}px; left: ${x}%; top: ${y}%; animation: float ${duration}ms ease-in-out infinite;"
+        >`);
+    }
+  });
+
+  // twinkle
+  xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.4;">', () => {
+    for (let i = 0; i < 30; i++) {
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const duration = Math.random() * 3000 + 2000;
+
+      xnew(`<div 
+        class="absolute w-[1cqw] h-[1cqw] rounded-full" 
+        style="background: radial-gradient(circle, #ffff99 0%, rgba(255,255,255,0) 70%);
+        left: ${x}%;
+        top: ${y}%;
+        animation: twinkle ${duration}ms ease-in-out infinite;
+      ">`);
+    }
+  });
+
+
+  // スコアの内訳を表示
+  xnew('<div class="absolute top-[8cqw] bottom-0 right-[2cqw] w-[50cqw] text-green-600 flex items-center">', () => {
+    xnew.nest('<div class="w-full" style="background: rgba(255, 255, 255, 0.9); padding: 2cqw; border-radius: 1cqw; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+    xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center" style="color: #ff6b6b;">', '🎉 生み出した数 🎉');
+
+    const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
     let totalScore = 0;
     for (let i = 0; i < 8; i++) {
       if (result.counts[i] >= 0) {
         const score = result.counts[i] * Math.pow(2, i);
         totalScore += score;
-        xnew('<div class="w-full text-[3.5cqw] text-center">', (text) => {
+        xnew('<div class="w-full text-[3cqw] text-center">', (text) => {
           text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${result.counts[i]}`;
         });
       }
     }
 
-    xnew('<div class="w-full text-[5cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] text-center border-green-600">', `合計スコア: ${totalScore}`);
+    xnew('<div class="w-full text-[4cqw] mt-[1cqw] border-t-[0.4cqw] text-center border-green-600" style="font-weight: bold; color: #ffa500;">', `⭐ 合計スコア: ${totalScore} ⭐`);
   });
 
-  xnew('<div class="absolute left-0 text-center w-1/2 bottom-[5cqw] text-[5cqw] pointer-events-auto">', () => {
-    const button = xnew('<button class="border-[0.2cqw] border-gray-800 rounded-full px-[2cqw] pb-[1cqw] hover:bg-sky-500 cursor-pointer">', 'retry');
-    button.on('click', () => {
+  xnew('<div class="absolute text-center top-[3cqw] right-[2cqw] pointer-events-auto">', () => {
+    const div = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full border-[0.3cqw] border-gray-500 cursor-pointer">', () => {
+      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-gray-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(+45deg);" >');
+      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-gray-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(-45deg);" >');
+    });
+
+    div.on('click', () => {
       scene.finalize();
       xnew.find(Main)[0]?.append(TitleScene);
     });
-
+    div.on('mouseover', () => div.element.style.transform = 'scale(1.1)');
+    div.on('mouseout', () => div.element.style.transform = 'scale(1)');
   });
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); opacity: 0.3; }
+      50% { transform: translateY(-30px); opacity: 0.8; }
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.5); }
+    }
+  `;
+  document.head.appendChild(style);
 
   xnew.transition((x) => {
     scene.element.style.opacity = x;
@@ -193,7 +247,6 @@ function Controller(unit) {
 
 function ScoreText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-
   xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-800">');
   const text = xnew(Text, { text: 'score 0', strokeWidth: '0.2cqw', strokeColor: 'white' });
   let sum = 0;
@@ -238,7 +291,7 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
   if (position) object.position.set(position.x, position.y, position.z);
   if (rotation) object.rotation.set(rotation.x, rotation.y, rotation.z);
 
-  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
+  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
   const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
@@ -356,6 +409,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
 }
 
 function GameOverText(text) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
   text.element.textContent = 'Game Over';
   xnew.transition((x) => {

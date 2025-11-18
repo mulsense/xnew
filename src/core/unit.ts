@@ -1,5 +1,5 @@
 import { MapSet, MapMap } from './map';
-import { Ticker, Timer } from './time';
+import { Ticker, Timer, TimerOptions } from './time';
 
 //----------------------------------------------------------------------------------------------------
 // utils
@@ -390,11 +390,8 @@ export class UnitTimer {
     private unit: Unit;
     private stack: Object[] = [];
 
-    constructor(
-        { transition, timeout, duration, easing, loop }:
-        { transition?: Function, timeout?: Function, duration: number, easing?: string, loop?: boolean }
-    ) {
-        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+    constructor(options: TimerOptions) {
+        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
     }
 
     clear() {
@@ -403,26 +400,23 @@ export class UnitTimer {
     }
 
     timeout(timeout: Function, duration: number = 0) {
-        UnitTimer.execute(this, { timeout, duration })
+        UnitTimer.execute(this, { timeout, duration, iterations: 1 })
         return this;
     }
 
     transition(transition: Function, duration: number = 0, easing: string = 'linear') {
-        UnitTimer.execute(this, { transition, duration, easing })
+        UnitTimer.execute(this, { transition, duration, easing, iterations: 1 })
         return this;
     }
 
-    static execute(timer: UnitTimer,
-        { transition, timeout, duration, easing, loop }:
-        { transition?: Function, timeout?: Function, duration: number, easing?: string, loop?: boolean }
-    ) {
+    static execute(timer: UnitTimer, options: TimerOptions) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });
+            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
         } else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         } else {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), transition, timeout, duration, easing, loop });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
         }
     }
 
@@ -433,19 +427,19 @@ export class UnitTimer {
         }
     }
 
-    static Component(unit: Unit,
-        { snapshot, transition, timeout, duration, loop, easing }:
-        { snapshot: Snapshot, transition?: Function, timeout?: Function, duration?: number, loop?: boolean, easing?: string }
-    ) {
-        const timer = new Timer((x: number) => {
-            if (transition !== undefined) Unit.scope(snapshot, transition, x);
-        }, () => {
-            if (transition !== undefined) Unit.scope(snapshot, transition, 1.0);
-            if (timeout !== undefined) Unit.scope(snapshot, timeout);
-            if (loop !== true) {
-                unit.finalize();
-            }
-        }, duration, { loop, easing });
+    static Component(unit: Unit, options: TimerOptions & { snapshot: Snapshot }) {
+        const timer = new Timer({
+            transition: (x: number) => {
+                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, x);
+            }, 
+            timeout: (count: number) => {
+                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, 1.0);
+                if (options.timeout !== undefined) Unit.scope(options.snapshot, options.timeout);
+                if (options.iterations !== undefined && count >= options.iterations - 1) {
+                    unit.finalize();
+                }
+            }, duration: options.duration, iterations: options.iterations, easing: options.easing
+        });
 
         unit.on('finalize', () => timer.clear());
     }

@@ -1,5 +1,6 @@
 import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js'
+import xpixi from '../../dist/addons/xpixi';
 
 export default {
     initialize({ renderer = null, canvas = null }: any = {}) {
@@ -24,6 +25,12 @@ export default {
     },
     get canvas() {
         return xnew.context('xpixi.root')?.canvas;
+    },
+    capture() {
+        const render = xnew.context('xpixi.root')?.renderer;
+        const scene = xnew.context('xpixi.root')?.scene;
+        const canvas = render.extract.canvas(scene);
+        return canvas.toDataURL('image/png', 1.0);
     }
 };
 
