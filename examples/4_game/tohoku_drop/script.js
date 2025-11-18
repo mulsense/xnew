@@ -58,7 +58,7 @@ function GameScene(scene) {
   xnew(Cursor);
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-  xnew(Controller);
+  const controller = xnew(Controller);
   xnew(ScoreText);
 
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -66,11 +66,16 @@ function GameScene(scene) {
 
   // xnew.timeout(() => {
   //   scene.emit('+gameover');
-  // }, 100);
+  // }, 1100);
   scene.on('+gameover', () => {
+    controller.finalize();
     scene.off('+gameover');
     xnew(GameOverText);
-    const image = xpixi.renderer.extract.canvas(xpixi.scene).toDataURL('image/png');
+    const image = xpixi.renderer.extract.base64({
+      target: xpixi.scene, 
+      format: 'png',
+      frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height)
+    });
 
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
@@ -88,12 +93,14 @@ function ResultScene(scene, { image, scores }) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
   
-  xnew('<div class="absolute top-0 left-[2cqw] text-[10cqw] text-stone-400">', 'Result');
+  xnew('<div class="absolute top-0 left-[2cqw] text-[12cqw] text-stone-400">', 'Result');
   const img = xnew(`<img 
     class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-stone-400 object-cover"
     style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
     >`);
-  img.element.src = image;
+  image.then((src) => {
+    img.element.src = src;
+  })
 
   xnew('<div class="absolute text-center top-[3cqw] right-[2cqw] pointer-events-auto">', () => {
     const div = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full border-[0.3cqw] border-stone-500 cursor-pointer">', () => {
