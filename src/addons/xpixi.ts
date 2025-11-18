@@ -26,12 +26,6 @@ export default {
     get canvas() {
         return xnew.context('xpixi.root')?.canvas;
     },
-    capture() {
-        const render = xnew.context('xpixi.root')?.renderer;
-        const scene = xnew.context('xpixi.root')?.scene;
-        const canvas = render.extract.canvas(scene);
-        return canvas.toDataURL('image/png', 1.0);
-    }
 };
 
 function Root(self: xnew.Unit, { canvas }: any) {

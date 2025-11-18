@@ -4,9 +4,11 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 600 });
-  xpixi.initialize({ canvas: screen.canvas });
+function Main(main) {
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+
+  // setup pixi
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew(Background);
   xnew(TitleScene);

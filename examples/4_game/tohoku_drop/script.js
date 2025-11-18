@@ -32,7 +32,7 @@ function TitleScene(scene) {
   xnew(AmbientLight);
 
   for (let i = 0; i < 7; i++) {
-    const position = pos3d(140 + i * 90, 450);
+    const position = convert3d(140 + i * 90, 450);
     const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * i) / 180 * Math.PI, z: 0 };
     xnew(Model, { position, rotation, id: i, scale: 0.8 });
   }
@@ -42,12 +42,12 @@ function TitleScene(scene) {
     scene.finalize();
     xnew.find(Main)[0]?.append(GameScene);
   });
+
   xnew(TitleText);
   xnew(TouchMessage);
 }
 
 function GameScene(scene) {
-  xnew.context('result', { counts: [0, 0, 0, 0, 0, 0, 0, 0] });
   xmatter.initialize();
 
   xnew(Background);
@@ -61,101 +61,45 @@ function GameScene(scene) {
   xnew(Controller);
   xnew(ScoreText);
 
+  let scores = [0, 0, 0, 0, 0, 0, 0, 0];
+  scene.on('+scoreup', (i) => scores[i]++);
+
   xnew.timeout(() => {
     scene.emit('+gameover');
   }, 100);
   scene.on('+gameover', () => {
     scene.off('+gameover');
     xnew(GameOverText);
-    const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
-    cover.element.style.opacity = 0.0;
-    const image = xpixi.capture();
-    const result = xnew.context('result');
+    const image = xpixi.renderer.extract.canvas(xpixi.scene).toDataURL('image/png');
 
     xnew.timeout(() => {
-      xnew.transition((p) => cover.element.style.opacity = p, 1, 'ease')
+      const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
+      xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
       .timeout(() => {
         scene.finalize();
-        xnew.find(Main)[0]?.append(ResultScene, { image, result });
+        xnew.find(Main)[0]?.append(ResultScene, { image, scores });
       });
     }, 1);
   });
 
 }
 
-function ResultScene(scene, { image, result }) {
-
-  xnew.nest(`<div
-    class="absolute inset-0 w-full h-full 
-    text-gray-800 font-bold border-[0.2cqw] rounded-[1cqw] border-gray-400
-    bg-gradient-to-br from-gray-300 to-gray-400 overflow-hidden"
-    style="container-type: size;">
-  >`);
-  xnew('<div class="absolute top-0 left-[2cqw] text-[10cqw] text-gray-400">', 'Result');
-  xnew('<div class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-white/50" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3), inset 0 0 20px rgba(255,255,255,0.2);">', () => {
-    const img = xnew('<img class="w-full h-full object-cover">');
-    img.element.src = image;
-  });
-
-  // float
-  xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">', () => {
-    for (let i = 0; i < 20; i++) {
-      const size = Math.random() * 30 + 10;
-      const x = Math.random() * 100;
-      const y = Math.random() * 100;
-      const duration = Math.random() * 5000 + 3000;
-
-      xnew(`<div
-        class="absolute rounded-full bg-white opacity-60"
-        style="width: ${size}px; height: ${size}px; left: ${x}%; top: ${y}%; animation: float ${duration}ms ease-in-out infinite;"
-        >`);
-    }
-  });
-
-  // twinkle
-  xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.4;">', () => {
-    for (let i = 0; i < 30; i++) {
-      const x = Math.random() * 100;
-      const y = Math.random() * 100;
-      const duration = Math.random() * 3000 + 2000;
-
-      xnew(`<div 
-        class="absolute w-[1cqw] h-[1cqw] rounded-full" 
-        style="background: radial-gradient(circle, #ffff99 0%, rgba(255,255,255,0) 70%);
-        left: ${x}%;
-        top: ${y}%;
-        animation: twinkle ${duration}ms ease-in-out infinite;
-      ">`);
-    }
-  });
-
-
-  // スコアの内訳を表示
-  xnew('<div class="absolute top-[8cqw] bottom-0 right-[2cqw] w-[50cqw] text-green-600 flex items-center">', () => {
-    xnew.nest('<div class="w-full" style="background: rgba(255, 255, 255, 0.9); padding: 2cqw; border-radius: 1cqw; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-    xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center" style="color: #ff6b6b;">', '🎉 生み出した数 🎉');
-
-    const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
-    let totalScore = 0;
-    for (let i = 0; i < 8; i++) {
-      if (result.counts[i] >= 0) {
-        const score = result.counts[i] * Math.pow(2, i);
-        totalScore += score;
-        xnew('<div class="w-full text-[3cqw] text-center">', (text) => {
-          text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${result.counts[i]}`;
-        });
-      }
-    }
-
-    xnew('<div class="w-full text-[4cqw] mt-[1cqw] border-t-[0.4cqw] text-center border-green-600" style="font-weight: bold; color: #ffa500;">', `⭐ 合計スコア: ${totalScore} ⭐`);
-  });
+function ResultScene(scene, { image, scores }) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
+  
+  xnew('<div class="absolute top-0 left-[2cqw] text-[10cqw] text-stone-400">', 'Result');
+  const img = xnew(`<img 
+    class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-stone-400 object-cover"
+    style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
+    >`);
+  img.element.src = image;
 
   xnew('<div class="absolute text-center top-[3cqw] right-[2cqw] pointer-events-auto">', () => {
-    const div = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full border-[0.3cqw] border-gray-500 cursor-pointer">', () => {
-      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-gray-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(+45deg);" >');
-      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-gray-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(-45deg);" >');
+    const div = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full border-[0.3cqw] border-stone-500 cursor-pointer">', () => {
+      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-stone-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(+45deg);" >');
+      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-stone-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(-45deg);" >');
     });
-
     div.on('click', () => {
       scene.finalize();
       xnew.find(Main)[0]?.append(TitleScene);
@@ -163,7 +107,7 @@ function ResultScene(scene, { image, result }) {
     div.on('mouseover', () => div.element.style.transform = 'scale(1.1)');
     div.on('mouseout', () => div.element.style.transform = 'scale(1)');
   });
-
+  
   const style = document.createElement('style');
   style.textContent = `
     @keyframes float {
@@ -176,6 +120,44 @@ function ResultScene(scene, { image, result }) {
     }
   `;
   document.head.appendChild(style);
+
+  xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">', () => {
+    // float
+    for (let i = 0; i < 20; i++) {
+      const size = Math.random() * 30 + 10;
+      const [x, y] = [Math.random() * 100, Math.random() * 100];
+      const duration = Math.random() * 5000 + 3000;
+
+      xnew(`<div class="absolute rounded-full bg-white opacity-60"
+        style="width: ${size}px; height: ${size}px; left: ${x}%; top: ${y}%; animation: float ${duration}ms ease-in-out infinite;"
+        >`);
+    }
+    // twinkle
+    for (let i = 0; i < 30; i++) {
+      const [x, y] = [Math.random() * 100, Math.random() * 100];
+      const duration = Math.random() * 3000 + 2000;
+
+      xnew(`<div class="absolute w-[1cqw] h-[1cqw] rounded-full bg-white opacity-60" 
+        style="left: ${x}%; top: ${y}%; animation: twinkle ${duration}ms ease-in-out infinite;"
+        >`);
+    }
+  });
+
+  xnew('<div class="absolute top-[8cqw] bottom-0 right-[2cqw] w-[50cqw] text-green-600 flex items-center">', () => {
+    xnew.nest('<div class="w-full bg-gray-100 p-[2cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+    xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center" style="color: #ff6b6b;">', '🎉 生み出した数 🎉');
+
+    const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
+    let sum = 0;
+    for (let i = 0; i < 8; i++) {
+      sum += scores[i] * Math.pow(2, i);
+      xnew('<div class="w-full text-[3cqw] text-center">', (text) => {
+        text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}`;
+      });
+    }
+
+    xnew('<div class="w-full text-[4cqw] pt-[1cqw] border-t-[0.4cqw] text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
+  });
 
   xnew.transition((x) => {
     scene.element.style.opacity = x;
@@ -205,26 +187,36 @@ function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function Text(unit, { text, strokeWidth, strokeColor }) {
-  xnew.nest(`<div
-    style="
-    text-shadow: -${strokeWidth} -${strokeWidth} 1px ${strokeColor}, ${strokeWidth} -${strokeWidth} 1px ${strokeColor}, -${strokeWidth} ${strokeWidth} 1px ${strokeColor}, ${strokeWidth} ${strokeWidth} 1px ${strokeColor};
-    ">`);
-  unit.element.textContent = text;
-}
-
-function TitleText(text) {
-  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-green-800" style="container-type: size;">');
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center font-bold">');
-  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.2cqw', strokeColor: 'white' });
+function TitleText(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-800 font-bold">');
+  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.2cqw', strokeColor: 'rgb(200, 220, 200)' });
 }
 
 function TouchMessage(unit) {
-  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none text-green-800" style="container-type: size;">');
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center font-bold">');
-  const text = xnew(Text, { text: 'touch start', strokeWidth: '0.2cqw', strokeColor: 'white' });
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-800 font-bold">');
+  unit.element.textContent = 'touch start';
   let count = 0;
-  unit.on('update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+}
+
+function ScoreText(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-800">');
+  unit.element.textContent = 'score 0';
+  let sum = 0;
+  unit.on('+scoreup', (i) => unit.element.textContent = `score ${sum += Math.pow(2, i)}`);
+}
+
+function GameOverText(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
+  unit.element.textContent = 'Game Over';
+  xnew.transition((p) => {
+    unit.element.style.opacity = p;
+    unit.element.style.top = `${20 + p * 10}cqw`;
+  }, 1000, 'ease');
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -245,14 +237,6 @@ function Controller(unit) {
   pointer.on('-pointerdown', () => unit.emit('+drop'));
 }
 
-function ScoreText(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-800">');
-  const text = xnew(Text, { text: 'score 0', strokeWidth: '0.2cqw', strokeColor: 'white' });
-  let sum = 0;
-  unit.on('+scoreup', (score) => text.element.textContent = `score ${sum += score}`);
-}
-
 function Bowl(unit) {
   for (let angle = 10; angle <= 170; angle++) {
     const x = 400 + Math.cos(angle * Math.PI / 180) * 240;
@@ -261,27 +245,27 @@ function Bowl(unit) {
   }
 }
 
-function Queue(queue) {
+function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  queue.emit('+reloadcomplete', 0);
+  unit.emit('+reloadcomplete', 0);
 
-  const position = pos3d(10 + 70, 70);
+  const position = convert3d(10 + 70, 70);
   const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
   let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
-  queue.on('+reload', () => {
+  unit.on('+reload', () => {
     const next = balls.shift();
     model.finalize();
-    const position = pos3d(10, 70);
+    const position = convert3d(10, 70);
     const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
     model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
     balls.push(Math.floor(Math.random() * 3));
     xnew.transition((p) => {
-      const position = pos3d(10 + p * 70, 70);
+      const position = convert3d(10 + p * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
     }, 500).timeout(() => {
-      queue.emit('+reloadcomplete', next);
+      unit.emit('+reloadcomplete', next);
     });
   });
 }
@@ -353,7 +337,7 @@ function Cursor(unit) {
   const offset = 50;
   let model = null
   unit.on('+reloadcomplete', (id) => {
-    const position = pos3d(object.x, object.y + offset);
+    const position = convert3d(object.x, object.y + offset);
     model = xnew(Model, { position, id, scale: 0.5 });
   });
   unit.on('+drop', () => {
@@ -366,7 +350,7 @@ function Cursor(unit) {
   });
   unit.on('update', () => {
     object.rotation += 0.02;
-    const position = pos3d(object.x, object.y + offset);
+    const position = convert3d(object.x, object.y + offset);
     model?.object.position.set(position.x, position.y, position.z);
   });
 }
@@ -380,10 +364,10 @@ function ModelBall(ball, { x, y, id = 0 }) {
   xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });
   
   const model = xnew(Model, { id, scale });
-  ball.emit('+scoreup', Math.pow(2, id));
+  ball.emit('+scoreup', id);
   
   ball.on('update', () => {
-    const position = pos3d(ball.object.x, ball.object.y);
+    const position = convert3d(ball.object.x, ball.object.y);
     model.object.position.set(position.x, position.y, position.z);
     model.object.rotation.z = -ball.object.rotation;
     if (ball.object.y > xpixi.canvas.height - 10) {
@@ -408,16 +392,6 @@ function ModelBall(ball, { x, y, id = 0 }) {
   return { radius, id };
 }
 
-function GameOverText(text) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold">');
-  text.element.textContent = 'Game Over';
-  xnew.transition((x) => {
-    text.element.style.opacity = x;
-    text.element.style.top = `${20 + x * 10}cqw`;
-  }, 1000, 'ease');
-}
-
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, radius, options));
@@ -434,6 +408,15 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
 }
 
 // helpers
-function pos3d(x, y, z = 0) {
+function convert3d(x, y, z = 0) {
   return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }
+
+function Text(unit, { text, strokeWidth = 0, strokeColor = 'black' }) {
+  const [sw, sc] = [strokeWidth, strokeColor];
+  if (sw !== 0) {
+    xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
+  }
+  unit.element.textContent = text;
+}
+
