@@ -42,8 +42,13 @@
         let count = 0;
         const button = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'click me');
         button.on('click', () => {
+          console.log('click');
           button.element.textContent = `count: ${count++}`;
         });
+        xnew(button.element, xnew.basics.PointerEvent).on('-click:outside', () => {
+          console.log('click:outside');
+        });
+
       });
 
       xnew('<div>', (unit) => {

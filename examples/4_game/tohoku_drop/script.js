@@ -23,10 +23,17 @@ function Main(main) {
   xpixi.initialize({ canvas: main.canvas });
 
   xnew(TitleScene);
+  xnew(VolumeController);
 
-  // xnew.audio.load('../assets/y015.mp3').then((music) => {
-  //   music.play({ fade: 3000, loop: true });
-  // });
+  main.on('+music.play', () => {
+    xnew.audio.load('../assets/y015.mp3').then((music) => {
+      music.play({ fade: 3000, loop: true });
+      main.on('+music.pause', () => {
+        main.off('+music.pause');
+        music.pause({ fade: 3000 });
+      });
+    });
+  })
 }
 
 function TitleScene(scene) {
@@ -53,6 +60,7 @@ function TitleScene(scene) {
 
 function GameScene(scene) {
   xmatter.initialize();
+  scene.emit('+music.play');
 
   xnew(Background);
   xnew(ShadowPlane);
@@ -73,6 +81,7 @@ function GameScene(scene) {
   // }, 1100);
   scene.on('+gameover', () => {
     controller.finalize();
+    scene.emit('+music.pause');
     scene.off('+gameover');
     xnew(GameOverText);
     const image = xpixi.renderer.extract.base64({
@@ -437,5 +446,33 @@ function Text(unit, { text, strokeWidth = 0, strokeColor = 'black' }) {
     xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
   }
   unit.element.textContent = text;
+}
+
+function VolumeController(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest('<div class="absolute bottom-[2cqw] right-[2cqw] pointer-events-auto flex flex-col gap-[0.5cqw]">');
+
+  const container = xnew.nest('<div class="flex items-center gap-[0.5cqw] select-none">');
+
+  const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
+    style="display: none; width: 10cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
+  >`);
+
+  unit.on('pointerdown', (event) => event.stopPropagation());
+  xnew(container, xnew.basics.PointerEvent).on('-click:outside', () => {
+    slider.element.style.display = 'none';
+  });
+  const button = xnew('<div class="text-[4cqw] font-bold cursor-pointer hover:opacity-70 transition-opacity">', '🔊');
+
+  // ボタンクリック時の表示切り替え
+  button.on('pointerdown', (event) => {
+    const isVisible = slider.element.style.display !== 'none';
+    slider.element.style.display = isVisible ? 'none' : 'flex';
+  });
+
+  // スライダー操作時
+  slider.on('input', (e) => {
+    xnew.audio.volume = parseFloat(e.target.value) / 100;
+  });
 }
 

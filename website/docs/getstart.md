@@ -18,7 +18,7 @@ Choose one of the following methods to include xnew in your project:
 ### Via CDN (Recommended for beginners)
 Include the following script in your HTML file:
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@0.2.x/dist/xnew.js"></script>
 ```
 ### Via CDN (ESM)
 Use the ES module version with an import map:
@@ -26,7 +26,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.2.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -41,7 +41,7 @@ import xnew from '@mulsense/xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install @mulsense/xnew@0.1.x
+npm install @mulsense/xnew@0.2.x
 ```
 
 Then import it in your JavaScript file:

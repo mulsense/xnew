@@ -934,8 +934,32 @@ function PointerEvent(unit) {
     internal.on('pointermove', (event) => unit.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
     internal.on('pointerup', (event) => unit.emit('-pointerup', { event, position: getPosition(unit.element, event) }));
     internal.on('wheel', (event) => unit.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
-    internal.on('mouseover', (event) => unit.emit('-mouseover', { event, position: getPosition(unit.element, event) }));
-    internal.on('mouseout', (event) => unit.emit('-mouseout', { event, position: getPosition(unit.element, event) }));
+    internal.on('click', (event) => unit.emit('-click', { event, position: getPosition(unit.element, event) }));
+    internal.on('pointerover', (event) => unit.emit('-pointerover', { event, position: getPosition(unit.element, event) }));
+    internal.on('pointerout', (event) => unit.emit('-pointerout', { event, position: getPosition(unit.element, event) }));
+    document.addEventListener('pointerdown', pointerdownoutside);
+    document.addEventListener('pointerup', pointerupoutside);
+    document.addEventListener('click', clickoutside);
+    unit.on('-finalize', () => {
+        document.removeEventListener('pointerdown', pointerdownoutside);
+        document.removeEventListener('pointerup', pointerupoutside);
+        document.removeEventListener('click', clickoutside);
+    });
+    function pointerdownoutside(event) {
+        if (unit.element.contains(event.target) === false) {
+            unit.emit('-pointerdown:outside', { event, position: getPosition(unit.element, event) });
+        }
+    }
+    function pointerupoutside(event) {
+        if (unit.element.contains(event.target) === false) {
+            unit.emit('-pointerup:outside', { event, position: getPosition(unit.element, event) });
+        }
+    }
+    function clickoutside(event) {
+        if (unit.element.contains(event.target) === false) {
+            unit.emit('-click:outside', { event, position: getPosition(unit.element, event) });
+        }
+    }
     const drag = xnew$1(DragEvent);
     drag.on('-dragstart', (...args) => unit.emit('-dragstart', ...args));
     drag.on('-dragmove', (...args) => unit.emit('-dragmove', ...args));
