@@ -45,10 +45,6 @@
           console.log('click');
           button.element.textContent = `count: ${count++}`;
         });
-        xnew(button.element, xnew.basics.PointerEvent).on('-click:outside', () => {
-          console.log('click:outside');
-        });
-
       });
 
       xnew('<div>', (unit) => {
