@@ -136,7 +136,7 @@ export class Unit {
             components: [],
             listeners: new MapMap(),
             defines: {},
-            systems: { start: [], update: [], stop: [], finalize: [] },
+            systems: { '-start': [], '-update': [], '-stop': [], '-finalize': [] },
         });
 
         // nest html element
@@ -158,7 +158,7 @@ export class Unit {
             unit._.state = 'finalized';
 
             unit._.children.forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems['-finalize'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
 
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
@@ -230,7 +230,7 @@ export class Unit {
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child));
-            unit._.systems.start.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems['-start'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         } else if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child));
         }
@@ -240,14 +240,14 @@ export class Unit {
         if (unit._.state === 'started') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
-            unit._.systems.stop.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems['-stop'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
 
     static update(unit: Unit): void {
         if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child));
-            unit._.systems.update.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems['-update'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
 

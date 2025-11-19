@@ -24,7 +24,7 @@ function Root(self, { gravity, timestep }) {
         }
         // xnew.extend(Nest, root.world);
     });
-    self.on('update', () => {
+    self.on('-update', () => {
         if (root.world) {
             root.world.step();
         }
@@ -37,7 +37,7 @@ function Connect(self, { type, object }) {
     console.log(temp, type, object);
     // Rapier2D objects (RigidBody, Collider, etc.) are already added to the world
     // when created, so we only need to handle removal on finalize
-    self.on('finalize', () => {
+    self.on('-finalize', () => {
         try {
             // Check if object is a RigidBody
             if (type === 'rigidBody') {

@@ -23,7 +23,7 @@
         root.isActive = true;
         root.engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
         xnew.context('xmatter.object', root.engine.world);
-        self.on('update', () => {
+        self.on('-update', () => {
             if (root.isActive) {
                 Matter.Engine.update(root.engine);
             }
@@ -33,7 +33,7 @@
         const parent = xnew.context('xmatter.object');
         xnew.context('xmatter.object', object);
         Matter.Composite.add(parent, object);
-        self.on('finalize', () => {
+        self.on('-finalize', () => {
             Matter.Composite.remove(parent, object);
         });
     }

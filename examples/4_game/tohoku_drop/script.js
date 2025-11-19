@@ -24,8 +24,8 @@ function Main(main) {
 
   xnew(TitleScene);
 
-  // xnew.audio.load('../assets/b096.mp3').then((music) => {
-  //   music.play({ fade: 1000 });
+  // xnew.audio.load('../assets/y015.mp3').then((music) => {
+  //   music.play({ fade: 3000, loop: true });
   // });
 }
 
@@ -107,66 +107,6 @@ function ResultScene(scene, { image, scores }) {
   })
 
   xnew('<div class="absolute text-center top-[3cqw] right-[2cqw] pointer-events-auto flex flex-col gap-[1cqw]">', () => {
-    // X Share Button
-    // const xButton = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full bg-black cursor-pointer flex items-center justify-center">', () => {
-    //   xnew('<div class="text-[4cqw]">', '𝕏');
-    // });
-    // xButton.on('click', () => {
-    //   let sum = 0;
-    //   for (let i = 0; i < 8; i++) {
-    //     sum += scores[i] * Math.pow(2, i);
-    //   }
-    //   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
-    //   let scoreText = '🎉 とーほく ドロップ 🎉\n';
-    //   for (let i = 0; i < 8; i++) {
-    //     if (scores[i] > 0) {
-    //       scoreText += `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}\n`;
-    //     }
-    //   }
-    //   scoreText += `⭐ 合計スコア: ${sum} ⭐\n`;
-    //   scoreText += '#とーほくドロップ';
-
-    //   image.then((src) => {
-    //     // base64 画像をBlobに変換
-    //     const binaryString = atob(src.split(',')[1]);
-    //     const bytes = new Uint8Array(binaryString.length);
-    //     for (let i = 0; i < binaryString.length; i++) {
-    //       bytes[i] = binaryString.charCodeAt(i);
-    //     }
-    //     const blob = new Blob([bytes], { type: 'image/png' });
-
-    //     // クリップボードに画像とテキストをコピー
-    //     navigator.clipboard.write([
-    //       new ClipboardItem({
-    //         'image/png': blob,
-    //         'text/plain': new Blob([scoreText], { type: 'text/plain' })
-    //       })
-    //     ]).then(() => {
-    //       // X投稿画面を開く
-    //       const text = encodeURIComponent(scoreText);
-    //       const xUrl = `https://twitter.com/intent/tweet?text=${text}`;
-    //       window.open(xUrl, '_blank');
-
-    //       // 成功メッセージを表示（オプション）
-    //       alert('画像とスコアをクリップボードにコピーしました！\nX（Twitter）の投稿画面に貼り付けてください。');
-    //     }).catch((err) => {
-    //       // クリップボードコピー失敗時は画像ダウンロード
-    //       console.log('クリップボードコピー失敗。画像をダウンロードします:', err);
-    //       const link = document.createElement('a');
-    //       link.href = src;
-    //       link.download = 'game-result.png';
-    //       link.click();
-
-    //       // X投稿画面を開く
-    //       const text = encodeURIComponent(scoreText);
-    //       const xUrl = `https://twitter.com/intent/tweet?text=${text}`;
-    //       window.open(xUrl, '_blank');
-    //     });
-    //   });
-    // });
-    // xButton.on('mouseover', () => xButton.element.style.transform = 'scale(1.1)');
-    // xButton.on('mouseout', () => xButton.element.style.transform = 'scale(1)');
-
     // Close Button
     const div = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full border-[0.3cqw] border-stone-500 cursor-pointer">', () => {
       xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-stone-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(+45deg);" >');
@@ -437,7 +377,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const now = new Date().getTime();
   if (now - prev > 300) {
     prev = now;
-    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.7, ADSR: [0, 140, 0, 0], }, }, reverb: { time: 1000, mix: 0.6, },  });  
+    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.7, ADSR: [0, 100, 0, 0], }, }, reverb: { time: 400, mix: 0.6, },  });  
     const freq = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'][id];
     synth.press(freq, 1000);
   }

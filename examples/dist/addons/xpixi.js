@@ -50,13 +50,6 @@
             var _a;
             return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.canvas;
         },
-        capture() {
-            var _a, _b;
-            const render = (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.renderer;
-            const scene = (_b = xnew.context('xpixi.root')) === null || _b === void 0 ? void 0 : _b.scene;
-            const canvas = render.extract.canvas(scene);
-            return canvas.toDataURL('image/png', 1.0);
-        }
     };
     function Root(self, { canvas }) {
         const root = {};
@@ -76,7 +69,7 @@
         root.updates = [];
         root.scene = new PIXI__namespace.Container();
         xnew.context('xpixi.object', root.scene);
-        self.on('update', () => {
+        self.on('-update', () => {
             root.updates.forEach((update) => {
                 update();
             });
@@ -89,14 +82,14 @@
         const parent = xnew.context('xpixi.object');
         xnew.context('xpixi.object', object);
         parent.addChild(object);
-        self.on('finalize', () => {
+        self.on('-finalize', () => {
             parent.removeChild(object);
         });
     }
     function PreUpdate(self, callback) {
         const root = xnew.context('xpixi.root');
         root.updates.push(callback);
-        self.on('finalize', () => {
+        self.on('-finalize', () => {
             root.updates = root.updates.filter((update) => update !== callback);
         });
     }

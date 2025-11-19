@@ -57,7 +57,7 @@
         root.camera = camera !== null && camera !== void 0 ? camera : new THREE__namespace.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
         root.scene = new THREE__namespace.Scene();
         xnew.context('xthree.object', root.scene);
-        self.on('update', () => {
+        self.on('-update', () => {
             root.renderer.render(root.scene, root.camera);
         });
     }
@@ -66,7 +66,7 @@
         xnew.context('xthree.object', object);
         if (parent) {
             parent === null || parent === void 0 ? void 0 : parent.add(object);
-            self.on('finalize', () => {
+            self.on('-finalize', () => {
                 parent === null || parent === void 0 ? void 0 : parent.remove(object);
             });
         }

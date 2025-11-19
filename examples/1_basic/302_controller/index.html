@@ -17,9 +17,7 @@
 
     function Controller(unit) {
       // prevent default event
-      xnew.listener(window).on('keydown', (event) => event.preventDefault());
       unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-
 
       xnew.nest('<div class="absolute left-0 right-0 bottom-0 w-full h-[30%]" style="container-type: size;">');
 
@@ -48,7 +46,7 @@
       unit.on('+move', ({ vector }) => move = vector);
       unit.on('+action', () => direction *= -1);
 
-      unit.on('update', () => {
+      unit.on('-update', () => {
         current.x += move.x * 10;
         current.y += move.y * 10;
         current.r += direction;

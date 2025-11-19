@@ -308,7 +308,7 @@
                 components: [],
                 listeners: new MapMap(),
                 defines: {},
-                systems: { start: [], update: [], stop: [], finalize: [] },
+                systems: { '-start': [], '-update': [], '-stop': [], '-finalize': [] },
             });
             // nest html element
             if (typeof unit._.target === 'string') {
@@ -324,7 +324,7 @@
             if (unit._.state !== 'finalized') {
                 unit._.state = 'finalized';
                 unit._.children.forEach((child) => child.finalize());
-                unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems['-finalize'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
                 unit.off();
                 unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
                 if (unit._.elements.length > 0) {
@@ -394,7 +394,7 @@
             if (unit._.state === 'initialized' || unit._.state === 'stopped') {
                 unit._.state = 'started';
                 unit._.children.forEach((child) => Unit.start(child));
-                unit._.systems.start.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems['-start'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
             else if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.start(child));
@@ -404,13 +404,13 @@
             if (unit._.state === 'started') {
                 unit._.state = 'stopped';
                 unit._.children.forEach((child) => Unit.stop(child));
-                unit._.systems.stop.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems['-stop'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
         }
         static update(unit) {
             if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.update(child));
-                unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems['-update'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
         }
         static reset() {
@@ -588,7 +588,7 @@
                     }
                 }, duration: options.duration, iterations: options.iterations, easing: options.easing
             });
-            unit.on('finalize', () => timer.clear());
+            unit.on('-finalize', () => timer.clear());
         }
     }
 
