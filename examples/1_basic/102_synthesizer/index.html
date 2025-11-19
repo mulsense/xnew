@@ -199,10 +199,10 @@
       const release = xnew(Slider, { name: 'release', value: 200, min: 0, max: 500, step: 20 });
 
       render();
-      attack.on('-change -input', () => { render(); });
-      decay.on('-change -input', () => { render(); });
-      sustain.on('-change -input', () => { render(); });
-      release.on('-change -input', () => { render(); });
+      attack.on('change input', () => { render(); });
+      decay.on('change input', () => { render(); });
+      sustain.on('change input', () => { render(); });
+      release.on('change input', () => { render(); });
 
       function render() {
         const [A, D, S, R] = [attack.value, decay.value, sustain.value, release.value];
@@ -240,12 +240,12 @@
           xnew('<div class="flex-1">', name);
           status = xnew('<div class="flex-none">', `${value}`);
       });
-      const input = xnew(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
-      input.on('input', (event) => {
+      const input = xnew.nest(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
+      unit.on('input', (event) => {
         status.element.textContent = event.target.value;
       });
       return {
-        get value() { return Number(input.element.value); },
+        get value() { return Number(input.value); },
       }
     }
 

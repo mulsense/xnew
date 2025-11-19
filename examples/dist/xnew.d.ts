@@ -22,7 +22,7 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
 
 declare class Ticker {
     private id;
-    constructor(callback: Function);
+    constructor(callback: Function, fps?: number);
     clear(): void;
 }
 

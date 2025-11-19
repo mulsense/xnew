@@ -5,18 +5,16 @@
 export class Ticker {
     private id: number | null;
 
-    constructor(callback: Function) {
+    constructor(callback: Function, fps: number = 60) {
         const self = this;
         this.id = null;
         let previous = 0;
         ticker();
-
         function ticker() {
-            const time = Date.now();
-            const fps = 60;
-            if (time - previous > (1000 / fps) * 0.9) {
-                callback(time);
-                previous = time;
+            const delta = Date.now() - previous;
+            if (delta > (1000 / fps) * 0.9) {
+                callback();
+                previous += delta;
             }
             self.id = requestAnimationFrame(ticker);
         }
@@ -70,7 +68,7 @@ export class Timer {
             } else if (this.options.easing === 'ease-in') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
             } else if (this.options.easing === 'ease') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;  // todo
             } else if (this.options.easing === 'ease-in-out') {
                 p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
             }

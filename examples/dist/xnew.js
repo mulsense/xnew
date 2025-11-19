@@ -105,17 +105,16 @@
     // ticker
     //----------------------------------------------------------------------------------------------------
     class Ticker {
-        constructor(callback) {
+        constructor(callback, fps = 60) {
             const self = this;
             this.id = null;
             let previous = 0;
             ticker();
             function ticker() {
-                const time = Date.now();
-                const fps = 60;
-                if (time - previous > (1000 / fps) * 0.9) {
-                    callback(time);
-                    previous = time;
+                const delta = Date.now() - previous;
+                if (delta > (1000 / fps) * 0.9) {
+                    callback();
+                    previous += delta;
                 }
                 self.id = requestAnimationFrame(ticker);
             }
@@ -147,7 +146,7 @@
                     p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
                 }
                 else if (this.options.easing === 'ease') {
-                    p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+                    p = (1.0 - Math.cos(p * Math.PI)) / 2.0; // todo
                 }
                 else if (this.options.easing === 'ease-in-out') {
                     p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
@@ -419,7 +418,7 @@
             (_a = Unit.root) === null || _a === void 0 ? void 0 : _a.finalize();
             Unit.current = Unit.root = new Unit(null, null);
             (_b = Unit.ticker) === null || _b === void 0 ? void 0 : _b.clear();
-            Unit.ticker = new Ticker((time) => {
+            Unit.ticker = new Ticker(() => {
                 Unit.start(Unit.root);
                 Unit.update(Unit.root);
             });
@@ -1433,6 +1432,9 @@
             this.amp = context.createGain();
             this.amp.gain.value = 1.0;
             this.amp.connect(master);
+            this.fade = context.createGain();
+            this.fade.gain.value = 1.0;
+            this.fade.connect(this.amp);
             this.source = null;
             this.start = null;
         }
@@ -1442,18 +1444,20 @@
         get volume() {
             return this.amp.gain.value;
         }
-        play({ offset = 0, loop = false } = {}) {
-            if (this.buffer === undefined) {
-                this.promise.then(() => this.play({ offset, loop }));
-            }
-            else if (this.start === null) {
+        play({ offset = 0, loop = false, fade = 0 } = {}) {
+            if (this.buffer !== undefined && this.start === null) {
                 this.source = context.createBufferSource();
                 this.source.buffer = this.buffer;
                 this.source.loop = loop;
-                this.source.connect(this.amp);
+                this.source.connect(this.fade);
                 this.start = context.currentTime;
                 this.source.playbackRate.value = 1;
                 this.source.start(context.currentTime, offset / 1000);
+                // Apply fade-in effect if fade duration is specified
+                if (fade > 0) {
+                    this.fade.gain.setValueAtTime(0, context.currentTime);
+                    this.fade.gain.linearRampToValueAtTime(1.0, context.currentTime + fade / 1000);
+                }
                 this.source.onended = () => {
                     var _a;
                     this.start = null;
@@ -1462,11 +1466,19 @@
                 };
             }
         }
-        pause() {
-            var _a;
+        pause({ fade = 0 } = {}) {
+            var _a, _b;
             if (this.buffer !== undefined && this.start !== null) {
-                (_a = this.source) === null || _a === void 0 ? void 0 : _a.stop(context.currentTime);
                 const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
+                // Apply fade-out effect if fade duration is specified
+                if (fade > 0) {
+                    this.fade.gain.setValueAtTime(1.0, context.currentTime);
+                    this.fade.gain.linearRampToValueAtTime(0, context.currentTime + fade / 1000);
+                    (_a = this.source) === null || _a === void 0 ? void 0 : _a.stop(context.currentTime + fade / 1000);
+                }
+                else {
+                    (_b = this.source) === null || _b === void 0 ? void 0 : _b.stop(context.currentTime);
+                }
                 this.start = null;
                 return elapsed;
             }
@@ -1564,7 +1576,7 @@
                 if (props.amp.envelope) {
                     const ADSR = props.amp.envelope.ADSR;
                     const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-                    const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / adsr[0], 1.0);
+                    const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / (adsr[0] + 0.001), 1.0);
                     stop = start + Math.max((adsr[0] + adsr[1]) * rate, end) + adsr[3];
                 }
                 else {
@@ -1594,7 +1606,8 @@
                 }, 2000);
             }
             function stopEnvelope(param, base, amount, ADSR) {
-                const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dv / (ADSR[0] / 1000), 1.0);
+                const end = dv > 0 ? dv : (context.currentTime - start);
+                const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(end / (ADSR[0] / 1000), 1.0);
                 if (rate < 1.0) {
                     param.cancelScheduledValues(start);
                     param.setValueAtTime(base, start);
@@ -1602,7 +1615,7 @@
                     param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
                 }
                 param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv));
-                param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv) + ADSR[3] / 1000);
+                param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, end) + ADSR[3] / 1000);
             }
             function startEnvelope(param, base, amount, ADSR) {
                 param.value = base;

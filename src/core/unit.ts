@@ -5,7 +5,7 @@ import { Ticker, Timer, TimerOptions } from './time';
 // utils
 //----------------------------------------------------------------------------------------------------
 
-const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
+const SYSTEM_EVENTS: string[] = ['-start', '-update', '-stop', '-finalize'] as const;
 
 export type UnitElement = HTMLElement | SVGElement;
 
@@ -259,7 +259,7 @@ export class Unit {
         Unit.root?.finalize();
         Unit.current = Unit.root = new Unit(null, null);
         Unit.ticker?.clear();
-        Unit.ticker = new Ticker((time: number) => {
+        Unit.ticker = new Ticker(() => {
             Unit.start(Unit.root);
             Unit.update(Unit.root);
         });

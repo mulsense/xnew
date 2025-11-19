@@ -38,6 +38,7 @@ class AudioFile {
     private source: AudioBufferSourceNode | null;
     private promise: Promise<void>;
     private amp: GainNode;
+    private fade: GainNode;
 
     private start: number | null;
 
@@ -54,6 +55,9 @@ class AudioFile {
         this.amp = context.createGain();
         this.amp.gain.value = 1.0;
         this.amp.connect(master);
+        this.fade = context.createGain();
+        this.fade.gain.value = 1.0;
+        this.fade.connect(this.amp);
         this.source = null;
         this.start = null;
     }
@@ -66,16 +70,23 @@ class AudioFile {
         return this.amp.gain.value;
     }
 
-    play({ offset = 0, loop = false }: { offset?: number, loop?: boolean } = {}) {
+    play({ offset = 0, loop = false, fade = 0 }: { offset?: number, loop?: boolean, fade?: number } = {}) {
         if (this.buffer !== undefined && this.start === null) {
             this.source = context.createBufferSource();
             this.source.buffer = this.buffer;
             this.source.loop = loop;
-            this.source.connect(this.amp);
+            this.source.connect(this.fade);
 
             this.start = context.currentTime;
             this.source.playbackRate.value = 1;
             this.source.start(context.currentTime, offset / 1000);
+
+            // Apply fade-in effect if fade duration is specified
+            if (fade > 0) {
+                this.fade.gain.setValueAtTime(0, context.currentTime);
+                this.fade.gain.linearRampToValueAtTime(1.0, context.currentTime + fade / 1000);
+            }
+
             this.source.onended = () => {
                 this.start = null;
                 this.source?.disconnect();
@@ -84,10 +95,19 @@ class AudioFile {
         }
     }
 
-    pause() {
+    pause({ fade = 0 }: { fade?: number } = {}) {
         if (this.buffer !== undefined && this.start !== null) {
-            this.source?.stop(context.currentTime);
             const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
+
+            // Apply fade-out effect if fade duration is specified
+            if (fade > 0) {
+                this.fade.gain.setValueAtTime(1.0, context.currentTime);
+                this.fade.gain.linearRampToValueAtTime(0, context.currentTime + fade / 1000);
+                this.source?.stop(context.currentTime + fade / 1000);
+            } else {
+                this.source?.stop(context.currentTime);
+            }
+
             this.start = null;
             return elapsed;
         }
@@ -255,7 +275,7 @@ class Synthesizer {
             if (props.amp.envelope) {
                 const ADSR = props.amp.envelope.ADSR;
                 const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / adsr[0], 1.0);
+                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / (adsr[0] + 0.001), 1.0);
                 stop = start + Math.max((adsr[0] + adsr[1]) * rate, end) + adsr[3];
             } else {
                 stop = start + end;
@@ -288,7 +308,8 @@ class Synthesizer {
         }
 
         function stopEnvelope(param: AudioParam, base: number, amount: number, ADSR: [number, number, number, number]) {
-            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(dv / (ADSR[0] / 1000), 1.0);
+            const end = dv > 0 ? dv : (context.currentTime - start);
+            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(end / (ADSR[0] / 1000), 1.0);
             if (rate < 1.0) {
                 param.cancelScheduledValues(start);
                 param.setValueAtTime(base, start);
@@ -296,7 +317,7 @@ class Synthesizer {
                 param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
             }
             param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv));
-            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv) + ADSR[3] / 1000);
+            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, end) + ADSR[3] / 1000);
         }
 
         function startEnvelope(param: AudioParam, base: number, amount: number, ADSR: [number, number, number, number]) {
