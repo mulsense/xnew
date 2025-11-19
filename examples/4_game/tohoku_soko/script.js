@@ -143,7 +143,7 @@ function StageSelect(unit) {
   const message = xnew('<div class="absolute top-[40cqw] w-full text-center text-[6cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
   message.element.textContent = 'Select Stage';
   let count = 0;
-  message.on('update', () => message.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  message.on('-update', () => message.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 
   // 上段: ステージ1-4
   xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
@@ -268,7 +268,7 @@ function Goal(goal, { x, y }) {
   object.receiveShadow = true;
 
   let count = 0;
-  goal.on('update', () => {
+  goal.on('-update', () => {
     const intensity = 0.3 + Math.sin(count * 0.1) * 0.5;
     material.emissiveIntensity = Math.max(0, intensity);
     count++;
@@ -298,7 +298,7 @@ function Player(player, { id, x, y }) {
   });
 
   const offset = { x: 0, y: 0 };
-  player.on('update', () => {
+  player.on('-update', () => {
     const position = position3d(x - offset.x, y - offset.y + 0.3, 0);
     object.position.set(position.x, position.y, position.z);
   });
@@ -345,7 +345,7 @@ function Box(box, { x, y }) {
 
   let rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
-  box.on('update', () => {
+  box.on('-update', () => {
     const position = position3d(x - offset.x, y - offset.y, boxSize / 2);
     object.position.set(position.x + rondom.x, position.y + rondom.y, position.z);
 
@@ -482,7 +482,7 @@ function Model(unit, { id = 0, scale }) {
   const offset = Math.random() * 10;
 
   let count = 0;
-  unit.on('update', () => {
+  unit.on('-update', () => {
     const neck = vrm.humanoid.getNormalizedBoneNode('neck');
     const chest = vrm.humanoid.getNormalizedBoneNode('chest');
     const hips = vrm.humanoid.getNormalizedBoneNode('hips');

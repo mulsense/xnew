@@ -55,7 +55,7 @@ function TitleText(unit) {
 
   // Blinking effect
   let count = 0;
-  unit.on('update', () => {
+  unit.on('-update', () => {
     start.alpha = Math.sin(count / 20) * 0.5 + 0.5;
     count++;
   });
@@ -147,7 +147,7 @@ function ScoreDisplay(unit, { state }) {
   livesText.position.set(10, 60);
   container.addChild(livesText);
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     scoreText.text = `SCORE: ${state.score}`;
     coinsText.text = `COINS: ${state.coins}`;
     livesText.text = `LIVES: ${state.lives}`;
@@ -250,7 +250,7 @@ function QuestionBlock(unit, { x, y, state }) {
   let bounceCount = 0;
   const originalY = y;
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     if (bounceCount > 0) {
       const progress = 1 - bounceCount / 10;
       object.y = originalY - Math.sin(progress * Math.PI) * 10;
@@ -306,7 +306,7 @@ function Coin(unit, { x, y, state }) {
 
   // Rotation animation
   let rotation = 0;
-  unit.on('update', () => {
+  unit.on('-update', () => {
     rotation += 0.1;
     object.scale.x = Math.cos(rotation);
   });
@@ -341,7 +341,7 @@ function CoinPop(unit, { x, y, state }) {
   let vy = -8;
   const gravity = 0.4;
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     object.y += vy;
     vy += gravity;
 
@@ -398,7 +398,7 @@ function Mario(unit, { state }) {
     }
   });
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     if (state.gameOver) return;
 
     // Apply gravity
@@ -524,7 +524,7 @@ function Goomba(unit, { x, y, state }) {
   let vx = -1.5;
   let vy = 0;
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     if (defeated) return;
     if (state.gameOver) return;
 

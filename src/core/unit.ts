@@ -413,8 +413,8 @@ export class UnitTimer {
         if (timer.unit._.state === 'finalized') {
             timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
         } else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
-            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });
+            timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
         } else {
             timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
         }
@@ -423,7 +423,7 @@ export class UnitTimer {
     static next(timer: UnitTimer) {
         if (timer.stack.length > 0) {
             timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
-            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+            timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
         }
     }
 
@@ -441,7 +441,7 @@ export class UnitTimer {
             }, duration: options.duration, iterations: options.iterations, easing: options.easing
         });
 
-        unit.on('finalize', () => timer.clear());
+        unit.on('-finalize', () => timer.clear());
     }
 }
 

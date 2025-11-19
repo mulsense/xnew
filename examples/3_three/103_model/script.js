@@ -121,7 +121,7 @@ function Model(unit, { gltf }) {
   }
 
   const clock = new THREE.Clock();
-  unit.on('update', () => {
+  unit.on('-update', () => {
     mixer.update(clock.getDelta());
   });
 }

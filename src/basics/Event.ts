@@ -12,7 +12,7 @@ export function ResizeEvent(resize: Unit) {
     if (resize.element) {
         observer.observe(resize.element);
     }
-    resize.on('finalize', () => {
+    resize.on('-finalize', () => {
         if (resize.element) {
             observer.unobserve(resize.element);
         }
@@ -46,7 +46,7 @@ export function KeyboardEvent(keyboard: Unit) {
         };
     }
 
-    keyboard.on('finalize', () => {
+    keyboard.on('-finalize', () => {
         window.removeEventListener('keydown', keydown);
         window.removeEventListener('keyup', keyup);
     });
@@ -119,7 +119,7 @@ function DragEvent(unit: Unit) {
                     connect = false;
                 }
             }
-            internal.on('finalize', remove);
+            internal.on('-finalize', remove);
         });
         unit.emit('-dragstart', { event, position });
     }

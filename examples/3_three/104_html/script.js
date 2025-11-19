@@ -32,7 +32,7 @@ function Plane(unit, id) {
     }, 700);
   });
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     unit.element.style.opacity = opacity;
     unit.element.style.transform = `
           translateZ(${perspective}px) 
@@ -85,7 +85,7 @@ function ThreeMain(unit) {
 
   xnew(ThreeContents);
   xnew(() => {
-    unit.on('update', () => {
+    unit.on('-update', () => {
       xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
       xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
       xthree.camera.position.x = -(transform.tx + offset.tx);

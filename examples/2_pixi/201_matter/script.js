@@ -43,7 +43,7 @@ function Rectangle(self, { x, y, w, h, color, options = {} }) {
   const pyshics = xmatter.nest(Matter.Bodies.rectangle(0, 0, w, h, options));
   Matter.Body.setPosition(pyshics, { x, y });
 
-  self.on('update', () => {
+  self.on('-update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
@@ -57,7 +57,7 @@ function Circle(self, { x, y, radius, color, options = {} }) {
   const pyshics = xmatter.nest(Matter.Bodies.circle(0, 0, radius, options));
   Matter.Body.setPosition(pyshics, { x, y });
 
-  self.on('update', () => {
+  self.on('-update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
@@ -71,7 +71,7 @@ function Polygon(self, { x, y, sides, radius, color, options = {} }) {
   const pyshics = xmatter.nest(Matter.Bodies.polygon(0, 0, sides, radius, options));
   Matter.Body.setPosition(pyshics, { x, y });
 
-  self.on('update', () => {
+  self.on('-update', () => {
       object.rotation = pyshics.angle;
       object.position.set(pyshics.position.x, pyshics.position.y);
   });
@@ -93,7 +93,7 @@ function Dumbbell(self, { x, y, size, angle, color, options = {} }) {
   Matter.Body.setPosition(compound, { x, y });
   Matter.Body.setAngle(compound, angle);
 
-  self.on('update', () => {
+  self.on('-update', () => {
     object.rotation = compound.angle;
     object.position.set(compound.position.x, compound.position.y);
   });
@@ -144,7 +144,7 @@ function Car(self, { x, y, size }) {
   container.addChild(wheelLeftGraphics);
   container.addChild(wheelRightGraphics);
 
-  self.on('update', () => {
+  self.on('-update', () => {
     bodyGraphics.rotation = body.angle;
     bodyGraphics.position.set(body.position.x, body.position.y);
     wheelLeftGraphics.rotation = wheelLeft.angle;
@@ -173,7 +173,7 @@ function LShape(self, { x, y, color, size, options = {} }) {
   object.position.set(x, y)
   object.pivot.set(offset.x, offset.y);
 
-  self.on('update', () => {
+  self.on('-update', () => {
     object.rotation = compound.angle;
     object.position.set(compound.position.x, compound.position.y);
   });

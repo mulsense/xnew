@@ -38,7 +38,7 @@ function Cube(unit) {
   // finalize after 5000ms
   xnew.timeout(() => unit.finalize(), 5000);
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     object.position.x += velocity.x;
     object.position.y += velocity.y;
     object.position.z += velocity.z;

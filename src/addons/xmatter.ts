@@ -22,7 +22,7 @@ function Root(self: xnew.Unit, { engine }: any) {
     root.engine = engine ?? Matter.Engine.create();
     xnew.context('xmatter.object', root.engine.world);
 
-    self.on('update', () => {
+    self.on('-update', () => {
         if (root.isActive) {
             Matter.Engine.update(root.engine);
         }
@@ -34,7 +34,7 @@ function Nest(self: xnew.Unit, { object }: { object: any }) {
     xnew.context('xmatter.object', object);
 
     Matter.Composite.add(parent, object);
-    self.on('finalize', () => {
+    self.on('-finalize', () => {
         Matter.Composite.remove(parent, object);
     });
 }

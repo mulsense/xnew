@@ -270,7 +270,7 @@ function TouchMessage(unit) {
   xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-800 font-bold">');
   unit.element.textContent = 'touch start';
   let count = 0;
-  unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function ScoreText(unit) {
@@ -368,7 +368,7 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
   const random = Math.random() * 10;
 
   let count = 0;
-  unit.on('update', () => {
+  unit.on('-update', () => {
     const neck = vrm.humanoid.getNormalizedBoneNode('neck');
     const chest = vrm.humanoid.getNormalizedBoneNode('chest');
     const hips = vrm.humanoid.getNormalizedBoneNode('hips');
@@ -421,7 +421,7 @@ function Cursor(unit) {
 
     } 
   });
-  unit.on('update', () => {
+  unit.on('-update', () => {
     object.rotation += 0.02;
     const position = convert3d(object.x, object.y + offset);
     model?.object.position.set(position.x, position.y, position.z);
@@ -445,7 +445,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const model = xnew(Model, { id, scale });
   ball.emit('+scoreup', id);
   
-  ball.on('update', () => {
+  ball.on('-update', () => {
     const position = convert3d(ball.object.x, ball.object.y);
     model.object.position.set(position.x, position.y, position.z);
     model.object.rotation.z = -ball.object.rotation;
@@ -479,7 +479,7 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
   object.addChild(graphics);
   object.alpha = alpha;
 
-  unit.on('update', () => {
+  unit.on('-update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });

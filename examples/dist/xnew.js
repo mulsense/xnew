@@ -213,7 +213,7 @@
     //----------------------------------------------------------------------------------------------------
     // utils
     //----------------------------------------------------------------------------------------------------
-    const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
+    const SYSTEM_EVENTS = ['-start', '-update', '-stop', '-finalize'];
     //----------------------------------------------------------------------------------------------------
     // unit
     //----------------------------------------------------------------------------------------------------
@@ -560,7 +560,7 @@
             }
             else if (timer.stack.length === 0) {
                 timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
-                timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+                timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
             }
             else {
                 timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
@@ -569,7 +569,7 @@
         static next(timer) {
             if (timer.stack.length > 0) {
                 timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
-                timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+                timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
             }
         }
         static Component(unit, options) {
@@ -899,7 +899,7 @@
         if (resize.element) {
             observer.observe(resize.element);
         }
-        resize.on('finalize', () => {
+        resize.on('-finalize', () => {
             if (resize.element) {
                 observer.unobserve(resize.element);
             }
@@ -929,7 +929,7 @@
                 y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
             };
         }
-        keyboard.on('finalize', () => {
+        keyboard.on('-finalize', () => {
             window.removeEventListener('keydown', keydown);
             window.removeEventListener('keyup', keyup);
         });
@@ -994,7 +994,7 @@
                         connect = false;
                     }
                 }
-                internal.on('finalize', remove);
+                internal.on('-finalize', remove);
             });
             unit.emit('-dragstart', { event, position });
         }

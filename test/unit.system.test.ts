@@ -16,7 +16,7 @@ describe('unit system', () => {
                 xnew.promise(new Promise<void>((resolve, reject) => {
                     setTimeout(() => resolve(), 500);
                 }));
-                unit.on('start', () => {
+                unit.on('-start', () => {
                     const d = Date.now() - start;
                     expect(d).toBeGreaterThan(500 - margin);
                     expect(d).toBeLessThan(500 + margin);

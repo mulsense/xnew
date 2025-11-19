@@ -125,7 +125,7 @@ function CharacterModel(unit, { id }) {
   });
 
   let count = 0;
-  unit.on('update', () => {
+  unit.on('-update', () => {
     if (!loaded || !vrm) return;
 
     const t = count * 0.01;

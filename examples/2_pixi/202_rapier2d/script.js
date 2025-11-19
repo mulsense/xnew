@@ -30,7 +30,7 @@ function Circle(self, { x, y, r, color = 0xFFFFFF }, options = {}) {
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, r, options));
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().circle(0, 0, r).fill(color));
-  self.on('update', () => {
+  self.on('-update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
@@ -52,7 +52,7 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options
   const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2);
   const collider = xrapier2d.connect('collider', world.createCollider(colliderDesc, rigidBody));
   console.log(rigidBody, collider);
-  self.on('update', () => {
+  self.on('-update', () => {
     const position = rigidBody.translation();
     object.position.set(position.x, position.y);
   });
@@ -67,7 +67,7 @@ function Polygon(self, { x, y, s, r, color = 0xFFFFFF }, options = {}) {
     points.push(Math.cos(i * Math.PI / 180) * r, Math.sin(i * Math.PI / 180) * r);
   }
   object.addChild(new PIXI.Graphics().regularPoly(0, 0, r, s).fill(color));
-  self.on('update', () => {
+  self.on('-update', () => {
     let position = rigidBody.translation();
     object.position.set(position.x, position.y);
   });
