@@ -74,9 +74,9 @@ function GameScene(scene) {
     });
   });
 
-  xnew.timeout(() => {
-    scene.emit('+gameover');
-  }, 1100);
+  // xnew.timeout(() => {
+  //   scene.emit('+gameover');
+  // }, 1100);
   scene.on('+gameover', () => {
     controller.finalize();
     scene.emit('+music.pause');
@@ -100,6 +100,16 @@ function GameScene(scene) {
 
 }
 
+function getRating(score) {
+  if (score >= 600) {
+    return { text: '異常にすごい！！！', emoji: '🌟🌟🌟', color: '#FF1493' };
+  } else if (score >= 300) {
+    return { text: 'すごい！！', emoji: '⭐⭐', color: '#FFD700' };
+  } else {
+    return { text: '普通', emoji: '☆', color: '#87CEEB' };
+  }
+}
+
 function ResultScene(scene, { image, scores }) {
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
@@ -107,9 +117,9 @@ function ResultScene(scene, { image, scores }) {
 
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
-  
+
   xnew('<div class="absolute top-[-3cqw] left-[2cqw] text-[14cqw] text-stone-400">', 'Result');
-  const img = xnew(`<img 
+  const img = xnew(`<img
     class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden object-cover"
     style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
     >`);
@@ -128,7 +138,7 @@ function ResultScene(scene, { image, scores }) {
     div.on('mouseover', () => div.element.style.transform = 'scale(1.1)');
     div.on('mouseout', () => div.element.style.transform = 'scale(1)');
   });
-  
+
   const style = document.createElement('style');
   style.textContent = `
     @keyframes float {
@@ -158,14 +168,14 @@ function ResultScene(scene, { image, scores }) {
       const [x, y] = [Math.random() * 100, Math.random() * 100];
       const duration = Math.random() * 3000 + 2000;
 
-      xnew(`<div class="absolute w-[1cqw] h-[1cqw] rounded-full bg-white opacity-60" 
+      xnew(`<div class="absolute w-[1cqw] h-[1cqw] rounded-full bg-white opacity-60"
         style="left: ${x}%; top: ${y}%; animation: twinkle ${duration}ms ease-in-out infinite;"
         >`);
     }
   });
 
   xnew('<div class="absolute top-[8cqw] bottom-0 right-[2cqw] w-[50cqw] text-green-600 flex items-center">', () => {
-    xnew.nest('<div class="w-full bg-gray-100 p-[2cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+    xnew.nest('<div class="w-full bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
     xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center" style="color: #ff6b6b;">', '🎉 生み出した数 🎉');
 
     const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
@@ -177,7 +187,42 @@ function ResultScene(scene, { image, scores }) {
       });
     }
 
-    xnew('<div class="w-full text-[4cqw] pt-[1cqw] border-t-[0.4cqw] text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
+    xnew('<div class="text-[4cqw] mx-[2cqw] pt-[1cqw] border-t-[0.4cqw] border-dashed text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
+
+    // Add rating indicator
+    const rating = getRating(sum);
+    const maxScore = 800;
+    const progress = Math.min(sum / maxScore, 1.0);
+
+    // Rating indicators with colors
+    const ratingLevels = [
+      { name: 'ふつう', color: '#87CEEB', minScore: 0, maxScore: 300 },
+      { name: 'まあまあ', color: '#AAD700', minScore: 300, maxScore: 600 },
+      { name: 'すごい！', color: '#AA1493', minScore: 600, maxScore: 800 }
+    ];
+
+    // Display rating indicator with bars
+    xnew('<div class="w-full pt-[1.5cqw] px-[1cqw]">', () => {
+      xnew.nest('<div style="position: relative; width: 100%; height: 3cqw;">');
+
+      // Background bar
+      xnew('<div style="position: absolute; width: 100%; height: 100%; background: #ddd; border-radius: 1.5cqw; overflow: hidden;">');
+
+      // Progress bar with color based on rating
+      xnew('<div style="position: absolute; height: 100%; width: ' + (progress * 100) + '%; background: ' + rating.color + '; border-radius: 1.5cqw; transition: width 0.5s ease;"></div>');
+
+      // Pointer at current score
+      xnew('<div style="position: absolute; top: 50%; left: ' + (progress * 100) + '%; transform: translate(-50%, -50%); font-size: 2cqw; transition: left 0.5s ease;">👆</div>');
+    });
+
+    // Rating level markers
+    xnew('<div class="w-full pt-[0.8cqw] flex justify-between text-[1.2cqw] font-bold">', () => {
+      for (let i = 0; i < ratingLevels.length; i++) {
+        const level = ratingLevels[i];
+        xnew('<div style="color: ' + level.color + ';">', level.minScore + '点');
+      }
+      xnew('<div style="color: #999;">', '800点');
+    });
   });
 
   xnew.transition((x) => {
