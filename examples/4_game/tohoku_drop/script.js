@@ -23,17 +23,8 @@ function Main(main) {
   xpixi.initialize({ canvas: main.canvas });
 
   xnew(TitleScene);
+  xnew.audio.volume = 0.1;
   xnew(VolumeController);
-
-  main.on('+music.play', () => {
-    xnew.audio.load('../assets/y015.mp3').then((music) => {
-      music.play({ fade: 3000, loop: true });
-      main.on('+music.pause', () => {
-        main.off('+music.pause');
-        music.pause({ fade: 3000 });
-      });
-    });
-  })
 }
 
 function TitleScene(scene) {
@@ -76,6 +67,13 @@ function GameScene(scene) {
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
   scene.on('+scoreup', (i) => scores[i]++);
 
+  xnew.audio.load('../assets/y015.mp3').then((music) => {
+    music.play({ fade: 3000, loop: true });
+    scene.on('+music.pause', () => {
+      music.pause({ fade: 1000 });
+    });
+  });
+
   // xnew.timeout(() => {
   //   scene.emit('+gameover');
   // }, 1100);
@@ -103,6 +101,10 @@ function GameScene(scene) {
 }
 
 function ResultScene(scene, { image, scores }) {
+  xnew.audio.load('../assets/st005.mp3').then((music) => {
+    music.play({ fade: 1000, loop: true });
+  });
+
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
   
@@ -111,9 +113,7 @@ function ResultScene(scene, { image, scores }) {
     class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-stone-400 object-cover"
     style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
     >`);
-  image.then((src) => {
-    img.element.src = src;
-  })
+  image.then((src) => img.element.src = src);
 
   xnew('<div class="absolute text-center top-[3cqw] right-[2cqw] pointer-events-auto flex flex-col gap-[1cqw]">', () => {
     // Close Button
@@ -211,7 +211,7 @@ function Texture(unit, { texture } = {}) {
 function TitleText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-800 font-bold">');
-  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.3cqw', strokeColor: 'rgb(220, 240, 220)' });
+  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.2cqw', strokeColor: 'rgb(240, 255, 240)' });
 }
 
 function TouchMessage(unit) {
@@ -275,6 +275,7 @@ function Queue(unit) {
   let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
   unit.on('+reload', () => {
+
     const next = balls.shift();
     model.finalize();
     const position = convert3d(10, 70);
@@ -292,6 +293,7 @@ function Queue(unit) {
 }
 
 function Model(unit, { id = 0, position = null, rotation = null, scale }) {
+
   const object = xthree.nest(new THREE.Object3D());
   if (position) object.position.set(position.x, position.y, position.z);
   if (rotation) object.rotation.set(rotation.x, rotation.y, rotation.z);
@@ -349,8 +351,8 @@ function Cursor(unit) {
   object.position.set(400, 40);
 
   const graphics = new PIXI.Graphics();
-  graphics.moveTo(-16, 0).lineTo(16, 0).stroke({ color: 0xE84A57, width: 8 })
-  graphics.moveTo(0, -16).lineTo(0, 16).stroke({ color: 0xE84A57, width: 8 });
+  graphics.moveTo(-24, 0).lineTo(24, 0).stroke({ color: 0xE84A57, width: 12 })
+  graphics.moveTo(0, -24).lineTo(0, 24).stroke({ color: 0xE84A57, width: 12 });
   object.addChild(graphics);
 
   unit.on('+move', ({ x }) => object.x = Math.max(Math.min(x, xpixi.canvas.width / 2 + 190), xpixi.canvas.width / 2 - 190));
@@ -359,6 +361,7 @@ function Cursor(unit) {
   let model = null
   unit.on('+reloadcomplete', (id) => {
     const position = convert3d(object.x, object.y + offset);
+
     model = xnew(Model, { position, id, scale: 0.5 });
   });
   unit.on('+drop', () => {
@@ -379,14 +382,15 @@ function Cursor(unit) {
 
 let prev = 0;
 function ModelBall(ball, { x, y, id = 0 }) {
+
   const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
   const radius = 35 + Math.pow(3.0, scale * 2.0);
   xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });
 
   const now = new Date().getTime();
-  if (now - prev > 300) {
+  if (now - prev > 200) {
     prev = now;
-    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.7, ADSR: [0, 100, 0, 0], }, }, reverb: { time: 400, mix: 0.6, },  });
+    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.8, ADSR: [0, 100, 0, 0], }, }, reverb: { time: 400, mix: 0.6, },  });
     const freq = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'][id];
     synth.press(freq, 1000);
   }
@@ -427,69 +431,36 @@ function StarParticles(unit, { x, y }) {
   const container = xpixi.nest(new PIXI.Container());
   container.position.set(x, y);
 
-  // 4-5個の星を生成
-  const particleCount = 4 + Math.floor(Math.random() * 2);
-  const particles = [];
+  const num = 4 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < num; i++) {
+    const graphics = new PIXI.Graphics();
+    const size = 12 + Math.random() * 16;
+    // yellow, gold, orange, white, pink, sky blue, light green, light pink
+    const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0x98FB98, 0xFFB6C1][Math.floor(Math.random() * 8)];
 
-  for (let i = 0; i < particleCount; i++) {
-    const star = new PIXI.Graphics();
-    const size = 8 + Math.random() * 16;
-    const color = [
-      0xFFFF00, // 黄色
-      0xFFD700, // 金色
-      0xFFA500, // オレンジ
-      0xFFFFFF, // 白
-      0xFF69B4, // ピンク
-      0x87CEEB, // 空色
-      0x98FB98, // 薄緑
-      0xFFB6C1  // ライトピンク
-    ][Math.floor(Math.random() * 8)];
+    graphics.star(0, 0, 5, size, size * 0.5);
+    graphics.fill(color);
+    container.addChild(graphics);
 
-    // 星形を描画
-    star.star(0, 0, 5, size, size * 0.5);
-    star.fill(color);
-
-    container.addChild(star);
-
-    // ランダムな方向と速度（短めの距離）
-    const angle = (Math.PI * 2 / particleCount) * i + Math.random() * 0.5;
+    const angle = (Math.PI * 2 / num) * i + Math.random() * 0.5;
     const speed = 1 + Math.random() * 1.5;
-    const initialDistance = 20 + Math.random() * 15; // 中心から20-35pxの位置から発生
-    particles.push({
-      star,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      rotation: Math.random() * 0.3 - 0.15,
-      life: 0
-    });
+    let vx = Math.cos(angle) * speed;
+    let vy = Math.sin(angle) * speed;
+    let va = Math.random() * 0.3 - 0.15;
 
-    // 初期位置を中心から離す
-    star.x = Math.cos(angle) * initialDistance;
-    star.y = Math.sin(angle) * initialDistance;
+    const distance = 20 + Math.random() * 15; 
+    graphics.x = Math.cos(angle) * distance;
+    graphics.y = Math.sin(angle) * distance;
+
+    xnew.transition((p) => {
+      graphics.x += vx;
+      graphics.y += vy;
+      graphics.rotation += va;
+      vy += 0.15; // gravity
+      graphics.alpha = 1 - p;
+    }, 800);
   }
-
-  // アニメーション
-  const duration = 2000;
-  let startTime = Date.now();
-
-  unit.on('-update', () => {
-    const elapsed = Date.now() - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-
-    particles.forEach(p => {
-      p.star.x += p.vx;
-      p.star.y += p.vy;
-      p.star.rotation += p.rotation;
-      p.vy += 0.15; // 重力効果
-
-      // フェードアウト
-      p.star.alpha = 1 - progress;
-    });
-
-    if (progress >= 1) {
-      unit.finalize();
-    }
-  });
+  xnew.timeout(() => unit.finalize(), 800);
 }
 
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {

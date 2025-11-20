@@ -1,4 +1,5 @@
 import { Unit, UnitPromise, UnitTimer } from './unit';
+import { master, AudioFile, AudioFilePlayOptions, AudioFilePauseOptions, Synthesizer, SynthesizerOptions } from './audio';
 
 interface CreateUnit {
     /**
@@ -43,10 +44,11 @@ export const xnew = Object.assign(
          * div.textContent = 'Hello'
          */
         nest(tag: string): HTMLElement | SVGElement {
-            if (Unit.current?._.state === 'invoked') {
+            try {
                 return Unit.nest(Unit.current, tag);
-            } else {
-                throw new Error('xnew.nest: This function can not be called after initialized.');
+            } catch (error: unknown) {
+                console.error('xnew.nest(tag: string): ', error);
+                throw error;
             }
         },
 
@@ -60,10 +62,11 @@ export const xnew = Object.assign(
          * const api = xnew.extend(BaseComponent, { data: {} })
          */
         extend(component: Function, props?: Object): { [key: string]: any } {
-            if (Unit.current?._.state === 'invoked') {
+            try {
                 return Unit.extend(Unit.current, component, props);
-            } else {
-                throw new Error('xnew.extend: This function can not be called after initialized.');
+            } catch (error: unknown) {
+                console.error('xnew.extend(component: Function, props?: Object): ', error);
+                throw error;
             }
         },
 
@@ -196,10 +199,11 @@ export const xnew = Object.assign(
          * buttons.forEach(btn => btn.finalize())
          */
         find(component: Function): Unit[] {
-            if (typeof component === 'function') {
+            try {
                 return Unit.find(component);
-            } else {
-                throw new Error('xnew.find(component: Function): [component] is invalid.');
+            } catch (error: unknown) {
+                console.error('xnew.find(component: Function): ', error);
+                throw error;
             }
         },
 
@@ -225,7 +229,7 @@ export const xnew = Object.assign(
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(timeout: Function, duration: number, iterations?: number): any {
+        interval(timeout: Function, duration: number, iterations: number = 0): any {
             return new UnitTimer({ timeout, duration, iterations });
         },
 
@@ -244,6 +248,34 @@ export const xnew = Object.assign(
          */
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
+        },
+
+        audio: {
+            load(path: string): UnitPromise {
+                const music = new AudioFile(path);
+                const object = {
+                    play(options: AudioFilePlayOptions) {
+                        const unit = xnew();
+                        if (music.played === null) {
+                            music.play(options);
+                            unit.on('-finalize', () => music.pause({ fade: options.fade }));
+                        }
+                    },
+                    pause(options: AudioFilePauseOptions) {
+                        music.pause(options);
+                    }
+                }
+                return xnew.promise(music.promise).then(() => object);
+            },
+            synthesizer(props: SynthesizerOptions) {
+                return new Synthesizer(props);
+            },
+            get volume(): number {
+                return master.gain.value;
+            },
+            set volume(value: number) {
+                master.gain.value = value;
+            }
         }
     }
 );

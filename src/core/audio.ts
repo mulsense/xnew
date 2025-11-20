@@ -1,54 +1,36 @@
-import { xnew } from '../core/xnew';
-import { Unit, UnitPromise } from '../core/unit';
-
-const context: AudioContext = new AudioContext();
-const master: GainNode = context.createGain();
+export const context: AudioContext = new AudioContext();
+export const master: GainNode = context.createGain();
 master.gain.value = 1.0;
 master.connect(context.destination);
-
-window.addEventListener('touchstart', initialize, true);
-window.addEventListener('mousedown', initialize, true);
-function initialize() {
-    new Synthesizer({ oscillator: { type: 'sine' }, amp: { envelope: { amount: 0, ADSR: [0, 0, 0, 0] } } }).press(440);
-    window.removeEventListener('touchstart', initialize, true);
-    window.removeEventListener('mousedown', initialize, true);
-}
-
-export const audio = {
-    load(path: string, { label }: { label?: string } = {}): UnitPromise {
-        return AudioFile.load(path);
-    },
-    synthesizer(props: SynthProps) {
-        return new Synthesizer(props);
-    },
-    get volume(): number {
-        return master.gain.value;
-    },
-    set volume(value: number) {
-        master.gain.value = value;
-    }
-}
 
 //----------------------------------------------------------------------------------------------------
 // audio file
 //----------------------------------------------------------------------------------------------------
 
-class AudioFile {
+export type AudioFilePlayOptions = {
+    offset?: number;
+    fade?: number;
+    loop?: boolean;
+};
+
+export type AudioFilePauseOptions = {
+    fade?: number;
+}
+
+export class AudioFile {
     private buffer?: AudioBuffer;
     private source: AudioBufferSourceNode | null;
-    private promise: Promise<void>;
     private amp: GainNode;
     private fade: GainNode;
 
-    private start: number | null;
+    public promise: Promise<void>;
+    public played: number | null;
 
     constructor(path: string) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
             .then((response) => context.decodeAudioData(response))
-            .then((response) => {
-                this.buffer = response
-            })
+            .then((response) => { this.buffer = response })
             .catch(() => {
                 console.warn(`"${path}" could not be loaded.`)
             });
@@ -59,7 +41,7 @@ class AudioFile {
         this.fade.gain.value = 1.0;
         this.fade.connect(this.amp);
         this.source = null;
-        this.start = null;
+        this.played = null;
     }
 
     set volume(value: number) {
@@ -70,14 +52,14 @@ class AudioFile {
         return this.amp.gain.value;
     }
 
-    play({ offset = 0, loop = false, fade = 0 }: { offset?: number, loop?: boolean, fade?: number } = {}) {
-        if (this.buffer !== undefined && this.start === null) {
+    play({ offset = 0, fade = 0, loop = false }: AudioFilePlayOptions = {}) {
+        if (this.buffer !== undefined && this.played === null) {
             this.source = context.createBufferSource();
             this.source.buffer = this.buffer;
             this.source.loop = loop;
             this.source.connect(this.fade);
 
-            this.start = context.currentTime;
+            this.played = context.currentTime;
             this.source.playbackRate.value = 1;
             this.source.start(context.currentTime, offset / 1000);
 
@@ -88,16 +70,16 @@ class AudioFile {
             }
 
             this.source.onended = () => {
-                this.start = null;
+                this.played = null;
                 this.source?.disconnect();
                 this.source = null;
             };
         }
     }
 
-    pause({ fade = 0 }: { fade?: number } = {}) {
-        if (this.buffer !== undefined && this.start !== null) {
-            const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
+    pause({ fade = 0 }: AudioFilePauseOptions = {}) {
+        if (this.buffer !== undefined && this.played !== null) {
+            const elapsed = (context.currentTime - this.played) % this.buffer.duration * 1000;
 
             // Apply fade-out effect if fade duration is specified
             if (fade > 0) {
@@ -108,19 +90,15 @@ class AudioFile {
                 this.source?.stop(context.currentTime);
             }
 
-            this.start = null;
+            this.played = null;
             return elapsed;
         }
     }
 
-    static load(path: string) {
-        const music = new AudioFile(path);
-        return xnew.promise(music.promise).then(() => music);
-    }
-
-    static clear(file: AudioFile) {
-        file.amp.disconnect();
-        file.source?.disconnect();
+    clear() {
+        this.amp.disconnect();
+        this.fade.disconnect();
+        this.source?.disconnect();
     }
 };
 
@@ -128,7 +106,7 @@ class AudioFile {
 // synthesizer
 //----------------------------------------------------------------------------------------------------
 
-type SynthProps = {
+export type SynthesizerOptions = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
     filter?: FilterOptions;
@@ -183,9 +161,9 @@ const notemap: { [key: string]: number } = {
     '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
 };
 
-class Synthesizer {
-    props: SynthProps;
-    constructor(props: SynthProps) { this.props = props; }
+export class Synthesizer {
+    props: SynthesizerOptions;
+    constructor(props: SynthesizerOptions) { this.props = props; }
     
     press(frequency: number | string, duration?: number | string, wait?: number) {
         const props = this.props;
