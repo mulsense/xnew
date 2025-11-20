@@ -211,7 +211,7 @@ function Texture(unit, { texture } = {}) {
 function TitleText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-800 font-bold">');
-  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.2cqw', strokeColor: 'rgb(200, 220, 200)' });
+  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.3cqw', strokeColor: 'rgb(220, 240, 220)' });
 }
 
 function TouchMessage(unit) {
@@ -515,7 +515,7 @@ function convert3d(x, y, z = 0) {
 function Text(unit, { text, strokeWidth = 0, strokeColor = 'black' }) {
   const [sw, sc] = [strokeWidth, strokeColor];
   if (sw !== 0) {
-    xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
+    xnew.nest(`<div style="text-shadow: -${sw} -${sw} ${sw} ${sc}, ${sw} -${sw} ${sw} ${sc}, -${sw} ${sw} ${sw} ${sc}, ${sw} ${sw} ${sw} ${sc};">`);
   }
   unit.element.textContent = text;
 }
