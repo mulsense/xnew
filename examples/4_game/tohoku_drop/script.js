@@ -74,9 +74,9 @@ function GameScene(scene) {
     });
   });
 
-  // xnew.timeout(() => {
-  //   scene.emit('+gameover');
-  // }, 1100);
+  xnew.timeout(() => {
+    scene.emit('+gameover');
+  }, 1100);
   scene.on('+gameover', () => {
     controller.finalize();
     scene.emit('+music.pause');
@@ -108,9 +108,9 @@ function ResultScene(scene, { image, scores }) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
   
-  xnew('<div class="absolute top-0 left-[2cqw] text-[12cqw] text-stone-400">', 'Result');
+  xnew('<div class="absolute top-[-3cqw] left-[2cqw] text-[14cqw] text-stone-400">', 'Result');
   const img = xnew(`<img 
-    class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden border-[0.3cqw] border-stone-400 object-cover"
+    class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden object-cover"
     style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
     >`);
   image.then((src) => img.element.src = src);
@@ -210,13 +210,13 @@ function Texture(unit, { texture } = {}) {
 
 function TitleText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-800 font-bold">');
-  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.2cqw', strokeColor: 'rgb(240, 255, 240)' });
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600 font-bold">');
+  xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
 }
 
 function TouchMessage(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-800 font-bold">');
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold">');
   unit.element.textContent = 'touch start';
   let count = 0;
   unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
@@ -224,19 +224,19 @@ function TouchMessage(unit) {
 
 function ScoreText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-800">');
-  unit.element.textContent = 'score 0';
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-600">');
+  const text = xnew(Text, { text: 'score 0', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
   let sum = 0;
-  unit.on('+scoreup', (i) => unit.element.textContent = `score ${sum += Math.pow(2, i)}`);
+  unit.on('+scoreup', (i) => text.element.textContent = `score ${sum += Math.pow(2, i)}`);
 }
 
 function GameOverText(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full text-center text-[7cqw] font-bold text-red-500">');
-  unit.element.textContent = 'Game Over';
+  xnew.nest('<div class="absolute w-full text-center text-[12cqw] font-bold text-red-400">');
+  const text = xnew(Text, { text: 'Game Over', strokeWidth: '0.1cqw', strokeColor: 'rgb(255, 240, 240)' });
   xnew.transition((p) => {
     unit.element.style.opacity = p;
-    unit.element.style.top = `${20 + p * 10}cqw`;
+    unit.element.style.top = `${5 + p * 15}cqw`;
   }, 1000, 'ease');
 }
 
@@ -262,7 +262,7 @@ function Bowl(unit) {
   for (let angle = 10; angle <= 170; angle++) {
     const x = 400 + Math.cos(angle * Math.PI / 180) * 240;
     const y = 360 + Math.sin(angle * Math.PI / 180) * 200;
-    xnew(Circle, { x, y, radius: 12, color: 0x00AAAA, options: { isStatic: true } });
+    xnew(Circle, { x, y, radius: 12, color: 0x99AAAA, options: { isStatic: true } });
   }
 }
 
@@ -486,7 +486,7 @@ function convert3d(x, y, z = 0) {
 function Text(unit, { text, strokeWidth = 0, strokeColor = 'black' }) {
   const [sw, sc] = [strokeWidth, strokeColor];
   if (sw !== 0) {
-    xnew.nest(`<div style="text-shadow: -${sw} -${sw} ${sw} ${sc}, ${sw} -${sw} ${sw} ${sc}, -${sw} ${sw} ${sw} ${sc}, ${sw} ${sw} ${sw} ${sc};">`);
+    xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
   }
   unit.element.textContent = text;
 }
@@ -496,22 +496,22 @@ function VolumeController(unit) {
   xnew.nest('<div class="absolute bottom-[2cqw] right-[2cqw] pointer-events-auto flex flex-col gap-[0.5cqw]">');
 
   const container = xnew.nest('<div class="flex items-center gap-[0.5cqw] select-none">');
+  unit.on('pointerdown', (event) => event.stopPropagation());
 
   const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
-    style="display: none; width: 10cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
+    style="display: none; width: 15cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
   >`);
 
-  unit.on('pointerdown', (event) => event.stopPropagation());
-  xnew(container, xnew.basics.PointerEvent).on('-click:outside', () => {
+  const pointer = xnew(container, xnew.basics.PointerEvent);
+  pointer.on('-click:outside', () => {
     slider.element.style.display = 'none';
   });
-  const button = xnew('<div class="text-[4cqw] font-bold cursor-pointer hover:opacity-70 transition-opacity">', '🔊');
-
-  // ボタンクリック時の表示切り替え
-  button.on('pointerdown', (event) => {
+  const button = xnew('<div class="text-[5cqw] font-bold cursor-pointer hover:opacity-70 transition-opacity">', '🔊');
+  button.on('click', () => {
     const isVisible = slider.element.style.display !== 'none';
     slider.element.style.display = isVisible ? 'none' : 'flex';
   });
+
 
   // スライダー操作時
   slider.on('input', (e) => {
