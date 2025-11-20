@@ -4,9 +4,11 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xthree.initialize({ canvas: screen.canvas });
+function Main(main) {
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+
+  // three setup
+  xthree.initialize({ canvas: main.canvas });
   xthree.camera.position.set(0, 0, +100);
 
   xnew(Cubes);

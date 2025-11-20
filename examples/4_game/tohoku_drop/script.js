@@ -382,17 +382,20 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
   const radius = 35 + Math.pow(3.0, scale * 2.0);
   xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });
-  
+
   const now = new Date().getTime();
   if (now - prev > 300) {
     prev = now;
-    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.7, ADSR: [0, 100, 0, 0], }, }, reverb: { time: 400, mix: 0.6, },  });  
+    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.7, ADSR: [0, 100, 0, 0], }, }, reverb: { time: 400, mix: 0.6, },  });
     const freq = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'][id];
     synth.press(freq, 1000);
   }
 
   const model = xnew(Model, { id, scale });
   ball.emit('+scoreup', id);
+
+  // 星屑エフェクトを生成
+  xnew.find(GameScene)[0]?.append(StarParticles, { x, y });
   
   ball.on('-update', () => {
     const position = convert3d(ball.object.x, ball.object.y);
@@ -418,6 +421,75 @@ function ModelBall(ball, { x, y, id = 0 }) {
     }
   });
   return { radius, id };
+}
+
+function StarParticles(unit, { x, y }) {
+  const container = xpixi.nest(new PIXI.Container());
+  container.position.set(x, y);
+
+  // 4-5個の星を生成
+  const particleCount = 4 + Math.floor(Math.random() * 2);
+  const particles = [];
+
+  for (let i = 0; i < particleCount; i++) {
+    const star = new PIXI.Graphics();
+    const size = 8 + Math.random() * 16;
+    const color = [
+      0xFFFF00, // 黄色
+      0xFFD700, // 金色
+      0xFFA500, // オレンジ
+      0xFFFFFF, // 白
+      0xFF69B4, // ピンク
+      0x87CEEB, // 空色
+      0x98FB98, // 薄緑
+      0xFFB6C1  // ライトピンク
+    ][Math.floor(Math.random() * 8)];
+
+    // 星形を描画
+    star.star(0, 0, 5, size, size * 0.5);
+    star.fill(color);
+
+    container.addChild(star);
+
+    // ランダムな方向と速度（短めの距離）
+    const angle = (Math.PI * 2 / particleCount) * i + Math.random() * 0.5;
+    const speed = 1 + Math.random() * 1.5;
+    const initialDistance = 20 + Math.random() * 15; // 中心から20-35pxの位置から発生
+    particles.push({
+      star,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      rotation: Math.random() * 0.3 - 0.15,
+      life: 0
+    });
+
+    // 初期位置を中心から離す
+    star.x = Math.cos(angle) * initialDistance;
+    star.y = Math.sin(angle) * initialDistance;
+  }
+
+  // アニメーション
+  const duration = 2000;
+  let startTime = Date.now();
+
+  unit.on('-update', () => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    particles.forEach(p => {
+      p.star.x += p.vx;
+      p.star.y += p.vy;
+      p.star.rotation += p.rotation;
+      p.vy += 0.15; // 重力効果
+
+      // フェードアウト
+      p.star.alpha = 1 - progress;
+    });
+
+    if (progress >= 1) {
+      unit.finalize();
+    }
+  });
 }
 
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {

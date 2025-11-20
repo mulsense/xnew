@@ -1,5 +1,5 @@
 import { xnew } from '../core/xnew';
-import { Unit } from '../core/unit';
+import { Unit, UnitPromise } from '../core/unit';
 
 const context: AudioContext = new AudioContext();
 const master: GainNode = context.createGain();
@@ -15,7 +15,7 @@ function initialize() {
 }
 
 export const audio = {
-    load(path: string) {
+    load(path: string, { label }: { label?: string } = {}): UnitPromise {
         return AudioFile.load(path);
     },
     synthesizer(props: SynthProps) {
