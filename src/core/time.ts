@@ -36,7 +36,7 @@ export interface TimerOptions {
     transition?: Function,
     timeout?: Function,
     duration: number, 
-    iterations?: number,
+    iterations: number,
     easing?: string
 }
 
@@ -53,7 +53,6 @@ export class Timer {
 
     constructor(options: TimerOptions) {
         this.options = options;
-        this.options.easing = this.options.easing ?? 'linear';
 
         this.id = null;
         this.time = 0.0;
@@ -108,17 +107,16 @@ export class Timer {
         if (this.status === 1 && this.id === null) {
             this.id = setTimeout(() => {
                 this.options.transition?.(1.0);
-                this.options.timeout?.(this.counter);
+                this.options.timeout?.();
 
                 this.id = null;
                 this.time = 0.0;
-                this.counter++;
                 this.offset = 0.0;
-
-                if (this.options.iterations === undefined) {
+                this.counter++;
+                
+                if (this.options.iterations === 0) {
                     this.start();
-                } else if (this.options.iterations > 1) {
-                    this.options.iterations--;
+                } else if (this.counter < this.options.iterations) {
                     this.start();
                 } else {
                     this.clear();

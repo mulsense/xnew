@@ -9,8 +9,6 @@ import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 
-import { audio } from './audio/audio';
-
 const basics = {
     Screen,
     PointerEvent,
@@ -34,10 +32,6 @@ const basics = {
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
-
-const xnew: (typeof base) & { basics: typeof basics; audio: typeof audio } = Object.assign(base, {
-    basics,
-    audio
-});
+const xnew: (typeof base) & { basics: typeof basics;} = Object.assign(base, { basics });
 
 export default xnew;

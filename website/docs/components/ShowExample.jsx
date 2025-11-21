@@ -24,6 +24,8 @@ export default function ShowExample({ height, name, code }) {
  
     code = code.replace('../../thirdparty/tailwindcss/playcdn.js', 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4');
  
+    code = code.replace('../../thirdparty/html2canvas/html2canvas-pro.min.js', 'https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.13/dist/html2canvas-pro.min.js')
+    code = code.replace('../../thirdparty/html2canvas/html2canvas-pro.esm.js', 'https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.13/+esm')
     return (
         <>
             <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/' + name} ></iframe>

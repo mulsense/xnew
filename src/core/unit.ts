@@ -179,6 +179,10 @@ export class Unit {
     }
 
     static nest(unit: Unit, tag: string): UnitElement {
+        if (unit._.state !== 'invoked') {
+            throw new Error('This function can not be called after initialized.');
+        } 
+
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element: UnitElement;
@@ -198,7 +202,24 @@ export class Unit {
         }
     }
 
+    static unnest(unit: Unit): void {
+        if (unit._.state !== 'invoked') {
+            throw new Error('This function can not be called after initialized.');
+        } 
+
+        if (unit._.elements.length > 0) {
+            unit._.elements.pop();
+            unit._.currentElement = unit._.elements.length > 0 ? unit._.elements[unit._.elements.length - 1] : unit._.baseElement;
+        } else {
+            throw new Error('No nested element to unnest.');
+        }
+    }
+
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
+        if (unit._.state !== 'invoked') {
+            throw new Error('This function can not be called after initialized.');
+        } 
+        
         unit._.components.push(component);
         Unit.component2units.add(component, unit);
 
@@ -404,8 +425,13 @@ export class UnitTimer {
         return this;
     }
 
-    transition(transition: Function, duration: number = 0, easing: string = 'linear') {
-        UnitTimer.execute(this, { transition, duration, easing, iterations: 1 })
+    iteration(timeout: Function, duration: number = 0, iterations: number = -1) {
+        UnitTimer.execute(this, { timeout, duration, iterations })
+        return this;
+    }
+
+    transition(transition: Function, duration: number = 0, easing?: string) {
+        UnitTimer.execute(this, { transition, duration, iterations: 1, easing })
         return this;
     }
 
@@ -428,16 +454,18 @@ export class UnitTimer {
     }
 
     static Component(unit: Unit, options: TimerOptions & { snapshot: Snapshot }) {
+        let counter = 0;
         const timer = new Timer({
-            transition: (x: number) => {
-                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, x);
+            transition: (p: number) => {
+                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, p);
             }, 
-            timeout: (count: number) => {
+            timeout: () => {
                 if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, 1.0);
                 if (options.timeout !== undefined) Unit.scope(options.snapshot, options.timeout);
-                if (options.iterations !== undefined && count >= options.iterations - 1) {
+                if (options.iterations !== undefined && counter >= options.iterations - 1) {
                     unit.finalize();
                 }
+                counter++;
             }, duration: options.duration, iterations: options.iterations, easing: options.easing
         });
 

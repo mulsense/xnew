@@ -14,13 +14,16 @@
       xnew.nest('<div class="m-2 space-y-4">');
 
       xnew.audio.load('b096.mp3').then((music) => {
-      // Play and Stop buttons
-      xnew.nest('<div class="space-x-2">');
-        xnew(Button, { name: 'play!' }).on('click', () => {
+        // Play and Stop buttons
+        xnew.nest('<div class="space-x-2">');
+        xnew(Button, { name: 'play' }).on('click', () => {
           music.play({ fade: 1000 });
         });
-        xnew(Button, { name: 'stop!' }).on('click', () => {
+        xnew(Button, { name: 'stop' }).on('click', () => {
           music.pause({ fade: 1000 });
+        });
+        xnew(Button, { name: 'reboot' }).on('click', () => {
+          unit.reboot();
         });
         // Volume control
         xnew(VolumeControl);
