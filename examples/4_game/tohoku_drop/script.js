@@ -24,7 +24,7 @@ function Main(main) {
   // setup pixi
   xpixi.initialize({ canvas: main.canvas });
 
-  xnew(GameScene);
+  xnew(TitleScene);
   xnew.audio.volume = 0.1;
   xnew(VolumeController);
 }
