@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import Matter from 'matter-js';
 import * as THREE from 'three';
+import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import xnew from '@mulsense/xnew';
@@ -12,6 +13,7 @@ xnew('#main', Main);
 
 function Main(main) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+  xnew.context('global', { wrapper: main.element });
 
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
@@ -22,7 +24,7 @@ function Main(main) {
   // setup pixi
   xpixi.initialize({ canvas: main.canvas });
 
-  xnew(TitleScene);
+  xnew(GameScene);
   xnew.audio.volume = 0.1;
   xnew(VolumeController);
 }
@@ -33,10 +35,10 @@ function TitleScene(scene) {
   xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
   xnew(AmbientLight);
 
-  for (let i = 0; i < 7; i++) {
-    const position = convert3d(140 + i * 90, 450);
-    const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * i) / 180 * Math.PI, z: 0 };
-    xnew(Model, { position, rotation, id: i, scale: 0.8 });
+  for (let id = 0; id < 7; id++) {
+    const position = convert3d(140 + id * 90, 450);
+    const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * id) / 180 * Math.PI, z: 0 };
+    xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
@@ -51,7 +53,6 @@ function TitleScene(scene) {
 
 function GameScene(scene) {
   xmatter.initialize();
-  scene.emit('+music.play');
 
   xnew(Background);
   xnew(ShadowPlane);
@@ -74,9 +75,9 @@ function GameScene(scene) {
     });
   });
 
-  xnew.timeout(() => {
-    scene.emit('+gameover');
-  }, 1100);
+  // xnew.timeout(() => {
+  //   scene.emit('+gameover');
+  // }, 100);
   scene.on('+gameover', () => {
     controller.finalize();
     scene.emit('+music.pause');
@@ -84,7 +85,6 @@ function GameScene(scene) {
     xnew(GameOverText);
     const image = xpixi.renderer.extract.base64({
       target: xpixi.scene, 
-      format: 'png',
       frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height)
     });
 
@@ -100,135 +100,51 @@ function GameScene(scene) {
 
 }
 
-function getRating(score) {
-  if (score >= 600) {
-    return { text: '異常にすごい！！！', emoji: '🌟🌟🌟', color: '#FF1493' };
-  } else if (score >= 300) {
-    return { text: 'すごい！！', emoji: '⭐⭐', color: '#FFD700' };
-  } else {
-    return { text: '普通', emoji: '☆', color: '#87CEEB' };
-  }
-}
-
 function ResultScene(scene, { image, scores }) {
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
   });
-
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
-
-  xnew('<div class="absolute top-[-3cqw] left-[2cqw] text-[14cqw] text-stone-400">', 'Result');
-  const img = xnew(`<img
-    class="absolute top-[8cqw] bottom-0 m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden object-cover"
-    style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
-    >`);
-  image.then((src) => img.element.src = src);
-
-  xnew('<div class="absolute text-center top-[3cqw] right-[2cqw] pointer-events-auto flex flex-col gap-[1cqw]">', () => {
-    // Close Button
-    const div = xnew('<div class="w-[8cqw] h-[8cqw] rounded-full border-[0.3cqw] border-stone-500 cursor-pointer">', () => {
-      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-stone-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(+45deg);" >');
-      xnew('<div class="absolute inset-0 m-auto w-[4cqw] h-[0.5cqw] border-stone-500 border-[0.3cqw]" style="transform-origin: center; transform: rotate(-45deg);" >');
-    });
-    div.on('click', () => {
-      scene.finalize();
-      xnew.find(Main)[0]?.append(TitleScene);
-    });
-    div.on('mouseover', () => div.element.style.transform = 'scale(1.1)');
-    div.on('mouseout', () => div.element.style.transform = 'scale(1)');
-  });
-
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); opacity: 0.3; }
-      50% { transform: translateY(-30px); opacity: 0.8; }
-    }
-    @keyframes twinkle {
-      0%, 100% { opacity: 0.3; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.5); }
-    }
-  `;
-  document.head.appendChild(style);
-
-  xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">', () => {
-    // float
-    for (let i = 0; i < 20; i++) {
-      const size = Math.random() * 30 + 10;
-      const [x, y] = [Math.random() * 100, Math.random() * 100];
-      const duration = Math.random() * 5000 + 3000;
-
-      xnew(`<div class="absolute rounded-full bg-white opacity-60"
-        style="width: ${size}px; height: ${size}px; left: ${x}%; top: ${y}%; animation: float ${duration}ms ease-in-out infinite;"
-        >`);
-    }
-    // twinkle
-    for (let i = 0; i < 30; i++) {
-      const [x, y] = [Math.random() * 100, Math.random() * 100];
-      const duration = Math.random() * 3000 + 2000;
-
-      xnew(`<div class="absolute w-[1cqw] h-[1cqw] rounded-full bg-white opacity-60"
-        style="left: ${x}%; top: ${y}%; animation: twinkle ${duration}ms ease-in-out infinite;"
-        >`);
-    }
-  });
-
-  xnew('<div class="absolute top-[8cqw] bottom-0 right-[2cqw] w-[50cqw] text-green-600 flex items-center">', () => {
-    xnew.nest('<div class="w-full bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-    xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center" style="color: #ff6b6b;">', '🎉 生み出した数 🎉');
-
-    const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
-    let sum = 0;
-    for (let i = 0; i < 8; i++) {
-      sum += scores[i] * Math.pow(2, i);
-      xnew('<div class="w-full text-[3cqw] text-center">', (text) => {
-        text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}`;
-      });
-    }
-
-    xnew('<div class="text-[4cqw] mx-[2cqw] pt-[1cqw] border-t-[0.4cqw] border-dashed text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
-
-    // Add rating indicator
-    const rating = getRating(sum);
-    const maxScore = 800;
-    const progress = Math.min(sum / maxScore, 1.0);
-
-    // Rating indicators with colors
-    const ratingLevels = [
-      { name: 'ふつう', color: '#87CEEB', minScore: 0, maxScore: 300 },
-      { name: 'まあまあ', color: '#AAD700', minScore: 300, maxScore: 600 },
-      { name: 'すごい！', color: '#AA1493', minScore: 600, maxScore: 800 }
-    ];
-
-    // Display rating indicator with bars
-    xnew('<div class="w-full pt-[1.5cqw] px-[1cqw]">', () => {
-      xnew.nest('<div style="position: relative; width: 100%; height: 3cqw;">');
-
-      // Background bar
-      xnew('<div style="position: absolute; width: 100%; height: 100%; background: #ddd; border-radius: 1.5cqw; overflow: hidden;">');
-
-      // Progress bar with color based on rating
-      xnew('<div style="position: absolute; height: 100%; width: ' + (progress * 100) + '%; background: ' + rating.color + '; border-radius: 1.5cqw; transition: width 0.5s ease;"></div>');
-
-      // Pointer at current score
-      xnew('<div style="position: absolute; top: 50%; left: ' + (progress * 100) + '%; transform: translate(-50%, -50%); font-size: 2cqw; transition: left 0.5s ease;">👆</div>');
-    });
-
-    // Rating level markers
-    xnew('<div class="w-full pt-[0.8cqw] flex justify-between text-[1.2cqw] font-bold">', () => {
-      for (let i = 0; i < ratingLevels.length; i++) {
-        const level = ratingLevels[i];
-        xnew('<div style="color: ' + level.color + ';">', level.minScore + '点');
-      }
-      xnew('<div style="color: #999;">', '800点');
-    });
-  });
-
   xnew.transition((x) => {
     scene.element.style.opacity = x;
     scene.element.style.transform = `scale(${0.8 + x * 0.2})`;
   }, 500, 'ease');
+
+  xnew(ResultBackground);
+  xnew(ResultImage, { image });
+
+  xnew(CameraIcon).on('click', () => {
+    html2canvas(xnew.context('global').wrapper, {
+      scale: 2, // 高解像度でキャプチャ
+      logging: false,
+      useCORS: true // 外部画像も含める場合
+    }).then((canvas) => {
+      const temp = document.createElement('canvas');
+      const ctx = temp.getContext('2d');
+      temp.width = canvas.width;
+      temp.height = Math.floor(canvas.height * 0.87);
+      ctx.drawImage(canvas, 0, 0, canvas.width, temp.height, 0, 0, canvas.width, temp.height);
+
+      fetch(temp.toDataURL('image/png')).then((response) => response.blob()).then((blob) => {
+        navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })
+        ]);
+      });
+    });
+        
+    xnew('<div class="absolute inset-0 w-full h-full z-10 bg-white">', (cover) => {
+      xnew.transition((p) => {
+       cover.element.style.opacity = 1 - p;
+      }, 1000)
+      .timeout(() => cover.finalize());
+    });
+  });
+
+  xnew(CloseButton).on('click', () => {
+    scene.finalize();
+    xnew.find(Main)[0]?.append(TitleScene);
+  });
+
+  xnew(ResultDetail, { scores });
 }
 
 function Background(unit) {
@@ -262,9 +178,9 @@ function TitleText(unit) {
 function TouchMessage(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold">');
-  unit.element.textContent = 'touch start';
+  const text = xnew(Text, { text: 'touch start', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
   let count = 0;
-  unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  unit.on('-update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function ScoreText(unit) {
@@ -285,6 +201,105 @@ function GameOverText(unit) {
   }, 1000, 'ease');
 }
 
+function CameraIcon(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] left-[12cqw] text-left text-[3cqw] text-stone-500 font-bold">', '画面をコピー');
+ 
+  xnew.nest('<div class="absolute bottom-[1cqw] left-[3cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
+  unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
+  unit.on('mouseout', () => unit.element.style.transform = 'scale(1)');
+
+  xnew.nest('<div class="absolute inset-0 m-auto w-[6cqw] h-[6cqw] text-stone-500">')
+  xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
+  xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />');
+  xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />');
+}
+
+function CloseButton(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] right-[12cqw] text-right text-[3cqw] text-stone-500 font-bold">', '戻る');
+  
+  xnew.nest('<div class="absolute bottom-[1cqw] right-[2cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
+  unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
+  unit.on('mouseout', () => unit.element.style.transform = 'scale(1)');
+
+  xnew.nest('<div class="absolute inset-0 m-auto w-[6cqw] h-[6cqw] text-stone-500">')
+  xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
+  xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
+}
+
+function ResultImage(unit, { image }) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+
+  const img = xnew(`<img
+    class="absolute bottom-[12cqw] m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden object-cover"
+    style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
+    >`);
+  image.then((src) => img.element.src = src);
+}
+
+function ResultBackground(unit) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
+
+  xnew('<div class="absolute top-[-1cqw] left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes float { 0%, 100% { transform: translateY(0px); opacity: 0.3; } 50% { transform: translateY(-30px); opacity: 0.8; } }
+    @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.5); } }
+  `;
+  document.head.appendChild(style);
+
+  xnew.nest('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">');
+  
+  // floating circle
+  for (let i = 0; i < 20; i++) {
+    const size = Math.random() * 30 + 10;
+    const [x, y] = [Math.random() * 100, Math.random() * 100];
+    const duration = Math.random() * 5000 + 3000;
+
+    xnew(`<div class="absolute rounded-full bg-white opacity-60"
+      style="width: ${size}px; height: ${size}px; left: ${x}%; top: ${y}%; animation: float ${duration}ms ease-in-out infinite;"
+      >`);
+  }
+  // twinkle circle
+  for (let i = 0; i < 30; i++) {
+    const [x, y] = [Math.random() * 100, Math.random() * 100];
+    const duration = Math.random() * 3000 + 2000;
+
+    xnew(`<div class="absolute w-[1cqw] h-[1cqw] rounded-full bg-white opacity-60"
+      style="left: ${x}%; top: ${y}%; animation: twinkle ${duration}ms ease-in-out infinite;"
+      >`);
+  }
+}
+
+function ResultDetail(unit, { scores }) {
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] flex items-center">');
+
+  xnew.nest('<div class="w-full bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+  
+  xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
+
+  const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
+  let sum = 0;
+  for (let i = 0; i < 8; i++) {
+    sum += scores[i] * Math.pow(2, i);
+    xnew('<div class="w-full text-[3cqw] text-green-600 text-center">', (text) => {
+      text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}`;
+    });
+  }
+
+  xnew('<div class="text-[4cqw] mx-[2cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] border-dashed text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
+  xnew('<div class="w-full pt-[1.5cqw] px-[1cqw]">', () => {
+    xnew.nest('<div class="flex justify-center items-center gap-x-[2cqw]">');
+    xnew(`<div class="${sum < 300 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'ふつう！');
+    xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'まあまあ！');
+    xnew(`<div class="${sum >= 600 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'すごい！');
+  });
+
+}
 function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
@@ -443,7 +458,6 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const model = xnew(Model, { id, scale });
   ball.emit('+scoreup', id);
 
-  // 星屑エフェクトを生成
   xnew.find(GameScene)[0]?.append(StarParticles, { x, y });
   
   ball.on('-update', () => {
