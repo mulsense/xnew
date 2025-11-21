@@ -125,10 +125,10 @@ function ResultScene(scene, { image, scores }) {
       temp.height = Math.floor(canvas.height * 0.87);
       ctx.drawImage(canvas, 0, 0, canvas.width, temp.height, 0, 0, canvas.width, temp.height);
 
-      fetch(temp.toDataURL('image/png')).then((response) => response.blob()).then((blob) => {
-        navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })
-        ]);
-      });
+      const link = document.createElement('a');
+      link.download = 'image.png';
+      link.href = temp.toDataURL('image/png');
+      link.click();
     });
         
     xnew('<div class="absolute inset-0 w-full h-full z-10 bg-white">', (cover) => {
@@ -203,7 +203,7 @@ function GameOverText(unit) {
 
 function CameraIcon(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] left-[12cqw] text-left text-[3cqw] text-stone-500 font-bold">', '画面をコピー');
+  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] left-[12cqw] text-left text-[3cqw] text-stone-500 font-bold">', '画面を保存');
  
   xnew.nest('<div class="absolute bottom-[1cqw] left-[3cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
   unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
