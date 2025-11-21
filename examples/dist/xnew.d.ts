@@ -74,6 +74,7 @@ declare class Unit {
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
+    static unnest(unit: Unit): void;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
     };
@@ -177,6 +178,15 @@ declare const xnew$1: CreateUnit & {
      * div.textContent = 'Hello'
      */
     nest(tag: string): HTMLElement | SVGElement;
+    /**
+     * Exits the most recently created nested element
+     * @throws Error if there is no nested element to exit
+     * @example
+     * xnew.nest('<div>')
+     *   xnew('<p>', 'Nested paragraph')
+     * xnew.unnest() // exits <div>
+    */
+    unnest(): void;
     /**
      * Extends the current component with another component's functionality
      * @param component - Component function to extend with

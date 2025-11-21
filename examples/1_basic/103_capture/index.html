@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+  <script src="../../thirdparty/html2canvas-pro/html2canvas-pro.min.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  
+  <script>
+    xnew('#main', (unit) => {
+      xnew(ScreenCaptureApp);
+    });
+
+    function ScreenCaptureApp(unit) {
+      xnew.nest('<div class="flex flex-col items-center justify-center w-full h-full bg-gray-100">');
+
+      // タイトル
+      xnew('<h1 class="text-3xl font-bold mb-8 text-gray-800">', 'Screen Capture Sample (html2canvas-pro)');
+
+      // ボタンコンテナ
+      xnew.nest('<div class="flex gap-4 mb-8">');
+      // キャプチャボタン
+      const captureButton = xnew('<button class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 cursor-pointer">',
+          'Capture Page');
+        // ダウンロードボタン（初期は非表示）
+      const downloadButton = xnew('<button class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 cursor-pointer hidden">',
+        'Download Image');
+
+      xnew.unnest();
+
+      // ステータステキスト
+      const statusText = xnew('<div class="mb-4 text-gray-600 text-sm h-6">');
+
+      // サンプルコンテンツエリア
+      xnew.nest('<div class="w-full max-w-4xl px-4 mb-4">');
+      const contentArea = xnew.nest('<div id="capture-area" class="w-full bg-white rounded-lg shadow-xl p-6">');
+
+      xnew('<h2 class="text-2xl font-bold mb-4 text-purple-600">', 'Sample Content Area');
+      xnew('<p class="mb-4 text-gray-700">', 'This is a sample content that will be captured. You can add any HTML content here.');
+
+      xnew('<div class="flex gap-4 mb-4">', () => {
+        xnew('<div class="w-24 h-24 bg-red-400 rounded-lg flex items-center justify-center text-white font-bold">', 'Red');
+        xnew('<div class="w-24 h-24 bg-green-400 rounded-lg flex items-center justify-center text-white font-bold">', 'Green');
+        xnew('<div class="w-24 h-24 bg-blue-400 rounded-lg flex items-center justify-center text-white font-bold">', 'Blue');
+      });
+
+      xnew('<p class="text-sm text-gray-500">', `Captured at: ${new Date().toLocaleString()}`);
+      xnew.unnest(); // contentArea
+      xnew.unnest(); // contentArea container
+
+      // プレビューコンテナ
+      xnew.nest('<div class="w-full max-w-4xl px-4">');
+      xnew('<h3 class="text-lg font-bold mb-2 text-gray-700">', 'Preview:');
+      const previewImage = xnew('<img class="w-full h-auto rounded border border-gray-300">');
+
+      let capturedImageUrl = null;
+
+      // html2canvas-proを使ったキャプチャ関数
+      async function captureScreen() {
+        try {
+          statusText.element.textContent = 'Capturing page...';
+
+          // html2canvas-proでキャプチャ対象の要素をキャプチャ
+          // html2canvas-proはoklch色関数をネイティブサポート
+          const canvas = await html2canvas(contentArea, {
+            backgroundColor: '#ffffff',
+            scale: 2, // 高解像度でキャプチャ
+            logging: false,
+            useCORS: true // 外部画像も含める場合
+          });
+
+          // 画像として取得
+          capturedImageUrl = canvas.toDataURL('image/png');
+
+          // プレビュー表示
+          previewImage.element.src = capturedImageUrl;
+          downloadButton.element.classList.remove('hidden');
+
+          statusText.element.textContent = `Capture successful! (${canvas.width}x${canvas.height})`;
+
+        } catch (error) {
+          console.error('Capture error:', error);
+          statusText.element.textContent = `Error: ${error.message}`;
+          downloadButton.element.classList.add('hidden');
+        }
+      }
+
+      // ダウンロード関数
+      function downloadImage() {
+        if (!capturedImageUrl) return;
+
+        const link = document.createElement('a');
+        link.href = capturedImageUrl;
+        link.download = `screenshot_${new Date().getTime()}.png`;
+        link.click();
+
+        statusText.element.textContent = 'Download started!';
+      }
+
+      // イベントリスナー
+      captureButton.on('click', captureScreen);
+      downloadButton.on('click', downloadImage);
+    }
+
+  </script>
+</body>
+
+</html>

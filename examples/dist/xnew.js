@@ -361,6 +361,18 @@
                 throw new Error(`Invalid tag: ${tag}`);
             }
         }
+        static unnest(unit) {
+            if (unit._.state !== 'invoked') {
+                throw new Error('This function can not be called after initialized.');
+            }
+            if (unit._.elements.length > 0) {
+                unit._.elements.pop();
+                unit._.currentElement = unit._.elements.length > 0 ? unit._.elements[unit._.elements.length - 1] : unit._.baseElement;
+            }
+            else {
+                throw new Error('No nested element to unnest.');
+            }
+        }
         static extend(unit, component, props) {
             var _a;
             if (unit._.state !== 'invoked') {
@@ -840,6 +852,23 @@
             }
             catch (error) {
                 console.error('xnew.nest(tag: string): ', error);
+                throw error;
+            }
+        },
+        /**
+         * Exits the most recently created nested element
+         * @throws Error if there is no nested element to exit
+         * @example
+         * xnew.nest('<div>')
+         *   xnew('<p>', 'Nested paragraph')
+         * xnew.unnest() // exits <div>
+        */
+        unnest() {
+            try {
+                Unit.unnest(Unit.current);
+            }
+            catch (error) {
+                console.error('xnew.unnest(): ', error);
                 throw error;
             }
         },
