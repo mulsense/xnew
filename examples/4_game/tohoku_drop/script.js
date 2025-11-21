@@ -74,9 +74,9 @@ function GameScene(scene) {
     });
   });
 
-  // xnew.timeout(() => {
-  //   scene.emit('+gameover');
-  // }, 1100);
+  xnew.timeout(() => {
+    scene.emit('+gameover');
+  }, 1100);
   scene.on('+gameover', () => {
     controller.finalize();
     scene.emit('+music.pause');
@@ -478,34 +478,31 @@ function StarParticles(unit, { x, y }) {
 
   const num = 4 + Math.floor(Math.random() * 2);
   for (let i = 0; i < num; i++) {
-    const graphics = new PIXI.Graphics();
     const size = 12 + Math.random() * 16;
     // yellow, gold, orange, white, pink, sky blue, light green, light pink
     const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0x98FB98, 0xFFB6C1][Math.floor(Math.random() * 8)];
 
-    graphics.star(0, 0, 5, size, size * 0.5);
-    graphics.fill(color);
+    const graphics = new PIXI.Graphics();
+    graphics.star(0, 0, 5, size, size * 0.5).fill(color);
     container.addChild(graphics);
 
     const angle = (Math.PI * 2 / num) * i + Math.random() * 0.5;
     const speed = 1 + Math.random() * 1.5;
-    let vx = Math.cos(angle) * speed;
-    let vy = Math.sin(angle) * speed;
-    let va = Math.random() * 0.3 - 0.15;
+    let [vx, vy, va] = [Math.cos(angle) * speed, Math.sin(angle) * speed, Math.random() * 0.3 - 0.15];
 
     const distance = 20 + Math.random() * 15; 
     graphics.x = Math.cos(angle) * distance;
     graphics.y = Math.sin(angle) * distance;
 
     xnew.transition((p) => {
+      vy += 0.2; // gravity
       graphics.x += vx;
       graphics.y += vy;
       graphics.rotation += va;
-      vy += 0.15; // gravity
       graphics.alpha = 1 - p;
-    }, 800);
+    }, 1600);
   }
-  xnew.timeout(() => unit.finalize(), 800);
+  xnew.timeout(() => unit.finalize(), 1200);
 }
 
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
