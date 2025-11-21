@@ -27,7 +27,10 @@
       // キャプチャボタン
       const captureButton = xnew('<button class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 cursor-pointer">',
           'Capture Page');
-        // ダウンロードボタン（初期は非表示）
+      // クリップボードにコピーボタン（初期は非表示）
+      const copyButton = xnew('<button class="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 cursor-pointer hidden">',
+        'Copy to Clipboard');
+      // ダウンロードボタン（初期は非表示）
       const downloadButton = xnew('<button class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 cursor-pointer hidden">',
         'Download Image');
 
@@ -79,6 +82,7 @@
 
           // プレビュー表示
           previewImage.element.src = capturedImageUrl;
+          copyButton.element.classList.remove('hidden');
           downloadButton.element.classList.remove('hidden');
 
           statusText.element.textContent = `Capture successful! (${canvas.width}x${canvas.height})`;
@@ -86,7 +90,31 @@
         } catch (error) {
           console.error('Capture error:', error);
           statusText.element.textContent = `Error: ${error.message}`;
+          copyButton.element.classList.add('hidden');
           downloadButton.element.classList.add('hidden');
+        }
+      }
+
+      // クリップボードにコピー関数
+      async function copyToClipboard() {
+        if (!capturedImageUrl) return;
+
+        try {
+          // Data URLをBlobに変換
+          const response = await fetch(capturedImageUrl);
+          const blob = await response.blob();
+
+          // ClipboardItem を使ってクリップボードに書き込み
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [blob.type]: blob
+            })
+          ]);
+
+          statusText.element.textContent = 'Copied to clipboard!';
+        } catch (error) {
+          console.error('Clipboard error:', error);
+          statusText.element.textContent = `Clipboard error: ${error.message}`;
         }
       }
 
@@ -104,6 +132,7 @@
 
       // イベントリスナー
       captureButton.on('click', captureScreen);
+      copyButton.on('click', copyToClipboard);
       downloadButton.on('click', downloadImage);
     }
 
