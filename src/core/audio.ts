@@ -1,7 +1,9 @@
-export const context: AudioContext = new window.AudioContext();
-export const master: GainNode = context.createGain();
-master.gain.value = 1.0;
-master.connect(context.destination);
+export const context: AudioContext = window.AudioContext ? new window.AudioContext() : (null!);
+export const master: GainNode = context ? context.createGain() : (null!);
+if (context) {
+    master.gain.value = 1.0;
+    master.connect(context.destination);
+}
 
 //----------------------------------------------------------------------------------------------------
 // audio file

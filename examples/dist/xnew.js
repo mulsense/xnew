@@ -615,10 +615,8 @@
 
     const context = new window.AudioContext();
     const master = context.createGain();
-    if (context) {
-        master.gain.value = 1.0;
-        master.connect(context.destination);
-    }
+    master.gain.value = 1.0;
+    master.connect(context.destination);
     class AudioFile {
         constructor(path) {
             this.promise = fetch(path)
