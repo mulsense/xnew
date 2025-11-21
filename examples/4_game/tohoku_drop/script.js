@@ -294,9 +294,9 @@ function ResultDetail(unit, { scores }) {
   xnew('<div class="text-[4cqw] mx-[2cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] border-dashed text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
   xnew('<div class="w-full pt-[1.5cqw] px-[1cqw]">', () => {
     xnew.nest('<div class="flex justify-center items-center gap-x-[2cqw]">');
-    xnew(`<div class="${sum < 300 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'ふつう！');
-    xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'まあまあ！');
-    xnew(`<div class="${sum >= 600 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'すごい！');
+    xnew(`<div class="${sum < 300 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'まだよわい');
+    xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'ふつう');
+    xnew(`<div class="${sum >= 600 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'すごい');
   });
 
 }
@@ -450,9 +450,9 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const now = new Date().getTime();
   if (now - prev > 200) {
     prev = now;
-    const synth = xnew.audio.synthesizer({ oscillator: { type: 'square', LFO: { type: 'square', amount: 20, rate: 4, }, }, filter: { type: 'lowpass', cutoff: 1000}, amp: { envelope: { amount: 0.8, ADSR: [0, 100, 0, 0], }, }, reverb: { time: 400, mix: 0.6, },  });
-    const freq = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'][id];
-    synth.press(freq, 1000);
+    const synth = xnew.audio.synthesizer({ oscillator: { type: 'triangle', envelope: { amount: 8, ADSR: [0, 500, 1, 0], }, }, filter: { type: 'bandpass', cutoff: 1000}, amp: { envelope: { amount: 1, ADSR: [20, 100, 0, 0], }, }, reverb: { time: 1000, mix: 0.2, },  });
+    const freq = ['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5', 'C6'][id];
+    synth.press(freq, 100);
   }
 
   const model = xnew(Model, { id, scale });
