@@ -75,9 +75,9 @@ function GameScene(scene) {
     });
   });
 
-  // xnew.timeout(() => {
-  //   scene.emit('+gameover');
-  // }, 100);
+  xnew.timeout(() => {
+    scene.emit('+gameover');
+  }, 100);
   scene.on('+gameover', () => {
     controller.finalize();
     scene.emit('+music.pause');
@@ -104,7 +104,7 @@ function ResultScene(scene, { image, scores }) {
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
   });
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+  xnew.nest(`<div class="absolute inset-0 w-full h-full">`);
   xnew.transition((x) => {
     scene.element.style.opacity = x;
     scene.element.style.transform = `scale(${0.8 + x * 0.2})`;
@@ -113,29 +113,28 @@ function ResultScene(scene, { image, scores }) {
   xnew(ResultBackground);
   xnew(ResultImage, { image });
 
-  xnew(CameraIcon).on('click', () => {
-    html2canvas(xnew.context('global').wrapper, {
-      scale: 2, // 高解像度でキャプチャ
-      logging: false,
-      useCORS: true // 外部画像も含める場合
-    }).then((canvas) => {
-      const temp = document.createElement('canvas');
-      const ctx = temp.getContext('2d');
-      temp.width = canvas.width;
-      temp.height = Math.floor(canvas.height * 0.87);
-      ctx.drawImage(canvas, 0, 0, canvas.width, temp.height, 0, 0, canvas.width, temp.height);
+  xnew(CameraIcon).on('click', () => {        
+    const cover = xnew('<div class="absolute inset-0 w-full h-full z-10 bg-white">');
+    xnew.transition((p) => cover.element.style.opacity = 1 - p, 1000)
+    .timeout(() => {
+      html2canvas(xnew.context('global').wrapper, {
+        scale: 2, // 高解像度でキャプチャ
+        logging: false,
+        useCORS: true // 外部画像も含める場合
+      }).then((canvas) => {
+        const temp = document.createElement('canvas');
+        const ctx = temp.getContext('2d');
+        temp.width = canvas.width;
+        temp.height = Math.floor(canvas.height * 0.87);
+        ctx.drawImage(canvas, 0, 0, canvas.width, temp.height, 0, 0, canvas.width, temp.height);
 
-      const link = document.createElement('a');
-      link.download = 'image.png';
-      link.href = temp.toDataURL('image/png');
-      link.click();
-    });
-        
-    xnew('<div class="absolute inset-0 w-full h-full z-10 bg-white">', (cover) => {
-      xnew.transition((p) => {
-       cover.element.style.opacity = 1 - p;
-      }, 1000)
-      .timeout(() => cover.finalize());
+        const link = document.createElement('a');
+        link.download = 'image.png';
+        link.href = temp.toDataURL('image/png');
+        link.click();
+      });
+
+      cover.finalize();
     });
   });
 
@@ -170,30 +169,26 @@ function Texture(unit, { texture } = {}) {
 }
 
 function TitleText(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600 font-bold">');
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600 font-bold pointer-events-none">');
   xnew(Text, { text: 'とーほく ドロップ', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
 }
 
 function TouchMessage(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold">');
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold pointer-events-none">');
   const text = xnew(Text, { text: 'touch start', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
   let count = 0;
   unit.on('-update', () => text.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function ScoreText(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right font-bold text-green-600">');
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600 font-bold pointer-events-none">');
   const text = xnew(Text, { text: 'score 0', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
   let sum = 0;
   unit.on('+scoreup', (i) => text.element.textContent = `score ${sum += Math.pow(2, i)}`);
 }
 
 function GameOverText(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute w-full text-center text-[12cqw] font-bold text-red-400">');
+  xnew.nest('<div class="absolute w-full text-center text-[12cqw] text-red-400 font-bold pointer-events-non">');
   const text = xnew(Text, { text: 'Game Over', strokeWidth: '0.1cqw', strokeColor: 'rgb(255, 240, 240)' });
   xnew.transition((p) => {
     unit.element.style.opacity = p;
@@ -202,8 +197,7 @@ function GameOverText(unit) {
 }
 
 function CameraIcon(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] left-[12cqw] text-left text-[3cqw] text-stone-500 font-bold">', '画面を保存');
+  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] left-[12cqw] text-left text-[3cqw] text-stone-500 font-bold pointer-events-none">', '画面を保存');
  
   xnew.nest('<div class="absolute bottom-[1cqw] left-[3cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
   unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
@@ -216,8 +210,7 @@ function CameraIcon(unit) {
 }
 
 function CloseButton(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] right-[12cqw] text-right text-[3cqw] text-stone-500 font-bold">', '戻る');
+  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] right-[12cqw] text-right text-[3cqw] text-stone-500 font-bold pointer-events-none">', '戻る');
   
   xnew.nest('<div class="absolute bottom-[1cqw] right-[2cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
   unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
@@ -228,18 +221,21 @@ function CloseButton(unit) {
   xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
 }
 
-function ResultImage(unit, { image }) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
+function SpeakerIcon(unit) {
+  xnew.nest('<div class="absolute bottom-[1cqw] right-[2cqw] w-[8cqw] h-[8cqw] cursor-pointer pointer-events-auto">');
 
-  const img = xnew(`<img
-    class="absolute bottom-[12cqw] m-auto left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden object-cover"
+  xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
+  let path = xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />);
+}
+
+function ResultImage(unit, { image }) {
+  const img = xnew(`<img class="absolute bottom-[12cqw] left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden object-cover"
     style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)"
     >`);
   image.then((src) => img.element.src = src);
 }
 
 function ResultBackground(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
 
   xnew('<div class="absolute top-[-1cqw] left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
@@ -275,10 +271,7 @@ function ResultBackground(unit) {
 }
 
 function ResultDetail(unit, { scores }) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] flex items-center">');
-
-  xnew.nest('<div class="w-full bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
   
   xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
 
@@ -292,14 +285,13 @@ function ResultDetail(unit, { scores }) {
   }
 
   xnew('<div class="text-[4cqw] mx-[2cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] border-dashed text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
-  xnew('<div class="w-full pt-[1.5cqw] px-[1cqw]">', () => {
-    xnew.nest('<div class="flex justify-center items-center gap-x-[2cqw]">');
+  xnew('<div class="w-full pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
     xnew(`<div class="${sum < 300 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'まだよわい');
-    xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'ふつう');
-    xnew(`<div class="${sum >= 600 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'} ">`, 'すごい');
+    xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'ふつう');
+    xnew(`<div class="${sum >= 600 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'すごい');
   });
-
 }
+
 function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
@@ -328,16 +320,15 @@ function Bowl(unit) {
 
 function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  unit.emit('+reloadcomplete', 0);
+  unit.emit('+relode:done', 0);
 
   const position = convert3d(10 + 70, 70);
   const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
   let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
   unit.on('+reload', () => {
-
-    const next = balls.shift();
     model.finalize();
+    const next = balls.shift();
     const position = convert3d(10, 70);
     const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
     model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
@@ -347,13 +338,12 @@ function Queue(unit) {
       const position = convert3d(10 + p * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
     }, 500).timeout(() => {
-      unit.emit('+reloadcomplete', next);
+      unit.emit('+relode:done', next);
     });
   });
 }
 
 function Model(unit, { id = 0, position = null, rotation = null, scale }) {
-
   const object = xthree.nest(new THREE.Object3D());
   if (position) object.position.set(position.x, position.y, position.z);
   if (rotation) object.rotation.set(rotation.x, rotation.y, rotation.z);
@@ -419,7 +409,7 @@ function Cursor(unit) {
 
   const offset = 50;
   let model = null
-  unit.on('+reloadcomplete', (id) => {
+  unit.on('+relode:done', (id) => {
     const position = convert3d(object.x, object.y + offset);
 
     model = xnew(Model, { position, id, scale: 0.5 });
@@ -547,8 +537,8 @@ function Text(unit, { text, strokeWidth = 0, strokeColor = 'black' }) {
   unit.element.textContent = text;
 }
 
+
 function VolumeController(unit) {
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
   xnew.nest('<div class="absolute bottom-[2cqw] right-[2cqw] pointer-events-auto flex flex-col gap-[0.5cqw]">');
 
   const container = xnew.nest('<div class="flex items-center gap-[0.5cqw] select-none">');
@@ -568,8 +558,6 @@ function VolumeController(unit) {
     slider.element.style.display = isVisible ? 'none' : 'flex';
   });
 
-
-  // スライダー操作時
   slider.on('input', (e) => {
     xnew.audio.volume = parseFloat(e.target.value) / 100;
   });

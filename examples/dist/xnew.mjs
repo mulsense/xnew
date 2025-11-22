@@ -607,10 +607,12 @@ class UnitTimer {
     }
 }
 
-const context = new window.AudioContext();
-const master = context.createGain();
-master.gain.value = 1.0;
-master.connect(context.destination);
+const context = window.AudioContext ? new window.AudioContext() : (null);
+const master = context ? context.createGain() : (null);
+if (context) {
+    master.gain.value = 1.0;
+    master.connect(context.destination);
+}
 class AudioFile {
     constructor(path) {
         this.promise = fetch(path)
@@ -1369,7 +1371,7 @@ function getPosition(element, event) {
 function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
     const size = { width, height };
     const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
-    const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
+    const absolute = xnew$1.nest('<div style="position: absolute; margin: auto; container-type: size;">');
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
     xnew$1(wrapper, ResizeEvent).on('-resize', resize);
     resize();
