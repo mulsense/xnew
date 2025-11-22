@@ -154,8 +154,8 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized') {
-            unit._.state = 'finalized';
+        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
+            unit._.state = 'finalizing';
 
             unit._.children.forEach((child: Unit) => child.finalize());
             unit._.systems['-finalize'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
@@ -175,6 +175,7 @@ export class Unit {
                 }
             });
             unit._.defines = {};
+            unit._.state = 'finalized';
         }
     }
 
@@ -292,6 +293,9 @@ export class Unit {
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
+        if (snapshot.unit._.state === 'finalized') {
+            return;
+        }
         const current = Unit.current;
         const backup = Unit.snapshot(snapshot.unit);
         try {

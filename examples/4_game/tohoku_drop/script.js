@@ -13,7 +13,6 @@ xnew('#main', Main);
 
 function Main(main) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
-  xnew.context('global', { wrapper: main.element });
 
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
@@ -62,25 +61,23 @@ function GameScene(scene) {
   xnew(Cursor);
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-  const controller = xnew(Controller);
   xnew(ScoreText);
 
+  const playing = xnew(() => {
+    xnew(Controller);
+    xnew.audio.load('../assets/y015.mp3').then((music) => {
+      music.play({ fade: 3000, loop: true });
+    });
+  })
+  
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
   scene.on('+scoreup', (i) => scores[i]++);
-
-  xnew.audio.load('../assets/y015.mp3').then((music) => {
-    music.play({ fade: 3000, loop: true });
-    scene.on('+music.pause', () => {
-      music.pause({ fade: 1000 });
-    });
-  });
 
   // xnew.timeout(() => {
   //   scene.emit('+gameover');
   // }, 100);
   scene.on('+gameover', () => {
-    controller.finalize();
-    scene.emit('+music.pause');
+    playing.finalize();
     scene.off('+gameover');
     xnew(GameOverText);
     const image = xpixi.renderer.extract.base64({
@@ -101,20 +98,22 @@ function GameScene(scene) {
 }
 
 function ResultScene(scene, { image, scores }) {
+  const wrapper = scene.element;
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
   });
+
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.transition((x) => {
-    scene.element.style.opacity = x;
-    scene.element.style.transform = `scale(${0.8 + x * 0.2})`;
+  xnew.transition((p) => {
+    scene.element.style.opacity = p;
+    scene.element.style.transform = `scale(${0.8 + p * 0.2})`;
   }, 500, 'ease');
 
   xnew(ResultBackground);
   xnew(ResultImage, { image });
 
   xnew(CameraIcon).on('click', () => {
-    html2canvas(xnew.context('global').wrapper, {
+    html2canvas(wrapper, {
       scale: 2, // 高解像度でキャプチャ
       logging: false,
       useCORS: true // 外部画像も含める場合
@@ -197,13 +196,13 @@ function GameOverText(unit) {
   const text = xnew(Text, { text: 'Game Over', strokeWidth: '0.1cqw', strokeColor: 'rgb(255, 240, 240)' });
   xnew.transition((p) => {
     unit.element.style.opacity = p;
-    unit.element.style.top = `${5 + p * 15}cqw`;
+    unit.element.style.top = `${10 + p * 15}cqw`;
   }, 1000, 'ease');
 }
 
 function CameraIcon(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] left-[12cqw] text-left text-[3cqw] text-stone-500 font-bold">', '画面を保存');
+  xnew('<div class="absolute w-[40cqw] bottom-[2cqw] left-[12cqw] text-left text-[4cqw] text-stone-500 font-bold">', '画面を保存');
  
   xnew.nest('<div class="absolute bottom-[1cqw] left-[3cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
   unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
@@ -217,7 +216,7 @@ function CameraIcon(unit) {
 
 function CloseButton(unit) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew('<div class="absolute w-[40cqw] bottom-[2.5cqw] right-[12cqw] text-right text-[3cqw] text-stone-500 font-bold">', '戻る');
+  xnew('<div class="absolute w-[40cqw] bottom-[2cqw] right-[12cqw] text-right text-[4cqw] text-stone-500 font-bold">', '戻る');
   
   xnew.nest('<div class="absolute bottom-[1cqw] right-[2cqw] w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer pointer-events-auto">');
   unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
@@ -276,10 +275,8 @@ function ResultBackground(unit) {
 
 function ResultDetail(unit, { scores }) {
   xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none" style="container-type: size;">`);
-  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] flex items-center">');
+  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
 
-  xnew.nest('<div class="w-full bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-  
   xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
 
   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
@@ -568,8 +565,6 @@ function VolumeController(unit) {
     slider.element.style.display = isVisible ? 'none' : 'flex';
   });
 
-
-  // スライダー操作時
   slider.on('input', (e) => {
     xnew.audio.volume = parseFloat(e.target.value) / 100;
   });
