@@ -312,8 +312,8 @@ class Unit {
         Unit.current = backup;
     }
     static finalize(unit) {
-        if (unit._.state !== 'finalized') {
-            unit._.state = 'finalized';
+        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
+            unit._.state = 'finalizing';
             unit._.children.forEach((child) => child.finalize());
             unit._.systems['-finalize'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             unit.off();
@@ -329,6 +329,7 @@ class Unit {
                 }
             });
             unit._.defines = {};
+            unit._.state = 'finalized';
         }
     }
     static nest(unit, tag) {
@@ -437,6 +438,9 @@ class Unit {
         return (...args) => Unit.scope(snapshot, listener, ...args);
     }
     static scope(snapshot, func, ...args) {
+        if (snapshot.unit._.state === 'finalized') {
+            return;
+        }
         const current = Unit.current;
         const backup = Unit.snapshot(snapshot.unit);
         try {
@@ -607,10 +611,12 @@ class UnitTimer {
     }
 }
 
-const context = new window.AudioContext();
-const master = context.createGain();
-master.gain.value = 1.0;
-master.connect(context.destination);
+const context = window.AudioContext ? new window.AudioContext() : (null);
+const master = context ? context.createGain() : (null);
+if (context) {
+    master.gain.value = 1.0;
+    master.connect(context.destination);
+}
 class AudioFile {
     constructor(path) {
         this.promise = fetch(path)

@@ -77,7 +77,7 @@ function GameScene(scene, { id }) {
     const boxes = xnew.find(Box);
     const goals = xnew.find(Goal);
     const cleared = goals.every(g => boxes.some(b => b.x === g.x && b.y === g.y));
-    // if (cleared === false) return;
+    if (cleared === false) return;
     scene.off('+moved');
 
     xnew(GameClearText);
@@ -459,7 +459,7 @@ function InfoPanel(unit, { id }) {
 function Model(unit, { id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
 
-  const list = ['zundamon.vrm', 'kiritan.vrm', 'kiritan.vrm', 'metan.vrm', 'sora.vrm', 'zunko.vrm', 'itako.vrm'];
+  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
   const path = '../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
