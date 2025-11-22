@@ -13,7 +13,6 @@ xnew('#main', Main);
 
 function Main(main) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
-  xnew.context('global', { wrapper: main.element });
 
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
@@ -62,9 +61,15 @@ function GameScene(scene) {
   xnew(Cursor);
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-  const controller = xnew(Controller);
   xnew(ScoreText);
 
+  const playing = xnew(() => {
+    xnew(Controller);
+    xnew.audio.load('../assets/y015.mp3').then((music) => {
+      music.play({ fade: 3000, loop: true });
+    });
+  })
+  
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
   scene.on('+scoreup', (i) => scores[i]++);
 
@@ -79,8 +84,7 @@ function GameScene(scene) {
     scene.emit('+gameover');
   }, 100);
   scene.on('+gameover', () => {
-    controller.finalize();
-    scene.emit('+music.pause');
+    playing.finalize();
     scene.off('+gameover');
     xnew(GameOverText);
     const image = xpixi.renderer.extract.base64({
@@ -101,6 +105,7 @@ function GameScene(scene) {
 }
 
 function ResultScene(scene, { image, scores }) {
+  const wrapper = scene.element;
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
   });
@@ -192,7 +197,7 @@ function GameOverText(unit) {
   const text = xnew(Text, { text: 'Game Over', strokeWidth: '0.1cqw', strokeColor: 'rgb(255, 240, 240)' });
   xnew.transition((p) => {
     unit.element.style.opacity = p;
-    unit.element.style.top = `${5 + p * 15}cqw`;
+    unit.element.style.top = `${10 + p * 15}cqw`;
   }, 1000, 'ease');
 }
 
@@ -272,7 +277,6 @@ function ResultBackground(unit) {
 
 function ResultDetail(unit, { scores }) {
   xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-  
   xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
 
   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
