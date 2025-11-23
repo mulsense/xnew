@@ -167,7 +167,7 @@ function Texture(unit, { texture } = {}) {
 }
 
 function StrokeText(unit, { text }) {
-  const [sw, sc] = ['0.1cqw', '#EEEEEE'];
+  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
   xnew.nest(`<div class="font-bold" style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
 
   unit.element.textContent = text;
@@ -176,12 +176,12 @@ function StrokeText(unit, { text }) {
 function TitleText(unit) {
   xnew((unit) => {
     xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600">');
-    xnew(StrokeText, { text: 'とーほく ドロップ', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
+    xnew(StrokeText, { text: 'とーほく ドロップ' });
   });
 
   xnew((unit) => {
     xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600">');
-    xnew.extend(StrokeText, { text: 'touch start', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
+    xnew.extend(StrokeText, { text: 'touch start' });
     let count = 0;
     unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
   });
@@ -189,7 +189,7 @@ function TitleText(unit) {
 
 function ScoreText(unit) {
   xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600">');
-  const text = xnew(StrokeText, { text: 'score 0', strokeWidth: '0.1cqw', strokeColor: 'rgb(240, 255, 240)' });
+  const text = xnew(StrokeText, { text: 'score 0' });
   let sum = 0;
   unit.on('+scoreup', (i) => {
     text.element.textContent = `score ${sum += Math.pow(2, i)}`;
@@ -199,7 +199,7 @@ function ScoreText(unit) {
 
 function GameOverText(unit) {
   xnew.nest('<div class="absolute w-full text-center text-[12cqw] text-red-400">');
-  const text = xnew(StrokeText, { text: 'Game Over', strokeWidth: '0.1cqw', strokeColor: 'rgb(255, 240, 240)' });
+  const text = xnew(StrokeText, { text: 'Game Over' });
   xnew.transition((p) => {
     unit.element.style.opacity = p;
     unit.element.style.top = `${10 + p * 15}cqw`;
@@ -313,7 +313,8 @@ function ResultDetail(unit, { scores }) {
     });
   }
 
-  xnew('<div class="text-[4cqw] mx-[2cqw] mt-[1cqw] pt-[1cqw] border-t-[0.4cqw] border-dashed text-center border-green-600 text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
+  xnew('<div class="text-[4cqw] mx-[2cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-green-600">');
+  xnew('<div class="text-[4cqw] text-center text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
   xnew('<div class="w-full pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
     xnew(`<div class="${sum < 300 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'まだよわい');
     xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'ふつう');
@@ -497,6 +498,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
 
     // merge check
     for (const target of xnew.find(ModelBall).filter((target) => target !== ball && target.id === ball.id)) {
+      if (id >= 7) break;
       const [a, b] = [ball.object, target.object];
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
