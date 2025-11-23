@@ -96,6 +96,7 @@ function GameScene(scene) {
 }
 
 function ResultScene(scene, { image, scores }) {
+  const wrapper = scene.element;
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
   });
@@ -115,28 +116,30 @@ function ResultScene(scene, { image, scores }) {
   xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between">`);
   xnew('<div class="flex items-center gap-x-[2cqw] flex-row-reverse">', () => {
     xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '画面を保存');
-    xnew(CameraIcon).on('click', () => {        
-      const cover = xnew('<div class="absolute inset-0 w-full h-full z-10 bg-white">');
-      xnew.transition((p) => cover.element.style.opacity = 1 - p, 1000)
-      .timeout(() => {
-        html2canvas(scene.element, {
-          scale: 2, // 高解像度でキャプチャ
-          logging: false,
-          useCORS: true // 外部画像も含める場合
-        }).then((canvas) => {
-          const temp = document.createElement('canvas');
-          const ctx = temp.getContext('2d');
-          temp.width = canvas.width;
-          temp.height = Math.floor(canvas.height * 0.87);
-          ctx.drawImage(canvas, 0, 0, temp.width, temp.height, 0, 0, temp.width, temp.height);
+    xnew(CameraIcon).on('click', () => {    
+      xnew(wrapper, (unit) => {
+        const cover = xnew.nest('<div class="absolute inset-0 w-full h-full z-10 bg-white">');
+        xnew.transition((p) => cover.style.opacity = 1 - p, 1000)
+        .timeout(() => {
+          html2canvas(wrapper, {
+            scale: 2, // 高解像度でキャプチャ
+            logging: false,
+            useCORS: true // 外部画像も含める場合
+          }).then((canvas) => {
+            const temp = document.createElement('canvas');
+            const ctx = temp.getContext('2d');
+            temp.width = canvas.width;
+            temp.height = Math.floor(canvas.height * 0.87);
+            ctx.drawImage(canvas, 0, 0, temp.width, temp.height, 0, 0, temp.width, temp.height);
 
-          const link = document.createElement('a');
-          link.download = 'image.png';
-          link.href = temp.toDataURL('image/png');
-          link.click();
+            const link = document.createElement('a');
+            link.download = 'image.png';
+            link.href = temp.toDataURL('image/png');
+            link.click();
+          });
+
+          unit.finalize();
         });
-
-        cover.finalize();
       });
     });
   });
