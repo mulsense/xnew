@@ -124,12 +124,7 @@ function Background(unit) {
 }
 
 function TitleText(text) {
-  xnew.nest(`<div
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
-
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[12cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
+  xnew.nest('<div class="absolute top-[16cqw] w-full pointer-events-none select-none text-gray-800 font-bold text-center text-[12cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
   text.element.textContent = 'とーほく 倉庫';
 }
 

@@ -203,19 +203,6 @@ export class Unit {
         }
     }
 
-    static unnest(unit: Unit): void {
-        if (unit._.state !== 'invoked') {
-            throw new Error('This function can not be called after initialized.');
-        } 
-
-        if (unit._.elements.length > 0) {
-            unit._.elements.pop();
-            unit._.currentElement = unit._.elements.length > 0 ? unit._.elements[unit._.elements.length - 1] : unit._.baseElement;
-        } else {
-            throw new Error('No nested element to unnest.');
-        }
-    }
-
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
         if (unit._.state !== 'invoked') {
             throw new Error('This function can not be called after initialized.');
@@ -295,7 +282,7 @@ export class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
         if (snapshot.unit._.state === 'finalized') {
             return;
-        }
+        } 
         const current = Unit.current;
         const backup = Unit.snapshot(snapshot.unit);
         try {

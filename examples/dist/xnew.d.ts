@@ -74,7 +74,6 @@ declare class Unit {
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
-    static unnest(unit: Unit): void;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
     };

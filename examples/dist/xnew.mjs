@@ -356,18 +356,6 @@ class Unit {
             throw new Error(`Invalid tag: ${tag}`);
         }
     }
-    static unnest(unit) {
-        if (unit._.state !== 'invoked') {
-            throw new Error('This function can not be called after initialized.');
-        }
-        if (unit._.elements.length > 0) {
-            unit._.elements.pop();
-            unit._.currentElement = unit._.elements.length > 0 ? unit._.elements[unit._.elements.length - 1] : unit._.baseElement;
-        }
-        else {
-            throw new Error('No nested element to unnest.');
-        }
-    }
     static extend(unit, component, props) {
         var _a;
         if (unit._.state !== 'invoked') {
@@ -1375,7 +1363,7 @@ function getPosition(element, event) {
 function Screen(screen, { width = 640, height = 480, fit = 'contain' } = {}) {
     const size = { width, height };
     const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
-    const absolute = xnew$1.nest('<div style="position: absolute; margin: auto;">');
+    const absolute = xnew$1.nest('<div style="position: absolute; margin: auto; container-type: size;">');
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
     xnew$1(wrapper, ResizeEvent).on('-resize', resize);
     resize();
