@@ -154,8 +154,8 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized') {
-            unit._.state = 'finalized';
+        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
+            unit._.state = 'finalizing';
 
             unit._.children.forEach((child: Unit) => child.finalize());
             unit._.systems['-finalize'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
@@ -175,6 +175,7 @@ export class Unit {
                 }
             });
             unit._.defines = {};
+            unit._.state = 'finalized';
         }
     }
 
@@ -199,19 +200,6 @@ export class Unit {
             return element;
         } else {
             throw new Error(`Invalid tag: ${tag}`);
-        }
-    }
-
-    static unnest(unit: Unit): void {
-        if (unit._.state !== 'invoked') {
-            throw new Error('This function can not be called after initialized.');
-        } 
-
-        if (unit._.elements.length > 0) {
-            unit._.elements.pop();
-            unit._.currentElement = unit._.elements.length > 0 ? unit._.elements[unit._.elements.length - 1] : unit._.baseElement;
-        } else {
-            throw new Error('No nested element to unnest.');
         }
     }
 
@@ -292,6 +280,9 @@ export class Unit {
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
+        if (snapshot.unit._.state === 'finalized') {
+            return;
+        } 
         const current = Unit.current;
         const backup = Unit.snapshot(snapshot.unit);
         try {

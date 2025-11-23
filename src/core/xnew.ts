@@ -53,23 +53,6 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Exits the most recently created nested element
-         * @throws Error if there is no nested element to exit
-         * @example
-         * xnew.nest('<div>')
-         *   xnew('<p>', 'Nested paragraph')
-         * xnew.unnest() // exits <div>
-        */
-        unnest(): void {
-            try {
-                Unit.unnest(Unit.current);
-            } catch (error: unknown) {
-                console.error('xnew.unnest(): ', error);
-                throw error;
-            }
-        },
-
-        /**
          * Extends the current component with another component's functionality
          * @param component - Component function to extend with
          * @param props - Optional properties to pass to the extended component

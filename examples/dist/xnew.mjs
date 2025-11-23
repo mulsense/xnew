@@ -312,8 +312,8 @@ class Unit {
         Unit.current = backup;
     }
     static finalize(unit) {
-        if (unit._.state !== 'finalized') {
-            unit._.state = 'finalized';
+        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
+            unit._.state = 'finalizing';
             unit._.children.forEach((child) => child.finalize());
             unit._.systems['-finalize'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             unit.off();
@@ -329,6 +329,7 @@ class Unit {
                 }
             });
             unit._.defines = {};
+            unit._.state = 'finalized';
         }
     }
     static nest(unit, tag) {
@@ -353,18 +354,6 @@ class Unit {
         }
         else {
             throw new Error(`Invalid tag: ${tag}`);
-        }
-    }
-    static unnest(unit) {
-        if (unit._.state !== 'invoked') {
-            throw new Error('This function can not be called after initialized.');
-        }
-        if (unit._.elements.length > 0) {
-            unit._.elements.pop();
-            unit._.currentElement = unit._.elements.length > 0 ? unit._.elements[unit._.elements.length - 1] : unit._.baseElement;
-        }
-        else {
-            throw new Error('No nested element to unnest.');
         }
     }
     static extend(unit, component, props) {
@@ -437,6 +426,9 @@ class Unit {
         return (...args) => Unit.scope(snapshot, listener, ...args);
     }
     static scope(snapshot, func, ...args) {
+        if (snapshot.unit._.state === 'finalized') {
+            return;
+        }
         const current = Unit.current;
         const backup = Unit.snapshot(snapshot.unit);
         try {
