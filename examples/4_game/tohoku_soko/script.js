@@ -27,9 +27,9 @@ function Main(screen) {
   xpixi.initialize({ canvas: screen.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
-      global.levels = levels;
-      xnew(TitleScene);
-      // xnew(GameScene, { id: 0 });
+    global.levels = levels;
+    xnew(TitleScene);
+    // xnew(GameScene, { id: 0 });
   });
 }
 
@@ -122,23 +122,27 @@ function Background(unit) {
     object.addChild(sprite);
   });
 }
+function StrokeText(unit, { text }) {
+  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
+  xnew.nest(`<div class="font-bold" style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
+  unit.element.textContent = text;
+}
 
-function TitleText(text) {
-  xnew.nest('<div class="absolute top-[16cqw] w-full pointer-events-none select-none text-gray-800 font-bold text-center text-[12cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
-  text.element.textContent = 'とーほく 倉庫';
+function TitleText(unit) {
+  xnew((unit) => {
+    xnew.nest('<div class="absolute top-[20cqw] w-full text-amber-800 text-center text-[12cqw]">');
+    xnew(StrokeText, { text: 'とーほく 倉庫' });
+  });
+  xnew((unit) => {
+    xnew.nest('<div class="absolute top-[40cqw] w-full text-amber-800 text-center text-[6cqw]">');
+    xnew(StrokeText, { text: 'Select Stage' });
+    let count = 0;
+  });
 }
 
 function StageSelect(unit) {
   const global = xnew.context('global');
-  xnew.nest(`<div
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
-
-  const message = xnew('<div class="absolute top-[40cqw] w-full text-center text-[6cqw]" style="-webkit-text-stroke: 0.2cqw white;">');
-  message.element.textContent = 'Select Stage';
-  let count = 0;
-  message.on('-update', () => message.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold">`);
 
   // 上段: ステージ1-4
   xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
