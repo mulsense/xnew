@@ -498,7 +498,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
 
     // merge check
     for (const target of xnew.find(ModelBall).filter((target) => target !== ball && target.id === ball.id)) {
-      if (id >= 7) break;
+      if (id >= 7) continue;
       const [a, b] = [ball.object, target.object];
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
