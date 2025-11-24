@@ -70,7 +70,6 @@ declare class Unit {
     stop(): void;
     finalize(): void;
     reboot(): void;
-    append(...args: any[]): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
@@ -177,15 +176,6 @@ declare const xnew$1: CreateUnit & {
      * div.textContent = 'Hello'
      */
     nest(tag: string): HTMLElement | SVGElement;
-    /**
-     * Exits the most recently created nested element
-     * @throws Error if there is no nested element to exit
-     * @example
-     * xnew.nest('<div>')
-     *   xnew('<p>', 'Nested paragraph')
-     * xnew.unnest() // exits <div>
-    */
-    unnest(): void;
     /**
      * Extends the current component with another component's functionality
      * @param component - Component function to extend with
@@ -412,6 +402,11 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
     strokeLinejoin?: string;
 }): void;
 
+declare function VolumeController(unit: Unit, { range, icon }?: {
+    range?: number | string;
+    icon?: number | string;
+}): void;
+
 declare const basics: {
     Screen: typeof Screen;
     PointerEvent: typeof PointerEvent;
@@ -430,6 +425,7 @@ declare const basics: {
     DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;
     DirectionalPad: typeof DirectionalPad;
+    VolumeController: typeof VolumeController;
 };
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;

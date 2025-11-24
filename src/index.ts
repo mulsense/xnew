@@ -8,6 +8,7 @@ import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
+import { VolumeController } from './basics/Audio';
 
 const basics = {
     Screen,
@@ -27,6 +28,7 @@ const basics = {
     DragTarget,
     AnalogStick,
     DirectionalPad,
+    VolumeController
 };
 
 namespace xnew {

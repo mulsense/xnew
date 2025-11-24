@@ -128,6 +128,7 @@
     }
     class Timer {
         constructor(options) {
+            var _a, _b;
             this.options = options;
             this.id = null;
             this.time = 0.0;
@@ -153,6 +154,7 @@
             });
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.visibilitychange);
+            (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
             this.start();
         }
         clear() {
@@ -184,10 +186,7 @@
                     this.time = 0.0;
                     this.offset = 0.0;
                     this.counter++;
-                    if (this.options.iterations === 0) {
-                        this.start();
-                    }
-                    else if (this.counter < this.options.iterations) {
+                    if (this.options.iterations === 0 || this.counter < this.options.iterations) {
                         this.start();
                     }
                     else {
@@ -286,9 +285,6 @@
             Unit.stop(this);
             Unit.finalize(this);
             Unit.initialize(this, anchor);
-        }
-        append(...args) {
-            new Unit(this, ...args);
         }
         static initialize(unit, anchor) {
             const backup = Unit.current;
@@ -587,15 +583,15 @@
             let counter = 0;
             const timer = new Timer({
                 transition: (p) => {
-                    if (options.transition !== undefined)
+                    if (options.transition)
                         Unit.scope(options.snapshot, options.transition, p);
                 },
                 timeout: () => {
-                    if (options.transition !== undefined)
+                    if (options.transition)
                         Unit.scope(options.snapshot, options.transition, 1.0);
-                    if (options.timeout !== undefined)
+                    if (options.timeout)
                         Unit.scope(options.snapshot, options.timeout);
-                    if (options.iterations !== undefined && counter >= options.iterations - 1) {
+                    if (options.iterations && counter >= options.iterations - 1) {
                         unit.finalize();
                     }
                     counter++;
@@ -846,23 +842,6 @@
             }
             catch (error) {
                 console.error('xnew.nest(tag: string): ', error);
-                throw error;
-            }
-        },
-        /**
-         * Exits the most recently created nested element
-         * @throws Error if there is no nested element to exit
-         * @example
-         * xnew.nest('<div>')
-         *   xnew('<p>', 'Nested paragraph')
-         * xnew.unnest() // exits <div>
-        */
-        unnest() {
-            try {
-                Unit.unnest(Unit.current);
-            }
-            catch (error) {
-                console.error('xnew.unnest(): ', error);
                 throw error;
             }
         },
@@ -1692,6 +1671,46 @@
         });
     }
 
+    function SpeakerIcon(unit, { icon = 0 } = {}) {
+        xnew$1.nest(`<div style="position: relative; cursor: pointer; pointer-events: auto; width: ${icon}; height: ${icon};">`);
+        xnew$1.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
+        let path;
+        change(xnew$1.audio.volume > 0);
+        return { change };
+        function change(isOn) {
+            path === null || path === void 0 ? void 0 : path.finalize();
+            if (isOn) {
+                path = xnew$1('<path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />');
+            }
+            else {
+                path = xnew$1('<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />');
+            }
+        }
+    }
+    function VolumeController(unit, { range = '10cqw', icon = 0 } = {}) {
+        xnew$1.nest(`<div class="flex items-center">`);
+        xnew$1.extend(PointerEvent);
+        unit.on('pointerdown', (event) => event.stopPropagation());
+        //   const slider = xnew(`<input
+        //     type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
+        //     style="display: none; width: 15cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
+        //   >`);
+        const slider = xnew$1(`<div style="width: ${range}; container-type: size; display: block;">`, () => {
+            xnew$1(`<div style="width: 100%; margin-top: -4cqw; height: 8cqw; border-radius: 4cqw; background-color: currentColor; box-shadow: 0 0 2cqw currentColor;">`, () => {
+            });
+        });
+        //   unit.on('-click:outside', () => slider.element.style.display = 'none');
+        const button = xnew$1(SpeakerIcon, { icon });
+        button.on('click', () => {
+            slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'block';
+            console.log('click', slider.element.style.display);
+        });
+        //   slider.on('input', (event: any) => {
+        //     button.change(event.target.value !== '0');
+        //     xnew.audio.volume = parseFloat(event.target.value) / 100;
+        //   });
+    }
+
     const basics = {
         Screen,
         PointerEvent,
@@ -1710,6 +1729,7 @@
         DragTarget,
         AnalogStick,
         DirectionalPad,
+        VolumeController
     };
     const xnew = Object.assign(xnew$1, { basics });
 

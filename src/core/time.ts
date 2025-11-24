@@ -77,6 +77,7 @@ export class Timer {
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
+        this.options.transition?.(0.0);
         this.start();
     }
 
@@ -113,10 +114,8 @@ export class Timer {
                 this.time = 0.0;
                 this.offset = 0.0;
                 this.counter++;
-                
-                if (this.options.iterations === 0) {
-                    this.start();
-                } else if (this.counter < this.options.iterations) {
+
+                if (this.options.iterations === 0 || this.counter < this.options.iterations) {
                     this.start();
                 } else {
                     this.clear();
