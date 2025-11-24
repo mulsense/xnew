@@ -24,7 +24,12 @@ function Main(main) {
   xpixi.initialize({ canvas: main.canvas });
 
   xnew.audio.volume = 0.1;
-  xnew(TitleScene);
+
+  let scene = xnew(TitleScene);
+  main.on('+main:nextscene', (NextScene, props) => {
+    scene.finalize();
+    scene = xnew(NextScene, props);
+  });
 }
 
 function TitleScene(scene) {
@@ -40,10 +45,7 @@ function TitleScene(scene) {
   }
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
-  scene.on('pointerdown', () => {
-    scene.finalize();
-    xnew.find(Main)[0]?.append(GameScene);
-  });
+  scene.on('pointerdown', () => scene.emit('+main:nextscene', GameScene));
 
   xnew(TitleText);
   xnew(VolumeController);
@@ -70,6 +72,9 @@ function GameScene(scene) {
       music.play({ fade: 1000, loop: true });
     });
   })
+  scene.on('+gamescene:append', (Component, props) => {
+    xnew(Component, props);
+  });
 
   // xnew.timeout(() => {
   //   scene.emit('+gameover');
@@ -86,17 +91,13 @@ function GameScene(scene) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => {
-        scene.finalize();
-        xnew.find(Main)[0]?.append(ResultScene, { image, scores: xnew.context('gamescene').scores });
-      });
+      .timeout(() => scene.emit('+main:nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
     }, 2000);
   });
 
 }
 
 function ResultScene(scene, { image, scores }) {
-  const wrapper = scene.element;
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1000, loop: true });
   });
@@ -111,46 +112,7 @@ function ResultScene(scene, { image, scores }) {
   xnew(ResultBackground);
   xnew(ResultImage, { image });
   xnew(ResultDetail, { scores });
-
-  // footer
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between">`);
-  xnew('<div class="flex items-center gap-x-[2cqw] flex-row-reverse">', () => {
-    xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '画面を保存');
-    xnew(CameraIcon).on('click', () => {    
-      xnew(wrapper, (unit) => {
-        const cover = xnew.nest('<div class="absolute inset-0 w-full h-full z-10 bg-white">');
-        xnew.transition((p) => cover.style.opacity = 1 - p, 1000)
-        .timeout(() => {
-          html2canvas(wrapper, {
-            scale: 2, // 高解像度でキャプチャ
-            logging: false,
-            useCORS: true // 外部画像も含める場合
-          }).then((canvas) => {
-            const temp = document.createElement('canvas');
-            const ctx = temp.getContext('2d');
-            temp.width = canvas.width;
-            temp.height = Math.floor(canvas.height * 0.87);
-            ctx.drawImage(canvas, 0, 0, temp.width, temp.height, 0, 0, temp.width, temp.height);
-
-            const link = document.createElement('a');
-            link.download = 'image.png';
-            link.href = temp.toDataURL('image/png');
-            link.click();
-          });
-
-          unit.finalize();
-        });
-      });
-    });
-  });
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '戻る');
-    xnew(CloseButton).on('click', () => {
-      scene.finalize();
-      xnew.find(Main)[0]?.append(TitleScene);
-    });
-  });
-
+  xnew(ResultFooter);
 }
 
 function Background(unit) {
@@ -322,6 +284,18 @@ function ResultDetail(unit, { scores }) {
   });
 }
 
+function ResultFooter(unit) {
+  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between">`);
+  xnew('<div class="flex items-center gap-x-[2cqw] flex-row-reverse">', () => {
+    xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '画面を保存');
+    xnew(CameraIcon).on('click', () => screenShot());
+  });
+  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
+    xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '戻る');
+    xnew(CloseButton).on('click', () => unit.emit('+main:nextscene', TitleScene));
+  });
+}
+
 function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   object.position.set(x, y, z);
@@ -453,7 +427,7 @@ function Cursor(unit) {
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      xnew.find(GameScene)[0]?.append(ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      unit.emit('+gamescene:append', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
       model.finalize();
       model = null;
       unit.emit('+reload');
@@ -484,7 +458,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const model = xnew(Model, { id, scale });
   ball.emit('+scoreup', id);
 
-  xnew.find(GameScene)[0]?.append(StarParticles, { x, y });
+  ball.emit('+gamescene:append', StarParticles, { x, y });
   
   ball.on('-update', () => {
     const position = convert3d(ball.object.x, ball.object.y);
@@ -503,9 +477,9 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
+        ball.emit('+gamescene:append', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         ball.finalize();
         target.finalize();
-        xnew.find(GameScene)[0]?.append(ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         break;
       }
     }
@@ -566,3 +540,26 @@ function convert3d(x, y, z = 0) {
   return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }
 
+function screenShot() {
+  const element = xnew.find(Main)[0].element;
+  xnew(element, (unit) => {
+    const cover = xnew.nest('<div class="absolute inset-0 w-full h-full z-10 bg-white">');
+    xnew.transition((p) => cover.style.opacity = 1 - p, 1000)
+    .timeout(() => {
+      html2canvas(element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
+        const temp = document.createElement('canvas');
+        const ctx = temp.getContext('2d');
+        temp.width = canvas.width;
+        temp.height = Math.floor(canvas.height * 0.87);
+        ctx.drawImage(canvas, 0, 0, temp.width, temp.height, 0, 0, temp.width, temp.height);
+
+        const link = document.createElement('a');
+        link.download = 'image.png';
+        link.href = temp.toDataURL('image/png');
+        link.click();
+      });
+
+      unit.finalize();
+    });
+  });
+}

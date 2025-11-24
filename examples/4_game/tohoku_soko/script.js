@@ -9,14 +9,14 @@ import xthree from '@mulsense/xnew/addons/xthree';
 
 xnew('#main', Main);
 
-function Main(screen) {
+function Main(main) {
   const global = { GRID: 10, levels: null };
   xnew.context('global', global);
   xnew.extend(xnew.basics.Screen, { width: 700, height: 700 });
 
   // three
   const camera = new THREE.OrthographicCamera(-global.GRID / 2, +global.GRID / 2, +global.GRID / 2, -global.GRID / 2, 0, 100);
-  xthree.initialize({ canvas: new OffscreenCanvas(screen.canvas.width, screen.canvas.height), camera });
+  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
@@ -24,12 +24,16 @@ function Main(screen) {
   xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 16);
 
   // pixi 
-  xpixi.initialize({ canvas: screen.canvas });
+  xpixi.initialize({ canvas: main.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
     global.levels = levels;
-    xnew(TitleScene);
+    let scene = xnew(TitleScene);
     // xnew(GameScene, { id: 0 });
+    main.on('+main:nextscene', (NextScene, props) => {
+      scene.finalize();
+      scene = xnew(NextScene, props);
+    });
   });
 }
 
@@ -89,9 +93,9 @@ function GameScene(scene, { id }) {
       function next(){
         scene.finalize();
         if (id + 1 < global.levels.length) {
-            xnew.find(Main)[0]?.append(GameScene, { id: id + 1 });
+            scene.emit('+main:nextscene', GameScene, { id: id + 1 });
         } else {
-            xnew.find(Main)[0]?.append(TitleScene);
+            scene.emit('+main:nextscene', TitleScene);
         }
       }
     }, 1000);
@@ -151,10 +155,7 @@ function StageSelect(unit) {
         class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer aspect-square w-[14cqw]"
       >`, `${i + 1}`);
 
-      button.on('click', () => {
-        xnew.find(TitleScene)[0].finalize();
-        xnew.find(Main)[0].append(GameScene, { id: i });
-      });
+      button.on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
     }
   });
 
@@ -165,10 +166,7 @@ function StageSelect(unit) {
         class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer spect-square w-[14cqw]"
       >`, `${i + 1}`);
 
-      button.on('click', () => {
-        xnew.find(TitleScene)[0].finalize();
-        xnew.find(Main)[0].append(GameScene, { id: i });
-      });
+      button.on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
     }
   });
 }
@@ -431,10 +429,7 @@ function InfoPanel(unit, { id }) {
   
   xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {
     xnew(Button, { text: 'Reset' }).on('click', () => unit.emit('+restart'));
-    xnew(Button, { text: 'Title' }).on('click', () => {
-      xnew.find(GameScene)[0].finalize();
-      xnew.find(Main)[0].append(TitleScene);
-    });
+    xnew(Button, { text: 'Title' }).on('click', () => unit.emit('+main:nextscene', TitleScene));
   });
 
   xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', (screen) => {

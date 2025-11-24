@@ -10,27 +10,25 @@ function Main(main) {
   // pixi setup
   xpixi.initialize({ canvas: main.canvas });
 
-  xnew(Scene1);
+  let scene = xnew(Scene1);
+  main.on('+main:nextscene', (NextScene, props) => {
+    scene.finalize();
+    scene = xnew(NextScene, props);
+  });
 }
 
 function Scene1(scene) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  scene.on('pointerdown', () => {
-    scene.finalize();
-    xnew.find(Main)[0].append(Scene2);
-  });
+  scene.on('pointerdown', () => scene.emit('+main:nextscene', Scene2));
 }
 
 function Scene2(scene) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  scene.on('pointerdown', () => {
-    scene.finalize();
-    xnew.find(Main)[0].append(Scene1);
-  });
+  scene.on('pointerdown', () => scene.emit('+main:nextscene', Scene1));
 }
 
 function Text(unit, { text }) {

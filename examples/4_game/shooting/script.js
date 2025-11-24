@@ -11,7 +11,11 @@ function Main(main) {
   xpixi.initialize({ canvas: main.canvas });
 
   xnew(Background);
-  xnew(TitleScene);
+  let scene = xnew(TitleScene);
+  main.on('+main:nextscene', (NextScene, props) => {
+    scene.finalize();
+    scene = xnew(NextScene, props);
+  });
 }
 
 function Background(unit) {
@@ -43,8 +47,7 @@ function TitleScene(unit) {
   xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
   
   function next() {
-    unit.finalize();
-    xnew.find(Main)[0]?.append(GameScene);
+    unit.emit('+main:nextscene', GameScene);
   }
 }
 
@@ -54,21 +57,24 @@ function TitleText(unit) {
   object.anchor.set(0.5);
 }
 
-function GameScene(unit) {
+function GameScene(scene) {
   xnew(Controller);
   xnew(ScoreText);
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
 
-  unit.on('+gameover', () => {
+  scene.on('+gamescene:append', (Component, props) => {
+    xnew(Component, props);
+  });
+
+  scene.on('+gameover', () => {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
       xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
       xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
       function next() {
-        unit.finalize();
-        xnew.find(Main)[0]?.append(TitleScene);
+        scene.emit('+main:nextscene', TitleScene);
       }
     }, 1000);
   });
@@ -125,7 +131,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.find(GameScene)[0]?.append(Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => unit.emit('+gamescene:append', Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('-update', () => {
@@ -205,9 +211,9 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.find(GameScene)[0]?.append(Crash, { x: object.x, y: object.y, score });
+        unit.emit('+gamescene:append', Crash, { x: object.x, y: object.y, score });
       }
-      xnew.find(GameScene)[0]?.append(CrashText, { x: object.x, y: object.y, score });
+      unit.emit('+gamescene:append', CrashText, { x: object.x, y: object.y, score });
       unit.emit('+scoreup', score);
       unit.finalize();
     },
