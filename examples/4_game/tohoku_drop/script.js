@@ -224,7 +224,7 @@ function ResultDetail(unit, { scores }) {
   xnew('<div class="text-[4cqw] text-center text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
   xnew('<div class="pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
     ['まだよわい', 'ふつう', 'すごい'].forEach((text, i) => {
-      if (sum >= i * 300 && sum < (i + 1) * 300) {
+      if (sum >= i * 300 && (sum < (i + 1) * 300 || i >= 2)) {
         xnew('<div class="text-[3.5cqw] text-blue-500">', text);
       } else {
         xnew('<div class="text-[2cqw] opacity-20">', text);
