@@ -10,6 +10,8 @@ import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 import { VolumeController } from './basics/Audio';
 
+import { icons } from './icons/icons';
+
 const basics = {
     Screen,
     PointerEvent,
@@ -34,6 +36,6 @@ const basics = {
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
-const xnew: (typeof base) & { basics: typeof basics;} = Object.assign(base, { basics });
+const xnew: (typeof base) & { basics: typeof basics; icons: typeof icons; } = Object.assign(base, { basics, icons });
 
 export default xnew;

@@ -1,6 +1,5 @@
 import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js'
-import xpixi from '../../dist/addons/xpixi';
 
 export default {
     initialize({ renderer = null, canvas = null }: any = {}) {
@@ -26,6 +25,11 @@ export default {
     get canvas() {
         return xnew.context('xpixi.root')?.canvas;
     },
+    capture({ rect }: { rect?: number[] } = {}) {
+        const root = xnew.context('xpixi.root');
+        const frame = rect ? new PIXI.Rectangle(rect[0], rect[1], rect[2], rect[3]) : new PIXI.Rectangle(0, 0, root.canvas.width, root.canvas.height);
+        return root.renderer.extract.base64({ target: root.scene, frame });
+    }
 };
 
 function Root(self: xnew.Unit, { canvas }: any) {
