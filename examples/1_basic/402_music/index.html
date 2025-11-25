@@ -25,9 +25,9 @@
         xnew(Button, { name: 'reboot' }).on('click', () => {
           unit.reboot();
         });
-        // Volume control
-        xnew(VolumeControl);
       });
+      // Volume control
+      xnew('<div class="text-stone-500">', xnew.basics.VolumeController, { icon: '40px' });
     });
 
     function Button(unit, { name }) {

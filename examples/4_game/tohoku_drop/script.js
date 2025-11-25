@@ -17,7 +17,6 @@ function Main(main) {
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
-  xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
 
   // setup pixi
@@ -48,6 +47,7 @@ function TitleScene(scene) {
   scene.on('pointerdown', () => scene.emit('+main:nextscene', GameScene));
 
   xnew(TitleText);
+  xnew(TouchMessage);
   xnew(VolumeController);
 }
 
@@ -68,45 +68,33 @@ function GameScene(scene) {
 
   const playing = xnew(() => {
     xnew(Controller);
-    xnew.audio.load('../assets/y015.mp3').then((music) => {
-      music.play({ fade: 1000, loop: true });
-    });
+    xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
-  scene.on('+gamescene:append', (Component, props) => {
-    xnew(Component, props);
-  });
+  scene.on('+gamescene:append', (Component, props) => xnew(Component, props));
 
-  // xnew.timeout(() => {
-  //   scene.emit('+gameover');
-  // }, 100);
+  // xnew.timeout(() => scene.emit('+gameover'), 100);
+
   scene.on('+gameover', () => {
-    playing.finalize();
     scene.off('+gameover');
+    playing.finalize();
+    const image = xpixi.capture();
     xnew(GameOverText);
-    const image = xpixi.renderer.extract.base64({
-      target: xpixi.scene, 
-      frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height)
-    });
 
     xnew.timeout(() => {
-      const cover = xnew('<div class="absolute inset-0 w-full h-full bg-white">');
+      const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
       .timeout(() => scene.emit('+main:nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
     }, 2000);
   });
-
 }
 
 function ResultScene(scene, { image, scores }) {
-  xnew.audio.load('../assets/st005.mp3').then((music) => {
-    music.play({ fade: 1000, loop: true });
-  });
+  xnew.audio.load('../assets/st005.mp3').then((music) => music.play({ fade: 1000, loop: true }));
 
   // popup
-  xnew.nest(`<div class="absolute inset-0 w-full h-full">`);
+  xnew.nest(`<div class="absolute inset-0 size-full">`);
   xnew.transition((x) => {
-    scene.element.style.opacity = x;
-    scene.element.style.transform = `scale(${0.8 + x * 0.2})`;
+    Object.assign(scene.element.style, { opacity: x, transform: `scale(${0.8 + x * 0.2})` });
   }, 500, 'ease');
 
   xnew(ResultBackground);
@@ -128,29 +116,20 @@ function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function StrokeText(unit, { text }) {
-  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
-  xnew.nest(`<div class="font-bold" style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
-
-  unit.element.textContent = text;
+function TitleText(unit) {
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600 font-bold">');
+  xnew(StrokeText, { text: 'とーほく ドロップ' });
 }
 
-function TitleText(unit) {
-  xnew((unit) => {
-    xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600">');
-    xnew(StrokeText, { text: 'とーほく ドロップ' });
-  });
-
-  xnew((unit) => {
-    xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600">');
-    xnew.extend(StrokeText, { text: 'touch start' });
-    let count = 0;
-    unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
-  });
+function TouchMessage(unit) {
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold">');
+  xnew(StrokeText, { text: 'touch start' });
+  let count = 0;
+  unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function ScoreText(unit) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600">');
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600 font-bold">');
   const text = xnew(StrokeText, { text: 'score 0' });
   let sum = 0;
   unit.on('+scoreup', (i) => {
@@ -160,103 +139,71 @@ function ScoreText(unit) {
 }
 
 function GameOverText(unit) {
-  xnew.nest('<div class="absolute w-full text-center text-[12cqw] text-red-400">');
-  const text = xnew(StrokeText, { text: 'Game Over' });
+  xnew.nest('<div class="absolute w-full text-center text-[12cqw] text-red-400 font-bold">');
+  xnew(StrokeText, { text: 'Game Over' });
   xnew.transition((p) => {
-    unit.element.style.opacity = p;
-    unit.element.style.top = `${10 + p * 15}cqw`;
+    Object.assign(unit.element.style, { opacity: p, top: `${10 + p * 15}cqw` });
   }, 1000, 'ease');
-}
-
-function CircleButton(unit) {
-  xnew.nest('<div class="relative w-[8cqw] h-[8cqw] rounded-full border-[0.4cqw] border-stone-500 cursor-pointer">');
-  unit.on('mouseover', () => unit.element.style.transform = 'scale(1.1)');
-  unit.on('mouseout', () => unit.element.style.transform = 'scale(1)');
-  xnew.nest('<div class="absolute inset-0 m-auto w-[6cqw] h-[6cqw] text-stone-500">')
-}
-
-function CameraIcon(unit) {
-  xnew.extend(CircleButton);
-  xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
-  xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />');
-  xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />');
-}
-
-function CloseButton(unit) {
-  xnew.extend(CircleButton);
-  xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
-  xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
-}
-
-function SpeakerIcon(unit) {
-  xnew.nest('<div class="relative w-[8cqw] h-[8cqw] text-stone-500 cursor-pointer pointer-events-auto">');
-  xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">');
-  let path;
-  change(xnew.audio.volume > 0);
-  return { change };
-
-  function change(isOn) {
-    path?.finalize();
-    if (isOn) {
-      path = xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />');
-    } else {
-      path = xnew('<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />');
-    }
-  }
 }
 
 function VolumeController(unit) {
   // footer
   xnew.nest(`<div class="absolute bottom-0 right-[2cqw] h-[10cqw] px-[2cqw] flex items-center">`);
   xnew.extend(xnew.basics.PointerEvent);
-  unit.on('pointerdown', (event) => event.stopPropagation());
+  unit.on('-pointerdown', ({ event }) => event.stopPropagation());
   
   const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
     style="display: none; width: 15cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
   >`);
 
   unit.on('-click:outside', () => slider.element.style.display = 'none');
-  const button = xnew(SpeakerIcon);
+  const button = xnew((button) => {
+    xnew.nest('<div class="relative size-[8cqw] text-stone-500 cursor-pointer pointer-events-auto">');
+    let icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
+    return {
+      update() {
+        icon?.finalize();
+        icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
+      }
+    };
+  });
+
   button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
   slider.on('input', (e) => {
-    button.change(e.target.value !== '0');
     xnew.audio.volume = parseFloat(e.target.value) / 100;
+    button.update();
   });
 }
 
 function ResultImage(unit, { image }) {
   xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
-  const img = xnew('<img class="absolute inset-0 w-full h-full object-cover">');
+  const img = xnew('<img class="absolute inset-0 size-full object-cover">');
   image.then((src) => img.element.src = src);
 }
 
 function ResultBackground(unit) {
-  xnew.nest(`<div class="relative w-full h-full bg-gradient-to-br from-stone-300 to-stone-400 overflow-hidden">`);
-  xnew('<div class="absolute top-[-1cqw] left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
+  xnew.nest(`<div class="relative size-full bg-gradient-to-br from-stone-300 to-stone-400">`);
+  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
   
-  xnew.nest('<div class="absolute inset-0 w-full h-full" style="opacity: 0.3;">');
+  xnew.nest('<div class="absolute inset-0 size-full" style="opacity: 0.3;">');
   
   // floating circle
   for (let i = 0; i < 20; i++) {
-    const size = Math.random() * 30 + 10;
-    const [x, y] = [Math.random() * 100, Math.random() * 100];
-
-    const object = xnew(`<div class="absolute rounded-full bg-white opacity-60" style="width: ${size}px; height: ${size}px; left: ${x}%; top: ${y}%;">`);
+    const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
+    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.5;">`);
     let p = 0;
     object.on('-update', () => {
-      object.element.style.transform = `translateY(${Math.sin(p) * 20}px)`;
-      object.element.style.opacity = `${(Math.sin(p) + 1) / 2 * 0.5 + 0.3}`;
+      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.3 + 0.7, transform: `translateY(${Math.sin(p) * 20}px)` });
       p += 0.02;
     });
   }
   // twinkle circle
   for (let i = 0; i < 30; i++) {
     const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const object = xnew(`<div class="absolute w-[1cqw] h-[1cqw] rounded-full bg-white opacity-60" style="left: ${x}%; top: ${y}%;">`);
+    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.5;">`);
     let p = 0;
     object.on('-update', () => {
-      object.element.style.transform = `scale(${1 + Math.sin(p) * 0.1})`;
-      object.element.style.opacity = `${(Math.sin(p) + 1) / 2 * 0.7 + 0.3}`;
+      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.4 + 0.6, transform: `scale(${1 + Math.sin(p) * 0.1})` });
       p += 0.02;
     });
   }
@@ -264,35 +211,39 @@ function ResultBackground(unit) {
 
 function ResultDetail(unit, { scores }) {
   xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-  xnew('<div class="w-full text-[4cqw] mb-[1cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
+  xnew('<div class="text-[4cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
 
   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
   let sum = 0;
   for (let i = 0; i < 8; i++) {
     sum += scores[i] * Math.pow(2, i);
-    xnew('<div class="w-full text-[3cqw] text-green-600 text-center">', (text) => {
-      text.element.textContent = `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}`;
-    });
+    xnew('<div class="text-[3cqw] text-green-600 text-center">', `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}`);
   }
 
-  xnew('<div class="text-[4cqw] mx-[2cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-green-600">');
+  xnew('<div class="mx-[2cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-green-600">');
   xnew('<div class="text-[4cqw] text-center text-yellow-500">', `⭐ 合計スコア: ${sum} ⭐`);
-  xnew('<div class="w-full pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
-    xnew(`<div class="${sum < 300 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'まだよわい');
-    xnew(`<div class="${(sum >= 300 && sum < 600) ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'ふつう');
-    xnew(`<div class="${sum >= 600 ? 'text-[3.5cqw] text-blue-500' : 'text-[2cqw] opacity-20'}">`, 'すごい');
+  xnew('<div class="pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
+    ['まだよわい', 'ふつう', 'すごい'].forEach((text, i) => {
+      if (sum >= i * 300 && sum < (i + 1) * 300) {
+        xnew('<div class="text-[3.5cqw] text-blue-500">', text);
+      } else {
+        xnew('<div class="text-[2cqw] opacity-20">', text);
+      }
+    });
   });
 }
 
 function ResultFooter(unit) {
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between">`);
-  xnew('<div class="flex items-center gap-x-[2cqw] flex-row-reverse">', () => {
-    xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '画面を保存');
-    xnew(CameraIcon).on('click', () => screenShot());
-  });
+  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between text-stone-500 font-bold">`);
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    xnew('<div class="text-[3cqw] text-stone-500 font-bold">', '戻る');
-    xnew(CloseButton).on('click', () => unit.emit('+main:nextscene', TitleScene));
+    const button = xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', xnew.icons.Camera, { frame: 'circle' });
+    button.on('click', () => screenShot());
+    xnew('<div class="text-[3cqw]">', '画面を保存');
+  });
+  xnew('<div class="flex items-center gap-x-[2cqw] flex-row-reverse">', () => {
+    const button = xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
+    button.on('click', () => unit.emit('+main:nextscene', TitleScene));
+    xnew('<div class="text-[3cqw]">', '戻る');
   });
 }
 
@@ -442,17 +393,15 @@ function Cursor(unit) {
 
 let prev = 0;
 function ModelBall(ball, { x, y, id = 0 }) {
-
   const scale = [0.7, 1.0, 1.3, 1.4, 1.6, 1.8, 1.9, 1.9, 1.9][id];
   const radius = 35 + Math.pow(3.0, scale * 2.0);
   xnew.extend(Circle, { x, y, radius, color: 0, alpha: 0.0 });
-
+  
   const now = new Date().getTime();
   if (now - prev > 200) {
     prev = now;
     const synth = xnew.audio.synthesizer({ oscillator: { type: 'triangle', envelope: { amount: 8, ADSR: [0, 500, 1, 0], }, }, filter: { type: 'bandpass', cutoff: 1000}, amp: { envelope: { amount: 1, ADSR: [20, 100, 0, 0], }, }, reverb: { time: 1000, mix: 0.2, },  });
-    const freq = ['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5', 'C6'][id];
-    synth.press(freq, 100);
+    synth.press(['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5', 'C6'][id], 100);
   }
 
   const model = xnew(Model, { id, scale });
@@ -464,15 +413,14 @@ function ModelBall(ball, { x, y, id = 0 }) {
     const position = convert3d(ball.object.x, ball.object.y);
     model.object.position.set(position.x, position.y, position.z);
     model.object.rotation.z = -ball.object.rotation;
-    if (ball.object.y > xpixi.canvas.height - 10) {
+    if (ball.object.y > xpixi.canvas.height) {
       ball.emit('+gameover');
       ball.finalize();
       return;
     }
 
     // merge check
-    for (const target of xnew.find(ModelBall).filter((target) => target !== ball && target.id === ball.id)) {
-      if (id >= 7) continue;
+    for (const target of xnew.find(ModelBall).filter((target) => target !== ball && target.id === ball.id && target.id < 7)) {
       const [a, b] = [ball.object, target.object];
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
@@ -497,8 +445,7 @@ function StarParticles(unit, { x, y }) {
     // yellow, gold, orange, white, pink, sky blue, light green, light pink
     const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0x98FB98, 0xFFB6C1][Math.floor(Math.random() * 8)];
 
-    const graphics = new PIXI.Graphics();
-    graphics.star(0, 0, 5, size, size * 0.5).fill(color);
+    const graphics = new PIXI.Graphics().star(0, 0, 5, size, size * 0.5).fill(color);
     container.addChild(graphics);
 
     const angle = (Math.PI * 2 / num) * i + Math.random() * 0.5;
@@ -536,6 +483,12 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
 }
 
 // helpers
+function StrokeText(unit, { text }) {
+  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
+  xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
+  unit.element.textContent = text;
+}
+
 function convert3d(x, y, z = 0) {
   return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }
@@ -543,7 +496,7 @@ function convert3d(x, y, z = 0) {
 function screenShot() {
   const element = xnew.find(Main)[0].element;
   xnew(element, (unit) => {
-    const cover = xnew.nest('<div class="absolute inset-0 w-full h-full z-10 bg-white">');
+    const cover = xnew.nest('<div class="absolute inset-0 size-full z-10 bg-white">');
     xnew.transition((p) => cover.style.opacity = 1 - p, 1000)
     .timeout(() => {
       html2canvas(element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {

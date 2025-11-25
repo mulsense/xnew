@@ -50,6 +50,11 @@
             var _a;
             return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.canvas;
         },
+        capture({ rect } = {}) {
+            const root = xnew.context('xpixi.root');
+            const frame = rect ? new PIXI__namespace.Rectangle(rect[0], rect[1], rect[2], rect[3]) : new PIXI__namespace.Rectangle(0, 0, root.canvas.width, root.canvas.height);
+            return root.renderer.extract.base64({ target: root.scene, frame });
+        }
     };
     function Root(self, { canvas }) {
         const root = {};

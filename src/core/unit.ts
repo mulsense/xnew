@@ -117,10 +117,6 @@ export class Unit {
         Unit.initialize(this, anchor);
     }
 
-    append(...args: any[]): void {
-        new Unit(this, ...args)
-    }
-
     static initialize(unit: Unit, anchor: UnitElement | null): void {
         const backup = Unit.current;
         Unit.current = unit;
@@ -448,12 +444,12 @@ export class UnitTimer {
         let counter = 0;
         const timer = new Timer({
             transition: (p: number) => {
-                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, p);
+                if (options.transition) Unit.scope(options.snapshot, options.transition, p);
             }, 
             timeout: () => {
-                if (options.transition !== undefined) Unit.scope(options.snapshot, options.transition, 1.0);
-                if (options.timeout !== undefined) Unit.scope(options.snapshot, options.timeout);
-                if (options.iterations !== undefined && counter >= options.iterations - 1) {
+                if (options.transition) Unit.scope(options.snapshot, options.transition, 1.0);
+                if (options.timeout) Unit.scope(options.snapshot, options.timeout);
+                if (options.iterations && counter >= options.iterations - 1) {
                     unit.finalize();
                 }
                 counter++;
