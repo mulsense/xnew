@@ -72,7 +72,7 @@ function GameScene(scene) {
   })
   scene.on('+gamescene:append', (Component, props) => xnew(Component, props));
 
-  xnew.timeout(() => scene.emit('+gameover'), 100);
+  // xnew.timeout(() => scene.emit('+gameover'), 100);
 
   scene.on('+gameover', () => {
     scene.off('+gameover');
