@@ -72,7 +72,7 @@ function GameScene(scene) {
   })
   scene.on('+gamescene:append', (Component, props) => xnew(Component, props));
 
-  // xnew.timeout(() => scene.emit('+gameover'), 100);
+  xnew.timeout(() => scene.emit('+gameover'), 100);
 
   scene.on('+gameover', () => {
     scene.off('+gameover');
@@ -190,7 +190,7 @@ function ResultBackground(unit) {
   // floating circle
   for (let i = 0; i < 20; i++) {
     const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
-    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.5;">`);
+    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
     object.on('-update', () => {
       Object.assign(object.element.style, { opacity: Math.sin(p) * 0.3 + 0.7, transform: `translateY(${Math.sin(p) * 20}px)` });
@@ -200,7 +200,7 @@ function ResultBackground(unit) {
   // twinkle circle
   for (let i = 0; i < 30; i++) {
     const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.5;">`);
+    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
     object.on('-update', () => {
       Object.assign(object.element.style, { opacity: Math.sin(p) * 0.4 + 0.6, transform: `scale(${1 + Math.sin(p) * 0.1})` });
