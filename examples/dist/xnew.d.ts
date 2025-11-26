@@ -357,10 +357,7 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
     strokeLinejoin?: string;
 }): void;
 
-declare function VolumeController(unit: Unit, { range, icon }?: {
-    range?: number | string;
-    icon?: number | string;
-}): void;
+declare function VolumeController(unit: Unit, {}?: {}): void;
 
 declare const icons: {
     AcademicCap(unit: Unit, props: Object): void;

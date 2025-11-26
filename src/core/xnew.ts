@@ -249,6 +249,5 @@ export const xnew = Object.assign(
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
 
-        
     }
 );

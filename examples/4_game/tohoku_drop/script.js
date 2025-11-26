@@ -48,7 +48,7 @@ function TitleScene(scene) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  xnew(VolumeController);
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-64 h-16 text-stone-500">', xnew.basics.VolumeController);
 }
 
 function GameScene(scene) {
@@ -64,7 +64,7 @@ function GameScene(scene) {
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   xnew(ScoreText);
-  xnew(VolumeController);
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-64 h-16 text-stone-500">', xnew.basics.VolumeController);
 
   const playing = xnew(() => {
     xnew(Controller);
@@ -144,35 +144,6 @@ function GameOverText(unit) {
   xnew.transition((p) => {
     Object.assign(unit.element.style, { opacity: p, top: `${10 + p * 15}cqw` });
   }, 1000, 'ease');
-}
-
-function VolumeController(unit) {
-  // footer
-  xnew.nest(`<div class="absolute bottom-0 right-[2cqw] h-[10cqw] px-[2cqw] flex items-center">`);
-  xnew.extend(xnew.basics.PointerEvent);
-  unit.on('-pointerdown', ({ event }) => event.stopPropagation());
-  
-  const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
-    style="display: none; width: 15cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
-  >`);
-
-  unit.on('-click:outside', () => slider.element.style.display = 'none');
-  const button = xnew((button) => {
-    xnew.nest('<div class="relative size-[8cqw] text-stone-500 cursor-pointer pointer-events-auto">');
-    let icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
-    return {
-      update() {
-        icon?.finalize();
-        icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
-      }
-    };
-  });
-
-  button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
-  slider.on('input', (e) => {
-    xnew.audio.volume = parseFloat(e.target.value) / 100;
-    button.update();
-  });
 }
 
 function ResultImage(unit, { image }) {

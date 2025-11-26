@@ -1,31 +1,33 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { PointerEvent } from './Event';
+import { master } from '../audio/audio';
+import { icons } from '../icons/icons';
 
-export function VolumeController(unit: Unit, { range = '10cqw', icon = 0 }: { range?: number | string, icon?: number | string } = {}) {
-    xnew.nest(`<div class="flex items-center">`);
+export function VolumeController(unit: Unit, {}: { } = {}) {
+    xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
     xnew.extend(PointerEvent);
-    unit.on('pointerdown', (event: any) => event.stopPropagation());
+    unit.on('-pointerdown', ({ event }: { event: PointerEvent }) => event.stopPropagation());
+    
+    const slider = xnew(`<input type="range" min="0" max="100" value="${master.gain.value * 100}"
+    style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
+    >`);
 
-    //   const slider = xnew(`<input
-    //     type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
-    //     style="display: none; width: 15cqw; cursor: pointer; accent-color: rgb(134, 94, 197);"
-    //   >`);
-    let cursor;
-    const slider = xnew(`<div style="width: ${range}; container-type: size; display: block;">`, () => {
-        xnew(`<div style="width: 100%; margin-top: -4cqw; height: 8cqw; border-radius: 4cqw; box-shadow: 0 0 2cqw currentColor;">`, () => {
-            cursor = xnew('<div style="background-color: currentColor;">')
-        });
+    unit.on('-click:outside', () => slider.element.style.display = 'none');
+    const button = xnew((button: Unit) => {
+    xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
+    let icon = xnew(master.gain.value > 0 ? icons.SpeakerWave : icons.SpeakerXMark);
+    return {
+        update() {
+        icon?.finalize();
+        icon = xnew(master.gain.value > 0 ? icons.SpeakerWave : icons.SpeakerXMark);
+        }
+    };
     });
 
-    //   unit.on('-click:outside', () => slider.element.style.display = 'none');
-    // const button = xnew(SpeakerIcon, { icon });
-    // button.on('click', () => {
-    //     slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'block';
-    //     console.log('click', slider.element.style.display);
-    // });
-    //   slider.on('input', (event: any) => {
-    //     button.change(event.target.value !== '0');
-    //     xnew.audio.volume = parseFloat(event.target.value) / 100;
-    //   });
+    button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
+    slider.on('input', (event: any) => {
+        master.gain.value = parseFloat(event.target.value) / 100;
+        button.update();
+    });
 }
