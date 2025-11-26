@@ -1156,7 +1156,7 @@
         return {
             close() {
                 xnew$1.transition((x) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing)
-                    .next(() => frame.finalize());
+                    .timeout(() => frame.finalize());
             }
         };
     }
