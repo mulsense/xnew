@@ -48,7 +48,7 @@ function TitleScene(scene) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-64 h-16 text-stone-500">', xnew.basics.VolumeController);
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', xnew.basics.VolumeController);
 }
 
 function GameScene(scene) {
@@ -64,7 +64,7 @@ function GameScene(scene) {
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   xnew(ScoreText);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-64 h-16 text-stone-500">', xnew.basics.VolumeController);
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', xnew.basics.VolumeController);
 
   const playing = xnew(() => {
     xnew(Controller);
