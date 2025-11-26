@@ -16,7 +16,7 @@ export function ModalFrame(frame: Unit,
     return {
         close() {
             xnew.transition((x: number) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing)
-            .next(() => frame.finalize());
+            .timeout(() => frame.finalize());
         }
     }
 }
