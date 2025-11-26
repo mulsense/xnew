@@ -459,4 +459,3 @@ export class UnitTimer {
         unit.on('-finalize', () => timer.clear());
     }
 }
-

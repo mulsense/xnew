@@ -102,46 +102,6 @@ declare class UnitPromise {
     finally(callback: Function): UnitPromise;
 }
 
-type SynthesizerOptions = {
-    oscillator: OscillatorOptions;
-    amp: AmpOptions;
-    filter?: FilterOptions;
-    reverb?: ReverbOptions;
-    bpm?: number;
-};
-type OscillatorOptions = {
-    type: OscillatorType;
-    envelope?: Envelope;
-    LFO?: LFO;
-};
-type FilterOptions = {
-    type: BiquadFilterType;
-    cutoff: number;
-};
-type AmpOptions = {
-    envelope: Envelope;
-};
-type ReverbOptions = {
-    time: number;
-    mix: number;
-};
-type Envelope = {
-    amount: number;
-    ADSR: [number, number, number, number];
-};
-type LFO = {
-    amount: number;
-    type: OscillatorType;
-    rate: number;
-};
-declare class Synthesizer {
-    props: SynthesizerOptions;
-    constructor(props: SynthesizerOptions);
-    press(frequency: number | string, duration?: number | string, wait?: number): {
-        release: () => void;
-    } | undefined;
-}
-
 interface CreateUnit {
     /**
      * Creates a new Unit component
@@ -296,11 +256,6 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
-    audio: {
-        load(path: string): UnitPromise;
-        synthesizer(props: SynthesizerOptions): Synthesizer;
-        volume: number;
-    };
 };
 
 declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
@@ -402,10 +357,7 @@ declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity,
     strokeLinejoin?: string;
 }): void;
 
-declare function VolumeController(unit: Unit, { range, icon }?: {
-    range?: number | string;
-    icon?: number | string;
-}): void;
+declare function VolumeController(unit: Unit, {}?: {}): void;
 
 declare const icons: {
     AcademicCap(unit: Unit, props: Object): void;
@@ -734,6 +686,46 @@ declare const icons: {
     XMark(unit: Unit, props: Object): void;
 };
 
+type SynthesizerOptions = {
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
+};
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
+};
+type Envelope = {
+    amount: number;
+    ADSR: [number, number, number, number];
+};
+type LFO = {
+    amount: number;
+    type: OscillatorType;
+    rate: number;
+};
+declare class Synthesizer {
+    props: SynthesizerOptions;
+    constructor(props: SynthesizerOptions);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
+        release: () => void;
+    } | undefined;
+}
+
 declare const basics: {
     Screen: typeof Screen;
     PointerEvent: typeof PointerEvent;
@@ -754,11 +746,18 @@ declare const basics: {
     DirectionalPad: typeof DirectionalPad;
     VolumeController: typeof VolumeController;
 };
+
+declare const audio: {
+    load(path: string): UnitPromise;
+    synthesizer(props: SynthesizerOptions): Synthesizer;
+    volume: number;
+};
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
 declare const xnew: (typeof xnew$1) & {
     basics: typeof basics;
+    audio: typeof audio;
     icons: typeof icons;
 };
 

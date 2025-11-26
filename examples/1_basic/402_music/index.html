@@ -26,8 +26,7 @@
           unit.reboot();
         });
       });
-      // Volume control
-      xnew('<div class="text-stone-500">', xnew.basics.VolumeController, { icon: '40px' });
+      xnew('<div class="w-64 h-8 text-stone-500">', xnew.basics.VolumeController);
     });
 
     function Button(unit, { name }) {
@@ -35,27 +34,6 @@
       unit.element.textContent = name;
     }
 
-    function VolumeControl(unit) {
-      xnew.nest('<div class="flex items-center gap-3 p-3 bg-gray-100 rounded-lg w-fit">');
-
-      // Volume label
-      xnew('<span class="text-sm font-medium">', 'volume');
-
-      // Volume slider
-      const slider = xnew('<input type="range" min="0" max="100" value="100" class="w-48 h-2 bg-blue-300 rounded-lg appearance-none cursor-pointer">');
-
-      // Volume value display
-      const valueDisplay = xnew('<span class="text-sm font-medium w-12 text-center">', 'volume-value');
-      valueDisplay.element.textContent = '100%';
-
-      // Update volume on slider change
-      slider.on('input', (e) => {
-        const value = e.target.value;
-        // xnew.audio.master.gain.value = value / 100; // Convert to 0-1 range
-        xnew.audio.volume = value / 100; // Convert to 0-1 range
-        valueDisplay.element.textContent = value + '%';
-      });
-    }
   </script>
 </body>
 </html>
