@@ -1,5 +1,4 @@
 import { Unit, UnitPromise, UnitTimer } from './unit';
-import { master, AudioFile, AudioFilePlayOptions, AudioFilePauseOptions, Synthesizer, SynthesizerOptions } from './audio';
 
 interface CreateUnit {
     /**
@@ -250,32 +249,6 @@ export const xnew = Object.assign(
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
 
-        audio: {
-            load(path: string): UnitPromise {
-                const music = new AudioFile(path);
-                const object = {
-                    play(options: AudioFilePlayOptions) {
-                        const unit = xnew();
-                        if (music.played === null) {
-                            music.play(options);
-                            unit.on('-finalize', () => music.pause({ fade: options.fade }));
-                        }
-                    },
-                    pause(options: AudioFilePauseOptions) {
-                        music.pause(options);
-                    }
-                }
-                return xnew.promise(music.promise).then(() => object);
-            },
-            synthesizer(props: SynthesizerOptions) {
-                return new Synthesizer(props);
-            },
-            get volume(): number {
-                return master.gain.value;
-            },
-            set volume(value: number) {
-                master.gain.value = value;
-            }
-        }
+        
     }
 );

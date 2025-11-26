@@ -1,5 +1,5 @@
 import { xnew as base } from './core/xnew';
-import { Unit } from './core/unit';
+import { Unit, UnitPromise } from './core/unit';
 
 import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } from './basics/Accordion';
 import { ResizeEvent, PointerEvent, KeyboardEvent } from './basics/Event';
@@ -32,10 +32,43 @@ const basics = {
     DirectionalPad,
     VolumeController
 };
+import { master, AudioFile, AudioFilePlayOptions, AudioFilePauseOptions, Synthesizer, SynthesizerOptions } from './audio/audio';
+
+const audio = {
+    load(path: string): UnitPromise {
+        const music = new AudioFile(path);
+        const object = {
+            play(options: AudioFilePlayOptions) {
+                const unit = xnew();
+                if (music.played === null) {
+                    music.play(options);
+                    unit.on('-finalize', () => music.pause({ fade: options.fade }));
+                }
+            },
+            pause(options: AudioFilePauseOptions) {
+                music.pause(options);
+            }
+        }
+        return xnew.promise(music.promise).then(() => object);
+    },
+    synthesizer(props: SynthesizerOptions) {
+        return new Synthesizer(props);
+    },
+    get volume(): number {
+        return master.gain.value;
+    },
+    set volume(value: number) {
+        master.gain.value = value;
+    }
+}
 
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
-const xnew: (typeof base) & { basics: typeof basics; icons: typeof icons; } = Object.assign(base, { basics, icons });
+const xnew: (typeof base) & {
+    basics: typeof basics;
+    audio: typeof audio;
+    icons: typeof icons;
+} = Object.assign(base, { basics, audio, icons });
 
 export default xnew;

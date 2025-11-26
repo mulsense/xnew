@@ -240,10 +240,10 @@ function ResultFooter(unit) {
     button.on('click', () => screenShot());
     xnew('<div class="text-[3cqw]">', '画面を保存');
   });
-  xnew('<div class="flex items-center gap-x-[2cqw] flex-row-reverse">', () => {
+  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
+    xnew('<div class="text-[3cqw]">', '戻る');
     const button = xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
     button.on('click', () => unit.emit('+main:nextscene', TitleScene));
-    xnew('<div class="text-[3cqw]">', '戻る');
   });
 }
 
@@ -360,8 +360,7 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
 }
 
 function Cursor(unit) {
-  const object = xpixi.nest(new PIXI.Container());
-  object.position.set(400, 40);
+  const object = xpixi.nest(new PIXI.Container({ position: { x: 400, y: 40 } }));
 
   const graphics = new PIXI.Graphics();
   graphics.moveTo(-24, 0).lineTo(24, 0).stroke({ color: 0xE84A57, width: 12 })
@@ -436,11 +435,9 @@ function ModelBall(ball, { x, y, id = 0 }) {
 }
 
 function StarParticles(unit, { x, y }) {
-  const container = xpixi.nest(new PIXI.Container());
-  container.position.set(x, y);
+  const container = xpixi.nest(new PIXI.Container({ position: { x, y } }));
 
-  const num = 4 + Math.floor(Math.random() * 2);
-  for (let i = 0; i < num; i++) {
+  for (let i = 0; i < 5; i++) {
     const size = 12 + Math.random() * 20;
     // yellow, gold, orange, white, pink, sky blue, light green, light pink
     const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0x98FB98, 0xFFB6C1][Math.floor(Math.random() * 8)];
@@ -448,7 +445,7 @@ function StarParticles(unit, { x, y }) {
     const graphics = new PIXI.Graphics().star(0, 0, 5, size, size * 0.5).fill(color);
     container.addChild(graphics);
 
-    const angle = (Math.PI * 2 / num) * i + Math.random() * 0.5;
+    const angle = (Math.PI * 2 / 5) * i + Math.random() * 0.5;
     const speed = 1 + Math.random() * 1.5;
     let [vx, vy, va] = [Math.cos(angle) * speed, Math.sin(angle) * speed, Math.random() * 0.3 - 0.15];
 
@@ -468,10 +465,9 @@ function StarParticles(unit, { x, y }) {
 }
 
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
-  const object = xpixi.nest(new PIXI.Container());
+  const object = xpixi.nest(new PIXI.Container({ position: { x, y } }));
   const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, radius, options));
   const graphics = new PIXI.Graphics().circle(0, 0, radius).fill(color);
-  object.position.set(x, y);
   object.addChild(graphics);
   object.alpha = alpha;
 
