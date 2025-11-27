@@ -78,7 +78,7 @@ function GameScene(scene) {
   scene.on('+gameover', () => {
     scene.off('+gameover');
     playing.finalize();
-    const image = xpixi.capture();
+    const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
     xnew(GameOverText);
 
     xnew.timeout(() => {
@@ -465,15 +465,14 @@ function screenShot() {
     xnew.transition((p) => cover.style.opacity = 1 - p, 1000)
     .timeout(() => {
       html2canvas(element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
-        const temp = document.createElement('canvas');
-        const ctx = temp.getContext('2d');
-        temp.width = canvas.width;
-        temp.height = Math.floor(canvas.height * 0.87);
-        ctx.drawImage(canvas, 0, 0, temp.width, temp.height, 0, 0, temp.width, temp.height);
+        const dst = document.createElement('canvas');
+        dst.width = canvas.width;
+        dst.height = Math.floor(canvas.height * 0.90);
+        dst.getContext('2d').drawImage(canvas, 0, 0, dst.width, dst.height, 0, 0, dst.width, dst.height);
 
         const link = document.createElement('a');
         link.download = 'image.png';
-        link.href = temp.toDataURL('image/png');
+        link.href = dst.toDataURL('image/png');
         link.click();
       });
 

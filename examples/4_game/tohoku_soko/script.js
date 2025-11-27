@@ -18,7 +18,6 @@ function Main(main) {
   const camera = new THREE.OrthographicCamera(-global.GRID / 2, +global.GRID / 2, +global.GRID / 2, -global.GRID / 2, 0, 100);
   xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height), camera });
   xthree.renderer.shadowMap.enabled = true;
-  xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -45 / 180 * Math.PI;
   xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 16);
@@ -30,6 +29,7 @@ function Main(main) {
     global.levels = levels;
     let scene = xnew(TitleScene);
     // xnew(GameScene, { id: 0 });
+
     main.on('+main:nextscene', (NextScene, props) => {
       scene.finalize();
       scene = xnew(NextScene, props);
@@ -87,7 +87,6 @@ function GameScene(scene, { id }) {
     xnew(GameClearText);
 
     xnew.timeout(() => {
-      xnew(xnew.basics.PointerEvent).on('-pointerdown', () => console.log('test'));
       xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
       xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
       function next(){
@@ -126,6 +125,7 @@ function Background(unit) {
     object.addChild(sprite);
   });
 }
+
 function StrokeText(unit, { text }) {
   const [sw, sc] = ['0.2cqw', '#EEEEEE'];
   xnew.nest(`<div class="font-bold" style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
@@ -133,15 +133,13 @@ function StrokeText(unit, { text }) {
 }
 
 function TitleText(unit) {
-  xnew((unit) => {
-    xnew.nest('<div class="absolute top-[20cqw] w-full text-amber-800 text-center text-[12cqw]">');
-    xnew(StrokeText, { text: 'とーほく 倉庫' });
-  });
-  xnew((unit) => {
-    xnew.nest('<div class="absolute top-[40cqw] w-full text-amber-800 text-center text-[6cqw]">');
-    xnew(StrokeText, { text: 'Select Stage' });
-    let count = 0;
-  });
+  xnew.nest('<div class="absolute top-[20cqw] w-full text-amber-800 text-center text-[12cqw]">');
+  xnew(StrokeText, { text: 'とーほく 倉庫' });
+}
+
+function TitleMessage(unit) {
+  xnew.nest('<div class="absolute top-[40cqw] w-full text-amber-800 text-center text-[6cqw]">');
+  xnew(StrokeText, { text: 'Select Stage' });
 }
 
 function StageSelect(unit) {
@@ -182,7 +180,7 @@ function Floor(unit) {
       const material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.7 });
       const tile = new THREE.Mesh(geometry, material);
 
-      const pos = position3d(x, y, 0);
+      const pos = convert3d(x, y, 0);
       tile.position.set(pos.x, pos.y, pos.z);
       tile.receiveShadow = true;
       object.add(tile);
@@ -238,7 +236,7 @@ function Wall(wall, { x, y }) {
     object.add(mesh);
   });
 
-  const position = position3d(x, y, height / 2);
+  const position = convert3d(x, y, height / 2);
   object.position.set(position.x, position.y, position.z);
 }
 
@@ -259,7 +257,7 @@ function Goal(goal, { x, y }) {
   const material = new THREE.MeshStandardMaterial({ color: 0x6666ff, emissive: 0x4444ff, emissiveIntensity: 0.3 });
   const object = xthree.nest(new THREE.Mesh(geometry, material));
 
-  const position = position3d(goal.x, goal.y, depth / 2);
+  const position = convert3d(goal.x, goal.y, depth / 2);
   object.position.set(position.x, position.y, position.z);
   object.rotation.x = Math.PI / 2;
   object.receiveShadow = true;
@@ -296,7 +294,7 @@ function Player(player, { id, x, y }) {
 
   const offset = { x: 0, y: 0 };
   player.on('-update', () => {
-    const position = position3d(x - offset.x, y - offset.y + 0.3, 0);
+    const position = convert3d(x - offset.x, y - offset.y + 0.3, 0);
     object.position.set(position.x, position.y, position.z);
   });
   return {
@@ -343,7 +341,7 @@ function Box(box, { x, y }) {
   let rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
   box.on('-update', () => {
-    const position = position3d(x - offset.x, y - offset.y, boxSize / 2);
+    const position = convert3d(x - offset.x, y - offset.y, boxSize / 2);
     object.position.set(position.x + rondom.x, position.y + rondom.y, position.z);
 
     const isOnGoal = xnew.find(Goal).some(g => g.x === x && g.y === y);
@@ -510,7 +508,7 @@ function Model(unit, { id = 0, scale }) {
 }
 
 // helpers
-function position3d(gridX, gridY, z = 0) {
+function convert3d(gridX, gridY, z = 0) {
   const global = xnew.context('global');
   return { x: (gridX + 0.5) - global.GRID / 2, y: -((gridY + 0.5) - global.GRID / 2), z: z };
 }
