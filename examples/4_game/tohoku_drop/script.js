@@ -24,8 +24,8 @@ function Main(main) {
 
   xnew.audio.volume = 0.1;
 
-  let scene = xnew(TitleScene);
-  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  // let scene = xnew(TitleScene);
+  let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
   main.on('+main:nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
@@ -157,15 +157,13 @@ function ResultBackground(unit) {
   xnew.nest(`<div class="relative size-full bg-gradient-to-br from-stone-300 to-stone-400">`);
   xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
   
-  xnew.nest('<div class="absolute inset-0 size-full" style="opacity: 0.3;">');
-  
   // floating circle
   for (let i = 0; i < 20; i++) {
     const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
     const object = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
     object.on('-update', () => {
-      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.3 + 0.7, transform: `translateY(${Math.sin(p) * 20}px)` });
+      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
       p += 0.02;
     });
   }
@@ -175,7 +173,7 @@ function ResultBackground(unit) {
     const object = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
     object.on('-update', () => {
-      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.4 + 0.6, transform: `scale(${1 + Math.sin(p) * 0.1})` });
+      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
       p += 0.02;
     });
   }
@@ -467,7 +465,7 @@ function screenShot() {
       html2canvas(element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
         const dst = document.createElement('canvas');
         dst.width = canvas.width;
-        dst.height = Math.floor(canvas.height * 0.90);
+        dst.height = Math.floor(canvas.height * 0.87);
         dst.getContext('2d').drawImage(canvas, 0, 0, dst.width, dst.height, 0, 0, dst.width, dst.height);
 
         const link = document.createElement('a');

@@ -145,28 +145,22 @@ function TitleMessage(unit) {
 
 function StageSelect(unit) {
   const global = xnew.context('global');
-
-  // 上段: ステージ1-4
-  xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw] text-gray-800 font-bold">', () => {
+  // stage 1-4
+  xnew('<div class="absolute top-[55cqw] w-full flex justify-center gap-[4cqw] text-gray-800">', () => {
     for (let i = 0; i < 4 && i < global.levels.length; i++) {
-      const button = xnew(`<button
-        class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer aspect-square w-[14cqw]"
-      >`, `${i + 1}`);
-
-      button.on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
+      xnew(Button, { id: i + 1 }).on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
     }
   });
-
-  // 下段: ステージ5-7
-  xnew('<div class="absolute top-[75cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw] text-gray-800 font-bold">', () => {
+  // stage 5-7
+  xnew('<div class="absolute top-[75cqw] w-full flex justify-center gap-[4cqw] text-gray-800">', () => {
     for (let i = 4; i < global.levels.length; i++) {
-      const button = xnew(`<button
-        class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer spect-square w-[14cqw]"
-      >`, `${i + 1}`);
-
-      button.on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
+      xnew(Button, { id: i + 1 }).on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
     }
   });
+  function Button(unit, { id }) {
+    xnew.nest(`<button class="size-[14cqw] border-[0.5cqw] border-green-200 rounded-[1cqw] text-[8cqw] font-bold text-green-200 hover:bg-green-400 cursor-pointer">`);
+    unit.element.textContent = `${id}`;
+  }
 }
 
 function Floor(unit) {
@@ -187,12 +181,12 @@ function Floor(unit) {
     }
   }
 
-  // グリッド線を作成（太く黄色に）
+  // Create grid lines
   const lineMaterial = new THREE.LineBasicMaterial({ color: 0xCCCCAA });
   lineMaterial.transparent = true;
   lineMaterial.opacity = 0.9;
 
-  // 横線を作成
+  // Create horizontal lines
   for (let i = 0; i <= global.GRID; i++) {
     const geometry = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-global.GRID / 2, -global.GRID / 2 + i, 0.01),
@@ -419,11 +413,18 @@ function Button(button, { text }) {
 }
 
 function InfoPanel(unit, { id }) {
-  xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
+  xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700">', (unit) => {
+
+    xnew(StrokeText, { text: `Level ${id + 1}` });
+  });
   
   xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {
-    xnew(Button, { text: 'Reset' }).on('click', () => unit.emit('+restart'));
-    xnew(Button, { text: 'Title' }).on('click', () => unit.emit('+main:nextscene', TitleScene));
+    
+    xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', 
+      xnew.icons.ArrowPath, { frame: 'circle' }).on('click', () => unit.emit('+restart'));
+
+    xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', 
+      xnew.icons.Home, { frame: 'circle' }).on('click', () => unit.emit('+main:nextscene', TitleScene));
   });
 
   xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', (screen) => {
