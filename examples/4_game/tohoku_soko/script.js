@@ -40,6 +40,7 @@ function Main(main) {
 function TitleScene(unit) {
   xnew(Background);
   xnew(TitleText);
+  xnew(TitleMessage);
   xnew(StageSelect);
 }
 
@@ -144,10 +145,9 @@ function TitleMessage(unit) {
 
 function StageSelect(unit) {
   const global = xnew.context('global');
-  xnew.nest(`<div class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold">`);
 
   // 上段: ステージ1-4
-  xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
+  xnew('<div class="absolute top-[55cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw] text-gray-800 font-bold">', () => {
     for (let i = 0; i < 4 && i < global.levels.length; i++) {
       const button = xnew(`<button
         class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer aspect-square w-[14cqw]"
@@ -158,7 +158,7 @@ function StageSelect(unit) {
   });
 
   // 下段: ステージ5-7
-  xnew('<div class="absolute top-[75cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw]">', () => {
+  xnew('<div class="absolute top-[75cqw] left-[15cqw] right-[15cqw] flex justify-center gap-[4cqw] text-gray-800 font-bold">', () => {
     for (let i = 4; i < global.levels.length; i++) {
       const button = xnew(`<button
         class="border-[0.5cqw] border-green-200 rounded-lg text-[8cqw] text-green-200 hover:bg-green-400 pointer-events-auto cursor-pointer spect-square w-[14cqw]"
@@ -419,10 +419,6 @@ function Button(button, { text }) {
 }
 
 function InfoPanel(unit, { id }) {
-  xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
   xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700" style="-webkit-text-stroke: 0.2cqw white;">', `Level ${id + 1}`);
   
   xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {
@@ -446,7 +442,6 @@ function InfoPanel(unit, { id }) {
     xnew(Model, { id, scale: 0.9 });
   });
 }
-
 
 function Model(unit, { id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
@@ -498,13 +493,7 @@ function Model(unit, { id = 0, scale }) {
     count++;
   });
 
-  return {
-    object,
-    setPosition(x, y, a) {
-      object.position.set((x - xpixi.canvas.width / 2) / 70, - (y - xpixi.canvas.height / 2) / 70, 0);
-      object.rotation.z = -a;
-    },
-  }
+  return { object }
 }
 
 // helpers
