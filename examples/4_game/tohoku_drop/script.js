@@ -24,8 +24,8 @@ function Main(main) {
 
   xnew.audio.volume = 0.1;
 
-  // let scene = xnew(TitleScene);
-  let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  let scene = xnew(TitleScene);
+  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
   main.on('+main:nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
