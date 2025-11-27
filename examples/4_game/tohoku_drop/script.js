@@ -25,6 +25,7 @@ function Main(main) {
   xnew.audio.volume = 0.1;
 
   let scene = xnew(TitleScene);
+  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
   main.on('+main:nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
@@ -149,7 +150,7 @@ function GameOverText(unit) {
 function ResultImage(unit, { image }) {
   xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
   const img = xnew('<img class="absolute inset-0 size-full object-cover">');
-  image.then((src) => img.element.src = src);
+  image?.then((src) => img.element.src = src);
 }
 
 function ResultBackground(unit) {
@@ -205,15 +206,15 @@ function ResultDetail(unit, { scores }) {
 }
 
 function ResultFooter(unit) {
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between text-stone-500 font-bold">`);
+  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between text-stone-500">`);
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    const button = xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', xnew.icons.Camera, { frame: 'circle' });
+    const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.Camera, { frame: 'circle' });
     button.on('click', () => screenShot());
-    xnew('<div class="text-[3cqw]">', '画面を保存');
+    xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
   });
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    xnew('<div class="text-[3cqw]">', '戻る');
-    const button = xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
+    xnew('<div class="text-[3cqw] font-bold">', '戻る');
+    const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
     button.on('click', () => unit.emit('+main:nextscene', TitleScene));
   });
 }
@@ -262,19 +263,16 @@ function Queue(unit) {
   let model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
 
   unit.on('+reload', () => {
-    model.finalize();
-    const next = balls.shift();
     const position = convert3d(10, 70);
     const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
-    model = xnew(Model, { position, rotation, id: balls[0], scale: 0.6 });
+    model.finalize();
+    model = xnew(Model, { position, rotation, id: balls[1], scale: 0.6 });
 
     balls.push(Math.floor(Math.random() * 3));
     xnew.transition((p) => {
       const position = convert3d(10 + p * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
-    }, 500).timeout(() => {
-      unit.emit('+relode:done', next);
-    });
+    }, 500).timeout(() => unit.emit('+relode:done', balls.shift()));
   });
 }
 
