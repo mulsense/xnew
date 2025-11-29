@@ -1421,7 +1421,7 @@ function DirectionalPad(self, { size, diagonal = true, fill = '#FFF', fillOpacit
 const context = window.AudioContext ? new window.AudioContext() : (null);
 const master = context ? context.createGain() : (null);
 if (context) {
-    master.gain.value = 1.0;
+    master.gain.value = 0.1;
     master.connect(context.destination);
 }
 class AudioFile {

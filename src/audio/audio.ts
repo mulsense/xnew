@@ -1,7 +1,7 @@
 export const context: AudioContext = window.AudioContext ? new window.AudioContext() : (null!);
 export const master: GainNode = context ? context.createGain() : (null!);
 if (context) {
-    master.gain.value = 1.0;
+    master.gain.value = 0.1;
     master.connect(context.destination);
 }
 

@@ -9,28 +9,28 @@ import xthree from '@mulsense/xnew/addons/xthree';
 
 xnew('#main', Main);
 
-function Main(main) {
-  const global = { GRID: 10, levels: null };
-  xnew.context('global', global);
-  xnew.extend(xnew.basics.Screen, { width: 700, height: 700 });
+function Main(unit) {
+  xnew.context('global', { GRID: 10, levels: null });
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 450 });
 
   // three
-  const camera = new THREE.OrthographicCamera(-global.GRID / 2, +global.GRID / 2, +global.GRID / 2, -global.GRID / 2, 0, 100);
-  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height), camera });
+  const size = xnew.context('global').GRID / 2;
+  const camera = new THREE.OrthographicCamera(-size, +size, +size, -size, 0, 100);
+  xthree.initialize({ canvas: new OffscreenCanvas(450, 450), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
-  xthree.scene.rotation.x = -45 / 180 * Math.PI;
-  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 16);
+  xthree.scene.rotation.x = -40 / 180 * Math.PI;
+  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 22);
 
   // pixi 
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
-    global.levels = levels;
-    let scene = xnew(TitleScene);
-    // xnew(GameScene, { id: 0 });
+    xnew.context('global').levels = levels;
+    // let scene = xnew(TitleScene);
+    let scene = xnew(GameScene, { id: 0 });
 
-    main.on('+main:nextscene', (NextScene, props) => {
+    unit.on('+nextscene', (NextScene, props) => {
       scene.finalize();
       scene = xnew(NextScene, props);
     });
@@ -53,7 +53,7 @@ function GameScene(scene, { id }) {
   xnew(AmbientLight);
   xnew(Background);
   xnew(Floor);
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 0, y: -60 } });
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 350 / 2, y: 0 } });
 
   xnew(InfoPanel, { id });
   xnew(Controller);
@@ -82,20 +82,19 @@ function GameScene(scene, { id }) {
     const boxes = xnew.find(Box);
     const goals = xnew.find(Goal);
     const cleared = goals.every(g => boxes.some(b => b.x === g.x && b.y === g.y));
-    if (cleared === false) return;
+    //if (cleared === false) return;
     scene.off('+moved');
 
     xnew(GameClearText);
 
     xnew.timeout(() => {
-      xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
-      xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
+      unit.on('pointerdown', next);
       function next(){
         scene.finalize();
         if (id + 1 < global.levels.length) {
-            scene.emit('+main:nextscene', GameScene, { id: id + 1 });
+            scene.emit('+nextscene', GameScene, { id: id + 1 });
         } else {
-            scene.emit('+main:nextscene', TitleScene);
+            scene.emit('+nextscene', TitleScene);
         }
       }
     }, 1000);
@@ -128,38 +127,30 @@ function Background(unit) {
 }
 
 function StrokeText(unit, { text }) {
-  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
+  const [sw, sc] = ['0.1cqw', '#EEEEEE'];
   xnew.nest(`<div class="font-bold" style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
   unit.element.textContent = text;
 }
 
 function TitleText(unit) {
-  xnew.nest('<div class="absolute top-[20cqw] w-full text-amber-800 text-center text-[12cqw]">');
+  xnew.nest('<div class="absolute top-[20cqh] w-full text-amber-800 text-center text-[12cqw]">');
   xnew(StrokeText, { text: 'とーほく 倉庫' });
 }
 
 function TitleMessage(unit) {
-  xnew.nest('<div class="absolute top-[40cqw] w-full text-amber-800 text-center text-[6cqw]">');
+  xnew.nest('<div class="absolute top-[50cqh] w-full text-amber-800 text-center text-[6cqw]">');
   xnew(StrokeText, { text: 'Select Stage' });
 }
 
 function StageSelect(unit) {
   const global = xnew.context('global');
-  // stage 1-4
-  xnew('<div class="absolute top-[55cqw] w-full flex justify-center gap-[4cqw] text-gray-800">', () => {
-    for (let i = 0; i < 4 && i < global.levels.length; i++) {
-      xnew(Button, { id: i + 1 }).on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
-    }
-  });
-  // stage 5-7
-  xnew('<div class="absolute top-[75cqw] w-full flex justify-center gap-[4cqw] text-gray-800">', () => {
-    for (let i = 4; i < global.levels.length; i++) {
-      xnew(Button, { id: i + 1 }).on('click', () => unit.emit('+main:nextscene', GameScene, { id: i }));
-    }
-  });
-  function Button(unit, { id }) {
-    xnew.nest(`<button class="size-[14cqw] border-[0.5cqw] border-green-200 rounded-[1cqw] text-[8cqw] font-bold text-green-200 hover:bg-green-400 cursor-pointer">`);
-    unit.element.textContent = `${id}`;
+  xnew.nest('<div class="absolute top-[40cqw] w-full flex justify-center gap-[2cqw] text-gray-800">');
+  for (let i = 0; i < global.levels.length; i++) {
+    xnew((unit) => {
+      xnew.nest(`<button class="size-[10cqw] border-[0.5cqw] border-green-200 rounded-[1cqw] text-[5cqw] font-bold text-green-200 hover:bg-green-400 cursor-pointer">`);
+      unit.element.textContent = `${i + 1}`;
+      unit.on('click', () => unit.emit('+nextscene', GameScene, { id: i }));
+    })
   }
 }
 
@@ -315,8 +306,7 @@ function Box(box, { x, y }) {
   const object = xthree.nest(new THREE.Object3D());
   let material = null;
   xnew.promise(new Promise((resolve) => {
-    const loader = new PLYLoader();
-    loader.load('../assets/soko_block.ply', (geometry) => resolve(geometry));
+    new PLYLoader().load('../assets/soko_block.ply', (geometry) => resolve(geometry));
   })).then((geometry) => {
     geometry.computeVertexNormals();
     material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xEEEEEE });
@@ -364,10 +354,6 @@ function Box(box, { x, y }) {
 }
 
 function Controller(unit) {
-  xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
   xnew(xnew.basics.KeyboardEvent).on('-keydown:arrow', ({ event, vector }) => {
     event.preventDefault();
     move(vector);
@@ -392,29 +378,17 @@ function Controller(unit) {
   }
 }
 
-function GameClearText(text) {
-  xnew.nest(`<div 
-    class="absolute inset-0 w-full h-full pointer-events-none text-gray-800 font-bold select-none"
-    style="container-type: size;">
-  >`);
-  xnew.nest('<div class="absolute top-[16cqw] w-full text-center text-[14cqw] text-yellow-300" style="-webkit-text-stroke: 0.2cqw white;">');
-  text.element.textContent = 'Stage Clear!';
+function GameClearText(unit) {
+  xnew.nest('<div class="absolute w-full text-center text-[14cqw] text-yellow-400">');
+  xnew(StrokeText, { text: 'Stage Clear!' });
   xnew.transition((x) => {
-    text.element.style.opacity = x;
-    text.element.style.top = `${16 + x * 10}cqw`;
+    unit.element.style.opacity = x;
+    unit.element.style.top = `${16 + x * 10}cqh`;
   }, 1000, 'ease');
 }
 
-function Button(button, { text }) {
-  xnew.nest(`<button
-    class="border-[0.5cqw] border-green-200 rounded-full px-[4cqw] py-[1cqw] hover:bg-green-400 pointer-events-auto cursor-pointer"
-  >`);
-  button.element.textContent = text;
-}
-
 function InfoPanel(unit, { id }) {
-  xnew('<div class="absolute bottom-[12cqw] w-full text-[12cqw] text-center text-green-700">', (unit) => {
-
+  xnew('<div class="absolute top-[-4cqh] w-full text-[8cqw] text-center text-green-700">', (unit) => {
     xnew(StrokeText, { text: `Level ${id + 1}` });
   });
   
@@ -422,9 +396,8 @@ function InfoPanel(unit, { id }) {
     
     xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', 
       xnew.icons.ArrowPath, { frame: 'circle' }).on('click', () => unit.emit('+restart'));
-
     xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', 
-      xnew.icons.Home, { frame: 'circle' }).on('click', () => unit.emit('+main:nextscene', TitleScene));
+      xnew.icons.Home, { frame: 'circle' }).on('click', () => unit.emit('+nextscene', TitleScene));
   });
 
   xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', (screen) => {

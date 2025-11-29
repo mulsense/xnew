@@ -11,28 +11,26 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // setup three 
-  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
 
   // setup pixi
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
 
-  xnew.audio.volume = 0.1;
-
-  let scene = xnew(TitleScene);
-  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
-  main.on('+main:nextscene', (NextScene, props) => {
+  // let scene = xnew(TitleScene);
+  let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  unit.on('+nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
 }
 
-function TitleScene(scene) {
+function TitleScene(unit) {
   xnew(Background);
   xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
@@ -45,14 +43,14 @@ function TitleScene(scene) {
   }
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
-  scene.on('pointerdown', () => scene.emit('+main:nextscene', GameScene));
+  unit.on('pointerdown', () => unit.emit('+nextscene', GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
   xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', xnew.basics.VolumeController);
 }
 
-function GameScene(scene) {
+function GameScene(unit) {
   xmatter.initialize();
   xnew.context('gamescene', { scores: [0, 0, 0, 0, 0, 0, 0, 0] });
 
@@ -67,16 +65,16 @@ function GameScene(scene) {
   xnew(ScoreText);
   xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', xnew.basics.VolumeController);
 
-  const playing = xnew(() => {
+  const playing = xnew((unit) => {
     xnew(Controller);
     xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
-  scene.on('+gamescene:append', (Component, props) => xnew(Component, props));
+  unit.on('+append', (Component, props) => xnew(Component, props));
 
   // xnew.timeout(() => scene.emit('+gameover'), 100);
 
-  scene.on('+gameover', () => {
-    scene.off('+gameover');
+  unit.on('+gameover', () => {
+    unit.off('+gameover');
     playing.finalize();
     const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
     xnew(GameOverText);
@@ -84,18 +82,21 @@ function GameScene(scene) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => scene.emit('+main:nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
+      .timeout(() => unit.emit('+nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
     }, 2000);
   });
 }
 
-function ResultScene(scene, { image, scores }) {
-  xnew.audio.load('../assets/st005.mp3').then((music) => music.play({ fade: 1000, loop: true }));
+function ResultScene(unit, { image, scores }) {
+  xnew.audio.load('../assets/st005.mp3').then((music) => {
+    music.play({ fade: 1, loop: true });
+    console.log(music);
+  });
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
   xnew.transition((x) => {
-    Object.assign(scene.element.style, { opacity: x, transform: `scale(${0.8 + x * 0.2})` });
+    Object.assign(unit.element.style, { opacity: x, transform: `scale(${0.8 + x * 0.2})` });
   }, 500, 'ease');
 
   xnew(ResultBackground);
@@ -148,7 +149,7 @@ function GameOverText(unit) {
 }
 
 function ResultImage(unit, { image }) {
-  xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] w-[45cqw] h-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
+  xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] size-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
   const img = xnew('<img class="absolute inset-0 size-full object-cover">');
   image?.then((src) => img.element.src = src);
 }
@@ -160,20 +161,20 @@ function ResultBackground(unit) {
   // floating circle
   for (let i = 0; i < 20; i++) {
     const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
-    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
+    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
-    object.on('-update', () => {
-      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
+    circle.on('-update', () => {
+      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
       p += 0.02;
     });
   }
   // twinkle circle
   for (let i = 0; i < 30; i++) {
     const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const object = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
+    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
-    object.on('-update', () => {
-      Object.assign(object.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
+    circle.on('-update', () => {
+      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
       p += 0.02;
     });
   }
@@ -204,7 +205,7 @@ function ResultDetail(unit, { scores }) {
 }
 
 function ResultFooter(unit) {
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[10cqw] px-[2cqw] flex justify-between text-stone-500">`);
+  xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.Camera, { frame: 'circle' });
     button.on('click', () => screenShot());
@@ -213,7 +214,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
-    button.on('click', () => unit.emit('+main:nextscene', TitleScene));
+    button.on('click', () => unit.emit('+nextscene', TitleScene));
   });
 }
 
@@ -344,7 +345,7 @@ function Cursor(unit) {
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      unit.emit('+gamescene:append', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      unit.emit('+append', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
       model.finalize();
       model = null;
       unit.emit('+reload');
@@ -373,7 +374,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const model = xnew(Model, { id, scale });
   ball.emit('+scoreup', id);
 
-  ball.emit('+gamescene:append', StarParticles, { x, y });
+  ball.emit('+append', StarParticles, { x, y });
   
   ball.on('-update', () => {
     const position = convert3d(ball.object.x, ball.object.y);
@@ -391,7 +392,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
-        ball.emit('+gamescene:append', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
+        ball.emit('+append', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         ball.finalize();
         target.finalize();
         break;
