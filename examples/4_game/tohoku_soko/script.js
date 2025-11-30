@@ -42,6 +42,7 @@ function Main(unit) {
 
 function TitleScene(unit) {
   xnew(Background);
+  xnew(MistEffect);
   xnew(TitleText);
   xnew(StageSelect);
 }
@@ -178,6 +179,121 @@ function Background(unit) {
     const sprite = new PIXI.Sprite(texture);
     sprite.scale.set(xpixi.canvas.width / texture.frame.width, xpixi.canvas.height / texture.frame.height);
     object.addChild(sprite);
+  });
+}
+
+function MistEffect(unit) {
+  const container = xpixi.nest(new PIXI.Container());
+  const particles = [];
+  const particleCount = 50;
+
+  // グラデーションテクスチャを作成する関数
+  function createGradientTexture(radius, baseAlpha) {
+    const canvas = document.createElement('canvas');
+    const size = radius * 2;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const gradient = ctx.createRadialGradient(radius, radius, 0, radius, radius, radius);
+    gradient.addColorStop(0, `rgba(255, 255, 255, ${baseAlpha})`);
+    gradient.addColorStop(0.5, `rgba(255, 255, 255, ${baseAlpha * 0.5})`);
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    return PIXI.Texture.from(canvas);
+  }
+
+  // 霞のパーティクル生成
+  for (let i = 0; i < particleCount; i++) {
+    const radius = 60 + Math.random() * 120;
+    const baseAlpha = 0.05 + Math.random() * 0.15;
+    const texture = createGradientTexture(radius, baseAlpha);
+
+    const sprite = new PIXI.Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.x = Math.random() * xpixi.canvas.width;
+    sprite.y = Math.random() * xpixi.canvas.height;
+
+    const particle = {
+      sprite,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.01 + Math.random() * 0.02
+    };
+
+    particles.push(particle);
+    container.addChild(sprite);
+  }
+
+  // 細かいチリのパーティクル生成
+  const dustParticles = [];
+  const dustCount = 80;
+
+  for (let i = 0; i < dustCount; i++) {
+    const graphics = new PIXI.Graphics();
+    const radius = 1 + Math.random() * 1;
+
+    graphics.beginPath();
+    graphics.circle(0, 0, radius);
+    graphics.fill({ color: 0xFFFFFF, alpha: 0.3 + Math.random() * 0.4 });
+
+    graphics.x = Math.random() * xpixi.canvas.width;
+    graphics.y = Math.random() * xpixi.canvas.height;
+
+    const dust = {
+      graphics,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: -0.2 - Math.random() * 0.5, // 上方向に浮遊
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.02 + Math.random() * 0.03,
+      wobbleStrength: 0.3 + Math.random() * 0.5
+    };
+
+    dustParticles.push(dust);
+    container.addChild(graphics);
+  }
+
+  let count = 0;
+  unit.on('-update', () => {
+    count++;
+
+    // 霞の更新
+    particles.forEach(particle => {
+      // 波のような動き
+      particle.sprite.x += particle.vx + Math.sin(count * particle.speed + particle.phase) * 0.2;
+      particle.sprite.y += particle.vy + Math.cos(count * particle.speed + particle.phase) * 0.2;
+
+      // 画面端で折り返し
+      if (particle.sprite.x < -100) particle.sprite.x = xpixi.canvas.width + 150;
+      if (particle.sprite.x > xpixi.canvas.width + 100) particle.sprite.x = -150;
+      if (particle.sprite.y < -100) particle.sprite.y = xpixi.canvas.height + 150;
+      if (particle.sprite.y > xpixi.canvas.height + 100) particle.sprite.y = -150;
+
+      // 透明度の変化
+      particle.sprite.alpha = 0.5 + Math.sin(count * particle.speed + particle.phase) * 0.2;
+    });
+
+    // チリの更新
+    dustParticles.forEach(dust => {
+      // 左右に揺れながら上昇
+      dust.graphics.x += dust.vx + Math.sin(count * dust.speed + dust.phase) * dust.wobbleStrength;
+      dust.graphics.y += dust.vy;
+
+      // 画面端で折り返し
+      if (dust.graphics.x < -10) dust.graphics.x = xpixi.canvas.width + 10;
+      if (dust.graphics.x > xpixi.canvas.width + 10) dust.graphics.x = -10;
+      if (dust.graphics.y < -10) {
+        dust.graphics.y = xpixi.canvas.height + 10;
+        dust.graphics.x = Math.random() * xpixi.canvas.width;
+      }
+
+      // 透明度の変化（キラキラ感）
+      dust.graphics.alpha = 0.1 + Math.sin(count * dust.speed * 3 + dust.phase) * 0.1;
+    });
   });
 }
 
