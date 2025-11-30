@@ -8,6 +8,7 @@ import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
+import { TextStream } from './basics/Text';
 import { VolumeController } from './basics/Audio';
 
 import { icons } from './icons/icons';
@@ -26,12 +27,14 @@ const basics = {
     TabFrame,
     TabButton,
     TabContent,
+    TextStream,
     DragFrame,
     DragTarget,
     AnalogStick,
     DirectionalPad,
     VolumeController
 };
+
 import { master, AudioFile, AudioFilePlayOptions, AudioFilePauseOptions, Synthesizer, SynthesizerOptions } from './audio/audio';
 
 const audio = {

@@ -120,7 +120,7 @@ function Texture(unit, { texture } = {}) {
 
 function TitleText(unit) {
   xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600 font-bold">');
-  xnew(StrokeText, { text: 'とーほく ドロップ' });
+  xnew(StrokeText, { text: 'とーほくドロップ' });
 }
 
 function TouchMessage(unit) {

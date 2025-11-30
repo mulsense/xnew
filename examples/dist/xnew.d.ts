@@ -336,25 +336,31 @@ declare function DragFrame(frame: Unit, { x, y }?: {
 }): void;
 declare function DragTarget(target: Unit, {}?: {}): void;
 
-declare function AnalogStick(self: Unit, { size, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function AnalogStick(self: Unit, { size, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     size?: number;
-    diagonal?: boolean;
-    fill?: string;
-    fillOpacity?: number;
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
     strokeLinejoin?: string;
+    diagonal?: boolean;
+    fill?: string;
+    fillOpacity?: number;
 }): void;
-declare function DirectionalPad(self: Unit, { size, diagonal, fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin }?: {
+declare function DirectionalPad(self: Unit, { size, diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     size?: number;
-    diagonal?: boolean;
-    fill?: string;
-    fillOpacity?: number;
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
     strokeLinejoin?: string;
+    diagonal?: boolean;
+    fill?: string;
+    fillOpacity?: number;
+}): void;
+
+declare function TextStream(unit: Unit, { text, speed, fade }?: {
+    text?: string;
+    speed?: number;
+    fade?: number;
 }): void;
 
 declare function VolumeController(unit: Unit, {}?: {}): void;
@@ -740,6 +746,7 @@ declare const basics: {
     TabFrame: typeof TabFrame;
     TabButton: typeof TabButton;
     TabContent: typeof TabContent;
+    TextStream: typeof TextStream;
     DragFrame: typeof DragFrame;
     DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;

@@ -7,23 +7,21 @@ import { PointerEvent, ResizeEvent } from './Event';
 //----------------------------------------------------------------------------------------------------
 
 function SVGTemplate(self: Unit,
-    { fill = null, fillOpacity = 0.8, stroke = null, strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' } 
-    : { fill: string | null, fillOpacity: number, stroke: string | null, strokeOpacity: number, strokeWidth: number, strokeLinejoin: string },
+    { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 } 
+    : { stroke?: string, strokeOpacity: number, strokeWidth: number, strokeLinejoin: string, fill: string | null, fillOpacity: number },
 ) {
     xnew.nest(`<svg
         viewBox="0 0 100 100"
         style="position: absolute; width: 100%; height: 100%; pointer-select: none;
+        stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
-        ${stroke ? `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};` : ''}
     ">`);
 }
 
 
-
 export function AnalogStick(self: Unit,
-    { size, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
-    { size?: number, diagonal?: boolean,fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
-
+    { size, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 }:
+    { size?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, diagonal?: boolean,fill?: string, fillOpacity?: number } = {}
 ) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
     let internal: Unit;
@@ -88,8 +86,8 @@ export function AnalogStick(self: Unit,
 }
 
 export function DirectionalPad(self: Unit,
-    { size, diagonal = true, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round' }:
-    { size?: number, diagonal?: boolean, fill?: string, fillOpacity?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string } = {}
+    { size, diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 }:
+    { size?: number, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, diagonal?: boolean, fill?: string, fillOpacity?: number } = {}
 ) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
     let internal: Unit;
@@ -116,7 +114,7 @@ export function DirectionalPad(self: Unit,
 
         const targets = polygons.map((polygon) => {
             return xnew((self: Unit) => {
-                xnew.extend(SVGTemplate, { fill, fillOpacity });
+                xnew.extend(SVGTemplate, { stroke: 'none', fill, fillOpacity });
                 xnew(polygon);
             });
         });

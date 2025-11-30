@@ -16,23 +16,26 @@ function Main(unit) {
   // three
   const size = xnew.context('global').GRID / 2;
   const camera = new THREE.OrthographicCamera(-size, +size, +size, -size, 0, 100);
-  xthree.initialize({ canvas: new OffscreenCanvas(450, 450), camera });
+  xthree.initialize({ canvas: new OffscreenCanvas(480, 480), camera });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -40 / 180 * Math.PI;
-  xthree.scene.fog = new THREE.Fog(0xAAAAAA, 10, 22);
+  xthree.scene.fog = new THREE.Fog(0x000000, 10, 18);
 
   // pixi 
   xpixi.initialize({ canvas: unit.canvas });
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
     xnew.context('global').levels = levels;
-    // let scene = xnew(TitleScene);
-    let scene = xnew(GameScene, { id: 0 });
+    let scene = xnew(TitleScene);
+    // let scene = xnew(StoryScene, { id: 0, });
+    // let scene = xnew(GameScene, { id: 0 });
 
-    unit.on('+nextscene', (NextScene, props) => {
-      scene.finalize();
-      scene = xnew(NextScene, props);
+    unit.on('+main', (NextScene, props) => {
+      xnew(Fade, { fadeout: 300, fadein: 300 }).on('-fadeout', () => {
+        scene.finalize();
+        scene = xnew(NextScene, props);
+      });
     });
   });
 }
@@ -40,23 +43,74 @@ function Main(unit) {
 function TitleScene(unit) {
   xnew(Background);
   xnew(TitleText);
-  xnew(TitleMessage);
   xnew(StageSelect);
 }
 
-function GameScene(scene, { id }) {
-  const global = xnew.context('global');
+function Fade(unit, { fadein, fadeout }) {
+  xnew(xnew.find(Main)[0].element, () => {
+    const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-black" style="opacity: 0">');
 
+    let timer;
+    if (fadeout) {
+      timer = xnew.transition((p) => cover.element.style.opacity = p, fadeout, 'ease').timeout((() => unit.emit('-fadeout')));
+    }
+    if (fadein) {
+      timer = (timer ?? xnew).transition((p) => cover.element.style.opacity = 1 - p, fadein, 'ease');
+    }
+    timer.timeout(() => {
+      unit.emit('-fadein')
+      unit.finalize();
+    });
+  }); 
+}
+
+function StoryScene(unit, { id, next = false }) {
+  const story = [
+    {
+      text: 'これはテスト用のテキスト１です。'
+    },
+    {
+      text: 'これはテスト用のテキスト２です。'
+    }
+  ];
+
+  let index = 0;
+  xnew(Background);
+  xnew.nest('<div class="absolute bottom-[0cqh] w-full h-[30cqh] text-center text-[6cqw] text-gray-400">');
+  xnew('<div class="absolute w-full h-full bg-black opacity-70">');
+
+  xnew('<div class="relative w-full h-full flex flex-row justify-center items-center text-[2.5cqw]">', (unit) => {
+    action();
+  });
+  function action() {
+    const stream = xnew(xnew.basics.TextStream, { text: story[index].text, speed: 50 });
+    stream.on('-next', () => {
+      if (index + 1 < story.length) {
+        index++;
+        stream.finalize();
+        action();
+      } else if (next === false) {
+        unit.emit('+main', GameScene, { id });
+      } else {
+        unit.emit('+main', StoryScene, { id: id + 1 } );
+      }
+    });
+  }
+}
+
+function GameScene(unit, { id }) {
+  const global = xnew.context('global');
   const state = { map: [] };
   xnew.context('state', state);
+
   xnew(DirectionalLight, { x: 2, y: -5, z: 10 });
   xnew(AmbientLight);
   xnew(Background);
   xnew(Floor);
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 350 / 2, y: 0 } });
+  xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 320 / 2, y: -10 } });
 
-  xnew(InfoPanel, { id });
-  xnew(Controller);
+  xnew(LeftBlock, { id });
+  xnew(RightBlock, { id });
 
   for (let y = 0; y < global.GRID; y++) {
     state.map[y] = [];
@@ -76,25 +130,26 @@ function GameScene(scene, { id }) {
       }
     }
   }
-  scene.on('+restart', () => scene.reboot());
 
-  scene.on('+moved', () => {
+  unit.on('+restart', () => unit.reboot());
+
+  unit.on('+moved', () => {
     const boxes = xnew.find(Box);
     const goals = xnew.find(Goal);
     const cleared = goals.every(g => boxes.some(b => b.x === g.x && b.y === g.y));
-    //if (cleared === false) return;
-    scene.off('+moved');
+    if (cleared === false) return;
+    unit.off('+moved');
 
     xnew(GameClearText);
 
     xnew.timeout(() => {
+      xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
       unit.on('pointerdown', next);
       function next(){
-        scene.finalize();
         if (id + 1 < global.levels.length) {
-            scene.emit('+nextscene', GameScene, { id: id + 1 });
+            unit.emit('+main', StoryScene, { id, next: true });
         } else {
-            scene.emit('+nextscene', TitleScene);
+            unit.emit('+main', TitleScene);
         }
       }
     }, 1000);
@@ -102,14 +157,14 @@ function GameScene(scene, { id }) {
 }
 
 function DirectionalLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 2.0));
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 0.8));
   object.position.set(x, y, z);
   object.castShadow = true;
   object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.0));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 0.4));
 }
 
 function Texture(unit, { texture, position = { x: 0, y: 0} }) {
@@ -119,37 +174,46 @@ function Texture(unit, { texture, position = { x: 0, y: 0} }) {
 
 function Background(unit) {
   const object = xpixi.nest(new PIXI.Container());
-  xnew.promise(PIXI.Assets.load('./background.jpg')).then((texture) => {
+  xnew.promise(PIXI.Assets.load('./background.png')).then((texture) => {
     const sprite = new PIXI.Sprite(texture);
     sprite.scale.set(xpixi.canvas.width / texture.frame.width, xpixi.canvas.height / texture.frame.height);
     object.addChild(sprite);
   });
 }
 
-function StrokeText(unit, { text }) {
-  const [sw, sc] = ['0.1cqw', '#EEEEEE'];
-  xnew.nest(`<div class="font-bold" style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
-  unit.element.textContent = text;
-}
-
 function TitleText(unit) {
-  xnew.nest('<div class="absolute top-[20cqh] w-full text-amber-800 text-center text-[12cqw]">');
-  xnew(StrokeText, { text: 'とーほく 倉庫' });
-}
+  xnew.nest('<div class="absolute top-[22cqh] w-full text-green-700 text-center text-[14cqw] flex justify-center">');
+  const text = 'とーほく倉庫';
+  const chars = [];
+  for (let i = 0; i < text.length; i++) {
+      const unit = xnew('<div>', (unit) => {
+        unit.element.textContent = text[i];
 
-function TitleMessage(unit) {
-  xnew.nest('<div class="absolute top-[50cqh] w-full text-amber-800 text-center text-[6cqw]">');
-  xnew(StrokeText, { text: 'Select Stage' });
+        let offset = { x: Math.random() * 40 - 20, y: Math.random() * 40 - 20, a: Math.random() * 4 - 2, s: Math.random() * 1 - 0.5 };
+        unit.element.style.transform = `translate(${offset.x}cqw, ${offset.y}cqw)`;
+
+        xnew.transition((p) => {
+          unit.element.style.opacity = p;
+          unit.element.style.transform = `translate(${offset.x * (1 - p)}cqw, ${offset.y * (1 - p)}cqw) rotate(${offset.a * (1 - p)}rad) scale(${1 + offset.s * (1 - p)})`;
+        }, 4000, 'ease');
+      });
+      chars.push(unit);
+  }
 }
 
 function StageSelect(unit) {
   const global = xnew.context('global');
-  xnew.nest('<div class="absolute top-[40cqw] w-full flex justify-center gap-[2cqw] text-gray-800">');
+  const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[2cqw]" style="opacity: 0">');
+  xnew.timeout(() => {}, 3000).transition((p) => {
+    div.style.opacity = p;
+  }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
     xnew((unit) => {
-      xnew.nest(`<button class="size-[10cqw] border-[0.5cqw] border-green-200 rounded-[1cqw] text-[5cqw] font-bold text-green-200 hover:bg-green-400 cursor-pointer">`);
-      unit.element.textContent = `${i + 1}`;
-      unit.on('click', () => unit.emit('+nextscene', GameScene, { id: i }));
+      xnew.nest(`<button class="size-[8cqw] border-[0.4cqw] border-green-700 text-[5cqw] text-green-700 hover:scale-110 cursor-pointer">`);
+      unit.element.textContent = `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}`;
+      unit.on('click', () => unit.emit('+main', StoryScene, { id: i }));
+      let count = 0;
+      unit.on('-update', () => unit.element.style.opacity = 0.9 + Math.sin(count++ * 0.04) * 0.1);
     })
   }
 }
@@ -162,7 +226,7 @@ function Floor(unit) {
     for (let x = 0; x < global.GRID; x++) {
       const geometry = new THREE.PlaneGeometry(1, 1);
       const color = (x + y) % 2 === 0 ? 0xDDDDDD : 0xAAAAAA;
-      const material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.7 });
+      const material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.4 });
       const tile = new THREE.Mesh(geometry, material);
 
       const pos = convert3d(x, y, 0);
@@ -173,9 +237,9 @@ function Floor(unit) {
   }
 
   // Create grid lines
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xCCCCAA });
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0x66CC66 });
   lineMaterial.transparent = true;
-  lineMaterial.opacity = 0.9;
+  lineMaterial.opacity = 0.6;
 
   // Create horizontal lines
   for (let i = 0; i <= global.GRID; i++) {
@@ -203,8 +267,7 @@ function Wall(wall, { x, y }) {
   const object = xthree.nest(new THREE.Object3D());
 
   xnew.promise(new Promise((resolve) => {
-    const loader = new PLYLoader();
-    loader.load('../assets/soko_block_fixed.ply', (geometry) => resolve(geometry));
+    new PLYLoader().load('../assets/soko_block_fixed.ply', (geometry) => resolve(geometry));
   })).then((geometry) => {
     geometry.computeVertexNormals();
     const material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff });
@@ -239,7 +302,7 @@ function Goal(goal, { x, y }) {
 
   const depth = 0.2;
   const geometry = new THREE.CylinderGeometry(0.3, 0.3, depth, 32);
-  const material = new THREE.MeshStandardMaterial({ color: 0x6666ff, emissive: 0x4444ff, emissiveIntensity: 0.3 });
+  const material = new THREE.MeshStandardMaterial({ color: 0x22CC22, emissive: 0x22CC22, emissiveIntensity: 0.3 });
   const object = xthree.nest(new THREE.Mesh(geometry, material));
 
   const position = convert3d(goal.x, goal.y, depth / 2);
@@ -249,7 +312,7 @@ function Goal(goal, { x, y }) {
 
   let count = 0;
   goal.on('-update', () => {
-    const intensity = 0.3 + Math.sin(count * 0.1) * 0.5;
+    const intensity = 0.1 + Math.sin(count * 0.1) * 0.1;
     material.emissiveIntensity = Math.max(0, intensity);
     count++;
   });
@@ -322,11 +385,11 @@ function Box(box, { x, y }) {
     object.add(mesh);
   });
 
-  let rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
+  let random = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
   box.on('-update', () => {
     const position = convert3d(x - offset.x, y - offset.y, boxSize / 2);
-    object.position.set(position.x + rondom.x, position.y + rondom.y, position.z);
+    object.position.set(position.x + random.x, position.y + random.y, position.z);
 
     const isOnGoal = xnew.find(Goal).some(g => g.x === x && g.y === y);
     material.color.setHex(isOnGoal ? 0xFFFFFF : 0xCCCCCC);
@@ -343,7 +406,7 @@ function Box(box, { x, y }) {
 
       x += dx;
       y += dy;
-      rondom = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
+      random = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
       xnew.transition((p) => {
         offset.x = (1 - p) * dx;
         offset.y = (1 - p) * dy;
@@ -353,15 +416,46 @@ function Box(box, { x, y }) {
   }
 }
 
-function Controller(unit) {
+function GameClearText(unit) {
+  xnew.nest('<div class="absolute w-full text-center text-[14cqw] text-green-600">');
+  
+  unit.element.textContent = '生還!';
+  xnew.transition((x) => {
+    unit.element.style.opacity = x;
+    unit.element.style.top = `${16 + x * 10}cqh`;
+  }, 1000, 'ease');
+}
+
+function LeftBlock(unit, { id }) {
+  xnew.nest('<div class="absolute left-0 top-0 w-[20cqw] h-full">');
+  
+  xnew('<div class="absolute top-[4cqh] w-full text-center text-[8cqw] font-bold text-green-700">', (unit) => {
+    xnew('<div>', `午前`);
+    xnew('<div class="m-[-6cqh]">', `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][id]}時`);
+  });
+
+  xnew('<div class="absolute top-[42cqh] w-full flex justify-center gap-x-[1cqw] text-green-700">', () => {
+    xnew((unit) => {
+      xnew.nest(`<button class="size-[8cqw] border-[0.3cqw] border-green-700 text-[5cqw] text-green-700 hover:scale-110 cursor-pointer">`);
+      unit.element.textContent = '再';
+    }).on('click', () => unit.emit('+restart'));
+    xnew((unit) => {
+      xnew.nest(`<button class="size-[8cqw] border-[0.3cqw] border-green-700 text-[5cqw] text-green-700 hover:scale-110 cursor-pointer">`);
+      unit.element.textContent = '帰';
+    }).on('click', () => unit.emit('+main', TitleScene));
+    // xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', 
+    //   xnew.icons.ArrowPath, { frame: 'square', }).on('click', () => unit.emit('+restart'));
+    // xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', 
+    //   xnew.icons.Home, { frame: 'square', }).on('click', () => unit.emit('+main', TitleScene));
+  });
+
   xnew(xnew.basics.KeyboardEvent).on('-keydown:arrow', ({ event, vector }) => {
     event.preventDefault();
     move(vector);
   });
 
-  xnew('<div class="absolute left-0 bottom-0 w-[28%] h-[28%] select-none">', () => {
-    xnew.nest('<div class="absolute inset-[1cqw]">');
-    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fillOpacity: 0.7 });
+  xnew('<div class="absolute bottom-[8cqh] left-0 right-0 m-auto size-[18cqw] text-green-700">', () => {
+    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fill: '#228B22', fillOpacity: 0.4 });
     dpad.on('-down', ({ vector }) => move(vector));
   });
 
@@ -378,36 +472,17 @@ function Controller(unit) {
   }
 }
 
-function GameClearText(unit) {
-  xnew.nest('<div class="absolute w-full text-center text-[14cqw] text-yellow-400">');
-  xnew(StrokeText, { text: 'Stage Clear!' });
-  xnew.transition((x) => {
-    unit.element.style.opacity = x;
-    unit.element.style.top = `${16 + x * 10}cqh`;
-  }, 1000, 'ease');
-}
+function RightBlock(unit, { id }) {
+  xnew.nest('<div class="absolute right-0 top-0 w-[20cqw] h-full select-none">');
 
-function InfoPanel(unit, { id }) {
-  xnew('<div class="absolute top-[-4cqh] w-full text-[8cqw] text-center text-green-700">', (unit) => {
-    xnew(StrokeText, { text: `Level ${id + 1}` });
-  });
-  
-  xnew('<div class="absolute bottom-[3cqw] text-[3.5cqw] w-full flex justify-center gap-x-[2cqw] text-green-200">', () => {
-    
-    xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', 
-      xnew.icons.ArrowPath, { frame: 'circle' }).on('click', () => unit.emit('+restart'));
-    xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', 
-      xnew.icons.Home, { frame: 'circle' }).on('click', () => unit.emit('+nextscene', TitleScene));
-  });
-
-  xnew('<div class="absolute bottom-0 right-0 w-[35%] h-[35%]">', (screen) => {
+  xnew('<div class="absolute bottom-[6cqh] size-[20cqw]">', (screen) => {
     xnew.extend(xnew.basics.Screen, { width: 300, height: 300 });
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);
     xthree.initialize({ canvas: screen.canvas, camera });
     xthree.renderer.shadowMap.enabled = true;
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    xthree.camera.position.set(-0.2, 0, +10);
+    xthree.camera.position.set(0, 0, +10);
     xthree.scene.rotation.x = -80 / 180 * Math.PI;
     xthree.scene.rotation.z = -30 / 180 * Math.PI;
     xthree.scene.position.y = -0.9;
