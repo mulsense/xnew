@@ -317,6 +317,39 @@ function TitleText(unit) {
   }
 }
 
+/**
+ * StageSelect - ステージ選択ボタン
+ *
+ * デザインコンセプト:
+ * - 和風の印章をイメージした装飾的なボタンデザイン
+ * - 重厚感と高級感を演出するための多層構造
+ *
+ * デザイン構成:
+ * 1. 外枠 (八角形)
+ *    - clip-pathで切り抜いた八角形のボーダー
+ *    - 和風の印章や家紋のような形状
+ *
+ * 2. 内側装飾枠 (八角形)
+ *    - 外枠より小さい二重構造の内枠
+ *    - 透明度60%で奥行き感を表現
+ *
+ * 3. 四隅の装飾
+ *    - L字型の装飾を四隅に配置
+ *    - ボタン全体を引き締める役割
+ *
+ * 4. 背景グラデーション
+ *    - 中心から外側へ広がる放射グラデーション
+ *    - アニメーションでパルス効果を実装
+ *
+ * 5. テキスト
+ *    - 緑色のグロー効果 (text-shadow)
+ *    - 発光しているような演出
+ *
+ * アニメーション効果:
+ * - ボタン全体: 透明度が周期的に変化 (0.8-1.0)
+ * - 背景: パルス効果で明滅 (0.1-0.2)
+ * - ホバー: scale(1.1)で拡大
+ */
 function StageSelect(unit) {
   const global = xnew.context('global');
   const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[2cqw]" style="opacity: 0">');
@@ -327,29 +360,30 @@ function StageSelect(unit) {
     xnew((unit) => {
       xnew.nest(`<button class="relative size-[8cqw] text-[5cqw] text-green-700 hover:scale-110 cursor-pointer transition-transform" style="background: transparent; border: none; padding: 0;">`);
 
-      // 外枠の装飾
+      // 外枠の装飾 (八角形ボーダー)
       xnew('<div class="absolute inset-0 border-[0.3cqw] border-green-700" style="clip-path: polygon(10% 0, 90% 0, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0 90%, 0 10%);">');
 
-      // 内側の装飾枠
+      // 内側の装飾枠 (二重構造)
       xnew('<div class="absolute inset-[0.8cqw] border-[0.2cqw] border-green-600 opacity-60" style="clip-path: polygon(15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%, 0 15%);">');
 
-      // 四隅の装飾
+      // 四隅の装飾 (L字型の角飾り)
       const cornerStyle = 'absolute w-[1.5cqw] h-[1.5cqw] border-green-700';
       xnew(`<div class="${cornerStyle} border-t-[0.3cqw] border-l-[0.3cqw]" style="top: -0.2cqw; left: -0.2cqw;">`);
       xnew(`<div class="${cornerStyle} border-t-[0.3cqw] border-r-[0.3cqw]" style="top: -0.2cqw; right: -0.2cqw;">`);
       xnew(`<div class="${cornerStyle} border-b-[0.3cqw] border-l-[0.3cqw]" style="bottom: -0.2cqw; left: -0.2cqw;">`);
       xnew(`<div class="${cornerStyle} border-b-[0.3cqw] border-r-[0.3cqw]" style="bottom: -0.2cqw; right: -0.2cqw;">`);
 
-      // 背景のグラデーション
+      // 背景のグラデーション (パルス効果用)
       xnew('<div class="absolute inset-[0.5cqw] opacity-20" style="background: radial-gradient(circle at center, #228B22 0%, transparent 70%);">');
 
-      // テキスト
+      // テキスト (グロー効果付き)
       const text = xnew('<div class="absolute inset-0 flex items-center justify-center font-bold" style="text-shadow: 0 0 1cqw rgba(34, 139, 34, 0.8);">');
       text.element.textContent = `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}`;
 
       unit.on('click', () => unit.emit('+main', StoryScene, { id: i }));
       let count = 0;
       unit.on('-update', () => {
+        // ボタン全体の透明度アニメーション
         unit.element.style.opacity = 0.9 + Math.sin(count * 0.04) * 0.1;
         // 背景のパルス効果
         const bg = unit.element.children[4];
