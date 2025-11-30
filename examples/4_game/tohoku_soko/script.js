@@ -325,11 +325,37 @@ function StageSelect(unit) {
   }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
     xnew((unit) => {
-      xnew.nest(`<button class="size-[8cqw] border-[0.4cqw] border-green-700 text-[5cqw] text-green-700 hover:scale-110 cursor-pointer">`);
-      unit.element.textContent = `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}`;
+      xnew.nest(`<button class="relative size-[8cqw] text-[5cqw] text-green-700 hover:scale-110 cursor-pointer transition-transform" style="background: transparent; border: none; padding: 0;">`);
+
+      // 外枠の装飾
+      xnew('<div class="absolute inset-0 border-[0.3cqw] border-green-700" style="clip-path: polygon(10% 0, 90% 0, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0 90%, 0 10%);">');
+
+      // 内側の装飾枠
+      xnew('<div class="absolute inset-[0.8cqw] border-[0.2cqw] border-green-600 opacity-60" style="clip-path: polygon(15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%, 0 15%);">');
+
+      // 四隅の装飾
+      const cornerStyle = 'absolute w-[1.5cqw] h-[1.5cqw] border-green-700';
+      xnew(`<div class="${cornerStyle} border-t-[0.3cqw] border-l-[0.3cqw]" style="top: -0.2cqw; left: -0.2cqw;">`);
+      xnew(`<div class="${cornerStyle} border-t-[0.3cqw] border-r-[0.3cqw]" style="top: -0.2cqw; right: -0.2cqw;">`);
+      xnew(`<div class="${cornerStyle} border-b-[0.3cqw] border-l-[0.3cqw]" style="bottom: -0.2cqw; left: -0.2cqw;">`);
+      xnew(`<div class="${cornerStyle} border-b-[0.3cqw] border-r-[0.3cqw]" style="bottom: -0.2cqw; right: -0.2cqw;">`);
+
+      // 背景のグラデーション
+      xnew('<div class="absolute inset-[0.5cqw] opacity-20" style="background: radial-gradient(circle at center, #228B22 0%, transparent 70%);">');
+
+      // テキスト
+      const text = xnew('<div class="absolute inset-0 flex items-center justify-center font-bold" style="text-shadow: 0 0 1cqw rgba(34, 139, 34, 0.8);">');
+      text.element.textContent = `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}`;
+
       unit.on('click', () => unit.emit('+main', StoryScene, { id: i }));
       let count = 0;
-      unit.on('-update', () => unit.element.style.opacity = 0.9 + Math.sin(count++ * 0.04) * 0.1);
+      unit.on('-update', () => {
+        unit.element.style.opacity = 0.9 + Math.sin(count * 0.04) * 0.1;
+        // 背景のパルス効果
+        const bg = unit.element.children[4];
+        if (bg) bg.style.opacity = 0.15 + Math.sin(count * 0.03) * 0.05;
+        count++;
+      });
     })
   }
 }
