@@ -6,6 +6,7 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
+import { Background, BlockBUtton, GrowText } from './util.js';
 
 xnew('#main', Main);
 
@@ -27,9 +28,9 @@ function Main(unit) {
 
   xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
     xnew.context('global').levels = levels;
-    let scene = xnew(TitleScene);
+    // let scene = xnew(TitleScene);
     // let scene = xnew(StoryScene, { id: 0, });
-    // let scene = xnew(GameScene, { id: 0 });
+    let scene = xnew(GameScene, { id: 0 });
 
     unit.on('+main', (NextScene, props) => {
       xnew(Fade, { fadeout: 300, fadein: 300 }).on('-fadeout', () => {
@@ -42,7 +43,6 @@ function Main(unit) {
 
 function TitleScene(unit) {
   xnew(Background);
-  xnew(MistEffect);
   xnew(TitleText);
   xnew(StageSelect);
 }
@@ -173,137 +173,15 @@ function Texture(unit, { texture, position = { x: 0, y: 0} }) {
   object.position.set(position.x, position.y);
 }
 
-function Background(unit) {
-  const object = xpixi.nest(new PIXI.Container());
-  xnew.promise(PIXI.Assets.load('./background.png')).then((texture) => {
-    const sprite = new PIXI.Sprite(texture);
-    sprite.scale.set(xpixi.canvas.width / texture.frame.width, xpixi.canvas.height / texture.frame.height);
-    object.addChild(sprite);
-  });
-}
-
-function MistEffect(unit) {
-  const container = xpixi.nest(new PIXI.Container());
-  const particles = [];
-  const particleCount = 50;
-
-  // グラデーションテクスチャを作成する関数
-  function createGradientTexture(radius, baseAlpha) {
-    const canvas = document.createElement('canvas');
-    const size = radius * 2;
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-
-    const gradient = ctx.createRadialGradient(radius, radius, 0, radius, radius, radius);
-    gradient.addColorStop(0, `rgba(255, 255, 255, ${baseAlpha})`);
-    gradient.addColorStop(0.5, `rgba(255, 255, 255, ${baseAlpha * 0.5})`);
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-
-    return PIXI.Texture.from(canvas);
-  }
-
-  // 霞のパーティクル生成
-  for (let i = 0; i < particleCount; i++) {
-    const radius = 60 + Math.random() * 120;
-    const baseAlpha = 0.05 + Math.random() * 0.15;
-    const texture = createGradientTexture(radius, baseAlpha);
-
-    const sprite = new PIXI.Sprite(texture);
-    sprite.anchor.set(0.5);
-    sprite.x = Math.random() * xpixi.canvas.width;
-    sprite.y = Math.random() * xpixi.canvas.height;
-
-    const particle = {
-      sprite,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.01 + Math.random() * 0.02
-    };
-
-    particles.push(particle);
-    container.addChild(sprite);
-  }
-
-  // 細かいチリのパーティクル生成
-  const dustParticles = [];
-  const dustCount = 80;
-
-  for (let i = 0; i < dustCount; i++) {
-    const graphics = new PIXI.Graphics();
-    const radius = 1 + Math.random() * 1;
-
-    graphics.beginPath();
-    graphics.circle(0, 0, radius);
-    graphics.fill({ color: 0xFFFFFF, alpha: 0.3 + Math.random() * 0.4 });
-
-    graphics.x = Math.random() * xpixi.canvas.width;
-    graphics.y = Math.random() * xpixi.canvas.height;
-
-    const dust = {
-      graphics,
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: -0.2 - Math.random() * 0.5, // 上方向に浮遊
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.02 + Math.random() * 0.03,
-      wobbleStrength: 0.3 + Math.random() * 0.5
-    };
-
-    dustParticles.push(dust);
-    container.addChild(graphics);
-  }
-
-  let count = 0;
-  unit.on('-update', () => {
-    count++;
-
-    // 霞の更新
-    particles.forEach(particle => {
-      // 波のような動き
-      particle.sprite.x += particle.vx + Math.sin(count * particle.speed + particle.phase) * 0.2;
-      particle.sprite.y += particle.vy + Math.cos(count * particle.speed + particle.phase) * 0.2;
-
-      // 画面端で折り返し
-      if (particle.sprite.x < -100) particle.sprite.x = xpixi.canvas.width + 150;
-      if (particle.sprite.x > xpixi.canvas.width + 100) particle.sprite.x = -150;
-      if (particle.sprite.y < -100) particle.sprite.y = xpixi.canvas.height + 150;
-      if (particle.sprite.y > xpixi.canvas.height + 100) particle.sprite.y = -150;
-
-      // 透明度の変化
-      particle.sprite.alpha = 0.5 + Math.sin(count * particle.speed + particle.phase) * 0.2;
-    });
-
-    // チリの更新
-    dustParticles.forEach(dust => {
-      // 左右に揺れながら上昇
-      dust.graphics.x += dust.vx + Math.sin(count * dust.speed + dust.phase) * dust.wobbleStrength;
-      dust.graphics.y += dust.vy;
-
-      // 画面端で折り返し
-      if (dust.graphics.x < -10) dust.graphics.x = xpixi.canvas.width + 10;
-      if (dust.graphics.x > xpixi.canvas.width + 10) dust.graphics.x = -10;
-      if (dust.graphics.y < -10) {
-        dust.graphics.y = xpixi.canvas.height + 10;
-        dust.graphics.x = Math.random() * xpixi.canvas.width;
-      }
-
-      // 透明度の変化（キラキラ感）
-      dust.graphics.alpha = 0.1 + Math.sin(count * dust.speed * 3 + dust.phase) * 0.1;
-    });
-  });
-}
 
 function TitleText(unit) {
-  xnew.nest('<div class="absolute top-[22cqh] w-full text-green-700 text-center text-[14cqw] flex justify-center">');
-  const text = 'とーほく倉庫';
+  xnew.nest('<div class="absolute top-[20cqh] w-full text-green-700 text-center text-[16cqw] flex justify-center">');
+  // const text = 'とーほく倉庫';
+  const text = '東北天明';
   const chars = [];
   for (let i = 0; i < text.length; i++) {
       const unit = xnew('<div>', (unit) => {
-        unit.element.textContent = text[i];
+        xnew.extend(GrowText, { text: text[i] });
 
         let offset = { x: Math.random() * 40 - 20, y: Math.random() * 40 - 20, a: Math.random() * 4 - 2, s: Math.random() * 1 - 0.5 };
         unit.element.style.transform = `translate(${offset.x}cqw, ${offset.y}cqw)`;
@@ -317,80 +195,15 @@ function TitleText(unit) {
   }
 }
 
-/**
- * StageSelect - ステージ選択ボタン
- *
- * デザインコンセプト:
- * - 和風の印章をイメージした装飾的なボタンデザイン
- * - 重厚感と高級感を演出するための多層構造
- *
- * デザイン構成:
- * 1. 外枠 (八角形)
- *    - clip-pathで切り抜いた八角形のボーダー
- *    - 和風の印章や家紋のような形状
- *
- * 2. 内側装飾枠 (八角形)
- *    - 外枠より小さい二重構造の内枠
- *    - 透明度60%で奥行き感を表現
- *
- * 3. 四隅の装飾
- *    - L字型の装飾を四隅に配置
- *    - ボタン全体を引き締める役割
- *
- * 4. 背景グラデーション
- *    - 中心から外側へ広がる放射グラデーション
- *    - アニメーションでパルス効果を実装
- *
- * 5. テキスト
- *    - 緑色のグロー効果 (text-shadow)
- *    - 発光しているような演出
- *
- * アニメーション効果:
- * - ボタン全体: 透明度が周期的に変化 (0.8-1.0)
- * - 背景: パルス効果で明滅 (0.1-0.2)
- * - ホバー: scale(1.1)で拡大
- */
 function StageSelect(unit) {
   const global = xnew.context('global');
-  const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[2cqw]" style="opacity: 0">');
-  xnew.timeout(() => {}, 3000).transition((p) => {
+  const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[3cqw]" style="opacity: 0">');
+  xnew.timeout(() => {}, 1).transition((p) => {
     div.style.opacity = p;
   }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
-    xnew((unit) => {
-      xnew.nest(`<button class="relative size-[8cqw] text-[5cqw] text-green-700 hover:scale-110 cursor-pointer transition-transform" style="background: transparent; border: none; padding: 0;">`);
-
-      // 外枠の装飾 (八角形ボーダー)
-      xnew('<div class="absolute inset-0 border-[0.3cqw] border-green-700" style="clip-path: polygon(10% 0, 90% 0, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0 90%, 0 10%);">');
-
-      // 内側の装飾枠 (二重構造)
-      xnew('<div class="absolute inset-[0.8cqw] border-[0.2cqw] border-green-600 opacity-60" style="clip-path: polygon(15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%, 0 15%);">');
-
-      // 四隅の装飾 (L字型の角飾り)
-      const cornerStyle = 'absolute w-[1.5cqw] h-[1.5cqw] border-green-700';
-      xnew(`<div class="${cornerStyle} border-t-[0.3cqw] border-l-[0.3cqw]" style="top: -0.2cqw; left: -0.2cqw;">`);
-      xnew(`<div class="${cornerStyle} border-t-[0.3cqw] border-r-[0.3cqw]" style="top: -0.2cqw; right: -0.2cqw;">`);
-      xnew(`<div class="${cornerStyle} border-b-[0.3cqw] border-l-[0.3cqw]" style="bottom: -0.2cqw; left: -0.2cqw;">`);
-      xnew(`<div class="${cornerStyle} border-b-[0.3cqw] border-r-[0.3cqw]" style="bottom: -0.2cqw; right: -0.2cqw;">`);
-
-      // 背景のグラデーション (パルス効果用)
-      xnew('<div class="absolute inset-[0.5cqw] opacity-20" style="background: radial-gradient(circle at center, #228B22 0%, transparent 70%);">');
-
-      // テキスト (グロー効果付き)
-      const text = xnew('<div class="absolute inset-0 flex items-center justify-center font-bold" style="text-shadow: 0 0 1cqw rgba(34, 139, 34, 0.8);">');
-      text.element.textContent = `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}`;
-
-      unit.on('click', () => unit.emit('+main', StoryScene, { id: i }));
-      let count = 0;
-      unit.on('-update', () => {
-        // ボタン全体の透明度アニメーション
-        unit.element.style.opacity = 0.9 + Math.sin(count * 0.04) * 0.1;
-        // 背景のパルス効果
-        const bg = unit.element.children[4];
-        if (bg) bg.style.opacity = 0.15 + Math.sin(count * 0.03) * 0.05;
-        count++;
-      });
-    })
+    const button = xnew(BlockBUtton, { text: `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}` });
+    button.on('click', () => unit.emit('+main', StoryScene, { id: i }));
   }
 }
 
@@ -606,23 +419,13 @@ function LeftBlock(unit, { id }) {
   xnew.nest('<div class="absolute left-0 top-0 w-[20cqw] h-full">');
   
   xnew('<div class="absolute top-[4cqh] w-full text-center text-[8cqw] font-bold text-green-700">', (unit) => {
-    xnew('<div>', `午前`);
-    xnew('<div class="m-[-6cqh]">', `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][id]}時`);
+    xnew(GrowText, { text: '午前' });
+    xnew('<div class="m-[-6cqh]">', GrowText, { text: `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][id]}時` });
   });
 
-  xnew('<div class="absolute top-[42cqh] w-full flex justify-center gap-x-[1cqw] text-green-700">', () => {
-    xnew((unit) => {
-      xnew.nest(`<button class="size-[8cqw] border-[0.3cqw] border-green-700 text-[5cqw] text-green-700 hover:scale-110 cursor-pointer">`);
-      unit.element.textContent = '再';
-    }).on('click', () => unit.emit('+restart'));
-    xnew((unit) => {
-      xnew.nest(`<button class="size-[8cqw] border-[0.3cqw] border-green-700 text-[5cqw] text-green-700 hover:scale-110 cursor-pointer">`);
-      unit.element.textContent = '帰';
-    }).on('click', () => unit.emit('+main', TitleScene));
-    // xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', 
-    //   xnew.icons.ArrowPath, { frame: 'square', }).on('click', () => unit.emit('+restart'));
-    // xnew('<div class="size-[8cqw] cursor-pointer hover:scale-110">', 
-    //   xnew.icons.Home, { frame: 'square', }).on('click', () => unit.emit('+main', TitleScene));
+  xnew('<div class="absolute top-[42cqh] w-full flex justify-center gap-x-[2cqw] text-green-700">', () => {
+    xnew(BlockBUtton, { text: '再'} ).on('click', () => unit.emit('+restart'));
+    xnew(BlockBUtton, { text: '帰'} ).on('click', () => unit.emit('+main', TitleScene));
   });
 
   xnew(xnew.basics.KeyboardEvent).on('-keydown:arrow', ({ event, vector }) => {
@@ -706,16 +509,16 @@ function Model(unit, { id = 0, scale }) {
     // neck.rotation.x = Math.sin(t * 6) * +0.1;
     chest.rotation.x = Math.sin(t * 12) * +0.1;
     hips.position.z = Math.sin(t * 12) * 0.1;
-    leftUpperArm.rotation.z = Math.sin(t * 12 + offset) * +0.7;
-    leftUpperArm.rotation.x = Math.sin(t * 6 + offset) * +0.8;
-    rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
-    rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
+    leftUpperArm.rotation.z =  -0.7;//Math.sin(t * 12 + offset) * +0.7;
+    // leftUpperArm.rotation.x =Math.sin(t * 6 + offset) * +0.8;
+    rightUpperArm.rotation.z = 0.7;//Math.sin(t * 12) * -0.7;
+    // rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
     leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
-    leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.7;
+    leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.2;
     rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
-    rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
+    rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.2;
     vrm.update(t);
-    count++;
+    count += 0.6;
   });
 
   return { object }
