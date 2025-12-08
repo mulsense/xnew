@@ -36,7 +36,6 @@ export class MOG3D {
     static load (path) {
         return fetch(path).then(response => response.json()).then((json) => {
             const unit = new Unit();
-
             unit.dsize[0] = json['size'][0];
             unit.dsize[1] = json['size'][1];
             unit.dsize[2] = json['size'][2];
@@ -50,10 +49,11 @@ export class MOG3D {
             const s0 = s[0];
             const s1 = s[1];
             const s2 = s[2];
-
-            unit.palette = new Array(json['palette'].length);
+            
+            const pallet = base64ToUint8Array(json['palette']);
+            unit.palette = new Array(pallet.length / 4);
             for (let c = 0; c < unit.palette.length; c++) {
-                unit.palette[c] = [json['palette'][c][0], json['palette'][c][1], json['palette'][c][2], 255];
+                unit.palette[c] = [pallet[c * 4 + 0], pallet[c * 4 + 1], pallet[c * 4 + 2], pallet[c * 4 + 3]];
             }
 
             for (let m = 0; m < json['models'].length; m++) {
@@ -75,24 +75,29 @@ export class MOG3D {
                 const bin1 = base64ToUint8Array(jsonModel['cmap']);
 
 
-                let memA = null;
-                let memB = null;
-                let memC = null;
+                let memA = new Uint8Array(0);
+                let memB = new Uint8Array(0);
+                let memC = new Uint8Array(0);
 
                 function loadseg(bin, p){
                     const view = new DataView(bin.buffer);
 
                     let base = 0;
                     for (let i = 0; i < p; i++) {
-                        base += view.getInt32(base, true) + 5;
+                        const bits = view.getInt32(base, true);
+                        base += ((bits + 7) >> 3) + 4;
                     }
-                    const seg = { size: view.getInt32(base, true), offset: view.getUint8(base + 4, true), data: null };
+                    const bits = view.getInt32(base, true);
+                    const size = (bits + 7) >> 3;
+                    const offset = size * 8 - bits;
+                    const seg = { size, offset, data: null };
                     if (seg.size > 0) {
-                        seg.data = bin.slice(base + 5, base + 5 + seg.size);
+                        seg.data = bin.slice(base + 4, base + 4 + seg.size);
                     }
                     return seg
                 }
-                {
+
+                if (bin0.length > 0) { 
                     {
                         const seg = loadseg(bin0, 0);
                         memA = seg.data;
@@ -103,33 +108,26 @@ export class MOG3D {
                             memB = Code.decode(Code.table256(), Code.get1BitArray(seg.data, seg.size * 8 - seg.offset), 256, 8, 8);
                         }
                     }
-                }
-
-
-                {
+           
                     const PALETTE_CODE = 256;
                     let tableC = null;
 
                     {
                         const seg = loadseg(bin1, 0);
                         const dv = new DataView(seg.data.buffer);
-                        if (seg.size > 1) {
-                            const lngs = new Array(PALETTE_CODE + 1);
-                            lngs.fill(0);
-                            for (let c = 0; c < seg.size - 1; c += 2) {
-                                const s = dv.getUint8(c + 0);
-                                const b = dv.getUint8(c + 1);
-                                lngs[s] = b;
-                            }
-                            lngs[PALETTE_CODE] = dv.getUint8(seg.size - 1);
-                            tableC = Code.hmMakeTableFromLngs(lngs);
+                    
+                        const lngs = new Array(PALETTE_CODE + 1);
+                        lngs.fill(0);
+                        for (let c = 0; c < seg.size - 1; c += 2) {
+                            const s = dv.getUint8(c + 0);
+                            const b = dv.getUint8(c + 1);
+                            lngs[s] = b;
                         }
-                        else{
-                            const s = dv.getUint8(0);
-                            memC = [s];
-                        }
+                        lngs[PALETTE_CODE] = dv.getUint8(seg.size - 1);
+                        tableC = Code.hmMakeTableFromLngs(lngs);
+                       
                     }
-                    if (tableC) {
+                    {
                         const seg = loadseg(bin1, 1);
 
                         if (seg.size > 0) {
@@ -194,7 +192,6 @@ export class MOG3D {
                 }
 
                 MOG3D.convert(dsize, unit.palette, model, vmap, cmap);
-                return unit;
             }
             return unit;
         });
@@ -253,7 +250,6 @@ export class MOG3D {
                     for (let x = 0; x < dsize0; x++) {
                         const p = z * s2 + y * s1 + x * s0;
                         if ((vmap[p] & 0x3F) === 0) continue;
-                        const a = [x, y, z];
 
                         for (let i = 0; i < 6; i++){
                             const bit = bits[i];
