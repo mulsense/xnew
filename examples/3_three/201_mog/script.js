@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Stage } from 'model';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { MOG3D } from './mog3d.js';
 
 xnew('#main', Main);
 
@@ -29,7 +30,7 @@ function ThreeMain(unit) {
   // xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
   xnew(Test);
 
-  xnew(Stage, { path: 'model.mog' });
+  // xnew(Stage, { path: 'model.mog' });
 
   unit.on('+scale', ({ scale }) => {
     xthree.camera.position.z /= scale;
@@ -102,20 +103,29 @@ function Controller(unit) {
 
 function Test(unit) {
   const object = xthree.nest(new THREE.Object3D());
+  MOG3D.load('./model.mog').then(xnew.scope((vrmUrl) => {
+    xnew.promise(new Promise((resolve) => {
+      console.log(vrmUrl);
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      loader.load(vrmUrl, (gltf) => {
+        resolve(gltf);
+      }, undefined, (error) => {
+        console.error('Failed to load VRM:', error);
+      });
+    })).then((gltf) => {
+      console.log('VRM loaded:', gltf);
+      const vrm = gltf.userData.vrm;
+      vrm.scene.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      object.add(vrm.scene);
+    });
+  }));
 
-  xnew.promise(new Promise((resolve) => {
-    const path = generateVRM();
-    const loader = new GLTFLoader();
-    loader.register((parser) => new VRMLoaderPlugin(parser));
-    loader.load(path, (gltf) => resolve(gltf));
-  })).then((gltf) => {
-    // console.log(gltf);
-    // const vrm = gltf.userData.vrm;
-    // vrm.scene.traverse((object) => {
-    //   if (object.isMesh) object.castShadow = object.receiveShadow = true;
-    // });
-    object.add(gltf.scene);
-  });
 }
 
 function createCubeMesh(size = 1) {

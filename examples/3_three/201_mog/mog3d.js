@@ -93,7 +93,7 @@ function base64ToUint8Array(base64) {
 }
 export class MOG3D {
     static load (path) {
-        return fetch(path).then(response => response.json()).then((json) => {
+        return fetch(path).then(response => response.json()).then(async (json) => {
             const unit = new Unit();
             unit.dsize[0] = json['size'][0];
             unit.dsize[1] = json['size'][1];
@@ -249,8 +249,9 @@ export class MOG3D {
                     jsonBone['iks'],
                 ));
             }
-            MOG3D.convertVRM(unit, 0.1);
-            return unit;
+            const vrmrul = await MOG3D.convertVRM(unit, 0.1);
+            console.log('data', vrmrul);
+            return vrmrul;
         });
     };
 
@@ -595,7 +596,7 @@ export class MOG3D {
                 imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 0] = cols[i][0];
                 imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 1] = cols[i][1];
                 imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 2] = cols[i][2];
-                
+
                 imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 0] = cols[i][0];
                 imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 1] = cols[i][1];
                 imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 2] = cols[i][2];
@@ -603,21 +604,20 @@ export class MOG3D {
                 imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 0] = cols[i][0];
                 imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 1] = cols[i][1];
                 imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 2] = cols[i][2];
-                
+
                 imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 0] = cols[i][0];
                 imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 1] = cols[i][1];
                 imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = cols[i][2];
 
-                const u = Math.floor((x + 0.5) / w);
-                const v = Math.floor((y + 0.5) / h);
-                texcoords.push([u, v]);
-                texcoords.push([u, v]);
+                // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
+                const u = (x + 0.5) / w;
+                const v = (y + 0.5) / h;
                 texcoords.push([u, v]);
             }
             promise = uint8ArrayToPng(imgdata, w, h)
         }
 
-        promise.then((pngdata) => {
+        promise = promise.then((pngdata) => {
             let binlength = 0;
             {
                 binlength += indices.length * 4;
@@ -692,6 +692,322 @@ export class MOG3D {
 
             // pngdata (uint8)
             binaryBuffer.set(pngdata, offset);
+
+            // VRM1.0 JSON生成
+            const vrmBoneMap = {
+                "center": "hips",
+                "Spine1": "spine",
+                "Spine2": "chest",
+                "Neck": "neck",
+                "Head": "head",
+                "Shoulder_L": "leftShoulder",
+                "UpperArm_L": "leftUpperArm",
+                "LowerArm_L": "leftLowerArm",
+                "Hand_L": "leftHand",
+                "Shoulder_R": "rightShoulder",
+                "UpperArm_R": "rightUpperArm",
+                "LowerArm_R": "rightLowerArm",
+                "Hand_R": "rightHand",
+                "UpperLeg_L": "leftUpperLeg",
+                "LowerLeg_L": "leftLowerLeg",
+                "Foot_L": "leftFoot",
+                "UpperLeg_R": "rightUpperLeg",
+                "LowerLeg_R": "rightLowerLeg",
+                "Foot_R": "rightFoot",
+            };
+
+            // bufferViews
+            let bufferViewOffset = 0;
+            const bufferViews = [
+                { buffer: 0, byteOffset: bufferViewOffset, byteLength: indices.length * 4, target: 34963 },
+            ];
+            bufferViewOffset += indices.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: vertexs.length * 4 * 3, target: 34962 });
+            bufferViewOffset += vertexs.length * 4 * 3;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: normals.length * 4 * 3, target: 34962 });
+            bufferViewOffset += normals.length * 4 * 3;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: texcoords.length * 4 * 2, target: 34962 });
+            bufferViewOffset += texcoords.length * 4 * 2;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: joints.length * 2, target: 34962 });
+            bufferViewOffset += joints.length * 2;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: weights.length * 4, target: 34962 });
+            bufferViewOffset += weights.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: inverseBindMatrices.length * 4 * 16 });
+            bufferViewOffset += inverseBindMatrices.length * 4 * 16;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: pngdata.length });
+
+            // 頂点の最小・最大値を計算
+            let minv = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+            let maxv = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+            for (let i = 0; i < vertexs.length; i++) {
+                minv[0] = Math.min(minv[0], vertexs[i][0]);
+                minv[1] = Math.min(minv[1], vertexs[i][1]);
+                minv[2] = Math.min(minv[2], vertexs[i][2]);
+                maxv[0] = Math.max(maxv[0], vertexs[i][0]);
+                maxv[1] = Math.max(maxv[1], vertexs[i][1]);
+                maxv[2] = Math.max(maxv[2], vertexs[i][2]);
+            }
+
+            const accessors = [
+                // indices
+                {
+                    bufferView: 0,
+                    byteOffset: 0,
+                    componentType: 5125,
+                    count: indices.length,
+                    type: "SCALAR",
+                    normalized: false,
+                },
+                // vertexs
+                {
+                    bufferView: 1,
+                    byteOffset: 0,
+                    componentType: 5126,
+                    count: vertexs.length,
+                    type: "VEC3",
+                    normalized: false,
+                    max: maxv,
+                    min: minv,
+                },
+                // normals
+                {
+                    bufferView: 2,
+                    byteOffset: 0,
+                    componentType: 5126,
+                    count: normals.length,
+                    type: "VEC3",
+                    normalized: false,
+                },
+                // texcoords
+                {
+                    bufferView: 3,
+                    byteOffset: 0,
+                    componentType: 5126,
+                    count: texcoords.length,
+                    type: "VEC2",
+                    normalized: false,
+                },
+                // joints
+                {
+                    bufferView: 4,
+                    byteOffset: 0,
+                    componentType: 5123,
+                    count: Math.floor(joints.length / 4),
+                    type: "VEC4",
+                    normalized: false,
+                },
+                // weights
+                {
+                    bufferView: 5,
+                    byteOffset: 0,
+                    componentType: 5126,
+                    count: Math.floor(weights.length / 4),
+                    type: "VEC4",
+                    normalized: false,
+                },
+                // inverseBindMatrices
+                {
+                    bufferView: 6,
+                    byteOffset: 0,
+                    componentType: 5126,
+                    count: inverseBindMatrices.length,
+                    type: "MAT4",
+                    normalized: false,
+                },
+            ];
+
+            // ノードの生成
+            const nodes = [];
+            for (let i = 0; i < bones.length; i++) {
+                const bone = bones[i];
+                const node = {
+                    name: bone.name,
+                    translation: [bone.vec0[0] * scale, bone.vec0[1] * scale, bone.vec0[2] * scale],
+                };
+
+                // 子を探す
+                const children = [];
+                for (let j = 0; j < bones.length; j++) {
+                    if (bones[j].parent === i) {
+                        children.push(j);
+                    }
+                }
+                if (children.length > 0) {
+                    node.children = children;
+                }
+                nodes.push(node);
+            }
+            // モデルノード
+            nodes.push({
+                mesh: 0,
+                name: "model",
+                skin: 0,
+            });
+
+            // glTF JSON
+            const gltf = {
+                asset: {
+                    version: "2.0",
+                    generator: "MOG3D VRM Exporter",
+                },
+                buffers: [
+                    {
+                        byteLength: binlength,
+                    },
+                ],
+                bufferViews: bufferViews,
+                accessors: accessors,
+                nodes: nodes,
+                skins: [
+                    {
+                        inverseBindMatrices: 6,
+                        joints: Array.from({ length: bones.length }, (_, i) => i),
+                    },
+                ],
+                materials: [
+                    {
+                        alphaMode: "OPAQUE",
+                        name: "Material",
+                        pbrMetallicRoughness: {
+                            baseColorFactor: [1.0, 1.0, 1.0, 1.0],
+                            metallicFactor: 0.0,
+                            roughnessFactor: 1.0,
+                            baseColorTexture: {
+                                extensions: {
+                                    KHR_texture_transform: {
+                                        offset: [0, 0],
+                                        scale: [1, 1],
+                                    },
+                                },
+                                index: 0,
+                                texCoord: 0,
+                            },
+                        },
+                        doubleSided: false,
+                    },
+                ],
+                meshes: [
+                    {
+                        name: "model",
+                        primitives: [
+                            {
+                                attributes: {
+                                    POSITION: 1,
+                                    NORMAL: 2,
+                                    TEXCOORD_0: 3,
+                                    JOINTS_0: 4,
+                                    WEIGHTS_0: 5,
+                                },
+                                indices: 0,
+                                material: 0,
+                                mode: 4,
+                            },
+                        ],
+                    },
+                ],
+                scenes: [
+                    {
+                        nodes: [0, bones.length],
+                    },
+                ],
+                scene: 0,
+                textures: [
+                    {
+                        sampler: 0,
+                        source: 0,
+                    },
+                ],
+                samplers: [
+                    {
+                        magFilter: 9729,
+                        minFilter: 9985,
+                        wrapS: 10497,
+                        wrapT: 10497,
+                    },
+                ],
+                images: [
+                    {
+                        bufferView: 7,
+                        name: "model_texture",
+                        mimeType: "image/png",
+                    },
+                ],
+                extensions: {
+                    VRMC_vrm: {
+                        specVersion: "1.0",
+                        meta: {
+                            name: "model",
+                            version: "1.0",
+                            authors: ["Author"],
+                            allowAntisocialOrHateUsage: false,
+                            allowExcessivelySexualUsage: false,
+                            allowExcessivelyViolentUsage: false,
+                            allowPoliticalOrReligiousUsage: false,
+                            avatarPermission: "onlyAuthor",
+                            commercialUsage: "personalNonProfit",
+                            creditNotation: "required",
+                            modification: "prohibited",
+                            licenseUrl: "https://vrm.dev/licenses/1.0/",
+                        },
+                        humanoid: {
+                            humanBones: {},
+                        },
+                    },
+                },
+                extensionsUsed: ["VRMC_vrm", "KHR_texture_transform"],
+            };
+
+            // humanBonesの生成
+            for (let i = 0; i < bones.length; i++) {
+                const boneName = bones[i].name;
+                const vrmName = vrmBoneMap[boneName] || boneName;
+                gltf.extensions.VRMC_vrm.humanoid.humanBones[vrmName] = {
+                    node: i,
+                };
+            }
+
+            const gltfString = JSON.stringify(gltf);
+            const jsonBuffer = new TextEncoder().encode(gltfString);
+            const jsonSize = Math.ceil(jsonBuffer.length / 4) * 4;
+
+            // VRM(glTF)ファイルの生成
+            const fileSize = 12 + 8 + jsonSize + 8 + binlength;
+            const vrmBuffer = new Uint8Array(fileSize);
+            const vrmView = new DataView(vrmBuffer.buffer);
+            let vrmOffset = 0;
+
+            // glTFヘッダ
+            vrmBuffer.set([0x67, 0x6C, 0x54, 0x46], vrmOffset); // "glTF"
+            vrmOffset += 4;
+            vrmView.setUint32(vrmOffset, 2, true); // version
+            vrmOffset += 4;
+            vrmView.setUint32(vrmOffset, fileSize, true); // length
+            vrmOffset += 4;
+
+            // JSONチャンク
+            vrmView.setUint32(vrmOffset, jsonSize, true);
+            vrmOffset += 4;
+            vrmBuffer.set([0x4A, 0x53, 0x4F, 0x4E], vrmOffset); // "JSON"
+            vrmOffset += 4;
+            vrmBuffer.set(jsonBuffer, vrmOffset);
+            // JSONの末尾をスペースで埋める（4バイト境界）
+            for (let i = jsonBuffer.length; i < jsonSize; i++) {
+                vrmBuffer[vrmOffset + i] = 0x20; // space
+            }
+            vrmOffset += jsonSize;
+
+            // BINチャンク
+            vrmView.setUint32(vrmOffset, binlength, true);
+            vrmOffset += 4;
+            vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); // "BIN\0"
+            vrmOffset += 4;
+            vrmBuffer.set(binaryBuffer, vrmOffset);
+
+            // VRMファイルの生成
+            const blob = new Blob([vrmBuffer], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            console.log('VRM URL created:', url);
+            return url;
 
         });
         return promise;
