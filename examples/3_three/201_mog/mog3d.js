@@ -553,7 +553,6 @@ export class MOG3D {
 
         for (let i = 0; i < bones.length; i++) {
             const bone = bones[i];
-
             let pos = [0.0, 0.0, 0.0];
             let temp = bone;
             while (temp.parent >= 0) {
@@ -820,9 +819,26 @@ export class MOG3D {
             const nodes = [];
             for (let i = 0; i < bones.length; i++) {
                 const bone = bones[i];
+
+                // 親ボーンの基準位置を取得
+                let basePos = [0.0, 0.0, 0.0];
+                let temp = bone;
+                if (temp.parent >= 0) {
+                    const parent = bones[temp.parent];
+                    basePos[0] += (parent.vec1[0]);
+                    basePos[1] += (parent.vec1[1]);
+                    basePos[2] += (parent.vec1[2]);
+                }
+               
+                const v0 = [
+                    basePos[0] + bone.vec0[0],
+                    basePos[1] + bone.vec0[1],
+                    basePos[2] + bone.vec0[2]
+                ];
+
                 const node = {
                     name: bone.name,
-                    translation: [bone.vec0[0] * scale, bone.vec0[1] * scale, bone.vec0[2] * scale],
+                    translation: [v0[0] * scale, v0[1] * scale, v0[2] * scale],
                 };
 
                 // 子を探す
