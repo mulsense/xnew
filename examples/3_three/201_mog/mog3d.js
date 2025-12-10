@@ -620,21 +620,78 @@ export class MOG3D {
         promise.then((pngdata) => {
             let binlength = 0;
             {
-                binlength += (indices.length * 4) * 2;
-                binlength += (vertexs.length * 4) * 3;
-                binlength += (normals.length * 4) * 3;
-                binlength += (texcoords.length * 4) * 2;
-                binlength += (joints.length * 2);
-                binlength += (weights.length * 4);
-                binlength += (inverseBindMatrices.length * 4) * 16;
+                binlength += indices.length * 4;
+                binlength += vertexs.length * 4 * 3;
+                binlength += normals.length * 4 * 3;
+                binlength += texcoords.length * 4 * 2;
+                binlength += joints.length * 2;
+                binlength += weights.length * 4;
+                binlength += inverseBindMatrices.length * 4 * 16;
 
                 binlength += pngdata.length;
             }
 
             const binaryBuffer = new Uint8Array(binlength);
-            {
-  
+            const view = new DataView(binaryBuffer.buffer);
+            let offset = 0;
+
+            // indices (int32)
+            for (let i = 0; i < indices.length; i++) {
+                view.setInt32(offset, indices[i], true);
+                offset += 4;
             }
+
+            // vertexs (float32 x 3)
+            for (let i = 0; i < vertexs.length; i++) {
+                view.setFloat32(offset, vertexs[i][0], true);
+                offset += 4;
+                view.setFloat32(offset, vertexs[i][1], true);
+                offset += 4;
+                view.setFloat32(offset, vertexs[i][2], true);
+                offset += 4;
+            }
+
+            // normals (float32 x 3)
+            for (let i = 0; i < normals.length; i++) {
+                view.setFloat32(offset, normals[i][0], true);
+                offset += 4;
+                view.setFloat32(offset, normals[i][1], true);
+                offset += 4;
+                view.setFloat32(offset, normals[i][2], true);
+                offset += 4;
+            }
+
+            // texcoords (float32 x 2)
+            for (let i = 0; i < texcoords.length; i++) {
+                view.setFloat32(offset, texcoords[i][0], true);
+                offset += 4;
+                view.setFloat32(offset, texcoords[i][1], true);
+                offset += 4;
+            }
+
+            // joints (uint16)
+            for (let i = 0; i < joints.length; i++) {
+                view.setUint16(offset, joints[i], true);
+                offset += 2;
+            }
+
+            // weights (float32)
+            for (let i = 0; i < weights.length; i++) {
+                view.setFloat32(offset, weights[i], true);
+                offset += 4;
+            }
+
+            // inverseBindMatrices (float32 x 16)
+            for (let i = 0; i < inverseBindMatrices.length; i++) {
+                const mat = inverseBindMatrices[i];
+                for (let j = 0; j < 16; j++) {
+                    view.setFloat32(offset, mat[j], true);
+                    offset += 4;
+                }
+            }
+
+            // pngdata (uint8)
+            binaryBuffer.set(pngdata, offset);
 
         });
         return promise;
