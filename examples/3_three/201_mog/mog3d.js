@@ -428,7 +428,7 @@ export class MOG3D {
             while (temp.parent >= 0) {
                 let parent = bones[temp.parent];
                 pos[0] += (parent.vec0[0] + parent.vec1[0]);
-                pos[1] += (parent.vec0[1] + parent.vec1[2]);
+                pos[1] += (parent.vec0[1] + parent.vec1[1]);
                 pos[2] += (parent.vec0[2] + parent.vec1[2]);
                 temp = parent;
             }
@@ -559,7 +559,7 @@ export class MOG3D {
             while (temp.parent >= 0) {
                 let parent = bones[temp.parent];
                 pos[0] += (parent.vec0[0] + parent.vec1[0]);
-                pos[1] += (parent.vec0[1] + parent.vec1[2]);
+                pos[1] += (parent.vec0[1] + parent.vec1[1]);
                 pos[2] += (parent.vec0[2] + parent.vec1[2]);
                 temp = parent;
             }
