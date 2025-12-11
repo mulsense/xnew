@@ -8,70 +8,6 @@ export const mog3d = {
 }
 const usize = 1024;
 
-class Bone {
-    constructor(parent, name, refs, vec0, vec1, iks) {
-        this.parent = parent;
-        this.name = name;
-        this.refs = refs;
-        this.vec0 = vec0;
-        this.vec1 = vec1;
-        this.iks = iks;
-    }
-
-    offset() {
-        let offset = [0.0, 0.0, 0.0];
-        let bone = this;
-        while (bone.parent) {
-            offset[0] += (bone.parent.vec0[0] + bone.parent.vec1[0]);
-            offset[1] += (bone.parent.vec0[1] + bone.parent.vec1[1]);
-            offset[2] += (bone.parent.vec0[2] + bone.parent.vec1[2]);
-            bone = bone.parent;
-        }
-        return offset;
-    }
-}
-class Line {
-    constructor(vec0, vec1) {
-        this.vec0 = vec0;
-        this.vec1 = vec1;
-    }
-    distance (vec) {
-        let distance = 0;
-        const linevec = [this.vec1[0] - this.vec0[0], this.vec1[1] - this.vec0[1], this.vec1[2] - this.vec0[2]];
-        const linelen = Math.sqrt(linevec[0] * linevec[0] + linevec[1] * linevec[1] + linevec[2] * linevec[2]);
-
-        if (linelen < 0.1) {
-            const d = [
-                vec[0] - (this.vec0[0] + this.vec1[0]) * 0.5,
-                vec[1] - (this.vec0[1] + this.vec1[1]) * 0.5,
-                vec[2] - (this.vec0[2] + this.vec1[2]) * 0.5,
-            ];
-            distance = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-        }
-        else {
-            const a = [vec[0] - this.vec0[0], vec[1] - this.vec0[1], vec[2] - this.vec0[2]];
-            const b = [vec[0] - this.vec1[0], vec[1] - this.vec1[1], vec[2] - this.vec1[2]];
-            
-            const s = (linevec[0] * a[0] + linevec[1] * a[1] + linevec[2] * a[2]) / linelen;
-            if (s < 0.0) {
-                distance = Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
-            }
-            else if (s > linelen) {
-                distance = Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
-            }
-            else {
-                const c = [
-                    vec[0] - (this.vec0[0] + linevec[0] * s / linelen),
-                    vec[1] - (this.vec0[1] + linevec[1] * s / linelen),
-                    vec[2] - (this.vec0[2] + linevec[2] * s / linelen),
-                ];
-                distance = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
-            }
-        }
-        return distance;
-    }
-}
-
 class MOGData {
     constructor(json) {
         this.dsize = json['dsize'];
@@ -103,71 +39,51 @@ class MOGData {
         }
     }
 
-    convertVRM(scale) {
+    convertVRM() {
         const indices = []; // int
         const vertexs = []; // Vec3
         const normals = []; // Vec3
-        const texcoords = []; // Vec2
-        const joints = []; // unsigned short
+        const colors = [];  // Col3
+        const coords = [];  // Vec2
+        const joints = [];  // unsigned short
         const weights = []; // float
         const inverseBindMatrices = []; // Mat4
 
-        const colors = []; // Col3
-        const bones = this.bones;
         const dsize = this.dsize;
-
-        const lines = [];
-        for (let i = 0; i < bones.length; i++) {
-            const bone = bones[i];
-            const offset = bone.offset();
-            const vec0 = [offset[0] + bone.vec0[0], offset[1] + bone.vec0[1], offset[2] + bone.vec0[2]];
-            const vec1 = [vec0[0] + bone.vec1[0], vec0[1] + bone.vec1[1], vec0[2] + bone.vec1[2]];
-            lines.push(new Line(
-                [vec0[0] * scale, vec0[1] * scale, vec0[2] * scale],
-                [vec1[0] * scale, vec1[1] * scale, vec1[2] * scale],
-            ));
-        }
 
         for (let i = 0; i < this.models.length; i++) {
             const model = this.models[i];
-
-            const temps = [] // Vec3
             const offset = indices.length;
-
             for (let j = 0; j < model.vertexs.length / 3; j++) {
-                vertexs.push([(model.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (model.vertexs[j * 3 + 1]) * scale, (model.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
-                temps.push([(model.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (model.vertexs[j * 3 + 1]) * scale, (model.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
-                normals.push([model.normals[j * 3 + 0] / 127.0, model.normals[j * 3 + 1] / 127.0, model.normals[j * 3 + 2] / 127.0]);
+                indices.push(offset + j);
+                vertexs.push([model.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2, model.vertexs[j * 3 + 1], model.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2]);
+                normals.push([model.normals[j * 3 + 0], model.normals[j * 3 + 1], model.normals[j * 3 + 2]]);
                 colors.push([model.colors[j * 3 + 0], model.colors[j * 3 + 1], model.colors[j * 3 + 2]]);
-                
-                indices.push(offset + j + 0);
             }
 
-            const mask = [];
-            for (let j = 0; j < bones.length; j++) {
-                mask.push(0);
-            }
-            if (bones.length > 1) {
-                for (let j = 0; j < bones.length; j++) {
-                    if (bones[j].refs.length == 0) {
+            const mask = Array(this.bones.length);
+            mask.fill(0);
+            if (this.bones.length > 1) {
+                for (let j = 0; j < this.bones.length; j++) {
+                    if (this.bones[j].refs.length == 0) {
                         mask[j] = 1;
                     }
                     else {
-                        for (let k = 0; k < bones[j].refs.length; k++) {
-                            if (bones[j].refs[k] === i) {
+                        for (let k = 0; k < this.bones[j].refs.length; k++) {
+                            if (this.bones[j].refs[k] === i) {
                                 mask[j] = 1;
                             }
                         }
                     }
                 }
-                for (let j = 0; j < temps.length; j++) {
-                    let nid0 = -1;
-
-                    let min0 = 1000;
+                for (let j = offset; j < vertexs.length; j++) {
+                    let [nid0, nid1] = [-1, -1];
+                    let [min0, min1] = [1000, 1000];
+                    let wei = 1.0;
                     {
-                        for (let k = 1; k < bones.length; k++) {
+                        for (let k = 1; k < this.bones.length; k++) {
                             if (mask[k]) {
-                                const l = lines[k].distance(temps[j]);
+                                const l = this.bones[k].distance(vertexs[j]);
                                 if (l < min0) {
                                     min0 = l;
                                     nid0 = k;
@@ -175,18 +91,14 @@ class MOGData {
                             }
                         }
                     }
-                    let wei = 1.0;
-                    let nid1 = -1;
-                    let min1 = 1000;
                     if (nid0 >= 0) {
                         min1 = min0 * 2.0;
-                        for (let k = 1; k < bones.length; k++) {
-                            if (k == nid0) continue;
-                            {
-                                const n0 = bones[nid0].name;
+                        for (let k = 1; k < this.bones.length; k++) {
+                            if (k !== nid0 && mask[k]) {
+                                const n0 = this.bones[nid0].name;
                                 const s0 = n0.length;
 
-                                const n1 = bones[k].name;
+                                const n1 = this.bones[k].name;
                                 const s1 = n1.length;
                                 if (s0 >= 2 && s1 >= 2) {
                                     if (n0[s0 - 2] == 'L' && n1[s1 - 2] == 'R') {
@@ -196,18 +108,15 @@ class MOGData {
                                         continue;
                                     }
                                 }
-                            }
-                            if (mask[k]) {
-                                const l = lines[k].distance(temps[j]);
+                         
+                                const l = this.bones[k].distance(vertexs[j]);
                                 if (l < min1) {
                                     min1 = l;
                                     nid1 = k;
                                     wei = (2 * min0 - min1) / (2 * min0 + 0.001);
-
                                     wei = Math.sqrt(1.0 - wei);
                                 }
                             }
-
                         }
                     }
                     joints.push(nid0 >= 0 ? nid0 : 0);
@@ -223,15 +132,15 @@ class MOGData {
             }
         }
 
-        for (let i = 0; i < bones.length; i++) {
-            const bone = bones[i];
-            const offset = bone.offset();
-            const vec0 = [offset[0] + bone.vec0[0], offset[1] + bone.vec0[1], offset[2] + bone.vec0[2]];
+        for (let i = 0; i < this.bones.length; i++) {
+            const bone = this.bones[i];
+            const position = bone.basePosition();
+            const vec0 = [position[0] + bone.vec0[0], position[1] + bone.vec0[1], position[2] + bone.vec0[2]];
             const mat = [
                 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
-                -vec0[0] * scale, -vec0[1] * scale, -vec0[2] * scale, 1,
+                -vec0[0], -vec0[1], -vec0[2], 1,
             ];
             inverseBindMatrices.push(mat);
         }
@@ -239,11 +148,9 @@ class MOGData {
         {
             const w = usize;
             const h = Math.pow(2, Math.ceil(Math.log2(2 * (2 * colors.length + usize - 1) / usize))) >> 0;
-            console.log(h);
             const imgdata = new Uint8Array(w * h * 4);
-            for (let i = 0; i < imgdata.length; i++) {
-                imgdata[i] = 255;
-            }
+            imgdata.fill(255);
+           
             for (let i = 0; i < colors.length; i++) {
                 const s = w - 4;
                 const x = (i * 2) % s;
@@ -268,24 +175,21 @@ class MOGData {
                 // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
                 const u = (x + 1) / w;
                 const v = (y + 1) / h;
-                texcoords.push([u, v]);
+                coords.push([u, v]);
             }
             promise = uint8ArrayToPng(imgdata, w, h)
         }
 
         promise = promise.then((pngdata) => {
             let binlength = 0;
-            {
-                binlength += indices.length * 4;
-                binlength += vertexs.length * 4 * 3;
-                binlength += normals.length * 4 * 3;
-                binlength += texcoords.length * 4 * 2;
-                binlength += joints.length * 2;
-                binlength += weights.length * 4;
-                binlength += inverseBindMatrices.length * 4 * 16;
-
-                binlength += pngdata.length;
-            }
+            binlength += indices.length * 4;
+            binlength += vertexs.length * 4 * 3;
+            binlength += normals.length * 4 * 3;
+            binlength += coords.length * 4 * 2;
+            binlength += joints.length * 2;
+            binlength += weights.length * 4;
+            binlength += inverseBindMatrices.length * 4 * 16;
+            binlength += pngdata.length;
 
             const binary = new Uint8Array(binlength);
             const view = new DataView(binary.buffer);
@@ -317,11 +221,11 @@ class MOGData {
                 offset += 4;
             }
 
-            // texcoords (float32 x 2)
-            for (let i = 0; i < texcoords.length; i++) {
-                view.setFloat32(offset, texcoords[i][0], true);
+            // coords (float32 x 2)
+            for (let i = 0; i < coords.length; i++) {
+                view.setFloat32(offset, coords[i][0], true);
                 offset += 4;
-                view.setFloat32(offset, texcoords[i][1], true);
+                view.setFloat32(offset, coords[i][1], true);
                 offset += 4;
             }
 
@@ -382,8 +286,8 @@ class MOGData {
             bufferViewOffset += vertexs.length * 4 * 3;
             bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: normals.length * 4 * 3, target: 34962 });
             bufferViewOffset += normals.length * 4 * 3;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: texcoords.length * 4 * 2, target: 34962 });
-            bufferViewOffset += texcoords.length * 4 * 2;
+            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: coords.length * 4 * 2, target: 34962 });
+            bufferViewOffset += coords.length * 4 * 2;
             bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: joints.length * 2, target: 34962 });
             bufferViewOffset += joints.length * 2;
             bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: weights.length * 4, target: 34962 });
@@ -434,12 +338,12 @@ class MOGData {
                     type: "VEC3",
                     normalized: false,
                 },
-                // texcoords
+                // coords
                 {
                     bufferView: 3,
                     byteOffset: 0,
                     componentType: 5126,
-                    count: texcoords.length,
+                    count: coords.length,
                     type: "VEC2",
                     normalized: false,
                 },
@@ -474,34 +378,26 @@ class MOGData {
 
             // ノードの生成
             const nodes = [];
-            for (let i = 0; i < bones.length; i++) {
-                const bone = bones[i];
+            for (let i = 0; i < this.bones.length; i++) {
+                const bone = this.bones[i];
 
                 // 親ボーンの基準位置を取得
-                let basePos = [0.0, 0.0, 0.0];
-                let temp = bone;
-                if (temp.parent) {
-                    const parent = temp.parent;
-                    basePos[0] += (parent.vec1[0]);
-                    basePos[1] += (parent.vec1[1]);
-                    basePos[2] += (parent.vec1[2]);
+                let position = [0.0, 0.0, 0.0];
+                if (bone.parent) {
+                    position[0] += bone.parent.vec1[0];
+                    position[1] += bone.parent.vec1[1];
+                    position[2] += bone.parent.vec1[2];
                 }
                 
-                const v0 = [
-                    basePos[0] + bone.vec0[0],
-                    basePos[1] + bone.vec0[1],
-                    basePos[2] + bone.vec0[2]
-                ];
-
                 const node = {
                     name: bone.name,
-                    translation: [v0[0] * scale, v0[1] * scale, v0[2] * scale],
+                    translation: [position[0] + bone.vec0[0], position[1] + bone.vec0[1], position[2] + bone.vec0[2]],
                 };
 
                 // 子を探す
                 const children = [];
-                for (let j = 0; j < bones.length; j++) {
-                    if (bones[j].parent === bones[i]) {
+                for (let j = 0; j < this.bones.length; j++) {
+                    if (this.bones[j].parent === this.bones[i]) {
                         children.push(j);
                     }
                 }
@@ -534,7 +430,7 @@ class MOGData {
                 skins: [
                     {
                         inverseBindMatrices: 6,
-                        joints: Array.from({ length: bones.length }, (_, i) => i),
+                        joints: Array.from({ length: this.bones.length }, (_, i) => i),
                     },
                 ],
                 materials: [
@@ -580,7 +476,7 @@ class MOGData {
                 ],
                 scenes: [
                     {
-                        nodes: [0, bones.length],
+                        nodes: [0, this.bones.length],
                     },
                 ],
                 scene: 0,
@@ -631,8 +527,8 @@ class MOGData {
             };
 
             // humanBonesの生成
-            for (let i = 0; i < bones.length; i++) {
-                const boneName = bones[i].name;
+            for (let i = 0; i < this.bones.length; i++) {
+                const boneName = this.bones[i].name;
                 const vrmName = vrmBoneMap[boneName] || boneName;
                 gltf.extensions.VRMC_vrm.humanoid.humanBones[vrmName] = {
                     node: i,
@@ -852,12 +748,12 @@ class Model {
 
                         let nrm;
                         switch(i) {
-                            case 0: nrm = [-127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0,]; break;
-                            case 1: nrm = [+127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0,]; break;
-                            case 2: nrm = [0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0,]; break;
-                            case 3: nrm = [0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0,]; break;
-                            case 4: nrm = [0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127,]; break;
-                            case 5: nrm = [0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127,]; break;
+                            case 0: nrm = [-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,]; break;
+                            case 1: nrm = [+1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0,]; break;
+                            case 2: nrm = [0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,]; break;
+                            case 3: nrm = [0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0,]; break;
+                            case 4: nrm = [0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,]; break;
+                            case 5: nrm = [0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1,]; break;
                         }
 
                         let col = [];
@@ -879,7 +775,68 @@ class Model {
     }
 }
 
+class Bone {
+    constructor(parent, name, refs, vec0, vec1, iks) {
+        this.parent = parent;
+        this.name = name;
+        this.refs = refs;
+        this.vec0 = vec0;
+        this.vec1 = vec1;
+        this.iks = iks;
+    }
 
+    basePosition() {
+        let position = [0.0, 0.0, 0.0];
+        let bone = this;
+        while (bone.parent) {
+            position[0] += (bone.parent.vec0[0] + bone.parent.vec1[0]);
+            position[1] += (bone.parent.vec0[1] + bone.parent.vec1[1]);
+            position[2] += (bone.parent.vec0[2] + bone.parent.vec1[2]);
+            bone = bone.parent;
+        }
+        return position;
+    }
+
+    distance (vec) {
+        let distance = 0;
+        const position = this.basePosition();
+        const vec0 = [position[0] + this.vec0[0], position[1] + this.vec0[1], position[2] + this.vec0[2]];
+        const vec1 = [vec0[0] + this.vec1[0], vec0[1] + this.vec1[1], vec0[2] + this.vec1[2]];
+
+        const linevec = [vec1[0] - vec0[0], vec1[1] - vec0[1], vec1[2] - vec0[2]];
+        const linelen = Math.sqrt(linevec[0] * linevec[0] + linevec[1] * linevec[1] + linevec[2] * linevec[2]);
+
+        if (linelen < 0.1) {
+            const d = [
+                vec[0] - (vec0[0] + vec1[0]) * 0.5,
+                vec[1] - (vec0[1] + vec1[1]) * 0.5,
+                vec[2] - (vec0[2] + vec1[2]) * 0.5,
+            ];
+            distance = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        }
+        else {
+            const a = [vec[0] - vec0[0], vec[1] - vec0[1], vec[2] - vec0[2]];
+            const b = [vec[0] - vec1[0], vec[1] - vec1[1], vec[2] - vec1[2]];
+            
+            const s = (linevec[0] * a[0] + linevec[1] * a[1] + linevec[2] * a[2]) / linelen;
+            if (s < 0.0) {
+                distance = Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+            }
+            else if (s > linelen) {
+                distance = Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
+            }
+            else {
+                const c = [
+                    vec[0] - (vec0[0] + linevec[0] * s / linelen),
+                    vec[1] - (vec0[1] + linevec[1] * s / linelen),
+                    vec[2] - (vec0[2] + linevec[2] * s / linelen),
+                ];
+                distance = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+            }
+        }
+        return distance;
+    }
+}
 
 function uint8ArrayToPng(data, width, height) {
     const canvas = document.createElement('canvas');
@@ -892,11 +849,9 @@ function uint8ArrayToPng(data, width, height) {
     ctx.putImageData(imageData, 0, 0);
 
     // PNGのBlobを取得
-    return new Promise(resolve => {
-        canvas.toBlob(blob => {
-            blob.arrayBuffer().then(buffer => {
-                resolve(new Uint8Array(buffer));
-            });
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+            blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); });
         }, 'image/png');
     });
 }
@@ -918,10 +873,18 @@ class Code {
         const bits = view.getInt32(base, true);
         const size = (bits + 7) >> 3;
         const offset = size * 8 - bits;
+
+        const slice = bin.slice(base + 4, base + 4 + size);
         if (bitarray === false) {
-            return bin.slice(base + 4, base + 4 + size);
+            return slice;
         } else {
-            return Code.get1BitArray(bin.slice(base + 4, base + 4 + size), size * 8 - offset);
+            const data = new Uint8Array(size * 8 - offset);
+            for (let i = 0; i < size * 8 - offset; i++) {
+                const q = i / 8 >> 0;
+                const r = i % 8;
+                data[i] = (slice[q] & (0x01 << r)) ? 1 : 0;
+            }
+            return data;
         }
     }
 
@@ -932,16 +895,6 @@ class Code {
             bytes[i] = binary.charCodeAt(i);
         }
         return bytes;
-    }
-
-    static get1BitArray (src, bits) {
-        const dst = new Uint8Array(bits);
-        for (let i = 0; i < dst.length; i++) {
-            const q = i / 8 >> 0;
-            const r = i % 8;
-            dst[i] = (src[q] & (0x01 << r)) ? 1 : 0;
-        }
-        return dst;
     }
 
     static hmMakeNode(table) {
