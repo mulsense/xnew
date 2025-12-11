@@ -420,8 +420,6 @@ export class MOG3D {
 
         const vidxs = []; // int
 
-        bones[0].vec0[1] += mcenter;
-
         const lines = [];
         for (let i = 0; i < bones.length; i++) {
             const bone = bones[i];
