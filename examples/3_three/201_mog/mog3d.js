@@ -415,9 +415,12 @@ export class MOG3D {
         const cols = []; // Col3
         const bones = unit.bones;
 
+        const dsize = unit.dsize;
         const mcenter = unit.dsize[1] / 2;
 
         const vidxs = []; // int
+
+        bones[0].vec0[1] += mcenter;
 
         const lines = [];
         for (let i = 0; i < bones.length; i++) {
@@ -450,27 +453,15 @@ export class MOG3D {
             const temps = [] // Vec3
             const offset = indices.length;
 
-            for (let j = 0; j < vtxs.length / 9; j++) {
-                vertexs.push([vtxs[j * 9 + 0] * scale, (vtxs[j * 9 + 1]) * scale, vtxs[j * 9 + 2] * scale]);
-                vertexs.push([vtxs[j * 9 + 3] * scale, (vtxs[j * 9 + 4]) * scale, vtxs[j * 9 + 5] * scale]);
-                vertexs.push([vtxs[j * 9 + 6] * scale, (vtxs[j * 9 + 7]) * scale, vtxs[j * 9 + 8] * scale]);
-
-                temps.push([vtxs[j * 9 + 0] * scale, (vtxs[j * 9 + 1]) * scale, vtxs[j * 9 + 2] * scale]);
-                temps.push([vtxs[j * 9 + 3] * scale, (vtxs[j * 9 + 4]) * scale, vtxs[j * 9 + 5] * scale]);
-                temps.push([vtxs[j * 9 + 6] * scale, (vtxs[j * 9 + 7]) * scale, vtxs[j * 9 + 8] * scale]);
-
-                normals.push([nrms[j * 9 + 0] / 127.0, nrms[j * 9 + 1] / 127.0, nrms[j * 9 + 2] / 127.0]);
-                normals.push([nrms[j * 9 + 3] / 127.0, nrms[j * 9 + 4] / 127.0, nrms[j * 9 + 5] / 127.0]);
-                normals.push([nrms[j * 9 + 6] / 127.0, nrms[j * 9 + 7] / 127.0, nrms[j * 9 + 8] / 127.0]);
-
-                indices.push(offset + j * 3 + 0);
-                indices.push(offset + j * 3 + 1);
-                indices.push(offset + j * 3 + 2);
-            }
-
-            for (let j = 0; j < model.buffer.cols.length / 3; j++) {
+            for (let j = 0; j < vtxs.length / 3; j++) {
+                vertexs.push([(vtxs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (vtxs[j * 3 + 1]) * scale, (vtxs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
+                temps.push([(vtxs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (vtxs[j * 3 + 1]) * scale, (vtxs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
+                normals.push([nrms[j * 3 + 0] / 127.0, nrms[j * 3 + 1] / 127.0, nrms[j * 3 + 2] / 127.0]);
                 cols.push([model.buffer.cols[j * 3 + 0], model.buffer.cols[j * 3 + 1], model.buffer.cols[j * 3 + 2]]);
+             
+                indices.push(offset + j + 0);
             }
+
             const mask = [];
             for (let j = 0; j < bones.length; j++) {
                 mask.push(0);
@@ -588,9 +579,12 @@ export class MOG3D {
             //    texcoords.push_back(Vec2(u, v));
             //    texcoords.push_back(Vec2(u, v));
             //}
+            let x = 0;
+            let y = 0;
             for (let i = 0; i < cols.length; i++) {
-                const x = (i * 2) % w;
-                const y = Math.floor((i * 2) / w) * 2;
+                const s = w - 4;
+                const x = (i * 2) % s;
+                const y = Math.floor((i * 2) / s) * 2;
 
                 imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 0] = cols[i][0];
                 imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 1] = cols[i][1];
@@ -609,8 +603,8 @@ export class MOG3D {
                 imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = cols[i][2];
 
                 // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
-                const u = (x + 0.5) / w;
-                const v = (y + 0.5) / h;
+                const u = (x + 1) / w;
+                const v = (y + 1) / h;
                 texcoords.push([u, v]);
             }
             promise = uint8ArrayToPng(imgdata, w, h)
