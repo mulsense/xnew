@@ -1,12 +1,12 @@
 import xnew from '@mulsense/xnew';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as THREE from 'three';
-import { MOG3D } from './mog3d.js';
+import { mog3d } from './mog3d.js';
 
 
 export function Stage(self, { path }) {
   const object = xthree.nest(new THREE.Object3D());
-  MOG3D.load(path).then(xnew.scope((unit) => {
+  mog3d.load(path).then(xnew.scope((unit) => {
     const vox = new THREE.Object3D();
     unit.models.forEach(model => {
       const buffer = model.buffer;

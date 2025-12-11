@@ -1,30 +1,33 @@
 
-
-class Unit {
-    constructor() {
-        this.dsize = [0, 0, 0];
-        this.palette = [];
-        this.models = [];
-        this.bones = [];
-        this.object = null;
+export const mog3d = {
+    load(path) {
+        return fetch(path).then(response => response.json()).then(async (json) => {
+            return new MOGData(json);
+        });
     }
 }
-
-class Model {
-    constructor() {
-        this.name = "";
-        this.buffer = null;
-    }
-}
+const usize = 1024;
 
 class Bone {
     constructor(parent, name, refs, vec0, vec1, iks) {
-        this.name = name;
         this.parent = parent;
+        this.name = name;
         this.refs = refs;
         this.vec0 = vec0;
         this.vec1 = vec1;
         this.iks = iks;
+    }
+
+    offset() {
+        let offset = [0.0, 0.0, 0.0];
+        let bone = this;
+        while (bone.parent) {
+            offset[0] += (bone.parent.vec0[0] + bone.parent.vec1[0]);
+            offset[1] += (bone.parent.vec0[1] + bone.parent.vec1[1]);
+            offset[2] += (bone.parent.vec0[2] + bone.parent.vec1[2]);
+            bone = bone.parent;
+        }
+        return offset;
     }
 }
 class Line {
@@ -68,341 +71,39 @@ class Line {
         return distance;
     }
 }
-const usize = 1024;
 
-function get_height(csize) {
-    const h = ((2 * csize + usize - 1) / usize) >> 0;
-    const p = Math.floor(Math.pow(2, Math.ceil(Math.log2(2 * h))));
-    return p;
-}
-function getBit(data, i) {
-    return (data & (0x01 << i)) ? 1 : 0;
-}
-function getArrayBit(array, i) {
-    const q = i / 8 >> 0;
-    const r = i % 8;
-    return (array[q] & (0x01 << r)) ? 1 : 0;
-}
-function base64ToUint8Array(base64) {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
+class MOGData {
+    constructor(json) {
+        this.dsize = json['dsize'];
+            
+        const palette = Code.base64ToUint8Array(json['palette']);
+        this.palette = new Array(palette.length / 4);
+        for (let c = 0; c < this.palette.length; c++) {
+            this.palette[c] = [palette[c * 4 + 0], palette[c * 4 + 1], palette[c * 4 + 2], palette[c * 4 + 3]];
+        }
+        this.models = [];
+        for (let m = 0; m < json['models'].length; m++) {
+            const jsonmodel = json['models'][m];
+            const [vmap, cmap] = decodeMap(this.dsize, jsonmodel['vmap'], jsonmodel['cmap'])
+            this.models.push(new Model(jsonmodel['name'], this.dsize, this.palette, vmap, cmap));
+        }
+
+        this.bones = [];
+        for (let b = 0; b < json['bones'].length; b++) {
+            const jsonbone = json['bones'][b];
+            const parentid = jsonbone['parent'];
+            this.bones.push(new Bone(
+                parentid >= 0 ? this.bones[parentid] : null,
+                jsonbone['name'],
+                jsonbone['refs'],
+                jsonbone['vec0'],
+                jsonbone['vec1'],
+                jsonbone['iks'],
+            ));
+        }
     }
-    return bytes;
-}
-export class MOG3D {
-    static load (path) {
-        return fetch(path).then(response => response.json()).then(async (json) => {
-            const unit = new Unit();
-            unit.dsize[0] = json['size'][0];
-            unit.dsize[1] = json['size'][1];
-            unit.dsize[2] = json['size'][2];
 
-            const dsize = unit.dsize;
-            const s = [1, dsize[0], dsize[0] * dsize[1]];
-
-            const dsize0 = dsize[0];
-            const dsize1 = dsize[1];
-            const dsize2 = dsize[2];
-            const s0 = s[0];
-            const s1 = s[1];
-            const s2 = s[2];
-            
-            const pallet = base64ToUint8Array(json['palette']);
-            unit.palette = new Array(pallet.length / 4);
-            for (let c = 0; c < unit.palette.length; c++) {
-                unit.palette[c] = [pallet[c * 4 + 0], pallet[c * 4 + 1], pallet[c * 4 + 2], pallet[c * 4 + 3]];
-            }
-
-            for (let m = 0; m < json['models'].length; m++) {
-                const jsonModel = json['models'][m];
-                const model = new Model();
-                unit.models.push(model);
-
-                const vmap = new Uint8Array(dsize0 * dsize1 * dsize2);
-                const cmap = new Uint8Array(dsize0 * dsize1 * dsize2);
-                vmap.fill(0);
-                cmap.fill(0);
-
-                const bin0 = base64ToUint8Array(jsonModel['vmap']);
-                const bin1 = base64ToUint8Array(jsonModel['cmap']);
-
-                let memA = new Uint8Array(0);
-                let memB = new Uint8Array(0);
-                let memC = new Uint8Array(0);
-
-                function loadseg(bin, p){
-                    const view = new DataView(bin.buffer);
-
-                    let base = 0;
-                    for (let i = 0; i < p; i++) {
-                        const bits = view.getInt32(base, true);
-                        base += ((bits + 7) >> 3) + 4;
-                    }
-                    const bits = view.getInt32(base, true);
-                    const size = (bits + 7) >> 3;
-                    const offset = size * 8 - bits;
-                    const seg = { size, offset, data: null };
-                    if (seg.size > 0) {
-                        seg.data = bin.slice(base + 4, base + 4 + seg.size);
-                    }
-                    return seg
-                }
-
-                if (bin0.length > 0) { 
-                    {
-                        const seg = loadseg(bin0, 0);
-                        memA = seg.data;
-                    }
-                    {
-                        const seg = loadseg(bin0, 1);
-                        if (seg.size > 0) {
-                            memB = Code.decode(Code.table256(), Code.get1BitArray(seg.data, seg.size * 8 - seg.offset), 256, 8, 8);
-                        }
-                    }
-           
-                    const PALETTE_CODE = 256;
-                    let tableC = null;
-
-                    {
-                        const seg = loadseg(bin1, 0);
-                        const dv = new DataView(seg.data.buffer);
-                    
-                        const lngs = new Array(PALETTE_CODE + 1);
-                        lngs.fill(0);
-                        for (let c = 0; c < seg.size - 1; c += 2) {
-                            const s = dv.getUint8(c + 0);
-                            const b = dv.getUint8(c + 1);
-                            lngs[s] = b;
-                        }
-                        lngs[PALETTE_CODE] = dv.getUint8(seg.size - 1);
-                        tableC = Code.hmMakeTableFromLngs(lngs);
-                       
-                    }
-                    {
-                        const seg = loadseg(bin1, 1);
-
-                        if (seg.size > 0) {
-                            memC = Code.decode(tableC, Code.get1BitArray(seg.data, seg.size * 8 - seg.offset), PALETTE_CODE, 8, 8);
-                        }
-                    }
-                }
-
-                {
-                    const step = 8;
-                    const msize0 = ((dsize[0] + 7) / step) >> 0;
-                    const msize1 = ((dsize[1] + 7) / step) >> 0;
-                    const msize2 = ((dsize[2] + 7) / step) >> 0;
-
-                    let a = 0;
-                    let b = 0;
-                    let c = 0;
-                    
-                    for (let z = 0; z < msize2; z++) {
-                        for (let y = 0; y < msize1; y++) {
-                            for (let x = 0; x < msize0; x++) {
-
-                                const a0 = (a / step) >> 0;
-                                const a1 = (a % step);
-                                a++;
-                                if ((memA[a0] & (0x01 << a1)) === 0) continue;
-
-                                const nsize0 = Math.min(step, dsize0 - step * x);
-                                const nsize1 = Math.min(step, dsize1 - step * y);
-                                const nsize2 = Math.min(step, dsize2 - step * z);
-                                const offset = z * step * s2 + y * step * s1 + x * step * s0;
-
-                                for (let iz = 0; iz < nsize2; iz++) {
-                                    for (let iy = 0; iy < nsize1; iy++) {
-                                        let mb = memB[b++];
-                                        let p = iz * s2 + iy * s1 + 0 * s0 + offset;
-                                        for (let ix = 0; ix < nsize0; ix++) {
-                                            if (mb & 0x01) {
-                                                if (m == 0 || vmap[p] === 0) {
-                                                    vmap[p] = 0x80;
-                                                    cmap[p] = memC[Math.min(memC.length - 1, c)];
-                                                }
-                                                c++;
-                                            }
-                                            mb >>= 1;
-                                            p++;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                MOG3D.convert(dsize, unit.palette, model, vmap, cmap);
-            }
-
-            for (let b = 0; b < json['bones'].length; b++) {
-                const jsonBone = json['bones'][b];
-                unit.bones.push(new Bone(
-                    jsonBone['parent'],
-                    jsonBone['name'],
-                    jsonBone['refs'],
-                    jsonBone['vec0'],
-                    jsonBone['vec1'],
-                    jsonBone['iks'],
-                ));
-            }
-            const vrmrul = await MOG3D.convertVRM(unit, 0.1);
-            console.log('data', vrmrul);
-            return vrmrul;
-        });
-    };
-
-    static convert (dsize, palette, model, vmap, cmap) {
-        const nrms = [];
-        nrms.push(new Int8Array([-127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0,]));
-        nrms.push(new Int8Array([+127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0,]));
-        nrms.push(new Int8Array([0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0,]));
-        nrms.push(new Int8Array([0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0,]));
-        nrms.push(new Int8Array([0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127,]));
-        nrms.push(new Int8Array([0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127,]));
-
-        const s = [1, dsize[0], dsize[0] * dsize[1]];
-
-        const dsize0 = dsize[0];
-        const dsize1 = dsize[1];
-        const dsize2 = dsize[2];
-        const s0 = s[0];
-        const s1 = s[1];
-        const s2 = s[2];
-
-        const bits = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, ];
-
-        const sq = Math.sqrt(2 * (dsize0 * dsize1 + dsize1 * dsize2 + dsize2 * dsize0));
-        const sz = Math.pow(2, Math.ceil(Math.log2(sq)));
-
-        const texs = [];
-
-        const tsize = [sz, 0];
-
-        {
-            for (let z = 0; z < dsize2; z++) {
-                for (let y = 0; y < dsize1; y++) {
-                    for (let x = 0; x < dsize0; x++) {
-                        const p = z * s2 + y * s1 + x * s0;
-                        if ((vmap[p] & 0x80) === 0) continue;
-
-                        let bit = 0;
-                        if (x === 0 || (vmap[p - s0] & 0x80) === 0) bit |= 0x01;
-                        if (x === dsize0 - 1 || (vmap[p + s0] & 0x80) === 0) bit |= 0x02;
-                        if (y === 0 || (vmap[p - s1] & 0x80) === 0) bit |= 0x04;
-                        if (y === dsize1 - 1 || (vmap[p + s1] & 0x80) === 0) bit |= 0x08;
-                        if (z === 0 || (vmap[p - s2] & 0x80) === 0) bit |= 0x10;
-                        if (z === dsize2 - 1 || (vmap[p + s2] & 0x80) === 0) bit |= 0x20;
-                        vmap[p] = vmap[p] | bit;
-                    }
-                }
-            }
-
-            let tx = 0;
-            let ty = 0;
-            for (let z = 0; z < dsize2; z++) {
-                for (let y = 0; y < dsize1; y++) {
-                    for (let x = 0; x < dsize0; x++) {
-                        const p = z * s2 + y * s1 + x * s0;
-                        if ((vmap[p] & 0x3F) === 0) continue;
-
-                        for (let i = 0; i < 6; i++){
-                            const bit = bits[i];
-                            if ((vmap[p] & bit) === 0) continue;
-
-                            const tex = { tx: 0, ty: 0 };
-
-                            if (tx + 1 >= tsize[0]) {
-                                tx = 0;
-                                ty++;
-                            }
-                            tex.tx = tx;
-                            tex.ty = ty;
-                            tx += 1;
-                         
-                            texs.push(tex);
-                        }
-                    }
-                }
-            }
-            tsize[1] = Math.max(16, ty + 1);
-            
-            model.buffer = {};
-            model.buffer.vtxs = new Uint16Array(texs.length * 18);
-            model.buffer.nrms = new Int8Array(texs.length * 18);
-            model.buffer.cols = new Int8Array(texs.length * 18);
-            model.buffer.uvs = new Uint16Array(texs.length * 12);
-            model.buffer.dtex = { data: new Uint8Array(tsize[0] * tsize[1] * 4), dsize: tsize };
-        }
-        {
-            let cnt = 0;
-            for (let z = 0; z < dsize2; z++) {
-                for (let y = 0; y < dsize1; y++) {
-                    for (let x = 0; x < dsize0; x++) {
-                        const p = z * s2 + y * s1 + x * s0;
-                        if ((vmap[p] & 0x3F) === 0) continue;
-
-                        const x0 = x;
-                        const x1 = x + 1;
-                        const y0 = y;
-                        const y1 = y + 1;
-                        const z0 = z;
-                        const z1 = z + 1;
-
-                        for (let i = 0; i < 6; i++){
-                            if ((vmap[p] & bits[i]) === 0) continue;
-
-                            const tex = texs[cnt];
-                            const d = [0, 0, 0];
-
-                            let tx0, tx1, ty0, ty1;
-                            const c = cmap[p];
-                            model.buffer.dtex.data.set(palette[c], (tex.ty * tsize[0] + tex.tx) * 4);
-
-                            tx0 = Math.round((tex.tx + 0 + 0.5) / tsize[0] * 65535);
-                            tx1 = Math.round((tex.tx + 1 - 0.5) / tsize[0] * 65535);
-                            ty0 = Math.round((tex.ty + 0.5) / tsize[1] * 65535);
-                            ty1 = Math.round((tex.ty + 0.5) / tsize[1] * 65535);
-
-                            let uv;
-                            if ((d[(((i / 2) >> 0) - (i % 2) + 2) % 3]) > 0) {
-                                uv = [tx0, ty0, tx1, ty0, tx0, ty1, tx1, ty1, tx0, ty1, tx1, ty0,];
-                            } else {
-                                uv = [tx0, ty0, tx0, ty1, tx1, ty0, tx1, ty1, tx1, ty0, tx0, ty1,];
-                            }
-
-                            let vtx;
-                            switch(i){
-                                case 0: vtx = [x0, y0, z0, x0, y0, z1 + d[2], x0, y1 + d[1], z0, x0, y1 + d[1], z1 + d[2], x0, y1 + d[1], z0, x0, y0, z1 + d[2], ]; break;
-                                case 1: vtx = [x1, y0, z0, x1, y1 + d[1], z0, x1, y0, z1 + d[2], x1, y1 + d[1], z1 + d[2], x1, y0, z1 + d[2], x1, y1 + d[1], z0, ]; break;
-                                case 2: vtx = [x0, y0, z0, x1 + d[0], y0, z0, x0, y0, z1 + d[2], x1 + d[0], y0, z1 + d[2], x0, y0, z1 + d[2], x1 + d[0], y0, z0, ]; break;
-                                case 3: vtx = [x0, y1, z0, x0, y1, z1 + d[2], x1 + d[0], y1, z0, x1 + d[0], y1, z1 + d[2], x1 + d[0], y1, z0, x0, y1, z1 + d[2], ]; break;
-                                case 4: vtx = [x0, y0, z0, x0, y1 + d[1], z0, x1 + d[0], y0, z0, x1 + d[0], y1 + d[1], z0, x1 + d[0], y0, z0, x0, y1 + d[1], z0, ]; break;
-                                case 5: vtx = [x0, y0, z1, x1 + d[0], y0, z1, x0, y1 + d[1], z1, x1 + d[0], y1 + d[1], z1, x0, y1 + d[1], z1, x1 + d[0], y0, z1, ]; break;
-                            }
-                            let col = [];
-                            for (let k = 0; k < 6; k++) {
-                                col.push(palette[c][0]);
-                                col.push(palette[c][1]);
-                                col.push(palette[c][2]);
-                            }
-
-                            model.buffer.vtxs.set(vtx, cnt * 18);
-                            model.buffer.nrms.set(nrms[i], cnt * 18);
-                            model.buffer.cols.set(col, cnt * 18);
-                            model.buffer.uvs.set(uv, cnt * 12);
-                            cnt++;
-                        }
-                    }
-                }
-            }
-        }
-    };
-   
-    static convertVRM(unit, scale) {
+    convertVRM(scale) {
         const indices = []; // int
         const vertexs = []; // Vec3
         const normals = []; // Vec3
@@ -410,53 +111,35 @@ export class MOG3D {
         const joints = []; // unsigned short
         const weights = []; // float
         const inverseBindMatrices = []; // Mat4
-        const img_data = []; // Uint8Array
 
-        const cols = []; // Col3
-        const bones = unit.bones;
-
-        const dsize = unit.dsize;
-        const mcenter = unit.dsize[1] / 2;
-
-        const vidxs = []; // int
+        const colors = []; // Col3
+        const bones = this.bones;
+        const dsize = this.dsize;
 
         const lines = [];
         for (let i = 0; i < bones.length; i++) {
             const bone = bones[i];
-
-            let pos = [0.0, 0.0, 0.0];
-            let temp = bone;
-            while (temp.parent >= 0) {
-                let parent = bones[temp.parent];
-                pos[0] += (parent.vec0[0] + parent.vec1[0]);
-                pos[1] += (parent.vec0[1] + parent.vec1[1]);
-                pos[2] += (parent.vec0[2] + parent.vec1[2]);
-                temp = parent;
-            }
-            const v0 = [pos[0] + bone.vec0[0], pos[1] + bone.vec0[1], pos[2] + bone.vec0[2]];
-            const v1 = [v0[0] + bone.vec1[0], v0[1] + bone.vec1[1], v0[2] + bone.vec1[2]];
+            const offset = bone.offset();
+            const vec0 = [offset[0] + bone.vec0[0], offset[1] + bone.vec0[1], offset[2] + bone.vec0[2]];
+            const vec1 = [vec0[0] + bone.vec1[0], vec0[1] + bone.vec1[1], vec0[2] + bone.vec1[2]];
             lines.push(new Line(
-                [v0[0] * scale, v0[1] * scale, v0[2] * scale],
-                [v1[0] * scale, v1[1] * scale, v1[2] * scale],
+                [vec0[0] * scale, vec0[1] * scale, vec0[2] * scale],
+                [vec1[0] * scale, vec1[1] * scale, vec1[2] * scale],
             ));
         }
 
-        for (let i = 0; i < unit.models.length; i++) {
-            const model = unit.models[i];
-
-            const vtxs = model.buffer.vtxs;
-            const nrms = model.buffer.nrms;
-            const uvs = model.buffer.uvs;
+        for (let i = 0; i < this.models.length; i++) {
+            const model = this.models[i];
 
             const temps = [] // Vec3
             const offset = indices.length;
 
-            for (let j = 0; j < vtxs.length / 3; j++) {
-                vertexs.push([(vtxs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (vtxs[j * 3 + 1]) * scale, (vtxs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
-                temps.push([(vtxs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (vtxs[j * 3 + 1]) * scale, (vtxs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
-                normals.push([nrms[j * 3 + 0] / 127.0, nrms[j * 3 + 1] / 127.0, nrms[j * 3 + 2] / 127.0]);
-                cols.push([model.buffer.cols[j * 3 + 0], model.buffer.cols[j * 3 + 1], model.buffer.cols[j * 3 + 2]]);
-             
+            for (let j = 0; j < model.vertexs.length / 3; j++) {
+                vertexs.push([(model.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (model.vertexs[j * 3 + 1]) * scale, (model.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
+                temps.push([(model.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2) * scale, (model.vertexs[j * 3 + 1]) * scale, (model.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2) * scale]);
+                normals.push([model.normals[j * 3 + 0] / 127.0, model.normals[j * 3 + 1] / 127.0, model.normals[j * 3 + 2] / 127.0]);
+                colors.push([model.colors[j * 3 + 0], model.colors[j * 3 + 1], model.colors[j * 3 + 2]]);
+                
                 indices.push(offset + j + 0);
             }
 
@@ -542,63 +225,45 @@ export class MOG3D {
 
         for (let i = 0; i < bones.length; i++) {
             const bone = bones[i];
-            let pos = [0.0, 0.0, 0.0];
-            let temp = bone;
-            while (temp.parent >= 0) {
-                let parent = bones[temp.parent];
-                pos[0] += (parent.vec0[0] + parent.vec1[0]);
-                pos[1] += (parent.vec0[1] + parent.vec1[1]);
-                pos[2] += (parent.vec0[2] + parent.vec1[2]);
-                temp = parent;
-            }
-            const v0 = [pos[0] + bone.vec0[0], pos[1] + bone.vec0[1], pos[2] + bone.vec0[2]];
+            const offset = bone.offset();
+            const vec0 = [offset[0] + bone.vec0[0], offset[1] + bone.vec0[1], offset[2] + bone.vec0[2]];
             const mat = [
                 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
-                -v0[0] * scale, -v0[1] * scale, -v0[2] * scale, 1,
+                -vec0[0] * scale, -vec0[1] * scale, -vec0[2] * scale, 1,
             ];
             inverseBindMatrices.push(mat);
         }
         let promise;
         {
             const w = usize;
-            const h = get_height(cols.length);
-
+            const h = Math.pow(2, Math.ceil(Math.log2(2 * (2 * colors.length + usize - 1) / usize))) >> 0;
+            console.log(h);
             const imgdata = new Uint8Array(w * h * 4);
             for (let i = 0; i < imgdata.length; i++) {
                 imgdata[i] = 255;
             }
-            //for (int i = 0; i < cols.size(); i++) {
-            //    img[i] = cast<Col4>(cols[i]);
-            //    float u = (i % w + 0.5) / w;
-            //    float v = (i / w + 0.5) / h;
-            //    texcoords.push_back(Vec2(u, v));
-            //    texcoords.push_back(Vec2(u, v));
-            //    texcoords.push_back(Vec2(u, v));
-            //}
-            let x = 0;
-            let y = 0;
-            for (let i = 0; i < cols.length; i++) {
+            for (let i = 0; i < colors.length; i++) {
                 const s = w - 4;
                 const x = (i * 2) % s;
                 const y = Math.floor((i * 2) / s) * 2;
 
-                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 0] = cols[i][0];
-                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 1] = cols[i][1];
-                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 2] = cols[i][2];
+                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 0] = colors[i][0];
+                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 1] = colors[i][1];
+                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 2] = colors[i][2];
 
-                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 0] = cols[i][0];
-                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 1] = cols[i][1];
-                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 2] = cols[i][2];
+                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
+                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
+                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
 
-                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 0] = cols[i][0];
-                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 1] = cols[i][1];
-                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 2] = cols[i][2];
+                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 0] = colors[i][0];
+                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 1] = colors[i][1];
+                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 2] = colors[i][2];
 
-                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 0] = cols[i][0];
-                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 1] = cols[i][1];
-                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = cols[i][2];
+                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
+                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
+                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
 
                 // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
                 const u = (x + 1) / w;
@@ -622,8 +287,8 @@ export class MOG3D {
                 binlength += pngdata.length;
             }
 
-            const binaryBuffer = new Uint8Array(binlength);
-            const view = new DataView(binaryBuffer.buffer);
+            const binary = new Uint8Array(binlength);
+            const view = new DataView(binary.buffer);
             let offset = 0;
 
             // indices (int32)
@@ -682,7 +347,7 @@ export class MOG3D {
             }
 
             // pngdata (uint8)
-            binaryBuffer.set(pngdata, offset);
+            binary.set(pngdata, offset);
 
             // VRM1.0 JSON生成
             const vrmBoneMap = {
@@ -815,13 +480,13 @@ export class MOG3D {
                 // 親ボーンの基準位置を取得
                 let basePos = [0.0, 0.0, 0.0];
                 let temp = bone;
-                if (temp.parent >= 0) {
-                    const parent = bones[temp.parent];
+                if (temp.parent) {
+                    const parent = temp.parent;
                     basePos[0] += (parent.vec1[0]);
                     basePos[1] += (parent.vec1[1]);
                     basePos[2] += (parent.vec1[2]);
                 }
-               
+                
                 const v0 = [
                     basePos[0] + bone.vec0[0],
                     basePos[1] + bone.vec0[1],
@@ -836,7 +501,7 @@ export class MOG3D {
                 // 子を探す
                 const children = [];
                 for (let j = 0; j < bones.length; j++) {
-                    if (bones[j].parent === i) {
+                    if (bones[j].parent === bones[i]) {
                         children.push(j);
                     }
                 }
@@ -1009,7 +674,7 @@ export class MOG3D {
             vrmOffset += 4;
             vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); // "BIN\0"
             vrmOffset += 4;
-            vrmBuffer.set(binaryBuffer, vrmOffset);
+            vrmBuffer.set(binary, vrmOffset);
 
             // VRMファイルの生成
             const blob = new Blob([vrmBuffer], { type: 'application/octet-stream' });
@@ -1020,8 +685,201 @@ export class MOG3D {
         });
         return promise;
     }
-
 }
+function decodeMap(dsize, codevmap, codecmap) {
+    const s = [1, dsize[0], dsize[0] * dsize[1]];
+    const vmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
+    const cmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
+    vmap.fill(0);
+    cmap.fill(0);
+
+    const bin0 = Code.base64ToUint8Array(codevmap);
+    const bin1 = Code.base64ToUint8Array(codecmap);
+    if (bin0.length == 0) {
+        return [vmap, cmap];
+    }
+
+    const memA = Code.segment(bin0, 0, true);
+    const memB = Code.decode(Code.table256(), Code.segment(bin0, 1, true), 256, 8, 8);
+
+    const PALETTE_CODE = 256;
+    const data = Code.segment(bin1, 0);
+    const dv = new DataView(data.buffer);
+    const lngs = new Array(PALETTE_CODE + 1);
+    lngs.fill(0);
+    for (let c = 0; c < data.length - 1; c += 2) {
+        const [s, b] = [dv.getUint8(c + 0), dv.getUint8(c + 1)];
+        lngs[s] = b;
+    }
+    lngs[PALETTE_CODE] = dv.getUint8(data.length - 1);
+    const tableC = Code.hmMakeTableFromLngs(lngs);
+
+    const memC = Code.decode(tableC, Code.segment(bin1, 1, true), PALETTE_CODE, 8, 8);
+
+    let [a, b, c] = [0, 0, 0];
+    for (let z = 0; z < ((dsize[2] + 7) / 8) >> 0; z++) {
+        for (let y = 0; y < ((dsize[1] + 7) / 8) >> 0; y++) {
+            for (let x = 0; x < ((dsize[0] + 7) / 8) >> 0; x++) {
+                if (memA[a++] === 0) continue;
+                for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
+                    for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
+                        const mb = memB[b++];
+                        for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
+                            if ((mb >> ix) & 0x01) {
+                                const p = (z * 8 + iz) * s[2] + (y * 8 + iy) * s[1] + (x * 8 + ix) * s[0];
+                                vmap[p] = 0x80;
+                                cmap[p] = memC[c++];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return [vmap, cmap];
+}
+
+class Model {
+    constructor(name, dsize, palette, vmap, cmap) {
+        this.name = name;
+        const s = [1, dsize[0], dsize[0] * dsize[1]];
+        const bits = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20];
+
+        const sq = Math.sqrt(2 * (dsize[0] * dsize[1] + dsize[1] * dsize[2] + dsize[2] * dsize[0])) >> 0;
+        const sz = Math.pow(2, Math.ceil(Math.log2(sq))) >> 0;
+
+        const texs = [];
+
+        const tsize = [sz, 0];
+
+        for (let z = 0; z < dsize[2]; z++) {
+            for (let y = 0; y < dsize[1]; y++) {
+                for (let x = 0; x < dsize[0]; x++) {
+                    const p = z * s[2] + y * s[1] + x * s[0];
+                    if ((vmap[p] & 0x80) === 0) continue;
+
+                    let bit = 0;
+                    if (x === 0 || (vmap[p - s[0]] & 0x80) === 0) bit |= 0x01;
+                    if (x === dsize[0] - 1 || (vmap[p + s[0]] & 0x80) === 0) bit |= 0x02;
+                    if (y === 0 || (vmap[p - s[1]] & 0x80) === 0) bit |= 0x04;
+                    if (y === dsize[1] - 1 || (vmap[p + s[1]] & 0x80) === 0) bit |= 0x08;
+                    if (z === 0 || (vmap[p - s[2]] & 0x80) === 0) bit |= 0x10;
+                    if (z === dsize[2] - 1 || (vmap[p + s[2]] & 0x80) === 0) bit |= 0x20;
+                    vmap[p] = vmap[p] | bit;
+                }
+            }
+        }
+
+        let tx = 0;
+        let ty = 0;
+        for (let z = 0; z < dsize[2]; z++) {
+            for (let y = 0; y < dsize[1]; y++) {
+                for (let x = 0; x < dsize[0]; x++) {
+                    const p = z * s[2] + y * s[1] + x * s[0];
+                    if ((vmap[p] & 0x3F) === 0) continue;
+
+                    for (let i = 0; i < 6; i++){
+                        const bit = bits[i];
+                        if ((vmap[p] & bit) === 0) continue;
+
+                        const tex = { tx: 0, ty: 0 };
+
+                        if (tx + 1 >= tsize[0]) {
+                            tx = 0;
+                            ty++;
+                        }
+                        tex.tx = tx;
+                        tex.ty = ty;
+                        tx += 1;
+                        
+                        texs.push(tex);
+                    }
+                }
+            }
+        }
+        tsize[1] = Math.max(16, ty + 1);
+        
+        this.vertexs = new Uint16Array(texs.length * 18);
+        this.normals = new Int8Array(texs.length * 18);
+        this.colors = new Int8Array(texs.length * 18);
+        this.coords = new Uint16Array(texs.length * 12);
+        this.dtex = { data: new Uint8Array(tsize[0] * tsize[1] * 4), dsize: tsize };
+
+        let cnt = 0;
+        for (let z = 0; z < dsize[2]; z++) {
+            for (let y = 0; y < dsize[1]; y++) {
+                for (let x = 0; x < dsize[0]; x++) {
+                    const p = z * s[2] + y * s[1] + x * s[0];
+                    if ((vmap[p] & 0x3F) === 0) continue;
+
+                    const x0 = x;
+                    const x1 = x + 1;
+                    const y0 = y;
+                    const y1 = y + 1;
+                    const z0 = z;
+                    const z1 = z + 1;
+
+                    for (let i = 0; i < 6; i++){
+                        if ((vmap[p] & bits[i]) === 0) continue;
+
+                        const tex = texs[cnt];
+                        const d = [0, 0, 0];
+
+                        const c = cmap[p];
+                        this.dtex.data.set(palette[c], (tex.ty * tsize[0] + tex.tx) * 4);
+
+                        const tx0 = Math.round((tex.tx + 0 + 0.5) / tsize[0] * 65535);
+                        const tx1 = Math.round((tex.tx + 1 - 0.5) / tsize[0] * 65535);
+                        const ty0 = Math.round((tex.ty + 0.5) / tsize[1] * 65535);
+                        const ty1 = Math.round((tex.ty + 0.5) / tsize[1] * 65535);
+
+                        let coord;
+                        if ((d[(((i / 2) >> 0) - (i % 2) + 2) % 3]) > 0) {
+                            coord = [tx0, ty0, tx1, ty0, tx0, ty1, tx1, ty1, tx0, ty1, tx1, ty0,];
+                        } else {
+                            coord = [tx0, ty0, tx0, ty1, tx1, ty0, tx1, ty1, tx1, ty0, tx0, ty1,];
+                        }
+
+                        let vtx;
+                        switch(i){
+                            case 0: vtx = [x0, y0, z0, x0, y0, z1 + d[2], x0, y1 + d[1], z0, x0, y1 + d[1], z1 + d[2], x0, y1 + d[1], z0, x0, y0, z1 + d[2], ]; break;
+                            case 1: vtx = [x1, y0, z0, x1, y1 + d[1], z0, x1, y0, z1 + d[2], x1, y1 + d[1], z1 + d[2], x1, y0, z1 + d[2], x1, y1 + d[1], z0, ]; break;
+                            case 2: vtx = [x0, y0, z0, x1 + d[0], y0, z0, x0, y0, z1 + d[2], x1 + d[0], y0, z1 + d[2], x0, y0, z1 + d[2], x1 + d[0], y0, z0, ]; break;
+                            case 3: vtx = [x0, y1, z0, x0, y1, z1 + d[2], x1 + d[0], y1, z0, x1 + d[0], y1, z1 + d[2], x1 + d[0], y1, z0, x0, y1, z1 + d[2], ]; break;
+                            case 4: vtx = [x0, y0, z0, x0, y1 + d[1], z0, x1 + d[0], y0, z0, x1 + d[0], y1 + d[1], z0, x1 + d[0], y0, z0, x0, y1 + d[1], z0, ]; break;
+                            case 5: vtx = [x0, y0, z1, x1 + d[0], y0, z1, x0, y1 + d[1], z1, x1 + d[0], y1 + d[1], z1, x0, y1 + d[1], z1, x1 + d[0], y0, z1, ]; break;
+                        }
+
+                        let nrm;
+                        switch(i) {
+                            case 0: nrm = [-127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0,]; break;
+                            case 1: nrm = [+127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0,]; break;
+                            case 2: nrm = [0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0,]; break;
+                            case 3: nrm = [0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0,]; break;
+                            case 4: nrm = [0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127, 0, 0, -127,]; break;
+                            case 5: nrm = [0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127, 0, 0, +127,]; break;
+                        }
+
+                        let col = [];
+                        for (let k = 0; k < 6; k++) {
+                            col.push(palette[c][0]);
+                            col.push(palette[c][1]);
+                            col.push(palette[c][2]);
+                        }
+
+                        this.vertexs.set(vtx, cnt * 18);
+                        this.normals.set(nrm, cnt * 18);
+                        this.colors.set(col, cnt * 18);
+                        this.coords.set(coord, cnt * 12);
+                        cnt++;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 
 function uint8ArrayToPng(data, width, height) {
     const canvas = document.createElement('canvas');
@@ -1049,10 +907,39 @@ class hmNode {
     }
 };
 class Code {
+    static segment(bin, p, bitarray = false) {
+        const view = new DataView(bin.buffer);
+
+        let base = 0;
+        for (let i = 0; i < p; i++) {
+            const bits = view.getInt32(base, true);
+            base += ((bits + 7) >> 3) + 4;
+        }
+        const bits = view.getInt32(base, true);
+        const size = (bits + 7) >> 3;
+        const offset = size * 8 - bits;
+        if (bitarray === false) {
+            return bin.slice(base + 4, base + 4 + size);
+        } else {
+            return Code.get1BitArray(bin.slice(base + 4, base + 4 + size), size * 8 - offset);
+        }
+    }
+
+    static base64ToUint8Array(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+    }
+
     static get1BitArray (src, bits) {
         const dst = new Uint8Array(bits);
         for (let i = 0; i < dst.length; i++) {
-            dst[i] = getArrayBit(src, i);
+            const q = i / 8 >> 0;
+            const r = i % 8;
+            dst[i] = (src[q] & (0x01 << r)) ? 1 : 0;
         }
         return dst;
     }
@@ -1269,7 +1156,9 @@ class Code {
         for (let i = 0; i < 256; i++) {
             let sum = 0;
             for (let j = 0; j < 7; j++) {
-                if (getBit(i, j) != getBit(i, j + 1)) sum++;
+                const a = (i & (0x01 << (j + 0))) ? 1 : 0;
+                const b = (i & (0x01 << (j + 1))) ? 1 : 0;
+                if (a != b) sum++;
             }
             cnts[i] = Math.pow(2, 7 - sum);
         }

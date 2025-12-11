@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Stage } from 'model';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
-import { MOG3D } from './mog3d.js';
+import { mog3d } from './mog3d.js';
 
 xnew('#main', Main);
 
@@ -103,7 +103,9 @@ function Controller(unit) {
 
 function Test(unit) {
   const object = xthree.nest(new THREE.Object3D());
-  MOG3D.load('./model.mog').then(xnew.scope((vrmUrl) => {
+  mog3d.load('./model.mog')
+  .then((mogdata) => mogdata.convertVRM(0.1))
+  .then(xnew.scope((vrmUrl) => {
     xnew.promise(new Promise((resolve) => {
       console.log(vrmUrl);
       const loader = new GLTFLoader();
