@@ -807,11 +807,7 @@ class Bone {
         const linelen = Math.sqrt(linevec[0] * linevec[0] + linevec[1] * linevec[1] + linevec[2] * linevec[2]);
 
         if (linelen < 0.1) {
-            const d = [
-                vec[0] - (vec0[0] + vec1[0]) * 0.5,
-                vec[1] - (vec0[1] + vec1[1]) * 0.5,
-                vec[2] - (vec0[2] + vec1[2]) * 0.5,
-            ];
+            const d = [vec[0] - (vec0[0] + vec1[0]) * 0.5, vec[1] - (vec0[1] + vec1[1]) * 0.5, vec[2] - (vec0[2] + vec1[2]) * 0.5];
             distance = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
         }
         else {
@@ -826,11 +822,7 @@ class Bone {
                 distance = Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
             }
             else {
-                const c = [
-                    vec[0] - (vec0[0] + linevec[0] * s / linelen),
-                    vec[1] - (vec0[1] + linevec[1] * s / linelen),
-                    vec[2] - (vec0[2] + linevec[2] * s / linelen),
-                ];
+                const c = [vec[0] - (vec0[0] + linevec[0] * s / linelen), vec[1] - (vec0[1] + linevec[1] * s / linelen), vec[2] - (vec0[2] + linevec[2] * s / linelen)];
                 distance = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
             }
         }
@@ -855,12 +847,7 @@ function uint8ArrayToPng(data, width, height) {
         }, 'image/png');
     });
 }
-class hmNode {
-    constructor() {
-        this.val = -1;
-        this.child = [-1, -1];
-    }
-};
+
 class Code {
     static segment(bin, p, bitarray = false) {
         const view = new DataView(bin.buffer);
@@ -900,7 +887,7 @@ class Code {
     static hmMakeNode(table) {
         var nodes = new Array(1);
 
-        nodes[0] = new hmNode();
+        nodes[0] = { val: -1, child: [-1, -1] };
 
         for (let i = 0; i < table.length; i++) {
             const bits = table[i];
@@ -909,10 +896,10 @@ class Code {
             let node = nodes[0];
             for (let j = 0; j < bits.length; j++) {
                 const bit = bits[j];
-                if (node.child[bit] == -1) {
+                if (node.child[bit] === -1) {
                     node.child[bit] = nodes.length;
 
-                    node = new hmNode();
+                    node = { val: -1, child: [-1, -1] };
                     nodes.push(node);
                 }
                 else {
