@@ -616,7 +616,7 @@ class Code {
     }
 
     static hmMakeTableFromLngs(lngs) {
-        const table = Array(lngs.length).fill([]);
+        const table = Array.from({ length: lngs.length }, () => []);
         const nonZero = lngs.filter(n => n > 0);
         if (nonZero.length === 0) return table;
 
@@ -646,33 +646,25 @@ class Code {
     }
 
     static hmMakeTableFromCnts(cnts) {
-        const table = new Array(cnts.length);
-        table.map(function () { return new Array() });
+        const table = Array.from({ length: cnts.length }, () => []);
 
-        {
-            let n = 0;
-            let id = -1;
-            for (let i = 0; i < cnts.length; i++) {
-                if (cnts[i] > 0) {
-                    n++;
-                    id = i;
-                }
+        let n = 0;
+        let id = -1;
+        for (let i = 0; i < cnts.length; i++) {
+            if (cnts[i] > 0) {
+                n++;
+                id = i;
             }
-            if (n == 0) {
-                return table;
-            }
-            if (n == 1) {
-                table[id].push(0);
-                return table;
-            }
+        }
+        if (n === 0) return table;
+        if (n === 1) {
+            table[id] = [0];
+            return table;
         }
 
         const nodes = [];
         for (let i = 0; i < cnts.length; i++) {
-            const node = { cnt: 0, parent: null };
-            node.cnt = cnts[i];
-            node.parent = null;
-            nodes.push(node);
+            nodes.push({ cnt: cnts[i], parent: null });
         }
 
         const heads = [];
@@ -686,8 +678,8 @@ class Code {
             const node = { cnt: 0, parent: null };
 
             for (let j = 0; j < 2; j++) {
-                var id = 0;
-                var minv = Number.MAX_SAFE_INTEGER;
+                let id = 0;
+                let minv = Number.MAX_SAFE_INTEGER;
                 for (let k = 0; k < heads.length; k++) {
                     if (heads[k].cnt < minv) {
                         minv = heads[k].cnt;
@@ -696,22 +688,21 @@ class Code {
                 }
                 node.cnt += heads[id].cnt;
                 heads[id].parent = node;
-
                 heads.splice(id, 1);
             }
 
             heads.push(node);
         }
 
-        const lngs = new Array(cnts.length);
-        for (let i = 0; i < lngs.length; i++) {
-            lngs[i] = 0;
-
+        const lngs = [];
+        for (let i = 0; i < cnts.length; i++) {
+            let len = 0;
             let node = nodes[i];
-            while (node.parent != null) {
-                lngs[i]++;
+            while (node.parent) {
+                len++;
                 node = node.parent;
             }
+            lngs.push(len);
         }
         return Code.hmMakeTableFromLngs(lngs);
     }
