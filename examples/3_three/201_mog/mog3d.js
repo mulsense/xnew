@@ -1,49 +1,39 @@
 
 export const mog3d = {
     load(path) {
-        return fetch(path).then(response => response.json()).then(async (json) => {
-            return new Model(json);
-        });
+        return fetch(path).then(response => response.json()).then(json => new Model(json));
     }
 }
 
 class Model {
     constructor(json) {
-        this.dsize = json['dsize'];
-            
-        this.palette= Uint8Array.from(atob(json['palette']), c => c.charCodeAt(0));
+        this.dsize = json.dsize;
+        this.palette = Uint8Array.from(atob(json.palette), c => c.charCodeAt(0));
 
-        this.layers = [];
-        for (let m = 0; m < json['layers'].length; m++) {
-            const jsonmodel = json['layers'][m];
-            const [gmap, cmap] = decode(this.dsize, jsonmodel['gmap'], jsonmodel['cmap'])
-            this.layers.push(new Layer(jsonmodel['name'], this.dsize, this.palette, gmap, cmap));
-        }
+        this.layers = json.layers.map((jlayer) => {
+            const [gmap, cmap] = decode(this.dsize, jlayer.gmap, jlayer.cmap);
+            return new Layer(jlayer.name, this.dsize, this.palette, gmap, cmap);
+        });
 
-        this.bones = [];
-        for (let b = 0; b < json['bones'].length; b++) {
-            this.bones.push(new Bone(json['bones'][b], this.bones));
-        }
+        this.bones = json.bones.reduce((bones, jbone) => {
+            bones.push(new Bone(jbone, bones));
+            return bones;
+        }, []);
 
         function decode(dsize, codevmap, codecmap) {
-            const gmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
-            const cmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
-            gmap.fill(0);
-            cmap.fill(0);
+            const gmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]).fill(0);
+            const cmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]).fill(0);
 
             const bin0 = Uint8Array.from(atob(codevmap), c => c.charCodeAt(0));
             const bin1 = Uint8Array.from(atob(codecmap), c => c.charCodeAt(0));
-            if (bin0.length == 0) {
-                return [gmap, cmap];
-            }
+            if (bin0.length == 0) return [gmap, cmap];
 
             const memA = Code.segment(bin0, 0, true);
             const memB = Code.decode(Code.table256(), Code.segment(bin0, 1, true), 256, 8, 8);
 
             const PALETTE_CODE = 256;
             const data = Code.segment(bin1, 0);
-            const lngs = new Array(PALETTE_CODE + 1);
-            lngs.fill(0);
+            const lngs = Array(PALETTE_CODE + 1).fill(0);
             for (let c = 0; c < data.length - 1; c += 2) {
                 lngs[data[c + 0]] = data[c + 1];
             }
@@ -51,25 +41,28 @@ class Model {
 
             const memC = Code.decode(Code.hmMakeTableFromLngs(lngs), Code.segment(bin1, 1, true), PALETTE_CODE, 8, 8);
 
-            let [a, b, c] = [0, 0, 0];
-            for (let z = 0; z < ((dsize[2] + 7) / 8) >> 0; z++) {
-                for (let y = 0; y < ((dsize[1] + 7) / 8) >> 0; y++) {
-                    for (let x = 0; x < ((dsize[0] + 7) / 8) >> 0; x++) {
-                        if (memA[a++] === 0) continue;
-                        for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
-                            for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
-                                const memb = memB[b++];
-                                for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
-                                    if ((memb >> ix) & 0x01) {
-                                        const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
-                                        gmap[p] = 0x40;
-                                        cmap[p] = memC[c++];
-                                    }
-                                }
+            let [b, c] = [0, 0];
+            for (let a = 0; a < memA.length; a++) {
+                if (memA[a] === 0) continue;
+                const dsize8 = [Math.ceil(dsize[0] / 8), Math.ceil(dsize[1] / 8), Math.ceil(dsize[2] / 8)];
+                const x = a % dsize8[0];
+                const y = ((a / dsize8[0]) >> 0) % dsize8[1];
+                const z = (a / (dsize8[0] * dsize8[1])) >> 0;
+
+                for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
+                    for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
+                        const mb = memB[b + iz * 8 + iy];
+                        if (mb === 0) continue;
+                        for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
+                            if ((mb >> ix) & 0x01) {
+                                const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
+                                gmap[p] = 0x40;
+                                cmap[p] = memC[c++];
                             }
                         }
                     }
                 }
+                b += 8 * 8;
             }
             return [gmap, cmap];
         }
@@ -136,10 +129,8 @@ class Model {
 
                                 const n1 = this.bones[k].name;
                                 const s1 = n1.length;
-                                if (s0 >= 2 && s1 >= 2) {
-                                    if (n0[s0 - 2] == 'L' && n1[s1 - 2] == 'R') continue;
-                                    if (n0[s0 - 2] == 'R' && n1[s1 - 2] == 'L') continue;
-                                }
+                                if (n0[s0 - 1] == 'L' && n1[s1 - 1] == 'R') continue;
+                                if (n0[s0 - 1] == 'R' && n1[s1 - 1] == 'L') continue;
                          
                                 const l = this.bones[k].distance([vertexs[j * 3 + 0], vertexs[j * 3 + 1], vertexs[j * 3 + 2]]);
                                 if (l < min1) {
@@ -151,15 +142,8 @@ class Model {
                             }
                         }
                     }
-                    joints.push(nid0 >= 0 ? nid0 : 0);
-                    joints.push(nid1 >= 0 ? nid1 : 0);
-                    joints.push(0);
-                    joints.push(0);
-
-                    weights.push(wei);
-                    weights.push(1.0 - wei);
-                    weights.push(0);
-                    weights.push(0);
+                    joints.push(nid0 >= 0 ? nid0 : 0, nid1 >= 0 ? nid1 : 0, 0, 0);
+                    weights.push(wei, 1.0 - wei, 0, 0);
                 }
             }
         }
@@ -217,7 +201,7 @@ class Model {
             ctx.putImageData(new ImageData(new Uint8ClampedArray(imgdata), w, h), 0, 0);
 
             promise = new Promise((resolve) => {
-                canvas.toBlob((blob) => { blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); }); }, 'image/png');
+                canvas.toBlob((blob) => blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); }), 'image/png');
             });
         }
 
@@ -536,11 +520,11 @@ class Layer {
 
 class Bone {
     constructor(json, bones) {
-        this.parent = json['parent'] >= 0 ? bones[json['parent']] : null;
-        this.name = json['name'];
-        this.refs = json['refs'];
-        this.vec0 = json['vec0'];
-        this.vec1 = json['vec1'];
+        this.parent = json.parent >= 0 ? bones[json.parent] : null;
+        this.name = json.name;
+        this.refs = json.refs;
+        this.vec0 = json.vec0;
+        this.vec1 = json.vec1;
     }
 
     basePosition() {
@@ -641,31 +625,63 @@ class Code {
         return table;
     }
 
-    static hmMakeTableFromCnts(cnts) {
-        const table = Array.from({ length: cnts.length }, () => []);
+    static decode(table, src, code, v0, v1) {
+        const nodes = Code.hmMakeNode(table);
+        let dst = [];
+        let node = nodes[0];
 
-        let n = 0;
-        let id = -1;
-        for (let i = 0; i < cnts.length; i++) {
-            if (cnts[i] > 0) {
-                n++;
-                id = i;
+        for (let i = 0; i < src.length; i++) {
+            node = nodes[node.child[src[i]]];
+            const val = node.val;
+
+            if (val >= 0) {
+                dst.push(val);
+                node = nodes[0];
+            }
+            if (val === code) {
+                let v = 0;
+                for (let j = 0; j < v0; j++, i++) {
+                    v += src[i + 1] << j;
+                }
+                dst.push(v);
+                v = 0;
+                for (let j = 0; j < v1; j++, i++) {
+                    v += src[i + 1] << j;
+                }
+                dst.push(v);
             }
         }
-        if (n === 0) return table;
-        if (n === 1) {
-            table[id] = [0];
-            return table;
+
+        const result = [];
+        for (let i = 0; i < dst.length; i++) {
+            if (dst[i] !== code) {
+                result.push(dst[i]);
+            } else {
+                const [search, length] = dst.slice(i + 1, i + 3);
+                const base = result.length;
+                for (let j = 0; j < length; j++) {
+                    result.push(result[base - search + j]);
+                }
+                i += 2;
+            }
         }
+        return result;
+    }
+
+    static table256() {
+        const cnts = new Uint8Array(256 + 1);
+        for (let i = 0; i < 256; i++) {
+            const sum = Array.from({ length: 7 }, (_, j) => ((i >> j) & 1) !== ((i >> (j + 1)) & 1) ? 1 : 0)
+                .reduce((a, b) => a + b, 0);
+            cnts[i] = 2 ** (7 - sum);
+        }
+        cnts[256] = 2 ** 7;
 
         const nodes = [];
+        const heads = [];
         for (let i = 0; i < cnts.length; i++) {
             nodes.push({ cnt: cnts[i], parent: null });
-        }
-
-        const heads = [];
-        for (let i = 0; i < nodes.length; i++) {
-            if (nodes[i].cnt > 0) {
+            if (cnts[i] > 0) {
                 heads.push(nodes[i]);
             }
         }
@@ -701,63 +717,5 @@ class Code {
             lngs.push(len);
         }
         return Code.hmMakeTableFromLngs(lngs);
-    }
-
-    static decode(table, src, code, v0, v1) {
-        const nodes = Code.hmMakeNode(table);
-        let dst = [];
-        let node = nodes[0];
-
-        for (let i = 0; i < src.length; i++) {
-            node = nodes[node.child[src[i]]];
-            const val = node.val;
-
-            if (val >= 0) {
-                dst.push(val);
-                node = nodes[0];
-            }
-            if (val === code) {
-                let v = 0;
-                for (let j = 0; j < v0; j++, i++) {
-                    v += src[i + 1] << j;
-                }
-                dst.push(v);
-                v = 0;
-                for (let j = 0; j < v1; j++, i++) {
-                    v += src[i + 1] << j;
-                }
-                dst.push(v);
-            }
-        }
-
-        const result = [];
-        for (let i = 0; i < dst.length; i++) {
-            if (dst[i] !== code) {
-                result.push(dst[i]);
-            } else {
-                const search = dst[i + 1];
-                const length = dst[i + 2];
-                const base = result.length;
-                for (let j = 0; j < length; j++) {
-                    result.push(result[base - search + j]);
-                }
-                i += 2;
-            }
-        }
-        return result;
-    }
-
-    static table256() {
-        const cnts = new Uint8Array(256 + 1);
-
-        for (let i = 0; i < 256; i++) {
-            let sum = 0;
-            for (let j = 0; j < 7; j++) {
-                if ((i >> j & 1) != (i >> (j + 1) & 1)) sum++;
-            }
-            cnts[i] = 2 ** (7 - sum);
-        }
-        cnts[256] = 2 ** (7 - 0);
-        return Code.hmMakeTableFromCnts(cnts);
     }
 }

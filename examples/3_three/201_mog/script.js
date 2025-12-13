@@ -30,9 +30,9 @@ function ThreeMain(unit) {
   xnew(Dorm, { size: 50 });
   // xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 
-  for (let i = 0; i < 100; i++) {
-    const x = Math.random() * 60 - 30;
-    const y = Math.random() * 60 - 30;
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * 40 - 20;
+    const y = Math.random() * 40 - 20;
     xnew(Test, { id: i, position: { x: x, y: y, z: 0 } });
 
   }
