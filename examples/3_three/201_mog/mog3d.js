@@ -603,7 +603,7 @@ class Code {
                         }
                         bits[j] = 0;
                     }
-                    bits.push(...Array(s - prev).fill(0));
+                    bits.push(... new Array(s - prev).fill(0));
                 }
                 prev = s;
                 table[i] = [...bits];
