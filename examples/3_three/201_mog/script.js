@@ -5,6 +5,7 @@ import { Stage } from 'model';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { mog3d } from './mog3d.js';
+let testpromise;
 
 xnew('#main', Main);
 
@@ -28,7 +29,13 @@ function ThreeMain(unit) {
   xnew(Ground, { size: 100, color: 0xF8F8FF });
   xnew(Dorm, { size: 50 });
   // xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
-  xnew(Test);
+
+  for (let i = 0; i < 100; i++) {
+    const x = Math.random() * 60 - 30;
+    const y = Math.random() * 60 - 30;
+    xnew(Test, { id: i, position: { x: x, y: y, z: 0 } });
+
+  }
 
   // xnew(Stage, { path: 'model.mog' });
 
@@ -99,12 +106,13 @@ function Controller(unit) {
   pointer.on('-wheel', ({ delta }) => unit.emit('+scale', { scale: 1 + 0.001 * delta.y }));
 }
 
-
-function Test(unit) {
+function Test(unit, { id, position }) {
   const object = xthree.nest(new THREE.Object3D());
-  mog3d.load('./model.mog')
-  .then((mogdata) => mogdata.convertVRM(0.1))
-  .then(xnew.scope((vrmUrl) => {
+  if (testpromise === undefined) {
+    testpromise = mog3d.load('./model.mog').then((mogdata) => mogdata.convertVRM(0.1))
+  }
+  
+  xnew.promise(testpromise).then((vrmUrl) => {
     xnew.promise(new Promise((resolve) => {
       console.log(vrmUrl);
       const loader = new GLTFLoader();
@@ -123,21 +131,23 @@ function Test(unit) {
           obj.receiveShadow = true;
         }
       });
-      vrm.scene.rotation.x = Math.PI / 2;
-      vrm.scene.scale.setScalar(0.1);
-      object.add(vrm.scene);
-
+      const scene = vrm.scene;
+      scene.rotation.x = Math.PI / 2;
+      scene.scale.setScalar(0.1);
+      scene.position.set(position.x, position.y, position.z);
+      object.add(scene);
       const random = Math.random() * 10;
+      const neck = vrm.humanoid.getNormalizedBoneNode('neck');
+      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+      const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+      const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+      const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+      const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
+      const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
 
+      // if (id % 100 > 0) return;
       let count = 0;
       unit.on('-update', () => {
-        const neck = vrm.humanoid.getNormalizedBoneNode('neck');
-        const chest = vrm.humanoid.getNormalizedBoneNode('chest');
-        const hips = vrm.humanoid.getNormalizedBoneNode('hips');
-        const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-        const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-        const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
-        const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
         const t = (count + random) * 0.03;
         neck.rotation.x = Math.sin(t * 6) * +0.1;
         chest.rotation.x = Math.sin(t * 12) * +0.1;
@@ -154,6 +164,6 @@ function Test(unit) {
         count += 0.5;
       });
     });
-  }));
+  });
 
 }

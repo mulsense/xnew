@@ -11,11 +11,8 @@ class Model {
     constructor(json) {
         this.dsize = json['dsize'];
             
-        const palette = Uint8Array.from(atob(json['palette']), c => c.charCodeAt(0));
-        this.palette = [];
-        for (let c = 0; c < palette.length / 4; c++) {
-            this.palette.push([palette[c * 4 + 0], palette[c * 4 + 1], palette[c * 4 + 2], palette[c * 4 + 3]]);
-        }
+        this.palette= Uint8Array.from(atob(json['palette']), c => c.charCodeAt(0));
+
         this.layers = [];
         for (let m = 0; m < json['layers'].length; m++) {
             const jsonmodel = json['layers'][m];
@@ -86,7 +83,7 @@ class Model {
         const coords = [];  // float x2
         const joints = [];  // unsigned short x4
         const weights = []; // float x4
-        const inverseBindMatrices = []; // float x16
+        const invmats = []; // float x16
 
         const dsize = this.dsize;
 
@@ -140,12 +137,8 @@ class Model {
                                 const n1 = this.bones[k].name;
                                 const s1 = n1.length;
                                 if (s0 >= 2 && s1 >= 2) {
-                                    if (n0[s0 - 2] == 'L' && n1[s1 - 2] == 'R') {
-                                        continue;
-                                    }
-                                    if (n0[s0 - 2] == 'R' && n1[s1 - 2] == 'L') {
-                                        continue;
-                                    }
+                                    if (n0[s0 - 2] == 'L' && n1[s1 - 2] == 'R') continue;
+                                    if (n0[s0 - 2] == 'R' && n1[s1 - 2] == 'L') continue;
                                 }
                          
                                 const l = this.bones[k].distance([vertexs[j * 3 + 0], vertexs[j * 3 + 1], vertexs[j * 3 + 2]]);
@@ -176,7 +169,7 @@ class Model {
             const position = bone.basePosition();
             const vec0 = [position[0] + bone.vec0[0], position[1] + bone.vec0[1], position[2] + bone.vec0[2]];
 
-            inverseBindMatrices.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -vec0[0], -vec0[1], -vec0[2], 1);
+            invmats.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -vec0[0], -vec0[1], -vec0[2], 1);
         }
         let promise;
         {
@@ -226,49 +219,19 @@ class Model {
             binlength += coords.length * 4;
             binlength += joints.length * 2;
             binlength += weights.length * 4;
-            binlength += inverseBindMatrices.length * 4;
+            binlength += invmats.length * 4;
             binlength += pngdata.length;
 
             const binary = new Uint8Array(binlength);
             const view = new DataView(binary.buffer);
             let offset = 0;
-
-            // indices (int32)
-            for (let i = 0; i < indices.length; i++) {
-                view.setInt32(offset, indices[i], true); offset += 4;
-            }
-
-            // vertexs (float32 x 3)
-            for (let i = 0; i < vertexs.length; i++) {
-                view.setFloat32(offset, vertexs[i], true); offset += 4;
-            }
-
-            // normals (float32 x 3)
-            for (let i = 0; i < normals.length; i++) {
-                view.setFloat32(offset, normals[i], true); offset += 4;
-            }
-
-            // coords (float32 x 2)
-            for (let i = 0; i < coords.length; i++) {
-                view.setFloat32(offset, coords[i], true); offset += 4;
-            }
-
-            // joints (uint16)
-            for (let i = 0; i < joints.length; i++) {
-                view.setUint16(offset, joints[i], true); offset += 2;
-            }
-
-            // weights (float32)
-            for (let i = 0; i < weights.length; i++) {
-                view.setFloat32(offset, weights[i], true); offset += 4;
-            }
-
-            // inverseBindMatrices (float32)
-            for (let i = 0; i < inverseBindMatrices.length; i++) {
-                view.setFloat32(offset, inverseBindMatrices[i], true); offset += 4;
-            }
-
-            // pngdata (uint8)
+            indices.forEach(v => { view.setInt32(offset, v, true); offset += 4; });
+            vertexs.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
+            normals.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
+            coords.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
+            joints.forEach(v => { view.setUint16(offset, v, true); offset += 2; });
+            weights.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
+            invmats.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
             binary.set(pngdata, offset);
 
             // VRM1.0 JSON生成
@@ -303,7 +266,7 @@ class Model {
             bufferViews.push({ buffer: 0, byteOffset, byteLength: coords.length * 4, target: 34962 }); byteOffset += coords.length * 4;
             bufferViews.push({ buffer: 0, byteOffset, byteLength: joints.length * 2, target: 34962 }); byteOffset += joints.length * 2;
             bufferViews.push({ buffer: 0, byteOffset, byteLength: weights.length * 4, target: 34962 }); byteOffset += weights.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: inverseBindMatrices.length * 4 }); byteOffset += inverseBindMatrices.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: invmats.length * 4 }); byteOffset += invmats.length * 4;
             bufferViews.push({ buffer: 0, byteOffset, byteLength: pngdata.length }); byteOffset += pngdata.length;
             
             // min & max 
@@ -325,21 +288,14 @@ class Model {
                 { bufferView: 3, byteOffset: 0, componentType: 5126, count: coords.length / 2, type: "VEC2", normalized: false },
                 { bufferView: 4, byteOffset: 0, componentType: 5123, count: joints.length / 4, type: "VEC4", normalized: false },
                 { bufferView: 5, byteOffset: 0, componentType: 5126, count: weights.length / 4, type: "VEC4", normalized: false },
-                { bufferView: 6, byteOffset: 0, componentType: 5126, count: inverseBindMatrices.length / 16, type: "MAT4", normalized: false },
+                { bufferView: 6, byteOffset: 0, componentType: 5126, count: invmats.length / 16, type: "MAT4", normalized: false },
             ];
 
             // build nodes
             const nodes = [];
             for (let i = 0; i < this.bones.length; i++) {
                 const bone = this.bones[i];
-
-                // get parent bone base position
-                let position = [0.0, 0.0, 0.0];
-                if (bone.parent) {
-                    position[0] += bone.parent.vec1[0];
-                    position[1] += bone.parent.vec1[1];
-                    position[2] += bone.parent.vec1[2];
-                }
+                const position = bone.parent ? bone.parent.vec1 : [0.0, 0.0, 0.0];
                 
                 const vrmName = vrmBoneMap[bone.name] || bone.name;
                 const node = {
@@ -533,28 +489,28 @@ class Layer {
 
                         let vtx;
                         switch(i){
-                            case 0: vtx = [x0, y0, z0, x0, y0, z1, x0, y1, z0, x0, y1, z1, x0, y1, z0, x0, y0, z1, ]; break;
-                            case 1: vtx = [x1, y0, z0, x1, y1, z0, x1, y0, z1, x1, y1, z1, x1, y0, z1, x1, y1, z0, ]; break;
-                            case 2: vtx = [x0, y0, z0, x1, y0, z0, x0, y0, z1, x1, y0, z1, x0, y0, z1, x1, y0, z0, ]; break;
-                            case 3: vtx = [x0, y1, z0, x0, y1, z1, x1, y1, z0, x1, y1, z1, x1, y1, z0, x0, y1, z1, ]; break;
-                            case 4: vtx = [x0, y0, z0, x0, y1, z0, x1, y0, z0, x1, y1, z0, x1, y0, z0, x0, y1, z0, ]; break;
-                            case 5: vtx = [x0, y0, z1, x1, y0, z1, x0, y1, z1, x1, y1, z1, x0, y1, z1, x1, y0, z1, ]; break;
+                            case 0: vtx = [x0, y0, z0, x0, y0, z1, x0, y1, z0, x0, y1, z1, x0, y1, z0, x0, y0, z1]; break;
+                            case 1: vtx = [x1, y0, z0, x1, y1, z0, x1, y0, z1, x1, y1, z1, x1, y0, z1, x1, y1, z0]; break;
+                            case 2: vtx = [x0, y0, z0, x1, y0, z0, x0, y0, z1, x1, y0, z1, x0, y0, z1, x1, y0, z0]; break;
+                            case 3: vtx = [x0, y1, z0, x0, y1, z1, x1, y1, z0, x1, y1, z1, x1, y1, z0, x0, y1, z1]; break;
+                            case 4: vtx = [x0, y0, z0, x0, y1, z0, x1, y0, z0, x1, y1, z0, x1, y0, z0, x0, y1, z0]; break;
+                            case 5: vtx = [x0, y0, z1, x1, y0, z1, x0, y1, z1, x1, y1, z1, x0, y1, z1, x1, y0, z1]; break;
                         }
 
                         let nrm;
                         switch(i) {
-                            case 0: nrm = [-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,]; break;
-                            case 1: nrm = [+1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0,]; break;
-                            case 2: nrm = [0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,]; break;
-                            case 3: nrm = [0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0,]; break;
-                            case 4: nrm = [0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,]; break;
-                            case 5: nrm = [0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1,]; break;
+                            case 0: nrm = [-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0]; break;
+                            case 1: nrm = [+1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0]; break;
+                            case 2: nrm = [0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0]; break;
+                            case 3: nrm = [0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0]; break;
+                            case 4: nrm = [0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1]; break;
+                            case 5: nrm = [0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1, 0, 0, +1]; break;
                         }
 
                         let col = [];
                         const c = cmap[p];
                         for (let k = 0; k < 6; k++) {
-                            col.push(palette[c][0], palette[c][1], palette[c][2]);
+                            col.push(palette[c * 4 + 0], palette[c * 4 + 1], palette[c * 4 + 2]);
                         }
 
                         this.vertexs.set(vtx, cnt * 18);
@@ -639,11 +595,7 @@ class Code {
         }
         const length = view.getInt32(offset, true);
         const slice = bin.slice(offset + 4, offset + 4 + ((length + 7) >> 3));
-        if (bitarray == false){
-            return slice;
-        } else {
-            return Uint8Array.from({ length }, (_, i) => (slice[i >> 3] & (0x01 << (i % 8))) ? 1 : 0);
-        }
+        return bitarray ? Uint8Array.from({ length }, (_, i) => (slice[i >> 3] & (0x01 << (i % 8))) ? 1 : 0) : slice;
     }
 
     static hmMakeNode(table) {
