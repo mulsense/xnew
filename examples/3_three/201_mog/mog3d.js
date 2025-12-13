@@ -33,7 +33,7 @@ class Model {
 
             const PALETTE_CODE = 256;
             const data = Code.segment(bin1, 0);
-            const lngs = Array(PALETTE_CODE + 1).fill(0);
+            const lngs = new Array(PALETTE_CODE + 1).fill(0);
             for (let c = 0; c < data.length - 1; c += 2) {
                 lngs[data[c + 0]] = data[c + 1];
             }
@@ -41,28 +41,26 @@ class Model {
 
             const memC = Code.decode(Code.hmMakeTableFromLngs(lngs), Code.segment(bin1, 1, true), PALETTE_CODE, 8, 8);
 
-            let [b, c] = [0, 0];
-            for (let a = 0; a < memA.length; a++) {
-                if (memA[a] === 0) continue;
-                const dsize8 = [Math.ceil(dsize[0] / 8), Math.ceil(dsize[1] / 8), Math.ceil(dsize[2] / 8)];
-                const x = a % dsize8[0];
-                const y = ((a / dsize8[0]) >> 0) % dsize8[1];
-                const z = (a / (dsize8[0] * dsize8[1])) >> 0;
+            let [a, b, c] = [0, 0, 0];
+            for (let z = 0; z < Math.ceil(dsize[2] / 8); z++) {
+                for (let y = 0; y < Math.ceil(dsize[1] / 8); y++) {
+                    for (let x = 0; x < Math.ceil(dsize[0] / 8); x++) {
+                        if (memA[a++] === 0) continue;
 
-                for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
-                    for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
-                        const mb = memB[b + iz * 8 + iy];
-                        if (mb === 0) continue;
-                        for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
-                            if ((mb >> ix) & 0x01) {
-                                const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
-                                gmap[p] = 0x40;
-                                cmap[p] = memC[c++];
+                        for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
+                            for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
+                                for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
+                                    if ((memB[b + iz * 8 + iy] >> ix) & 0x01) {
+                                        const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
+                                        gmap[p] = 0x40;
+                                        cmap[p] = memC[c++];
+                                    }
+                                }
                             }
                         }
+                        b += 8 * 8;
                     }
                 }
-                b += 8 * 8;
             }
             return [gmap, cmap];
         }
@@ -90,7 +88,7 @@ class Model {
                 colors.push(layer.colors[j * 3 + 0], layer.colors[j * 3 + 1], layer.colors[j * 3 + 2]);
             }
 
-            const mask = Array(this.bones.length);
+            const mask = new Array(this.bones.length);
             mask.fill(0);
             if (this.bones.length > 1) {
                 for (let j = 0; j < this.bones.length; j++) {
@@ -428,37 +426,29 @@ class Model {
     }
 }
 
-
 class Layer {
     constructor(name, dsize, palette, gmap, cmap) {
         this.name = name;
-        const s = [1, dsize[0], dsize[0] * dsize[1]];
         const bits = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20];
 
-        const sq = Math.sqrt(2 * (dsize[0] * dsize[1] + dsize[1] * dsize[2] + dsize[2] * dsize[0])) >> 0;
-        const sz = Math.pow(2, Math.ceil(Math.log2(sq))) >> 0;
-
-        const tsize = [sz, 0];
         let cnt = 0;
         for (let z = 0; z < dsize[2]; z++) {
             for (let y = 0; y < dsize[1]; y++) {
                 for (let x = 0; x < dsize[0]; x++) {
-                    const p = z * s[2] + y * s[1] + x * s[0];
+                    const p = z * dsize[0] * dsize[1] + y * dsize[0] + x;
                     if ((gmap[p] & 0x40) === 0) continue;
 
                     let bit = 0;
-                    if (x === 0 || (gmap[p - s[0]] & 0x40) === 0) { bit |= 0x01; cnt++; }
-                    if (x === dsize[0] - 1 || (gmap[p + s[0]] & 0x40) === 0) { bit |= 0x02; cnt++; }
-                    if (y === 0 || (gmap[p - s[1]] & 0x40) === 0) { bit |= 0x04; cnt++; }
-                    if (y === dsize[1] - 1 || (gmap[p + s[1]] & 0x40) === 0) { bit |= 0x08; cnt++; }
-                    if (z === 0 || (gmap[p - s[2]] & 0x40) === 0) { bit |= 0x10; cnt++; }
-                    if (z === dsize[2] - 1 || (gmap[p + s[2]] & 0x40) === 0) { bit |= 0x20; cnt++; }
-                    gmap[p] = gmap[p] | bit;
+                    if (x === 0 || (gmap[p - 1] & 0x40) === 0) { bit |= bits[0]; cnt++; }
+                    if (x === dsize[0] - 1 || (gmap[p + 1] & 0x40) === 0) { bit |= bits[1]; cnt++; }
+                    if (y === 0 || (gmap[p - dsize[0]] & 0x40) === 0) { bit |= bits[2]; cnt++; }
+                    if (y === dsize[1] - 1 || (gmap[p + dsize[0]] & 0x40) === 0) { bit |= bits[3]; cnt++; }
+                    if (z === 0 || (gmap[p - dsize[0] * dsize[1]] & 0x40) === 0) { bit |= bits[4]; cnt++; }
+                    if (z === dsize[2] - 1 || (gmap[p + dsize[0] * dsize[1]] & 0x40) === 0) { bit |= bits[5]; cnt++; }
+                    gmap[p] |= bit;
                 }
             }
         }
-
-        tsize[1] = Math.max(16, (cnt / tsize[0]) >> 0 + 1);
         
         this.vertexs = new Uint16Array(cnt * 18);
         this.normals = new Int8Array(cnt * 18);
@@ -468,15 +458,12 @@ class Layer {
         for (let z = 0; z < dsize[2]; z++) {
             for (let y = 0; y < dsize[1]; y++) {
                 for (let x = 0; x < dsize[0]; x++) {
-                    const p = z * s[2] + y * s[1] + x * s[0];
+                    const p = z * dsize[0] * dsize[1] + y * dsize[0] + x;
                     if ((gmap[p] & 0x3F) === 0) continue;
 
-                    const x0 = x;
-                    const x1 = x + 1;
-                    const y0 = y;
-                    const y1 = y + 1;
-                    const z0 = z;
-                    const z1 = z + 1;
+                    const [x0, x1] = [x, x + 1];
+                    const [y0, y1] = [y, y + 1];
+                    const [z0, z1] = [z, z + 1];
 
                     for (let i = 0; i < 6; i++){
                         if ((gmap[p] & bits[i]) === 0) continue;
@@ -602,7 +589,7 @@ class Code {
 
         const minv = Math.min(...nonZero);
         const maxv = Math.max(...nonZero);
-        const bits = Array(minv).fill(0);
+        const bits = new Array(minv).fill(0);
         let prev = 0;
 
         for (let s = minv; s <= maxv; s++) {
@@ -669,53 +656,42 @@ class Code {
     }
 
     static table256() {
-        const cnts = new Uint8Array(256 + 1);
+        const cnts = new Array(256 + 1);
         for (let i = 0; i < 256; i++) {
-            const sum = Array.from({ length: 7 }, (_, j) => ((i >> j) & 1) !== ((i >> (j + 1)) & 1) ? 1 : 0)
-                .reduce((a, b) => a + b, 0);
+            const sum = Array.from({ length: 7 }, (_, j) => ((i >> j) & 1) !== ((i >> (j + 1)) & 1) ? 1 : 0).reduce((a, b) => a + b, 0);
             cnts[i] = 2 ** (7 - sum);
         }
         cnts[256] = 2 ** 7;
 
-        const nodes = [];
-        const heads = [];
-        for (let i = 0; i < cnts.length; i++) {
-            nodes.push({ cnt: cnts[i], parent: null });
-            if (cnts[i] > 0) {
-                heads.push(nodes[i]);
-            }
-        }
+        const nodes = cnts.map((cnt) => ({ cnt, parent: null }));
 
-        while (heads.length >= 2) {
+        for (let i = 0; i < cnts.length - 1; i++) {
             const node = { cnt: 0, parent: null };
-
             for (let j = 0; j < 2; j++) {
-                let id = 0;
+                let minid = 0;
                 let minv = Number.MAX_SAFE_INTEGER;
-                for (let k = 0; k < heads.length; k++) {
-                    if (heads[k].cnt < minv) {
-                        minv = heads[k].cnt;
-                        id = k;
+                for (let k = 0; k < nodes.length; k++) {
+                    if (nodes[k].parent === null && nodes[k].cnt < minv) {
+                        minv = nodes[k].cnt;
+                        minid = k;
                     }
                 }
-                node.cnt += heads[id].cnt;
-                heads[id].parent = node;
-                heads.splice(id, 1);
+                node.cnt += nodes[minid].cnt;
+                nodes[minid].parent = node;
             }
-
-            heads.push(node);
+            nodes.push(node);
         }
 
-        const lngs = [];
+        const lngs = new Array(cnts.length).fill(0);
         for (let i = 0; i < cnts.length; i++) {
-            let len = 0;
             let node = nodes[i];
-            while (node.parent) {
-                len++;
-                node = node.parent;
-            }
-            lngs.push(len);
+            while (node = node.parent) { lngs[i]++; }
         }
         return Code.hmMakeTableFromLngs(lngs);
     }
 }
+
+// memo
+// 1. boneの名前変更
+// 2. hipsの位置調整
+// 3. tableの256要素を長く
