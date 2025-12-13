@@ -175,56 +175,46 @@ class Model {
             const bone = this.bones[i];
             const position = bone.basePosition();
             const vec0 = [position[0] + bone.vec0[0], position[1] + bone.vec0[1], position[2] + bone.vec0[2]];
-            const mat = [
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                -vec0[0], -vec0[1], -vec0[2], 1,
-            ];
-            inverseBindMatrices.push(mat);
+
+            inverseBindMatrices.push([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -vec0[0], -vec0[1], -vec0[2], 1]);
+            console.log(bone.name, bone.vec0, bone.vec1);
         }
         let promise;
         {
             const w = 1024;
-            const h = 1024;//Math.pow(2, Math.ceil(Math.log2(2 * (2 * colors.length + w - 1) / w))) >> 0;
+            const h = Math.pow(2, Math.ceil(Math.log2((4 * colors.length + w - 1) / w))) >> 0;
             const imgdata = new Uint8Array(w * h * 4);
-            imgdata.fill(100);
+            imgdata.fill(255);
            
-            for (let y = 0; y < h; y++) {
-                for (let x = 0; x < 888; x++) {
-                    imgdata[((y + 0) * w + (x + 0)) * 4 + 0] = 255;
-                    imgdata[((y + 0) * w + (x + 0)) * 4 + 1] = 0;
-                    imgdata[((y + 0) * w + (x + 0)) * 4 + 2] = 0;
-                    imgdata[((y + 0) * w + (x + 0)) * 4 + 3] = 255;
-                }
-            }
             for (let i = 0; i < colors.length; i++) {
-                const x = i % w;
-                const y = Math.floor(i / w);
-                if (x == 0 || x == 1023) {
-                    console.log(i, x, y);
-                }
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 0] = 222;
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 1] = 222;
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 2] = 2;
+                const s = ((w / 6) >> 0) * 6;
+                const x = (i * 2) % s;
+                const y = (((i * 2) / s) >> 0) * 2;
+
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 0] = colors[i][0];
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 1] = colors[i][1];
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 2] = colors[i][2];
                 imgdata[((y + 0) * w + (x + 0)) * 4 + 3] = 255;
 
-                // imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
-                // imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
-                // imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
+                imgdata[((y + 0) * w + (x + 1)) * 4 + 0] = colors[i][0];
+                imgdata[((y + 0) * w + (x + 1)) * 4 + 1] = colors[i][1];
+                imgdata[((y + 0) * w + (x + 1)) * 4 + 2] = colors[i][2];
+                imgdata[((y + 0) * w + (x + 1)) * 4 + 3] = 255;
 
-                // imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 0] = colors[i][0];
-                // imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 1] = colors[i][1];
-                // imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 2] = colors[i][2];
+                imgdata[((y + 1) * w + (x + 0)) * 4 + 0] = colors[i][0];
+                imgdata[((y + 1) * w + (x + 0)) * 4 + 1] = colors[i][1];
+                imgdata[((y + 1) * w + (x + 0)) * 4 + 2] = colors[i][2];
+                imgdata[((y + 1) * w + (x + 0)) * 4 + 3] = 255;
 
-                // imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
-                // imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
-                // imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
+                imgdata[((y + 1) * w + (x + 1)) * 4 + 0] = colors[i][0];
+                imgdata[((y + 1) * w + (x + 1)) * 4 + 1] = colors[i][1];
+                imgdata[((y + 1) * w + (x + 1)) * 4 + 2] = colors[i][2];
+                imgdata[((y + 1) * w + (x + 1)) * 4 + 3] = 255;
 
                 // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
-                const u = (x + 0.5) / w;
-                const v = (y + 0.5) / h;
-                coords.push([1, 1]);
+                const u = (x + 1) / w;
+                const v = (y + 1) / h;
+                coords.push([u, v]);
             }
             promise = uint8ArrayToPng(imgdata, w, h)
         }
@@ -252,30 +242,22 @@ class Model {
 
             // vertexs (float32 x 3)
             for (let i = 0; i < vertexs.length; i++) {
-                view.setFloat32(offset, vertexs[i][0], true);
-                offset += 4;
-                view.setFloat32(offset, vertexs[i][1], true);
-                offset += 4;
-                view.setFloat32(offset, vertexs[i][2], true);
-                offset += 4;
+                view.setFloat32(offset, vertexs[i][0], true); offset += 4;
+                view.setFloat32(offset, vertexs[i][1], true); offset += 4;
+                view.setFloat32(offset, vertexs[i][2], true); offset += 4;
             }
 
             // normals (float32 x 3)
             for (let i = 0; i < normals.length; i++) {
-                view.setFloat32(offset, normals[i][0], true);
-                offset += 4;
-                view.setFloat32(offset, normals[i][1], true);
-                offset += 4;
-                view.setFloat32(offset, normals[i][2], true);
-                offset += 4;
+                view.setFloat32(offset, normals[i][0], true); offset += 4;
+                view.setFloat32(offset, normals[i][1], true); offset += 4;
+                view.setFloat32(offset, normals[i][2], true); offset += 4;
             }
 
             // coords (float32 x 2)
             for (let i = 0; i < coords.length; i++) {
-                view.setFloat32(offset, coords[i][0], true);
-                offset += 4;
-                view.setFloat32(offset, coords[i][1], true);
-                offset += 4;
+                view.setFloat32(offset, coords[i][0], true); offset += 4;
+                view.setFloat32(offset, coords[i][1], true); offset += 4;
             }
 
             // joints (uint16)
@@ -286,16 +268,14 @@ class Model {
 
             // weights (float32)
             for (let i = 0; i < weights.length; i++) {
-                view.setFloat32(offset, weights[i], true);
-                offset += 4;
+                view.setFloat32(offset, weights[i], true); offset += 4;
             }
 
             // inverseBindMatrices (float32 x 16)
             for (let i = 0; i < inverseBindMatrices.length; i++) {
                 const mat = inverseBindMatrices[i];
                 for (let j = 0; j < 16; j++) {
-                    view.setFloat32(offset, mat[j], true);
-                    offset += 4;
+                    view.setFloat32(offset, mat[j], true); offset += 4;
                 }
             }
 
@@ -326,26 +306,18 @@ class Model {
             };
 
             // bufferViews
-            let bufferViewOffset = 0;
-            const bufferViews = [
-                { buffer: 0, byteOffset: bufferViewOffset, byteLength: indices.length * 4, target: 34963 },
-            ];
-            bufferViewOffset += indices.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: vertexs.length * 4 * 3, target: 34962 });
-            bufferViewOffset += vertexs.length * 4 * 3;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: normals.length * 4 * 3, target: 34962 });
-            bufferViewOffset += normals.length * 4 * 3;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: coords.length * 4 * 2, target: 34962 });
-            bufferViewOffset += coords.length * 4 * 2;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: joints.length * 2, target: 34962 });
-            bufferViewOffset += joints.length * 2;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: weights.length * 4, target: 34962 });
-            bufferViewOffset += weights.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: inverseBindMatrices.length * 4 * 16 });
-            bufferViewOffset += inverseBindMatrices.length * 4 * 16;
-            bufferViews.push({ buffer: 0, byteOffset: bufferViewOffset, byteLength: pngdata.length });
-
-            // 頂点の最小・最大値を計算
+            let byteOffset = 0;
+            const bufferViews = [];
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: indices.length * 4, target: 34963 }); byteOffset += indices.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: vertexs.length * 4 * 3, target: 34962 }); byteOffset += vertexs.length * 4 * 3;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: normals.length * 4 * 3, target: 34962 }); byteOffset += normals.length * 4 * 3;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: coords.length * 4 * 2, target: 34962 }); byteOffset += coords.length * 4 * 2;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: joints.length * 2, target: 34962 }); byteOffset += joints.length * 2;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: weights.length * 4, target: 34962 }); byteOffset += weights.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: inverseBindMatrices.length * 4 * 16 }); byteOffset += inverseBindMatrices.length * 4 * 16;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: pngdata.length }); byteOffset += pngdata.length;
+            
+            // min & max 
             let minv = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
             let maxv = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
             for (let i = 0; i < vertexs.length; i++) {
@@ -358,79 +330,21 @@ class Model {
             }
 
             const accessors = [
-                // indices
-                {
-                    bufferView: 0,
-                    byteOffset: 0,
-                    componentType: 5125,
-                    count: indices.length,
-                    type: "SCALAR",
-                    normalized: false,
-                },
-                // vertexs
-                {
-                    bufferView: 1,
-                    byteOffset: 0,
-                    componentType: 5126,
-                    count: vertexs.length,
-                    type: "VEC3",
-                    normalized: false,
-                    max: maxv,
-                    min: minv,
-                },
-                // normals
-                {
-                    bufferView: 2,
-                    byteOffset: 0,
-                    componentType: 5126,
-                    count: normals.length,
-                    type: "VEC3",
-                    normalized: false,
-                },
-                // coords
-                {
-                    bufferView: 3,
-                    byteOffset: 0,
-                    componentType: 5126,
-                    count: coords.length,
-                    type: "VEC2",
-                    normalized: false,
-                },
-                // joints
-                {
-                    bufferView: 4,
-                    byteOffset: 0,
-                    componentType: 5123,
-                    count: Math.floor(joints.length / 4),
-                    type: "VEC4",
-                    normalized: false,
-                },
-                // weights
-                {
-                    bufferView: 5,
-                    byteOffset: 0,
-                    componentType: 5126,
-                    count: Math.floor(weights.length / 4),
-                    type: "VEC4",
-                    normalized: false,
-                },
-                // inverseBindMatrices
-                {
-                    bufferView: 6,
-                    byteOffset: 0,
-                    componentType: 5126,
-                    count: inverseBindMatrices.length,
-                    type: "MAT4",
-                    normalized: false,
-                },
+                { bufferView: 0, byteOffset: 0, componentType: 5125, count: indices.length, type: "SCALAR", normalized: false },
+                { bufferView: 1, byteOffset: 0, componentType: 5126, count: vertexs.length, type: "VEC3", normalized: false, max: maxv, min: minv },
+                { bufferView: 2, byteOffset: 0, componentType: 5126, count: normals.length, type: "VEC3", normalized: false },
+                { bufferView: 3, byteOffset: 0, componentType: 5126, count: coords.length, type: "VEC2", normalized: false },
+                { bufferView: 4, byteOffset: 0, componentType: 5123, count: joints.length / 4, type: "VEC4", normalized: false },
+                { bufferView: 5, byteOffset: 0, componentType: 5126, count: weights.length / 4, type: "VEC4", normalized: false },
+                { bufferView: 6, byteOffset: 0, componentType: 5126, count: inverseBindMatrices.length, type: "MAT4", normalized: false },
             ];
 
-            // ノードの生成
+            // build nodes
             const nodes = [];
             for (let i = 0; i < this.bones.length; i++) {
                 const bone = this.bones[i];
 
-                // 親ボーンの基準位置を取得
+                // get parent bone base position
                 let position = [0.0, 0.0, 0.0];
                 if (bone.parent) {
                     position[0] += bone.parent.vec1[0];
@@ -438,12 +352,13 @@ class Model {
                     position[2] += bone.parent.vec1[2];
                 }
                 
+                const vrmName = vrmBoneMap[bone.name] || bone.name;
                 const node = {
-                    name: bone.name,
+                    name: vrmName,
                     translation: [position[0] + bone.vec0[0], position[1] + bone.vec0[1], position[2] + bone.vec0[2]],
                 };
 
-                // 子を探す
+                // set children
                 const children = [];
                 for (let j = 0; j < this.bones.length; j++) {
                     if (this.bones[j].parent === this.bones[i]) {
@@ -455,33 +370,17 @@ class Model {
                 }
                 nodes.push(node);
             }
-            // モデルノード
-            nodes.push({
-                mesh: 0,
-                name: "model",
-                skin: 0,
-            });
+            // model node
+            nodes.push({ mesh: 0, name: "model", skin: 0 });
 
             // glTF JSON
             const gltf = {
-                asset: {
-                    version: "2.0",
-                    generator: "MOG3D VRM Exporter",
-                },
-                buffers: [
-                    {
-                        byteLength: binlength,
-                    },
-                ],
-                bufferViews: bufferViews,
-                accessors: accessors,
-                nodes: nodes,
-                skins: [
-                    {
-                        inverseBindMatrices: 6,
-                        joints: Array.from({ length: this.bones.length }, (_, i) => i),
-                    },
-                ],
+                asset: { version: "2.0", generator: "mog3d.js vrm converter", },
+                buffers: [ { byteLength: binlength, }, ],
+                bufferViews,
+                accessors,
+                nodes,
+                skins: [{ inverseBindMatrices: 6, joints: Array.from({ length: this.bones.length }, (_, i) => i) }],
                 materials: [
                     {
                         alphaMode: "OPAQUE",
@@ -523,33 +422,11 @@ class Model {
                         ],
                     },
                 ],
-                scenes: [
-                    {
-                        nodes: [0, this.bones.length],
-                    },
-                ],
+                scenes: [{ nodes: [0, this.bones.length] }],
                 scene: 0,
-                textures: [
-                    {
-                        sampler: 0,
-                        source: 0,
-                    },
-                ],
-                samplers: [
-                    {
-                        magFilter: 9729,
-                        minFilter: 9985,
-                        wrapS: 10497,
-                        wrapT: 10497,
-                    },
-                ],
-                images: [
-                    {
-                        bufferView: 7,
-                        name: "model_texture",
-                        mimeType: "image/png",
-                    },
-                ],
+                textures: [{ sampler: 0, source: 0 }],
+                samplers: [{ magFilter: 9729, minFilter: 9985, wrapS: 10497, wrapT: 10497 }],
+                images: [{ bufferView: 7, name: "model_texture", mimeType: "image/png" }],
                 extensions: {
                     VRMC_vrm: {
                         specVersion: "1.0",
@@ -579,14 +456,14 @@ class Model {
             for (let i = 0; i < this.bones.length; i++) {
                 const boneName = this.bones[i].name;
                 const vrmName = vrmBoneMap[boneName] || boneName;
-                gltf.extensions.VRMC_vrm.humanoid.humanBones[vrmName] = {
-                    node: i,
-                };
+                gltf.extensions.VRMC_vrm.humanoid.humanBones[vrmName] = { node: i };
             }
 
             const gltfString = JSON.stringify(gltf);
             const jsonBuffer = new TextEncoder().encode(gltfString);
             const jsonSize = Math.ceil(jsonBuffer.length / 4) * 4;
+            const jsonPadding = new Uint8Array(jsonSize - jsonBuffer.length);
+            jsonPadding.fill(0x20); // space
 
             // VRM(glTF)ファイルの生成
             const fileSize = 12 + 8 + jsonSize + 8 + binlength;
@@ -595,31 +472,20 @@ class Model {
             let vrmOffset = 0;
 
             // glTFヘッダ
-            vrmBuffer.set([0x67, 0x6C, 0x54, 0x46], vrmOffset); // "glTF"
-            vrmOffset += 4;
-            vrmView.setUint32(vrmOffset, 2, true); // version
-            vrmOffset += 4;
-            vrmView.setUint32(vrmOffset, fileSize, true); // length
-            vrmOffset += 4;
+            vrmBuffer.set([0x67, 0x6C, 0x54, 0x46], vrmOffset); vrmOffset += 4; // "glTF"
+            vrmView.setUint32(vrmOffset, 2, true); vrmOffset += 4; // version
+            vrmView.setUint32(vrmOffset, fileSize, true); vrmOffset += 4; // length
 
             // JSONチャンク
-            vrmView.setUint32(vrmOffset, jsonSize, true);
-            vrmOffset += 4;
-            vrmBuffer.set([0x4A, 0x53, 0x4F, 0x4E], vrmOffset); // "JSON"
-            vrmOffset += 4;
-            vrmBuffer.set(jsonBuffer, vrmOffset);
-            // JSONの末尾をスペースで埋める（4バイト境界）
-            for (let i = jsonBuffer.length; i < jsonSize; i++) {
-                vrmBuffer[vrmOffset + i] = 0x20; // space
-            }
-            vrmOffset += jsonSize;
+            vrmView.setUint32(vrmOffset, jsonSize, true); vrmOffset += 4;
+            vrmBuffer.set([0x4A, 0x53, 0x4F, 0x4E], vrmOffset); vrmOffset += 4; // "JSON"
+            vrmBuffer.set(jsonBuffer, vrmOffset);  vrmOffset += jsonBuffer.length; // jsonBuffer
+            vrmBuffer.set(jsonPadding, vrmOffset);  vrmOffset += jsonPadding.length; // jsonPadding
 
             // BINチャンク
-            vrmView.setUint32(vrmOffset, binlength, true);
-            vrmOffset += 4;
-            vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); // "BIN\0"
-            vrmOffset += 4;
-            vrmBuffer.set(binary, vrmOffset);
+            vrmView.setUint32(vrmOffset, binlength, true); vrmOffset += 4;
+            vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); vrmOffset += 4; // "BIN\0"
+            vrmBuffer.set(binary, vrmOffset); vrmOffset += binary.length;
 
             // VRMファイルの生成
             const blob = new Blob([vrmBuffer], { type: 'application/octet-stream' });
