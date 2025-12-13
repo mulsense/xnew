@@ -208,7 +208,17 @@ class Model {
                 const v = (y + 1) / h;
                 coords.push(u, v);
             }
-            promise = uint8ArrayToPng(imgdata, w, h)
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+
+            ctx.putImageData(new ImageData(new Uint8ClampedArray(imgdata), w, h), 0, 0);
+
+            promise = new Promise((resolve) => {
+                canvas.toBlob((blob) => { blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); }); }, 'image/png');
+            });
         }
 
         promise = promise.then((pngdata) => {
@@ -568,20 +578,6 @@ class Bone {
             return Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
         }
     }
-}
-
-function uint8ArrayToPng(data, width, height) {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    const imageData = new ImageData(new Uint8ClampedArray(data), width, height);
-    ctx.putImageData(imageData, 0, 0);
-
-    return new Promise((resolve) => {
-        canvas.toBlob((blob) => { blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); }); }, 'image/png');
-    });
 }
 
 class Code {
