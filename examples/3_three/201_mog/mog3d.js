@@ -587,11 +587,9 @@ function uint8ArrayToPng(data, width, height) {
 class Code {
     static segment(bin, p, bitarray = false) {
         const view = new DataView(bin.buffer);
-
         let offset = 0;
         for (let i = 0; i < p; i++) {
-            const length = view.getInt32(offset, true);
-            offset += ((length + 7) >> 3) + 4;
+            offset += ((view.getInt32(offset, true) + 7) >> 3) + 4;
         }
         const length = view.getInt32(offset, true);
         const slice = bin.slice(offset + 4, offset + 4 + ((length + 7) >> 3));

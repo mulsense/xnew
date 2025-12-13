@@ -6,7 +6,7 @@
       "Bash(npx tsc:*)",
       "Bash(node -e:*)",
       "Bash(cat:*)",
-      "Bash(node /Users/furihata/Documents/GitHub/xnew/fix_icons.js:*)"
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
