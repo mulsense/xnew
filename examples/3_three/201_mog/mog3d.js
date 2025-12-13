@@ -2,40 +2,79 @@
 export const mog3d = {
     load(path) {
         return fetch(path).then(response => response.json()).then(async (json) => {
-            return new MOGData(json);
+            return new Model(json);
         });
     }
 }
-const usize = 1024;
 
-class MOGData {
+class Model {
     constructor(json) {
         this.dsize = json['dsize'];
             
         const palette = Code.base64ToUint8Array(json['palette']);
-        this.palette = new Array(palette.length / 4);
-        for (let c = 0; c < this.palette.length; c++) {
-            this.palette[c] = [palette[c * 4 + 0], palette[c * 4 + 1], palette[c * 4 + 2], palette[c * 4 + 3]];
+        this.palette = [];
+        for (let c = 0; c < palette.length / 4; c++) {
+            this.palette.push([palette[c * 4 + 0], palette[c * 4 + 1], palette[c * 4 + 2], palette[c * 4 + 3]]);
         }
-        this.models = [];
-        for (let m = 0; m < json['models'].length; m++) {
-            const jsonmodel = json['models'][m];
-            const [vmap, cmap] = decodeMap(this.dsize, jsonmodel['vmap'], jsonmodel['cmap'])
-            this.models.push(new Model(jsonmodel['name'], this.dsize, this.palette, vmap, cmap));
+        this.layers = [];
+        for (let m = 0; m < json['layers'].length; m++) {
+            const jsonmodel = json['layers'][m];
+            const [gmap, cmap] = decode(this.dsize, jsonmodel['gmap'], jsonmodel['cmap'])
+            this.layers.push(new Layer(jsonmodel['name'], this.dsize, this.palette, gmap, cmap));
         }
 
         this.bones = [];
         for (let b = 0; b < json['bones'].length; b++) {
-            const jsonbone = json['bones'][b];
-            const parentid = jsonbone['parent'];
-            this.bones.push(new Bone(
-                parentid >= 0 ? this.bones[parentid] : null,
-                jsonbone['name'],
-                jsonbone['refs'],
-                jsonbone['vec0'],
-                jsonbone['vec1'],
-                jsonbone['iks'],
-            ));
+            this.bones.push(new Bone(json['bones'][b], this.bones));
+        }
+
+        function decode(dsize, codevmap, codecmap) {
+            const gmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
+            const cmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
+            gmap.fill(0);
+            cmap.fill(0);
+
+            const bin0 = Code.base64ToUint8Array(codevmap);
+            const bin1 = Code.base64ToUint8Array(codecmap);
+            if (bin0.length == 0) {
+                return [gmap, cmap];
+            }
+
+            const memA = Code.segment(bin0, 0, true);
+            const memB = Code.decode(Code.table256(), Code.segment(bin0, 1, true), 256, 8, 8);
+
+            const PALETTE_CODE = 256;
+            const data = Code.segment(bin1, 0);
+            const lngs = new Array(PALETTE_CODE + 1);
+            lngs.fill(0);
+            for (let c = 0; c < data.length - 1; c += 2) {
+                lngs[data[c + 0]] = data[c + 1];
+            }
+            lngs[PALETTE_CODE] = data[data.length - 1];
+
+            const memC = Code.decode(Code.hmMakeTableFromLngs(lngs), Code.segment(bin1, 1, true), PALETTE_CODE, 8, 8);
+
+            let [a, b, c] = [0, 0, 0];
+            for (let z = 0; z < ((dsize[2] + 7) / 8) >> 0; z++) {
+                for (let y = 0; y < ((dsize[1] + 7) / 8) >> 0; y++) {
+                    for (let x = 0; x < ((dsize[0] + 7) / 8) >> 0; x++) {
+                        if (memA[a++] === 0) continue;
+                        for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
+                            for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
+                                const memb = memB[b++];
+                                for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
+                                    if ((memb >> ix) & 0x01) {
+                                        const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
+                                        gmap[p] = 0x40;
+                                        cmap[p] = memC[c++];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return [gmap, cmap];
         }
     }
 
@@ -51,14 +90,14 @@ class MOGData {
 
         const dsize = this.dsize;
 
-        for (let i = 0; i < this.models.length; i++) {
-            const model = this.models[i];
+        for (let i = 0; i < this.layers.length; i++) {
+            const layer = this.layers[i];
             const offset = indices.length;
-            for (let j = 0; j < model.vertexs.length / 3; j++) {
+            for (let j = 0; j < layer.vertexs.length / 3; j++) {
                 indices.push(offset + j);
-                vertexs.push([model.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2, model.vertexs[j * 3 + 1], model.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2]);
-                normals.push([model.normals[j * 3 + 0], model.normals[j * 3 + 1], model.normals[j * 3 + 2]]);
-                colors.push([model.colors[j * 3 + 0], model.colors[j * 3 + 1], model.colors[j * 3 + 2]]);
+                vertexs.push([layer.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2, layer.vertexs[j * 3 + 1], layer.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2]);
+                normals.push([layer.normals[j * 3 + 0], layer.normals[j * 3 + 1], layer.normals[j * 3 + 2]]);
+                colors.push([layer.colors[j * 3 + 0], layer.colors[j * 3 + 1], layer.colors[j * 3 + 2]]);
             }
 
             const mask = Array(this.bones.length);
@@ -146,36 +185,46 @@ class MOGData {
         }
         let promise;
         {
-            const w = usize;
-            const h = Math.pow(2, Math.ceil(Math.log2(2 * (2 * colors.length + usize - 1) / usize))) >> 0;
+            const w = 1024;
+            const h = 1024;//Math.pow(2, Math.ceil(Math.log2(2 * (2 * colors.length + w - 1) / w))) >> 0;
             const imgdata = new Uint8Array(w * h * 4);
-            imgdata.fill(255);
+            imgdata.fill(100);
            
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < 888; x++) {
+                    imgdata[((y + 0) * w + (x + 0)) * 4 + 0] = 255;
+                    imgdata[((y + 0) * w + (x + 0)) * 4 + 1] = 0;
+                    imgdata[((y + 0) * w + (x + 0)) * 4 + 2] = 0;
+                    imgdata[((y + 0) * w + (x + 0)) * 4 + 3] = 255;
+                }
+            }
             for (let i = 0; i < colors.length; i++) {
-                const s = w - 4;
-                const x = (i * 2) % s;
-                const y = Math.floor((i * 2) / s) * 2;
+                const x = i % w;
+                const y = Math.floor(i / w);
+                if (x == 0 || x == 1023) {
+                    console.log(i, x, y);
+                }
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 0] = 222;
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 1] = 222;
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 2] = 2;
+                imgdata[((y + 0) * w + (x + 0)) * 4 + 3] = 255;
 
-                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 0] = colors[i][0];
-                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 1] = colors[i][1];
-                imgdata[(y + 0) * w * 4 + (x + 0) * 4 + 2] = colors[i][2];
+                // imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
+                // imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
+                // imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
 
-                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
-                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
-                imgdata[(y + 0) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
+                // imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 0] = colors[i][0];
+                // imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 1] = colors[i][1];
+                // imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 2] = colors[i][2];
 
-                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 0] = colors[i][0];
-                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 1] = colors[i][1];
-                imgdata[(y + 1) * w * 4 + (x + 0) * 4 + 2] = colors[i][2];
-
-                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
-                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
-                imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
+                // imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 0] = colors[i][0];
+                // imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 1] = colors[i][1];
+                // imgdata[(y + 1) * w * 4 + (x + 1) * 4 + 2] = colors[i][2];
 
                 // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
-                const u = (x + 1) / w;
-                const v = (y + 1) / h;
-                coords.push([u, v]);
+                const u = (x + 0.5) / w;
+                const v = (y + 0.5) / h;
+                coords.push([1, 1]);
             }
             promise = uint8ArrayToPng(imgdata, w, h)
         }
@@ -582,61 +631,10 @@ class MOGData {
         return promise;
     }
 }
-function decodeMap(dsize, codevmap, codecmap) {
-    const s = [1, dsize[0], dsize[0] * dsize[1]];
-    const vmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
-    const cmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]);
-    vmap.fill(0);
-    cmap.fill(0);
 
-    const bin0 = Code.base64ToUint8Array(codevmap);
-    const bin1 = Code.base64ToUint8Array(codecmap);
-    if (bin0.length == 0) {
-        return [vmap, cmap];
-    }
 
-    const memA = Code.segment(bin0, 0, true);
-    const memB = Code.decode(Code.table256(), Code.segment(bin0, 1, true), 256, 8, 8);
-
-    const PALETTE_CODE = 256;
-    const data = Code.segment(bin1, 0);
-    const dv = new DataView(data.buffer);
-    const lngs = new Array(PALETTE_CODE + 1);
-    lngs.fill(0);
-    for (let c = 0; c < data.length - 1; c += 2) {
-        const [s, b] = [dv.getUint8(c + 0), dv.getUint8(c + 1)];
-        lngs[s] = b;
-    }
-    lngs[PALETTE_CODE] = dv.getUint8(data.length - 1);
-    const tableC = Code.hmMakeTableFromLngs(lngs);
-
-    const memC = Code.decode(tableC, Code.segment(bin1, 1, true), PALETTE_CODE, 8, 8);
-
-    let [a, b, c] = [0, 0, 0];
-    for (let z = 0; z < ((dsize[2] + 7) / 8) >> 0; z++) {
-        for (let y = 0; y < ((dsize[1] + 7) / 8) >> 0; y++) {
-            for (let x = 0; x < ((dsize[0] + 7) / 8) >> 0; x++) {
-                if (memA[a++] === 0) continue;
-                for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
-                    for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
-                        const mb = memB[b++];
-                        for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
-                            if ((mb >> ix) & 0x01) {
-                                const p = (z * 8 + iz) * s[2] + (y * 8 + iy) * s[1] + (x * 8 + ix) * s[0];
-                                vmap[p] = 0x80;
-                                cmap[p] = memC[c++];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return [vmap, cmap];
-}
-
-class Model {
-    constructor(name, dsize, palette, vmap, cmap) {
+class Layer {
+    constructor(name, dsize, palette, gmap, cmap) {
         this.name = name;
         const s = [1, dsize[0], dsize[0] * dsize[1]];
         const bits = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20];
@@ -644,69 +642,38 @@ class Model {
         const sq = Math.sqrt(2 * (dsize[0] * dsize[1] + dsize[1] * dsize[2] + dsize[2] * dsize[0])) >> 0;
         const sz = Math.pow(2, Math.ceil(Math.log2(sq))) >> 0;
 
-        const texs = [];
-
         const tsize = [sz, 0];
-
-        for (let z = 0; z < dsize[2]; z++) {
-            for (let y = 0; y < dsize[1]; y++) {
-                for (let x = 0; x < dsize[0]; x++) {
-                    const p = z * s[2] + y * s[1] + x * s[0];
-                    if ((vmap[p] & 0x80) === 0) continue;
-
-                    let bit = 0;
-                    if (x === 0 || (vmap[p - s[0]] & 0x80) === 0) bit |= 0x01;
-                    if (x === dsize[0] - 1 || (vmap[p + s[0]] & 0x80) === 0) bit |= 0x02;
-                    if (y === 0 || (vmap[p - s[1]] & 0x80) === 0) bit |= 0x04;
-                    if (y === dsize[1] - 1 || (vmap[p + s[1]] & 0x80) === 0) bit |= 0x08;
-                    if (z === 0 || (vmap[p - s[2]] & 0x80) === 0) bit |= 0x10;
-                    if (z === dsize[2] - 1 || (vmap[p + s[2]] & 0x80) === 0) bit |= 0x20;
-                    vmap[p] = vmap[p] | bit;
-                }
-            }
-        }
-
-        let tx = 0;
-        let ty = 0;
-        for (let z = 0; z < dsize[2]; z++) {
-            for (let y = 0; y < dsize[1]; y++) {
-                for (let x = 0; x < dsize[0]; x++) {
-                    const p = z * s[2] + y * s[1] + x * s[0];
-                    if ((vmap[p] & 0x3F) === 0) continue;
-
-                    for (let i = 0; i < 6; i++){
-                        const bit = bits[i];
-                        if ((vmap[p] & bit) === 0) continue;
-
-                        const tex = { tx: 0, ty: 0 };
-
-                        if (tx + 1 >= tsize[0]) {
-                            tx = 0;
-                            ty++;
-                        }
-                        tex.tx = tx;
-                        tex.ty = ty;
-                        tx += 1;
-                        
-                        texs.push(tex);
-                    }
-                }
-            }
-        }
-        tsize[1] = Math.max(16, ty + 1);
-        
-        this.vertexs = new Uint16Array(texs.length * 18);
-        this.normals = new Int8Array(texs.length * 18);
-        this.colors = new Int8Array(texs.length * 18);
-        this.coords = new Uint16Array(texs.length * 12);
-        this.dtex = { data: new Uint8Array(tsize[0] * tsize[1] * 4), dsize: tsize };
-
         let cnt = 0;
         for (let z = 0; z < dsize[2]; z++) {
             for (let y = 0; y < dsize[1]; y++) {
                 for (let x = 0; x < dsize[0]; x++) {
                     const p = z * s[2] + y * s[1] + x * s[0];
-                    if ((vmap[p] & 0x3F) === 0) continue;
+                    if ((gmap[p] & 0x40) === 0) continue;
+
+                    let bit = 0;
+                    if (x === 0 || (gmap[p - s[0]] & 0x40) === 0) { bit |= 0x01; cnt++; }
+                    if (x === dsize[0] - 1 || (gmap[p + s[0]] & 0x40) === 0) { bit |= 0x02; cnt++; }
+                    if (y === 0 || (gmap[p - s[1]] & 0x40) === 0) { bit |= 0x04; cnt++; }
+                    if (y === dsize[1] - 1 || (gmap[p + s[1]] & 0x40) === 0) { bit |= 0x08; cnt++; }
+                    if (z === 0 || (gmap[p - s[2]] & 0x40) === 0) { bit |= 0x10; cnt++; }
+                    if (z === dsize[2] - 1 || (gmap[p + s[2]] & 0x40) === 0) { bit |= 0x20; cnt++; }
+                    gmap[p] = gmap[p] | bit;
+                }
+            }
+        }
+
+        tsize[1] = Math.max(16, (cnt / tsize[0]) >> 0 + 1);
+        
+        this.vertexs = new Uint16Array(cnt * 18);
+        this.normals = new Int8Array(cnt * 18);
+        this.colors = new Int8Array(cnt * 18);
+
+        cnt = 0;
+        for (let z = 0; z < dsize[2]; z++) {
+            for (let y = 0; y < dsize[1]; y++) {
+                for (let x = 0; x < dsize[0]; x++) {
+                    const p = z * s[2] + y * s[1] + x * s[0];
+                    if ((gmap[p] & 0x3F) === 0) continue;
 
                     const x0 = x;
                     const x1 = x + 1;
@@ -716,34 +683,16 @@ class Model {
                     const z1 = z + 1;
 
                     for (let i = 0; i < 6; i++){
-                        if ((vmap[p] & bits[i]) === 0) continue;
-
-                        const tex = texs[cnt];
-                        const d = [0, 0, 0];
-
-                        const c = cmap[p];
-                        this.dtex.data.set(palette[c], (tex.ty * tsize[0] + tex.tx) * 4);
-
-                        const tx0 = Math.round((tex.tx + 0 + 0.5) / tsize[0] * 65535);
-                        const tx1 = Math.round((tex.tx + 1 - 0.5) / tsize[0] * 65535);
-                        const ty0 = Math.round((tex.ty + 0.5) / tsize[1] * 65535);
-                        const ty1 = Math.round((tex.ty + 0.5) / tsize[1] * 65535);
-
-                        let coord;
-                        if ((d[(((i / 2) >> 0) - (i % 2) + 2) % 3]) > 0) {
-                            coord = [tx0, ty0, tx1, ty0, tx0, ty1, tx1, ty1, tx0, ty1, tx1, ty0,];
-                        } else {
-                            coord = [tx0, ty0, tx0, ty1, tx1, ty0, tx1, ty1, tx1, ty0, tx0, ty1,];
-                        }
+                        if ((gmap[p] & bits[i]) === 0) continue;
 
                         let vtx;
                         switch(i){
-                            case 0: vtx = [x0, y0, z0, x0, y0, z1 + d[2], x0, y1 + d[1], z0, x0, y1 + d[1], z1 + d[2], x0, y1 + d[1], z0, x0, y0, z1 + d[2], ]; break;
-                            case 1: vtx = [x1, y0, z0, x1, y1 + d[1], z0, x1, y0, z1 + d[2], x1, y1 + d[1], z1 + d[2], x1, y0, z1 + d[2], x1, y1 + d[1], z0, ]; break;
-                            case 2: vtx = [x0, y0, z0, x1 + d[0], y0, z0, x0, y0, z1 + d[2], x1 + d[0], y0, z1 + d[2], x0, y0, z1 + d[2], x1 + d[0], y0, z0, ]; break;
-                            case 3: vtx = [x0, y1, z0, x0, y1, z1 + d[2], x1 + d[0], y1, z0, x1 + d[0], y1, z1 + d[2], x1 + d[0], y1, z0, x0, y1, z1 + d[2], ]; break;
-                            case 4: vtx = [x0, y0, z0, x0, y1 + d[1], z0, x1 + d[0], y0, z0, x1 + d[0], y1 + d[1], z0, x1 + d[0], y0, z0, x0, y1 + d[1], z0, ]; break;
-                            case 5: vtx = [x0, y0, z1, x1 + d[0], y0, z1, x0, y1 + d[1], z1, x1 + d[0], y1 + d[1], z1, x0, y1 + d[1], z1, x1 + d[0], y0, z1, ]; break;
+                            case 0: vtx = [x0, y0, z0, x0, y0, z1, x0, y1, z0, x0, y1, z1, x0, y1, z0, x0, y0, z1, ]; break;
+                            case 1: vtx = [x1, y0, z0, x1, y1, z0, x1, y0, z1, x1, y1, z1, x1, y0, z1, x1, y1, z0, ]; break;
+                            case 2: vtx = [x0, y0, z0, x1, y0, z0, x0, y0, z1, x1, y0, z1, x0, y0, z1, x1, y0, z0, ]; break;
+                            case 3: vtx = [x0, y1, z0, x0, y1, z1, x1, y1, z0, x1, y1, z1, x1, y1, z0, x0, y1, z1, ]; break;
+                            case 4: vtx = [x0, y0, z0, x0, y1, z0, x1, y0, z0, x1, y1, z0, x1, y0, z0, x0, y1, z0, ]; break;
+                            case 5: vtx = [x0, y0, z1, x1, y0, z1, x0, y1, z1, x1, y1, z1, x0, y1, z1, x1, y0, z1, ]; break;
                         }
 
                         let nrm;
@@ -757,6 +706,7 @@ class Model {
                         }
 
                         let col = [];
+                        const c = cmap[p];
                         for (let k = 0; k < 6; k++) {
                             col.push(palette[c][0]);
                             col.push(palette[c][1]);
@@ -766,7 +716,6 @@ class Model {
                         this.vertexs.set(vtx, cnt * 18);
                         this.normals.set(nrm, cnt * 18);
                         this.colors.set(col, cnt * 18);
-                        this.coords.set(coord, cnt * 12);
                         cnt++;
                     }
                 }
@@ -776,13 +725,12 @@ class Model {
 }
 
 class Bone {
-    constructor(parent, name, refs, vec0, vec1, iks) {
-        this.parent = parent;
-        this.name = name;
-        this.refs = refs;
-        this.vec0 = vec0;
-        this.vec1 = vec1;
-        this.iks = iks;
+    constructor(json, bones) {
+        this.parent = json['parent'] >= 0 ? bones[json['parent']] : null;
+        this.name = json['name'];
+        this.refs = json['refs'];
+        this.vec0 = json['vec0'];
+        this.vec1 = json['vec1'];
     }
 
     basePosition() {
@@ -798,35 +746,27 @@ class Bone {
     }
 
     distance (vec) {
-        let distance = 0;
         const position = this.basePosition();
         const vec0 = [position[0] + this.vec0[0], position[1] + this.vec0[1], position[2] + this.vec0[2]];
         const vec1 = [vec0[0] + this.vec1[0], vec0[1] + this.vec1[1], vec0[2] + this.vec1[2]];
 
         const linevec = [vec1[0] - vec0[0], vec1[1] - vec0[1], vec1[2] - vec0[2]];
         const linelen = Math.sqrt(linevec[0] * linevec[0] + linevec[1] * linevec[1] + linevec[2] * linevec[2]);
-
-        if (linelen < 0.1) {
-            const d = [vec[0] - (vec0[0] + vec1[0]) * 0.5, vec[1] - (vec0[1] + vec1[1]) * 0.5, vec[2] - (vec0[2] + vec1[2]) * 0.5];
-            distance = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+     
+        const a = [vec[0] - vec0[0], vec[1] - vec0[1], vec[2] - vec0[2]];
+        const b = [vec[0] - vec1[0], vec[1] - vec1[1], vec[2] - vec1[2]];
+        
+        const s = (linevec[0] * a[0] + linevec[1] * a[1] + linevec[2] * a[2]) / linelen;
+        if (s < 0.0) {
+            return Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+        }
+        else if (s > linelen) {
+            return Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
         }
         else {
-            const a = [vec[0] - vec0[0], vec[1] - vec0[1], vec[2] - vec0[2]];
-            const b = [vec[0] - vec1[0], vec[1] - vec1[1], vec[2] - vec1[2]];
-            
-            const s = (linevec[0] * a[0] + linevec[1] * a[1] + linevec[2] * a[2]) / linelen;
-            if (s < 0.0) {
-                distance = Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
-            }
-            else if (s > linelen) {
-                distance = Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
-            }
-            else {
-                const c = [vec[0] - (vec0[0] + linevec[0] * s / linelen), vec[1] - (vec0[1] + linevec[1] * s / linelen), vec[2] - (vec0[2] + linevec[2] * s / linelen)];
-                distance = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
-            }
+            const c = [vec[0] - (vec0[0] + linevec[0] * s / linelen), vec[1] - (vec0[1] + linevec[1] * s / linelen), vec[2] - (vec0[2] + linevec[2] * s / linelen)];
+            return Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
         }
-        return distance;
     }
 }
 
@@ -981,14 +921,9 @@ class Code {
             }
         }
 
-        const Node = function () {
-            this.cnt = 0;
-            this.parent = null;
-        };
-
         const nodes = [];
         for (let i = 0; i < cnts.length; i++) {
-            const node = new Node();
+            const node = { cnt: 0, parent: null };
             node.cnt = cnts[i];
             node.parent = null;
             nodes.push(node);
@@ -1002,7 +937,7 @@ class Code {
         }
 
         while (heads.length >= 2) {
-            let node = new Node();
+            const node = { cnt: 0, parent: null };
 
             for (let j = 0; j < 2; j++) {
                 var id = 0;

@@ -13,8 +13,8 @@ function Main(main) {
 
   // three setup
   xthree.initialize({ canvas: main.canvas });
-  xthree.renderer.shadowMap.enabled = true;
-  xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // xthree.renderer.shadowMap.enabled = true;
+  // xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +20);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
 
