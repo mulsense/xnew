@@ -708,58 +708,47 @@ class Code {
     }
 
     static decode(table, src, code, v0, v1) {
-        let dst = [];
-
         const nodes = Code.hmMakeNode(table);
+        let dst = [];
         let node = nodes[0];
+
         for (let i = 0; i < src.length; i++) {
-            const bit = src[i];
-            node = nodes[node.child[bit]];
+            node = nodes[node.child[src[i]]];
             const val = node.val;
 
             if (val >= 0) {
                 dst.push(val);
                 node = nodes[0];
             }
-            if (val == code) {
-                {
-                    let v = 0;
-                    for (var j = 0; j < v0; j++, i++) {
-                        v = v + (src[i + 1] << j);
-                    }
-                    dst.push(v);
+            if (val === code) {
+                let v = 0;
+                for (let j = 0; j < v0; j++, i++) {
+                    v += src[i + 1] << j;
                 }
-                {
-                    let v = 0;
-                    for (var j = 0; j < v1; j++, i++) {
-                        v = v + (src[i + 1] << j);
-                    }
-                    dst.push(v);
+                dst.push(v);
+                v = 0;
+                for (let j = 0; j < v1; j++, i++) {
+                    v += src[i + 1] << j;
                 }
+                dst.push(v);
             }
         }
 
-        const tmp = dst;
-        dst = [];
-        if (tmp.length == 0) return dst;
-
-        for (let i = 0; i < tmp.length; i++) {
-            if (tmp[i] != code) {
-                dst.push(tmp[i]);
-            }
-            else {
-                const search = tmp[i + 1];
-                const length = tmp[i + 2];
-                const base = dst.length;
+        const result = [];
+        for (let i = 0; i < dst.length; i++) {
+            if (dst[i] !== code) {
+                result.push(dst[i]);
+            } else {
+                const search = dst[i + 1];
+                const length = dst[i + 2];
+                const base = result.length;
                 for (let j = 0; j < length; j++) {
-                    const v = dst[base - search + j];
-                    dst.push(v);
+                    result.push(result[base - search + j]);
                 }
                 i += 2;
             }
         }
-
-        return dst;
+        return result;
     }
 
     static table256() {
@@ -768,7 +757,7 @@ class Code {
         for (let i = 0; i < 256; i++) {
             let sum = 0;
             for (let j = 0; j < 7; j++) {
-                if ((i >> (j + 0) & 0x01) != (i >> (j + 1) & 0x01)) sum++;
+                if ((i >> j & 1) != (i >> (j + 1) & 1)) sum++;
             }
             cnts[i] = 2 ** (7 - sum);
         }
