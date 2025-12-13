@@ -600,21 +600,15 @@ class Code {
 
     static hmMakeNode(table) {
         const nodes = [{ val: -1, child: [-1, -1] }];
-
         for (let i = 0; i < table.length; i++) {
-            const bits = table[i];
-            if (bits.length == 0) continue;
-
+            if (table[i].length === 0) continue;
             let node = nodes[0];
-            for (let j = 0; j < bits.length; j++) {
-                const bit = bits[j];
+            for (const bit of table[i]) {
                 if (node.child[bit] === -1) {
                     node.child[bit] = nodes.length;
-
                     node = { val: -1, child: [-1, -1] };
                     nodes.push(node);
-                }
-                else {
+                } else {
                     node = nodes[node.child[bit]];
                 }
             }
@@ -624,48 +618,30 @@ class Code {
     }
 
     static hmMakeTableFromLngs(lngs) {
-        const table = new Array(lngs.length);
-        table.fill([]);
+        const table = Array(lngs.length).fill([]);
+        const nonZero = lngs.filter(n => n > 0);
+        if (nonZero.length === 0) return table;
 
-        var maxv = 0;
-        var minv = 255;
-        for (let i = 0; i < lngs.length; i++) {
-            const n = lngs[i];
-            if (n == 0) continue;
-            maxv = Math.max(n, maxv);
-            minv = Math.min(n, minv);
-        }
-        if (maxv == 0) {
-            return table;
-        }
-
-        const bits = [];
-        for (var j = 0; j < minv; j++) {
-            bits.push(0);
-        }
-
+        const minv = Math.min(...nonZero);
+        const maxv = Math.max(...nonZero);
+        const bits = Array(minv).fill(0);
         let prev = 0;
+
         for (let s = minv; s <= maxv; s++) {
             for (let i = 0; i < lngs.length; i++) {
-                if (lngs[i] != s) continue;
-
+                if (lngs[i] !== s) continue;
                 if (prev > 0) {
                     for (let j = bits.length - 1; j >= 0; j--) {
-                        if (bits[j] == 0) {
+                        if (bits[j] === 0) {
                             bits[j] = 1;
                             break;
                         }
-                        else {
-                            bits[j] = 0;
-                        }
+                        bits[j] = 0;
                     }
-                    for (let j = 0; j < s - prev; j++) {
-                        bits.push(0);
-                    }
+                    bits.push(...Array(s - prev).fill(0));
                 }
-
                 prev = s;
-                table[i] = Array.from(bits);
+                table[i] = [...bits];
             }
         }
         return table;
@@ -803,13 +779,11 @@ class Code {
         for (let i = 0; i < 256; i++) {
             let sum = 0;
             for (let j = 0; j < 7; j++) {
-                const a = (i & (0x01 << (j + 0))) ? 1 : 0;
-                const b = (i & (0x01 << (j + 1))) ? 1 : 0;
-                if (a != b) sum++;
+                if ((i >> (j + 0) & 0x01) != (i >> (j + 1) & 0x01)) sum++;
             }
-            cnts[i] = Math.pow(2, 7 - sum);
+            cnts[i] = 2 ** (7 - sum);
         }
-        cnts[256] = Math.pow(2, 7 - 0);
+        cnts[256] = 2 ** (7 - 0);
         return Code.hmMakeTableFromCnts(cnts);
     }
 }
