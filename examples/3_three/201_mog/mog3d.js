@@ -16,7 +16,7 @@ class Model {
             return new Layer(jsonlayer.name, this.dsize, this.palette, gmap, cmap);
         });
 
-        this.bones = json.bones.reduce((bones, jsonbone) => [...bones, new Bone(jsonbone, bones)], []);
+        this.bones = (json.bones ?? []).reduce((bones, jsonbone) => [...bones, new Bone(jsonbone, bones)], []);
 
         function decode(dsize, codevmap, codecmap) {
             const gmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]).fill(0);
@@ -63,7 +63,7 @@ class Model {
         }
     }
 
-    convertVRM() {
+    async convertVRM() {
         const indices = []; // int
         const vertexs = []; // float x3
         const normals = []; // float x3
@@ -131,52 +131,47 @@ class Model {
 
             invmats.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -vec0[0], -vec0[1], -vec0[2], 1);
         }
-        let promise;
-        {
-            const w = 1024;
-            const h = Math.pow(2, Math.ceil(Math.log2((4 * colors.length / 3 + w - 1) / w))) >> 0;
-            const imgdata = new Uint8Array(w * h * 4).fill(255);
-           
-            for (let i = 0; i < colors.length / 3; i++) {
-                const s = ((w / 6) >> 0) * 6;
-                const x = (i * 2) % s;
-                const y = (((i * 2) / s) >> 0) * 2;
+        
+        const width = 1024;
+        const height = Math.pow(2, Math.ceil(Math.log2((4 * colors.length / 3 + width - 1) / width))) >> 0;
+        const imgdata = new Uint8Array(width * height * 4).fill(255);
+        
+        for (let i = 0; i < colors.length / 3; i++) {
+            const x = (i * 2) % (((width / 6) >> 0) * 6);
+            const y = (((i * 2) / (((width / 6) >> 0) * 6)) >> 0) * 2;
 
-                for (let iy = 0; iy < 2; iy++) {
-                    for (let ix = 0; ix < 2; ix++) {
-                        imgdata[((y + iy) * w + (x + ix)) * 4 + 0] = colors[i * 3 + 0];
-                        imgdata[((y + iy) * w + (x + ix)) * 4 + 1] = colors[i * 3 + 1];
-                        imgdata[((y + iy) * w + (x + ix)) * 4 + 2] = colors[i * 3 + 2];
-                    }
+            for (let iy = 0; iy < 2; iy++) {
+                for (let ix = 0; ix < 2; ix++) {
+                    imgdata[((y + iy) * width + (x + ix)) * 4 + 0] = colors[i * 3 + 0];
+                    imgdata[((y + iy) * width + (x + ix)) * 4 + 1] = colors[i * 3 + 1];
+                    imgdata[((y + iy) * width + (x + ix)) * 4 + 2] = colors[i * 3 + 2];
                 }
-                coords.push((x + 1) / w, (y + 1) / h);
             }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-
-            ctx.putImageData(new ImageData(new Uint8ClampedArray(imgdata), w, h), 0, 0);
-
-            promise = new Promise((resolve) => {
-                canvas.toBlob((blob) => blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); }), 'image/png');
-            });
+            coords.push((x + 1) / width, (y + 1) / height);
         }
 
-        promise = promise.then((pngdata) => {
-            let binSize = 0;
-            binSize += indices.length * 4;
-            binSize += vertexs.length * 4;
-            binSize += normals.length * 4;
-            binSize += coords.length * 4;
-            binSize += joints.length * 2;
-            binSize += weights.length * 4;
-            binSize += invmats.length * 4;
-            binSize += pngdata.length;
-            binSize = Math.ceil(binSize / 4) * 4;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(imgdata), width, height), 0, 0);
 
-            const binBuffer = new Uint8Array(binSize);
+        const pngdata = await new Promise((resolve) => {
+            canvas.toBlob((blob) => blob.arrayBuffer().then(buffer => { resolve(new Uint8Array(buffer)); }), 'image/png');
+        });
+
+        let binSize = 0;
+        binSize += indices.length * 4;
+        binSize += vertexs.length * 4;
+        binSize += normals.length * 4;
+        binSize += coords.length * 4;
+        binSize += joints.length * 2;
+        binSize += weights.length * 4;
+        binSize += invmats.length * 4;
+        binSize += pngdata.length;
+        binSize = Math.ceil(binSize / 4) * 4;
+
+        const binBuffer = new Uint8Array(binSize);
+        {
             const view = new DataView(binBuffer.buffer);
             let offset = 0;
             indices.forEach(v => { view.setInt32(offset, v, true); offset += 4; });
@@ -187,151 +182,148 @@ class Model {
             weights.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
             invmats.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
             binBuffer.set(pngdata, offset);
+        }
 
-            let byteOffset = 0;
-            const bufferViews = [];
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: indices.length * 4, target: 34963 }); byteOffset += indices.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: vertexs.length * 4, target: 34962 }); byteOffset += vertexs.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: normals.length * 4, target: 34962 }); byteOffset += normals.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: coords.length * 4, target: 34962 }); byteOffset += coords.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: joints.length * 2, target: 34962 }); byteOffset += joints.length * 2;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: weights.length * 4, target: 34962 }); byteOffset += weights.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: invmats.length * 4 }); byteOffset += invmats.length * 4;
-            bufferViews.push({ buffer: 0, byteOffset, byteLength: pngdata.length }); byteOffset += pngdata.length;
-            
-            // min & max 
-            let minv = [+1000, +1000, +1000];
-            let maxv = [-1000, -1000, -1000];
-            for (let i = 0; i < vertexs.length / 3; i++) {
-                minv[0] = Math.min(minv[0], vertexs[i * 3 + 0]);
-                minv[1] = Math.min(minv[1], vertexs[i * 3 + 1]);
-                minv[2] = Math.min(minv[2], vertexs[i * 3 + 2]);
-                maxv[0] = Math.max(maxv[0], vertexs[i * 3 + 0]);
-                maxv[1] = Math.max(maxv[1], vertexs[i * 3 + 1]);
-                maxv[2] = Math.max(maxv[2], vertexs[i * 3 + 2]);
-            }
-            const accessors = [
-                { bufferView: 0, byteOffset: 0, componentType: 5125, count: indices.length, type: "SCALAR", normalized: false },
-                { bufferView: 1, byteOffset: 0, componentType: 5126, count: vertexs.length / 3, type: "VEC3", normalized: false, max: maxv, min: minv },
-                { bufferView: 2, byteOffset: 0, componentType: 5126, count: normals.length / 3, type: "VEC3", normalized: false },
-                { bufferView: 3, byteOffset: 0, componentType: 5126, count: coords.length / 2, type: "VEC2", normalized: false },
-                { bufferView: 4, byteOffset: 0, componentType: 5123, count: joints.length / 4, type: "VEC4", normalized: false },
-                { bufferView: 5, byteOffset: 0, componentType: 5126, count: weights.length / 4, type: "VEC4", normalized: false },
-                { bufferView: 6, byteOffset: 0, componentType: 5126, count: invmats.length / 16, type: "MAT4", normalized: false },
-            ];
+        const bufferViews = [];
+        {
+            let offset = 0;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: indices.length * 4, target: 34963 }); offset += indices.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: vertexs.length * 4, target: 34962 }); offset += vertexs.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: normals.length * 4, target: 34962 }); offset += normals.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: coords.length * 4, target: 34962 }); offset += coords.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: joints.length * 2, target: 34962 }); offset += joints.length * 2;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: weights.length * 4, target: 34962 }); offset += weights.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: invmats.length * 4 }); offset += invmats.length * 4;
+            bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: pngdata.length }); offset += pngdata.length;
+        }
 
-            // build nodes
-            const nodes = this.bones.map(bone => {
-                const translation = bone.parent ? bone.vec0.map((v, i) => v + bone.parent.vec1[i]): bone.vec0;
-                const children = [...this.bones.keys().filter(j => this.bones[j].parent === bone)];
-                return { name: bone.name, translation, children: children.length > 0 ? children : undefined };
-            });
-          
-            // model node
-            nodes.push({ mesh: 0, name: "model", skin: 0 });
+        let [max, min] = [[+1000, +1000, +1000], [-1000, -1000, -1000]];
+        for (let i = 0; i < vertexs.length / 3; i++) {
+            min[0] = Math.min(min[0], vertexs[i * 3 + 0]);
+            min[1] = Math.min(min[1], vertexs[i * 3 + 1]);
+            min[2] = Math.min(min[2], vertexs[i * 3 + 2]);
+            max[0] = Math.max(max[0], vertexs[i * 3 + 0]);
+            max[1] = Math.max(max[1], vertexs[i * 3 + 1]);
+            max[2] = Math.max(max[2], vertexs[i * 3 + 2]);
+        }
+        const accessors = [
+            { bufferView: 0, byteOffset: 0, componentType: 5125, count: indices.length, type: "SCALAR", normalized: false },
+            { bufferView: 1, byteOffset: 0, componentType: 5126, count: vertexs.length / 3, type: "VEC3", normalized: false, max, min },
+            { bufferView: 2, byteOffset: 0, componentType: 5126, count: normals.length / 3, type: "VEC3", normalized: false },
+            { bufferView: 3, byteOffset: 0, componentType: 5126, count: coords.length / 2, type: "VEC2", normalized: false },
+            { bufferView: 4, byteOffset: 0, componentType: 5123, count: joints.length / 4, type: "VEC4", normalized: false },
+            { bufferView: 5, byteOffset: 0, componentType: 5126, count: weights.length / 4, type: "VEC4", normalized: false },
+            { bufferView: 6, byteOffset: 0, componentType: 5126, count: invmats.length / 16, type: "MAT4", normalized: false },
+        ];
 
-            const gltf = {
-                asset: { version: "2.0", generator: "mog3d.js vrm converter", },
-                buffers: [ { byteLength: binSize, }, ],
-                bufferViews,
-                accessors,
-                nodes,
-                skins: [{ inverseBindMatrices: 6, joints: [...new Array(this.bones.length).keys()] }],
-                materials: [
-                    {
-                        alphaMode: "OPAQUE",
-                        name: "Material",
-                        pbrMetallicRoughness: {
-                            baseColorFactor: [1.0, 1.0, 1.0, 1.0],
-                            metallicFactor: 0.0,
-                            roughnessFactor: 1.0,
-                            baseColorTexture: {
-                                extensions: { KHR_texture_transform: { offset: [0, 0], scale: [1, 1] } },
-                                index: 0,
-                                texCoord: 0,
-                            },
+        const nodes = this.bones.map(bone => {
+            const translation = bone.parent ? bone.vec0.map((v, i) => v + bone.parent.vec1[i]): bone.vec0;
+            const children = [...this.bones.keys().filter(j => this.bones[j].parent === bone)];
+            return { name: bone.name, translation, children: children.length > 0 ? children : undefined };
+        });
+        
+        // model node
+        nodes.push({ mesh: 0, name: "model", skin: 0 });
+
+        const gltf = {
+            asset: { version: "2.0", generator: "mog3d.js vrm converter", },
+            buffers: [ { byteLength: binSize, }, ],
+            bufferViews, accessors, nodes,
+            skins: [{ inverseBindMatrices: 6, joints: [...new Array(this.bones.length).keys()] }],
+            materials: [
+                {
+                    alphaMode: "OPAQUE",
+                    name: "Material",
+                    pbrMetallicRoughness: {
+                        baseColorFactor: [1.0, 1.0, 1.0, 1.0],
+                        metallicFactor: 0.0,
+                        roughnessFactor: 1.0,
+                        baseColorTexture: {
+                            extensions: { KHR_texture_transform: { offset: [0, 0], scale: [1, 1] } },
+                            index: 0,
+                            texCoord: 0,
                         },
-                        doubleSided: false,
                     },
-                ],
-                meshes: [
-                    {
+                    doubleSided: false,
+                },
+            ],
+            meshes: [
+                {
+                    name: "model",
+                    primitives: [
+                        {
+                            attributes: { POSITION: 1, NORMAL: 2, TEXCOORD_0: 3, JOINTS_0: 4, WEIGHTS_0: 5 },
+                            indices: 0,
+                            material: 0,
+                            mode: 4,
+                        },
+                    ],
+                },
+            ],
+            scenes: [{ nodes: [0, this.bones.length] }],
+            scene: 0,
+            textures: [{ sampler: 0, source: 0 }],
+            samplers: [{ magFilter: 9729, minFilter: 9985, wrapS: 10497, wrapT: 10497 }],
+            images: [{ bufferView: 7, name: "model_texture", mimeType: "image/png" }],
+            extensions: {
+                VRMC_vrm: {
+                    specVersion: "1.0",
+                    meta: {
                         name: "model",
-                        primitives: [
-                            {
-                                attributes: { POSITION: 1, NORMAL: 2, TEXCOORD_0: 3, JOINTS_0: 4, WEIGHTS_0: 5 },
-                                indices: 0,
-                                material: 0,
-                                mode: 4,
-                            },
-                        ],
+                        version: "1.0",
+                        authors: ["Author"],
+                        allowAntisocialOrHateUsage: false,
+                        allowExcessivelySexualUsage: false,
+                        allowExcessivelyViolentUsage: false,
+                        allowPoliticalOrReligiousUsage: false,
+                        avatarPermission: "onlyAuthor",
+                        commercialUsage: "personalNonProfit",
+                        creditNotation: "required",
+                        modification: "prohibited",
+                        licenseUrl: "https://vrm.dev/licenses/1.0/",
                     },
-                ],
-                scenes: [{ nodes: [0, this.bones.length] }],
-                scene: 0,
-                textures: [{ sampler: 0, source: 0 }],
-                samplers: [{ magFilter: 9729, minFilter: 9985, wrapS: 10497, wrapT: 10497 }],
-                images: [{ bufferView: 7, name: "model_texture", mimeType: "image/png" }],
-                extensions: {
-                    VRMC_vrm: {
-                        specVersion: "1.0",
-                        meta: {
-                            name: "model",
-                            version: "1.0",
-                            authors: ["Author"],
-                            allowAntisocialOrHateUsage: false,
-                            allowExcessivelySexualUsage: false,
-                            allowExcessivelyViolentUsage: false,
-                            allowPoliticalOrReligiousUsage: false,
-                            avatarPermission: "onlyAuthor",
-                            commercialUsage: "personalNonProfit",
-                            creditNotation: "required",
-                            modification: "prohibited",
-                            licenseUrl: "https://vrm.dev/licenses/1.0/",
-                        },
-                        humanoid: {
-                            humanBones: {},
-                        },
+                    humanoid: {
+                        humanBones: {},
                     },
                 },
-                extensionsUsed: ["VRMC_vrm", "KHR_texture_transform"],
-            };
+            },
+            extensionsUsed: ["VRMC_vrm", "KHR_texture_transform"],
+        };
 
-            // humanBones
-            for (let i = 0; i < this.bones.length; i++) {
-                gltf.extensions.VRMC_vrm.humanoid.humanBones[this.bones[i].name] = { node: i };
-            }
+        // humanBones
+        for (let i = 0; i < this.bones.length; i++) {
+            gltf.extensions.VRMC_vrm.humanoid.humanBones[this.bones[i].name] = { node: i };
+        }
 
-            const gltfString = JSON.stringify(gltf);
-            const jsonBuffer = new TextEncoder().encode(gltfString);
-            const jsonSize = Math.ceil(jsonBuffer.length / 4) * 4;
-            const jsonPadding = new Uint8Array(jsonSize - jsonBuffer.length);
-            jsonPadding.fill(0x20); // space
+        const gltfString = JSON.stringify(gltf);
+        const jsonBuffer = new TextEncoder().encode(gltfString);
+        const jsonSize = Math.ceil(jsonBuffer.length / 4) * 4;
+        const jsonPadding = new Uint8Array(jsonSize - jsonBuffer.length);
+        jsonPadding.fill(0x20); // space
 
-            // VRM(glTF)
-            const vrmBuffer = new Uint8Array(12 + 8 + jsonSize + 8 + binSize);
-            const vrmView = new DataView(vrmBuffer.buffer);
-            let vrmOffset = 0;
+        // VRM(glTF)
+        const vrmBuffer = new Uint8Array(12 + 8 + jsonSize + 8 + binSize);
+        const vrmView = new DataView(vrmBuffer.buffer);
+        let vrmOffset = 0;
 
-            // header
-            vrmBuffer.set([0x67, 0x6C, 0x54, 0x46], vrmOffset); vrmOffset += 4; // "glTF"
-            vrmView.setUint32(vrmOffset, 2, true); vrmOffset += 4; // version
-            vrmView.setUint32(vrmOffset, vrmBuffer.length, true); vrmOffset += 4; // length
+        // header
+        vrmBuffer.set([0x67, 0x6C, 0x54, 0x46], vrmOffset); vrmOffset += 4; // "glTF"
+        vrmView.setUint32(vrmOffset, 2, true); vrmOffset += 4; // version
+        vrmView.setUint32(vrmOffset, vrmBuffer.length, true); vrmOffset += 4; // length
 
-            // json
-            vrmView.setUint32(vrmOffset, jsonSize, true); vrmOffset += 4;
-            vrmBuffer.set([0x4A, 0x53, 0x4F, 0x4E], vrmOffset); vrmOffset += 4; // "JSON"
-            vrmBuffer.set(jsonBuffer, vrmOffset);  vrmOffset += jsonBuffer.length; // jsonBuffer
-            vrmBuffer.set(jsonPadding, vrmOffset);  vrmOffset += jsonPadding.length; // jsonPadding
+        // json
+        vrmView.setUint32(vrmOffset, jsonSize, true); vrmOffset += 4;
+        vrmBuffer.set([0x4A, 0x53, 0x4F, 0x4E], vrmOffset); vrmOffset += 4; // "JSON"
+        vrmBuffer.set(jsonBuffer, vrmOffset);  vrmOffset += jsonBuffer.length; // jsonBuffer
+        vrmBuffer.set(jsonPadding, vrmOffset);  vrmOffset += jsonPadding.length; // jsonPadding
 
-            // binary
-            vrmView.setUint32(vrmOffset, binSize, true); vrmOffset += 4;
-            vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); vrmOffset += 4; // "BIN\0"
-            vrmBuffer.set(binBuffer, vrmOffset); vrmOffset += binBuffer.length;
+        // binary
+        vrmView.setUint32(vrmOffset, binSize, true); vrmOffset += 4;
+        vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); vrmOffset += 4; // "BIN\0"
+        vrmBuffer.set(binBuffer, vrmOffset); vrmOffset += binBuffer.length;
 
-            return URL.createObjectURL(new Blob([vrmBuffer], { type: 'application/octet-stream' }));
-        });
-        return promise;
+        return vrmBuffer;
+        return URL.createObjectURL(new Blob([vrmBuffer], { type: 'application/octet-stream' }));
     }
 }
 
@@ -349,13 +341,14 @@ class Layer {
 
                     let bit = 0;
                     const s = [1, dsize[0], dsize[0] * dsize[1]];
-                    if (x === 0 || (gmap[p - s[0]] & 0x40) === 0) { bit |= bits[0]; cnt++; }
-                    if (y === 0 || (gmap[p - s[1]] & 0x40) === 0) { bit |= bits[2]; cnt++; }
-                    if (z === 0 || (gmap[p - s[2]] & 0x40) === 0) { bit |= bits[4]; cnt++; }
-                    if (x === dsize[0] - 1 || (gmap[p + s[0]] & 0x40) === 0) { bit |= bits[1]; cnt++; }
-                    if (y === dsize[1] - 1 || (gmap[p + s[1]] & 0x40) === 0) { bit |= bits[3]; cnt++; }
-                    if (z === dsize[2] - 1 || (gmap[p + s[2]] & 0x40) === 0) { bit |= bits[5]; cnt++; }
+                    if (x === 0 || (gmap[p - s[0]] & 0x40) === 0) bit |= bits[0];
+                    if (y === 0 || (gmap[p - s[1]] & 0x40) === 0) bit |= bits[2];
+                    if (z === 0 || (gmap[p - s[2]] & 0x40) === 0) bit |= bits[4];
+                    if (x === dsize[0] - 1 || (gmap[p + s[0]] & 0x40) === 0) bit |= bits[1];
+                    if (y === dsize[1] - 1 || (gmap[p + s[1]] & 0x40) === 0) bit |= bits[3];
+                    if (z === dsize[2] - 1 || (gmap[p + s[2]] & 0x40) === 0) bit |= bits[5];
                     gmap[p] |= bit;
+                    cnt += (bit >> 0 & 1) + (bit >> 1 & 1) + (bit >> 2 & 1) + (bit >> 3 & 1) + (bit >> 4 & 1) + (bit >> 5 & 1);
                 }
             }
         }
@@ -450,7 +443,7 @@ class Bone {
             const x = s < 0.0 ? a : b;
             return Math.sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
         } else {
-            const x = [vec[0] - (vec0[0] + line[0] * s), vec[1] - (vec0[1] + line[1] * s), vec[2] - (vec0[2] + line[2] * s)];
+            const x = [vec[0] - vec0[0] - line[0] * s, vec[1] - vec0[1] - line[1] * s, vec[2] - vec0[2] - line[2] * s];
             return Math.sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
         }
     }
@@ -507,7 +500,7 @@ class Code {
                         }
                         bits[j] = 0;
                     }
-                    bits.push(... new Array(s - prev).fill(0));
+                    bits.push(...new Array(s - prev).fill(0));
                 }
                 prev = s;
                 table[i] = [...bits];

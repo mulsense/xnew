@@ -24,16 +24,16 @@ function Main(main) {
   xthree.camera.position.set(0, 0, +2);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
 
-  xthree.camera.position.set(0, 1.0, +5);
+  xthree.camera.position.set(0, 0.4, +2);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
   xthree.scene.rotation.z = -20 / 180 * Math.PI
 
   const composer = new EffectComposer(xthree.renderer);
   composer.addPass(new RenderPass(xthree.scene, xthree.camera));
   const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
-  ssaoPass.kernelRadius = 0.1;      // サンプリング半径
-  ssaoPass.minDistance = 0.00001;   // 最小距離
-  ssaoPass.maxDistance = 0.001;     // 最大距離
+  ssaoPass.kernelRadius = 0.3;      // サンプリング半径
+  ssaoPass.minDistance = 0.000001;   // 最小距離
+  ssaoPass.maxDistance = 0.0001;     // 最大距離
   composer.addPass(ssaoPass);
   composer.addPass(new OutputPass());
 
@@ -54,7 +54,7 @@ function ThreeMain(unit) {
   // xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 
   xnew(Test, { id: 0, position: { x: 0, y: 0, z: 0 } });
-  for (let i = 0; i < 110; i++) {
+  for (let i = 0; i < 0; i++) {
     const x = Math.random() * 6 - 3;
     const y = Math.random() * 6 - 3;
     xnew(Test, { id: i, position: { x: x, y: y, z: 0 } });
@@ -80,16 +80,16 @@ function DirectionaLight(unit, { x, y, z }) {
   object.position.set(x, y, z);
   object.castShadow = true;
 
-  // const s = object.position.length();
-  // object.castShadow = true;
-  // object.shadow.mapSize.width = 1024;
-  // object.shadow.mapSize.height = 1024;
-  // object.shadow.camera.left = -s * 1.0;
-  // object.shadow.camera.right = +s * 1.0;
-  // object.shadow.camera.top = -s * 1.0;
-  // object.shadow.camera.bottom = +s * 1.0;
-  // object.shadow.camera.near = +s * 0.1;
-  // object.shadow.camera.far = +s * 10.0;
+  const s = object.position.length();
+  object.castShadow = true;
+  object.shadow.mapSize.width = 1024;
+  object.shadow.mapSize.height = 1024;
+  object.shadow.camera.left = -s * 1.0;
+  object.shadow.camera.right = +s * 1.0;
+  object.shadow.camera.top = -s * 1.0;
+  object.shadow.camera.bottom = +s * 1.0;
+  object.shadow.camera.near = +s * 0.1;
+  object.shadow.camera.far = +s * 10.0;
   // object.shadow.camera.updateProjectionMatrix();
 }
 
@@ -141,20 +141,20 @@ function Controller(unit) {
   pointer.on('-wheel', ({ delta }) => unit.emit('+scale', { scale: 1 + 0.001 * delta.y }));
 }
 
-function Test(unit, { id, position }) {
+function Test(unit, { position }) {
   const object = xthree.nest(new THREE.Object3D());
   if (testpromise === undefined) {
-    testpromise = mog3d.load('./アルマちゃん.mog').then((mogdata) => mogdata.convertVRM(0.1))
+    testpromise = mog3d.load('./アルマちゃん.mog').then((mogdata) => mogdata.convertVRM())
   }
   
-  xnew.promise(testpromise).then((vrmUrl) => {
-    console.log('VRM URL created:', vrmUrl);
+  xnew.promise(testpromise).then((arrayBuffer) => {
+    console.log('VRM URL created:', arrayBuffer);
     xnew.promise(new Promise((resolve) => {
       const loader = new GLTFLoader();
       loader.register((parser) => new VRMLoaderPlugin(parser));
-      loader.load(vrmUrl, (gltf) => {
+      loader.parse(arrayBuffer.buffer, '', (gltf) => {
         resolve(gltf);
-      }, undefined, (error) => {
+      }, (error) => {
         console.error('Failed to load VRM:', error);
       });
     })).then((gltf) => {
@@ -169,7 +169,7 @@ function Test(unit, { id, position }) {
       scene.rotation.x = Math.PI / 2;
       scene.position.set(position.x, position.y, position.z);
       object.add(scene);
-      const random = 2;//Math.random() * 10;
+      const random = Math.random() * 10;
       const neck = vrm.humanoid.getNormalizedBoneNode('neck');
       const chest = vrm.humanoid.getNormalizedBoneNode('chest');
       const hips = vrm.humanoid.getNormalizedBoneNode('hips');
@@ -200,3 +200,4 @@ function Test(unit, { id, position }) {
   });
 
 }
+
