@@ -3,6 +3,11 @@ import xthree from '@mulsense/xnew/addons/xthree';
 import * as THREE from 'three';
 import { Stage } from 'model';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { mog3d } from './mog3d.js';
 let testpromise;
@@ -10,29 +15,48 @@ let testpromise;
 xnew('#main', Main);
 
 function Main(main) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+  xnew.extend(xnew.basics.Screen, { width: 600, height: 600 });
 
   // three setup
   xthree.initialize({ canvas: main.canvas });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  xthree.camera.position.set(0, 0, +20);
+  xthree.camera.position.set(0, 0, +2);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
+
+  xthree.camera.position.set(0, 1.3, +5);
+  xthree.scene.rotation.x = -60 / 180 * Math.PI
+  xthree.scene.rotation.z = -20 / 180 * Math.PI
+
+  const composer = new EffectComposer(xthree.renderer);
+  composer.addPass(new RenderPass(xthree.scene, xthree.camera));
+  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
+  ssaoPass.kernelRadius = 0.1;      // サンプリング半径
+  ssaoPass.minDistance = 0.00001;   // 最小距離
+  ssaoPass.maxDistance = 0.001;     // 最大距離
+  composer.addPass(ssaoPass);
+  composer.addPass(new OutputPass());
+
+  main.off('-update');
+  main.on('-update', () => { 
+    composer.render();
+  });
 
   xnew(ThreeMain);
   xnew(Controller);
 }
 
 function ThreeMain(unit) {
-  xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
+  xnew(DirectionaLight, { x: 1, y: -2, z: 3 });
   xnew(AmbientLight);
   xnew(Ground, { size: 100, color: 0xF8F8FF });
   xnew(Dorm, { size: 50 });
   // xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 
-  for (let i = 0; i < 300; i++) {
-    const x = Math.random() * 40 - 20;
-    const y = Math.random() * 40 - 20;
+  xnew(Test, { id: 0, position: { x: 0, y: 0, z: 0 } });
+  for (let i = 0; i < 0; i++) {
+    const x = Math.random() * 20 - 10;
+    const y = Math.random() * 20 - 10;
     xnew(Test, { id: i, position: { x: x, y: y, z: 0 } });
   }
 
@@ -52,13 +76,25 @@ function ThreeMain(unit) {
 }
 
 function DirectionaLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.25));
   object.position.set(x, y, z);
   object.castShadow = true;
+
+  // const s = object.position.length();
+  // object.castShadow = true;
+  // object.shadow.mapSize.width = 1024;
+  // object.shadow.mapSize.height = 1024;
+  // object.shadow.camera.left = -s * 1.0;
+  // object.shadow.camera.right = +s * 1.0;
+  // object.shadow.camera.top = -s * 1.0;
+  // object.shadow.camera.bottom = +s * 1.0;
+  // object.shadow.camera.near = +s * 0.1;
+  // object.shadow.camera.far = +s * 10.0;
+  // object.shadow.camera.updateProjectionMatrix();
 }
 
 function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1));
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.5));
 }
 
 function Dorm(unit, { size }) {
@@ -113,7 +149,6 @@ function Test(unit, { id, position }) {
   
   xnew.promise(testpromise).then((vrmUrl) => {
     xnew.promise(new Promise((resolve) => {
-      console.log(vrmUrl);
       const loader = new GLTFLoader();
       loader.register((parser) => new VRMLoaderPlugin(parser));
       loader.load(vrmUrl, (gltf) => {
@@ -122,7 +157,6 @@ function Test(unit, { id, position }) {
         console.error('Failed to load VRM:', error);
       });
     })).then((gltf) => {
-      console.log('VRM loaded:', gltf);
       const vrm = gltf.userData.vrm;
       vrm.scene.traverse((obj) => {
         if (obj.isMesh) {
@@ -135,7 +169,7 @@ function Test(unit, { id, position }) {
       scene.scale.setScalar(0.1);
       scene.position.set(position.x, position.y, position.z);
       object.add(scene);
-      const random = Math.random() * 10;
+      const random = 2;//Math.random() * 10;
       const neck = vrm.humanoid.getNormalizedBoneNode('neck');
       const chest = vrm.humanoid.getNormalizedBoneNode('chest');
       const hips = vrm.humanoid.getNormalizedBoneNode('hips');
@@ -145,7 +179,7 @@ function Test(unit, { id, position }) {
       const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
 
       // if (id % 100 > 0) return;
-      let count = 0;
+      let count = 8;
       unit.on('-update', () => {
         const t = (count + random) * 0.03;
         neck.rotation.x = Math.sin(t * 6) * +0.1;
@@ -160,7 +194,7 @@ function Test(unit, { id, position }) {
         rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
         rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
         vrm.update(t);
-        count += 0.5;
+        // count += 0.5;
       });
     });
   });

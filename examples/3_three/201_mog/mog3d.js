@@ -10,15 +10,12 @@ class Model {
         this.dsize = json.dsize;
         this.palette = Uint8Array.from(atob(json.palette), c => c.charCodeAt(0));
 
-        this.layers = json.layers.map((jlayer) => {
-            const [gmap, cmap] = decode(this.dsize, jlayer.gmap, jlayer.cmap);
-            return new Layer(jlayer.name, this.dsize, this.palette, gmap, cmap);
+        this.layers = json.layers.map((jsonlayer) => {
+            const [gmap, cmap] = decode(this.dsize, jsonlayer.gmap, jsonlayer.cmap);
+            return new Layer(jsonlayer.name, this.dsize, this.palette, gmap, cmap);
         });
 
-        this.bones = json.bones.reduce((bones, jbone) => {
-            bones.push(new Bone(jbone, bones));
-            return bones;
-        }, []);
+        this.bones = json.bones.reduce((bones, jsonbone) => [...bones, new Bone(jsonbone, bones)], []);
 
         function decode(dsize, codevmap, codecmap) {
             const gmap = new Uint8Array(dsize[0] * dsize[1] * dsize[2]).fill(0);
@@ -50,11 +47,10 @@ class Model {
                         for (let iz = 0; iz < Math.min(8, dsize[2] - 8 * z); iz++) {
                             for (let iy = 0; iy < Math.min(8, dsize[1] - 8 * y); iy++) {
                                 for (let ix = 0; ix < Math.min(8, dsize[0] - 8 * x); ix++) {
-                                    if ((memB[b + iz * 8 + iy] >> ix) & 0x01) {
-                                        const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
-                                        gmap[p] = 0x40;
-                                        cmap[p] = memC[c++];
-                                    }
+                                    if ((memB[b + iz * 8 + iy] >> ix & 1) === 0) continue;
+                                    const p = (z * 8 + iz) * dsize[0] * dsize[1] + (y * 8 + iy) * dsize[0] + (x * 8 + ix);
+                                    gmap[p] = 0x40;
+                                    cmap[p] = memC[c++];
                                 }
                             }
                         }
@@ -70,79 +66,62 @@ class Model {
         const indices = []; // int
         const vertexs = []; // float x3
         const normals = []; // float x3
-        const colors = [];  // float x3
-        const coords = [];  // float x2
-        const joints = [];  // unsigned short x4
+        const colors  = []; // float x3
+        const coords  = []; // float x2
+        const joints  = []; // unsigned short x4
         const weights = []; // float x4
         const invmats = []; // float x16
-
-        const dsize = this.dsize;
 
         for (let i = 0; i < this.layers.length; i++) {
             const layer = this.layers[i];
             const offset = indices.length;
             for (let j = 0; j < layer.vertexs.length / 3; j++) {
                 indices.push(offset + j);
-                vertexs.push(layer.vertexs[j * 3 + 0] - (dsize[0] - 1) / 2, layer.vertexs[j * 3 + 1], layer.vertexs[j * 3 + 2] - (dsize[2] - 1) / 2);
+                vertexs.push(layer.vertexs[j * 3 + 0] - this.dsize[0] / 2, layer.vertexs[j * 3 + 1], layer.vertexs[j * 3 + 2] - this.dsize[2] / 2);
                 normals.push(layer.normals[j * 3 + 0], layer.normals[j * 3 + 1], layer.normals[j * 3 + 2]);
                 colors.push(layer.colors[j * 3 + 0], layer.colors[j * 3 + 1], layer.colors[j * 3 + 2]);
             }
+            if (this.bones.length === 0) continue;
 
-            const mask = new Array(this.bones.length);
-            mask.fill(0);
-            if (this.bones.length > 1) {
-                for (let j = 0; j < this.bones.length; j++) {
-                    if (this.bones[j].refs.length == 0) {
-                        mask[j] = 1;
-                    }
-                    else {
-                        for (let k = 0; k < this.bones[j].refs.length; k++) {
-                            if (this.bones[j].refs[k] === i) {
-                                mask[j] = 1;
+            const mask = new Array(this.bones.length).keys()
+            .map(j => this.bones[j].refs.length == 0 || this.bones[j].refs.some(ref => ref === i));
+
+            for (let j = offset; j < vertexs.length / 3; j++) {
+                let [nid0, nid1] = [-1, -1];
+                let [min0, min1] = [1000, 1000];
+                let wei = 1.0;
+                {
+                    for (let k = 1; k < this.bones.length; k++) {
+                        if (mask[k]) {
+                            const l = this.bones[k].distance(vertexs.slice(j * 3, j * 3 + 3));
+                            if (l < min0) {
+                                min0 = l;
+                                nid0 = k;
                             }
                         }
                     }
                 }
-                for (let j = offset; j < vertexs.length / 3; j++) {
-                    let [nid0, nid1] = [-1, -1];
-                    let [min0, min1] = [1000, 1000];
-                    let wei = 1.0;
-                    {
-                        for (let k = 1; k < this.bones.length; k++) {
-                            if (mask[k]) {
-                                const l = this.bones[k].distance([vertexs[j * 3 + 0], vertexs[j * 3 + 1], vertexs[j * 3 + 2]]);
-                                if (l < min0) {
-                                    min0 = l;
-                                    nid0 = k;
-                                }
+                if (nid0 >= 0) {
+                    min1 = min0 * 2.0;
+                    for (let k = 1; k < this.bones.length; k++) {
+                        if (k !== nid0 && mask[k]) {
+                            const n0 = this.bones[nid0].name;
+                            const n1 = this.bones[k].name;
+                            if (n0.indexOf('left') === 0 && n1.indexOf('right') === 0) continue;
+                            if (n0.indexOf('right') === 0 && n1.indexOf('left') === 0) continue;
+                        
+                            const l = this.bones[k].distance(vertexs.slice(j * 3, j * 3 + 3));
+                            if (l < min1) {
+                                min1 = l;
+                                nid1 = k;
+                                wei = (2 * min0 - min1) / (2 * min0 + 0.001);
+                                wei = Math.sqrt(1.0 - wei);
                             }
                         }
                     }
-                    if (nid0 >= 0) {
-                        min1 = min0 * 2.0;
-                        for (let k = 1; k < this.bones.length; k++) {
-                            if (k !== nid0 && mask[k]) {
-                                const n0 = this.bones[nid0].name;
-                                const s0 = n0.length;
-
-                                const n1 = this.bones[k].name;
-                                const s1 = n1.length;
-                                if (n0[s0 - 1] == 'L' && n1[s1 - 1] == 'R') continue;
-                                if (n0[s0 - 1] == 'R' && n1[s1 - 1] == 'L') continue;
-                         
-                                const l = this.bones[k].distance([vertexs[j * 3 + 0], vertexs[j * 3 + 1], vertexs[j * 3 + 2]]);
-                                if (l < min1) {
-                                    min1 = l;
-                                    nid1 = k;
-                                    wei = (2 * min0 - min1) / (2 * min0 + 0.001);
-                                    wei = Math.sqrt(1.0 - wei);
-                                }
-                            }
-                        }
-                    }
-                    joints.push(nid0 >= 0 ? nid0 : 0, nid1 >= 0 ? nid1 : 0, 0, 0);
-                    weights.push(wei, 1.0 - wei, 0, 0);
                 }
+                joints.push(nid0 >= 0 ? nid0 : 0, nid1 >= 0 ? nid1 : 0, 0, 0);
+                weights.push(wei, 1.0 - wei, 0, 0);
             }
         }
 
@@ -157,35 +136,21 @@ class Model {
         {
             const w = 1024;
             const h = Math.pow(2, Math.ceil(Math.log2((4 * colors.length / 3 + w - 1) / w))) >> 0;
-            const imgdata = new Uint8Array(w * h * 4);
-            imgdata.fill(255);
+            const imgdata = new Uint8Array(w * h * 4).fill(255);
            
             for (let i = 0; i < colors.length / 3; i++) {
                 const s = ((w / 6) >> 0) * 6;
                 const x = (i * 2) % s;
                 const y = (((i * 2) / s) >> 0) * 2;
 
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 0] = colors[i * 3 + 0];
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 1] = colors[i * 3 + 1];
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 2] = colors[i * 3 + 2];
-                imgdata[((y + 0) * w + (x + 0)) * 4 + 3] = 255;
+                for (let iy = 0; iy < 2; iy++) {
+                    for (let ix = 0; ix < 2; ix++) {
+                        imgdata[((y + iy) * w + (x + ix)) * 4 + 0] = colors[i * 3 + 0];
+                        imgdata[((y + iy) * w + (x + ix)) * 4 + 1] = colors[i * 3 + 1];
+                        imgdata[((y + iy) * w + (x + ix)) * 4 + 2] = colors[i * 3 + 2];
+                    }
+                }
 
-                imgdata[((y + 0) * w + (x + 1)) * 4 + 0] = colors[i * 3 + 0];
-                imgdata[((y + 0) * w + (x + 1)) * 4 + 1] = colors[i * 3 + 1];
-                imgdata[((y + 0) * w + (x + 1)) * 4 + 2] = colors[i * 3 + 2];
-                imgdata[((y + 0) * w + (x + 1)) * 4 + 3] = 255;
-
-                imgdata[((y + 1) * w + (x + 0)) * 4 + 0] = colors[i * 3 + 0];
-                imgdata[((y + 1) * w + (x + 0)) * 4 + 1] = colors[i * 3 + 1];
-                imgdata[((y + 1) * w + (x + 0)) * 4 + 2] = colors[i * 3 + 2];
-                imgdata[((y + 1) * w + (x + 0)) * 4 + 3] = 255;
-
-                imgdata[((y + 1) * w + (x + 1)) * 4 + 0] = colors[i * 3 + 0];
-                imgdata[((y + 1) * w + (x + 1)) * 4 + 1] = colors[i * 3 + 1];
-                imgdata[((y + 1) * w + (x + 1)) * 4 + 2] = colors[i * 3 + 2];
-                imgdata[((y + 1) * w + (x + 1)) * 4 + 3] = 255;
-
-                // 画像座標をテクスチャ座標に変換（2x2ピクセルブロックの中心）
                 const u = (x + 1) / w;
                 const v = (y + 1) / h;
                 coords.push(u, v);
@@ -226,29 +191,6 @@ class Model {
             invmats.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
             binary.set(pngdata, offset);
 
-            // VRM1.0 JSON生成
-            const vrmBoneMap = {
-                "center": "hips",
-                "Spine1": "spine",
-                "Spine2": "chest",
-                "Neck": "neck",
-                "Head": "head",
-                "Shoulder_L": "leftShoulder",
-                "UpperArm_L": "leftUpperArm",
-                "LowerArm_L": "leftLowerArm",
-                "Hand_L": "leftHand",
-                "Shoulder_R": "rightShoulder",
-                "UpperArm_R": "rightUpperArm",
-                "LowerArm_R": "rightLowerArm",
-                "Hand_R": "rightHand",
-                "UpperLeg_L": "leftUpperLeg",
-                "LowerLeg_L": "leftLowerLeg",
-                "Foot_L": "leftFoot",
-                "UpperLeg_R": "rightUpperLeg",
-                "LowerLeg_R": "rightLowerLeg",
-                "Foot_R": "rightFoot",
-            };
-
             // bufferViews
             let byteOffset = 0;
             const bufferViews = [];
@@ -287,13 +229,8 @@ class Model {
             const nodes = [];
             for (let i = 0; i < this.bones.length; i++) {
                 const bone = this.bones[i];
-                const position = bone.parent ? bone.parent.vec1 : [0.0, 0.0, 0.0];
-                
-                const vrmName = vrmBoneMap[bone.name] || bone.name;
-                const node = {
-                    name: vrmName,
-                    translation: [position[0] + bone.vec0[0], position[1] + bone.vec0[1], position[2] + bone.vec0[2]],
-                };
+                const translation = bone.parent ? bone.vec0.map((v, i) => v + bone.parent.vec1[i]): bone.vec0;
+                const node = { name: bone.name, translation };
 
                 // set children
                 const children = [];
@@ -309,7 +246,6 @@ class Model {
             }
             // model node
             nodes.push({ mesh: 0, name: "model", skin: 0 });
-
             // glTF JSON
             const gltf = {
                 asset: { version: "2.0", generator: "mog3d.js vrm converter", },
@@ -317,7 +253,7 @@ class Model {
                 bufferViews,
                 accessors,
                 nodes,
-                skins: [{ inverseBindMatrices: 6, joints: Array.from({ length: this.bones.length }, (_, i) => i) }],
+                skins: [{ inverseBindMatrices: 6, joints: [...new Array(this.bones.length).keys()] }],
                 materials: [
                     {
                         alphaMode: "OPAQUE",
@@ -382,9 +318,7 @@ class Model {
 
             // humanBonesの生成
             for (let i = 0; i < this.bones.length; i++) {
-                const boneName = this.bones[i].name;
-                const vrmName = vrmBoneMap[boneName] || boneName;
-                gltf.extensions.VRMC_vrm.humanoid.humanBones[vrmName] = { node: i };
+                gltf.extensions.VRMC_vrm.humanoid.humanBones[this.bones[i].name] = { node: i };
             }
 
             const gltfString = JSON.stringify(gltf);
@@ -439,12 +373,13 @@ class Layer {
                     if ((gmap[p] & 0x40) === 0) continue;
 
                     let bit = 0;
-                    if (x === 0 || (gmap[p - 1] & 0x40) === 0) { bit |= bits[0]; cnt++; }
-                    if (x === dsize[0] - 1 || (gmap[p + 1] & 0x40) === 0) { bit |= bits[1]; cnt++; }
-                    if (y === 0 || (gmap[p - dsize[0]] & 0x40) === 0) { bit |= bits[2]; cnt++; }
-                    if (y === dsize[1] - 1 || (gmap[p + dsize[0]] & 0x40) === 0) { bit |= bits[3]; cnt++; }
-                    if (z === 0 || (gmap[p - dsize[0] * dsize[1]] & 0x40) === 0) { bit |= bits[4]; cnt++; }
-                    if (z === dsize[2] - 1 || (gmap[p + dsize[0] * dsize[1]] & 0x40) === 0) { bit |= bits[5]; cnt++; }
+                    const s = [1, dsize[0], dsize[0] * dsize[1]];
+                    if (x === 0 || (gmap[p - s[0]] & 0x40) === 0) { bit |= bits[0]; cnt++; }
+                    if (y === 0 || (gmap[p - s[1]] & 0x40) === 0) { bit |= bits[2]; cnt++; }
+                    if (z === 0 || (gmap[p - s[2]] & 0x40) === 0) { bit |= bits[4]; cnt++; }
+                    if (x === dsize[0] - 1 || (gmap[p + s[0]] & 0x40) === 0) { bit |= bits[1]; cnt++; }
+                    if (y === dsize[1] - 1 || (gmap[p + s[1]] & 0x40) === 0) { bit |= bits[3]; cnt++; }
+                    if (z === dsize[2] - 1 || (gmap[p + s[2]] & 0x40) === 0) { bit |= bits[5]; cnt++; }
                     gmap[p] |= bit;
                 }
             }
@@ -518,9 +453,7 @@ class Bone {
         let position = [0.0, 0.0, 0.0];
         let bone = this;
         while (bone.parent) {
-            position[0] += (bone.parent.vec0[0] + bone.parent.vec1[0]);
-            position[1] += (bone.parent.vec0[1] + bone.parent.vec1[1]);
-            position[2] += (bone.parent.vec0[2] + bone.parent.vec1[2]);
+            position = position.map((v, i) => v + bone.parent.vec0[i] + bone.parent.vec1[i]);
             bone = bone.parent;
         }
         return position;
@@ -560,7 +493,7 @@ class Code {
         }
         const length = view.getInt32(offset, true);
         const slice = bin.slice(offset + 4, offset + 4 + ((length + 7) >> 3));
-        return bitarray ? Uint8Array.from({ length }, (_, i) => (slice[i >> 3] & (0x01 << (i % 8))) ? 1 : 0) : slice;
+        return bitarray ? Uint8Array.from({ length }, (_, i) => (slice[i >> 3] >> (i % 8)) & 1) : slice;
     }
 
     static hmMakeNode(table) {
@@ -587,8 +520,7 @@ class Code {
         const nonZero = lngs.filter(n => n > 0);
         if (nonZero.length === 0) return table;
 
-        const minv = Math.min(...nonZero);
-        const maxv = Math.max(...nonZero);
+        const [maxv, minv] = [Math.max(...nonZero), Math.min(...nonZero)];
         const bits = new Array(minv).fill(0);
         let prev = 0;
 
@@ -613,85 +545,52 @@ class Code {
     }
 
     static decode(table, src, code, v0, v1) {
-        const nodes = Code.hmMakeNode(table);
-        let dst = [];
-        let node = nodes[0];
-
-        for (let i = 0; i < src.length; i++) {
-            node = nodes[node.child[src[i]]];
-            const val = node.val;
-
-            if (val >= 0) {
-                dst.push(val);
-                node = nodes[0];
-            }
-            if (val === code) {
-                let v = 0;
-                for (let j = 0; j < v0; j++, i++) {
-                    v += src[i + 1] << j;
-                }
-                dst.push(v);
-                v = 0;
-                for (let j = 0; j < v1; j++, i++) {
-                    v += src[i + 1] << j;
-                }
-                dst.push(v);
-            }
-        }
-
         const result = [];
-        for (let i = 0; i < dst.length; i++) {
-            if (dst[i] !== code) {
-                result.push(dst[i]);
-            } else {
-                const [search, length] = dst.slice(i + 1, i + 3);
+        
+        const nodes = Code.hmMakeNode(table);
+        let node = nodes[0];
+        for (let i = 0; i < src.length; i++) {
+            if ((node = nodes[node.child[src[i]]]).val < 0) continue;
+
+            if (node.val < code){
+                result.push(node.val);
+            } else if (node.val === code) {
+                const search = src.slice(i + 1, i + 1 + v0).map((v, s) => v << s).reduce((a, b) => a + b); i += v0;
+                const length = src.slice(i + 1, i + 1 + v1).map((v, s) => v << s).reduce((a, b) => a + b); i += v1;
+                
                 const base = result.length;
                 for (let j = 0; j < length; j++) {
                     result.push(result[base - search + j]);
                 }
-                i += 2;
             }
+            node = nodes[0];
         }
         return result;
     }
 
     static table256() {
-        const cnts = new Array(256 + 1);
+        const nodes = [];
         for (let i = 0; i < 256; i++) {
-            const sum = Array.from({ length: 7 }, (_, j) => ((i >> j) & 1) !== ((i >> (j + 1)) & 1) ? 1 : 0).reduce((a, b) => a + b, 0);
-            cnts[i] = 2 ** (7 - sum);
+            const sum = new Array(7).keys().map(s => ((i >> s) ^ (i >> (s + 1))) & 1).reduce((a, b) => a + b);
+            nodes.push({ cnt: 2 ** (7 - sum), parent: null });
         }
-        cnts[256] = 2 ** 7;
+        nodes.push({ cnt: 2 ** 8, parent: null });
 
-        const nodes = cnts.map((cnt) => ({ cnt, parent: null }));
-
-        for (let i = 0; i < cnts.length - 1; i++) {
+        for (let i = 0; i < 256 + 1 - 1; i++) {
             const node = { cnt: 0, parent: null };
             for (let j = 0; j < 2; j++) {
-                let minid = 0;
-                let minv = Number.MAX_SAFE_INTEGER;
-                for (let k = 0; k < nodes.length; k++) {
-                    if (nodes[k].parent === null && nodes[k].cnt < minv) {
-                        minv = nodes[k].cnt;
-                        minid = k;
-                    }
-                }
-                node.cnt += nodes[minid].cnt;
-                nodes[minid].parent = node;
+                const select = nodes.reduce((a, b) => (a.parent !== null || (b.parent === null && b.cnt < a.cnt)) ? b : a);
+                node.cnt += select.cnt;
+                select.parent = node;
             }
             nodes.push(node);
         }
 
-        const lngs = new Array(cnts.length).fill(0);
-        for (let i = 0; i < cnts.length; i++) {
+        const lngs = new Array(256 + 1).fill(0);
+        for (let i = 0; i < 256 + 1; i++) {
             let node = nodes[i];
             while (node = node.parent) { lngs[i]++; }
         }
         return Code.hmMakeTableFromLngs(lngs);
     }
 }
-
-// memo
-// 1. boneの名前変更
-// 2. hipsの位置調整
-// 3. tableの256要素を長く
