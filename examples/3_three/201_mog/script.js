@@ -24,7 +24,7 @@ function Main(main) {
   xthree.camera.position.set(0, 0, +2);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
 
-  xthree.camera.position.set(0, 1.3, +5);
+  xthree.camera.position.set(0, 1.0, +5);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
   xthree.scene.rotation.z = -20 / 180 * Math.PI
 
@@ -47,16 +47,16 @@ function Main(main) {
 }
 
 function ThreeMain(unit) {
-  xnew(DirectionaLight, { x: 1, y: -2, z: 3 });
+  xnew(DirectionaLight, { x: 1, y: -1, z: 2 });
   xnew(AmbientLight);
   xnew(Ground, { size: 100, color: 0xF8F8FF });
   xnew(Dorm, { size: 50 });
   // xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 
   xnew(Test, { id: 0, position: { x: 0, y: 0, z: 0 } });
-  for (let i = 0; i < 0; i++) {
-    const x = Math.random() * 20 - 10;
-    const y = Math.random() * 20 - 10;
+  for (let i = 0; i < 110; i++) {
+    const x = Math.random() * 6 - 3;
+    const y = Math.random() * 6 - 3;
     xnew(Test, { id: i, position: { x: x, y: y, z: 0 } });
   }
 
@@ -144,10 +144,11 @@ function Controller(unit) {
 function Test(unit, { id, position }) {
   const object = xthree.nest(new THREE.Object3D());
   if (testpromise === undefined) {
-    testpromise = mog3d.load('./model.mog').then((mogdata) => mogdata.convertVRM(0.1))
+    testpromise = mog3d.load('./アルマちゃん.mog').then((mogdata) => mogdata.convertVRM(0.1))
   }
   
   xnew.promise(testpromise).then((vrmUrl) => {
+    console.log('VRM URL created:', vrmUrl);
     xnew.promise(new Promise((resolve) => {
       const loader = new GLTFLoader();
       loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -166,7 +167,6 @@ function Test(unit, { id, position }) {
       });
       const scene = vrm.scene;
       scene.rotation.x = Math.PI / 2;
-      scene.scale.setScalar(0.1);
       scene.position.set(position.x, position.y, position.z);
       object.add(scene);
       const random = 2;//Math.random() * 10;
@@ -184,7 +184,7 @@ function Test(unit, { id, position }) {
         const t = (count + random) * 0.03;
         neck.rotation.x = Math.sin(t * 6) * +0.1;
         chest.rotation.x = Math.sin(t * 12) * +0.1;
-        hips.position.z = Math.sin(t * 12) * 0.1;
+        hips.position.z = Math.sin(t * 12) * 0.02;
         leftUpperArm.rotation.z = Math.sin(t * 12 + random) * +0.7;
         leftUpperArm.rotation.x = Math.sin(t * 6 + random) * +0.8;
         rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
@@ -194,7 +194,7 @@ function Test(unit, { id, position }) {
         rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
         rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
         vrm.update(t);
-        // count += 0.5;
+        count += 0.5;
       });
     });
   });

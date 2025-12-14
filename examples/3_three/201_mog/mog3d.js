@@ -4,6 +4,7 @@ export const mog3d = {
         return fetch(path).then(response => response.json()).then(json => new Model(json));
     }
 }
+const scale = 1 / 32;
 
 class Model {
     constructor(json) {
@@ -77,13 +78,13 @@ class Model {
             const offset = indices.length;
             for (let j = 0; j < layer.vertexs.length / 3; j++) {
                 indices.push(offset + j);
-                vertexs.push(layer.vertexs[j * 3 + 0] - this.dsize[0] / 2, layer.vertexs[j * 3 + 1], layer.vertexs[j * 3 + 2] - this.dsize[2] / 2);
+                vertexs.push((layer.vertexs[j * 3 + 0] - this.dsize[0] / 2) * scale, layer.vertexs[j * 3 + 1] * scale, (layer.vertexs[j * 3 + 2] - this.dsize[2] / 2) * scale);
                 normals.push(layer.normals[j * 3 + 0], layer.normals[j * 3 + 1], layer.normals[j * 3 + 2]);
                 colors.push(layer.colors[j * 3 + 0], layer.colors[j * 3 + 1], layer.colors[j * 3 + 2]);
             }
             if (this.bones.length === 0) continue;
 
-            const mask = new Array(this.bones.length).keys()
+            const mask = [...new Array(this.bones.length).keys()]
             .map(j => this.bones[j].refs.length == 0 || this.bones[j].refs.some(ref => ref === i));
 
             for (let j = offset; j < vertexs.length / 3; j++) {
@@ -105,10 +106,8 @@ class Model {
                     min1 = min0 * 2.0;
                     for (let k = 1; k < this.bones.length; k++) {
                         if (k !== nid0 && mask[k]) {
-                            const n0 = this.bones[nid0].name;
-                            const n1 = this.bones[k].name;
-                            if (n0.indexOf('left') === 0 && n1.indexOf('right') === 0) continue;
-                            if (n0.indexOf('right') === 0 && n1.indexOf('left') === 0) continue;
+                            if (this.bones[nid0].name.indexOf('left') === 0 && this.bones[k].name.indexOf('right') === 0) continue;
+                            if (this.bones[nid0].name.indexOf('right') === 0 && this.bones[k].name.indexOf('left') === 0) continue;
                         
                             const l = this.bones[k].distance(vertexs.slice(j * 3, j * 3 + 3));
                             if (l < min1) {
@@ -150,10 +149,7 @@ class Model {
                         imgdata[((y + iy) * w + (x + ix)) * 4 + 2] = colors[i * 3 + 2];
                     }
                 }
-
-                const u = (x + 1) / w;
-                const v = (y + 1) / h;
-                coords.push(u, v);
+                coords.push((x + 1) / w, (y + 1) / h);
             }
 
             const canvas = document.createElement('canvas');
@@ -169,18 +165,19 @@ class Model {
         }
 
         promise = promise.then((pngdata) => {
-            let binlength = 0;
-            binlength += indices.length * 4;
-            binlength += vertexs.length * 4;
-            binlength += normals.length * 4;
-            binlength += coords.length * 4;
-            binlength += joints.length * 2;
-            binlength += weights.length * 4;
-            binlength += invmats.length * 4;
-            binlength += pngdata.length;
+            let binSize = 0;
+            binSize += indices.length * 4;
+            binSize += vertexs.length * 4;
+            binSize += normals.length * 4;
+            binSize += coords.length * 4;
+            binSize += joints.length * 2;
+            binSize += weights.length * 4;
+            binSize += invmats.length * 4;
+            binSize += pngdata.length;
+            binSize = Math.ceil(binSize / 4) * 4;
 
-            const binary = new Uint8Array(binlength);
-            const view = new DataView(binary.buffer);
+            const binBuffer = new Uint8Array(binSize);
+            const view = new DataView(binBuffer.buffer);
             let offset = 0;
             indices.forEach(v => { view.setInt32(offset, v, true); offset += 4; });
             vertexs.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
@@ -189,9 +186,8 @@ class Model {
             joints.forEach(v => { view.setUint16(offset, v, true); offset += 2; });
             weights.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
             invmats.forEach(v => { view.setFloat32(offset, v, true); offset += 4; });
-            binary.set(pngdata, offset);
+            binBuffer.set(pngdata, offset);
 
-            // bufferViews
             let byteOffset = 0;
             const bufferViews = [];
             bufferViews.push({ buffer: 0, byteOffset, byteLength: indices.length * 4, target: 34963 }); byteOffset += indices.length * 4;
@@ -204,17 +200,16 @@ class Model {
             bufferViews.push({ buffer: 0, byteOffset, byteLength: pngdata.length }); byteOffset += pngdata.length;
             
             // min & max 
-            let minv = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
-            let maxv = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
-            for (let i = 0; i < vertexs.length; i++) {
-                minv[0] = Math.min(minv[0], vertexs[i][0]);
-                minv[1] = Math.min(minv[1], vertexs[i][1]);
-                minv[2] = Math.min(minv[2], vertexs[i][2]);
-                maxv[0] = Math.max(maxv[0], vertexs[i][0]);
-                maxv[1] = Math.max(maxv[1], vertexs[i][1]);
-                maxv[2] = Math.max(maxv[2], vertexs[i][2]);
+            let minv = [+1000, +1000, +1000];
+            let maxv = [-1000, -1000, -1000];
+            for (let i = 0; i < vertexs.length / 3; i++) {
+                minv[0] = Math.min(minv[0], vertexs[i * 3 + 0]);
+                minv[1] = Math.min(minv[1], vertexs[i * 3 + 1]);
+                minv[2] = Math.min(minv[2], vertexs[i * 3 + 2]);
+                maxv[0] = Math.max(maxv[0], vertexs[i * 3 + 0]);
+                maxv[1] = Math.max(maxv[1], vertexs[i * 3 + 1]);
+                maxv[2] = Math.max(maxv[2], vertexs[i * 3 + 2]);
             }
-
             const accessors = [
                 { bufferView: 0, byteOffset: 0, componentType: 5125, count: indices.length, type: "SCALAR", normalized: false },
                 { bufferView: 1, byteOffset: 0, componentType: 5126, count: vertexs.length / 3, type: "VEC3", normalized: false, max: maxv, min: minv },
@@ -226,30 +221,18 @@ class Model {
             ];
 
             // build nodes
-            const nodes = [];
-            for (let i = 0; i < this.bones.length; i++) {
-                const bone = this.bones[i];
+            const nodes = this.bones.map(bone => {
                 const translation = bone.parent ? bone.vec0.map((v, i) => v + bone.parent.vec1[i]): bone.vec0;
-                const node = { name: bone.name, translation };
-
-                // set children
-                const children = [];
-                for (let j = 0; j < this.bones.length; j++) {
-                    if (this.bones[j].parent === this.bones[i]) {
-                        children.push(j);
-                    }
-                }
-                if (children.length > 0) {
-                    node.children = children;
-                }
-                nodes.push(node);
-            }
+                const children = [...this.bones.keys().filter(j => this.bones[j].parent === bone)];
+                return { name: bone.name, translation, children: children.length > 0 ? children : undefined };
+            });
+          
             // model node
             nodes.push({ mesh: 0, name: "model", skin: 0 });
-            // glTF JSON
+
             const gltf = {
                 asset: { version: "2.0", generator: "mog3d.js vrm converter", },
-                buffers: [ { byteLength: binlength, }, ],
+                buffers: [ { byteLength: binSize, }, ],
                 bufferViews,
                 accessors,
                 nodes,
@@ -263,9 +246,7 @@ class Model {
                             metallicFactor: 0.0,
                             roughnessFactor: 1.0,
                             baseColorTexture: {
-                                extensions: {
-                                    KHR_texture_transform: { offset: [0, 0], scale: [1, 1] },
-                                },
+                                extensions: { KHR_texture_transform: { offset: [0, 0], scale: [1, 1] } },
                                 index: 0,
                                 texCoord: 0,
                             },
@@ -316,7 +297,7 @@ class Model {
                 extensionsUsed: ["VRMC_vrm", "KHR_texture_transform"],
             };
 
-            // humanBonesの生成
+            // humanBones
             for (let i = 0; i < this.bones.length; i++) {
                 gltf.extensions.VRMC_vrm.humanoid.humanBones[this.bones[i].name] = { node: i };
             }
@@ -327,34 +308,28 @@ class Model {
             const jsonPadding = new Uint8Array(jsonSize - jsonBuffer.length);
             jsonPadding.fill(0x20); // space
 
-            // VRM(glTF)ファイルの生成
-            const fileSize = 12 + 8 + jsonSize + 8 + binlength;
-            const vrmBuffer = new Uint8Array(fileSize);
+            // VRM(glTF)
+            const vrmBuffer = new Uint8Array(12 + 8 + jsonSize + 8 + binSize);
             const vrmView = new DataView(vrmBuffer.buffer);
             let vrmOffset = 0;
 
-            // glTFヘッダ
+            // header
             vrmBuffer.set([0x67, 0x6C, 0x54, 0x46], vrmOffset); vrmOffset += 4; // "glTF"
             vrmView.setUint32(vrmOffset, 2, true); vrmOffset += 4; // version
-            vrmView.setUint32(vrmOffset, fileSize, true); vrmOffset += 4; // length
+            vrmView.setUint32(vrmOffset, vrmBuffer.length, true); vrmOffset += 4; // length
 
-            // JSONチャンク
+            // json
             vrmView.setUint32(vrmOffset, jsonSize, true); vrmOffset += 4;
             vrmBuffer.set([0x4A, 0x53, 0x4F, 0x4E], vrmOffset); vrmOffset += 4; // "JSON"
             vrmBuffer.set(jsonBuffer, vrmOffset);  vrmOffset += jsonBuffer.length; // jsonBuffer
             vrmBuffer.set(jsonPadding, vrmOffset);  vrmOffset += jsonPadding.length; // jsonPadding
 
-            // BINチャンク
-            vrmView.setUint32(vrmOffset, binlength, true); vrmOffset += 4;
+            // binary
+            vrmView.setUint32(vrmOffset, binSize, true); vrmOffset += 4;
             vrmBuffer.set([0x42, 0x49, 0x4E, 0x00], vrmOffset); vrmOffset += 4; // "BIN\0"
-            vrmBuffer.set(binary, vrmOffset); vrmOffset += binary.length;
+            vrmBuffer.set(binBuffer, vrmOffset); vrmOffset += binBuffer.length;
 
-            // VRMファイルの生成
-            const blob = new Blob([vrmBuffer], { type: 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
-            console.log('VRM URL created:', url);
-            return url;
-
+            return URL.createObjectURL(new Blob([vrmBuffer], { type: 'application/octet-stream' }));
         });
         return promise;
     }
@@ -445,8 +420,8 @@ class Bone {
         this.parent = json.parent >= 0 ? bones[json.parent] : null;
         this.name = json.name;
         this.refs = json.refs;
-        this.vec0 = json.vec0;
-        this.vec1 = json.vec1;
+        this.vec0 = [json.vec0[0] * scale, json.vec0[1] * scale, json.vec0[2] * scale];
+        this.vec1 = [json.vec1[0] * scale, json.vec1[1] * scale, json.vec1[2] * scale];
     }
 
     basePosition() {
@@ -464,22 +439,19 @@ class Bone {
         const vec0 = [position[0] + this.vec0[0], position[1] + this.vec0[1], position[2] + this.vec0[2]];
         const vec1 = [vec0[0] + this.vec1[0], vec0[1] + this.vec1[1], vec0[2] + this.vec1[2]];
 
-        const linevec = [vec1[0] - vec0[0], vec1[1] - vec0[1], vec1[2] - vec0[2]];
-        const linelen = Math.sqrt(linevec[0] * linevec[0] + linevec[1] * linevec[1] + linevec[2] * linevec[2]);
+        const line = [vec1[0] - vec0[0], vec1[1] - vec0[1], vec1[2] - vec0[2]];
+        const sq = line[0] * line[0] + line[1] * line[1] + line[2] * line[2];
      
         const a = [vec[0] - vec0[0], vec[1] - vec0[1], vec[2] - vec0[2]];
         const b = [vec[0] - vec1[0], vec[1] - vec1[1], vec[2] - vec1[2]];
         
-        const s = (linevec[0] * a[0] + linevec[1] * a[1] + linevec[2] * a[2]) / linelen;
-        if (s < 0.0) {
-            return Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
-        }
-        else if (s > linelen) {
-            return Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
-        }
-        else {
-            const c = [vec[0] - (vec0[0] + linevec[0] * s / linelen), vec[1] - (vec0[1] + linevec[1] * s / linelen), vec[2] - (vec0[2] + linevec[2] * s / linelen)];
-            return Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+        const s = (line[0] * a[0] + line[1] * a[1] + line[2] * a[2]) / sq;
+        if (s < 0.0 || s > 1.0) {
+            const x = s < 0.0 ? a : b;
+            return Math.sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+        } else {
+            const x = [vec[0] - (vec0[0] + line[0] * s), vec[1] - (vec0[1] + line[1] * s), vec[2] - (vec0[2] + line[2] * s)];
+            return Math.sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
         }
     }
 }
@@ -557,10 +529,8 @@ class Code {
             } else if (node.val === code) {
                 const search = src.slice(i + 1, i + 1 + v0).map((v, s) => v << s).reduce((a, b) => a + b); i += v0;
                 const length = src.slice(i + 1, i + 1 + v1).map((v, s) => v << s).reduce((a, b) => a + b); i += v1;
-                
-                const base = result.length;
                 for (let j = 0; j < length; j++) {
-                    result.push(result[base - search + j]);
+                    result.push(result[result.length - search]);
                 }
             }
             node = nodes[0];
