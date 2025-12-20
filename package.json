@@ -40,6 +40,11 @@
     "LICENSE",
     "README.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mulsense/xnew.git"
+  },
+  "author": "",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/mulsense/xnew/issues"

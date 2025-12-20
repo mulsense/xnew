@@ -25,6 +25,7 @@ interface UnitInternal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
+    protected: boolean;
 
     children: Unit[];
     promises: Promise<any>[];
@@ -126,6 +127,7 @@ export class Unit {
             anchor,
             state: 'invoked',
             tostart: true,
+            protected: false,
             children: [],
             elements: [],
             promises: [],

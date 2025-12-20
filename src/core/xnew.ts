@@ -249,5 +249,9 @@ export const xnew = Object.assign(
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
 
+
+        protect() {
+            Unit.current._.protected = true;
+        }
     }
 );
