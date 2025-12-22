@@ -6,8 +6,5 @@ declare const _default: {
     readonly renderer: any;
     readonly scene: any;
     readonly canvas: any;
-    capture({ rect }?: {
-        rect?: number[];
-    }): any;
 };
 export default _default;

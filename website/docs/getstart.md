@@ -196,19 +196,19 @@ Now let's add events and animations! This example creates an interactive rotatin
       });
 
       // When animation starts
-      unit.on('-start', () => {
+      unit.on('start', () => {
         running = true;
         text.element.textContent = 'start';
       });
 
       // Update animation frame
       let count = 0;
-      unit.on('-update', () => {
+      unit.on('update', () => {
         unit.element.style.transform = `rotate(${count++}deg)`;
       });
 
       // When animation stops
-      unit.on('-stop', () => {
+      unit.on('stop', () => {
         running = false;
         text.element.textContent = 'stop';
       });

@@ -196,15 +196,6 @@ declare const xnew$1: CreateUnit & {
      */
     finally(callback: Function): UnitPromise;
     /**
-     * Fetches a resource and registers the promise with the current component
-     * @param url - URL to fetch
-     * @param options - Optional fetch options (method, headers, body, etc.)
-     * @returns UnitPromise wrapping the fetch promise
-     * @example
-     * xnew.fetch('/api/users').then(res => res.json()).then(data => console.log(data))
-     */
-    fetch(url: string, options?: object): UnitPromise;
-    /**
      * Creates a scoped callback that captures the current component context
      * @param callback - Function to wrap with current scope
      * @returns Function that executes callback in the captured scope

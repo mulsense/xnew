@@ -209,7 +209,7 @@
     //----------------------------------------------------------------------------------------------------
     // utils
     //----------------------------------------------------------------------------------------------------
-    const SYSTEM_EVENTS = ['-start', '-update', '-stop', '-finalize'];
+    const SYSTEM_EVENTS = ['start', 'update', 'stop', 'finalize'];
     //----------------------------------------------------------------------------------------------------
     // unit
     //----------------------------------------------------------------------------------------------------
@@ -304,7 +304,7 @@
                 components: [],
                 listeners: new MapMap(),
                 defines: {},
-                systems: { '-start': [], '-update': [], '-stop': [], '-finalize': [] },
+                systems: { start: [], update: [], stop: [], finalize: [] },
             });
             // nest html element
             if (typeof unit._.target === 'string') {
@@ -320,7 +320,7 @@
             if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
                 unit._.state = 'finalizing';
                 unit._.children.forEach((child) => child.finalize());
-                unit._.systems['-finalize'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
                 unit.off();
                 unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
                 if (unit._.elements.length > 0) {
@@ -397,7 +397,7 @@
             if (unit._.state === 'initialized' || unit._.state === 'stopped') {
                 unit._.state = 'started';
                 unit._.children.forEach((child) => Unit.start(child));
-                unit._.systems['-start'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems.start.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
             else if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.start(child));
@@ -407,13 +407,13 @@
             if (unit._.state === 'started') {
                 unit._.state = 'stopped';
                 unit._.children.forEach((child) => Unit.stop(child));
-                unit._.systems['-stop'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems.stop.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
         }
         static update(unit) {
             if (unit._.state === 'started') {
                 unit._.children.forEach((child) => Unit.update(child));
-                unit._.systems['-update'].forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+                unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
             }
         }
         static reset() {
@@ -574,7 +574,7 @@
             }
             else if (timer.stack.length === 0) {
                 timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
-                timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
+                timer.unit.on('finalize', () => { UnitTimer.next(timer); });
             }
             else {
                 timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.current) }, options));
@@ -583,7 +583,7 @@
         static next(timer) {
             if (timer.stack.length > 0) {
                 timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
-                timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
+                timer.unit.on('finalize', () => { UnitTimer.next(timer); });
             }
         }
         static Component(unit, options) {
@@ -604,7 +604,7 @@
                     counter++;
                 }, duration: options.duration, iterations: options.iterations, easing: options.easing
             });
-            unit.on('-finalize', () => timer.clear());
+            unit.on('finalize', () => timer.clear());
         }
     }
 
@@ -733,25 +733,6 @@
             }
             catch (error) {
                 console.error('xnew.finally(callback: Function): ', error);
-                throw error;
-            }
-        },
-        /**
-         * Fetches a resource and registers the promise with the current component
-         * @param url - URL to fetch
-         * @param options - Optional fetch options (method, headers, body, etc.)
-         * @returns UnitPromise wrapping the fetch promise
-         * @example
-         * xnew.fetch('/api/users').then(res => res.json()).then(data => console.log(data))
-         */
-        fetch(url, options) {
-            try {
-                const promise = fetch(url, options);
-                Unit.current._.promises.push(promise);
-                return new UnitPromise(promise);
-            }
-            catch (error) {
-                console.error('xnew.promise(url: string, options?: object): ', error);
                 throw error;
             }
         },

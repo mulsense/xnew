@@ -188,23 +188,23 @@ xnew provides built-in lifecycle events that help you manage your component's be
 
 ```js
 function MyComponent(unit) {
-  unit.on('-start', () => {
+  unit.on('start', () => {
     // Called once before the first update
     console.log('Component started');
   });
 
-  unit.on('-update', (frameCount) => {
+  unit.on('update', (frameCount) => {
     // Called continuously at ~60fps (or your browser's refresh rate)
     // Use for animations and real-time updates
     console.log('Frame:', frameCount);
   });
 
-  unit.on('-stop', () => {
+  unit.on('stop', () => {
     // Called when the update loop is stopped
     console.log('Component stopped');
   });
 
-  unit.on('-finalize', () => {
+  unit.on('finalize', () => {
     // Called when the component is destroyed
     console.log('Component finalized');
   });
@@ -219,11 +219,11 @@ const unit = xnew(MyComponent);
 function AnimatedCounter(unit, { maxCount }) {
   xnew.nest('<div>');
 
-  unit.on('-start', () => {
+  unit.on('start', () => {
     unit.element.textContent = '0';
   });
 
-  unit.on('-update', (count) => {
+  unit.on('update', (count) => {
     if (count < maxCount) {
       unit.element.textContent = count++;
     } else {
@@ -231,7 +231,7 @@ function AnimatedCounter(unit, { maxCount }) {
     }
   });
 
-  unit.on('-stop', () => {
+  unit.on('stop', () => {
     console.log('Counting finished!');
   });
 }
@@ -250,7 +250,7 @@ Starts the update loop. Components start automatically by default.
 const unit = xnew((unit) => {
   unit.stop(); // Prevent auto-start
 
-  unit.on('-update', (count) => {
+  unit.on('update', (count) => {
     console.log('Updating...', count);
   });
 });
@@ -310,21 +310,21 @@ function Parent(unit) {
   xnew(Child1);
   xnew(Child2);
 
-  unit.on('-start', () => console.log('Parent start'));
-  unit.on('-update', () => console.log('Parent update'));
-  unit.on('-stop', () => console.log('Parent stop'));
+  unit.on('start', () => console.log('Parent start'));
+  unit.on('update', () => console.log('Parent update'));
+  unit.on('stop', () => console.log('Parent stop'));
 }
 
 function Child1(unit) {
-  unit.on('-start', () => console.log('Child1 start'));
-  unit.on('-update', () => console.log('Child1 update'));
-  unit.on('-stop', () => console.log('Child1 stop'));
+  unit.on('start', () => console.log('Child1 start'));
+  unit.on('update', () => console.log('Child1 update'));
+  unit.on('stop', () => console.log('Child1 stop'));
 }
 
 function Child2(unit) {
-  unit.on('-start', () => console.log('Child2 start'));
-  unit.on('-update', () => console.log('Child2 update'));
-  unit.on('-stop', () => console.log('Child2 stop'));
+  unit.on('start', () => console.log('Child2 start'));
+  unit.on('update', () => console.log('Child2 update'));
+  unit.on('stop', () => console.log('Child2 stop'));
 }
 
 const parent = xnew(Parent);
@@ -384,7 +384,7 @@ function Sender(unit) {
 
   unit.on('click', () => {
     // Emit global event
-    unit.emit('+message', { 
+    xnew.emit('+message', { 
       text: 'Hello from sender!',
       timestamp: Date.now()
     });
@@ -418,7 +418,7 @@ function Timer(unit) {
     seconds++;
     if (seconds % 60 === 0) {
       // Emit internal event every minute
-      unit.emit('-message', { minutes: seconds / 60 });
+      xnew.emit('-message', { minutes: seconds / 60 });
     }
   });
 }
@@ -496,7 +496,7 @@ box.randomize();           // Custom method
 
 Avoid these reserved names when creating custom properties:
 - `start`, `stop`, `finalize`, `reboot`
-- `element`, `on`, `off`, `emit`,
+- `element`, `on`, `off`,
 - `_` (internal use)
 
 

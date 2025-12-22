@@ -134,7 +134,7 @@ function Player(unit) {
   unit.on('+shot', () => xnew.emit('+gamescene:append', Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.x += velocity.x * 2;
     object.y += velocity.y * 2;
 

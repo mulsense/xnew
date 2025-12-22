@@ -34,7 +34,7 @@ function Root(self: xnew.Unit, { canvas, camera }: any) {
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
     xnew.context('xthree.object', root.scene);
-    self.on('-update', () => {
+    self.on('update', () => {
         root.renderer.render(root.scene, root.camera);
     });
 }
@@ -45,7 +45,7 @@ function Nest(self: xnew.Unit, { object }: { object: any }) {
 
     if (parent) {
         parent?.add(object);
-        self.on('-finalize', () => {
+        self.on('finalize', () => {
             parent?.remove(object);
         });
     }

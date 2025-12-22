@@ -23,20 +23,20 @@
         running ? unit.stop() : unit.start();
       });
 
-      unit.on('-start', () => {
-        console.log('-start');
+      unit.on('start', () => {
+        console.log('start');
         running = true;
         text.element.textContent = 'start';
       });
 
       let count = 0;
-      unit.on('-update', () => {
-        console.log('-update');
+      unit.on('update', () => {
+        console.log('update');
         unit.element.style.transform = `rotate(${count++}deg)`;
       });
       
-      unit.on('-stop', () => {
-        console.log('-stop');
+      unit.on('stop', () => {
+        console.log('stop');
         running = false;
         text.element.textContent = 'stop';
       });

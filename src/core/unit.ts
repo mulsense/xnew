@@ -5,7 +5,7 @@ import { Ticker, Timer, TimerOptions } from './time';
 // utils
 //----------------------------------------------------------------------------------------------------
 
-const SYSTEM_EVENTS: string[] = ['-start', '-update', '-stop', '-finalize'] as const;
+const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
 
 export type UnitElement = HTMLElement | SVGElement;
 
@@ -136,7 +136,7 @@ export class Unit {
             components: [],
             listeners: new MapMap(),
             defines: {},
-            systems: { '-start': [], '-update': [], '-stop': [], '-finalize': [] },
+            systems: { start: [], update: [], stop: [], finalize: [] },
         });
 
         // nest html element
@@ -158,7 +158,7 @@ export class Unit {
             unit._.state = 'finalizing';
 
             unit._.children.forEach((child: Unit) => child.finalize());
-            unit._.systems['-finalize'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.finalize.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
 
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
@@ -239,7 +239,7 @@ export class Unit {
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child));
-            unit._.systems['-start'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.start.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         } else if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child));
         }
@@ -249,14 +249,14 @@ export class Unit {
         if (unit._.state === 'started') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
-            unit._.systems['-stop'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.stop.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
 
     static update(unit: Unit): void {
         if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child));
-            unit._.systems['-update'].forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.update.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
 
@@ -435,7 +435,7 @@ export class UnitTimer {
             timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
         } else if (timer.stack.length === 0) {
             timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });
-            timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
+            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         } else {
             timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
         }
@@ -444,7 +444,7 @@ export class UnitTimer {
     static next(timer: UnitTimer) {
         if (timer.stack.length > 0) {
             timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
-            timer.unit.on('-finalize', () => { UnitTimer.next(timer); });
+            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
     }
 
@@ -464,6 +464,6 @@ export class UnitTimer {
             }, duration: options.duration, iterations: options.iterations, easing: options.easing
         });
 
-        unit.on('-finalize', () => timer.clear());
+        unit.on('finalize', () => timer.clear());
     }
 }
