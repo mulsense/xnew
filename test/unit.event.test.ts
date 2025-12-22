@@ -10,10 +10,10 @@ describe('unit event', () => {
         let state = 0;
         xnew((unit: Unit) => {
             unit.on('-countup', () => state++);
-            unit.emit('-countup');
-            xnew((unit: Unit) => unit.emit('-countup'));
+            xnew.emit('-countup');
+            xnew((unit: Unit) => xnew.emit('-countup'));
         });
-        xnew((unit: Unit) => unit.emit('-countup'));
+        xnew((unit: Unit) => xnew.emit('-countup'));
         expect(state).toBe(1);
     });
 
@@ -21,8 +21,8 @@ describe('unit event', () => {
         let state = 0;
         xnew((unit: Unit) => {
             unit.on('+myevent', () => state++);
-            unit.emit('+myevent');
-            xnew((unit: Unit) => unit.emit('+myevent'));
+            xnew.emit('+myevent');
+            xnew((unit: Unit) => xnew.emit('+myevent'));
         });
         expect(state).toBe(2);
     });
