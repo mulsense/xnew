@@ -27,6 +27,7 @@ interface UnitInternal {
     tostart: boolean;
     protected: boolean;
 
+    ancestors: Unit[];
     children: Unit[];
     promises: Promise<any>[];
     elements: UnitElement[];
@@ -128,6 +129,7 @@ export class Unit {
             state: 'invoked',
             tostart: true,
             protected: false,
+            ancestors: [...(unit._.parent ? [unit._.parent] : []), ...(unit._.parent?._.ancestors ?? [])],
             children: [],
             elements: [],
             promises: [],
@@ -360,13 +362,17 @@ export class Unit {
         });
     }
 
-    emit(type: string, ...args: any[]) {
+    static emit(type: string, ...args: any[]) {
+        const current = Unit.current;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
-                unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
+                const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
+                if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
+                    unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
+                }
             });
         } else if (type[0] === '-') {
-            this._.listeners.get(type)?.forEach((item) => item.execute(...args));
+            current._.listeners.get(type)?.forEach((item) => item.execute(...args));
         }
     }
 }

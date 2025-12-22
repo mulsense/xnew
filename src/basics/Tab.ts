@@ -7,7 +7,10 @@ export function TabFrame(frame: Unit,
     const internal = xnew((internal: Unit) => {
         const buttons = new Map<string, Unit>();
         const contents = new Map<string, Unit>();
-        return { frame, buttons, contents };
+        return {
+            frame, buttons, contents,
+            emit(type: string, ...args: any) { xnew.emit(type, ...args); }
+        };
     });
     xnew.context('xnew.tabframe', internal);
 

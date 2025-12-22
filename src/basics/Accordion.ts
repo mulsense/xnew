@@ -5,7 +5,10 @@ export function AccordionFrame(frame: Unit,
     { open = false, duration = 200, easing = 'ease'}: { open?: boolean, duration?: number, easing?: string } = {}
 ) {
     const internal = xnew((internal: Unit) => {
-        return { frame, open, rate: 0.0, };
+        return {
+            frame, open, rate: 0.0,
+            emit(type: string, ...args: any) { xnew.emit(type, ...args); }
+        };
     });
     xnew.context('xnew.accordionframe', internal);
     

@@ -48,21 +48,23 @@ function TitleScene(unit) {
 }
 
 function Fade(unit, { fadein, fadeout }) {
-  xnew(xnew.find(Main)[0].element, () => {
+  const internal = xnew(xnew.find(Main)[0].element, () => {
     const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-black" style="opacity: 0">');
 
     let timer;
     if (fadeout) {
-      timer = xnew.transition((p) => cover.element.style.opacity = p, fadeout, 'ease').timeout((() => unit.emit('-fadeout')));
+      timer = xnew.transition((p) => cover.element.style.opacity = p, fadeout, 'ease').timeout((() => xnew.emit('-fadeout')));
     }
     if (fadein) {
       timer = (timer ?? xnew).transition((p) => cover.element.style.opacity = 1 - p, fadein, 'ease');
     }
     timer.timeout(() => {
-      unit.emit('-fadein')
+      xnew.emit('-fadein')
       unit.finalize();
     });
   }); 
+  internal.on('-fadeout', xnew.emit('-fadeout'));
+  internal.on('-fadein', xnew.emit('-fadein'));
 }
 
 function StoryScene(unit, { id, next = false }) {
@@ -91,9 +93,9 @@ function StoryScene(unit, { id, next = false }) {
         stream.finalize();
         action();
       } else if (next === false) {
-        unit.emit('+main', GameScene, { id });
+        xnew.emit('+main', GameScene, { id });
       } else {
-        unit.emit('+main', StoryScene, { id: id + 1 } );
+        xnew.emit('+main', StoryScene, { id: id + 1 } );
       }
     });
   }
@@ -148,9 +150,9 @@ function GameScene(unit, { id }) {
       unit.on('pointerdown', next);
       function next(){
         if (id + 1 < global.levels.length) {
-            unit.emit('+main', StoryScene, { id, next: true });
+            xnew.emit('+main', StoryScene, { id, next: true });
         } else {
-            unit.emit('+main', TitleScene);
+            xnew.emit('+main', TitleScene);
         }
       }
     }, 1000);
@@ -203,7 +205,7 @@ function StageSelect(unit) {
   }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
     const button = xnew(BlockBUtton, { text: `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}` });
-    button.on('click', () => unit.emit('+main', StoryScene, { id: i }));
+    button.on('click', () => xnew.emit('+main', StoryScene, { id: i }));
   }
 }
 
@@ -326,7 +328,7 @@ function Player(player, { id, x, y }) {
     }
 
     player.move(dx, dy);
-    player.emit('+moved');
+    xnew.emit('+moved');
   });
 
   const offset = { x: 0, y: 0 };
@@ -424,8 +426,8 @@ function LeftBlock(unit, { id }) {
   });
 
   xnew('<div class="absolute top-[42cqh] w-full flex justify-center gap-x-[2cqw] text-green-700">', () => {
-    xnew(BlockBUtton, { text: '再'} ).on('click', () => unit.emit('+restart'));
-    xnew(BlockBUtton, { text: '帰'} ).on('click', () => unit.emit('+main', TitleScene));
+    xnew(BlockBUtton, { text: '再'} ).on('click', () => xnew.emit('+restart'));
+    xnew(BlockBUtton, { text: '帰'} ).on('click', () => xnew.emit('+main', TitleScene));
   });
 
   xnew(xnew.basics.KeyboardEvent).on('-keydown:arrow', ({ event, vector }) => {
@@ -444,7 +446,7 @@ function LeftBlock(unit, { id }) {
     if (stack === 0) {
       stack++;
       xnew.timeout(() => { stack--; }, 250);
-      unit.emit('+playermove', { dx: vector.x, dy: vector.y });
+      xnew.emit('+playermove', { dx: vector.x, dy: vector.y });
     } else if (stack <= 2) {
       xnew.timeout(() => move(vector), 10);
     }

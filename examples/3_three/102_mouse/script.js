@@ -77,18 +77,18 @@ function Controller(unit) {
   pointer.on('-gesturestart', () => isActive = true);
   pointer.on('-gestureend', () => isActive = false);
   pointer.on('-gesturemove', ({ scale }) => {
-    unit.emit('+scale', { scale })
+    xnew.emit('+scale', { scale })
   });
   
   pointer.on('-dragmove', ({ event, delta }) => {
     console.log(event);
     if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
-      unit.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
+      xnew.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
     }
     if (event.buttons & 2) {
-      unit.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
+      xnew.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
     }
   });
-  pointer.on('-wheel', ({ delta }) => unit.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+  pointer.on('-wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
 }

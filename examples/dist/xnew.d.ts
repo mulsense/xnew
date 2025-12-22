@@ -49,6 +49,8 @@ interface UnitInternal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
+    protected: boolean;
+    ancestors: Unit[];
     children: Unit[];
     promises: Promise<any>[];
     elements: UnitElement[];
@@ -92,7 +94,7 @@ declare class Unit {
     static type2units: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
-    emit(type: string, ...args: any[]): void;
+    static emit(type: string, ...args: any[]): void;
 }
 declare class UnitPromise {
     private promise;
@@ -222,6 +224,7 @@ declare const xnew$1: CreateUnit & {
      * buttons.forEach(btn => btn.finalize())
      */
     find(component: Function): Unit[];
+    emit(type: string, ...args: any[]): void;
     /**
      * Executes a callback once after a delay, managed by component lifecycle
      * @param timeout - Function to execute after Duration
@@ -256,6 +259,7 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
+    protect(): void;
 };
 
 declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
@@ -336,8 +340,7 @@ declare function DragFrame(frame: Unit, { x, y }?: {
 }): void;
 declare function DragTarget(target: Unit, {}?: {}): void;
 
-declare function AnalogStick(self: Unit, { size, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
-    size?: number;
+declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
@@ -346,13 +349,12 @@ declare function AnalogStick(self: Unit, { size, stroke, strokeOpacity, strokeWi
     fill?: string;
     fillOpacity?: number;
 }): void;
-declare function DirectionalPad(self: Unit, { size, diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
-    size?: number;
+declare function DirectionalPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
+    diagonal?: boolean;
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
     strokeLinejoin?: string;
-    diagonal?: boolean;
     fill?: string;
     fillOpacity?: number;
 }): void;

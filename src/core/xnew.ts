@@ -156,25 +156,6 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Fetches a resource and registers the promise with the current component
-         * @param url - URL to fetch
-         * @param options - Optional fetch options (method, headers, body, etc.)
-         * @returns UnitPromise wrapping the fetch promise
-         * @example
-         * xnew.fetch('/api/users').then(res => res.json()).then(data => console.log(data))
-         */
-        fetch(url: string, options?: object): UnitPromise {
-            try {
-                const promise = fetch(url, options);
-                Unit.current._.promises.push(promise);
-                return new UnitPromise(promise);
-            } catch (error: unknown) {
-                console.error('xnew.promise(url: string, options?: object): ', error);
-                throw error;
-            }
-        },
-
-        /**
          * Creates a scoped callback that captures the current component context
          * @param callback - Function to wrap with current scope
          * @returns Function that executes callback in the captured scope
@@ -202,6 +183,15 @@ export const xnew = Object.assign(
                 return Unit.find(component);
             } catch (error: unknown) {
                 console.error('xnew.find(component: Function): ', error);
+                throw error;
+            }
+        },
+
+        emit(type: string, ...args: any[]): void {
+            try {
+                return Unit.emit(type, ...args);
+            } catch (error: unknown) {
+                console.error('xnew.emit(type: string, ...args: any[]): ', error);
                 throw error;
             }
         },

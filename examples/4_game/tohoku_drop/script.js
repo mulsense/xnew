@@ -22,8 +22,8 @@ function Main(unit) {
   // setup pixi
   xpixi.initialize({ canvas: unit.canvas });
 
-  // let scene = xnew(TitleScene);
-  let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  let scene = xnew(TitleScene);
+  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
   unit.on('+nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
@@ -43,7 +43,7 @@ function TitleScene(unit) {
   }
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
 
-  unit.on('pointerdown', () => unit.emit('+nextscene', GameScene));
+  unit.on('pointerdown', () => xnew.emit('+nextscene', GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -71,7 +71,7 @@ function GameScene(unit) {
   })
   unit.on('+append', (Component, props) => xnew(Component, props));
 
-  // xnew.timeout(() => scene.emit('+gameover'), 100);
+  // xnew.timeout(() => xnew.emit('+gameover'), 100);
 
   unit.on('+gameover', () => {
     unit.off('+gameover');
@@ -82,7 +82,7 @@ function GameScene(unit) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => unit.emit('+nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
+      .timeout(() => xnew.emit('+nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
     }, 2000);
   });
 }
@@ -214,7 +214,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
-    button.on('click', () => unit.emit('+nextscene', TitleScene));
+    button.on('click', () => xnew.emit('+nextscene', TitleScene));
   });
 }
 
@@ -240,9 +240,9 @@ function ShadowPlane(unit) {
 function Controller(unit) {
   xnew.extend(xnew.basics.PointerEvent);
   unit.on('-pointermove -pointerdown', ({ position }) => {
-    unit.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
+    xnew.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
   });
-  unit.on('-pointerdown', () => unit.emit('+drop'));
+  unit.on('-pointerdown', () => xnew.emit('+drop'));
 }
 
 function Bowl(unit) {
@@ -255,7 +255,7 @@ function Bowl(unit) {
 
 function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  unit.emit('+relode:done', 0);
+  xnew.emit('+relode:done', 0);
 
   const position = convert3d(10 + 70, 70);
   const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
@@ -271,7 +271,7 @@ function Queue(unit) {
     xnew.transition((p) => {
       const position = convert3d(10 + p * 70, 70);
       model.object.position.set(position.x, position.y, position.z);
-    }, 500).timeout(() => unit.emit('+relode:done', balls.shift()));
+    }, 500).timeout(() => xnew.emit('+relode:done', balls.shift()));
   });
 }
 
@@ -345,10 +345,10 @@ function Cursor(unit) {
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      unit.emit('+append', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      xnew.emit('+append', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
       model.finalize();
       model = null;
-      unit.emit('+reload');
+      xnew.emit('+reload');
     } 
   });
   unit.on('-update', () => {
@@ -372,16 +372,16 @@ function ModelBall(ball, { x, y, id = 0 }) {
   }
 
   const model = xnew(Model, { id, scale });
-  ball.emit('+scoreup', id);
+  xnew.emit('+scoreup', id);
 
-  ball.emit('+append', StarParticles, { x, y });
+  xnew.emit('+append', StarParticles, { x, y });
   
   ball.on('-update', () => {
     const position = convert3d(ball.object.x, ball.object.y);
     model.object.position.set(position.x, position.y, position.z);
     model.object.rotation.z = -ball.object.rotation;
     if (ball.object.y > xpixi.canvas.height) {
-      ball.emit('+gameover');
+      xnew.emit('+gameover');
       ball.finalize();
       return;
     }
@@ -392,7 +392,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
-        ball.emit('+append', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
+        xnew.emit('+append', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         ball.finalize();
         target.finalize();
         break;

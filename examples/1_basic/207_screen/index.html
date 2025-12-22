@@ -17,8 +17,8 @@
         xnew('<p>', 'canvas');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
-        const unit = xnew('<canvas width="400" height="200" class="w-full">');
-        draw(unit)
+        const canvas = xnew('<canvas width="400" height="200" class="w-full">');
+        draw(canvas.element)
       });
 
       xnew('<div>', (unit) => {
@@ -26,7 +26,7 @@
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'contain' });
-        draw(screen)
+        draw(screen.canvas)
       });
       
       xnew('<div>', (unit) => {
@@ -34,7 +34,7 @@
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'cover' });
-        draw(screen)
+        draw(screen.canvas)
       });
 
       xnew('<div>', (unit) => {
@@ -42,11 +42,10 @@
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'fill' });
-        draw(screen)
+        draw(screen.canvas)
       });
 
-      function draw(unit) {
-        const canvas = unit.element;
+      function draw(canvas) {
         const context = canvas.getContext('2d');
         const [cx, cy] = [canvas.width / 2, canvas.height / 2];
         const size = 80;

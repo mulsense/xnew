@@ -25,14 +25,14 @@
       xnew('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">', () => {
         // directional pad
         const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
-        dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));        
+        dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));        
       });
 
       // right bottom
       xnew('<div class="absolute right-0 top-0 bottom-0 w-[100cqh] h-full">', () => {
         // analog stick
         const stick = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.AnalogStick, {});
-        stick.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));
+        stick.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
       });
 
       // xnew(Gamepad);

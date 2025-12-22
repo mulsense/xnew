@@ -47,7 +47,7 @@ function TitleScene(unit) {
   xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
   
   function next() {
-    unit.emit('+main:nextscene', GameScene);
+    xnew.emit('+main:nextscene', GameScene);
   }
 }
 
@@ -74,7 +74,7 @@ function GameScene(scene) {
       xnew(xnew.basics.KeyboardEvent).on('-keydown', next);
       xnew(xnew.basics.PointerEvent).on('-pointerdown', next);
       function next() {
-        scene.emit('+main:nextscene', TitleScene);
+        xnew.emit('+main:nextscene', TitleScene);
       }
     }, 1000);
   });
@@ -90,20 +90,20 @@ function Controller(unit) {
     xnew.nest('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">');
     // directional pad
     const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
-    dpad.on('-down -move -up', ({ vector }) => unit.emit('+move', { vector }));        
+    dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));        
   });
 
   const pointer = xnew(xpixi.canvas, xnew.basics.PointerEvent);
   pointer.on('-pointerdown', () => {
-      unit.emit('+shot')
+      xnew.emit('+shot')
   });
 
   // keyboard
   const keybord = xnew(xnew.basics.KeyboardEvent);
-  keybord.on('-keydown:arrow -keyup:arrow', ({ vector }) => unit.emit('+move', { vector }));
+  keybord.on('-keydown:arrow -keyup:arrow', ({ vector }) => xnew.emit('+move', { vector }));
   keybord.on('-keydown', ({ code }) => {
     if (code === 'Space') {
-      unit.emit('+shot')
+      xnew.emit('+shot')
     }
   });
 }
@@ -131,7 +131,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => unit.emit('+gamescene:append', Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.emit('+gamescene:append', Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('-update', () => {
@@ -146,7 +146,7 @@ function Player(unit) {
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.distance(object) < 30) {
         enemy.clash(1);
-        unit.emit('+gameover');
+        xnew.emit('+gameover');
         unit.finalize();
         return;
       }
@@ -211,10 +211,10 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        unit.emit('+gamescene:append', Crash, { x: object.x, y: object.y, score });
+        xnew.emit('+gamescene:append', Crash, { x: object.x, y: object.y, score });
       }
-      unit.emit('+gamescene:append', CrashText, { x: object.x, y: object.y, score });
-      unit.emit('+scoreup', score);
+      xnew.emit('+gamescene:append', CrashText, { x: object.x, y: object.y, score });
+      xnew.emit('+scoreup', score);
       unit.finalize();
     },
     distance(target) {

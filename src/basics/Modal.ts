@@ -5,7 +5,9 @@ export function ModalFrame(frame: Unit,
     { duration = 200, easing = 'ease' }: { duration?: number, easing?: string } = {}
 ) {
     const internal = xnew((internal: Unit) => {
-        return {};
+        return {
+            emit(type: string, ...args: any) { xnew.emit(type, ...args); }
+        };
     });
     xnew.context('xnew.modalframe', internal);
     xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');

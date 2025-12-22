@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  
+  <script>
+    let count = 0;
+    xnew('#main', (unit) => {
+      xnew(Div);
+      xnew(Div);
+    });
+
+    function Div(unit) {
+      // xnew.protect();
+
+      let count = 0;
+      const p = xnew('<div>', '0')
+      p.on('+countup', () => {
+        count++;
+        p.element.textContent = count;
+      });
+
+      xnew((unit) => {
+        const button = xnew.nest('<button>');
+        button.textContent = 'click';
+
+        unit.on('click', () => unit.emit('+countup'));
+      });
+    }
+
+  </script>
+</body>
+
+</html>

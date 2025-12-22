@@ -42,10 +42,10 @@ export function TextStream(unit: Unit, { text = '', speed = 50, fade = 300 }: { 
             for (let i = 0; i < chars.length; i++) {
                 chars[i].element.style.opacity = '1';
             }
-            unit.emit('-complete');
+            xnew.emit('-complete');
         } else if (state === 1) {
             state = 2;
-            unit.emit('-next');
+            xnew.emit('-next');
         }
     }
 
