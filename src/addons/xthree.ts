@@ -23,7 +23,7 @@ export default {
     }
 };
 
-function Root(self: xnew.Unit, { canvas, camera }: any) {
+function Root(unit: xnew.Unit, { canvas, camera }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xthree.root', root);
     root.canvas = canvas;
@@ -34,18 +34,18 @@ function Root(self: xnew.Unit, { canvas, camera }: any) {
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
     xnew.context('xthree.object', root.scene);
-    self.on('update', () => {
+    unit.on('update', () => {
         root.renderer.render(root.scene, root.camera);
     });
 }
 
-function Nest(self: xnew.Unit, { object }: { object: any }) {
+function Nest(unit: xnew.Unit, { object }: { object: any }) {
     const parent = xnew.context('xthree.object');
     xnew.context('xthree.object', object);
 
     if (parent) {
         parent?.add(object);
-        self.on('finalize', () => {
+        unit.on('finalize', () => {
             parent?.remove(object);
         });
     }

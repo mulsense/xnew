@@ -6,15 +6,15 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
  
   // three setup
-  xthree.initialize({ canvas: new OffscreenCanvas(main.canvas.width, main.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.camera.position.set(0, 0, +100);
 
   // pixi setup
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
 
   xnew(Cubes);
   
@@ -35,7 +35,7 @@ function Boxes(self) {
       xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
     }
   }
-  self.on('-update', () => object.rotation += 0.01);
+  self.on('update', () => object.rotation += 0.01);
 }
 
 function Box(self, { x, y, size, color }) {
@@ -43,7 +43,7 @@ function Box(self, { x, y, size, color }) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-  self.on('-update', () => object.rotation += 0.01);
+  self.on('update', () => object.rotation += 0.01);
 }
 
 function Cubes(unit) {
@@ -56,7 +56,7 @@ function Cubes(unit) {
       }
     }
   }
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.rotation.y += 0.01;
     object.rotation.z += 0.01;
   });
@@ -68,7 +68,7 @@ function Cube(unit, { x, y, z, size }) {
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
 
-  unit.on('-update', () => {
+  unit.on('update', () => {
       object.rotation.x += 0.01;
       object.rotation.y += 0.01;
   });

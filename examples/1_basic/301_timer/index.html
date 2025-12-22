@@ -26,7 +26,7 @@
       .timeout(() => unit.finalize());
 
       let count = 0;
-      unit.on('-update', () => {
+      unit.on('update', () => {
         box.style.transform = `rotate(${count++}deg)`;
       });
     }

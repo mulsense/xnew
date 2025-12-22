@@ -43,7 +43,7 @@ function Box(unit, { x, y, size, color }) {
   
   xnew.transition((progress) => object.alpha = progress, 2000);
   
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.rotation += 0.01;
   });
 }

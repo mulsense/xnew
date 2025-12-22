@@ -127,7 +127,7 @@ function TouchMessage(unit) {
   xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold">');
   xnew(StrokeText, { text: 'touch start' });
   let count = 0;
-  unit.on('-update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function ScoreText(unit) {
@@ -163,7 +163,7 @@ function ResultBackground(unit) {
     const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
     const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
-    circle.on('-update', () => {
+    circle.on('update', () => {
       Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
       p += 0.02;
     });
@@ -173,7 +173,7 @@ function ResultBackground(unit) {
     const [x, y] = [Math.random() * 100, Math.random() * 100];
     const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
-    circle.on('-update', () => {
+    circle.on('update', () => {
       Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
       p += 0.02;
     });
@@ -299,7 +299,7 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
     const random = Math.random() * 10;
 
     let count = 0;
-    unit.on('-update', () => {
+    unit.on('update', () => {
       const neck = vrm.humanoid.getNormalizedBoneNode('neck');
       const chest = vrm.humanoid.getNormalizedBoneNode('chest');
       const hips = vrm.humanoid.getNormalizedBoneNode('hips');
@@ -351,7 +351,7 @@ function Cursor(unit) {
       xnew.emit('+reload');
     } 
   });
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.rotation += 0.02;
     const position = convert3d(object.x, object.y + offset);
     model?.object.position.set(position.x, position.y, position.z);
@@ -376,7 +376,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
 
   xnew.emit('+append', StarParticles, { x, y });
   
-  ball.on('-update', () => {
+  ball.on('update', () => {
     const position = convert3d(ball.object.x, ball.object.y);
     model.object.position.set(position.x, position.y, position.z);
     model.object.rotation.z = -ball.object.rotation;
@@ -434,12 +434,15 @@ function StarParticles(unit, { x, y }) {
 
 function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {} }) {
   const object = xpixi.nest(new PIXI.Container({ position: { x, y } }));
-  const pyshics = xmatter.nest(Matter.Bodies.circle(x, y, radius, options));
+  const pyshics = Matter.Bodies.circle(x, y, radius, options);
+  Matter.Composite.add(xmatter.world, pyshics);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
+
   const graphics = new PIXI.Graphics().circle(0, 0, radius).fill(color);
   object.addChild(graphics);
   object.alpha = alpha;
 
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });

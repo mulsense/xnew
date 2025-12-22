@@ -20,7 +20,7 @@ function Boxes(unit: xnew.Unit) {
       xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
     }
   }
-  unit.on('-update', () => object.rotation += 0.01);
+  unit.on('update', () => object.rotation += 0.01);
 }
 
 function Box(unit: xnew.Unit, { x, y, size, color }: any) {
@@ -28,5 +28,5 @@ function Box(unit: xnew.Unit, { x, y, size, color }: any) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-  unit.on('-update', () => object.rotation += 0.01);
+  unit.on('update', () => object.rotation += 0.01);
 }

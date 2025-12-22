@@ -35,49 +35,57 @@ function Contents(contents) {
   button.on('click', () => contents.reboot());
 }
 
-function Rectangle(self, { x, y, w, h, color, options = {} }) {
+function Rectangle(unit, { x, y, w, h, color, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-w / 2, -h / 2, w, h).fill(color));
  
-  const pyshics = xmatter.nest(Matter.Bodies.rectangle(0, 0, w, h, options));
+  const pyshics = Matter.Bodies.rectangle(0, 0, w, h, options);
+  Matter.Composite.add(xmatter.world, pyshics);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
+
   Matter.Body.setPosition(pyshics, { x, y });
 
-  self.on('-update', () => {
+  unit.on('update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
 }
 
-function Circle(self, { x, y, radius, color, options = {} }) {
+function Circle(unit, { x, y, radius, color, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().circle(0, 0, radius).fill(color));
  
-  const pyshics = xmatter.nest(Matter.Bodies.circle(0, 0, radius, options));
+  const pyshics = Matter.Bodies.circle(0, 0, radius, options);
+  Matter.Composite.add(xmatter.world, pyshics);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
   Matter.Body.setPosition(pyshics, { x, y });
 
-  self.on('-update', () => {
+  unit.on('update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
 }
 
-function Polygon(self, { x, y, sides, radius, color, options = {} }) {
+function Polygon(unit, { x, y, sides, radius, color, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().regularPoly(0, 0, radius, sides).fill(color));
   
-  const pyshics = xmatter.nest(Matter.Bodies.polygon(0, 0, sides, radius, options));
+  const pyshics = Matter.Bodies.polygon(0, 0, sides, radius, options);
+  Matter.Composite.add(xmatter.world, pyshics);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
+
   Matter.Body.setPosition(pyshics, { x, y });
 
-  self.on('-update', () => {
+  unit.on('update', () => {
       object.rotation = pyshics.angle;
       object.position.set(pyshics.position.x, pyshics.position.y);
   });
 }
 
-function Dumbbell(self, { x, y, size, angle, color, options = {} }) {
+function Dumbbell(unit, { x, y, size, angle, color, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
   const graphics = new PIXI.Graphics();
   graphics.rect(-size, -size / 8, size * 2, size / 4).fill(color);
@@ -89,20 +97,26 @@ function Dumbbell(self, { x, y, size, angle, color, options = {} }) {
   const bar = Matter.Bodies.rectangle(0, 0, size * 2, size / 4);
   const circleL = Matter.Bodies.circle(-size, 0, size / 2);
   const circleR = Matter.Bodies.circle(+size, 0, size / 2);
-  const compound = xmatter.nest(Matter.Body.create({ parts: [bar, circleL, circleR], ...options }));
+  const compound = Matter.Body.create({ parts: [bar, circleL, circleR], ...options });
+  Matter.Composite.add(xmatter.world, compound);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, compound));
+
   Matter.Body.setPosition(compound, { x, y });
   Matter.Body.setAngle(compound, angle);
 
-  self.on('-update', () => {
+  unit.on('update', () => {
     object.rotation = compound.angle;
     object.position.set(compound.position.x, compound.position.y);
   });
 }
 
-function Car(self, { x, y, size }) {
+function Car(unit, { x, y, size }) {
   const container = xpixi.nest(new PIXI.Container());
 
-  const car = xmatter.nest(Matter.Composite.create({ label: 'car' }));
+  const car = Matter.Composite.create({ label: 'car' });
+  Matter.Composite.add(xmatter.world, car);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, car));
+
   const group = Matter.Body.nextGroup(true);
   const body = Matter.Bodies.rectangle(x, y, 80, 30, { collisionFilter: { group } });
   const wheelLeft = Matter.Bodies.circle(x - 25, y + 25, 15, { collisionFilter: { group }, friction: 0.9 });
@@ -144,7 +158,7 @@ function Car(self, { x, y, size }) {
   container.addChild(wheelLeftGraphics);
   container.addChild(wheelRightGraphics);
 
-  self.on('-update', () => {
+  unit.on('update', () => {
     bodyGraphics.rotation = body.angle;
     bodyGraphics.position.set(body.position.x, body.position.y);
     wheelLeftGraphics.rotation = wheelLeft.angle;
@@ -154,7 +168,7 @@ function Car(self, { x, y, size }) {
   });
 }
 
-function LShape(self, { x, y, color, size, options = {} }) {
+function LShape(unit, { x, y, color, size, options = {} }) {
   const object = xpixi.nest(new PIXI.Container());
 
   const a = size;
@@ -162,7 +176,10 @@ function LShape(self, { x, y, color, size, options = {} }) {
 
   const bar1 = Matter.Bodies.rectangle(0, -a + b, a * 2, b * 2);
   const bar2 = Matter.Bodies.rectangle(-a + b, 0, b * 2, a * 2);
-  const compound = xmatter.nest(Matter.Body.create({ parts: [bar1, bar2], ...options }));
+  const compound = Matter.Body.create({ parts: [bar1, bar2], ...options });
+  Matter.Composite.add(xmatter.world, compound);
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, compound));
+
   const offset = { x: compound.position.x, y: compound.position.y };
   Matter.Body.setPosition(compound, { x: x - offset.x, y: y - offset.y });
 
@@ -173,7 +190,7 @@ function LShape(self, { x, y, color, size, options = {} }) {
   object.position.set(x, y)
   object.pivot.set(offset.x, offset.y);
 
-  self.on('-update', () => {
+  unit.on('update', () => {
     object.rotation = compound.angle;
     object.position.set(compound.position.x, compound.position.y);
   });

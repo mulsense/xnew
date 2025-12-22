@@ -24,7 +24,7 @@ function Cubes(unit) {
       }
     }
   }
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.rotation.y += 0.01;
     object.rotation.z += 0.01;
   });
@@ -36,7 +36,7 @@ function Cube(unit, { x, y, z, size }) {
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
   
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.rotation.x += 0.01;
     object.rotation.y += 0.01;
   });

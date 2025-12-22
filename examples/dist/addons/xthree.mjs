@@ -26,7 +26,7 @@ var xthree = {
         return (_a = xnew.context('xthree.root')) === null || _a === void 0 ? void 0 : _a.canvas;
     }
 };
-function Root(self, { canvas, camera }) {
+function Root(unit, { canvas, camera }) {
     const root = {};
     xnew.context('xthree.root', root);
     root.canvas = canvas;
@@ -35,16 +35,16 @@ function Root(self, { canvas, camera }) {
     root.camera = camera !== null && camera !== void 0 ? camera : new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
     xnew.context('xthree.object', root.scene);
-    self.on('-update', () => {
+    unit.on('update', () => {
         root.renderer.render(root.scene, root.camera);
     });
 }
-function Nest(self, { object }) {
+function Nest(unit, { object }) {
     const parent = xnew.context('xthree.object');
     xnew.context('xthree.object', object);
     if (parent) {
         parent === null || parent === void 0 ? void 0 : parent.add(object);
-        self.on('-finalize', () => {
+        unit.on('finalize', () => {
             parent === null || parent === void 0 ? void 0 : parent.remove(object);
         });
     }
