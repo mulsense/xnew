@@ -29,7 +29,7 @@ interface UnitInternal {
 
     ancestors: Unit[];
     children: Unit[];
-    promises: Promise<any>[];
+    promises: UnitPromise[];
     elements: UnitElement[];
     components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, execute: Function }>;
@@ -91,10 +91,6 @@ export class Unit {
         return this._.currentElement;
     }
 
-    get components(): Function[] {
-        return this._.components;
-    }
-
     start(): void {
         this._.tostart = true;
     }
@@ -148,7 +144,7 @@ export class Unit {
         Unit.extend(unit, unit._.baseComponent, unit._.props); 
 
         // whether the unit promise was resolved
-        Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
+        Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
 
         Unit.current = backup;
     }
@@ -382,7 +378,7 @@ export class Unit {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitPromise {
-    private promise: Promise<any>;
+    public promise: Promise<any>;
     constructor(promise: Promise<any>) { this.promise = promise; }
     then(callback: Function): UnitPromise {
         this.promise = this.promise.then(Unit.wrap(Unit.current, callback));

@@ -99,8 +99,8 @@ export const xnew = Object.assign(
          */
         promise(promise: Promise<any>): UnitPromise {
             try {
-                Unit.current._.promises.push(promise);
-                return new UnitPromise(promise);
+                Unit.current._.promises.push(new UnitPromise(promise));
+                return Unit.current._.promises[Unit.current._.promises.length - 1];
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
                 throw error;
@@ -116,7 +116,7 @@ export const xnew = Object.assign(
          */
         then(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).then(callback);
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
                 throw error;
@@ -132,7 +132,7 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
                 throw error;
@@ -148,7 +148,7 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
+                return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);
                 throw error;

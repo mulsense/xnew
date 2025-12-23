@@ -52,7 +52,7 @@ interface UnitInternal {
     protected: boolean;
     ancestors: Unit[];
     children: Unit[];
-    promises: Promise<any>[];
+    promises: UnitPromise[];
     elements: UnitElement[];
     components: Function[];
     listeners: MapMap<string, Function, {
@@ -67,7 +67,6 @@ declare class Unit {
     _: UnitInternal;
     constructor(parent: Unit | null, ...args: any[]);
     get element(): UnitElement;
-    get components(): Function[];
     start(): void;
     stop(): void;
     finalize(): void;
@@ -97,7 +96,7 @@ declare class Unit {
     static emit(type: string, ...args: any[]): void;
 }
 declare class UnitPromise {
-    private promise;
+    promise: Promise<any>;
     constructor(promise: Promise<any>);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;

@@ -256,9 +256,6 @@ class Unit {
     get element() {
         return this._.currentElement;
     }
-    get components() {
-        return this._.components;
-    }
     start() {
         this._.tostart = true;
     }
@@ -307,7 +304,7 @@ class Unit {
         // setup component
         Unit.extend(unit, unit._.baseComponent, unit._.props);
         // whether the unit promise was resolved
-        Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
+        Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
         Unit.current = backup;
     }
     static finalize(unit) {
@@ -674,8 +671,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     promise(promise) {
         try {
-            Unit.current._.promises.push(promise);
-            return new UnitPromise(promise);
+            Unit.current._.promises.push(new UnitPromise(promise));
+            return Unit.current._.promises[Unit.current._.promises.length - 1];
         }
         catch (error) {
             console.error('xnew.promise(promise: Promise<any>): ', error);
@@ -691,7 +688,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     then(callback) {
         try {
-            return new UnitPromise(Promise.all(Unit.current._.promises)).then(callback);
+            return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).then(callback);
         }
         catch (error) {
             console.error('xnew.then(callback: Function): ', error);
@@ -707,7 +704,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     catch(callback) {
         try {
-            return new UnitPromise(Promise.all(Unit.current._.promises)).catch(callback);
+            return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).catch(callback);
         }
         catch (error) {
             console.error('xnew.catch(callback: Function): ', error);
@@ -723,7 +720,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     finally(callback) {
         try {
-            return new UnitPromise(Promise.all(Unit.current._.promises)).finally(callback);
+            return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).finally(callback);
         }
         catch (error) {
             console.error('xnew.finally(callback: Function): ', error);
