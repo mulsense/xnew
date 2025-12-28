@@ -379,7 +379,11 @@ export class Unit {
 
 export class UnitPromise {
     public promise: Promise<any>;
-    constructor(promise: Promise<any>) { this.promise = promise; }
+    public useResult: Boolean;
+    constructor(promise: Promise<any>, useResult: Boolean) {
+        this.promise = promise;
+        this.useResult = useResult;
+    }
     then(callback: Function): UnitPromise {
         this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
         return this;

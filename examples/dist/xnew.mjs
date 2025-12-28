@@ -521,7 +521,10 @@ Unit.type2units = new MapSet();
 // unit promise
 //----------------------------------------------------------------------------------------------------
 class UnitPromise {
-    constructor(promise) { this.promise = promise; }
+    constructor(promise, useResult) {
+        this.promise = promise;
+        this.useResult = useResult;
+    }
     then(callback) {
         this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
         return this;
@@ -669,9 +672,9 @@ const xnew$1 = Object.assign(function (...args) {
      * @example
      * xnew.promise(fetchData()).then(data => console.log(data))
      */
-    promise(promise) {
+    promise(promise, useResult = true) {
         try {
-            Unit.current._.promises.push(new UnitPromise(promise));
+            Unit.current._.promises.push(new UnitPromise(promise, useResult));
             return Unit.current._.promises[Unit.current._.promises.length - 1];
         }
         catch (error) {
@@ -688,7 +691,11 @@ const xnew$1 = Object.assign(function (...args) {
      */
     then(callback) {
         try {
-            return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).then(callback);
+            const promises = Unit.current._.promises;
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                .then((results) => {
+                callback(results.filter((_result, index) => promises[index].useResult));
+            });
         }
         catch (error) {
             console.error('xnew.then(callback: Function): ', error);
@@ -704,7 +711,9 @@ const xnew$1 = Object.assign(function (...args) {
      */
     catch(callback) {
         try {
-            return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).catch(callback);
+            const promises = Unit.current._.promises;
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                .catch(callback);
         }
         catch (error) {
             console.error('xnew.catch(callback: Function): ', error);
@@ -720,7 +729,9 @@ const xnew$1 = Object.assign(function (...args) {
      */
     finally(callback) {
         try {
-            return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).finally(callback);
+            const promises = Unit.current._.promises;
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                .finally(callback);
         }
         catch (error) {
             console.error('xnew.finally(callback: Function): ', error);

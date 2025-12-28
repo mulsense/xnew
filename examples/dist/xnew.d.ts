@@ -97,7 +97,8 @@ declare class Unit {
 }
 declare class UnitPromise {
     promise: Promise<any>;
-    constructor(promise: Promise<any>);
+    useResult: Boolean;
+    constructor(promise: Promise<any>, useResult: Boolean);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
@@ -169,7 +170,7 @@ declare const xnew$1: CreateUnit & {
      * @example
      * xnew.promise(fetchData()).then(data => console.log(data))
      */
-    promise(promise: Promise<any>): UnitPromise;
+    promise(promise: Promise<any>, useResult?: Boolean): UnitPromise;
     /**
      * Handles successful resolution of all registered promises in the current component
      * @param callback - Function to call when all promises resolve

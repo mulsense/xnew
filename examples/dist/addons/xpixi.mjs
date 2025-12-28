@@ -38,12 +38,7 @@ function Root(self, { canvas }) {
         antialias: true, backgroundAlpha: 0,
     });
     root.renderer = null;
-    if (renderer instanceof Promise) {
-        xnew.promise(renderer).then((renderer) => root.renderer = renderer);
-    }
-    else {
-        root.renderer = renderer;
-    }
+    xnew.promise(renderer, false).then((renderer) => root.renderer = renderer);
     root.updates = [];
     root.scene = new PIXI.Container();
     xnew.context('xpixi.object', root.scene);

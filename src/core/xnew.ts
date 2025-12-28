@@ -97,9 +97,9 @@ export const xnew = Object.assign(
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
          */
-        promise(promise: Promise<any>): UnitPromise {
+        promise(promise: Promise<any>, useResult: Boolean = true): UnitPromise {
             try {
-                Unit.current._.promises.push(new UnitPromise(promise));
+                Unit.current._.promises.push(new UnitPromise(promise, useResult));
                 return Unit.current._.promises[Unit.current._.promises.length - 1];
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
@@ -116,7 +116,11 @@ export const xnew = Object.assign(
          */
         then(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).then(callback);
+                const promises = Unit.current._.promises;
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                .then((results: any[]) => {
+                    callback(results.filter((_result, index) => promises[index].useResult));
+                });
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
                 throw error;
@@ -132,7 +136,9 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).catch(callback);
+                const promises = Unit.current._.promises;
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
                 throw error;
@@ -148,7 +154,9 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.current._.promises.map(p => p.promise))).finally(callback);
+                const promises = Unit.current._.promises;
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                .finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);
                 throw error;
