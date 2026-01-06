@@ -33,7 +33,7 @@ function Dot(unit) {
   object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
 
   let velocity = Math.random() + 0.1;
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.y += velocity;
     if (object.y > xpixi.canvas.height) {
       object.position.set(Math.random() * xpixi.canvas.width, 0);
@@ -168,7 +168,7 @@ function Shot(unit, { x, y }) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().ellipse(0, 0, 4, 24).fill(0x22FFFF));
 
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.y -= 12;
 
     // finalize when out of screen
@@ -198,7 +198,7 @@ function Enemy(unit) {
   const a = Math.random() * (Math.PI / 2) + Math.PI / 4;
   const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
   
-  unit.on('-update', () => {
+  unit.on('update', () => {
     // move in the opposite direction at the edge of the screen
     if (object.x < 10) velocity.x = +Math.abs(velocity.x);
     if (object.x > xpixi.canvas.width - 10) velocity.x = -Math.abs(velocity.x);
@@ -242,7 +242,7 @@ function CrashText(unit, { x, y, score }) {
 
   xnew.timeout(() => unit.finalize(), 1000); // remove after 1 second
   let count = 0;
-  unit.on('-update', () => { // bounding
+  unit.on('update', () => { // bounding
     object.y = y - 50 * Math.exp(-count / 20) * Math.abs(Math.sin(Math.PI * (count * 10) / 180));
     count++;
   });
@@ -260,7 +260,7 @@ function Crash(unit, { x, y, score }) {
   xnew.timeout(() => unit.finalize(), 800); // remove after 800ms
 
   let count = 0;
-  unit.on('-update', () => {
+  unit.on('update', () => {
     object.x += velocity.x;
     object.y += velocity.y;
     object.rotation = count / 10;
