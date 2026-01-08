@@ -22,8 +22,8 @@ function Main(unit) {
   // setup pixi
   xpixi.initialize({ canvas: unit.canvas });
 
-  // let scene = xnew(TitleScene);
-  let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  let scene = xnew(TitleScene);
+  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
   unit.on('+nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);

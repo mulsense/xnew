@@ -4043,7 +4043,7 @@
                     const unit = xnew();
                     if (music.played === null) {
                         music.play(options);
-                        unit.on('-finalize', () => music.pause({ fade: options.fade }));
+                        unit.on('finalize', () => music.pause({ fade: options.fade }));
                     }
                 },
                 pause(options) {
