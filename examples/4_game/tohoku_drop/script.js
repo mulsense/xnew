@@ -22,8 +22,8 @@ function Main(unit) {
   // setup pixi
   xpixi.initialize({ canvas: unit.canvas });
 
-  let scene = xnew(TitleScene);
-  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  // let scene = xnew(TitleScene);
+  let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
   unit.on('+nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
@@ -207,15 +207,34 @@ function ResultDetail(unit, { scores }) {
 function ResultFooter(unit) {
   xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.Camera, { frame: 'circle' });
+    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
+      xnew(Frame);
+      xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, xnew.icons.Camera);
+    });
     button.on('click', () => screenShot());
     xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
   });
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
-    const button = xnew('<div class="size-[9cqw] cursor-pointer hover:scale-110">', xnew.icons.ArrowUturnLeft, { frame: 'circle' });
+    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
+      xnew(Frame);
+      xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, xnew.icons.ArrowUturnLeft);
+    });
     button.on('click', () => xnew.emit('+nextscene', TitleScene));
   });
+
+  function Frame(unit, { frame = 'circle', Icon } = {}) {
+    xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
+        xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
+        if (frame === 'circle') {
+            xnew('<circle cx="12" cy="12" r="11">');
+        } else if (frame === 'square') {
+            xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
+        } else if (frame === 'rounded-square') {
+            xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
+        }
+    });
+  }
 }
 
 function DirectionalLight(unit, { x, y, z }) {

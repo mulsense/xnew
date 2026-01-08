@@ -6,7 +6,6 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "declaration": true,
-        "emitDeclarationOnly": true,
         "pretty": true,
         "newLine": "lf",
         "outDir": "./dist",

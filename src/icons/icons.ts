@@ -6,25 +6,9 @@ import { Unit } from '../core/unit';
 // MIT License
 
 function OutLineTemplate(unit: Unit,
-  { frame, stroke = 'currentColor', strokeOpacity = 1.0, strokeWidth = 1.5, strokeLinejoin = 'round', strokeLinecap = 'round' }:
-  { frame?: string, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, strokeLinecap?: string } = {}
+  { stroke = 'currentColor', strokeOpacity = 1.0, strokeWidth = 1.5, strokeLinejoin = 'round', strokeLinecap = 'round' }:
+  { stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, strokeLinecap?: string } = {}
 ) {
-    if (frame) {
-        xnew((unit: Unit) => {
-            xnew.nest(`<div style="position: absolute; margin: auto; width: 100%; height: 100%;">`);
-            xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
-            if (frame === 'circle') {
-                xnew('<circle cx="12" cy="12" r="11">');
-            } else if (frame === 'square') {
-                xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
-            } else if (frame === 'rounded-square') {
-                xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
-            }
-        });
-    }
-    if (frame) {
-        xnew.nest(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`);
-    }
     xnew.nest(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
       style="stroke-width: ${strokeWidth}; stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-linejoin: ${strokeLinejoin}; stroke-linecap: ${strokeLinecap};"
     >`);

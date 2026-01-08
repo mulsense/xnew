@@ -1694,25 +1694,7 @@ class Synthesizer {
 // heroicons
 // https://heroicons.com/outline
 // MIT License
-function OutLineTemplate(unit, { frame, stroke = 'currentColor', strokeOpacity = 1.0, strokeWidth = 1.5, strokeLinejoin = 'round', strokeLinecap = 'round' } = {}) {
-    if (frame) {
-        xnew$1((unit) => {
-            xnew$1.nest(`<div style="position: absolute; margin: auto; width: 100%; height: 100%;">`);
-            xnew$1.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
-            if (frame === 'circle') {
-                xnew$1('<circle cx="12" cy="12" r="11">');
-            }
-            else if (frame === 'square') {
-                xnew$1('<rect x="2" y="2" width="20" height="20" rx="0">');
-            }
-            else if (frame === 'rounded-square') {
-                xnew$1('<rect x="2" y="2" width="20" height="20" rx="6">');
-            }
-        });
-    }
-    if (frame) {
-        xnew$1.nest(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`);
-    }
+function OutLineTemplate(unit, { stroke = 'currentColor', strokeOpacity = 1.0, strokeWidth = 1.5, strokeLinejoin = 'round', strokeLinecap = 'round' } = {}) {
     xnew$1.nest(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
       style="stroke-width: ${strokeWidth}; stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-linejoin: ${strokeLinejoin}; stroke-linecap: ${strokeLinecap};"
     >`);

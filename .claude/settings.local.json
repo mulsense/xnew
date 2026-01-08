@@ -6,7 +6,8 @@
       "Bash(npx tsc:*)",
       "Bash(node -e:*)",
       "Bash(cat:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

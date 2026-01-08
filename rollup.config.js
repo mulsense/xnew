@@ -1,15 +1,6 @@
 import typescript from '@rollup/plugin-typescript';
 import { dts } from 'rollup-plugin-dts';
-import { rmSync, cpSync } from 'fs';
-
-function cleanup(target) {
-    return {
-        name: 'cleanup', 
-        writeBundle() {
-            rmSync(target, { recursive: true, force: true });
-        },
-    };
-}
+import { cpSync } from 'fs';
 
 function copyto(src, dst) {
     return {
@@ -45,14 +36,13 @@ export default [
         }
     },
     {
-        input: './dist/types/index.d.ts',
+        input: './src/index.ts',
         output: {
             file: './dist/xnew.d.ts',
             format: 'es',
         },
         plugins: [
             dts(),
-            //cleanup('./dist/types'),
             copyto('./dist/xnew.d.ts', './examples/dist/xnew.d.ts'),
         ],
         watch: {
