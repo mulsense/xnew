@@ -12,7 +12,7 @@ function Main(main) {
   // three setup
   xthree.initialize({ canvas: main.canvas });
   xthree.camera.position.set(0, 0, +100);
-  xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81 * 10, z: 0.0 }, timestep: 3 / 60 });
+  xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81, z: 0.0 }, timestep: 3 / 60 });
 
   xnew.then(() => {
     xnew(Cube, { x: 0, y: 20, z: 0, size: 20 });
