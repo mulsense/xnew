@@ -6,4 +6,5 @@ declare const _default: {
     readonly scene: any;
     readonly canvas: any;
 };
-export default _default;
+
+export { _default as default };

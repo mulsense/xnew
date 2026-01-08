@@ -3,4 +3,5 @@ declare const _default: {
     readonly engine: any;
     readonly world: any;
 };
-export default _default;
+
+export { _default as default };

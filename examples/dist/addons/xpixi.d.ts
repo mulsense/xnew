@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js';
+
 declare const _default: {
     initialize({ renderer, canvas }?: any): void;
     nest(object: any): any;
@@ -7,4 +8,5 @@ declare const _default: {
     readonly scene: any;
     readonly canvas: any;
 };
-export default _default;
+
+export { _default as default };

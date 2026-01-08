@@ -1,5 +1,7 @@
 {
     "compilerOptions": {
+        "moduleResolution": "bundler",
+        "module": "ESNext",
         "rootDir": "./src",
         "target": "ES6",
         "strict": true,
@@ -11,6 +13,5 @@
         "outDir": "./dist",
         "lib": ["ES6", "DOM"]
     },
-    "include": ["src/**/*.ts"],
-    "exclude": ["src/addons/*.ts"]
+    "include": ["./src/**/*.ts"]
 }
