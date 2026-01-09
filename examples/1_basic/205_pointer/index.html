@@ -44,14 +44,14 @@
       });
 
       xnew('<div class="absolute bottom-0 left-0 right-0">', () => {
-        const text1 = xnew('<div class="text-white text-lg text-center">', 'mouse over/out');
+        const text1 = xnew('<div class="text-white text-lg text-center">', 'pointer over/out');
         const text2 = xnew('<div class="text-white text-lg text-center">', 'pointer');
         const text3 = xnew('<div class="text-white text-lg text-center">', 'drag');
-        pointer.on('-mouseover', ({ position }) => {
-          text1.element.textContent = `-mouseover {x:${position.x}, y:${position.y}}`;
+        pointer.on('-pointerover', ({ position }) => {
+          text1.element.textContent = `-pointerover {x:${position.x}, y:${position.y}}`;
         });
-        pointer.on('-mouseout', ({ position }) => {
-          text1.element.textContent = `-mouseout {x:${position.x}, y:${position.y}}`;
+        pointer.on('-pointerout', ({ position }) => {
+          text1.element.textContent = `-pointerout {x:${position.x}, y:${position.y}}`;
         });
         pointer.on('-pointerdown', ({ position }) => {
           text2.element.textContent = `-pointerdown {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
