@@ -46,6 +46,7 @@ interface UnitInternal {
     baseComponent: Function;
     currentElement: UnitElement;
     currentContext: Context;
+    currentComponent: Function | null;
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
@@ -97,8 +98,8 @@ declare class Unit {
 }
 declare class UnitPromise {
     promise: Promise<any>;
-    useResult: Boolean;
-    constructor(promise: Promise<any>, useResult: Boolean);
+    component: Function | null;
+    constructor(promise: Promise<any>, component: Function | null);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;

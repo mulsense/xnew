@@ -290,6 +290,7 @@
             unit._ = Object.assign(unit._, {
                 currentElement: unit._.baseElement,
                 currentContext: unit._.baseContext,
+                currentComponent: null,
                 anchor,
                 state: 'invoked',
                 tostart: true,
@@ -365,7 +366,10 @@
             }
             unit._.components.push(component);
             Unit.component2units.add(component, unit);
+            const backupComponent = unit._.currentComponent;
+            unit._.currentComponent = component;
             const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
+            unit._.currentComponent = backupComponent;
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
@@ -527,9 +531,9 @@
     // unit promise
     //----------------------------------------------------------------------------------------------------
     class UnitPromise {
-        constructor(promise, useResult) {
+        constructor(promise, component) {
             this.promise = promise;
-            this.useResult = useResult;
+            this.component = component;
         }
         then(callback) {
             this.promise = this.promise.then(Unit.wrap(Unit.current, callback));

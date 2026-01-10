@@ -18,13 +18,13 @@
         setTimeout(() => {
           resolve('First Promise Resolved');
         }, 500);
-      }), false);
+      }));
 
       xnew.promise(new Promise((resolve) => {
         setTimeout(() => {
           resolve('Second Promise Resolved');
         }, 200);
-      }), true);
+      }));
 
       xnew.then((results) => {
         results.forEach((result) => {
