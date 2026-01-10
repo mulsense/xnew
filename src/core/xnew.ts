@@ -93,6 +93,7 @@ export const xnew = Object.assign(
         /**
          * Registers a promise with the current component for lifecycle management
          * @param promise - Promise to register
+         * @param useResult - Whether to use the result of the promise (default: true)
          * @returns UnitPromise wrapper for chaining
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
