@@ -14,7 +14,7 @@ function Root(self: xnew.Unit, { gravity, timestep }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xrapier3d.root', root);
 
-    xnew.promise(RAPIER.init(), false).then(() => {
+    xnew.promise(RAPIER.init()).then(() => {
         root.world = new RAPIER.World(gravity);
         if (timestep !== null) {
             root.world.timestep = timestep;

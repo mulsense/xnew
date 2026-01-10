@@ -93,12 +93,11 @@ export const xnew = Object.assign(
         /**
          * Registers a promise with the current component for lifecycle management
          * @param promise - Promise to register
-         * @param useResult - Whether to use the result of the promise (default: true)
          * @returns UnitPromise wrapper for chaining
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
          */
-        promise(promise: Promise<any>, useResult: Boolean = true): UnitPromise {
+        promise(promise: Promise<any>): UnitPromise {
             try {
                 const component = Unit.current._.currentComponent;
                 Unit.current._.promises.push(new UnitPromise(promise, component));
@@ -122,7 +121,7 @@ export const xnew = Object.assign(
                 const promises = Unit.current._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results: any[]) => {
-                    callback(results.filter((_result, index) => promises[index].component !== null && component === promises[index].component));
+                    callback(results.filter((_result, index) => promises[index].component !== null && promises[index].component === component));
                 });
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -139,9 +138,8 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                const component = Unit.current._.currentComponent;
                 const promises = Unit.current._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
@@ -159,7 +157,7 @@ export const xnew = Object.assign(
         finally(callback: Function): UnitPromise {
             try {
                 const promises = Unit.current._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);

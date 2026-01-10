@@ -672,12 +672,11 @@ const xnew$1 = Object.assign(function (...args) {
     /**
      * Registers a promise with the current component for lifecycle management
      * @param promise - Promise to register
-     * @param useResult - Whether to use the result of the promise (default: true)
      * @returns UnitPromise wrapper for chaining
      * @example
      * xnew.promise(fetchData()).then(data => console.log(data))
      */
-    promise(promise, useResult = true) {
+    promise(promise) {
         try {
             const component = Unit.current._.currentComponent;
             Unit.current._.promises.push(new UnitPromise(promise, component));
@@ -701,7 +700,7 @@ const xnew$1 = Object.assign(function (...args) {
             const promises = Unit.current._.promises;
             return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results) => {
-                callback(results.filter((_result, index) => promises[index].component !== null && component === promises[index].component));
+                callback(results.filter((_result, index) => promises[index].component !== null && promises[index].component === component));
             });
         }
         catch (error) {
@@ -718,9 +717,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     catch(callback) {
         try {
-            const component = Unit.current._.currentComponent;
             const promises = Unit.current._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .catch(callback);
         }
         catch (error) {
@@ -738,7 +736,7 @@ const xnew$1 = Object.assign(function (...args) {
     finally(callback) {
         try {
             const promises = Unit.current._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .finally(callback);
         }
         catch (error) {

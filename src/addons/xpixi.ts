@@ -32,13 +32,11 @@ function Root(self: xnew.Unit, { canvas }: any) {
     xnew.context('xpixi.root', root);
     root.canvas = canvas;
     
-    const renderer = PIXI.autoDetectRenderer({
+    root.renderer = null;
+    xnew.promise(PIXI.autoDetectRenderer({
         width: canvas.width, height: canvas.height, view: canvas,
         antialias: true, backgroundAlpha: 0,
-    });
-    
-    root.renderer = null;
-    xnew.promise(renderer, false).then((renderer: any) => root.renderer = renderer);
+    })).then((renderer: any) => root.renderer = renderer);
 
     root.updates = [];
     root.scene = new PIXI.Container();
