@@ -72,15 +72,15 @@ function Cube(unit, { x, y, z, size, color }) {
 function Controller(unit) {
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
-  const pointer = xnew(xnew.basics.PointerEvent);
+  const direct = xnew(xnew.basics.DirectEvent);
   let isActive = false;
-  pointer.on('-gesturestart', () => isActive = true);
-  pointer.on('-gestureend', () => isActive = false);
-  pointer.on('-gesturemove', ({ scale }) => {
+  direct.on('-gesturestart', () => isActive = true);
+  direct.on('-gestureend', () => isActive = false);
+  direct.on('-gesturemove', ({ scale }) => {
     xnew.emit('+scale', { scale })
   });
   
-  pointer.on('-dragmove', ({ event, delta }) => {
+  direct.on('-dragmove', ({ event, delta }) => {
     console.log(event);
     if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
@@ -90,5 +90,5 @@ function Controller(unit) {
       xnew.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
     }
   });
-  pointer.on('-wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+  direct.on('-wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
 }

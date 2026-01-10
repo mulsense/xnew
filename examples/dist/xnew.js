@@ -927,6 +927,76 @@
             }
         });
     }
+    function DirectEvent(unit) {
+        const state = {};
+        const keydown = xnew$1.scope((event) => {
+            state[event.code] = 1;
+            xnew$1.emit('-keydown', { event, type: '-keydown', code: event.code });
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+                xnew$1.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+            }
+        });
+        const keyup = xnew$1.scope((event) => {
+            state[event.code] = 0;
+            xnew$1.emit('-keyup', { event, type: '-keyup', code: event.code });
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+                xnew$1.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+            }
+        });
+        window.addEventListener('keydown', keydown);
+        window.addEventListener('keyup', keyup);
+        unit.on('finalize', () => {
+            window.removeEventListener('keydown', keydown);
+            window.removeEventListener('keyup', keyup);
+        });
+        function getVector() {
+            return {
+                x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
+                y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
+            };
+        }
+        const internal = xnew$1();
+        internal.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
+        internal.on('pointermove', (event) => xnew$1.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
+        internal.on('pointerup', (event) => xnew$1.emit('-pointerup', { event, position: getPosition(unit.element, event) }));
+        internal.on('wheel', (event) => xnew$1.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
+        internal.on('click', (event) => xnew$1.emit('-click', { event, position: getPosition(unit.element, event) }));
+        internal.on('pointerover', (event) => xnew$1.emit('-pointerover', { event, position: getPosition(unit.element, event) }));
+        internal.on('pointerout', (event) => xnew$1.emit('-pointerout', { event, position: getPosition(unit.element, event) }));
+        const pointerdownoutside = xnew$1.scope((event) => {
+            if (unit.element.contains(event.target) === false) {
+                xnew$1.emit('-pointerdown:outside', { event, position: getPosition(unit.element, event) });
+            }
+        });
+        const pointerupoutside = xnew$1.scope((event) => {
+            if (unit.element.contains(event.target) === false) {
+                xnew$1.emit('-pointerup:outside', { event, position: getPosition(unit.element, event) });
+            }
+        });
+        const clickoutside = xnew$1.scope((event) => {
+            if (unit.element.contains(event.target) === false) {
+                xnew$1.emit('-click:outside', { event, position: getPosition(unit.element, event) });
+            }
+        });
+        document.addEventListener('pointerdown', pointerdownoutside);
+        document.addEventListener('pointerup', pointerupoutside);
+        document.addEventListener('click', clickoutside);
+        unit.on('finalize', () => {
+            document.removeEventListener('pointerdown', pointerdownoutside);
+            document.removeEventListener('pointerup', pointerupoutside);
+            document.removeEventListener('click', clickoutside);
+        });
+        const drag = xnew$1(DragEvent);
+        drag.on('-dragstart', (...args) => xnew$1.emit('-dragstart', ...args));
+        drag.on('-dragmove', (...args) => xnew$1.emit('-dragmove', ...args));
+        drag.on('-dragend', (...args) => xnew$1.emit('-dragend', ...args));
+        drag.on('-dragcancel', (...args) => xnew$1.emit('-dragcancel', ...args));
+        const gesture = xnew$1(GestureEvent);
+        gesture.on('-gesturestart', (...args) => xnew$1.emit('-gesturestart', ...args));
+        gesture.on('-gesturemove', (...args) => xnew$1.emit('-gesturemove', ...args));
+        gesture.on('-gestureend', (...args) => xnew$1.emit('-gestureend', ...args));
+        gesture.on('-gesturecancel', (...args) => xnew$1.emit('-gesturecancel', ...args));
+    }
     function KeyboardEvent(keyboard) {
         const state = {};
         const keydown = xnew$1.scope((event) => {
@@ -945,7 +1015,7 @@
         });
         window.addEventListener('keydown', keydown);
         window.addEventListener('keyup', keyup);
-        keyboard.on('-finalize', () => {
+        keyboard.on('finalize', () => {
             window.removeEventListener('keydown', keydown);
             window.removeEventListener('keyup', keyup);
         });
@@ -983,7 +1053,7 @@
         document.addEventListener('pointerdown', pointerdownoutside);
         document.addEventListener('pointerup', pointerupoutside);
         document.addEventListener('click', clickoutside);
-        unit.on('-finalize', () => {
+        unit.on('finalize', () => {
             document.removeEventListener('pointerdown', pointerdownoutside);
             document.removeEventListener('pointerup', pointerupoutside);
             document.removeEventListener('click', clickoutside);
@@ -2718,6 +2788,7 @@
     const basics = {
         Screen,
         PointerEvent,
+        DirectEvent,
         ResizeEvent,
         KeyboardEvent,
         ModalFrame,

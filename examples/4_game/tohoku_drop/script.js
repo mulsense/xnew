@@ -257,7 +257,7 @@ function ShadowPlane(unit) {
 }
 
 function Controller(unit) {
-  xnew.extend(xnew.basics.PointerEvent);
+  xnew.extend(xnew.basics.DirectEvent);
   unit.on('-pointermove -pointerdown', ({ position }) => {
     xnew.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
   });

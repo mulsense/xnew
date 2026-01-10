@@ -2,7 +2,7 @@ import { xnew as base } from './core/xnew';
 import { Unit, UnitPromise } from './core/unit';
 
 import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } from './basics/Accordion';
-import { ResizeEvent, PointerEvent, KeyboardEvent } from './basics/Event';
+import { ResizeEvent, DirectEvent, PointerEvent, KeyboardEvent } from './basics/Event';
 import { Screen } from './basics/Screen';
 import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
@@ -16,6 +16,7 @@ import { icons } from './icons/icons';
 const basics = {
     Screen,
     PointerEvent,
+    DirectEvent,
     ResizeEvent,
     KeyboardEvent,
     ModalFrame,
