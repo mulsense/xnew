@@ -100,7 +100,8 @@ export const xnew = Object.assign(
          */
         promise(promise: Promise<any>, useResult: Boolean = true): UnitPromise {
             try {
-                Unit.current._.promises.push(new UnitPromise(promise, useResult));
+                const component = Unit.current._.currentComponent;
+                Unit.current._.promises.push(new UnitPromise(promise, component));
                 return Unit.current._.promises[Unit.current._.promises.length - 1];
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
@@ -117,10 +118,11 @@ export const xnew = Object.assign(
          */
         then(callback: Function): UnitPromise {
             try {
+                const component = Unit.current._.currentComponent;
                 const promises = Unit.current._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results: any[]) => {
-                    callback(results.filter((_result, index) => promises[index].useResult));
+                    callback(results.filter((_result, index) => promises[index].component !== null && component === promises[index].component));
                 });
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -137,6 +139,7 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
+                const component = Unit.current._.currentComponent;
                 const promises = Unit.current._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
                 .catch(callback);

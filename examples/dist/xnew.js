@@ -685,7 +685,8 @@
          */
         promise(promise, useResult = true) {
             try {
-                Unit.current._.promises.push(new UnitPromise(promise, useResult));
+                const component = Unit.current._.currentComponent;
+                Unit.current._.promises.push(new UnitPromise(promise, component));
                 return Unit.current._.promises[Unit.current._.promises.length - 1];
             }
             catch (error) {
@@ -702,10 +703,11 @@
          */
         then(callback) {
             try {
+                const component = Unit.current._.currentComponent;
                 const promises = Unit.current._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                     .then((results) => {
-                    callback(results.filter((_result, index) => promises[index].useResult));
+                    callback(results.filter((_result, index) => promises[index].component !== null && component === promises[index].component));
                 });
             }
             catch (error) {
@@ -722,6 +724,7 @@
          */
         catch(callback) {
             try {
+                const component = Unit.current._.currentComponent;
                 const promises = Unit.current._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), true)
                     .catch(callback);
