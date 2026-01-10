@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  
+  <script>
+    xnew('#main', (unit) => {
+
+      xnew('<div class="size-16 text-red-500">', xnew.icons.Bell);
+      xnew('<div class="size-16 text-green-500">', xnew.icons.Calendar);
+      xnew('<div class="size-16 text-blue-500">', xnew.icons.Bolt);
+    });
+
+
+  </script>
+</body>
+
+</html>

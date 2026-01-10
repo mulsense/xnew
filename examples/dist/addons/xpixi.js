@@ -55,12 +55,11 @@
         const root = {};
         xnew.context('xpixi.root', root);
         root.canvas = canvas;
-        const renderer = PIXI__namespace.autoDetectRenderer({
+        root.renderer = null;
+        xnew.promise(PIXI__namespace.autoDetectRenderer({
             width: canvas.width, height: canvas.height, view: canvas,
             antialias: true, backgroundAlpha: 0,
-        });
-        root.renderer = null;
-        xnew.promise(renderer, false).then((renderer) => root.renderer = renderer);
+        })).then((renderer) => root.renderer = renderer);
         root.updates = [];
         root.scene = new PIXI__namespace.Container();
         xnew.context('xpixi.object', root.scene);
