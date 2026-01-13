@@ -1,5 +1,5 @@
 declare const _default: {
-    initialize({ gravity, timestep }?: any): void;
+    initialize({ gravity }?: any): void;
     readonly world: any;
 };
 

@@ -21,7 +21,7 @@ export function TextStream(unit: Unit, { text = '', speed = 50, fade = 300 }: { 
     unit.on('update', () => {
         const index = Math.floor((new Date().getTime() - start) / speed);
 
-        // 現在のインデックスまでの文字を表示（フェードイン）
+        // Display characters up to the current index (fade in)
         for (let i = 0; i < chars.length; i++) {
             if (i <= index) {
                 chars[i].element.style.opacity = '1';

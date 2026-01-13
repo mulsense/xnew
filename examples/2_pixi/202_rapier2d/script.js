@@ -9,9 +9,9 @@ xnew('#main', Main);
 function Main(self) {
   const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
   xpixi.initialize({ canvas: screen.canvas });
-  xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 }, timestep: 3 / 60 });
-
+  xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 } });
   xnew.then(() => {
+    xrapier2d.world.timestep = 3 / 60;
     const contents = xnew(Contents);
     const button = xnew('<button style="position: absolute; top: 0;">', 'reset');
     button.on('click', () => contents.reboot());

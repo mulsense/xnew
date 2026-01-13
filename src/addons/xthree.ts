@@ -43,10 +43,8 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     const parent = xnew.context('xthree.object');
     xnew.context('xthree.object', object);
 
-    if (parent) {
-        parent?.add(object);
-        unit.on('finalize', () => {
-            parent?.remove(object);
-        });
-    }
+    parent.add(object);
+    unit.on('finalize', () => {
+        parent.remove(object);
+    });
 }
