@@ -15,6 +15,17 @@
       xnew(MyPanel);
     });
 
+    function PanelGroup(group, { name, open = false }) {
+      xnew.extend(xnew.basics.AccordionFrame, { open });
+      xnew((header) => {
+          xnew.nest('<div style="margin: 0.2em 0;">');
+          xnew.extend(xnew.basics.AccordionHeader);
+          xnew(xnew.basics.AccordionBullet);
+          xnew('<div>', name);
+      });
+      xnew.extend(xnew.basics.AccordionContent);
+    }
+
     function MyPanel(unit) {
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
 
@@ -67,17 +78,6 @@
           xnew('<input type="text" name="text 1" value="text" class="px-2 w-full h-8 border rounded-lg">');
         })
       });
-    }
-
-    function PanelGroup(group, { name, open = false }) {
-      xnew.extend(xnew.basics.AccordionFrame, { open });
-      xnew((header) => {
-          xnew.nest('<div style="margin: 0.2em 0;">');
-          xnew.extend(xnew.basics.AccordionHeader);
-          xnew(xnew.basics.AccordionBullet);
-          xnew('<div>', name);
-      });
-      xnew.extend(xnew.basics.AccordionContent);
     }
 
   </script>

@@ -18,20 +18,21 @@
     });
 
     function Div(unit) {
-      // xnew.protect();
+      xnew.protect();
+      xnew.nest('<div class="p-2 flex items-center">');
 
-      let count = 0;
-      const p = xnew('<div>', '0')
-      p.on('+countup', () => {
-        count++;
-        p.element.textContent = count;
+      xnew((unit) => {
+        xnew.nest('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">');
+        unit.element.textContent = 'click';
+
+        unit.on('click', () => xnew.emit('+countup'));
       });
 
       xnew((unit) => {
-        const button = xnew.nest('<button>');
-        button.textContent = 'click';
-
-        unit.on('click', () => unit.emit('+countup'));
+        xnew.nest('<div class="m-2">');
+        unit.element.textContent = '0';
+        let count = 0;
+        unit.on('+countup', () => unit.element.textContent = count++);
       });
     }
 

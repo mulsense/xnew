@@ -13,17 +13,16 @@
   <script>
     let count = 0;
     xnew('#main', (unit) => {
+      xnew('<p>', 'Please wait.');
       
       xnew.promise(new Promise((resolve) => {
-        setTimeout(() => {
-          resolve('First Promise Resolved');
-        }, 500);
-      }));
+        xnew.timeout(() => resolve('First Promise Resolved'), 2000);
+      })).then((text) => {
+        return text + ' 2';
+      });
 
       xnew.promise(new Promise((resolve) => {
-        setTimeout(() => {
-          resolve('Second Promise Resolved');
-        }, 200);
+        xnew.timeout(() => resolve('Second Promise Resolved'), 1000);
       }));
 
       xnew.then((results) => {
