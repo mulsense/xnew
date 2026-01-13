@@ -93,7 +93,7 @@ function Controller(unit) {
       xnew.emit('+shot')
   });
 
-  direct.on('-keydown:arrow -keyup:arrow', ({ vector }) => xnew.emit('+move', { vector }));
+  direct.on('-keydown.arrow -keyup.arrow', ({ vector }) => xnew.emit('+move', { vector }));
   direct.on('-keydown', ({ code }) => {
     if (code === 'Space') {
       xnew.emit('+shot')

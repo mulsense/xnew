@@ -26,9 +26,9 @@ function Main(unit) {
   // pixi 
   xpixi.initialize({ canvas: unit.canvas });
 
-  xnew.fetch('./levels.json').then(response => response.json()).then((levels) => {
+  xnew.promise(fetch('./levels.json')).then(response => response.json()).then((levels) => {
     xnew.context('global').levels = levels;
-    // let scene = xnew(TitleScene);
+    //let scene = xnew(TitleScene);
     // let scene = xnew(StoryScene, { id: 0, });
     let scene = xnew(GameScene, { id: 0 });
 
@@ -63,8 +63,8 @@ function Fade(unit, { fadein, fadeout }) {
       unit.finalize();
     });
   }); 
-  internal.on('-fadeout', xnew.emit('-fadeout'));
-  internal.on('-fadein', xnew.emit('-fadein'));
+  internal.on('-fadeout', () => xnew.emit('-fadeout'));
+  internal.on('-fadein', () => xnew.emit('-fadein'));
 }
 
 function StoryScene(unit, { id, next = false }) {
@@ -178,8 +178,7 @@ function Texture(unit, { texture, position = { x: 0, y: 0} }) {
 
 function TitleText(unit) {
   xnew.nest('<div class="absolute top-[20cqh] w-full text-green-700 text-center text-[16cqw] flex justify-center">');
-  // const text = 'とーほく倉庫';
-  const text = '東北天明';
+  const text = 'とーほく倉庫';
   const chars = [];
   for (let i = 0; i < text.length; i++) {
       const unit = xnew('<div>', (unit) => {
@@ -253,7 +252,7 @@ function Floor(unit) {
   }
 }
 
-function Wall(wall, { x, y }) {
+function Wall(unit, { x, y }) {
   const height = 1;
   const object = xthree.nest(new THREE.Object3D());
 
@@ -274,7 +273,6 @@ function Wall(wall, { x, y }) {
 
     object.add(mesh);
   });
-
   const position = convert3d(x, y, height / 2);
   object.position.set(position.x, position.y, position.z);
 }
@@ -302,7 +300,7 @@ function Goal(goal, { x, y }) {
   object.receiveShadow = true;
 
   let count = 0;
-  goal.on('-update', () => {
+  goal.on('update', () => {
     const intensity = 0.1 + Math.sin(count * 0.1) * 0.1;
     material.emissiveIntensity = Math.max(0, intensity);
     count++;
@@ -332,7 +330,7 @@ function Player(player, { id, x, y }) {
   });
 
   const offset = { x: 0, y: 0 };
-  player.on('-update', () => {
+  player.on('update', () => {
     const position = convert3d(x - offset.x, y - offset.y + 0.3, 0);
     object.position.set(position.x, position.y, position.z);
   });
@@ -378,7 +376,7 @@ function Box(box, { x, y }) {
 
   let random = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
-  box.on('-update', () => {
+  box.on('update', () => {
     const position = convert3d(x - offset.x, y - offset.y, boxSize / 2);
     object.position.set(position.x + random.x, position.y + random.y, position.z);
 
@@ -430,7 +428,7 @@ function LeftBlock(unit, { id }) {
     xnew(BlockBUtton, { text: '帰'} ).on('click', () => xnew.emit('+main', TitleScene));
   });
 
-  xnew(xnew.basics.KeyboardEvent).on('-keydown:arrow', ({ event, vector }) => {
+  xnew(xnew.basics.KeyboardEvent).on('-keydown.arrow', ({ event, vector }) => {
     event.preventDefault();
     move(vector);
   });
@@ -499,7 +497,7 @@ function Model(unit, { id = 0, scale }) {
   const offset = Math.random() * 10;
 
   let count = 0;
-  unit.on('-update', () => {
+  unit.on('update', () => {
     const neck = vrm.humanoid.getNormalizedBoneNode('neck');
     const chest = vrm.humanoid.getNormalizedBoneNode('chest');
     const hips = vrm.humanoid.getNormalizedBoneNode('hips');

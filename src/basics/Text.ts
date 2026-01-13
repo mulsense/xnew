@@ -13,12 +13,12 @@ export function TextStream(unit: Unit, { text = '', speed = 50, fade = 300 }: { 
     }
 
     let start = 0;
-    unit.on('-start', () => {
+    unit.on('start', () => {
         start = new Date().getTime();
     });
 
     let state = 0;
-    unit.on('-update', () => {
+    unit.on('update', () => {
         const index = Math.floor((new Date().getTime() - start) / speed);
 
         // 現在のインデックスまでの文字を表示（フェードイン）

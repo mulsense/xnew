@@ -12,7 +12,7 @@ export function ResizeEvent(resize: Unit) {
     if (resize.element) {
         observer.observe(resize.element);
     }
-    resize.on('-finalize', () => {
+    resize.on('finalize', () => {
         if (resize.element) {
             observer.unobserve(resize.element);
         }
@@ -26,7 +26,7 @@ export function DirectEvent(unit: Unit) {
         state[event.code] = 1;
         xnew.emit('-keydown', { event, type: '-keydown', code: event.code });
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-            xnew.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+            xnew.emit('-keydown.arrow', { event, type: '-keydown.arrow', code: event.code, vector: getVector() });
         }
     });
 
@@ -34,7 +34,7 @@ export function DirectEvent(unit: Unit) {
         state[event.code] = 0;
         xnew.emit('-keyup', { event, type: '-keyup', code: event.code });
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-            xnew.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+            xnew.emit('-keyup.arrow', { event, type: '-keyup.arrow', code: event.code, vector: getVector() });
         }
     });
 
@@ -65,17 +65,17 @@ export function DirectEvent(unit: Unit) {
 
     const pointerdownoutside = xnew.scope((event: any) => {
         if (unit.element.contains(event.target) === false) {
-            xnew.emit('-pointerdown:outside', { event, position: getPosition(unit.element, event) });
+            xnew.emit('-pointerdown.outside', { event, position: getPosition(unit.element, event) });
         }
     });
     const pointerupoutside = xnew.scope((event: any) => {
         if (unit.element.contains(event.target) === false) {
-            xnew.emit('-pointerup:outside', { event, position: getPosition(unit.element, event) });
+            xnew.emit('-pointerup.outside', { event, position: getPosition(unit.element, event) });
         }
     });
     const clickoutside = xnew.scope((event: any) => {
         if (unit.element.contains(event.target) === false) {
-            xnew.emit('-click:outside', { event, position: getPosition(unit.element, event) });
+            xnew.emit('-click.outside', { event, position: getPosition(unit.element, event) });
         }
     });
     document.addEventListener('pointerdown', pointerdownoutside);
@@ -107,7 +107,7 @@ export function KeyboardEvent(keyboard: Unit) {
         state[event.code] = 1;
         xnew.emit('-keydown', { event, type: '-keydown', code: event.code });
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-            xnew.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+            xnew.emit('-keydown.arrow', { event, type: '-keydown.arrow', code: event.code, vector: getVector() });
         }
     });
 
@@ -115,7 +115,7 @@ export function KeyboardEvent(keyboard: Unit) {
         state[event.code] = 0;
         xnew.emit('-keyup', { event, type: '-keyup', code: event.code });
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-            xnew.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+            xnew.emit('-keyup.arrow', { event, type: '-keyup.arrow', code: event.code, vector: getVector() });
         }
     });
 
@@ -148,17 +148,17 @@ export function PointerEvent(unit: Unit) {
 
     const pointerdownoutside = xnew.scope((event: any) => {
         if (unit.element.contains(event.target) === false) {
-            xnew.emit('-pointerdown:outside', { event, position: getPosition(unit.element, event) });
+            xnew.emit('-pointerdown.outside', { event, position: getPosition(unit.element, event) });
         }
     });
     const pointerupoutside = xnew.scope((event: any) => {
         if (unit.element.contains(event.target) === false) {
-            xnew.emit('-pointerup:outside', { event, position: getPosition(unit.element, event) });
+            xnew.emit('-pointerup.outside', { event, position: getPosition(unit.element, event) });
         }
     });
     const clickoutside = xnew.scope((event: any) => {
         if (unit.element.contains(event.target) === false) {
-            xnew.emit('-click:outside', { event, position: getPosition(unit.element, event) });
+            xnew.emit('-click.outside', { event, position: getPosition(unit.element, event) });
         }
     });
     document.addEventListener('pointerdown', pointerdownoutside);

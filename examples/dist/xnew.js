@@ -926,7 +926,7 @@
         if (resize.element) {
             observer.observe(resize.element);
         }
-        resize.on('-finalize', () => {
+        resize.on('finalize', () => {
             if (resize.element) {
                 observer.unobserve(resize.element);
             }
@@ -938,14 +938,14 @@
             state[event.code] = 1;
             xnew$1.emit('-keydown', { event, type: '-keydown', code: event.code });
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                xnew$1.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+                xnew$1.emit('-keydown.arrow', { event, type: '-keydown.arrow', code: event.code, vector: getVector() });
             }
         });
         const keyup = xnew$1.scope((event) => {
             state[event.code] = 0;
             xnew$1.emit('-keyup', { event, type: '-keyup', code: event.code });
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                xnew$1.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+                xnew$1.emit('-keyup.arrow', { event, type: '-keyup.arrow', code: event.code, vector: getVector() });
             }
         });
         window.addEventListener('keydown', keydown);
@@ -970,17 +970,17 @@
         internal.on('pointerout', (event) => xnew$1.emit('-pointerout', { event, position: getPosition(unit.element, event) }));
         const pointerdownoutside = xnew$1.scope((event) => {
             if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-pointerdown:outside', { event, position: getPosition(unit.element, event) });
+                xnew$1.emit('-pointerdown.outside', { event, position: getPosition(unit.element, event) });
             }
         });
         const pointerupoutside = xnew$1.scope((event) => {
             if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-pointerup:outside', { event, position: getPosition(unit.element, event) });
+                xnew$1.emit('-pointerup.outside', { event, position: getPosition(unit.element, event) });
             }
         });
         const clickoutside = xnew$1.scope((event) => {
             if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-click:outside', { event, position: getPosition(unit.element, event) });
+                xnew$1.emit('-click.outside', { event, position: getPosition(unit.element, event) });
             }
         });
         document.addEventListener('pointerdown', pointerdownoutside);
@@ -1008,14 +1008,14 @@
             state[event.code] = 1;
             xnew$1.emit('-keydown', { event, type: '-keydown', code: event.code });
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                xnew$1.emit('-keydown:arrow', { event, type: '-keydown:arrow', code: event.code, vector: getVector() });
+                xnew$1.emit('-keydown.arrow', { event, type: '-keydown.arrow', code: event.code, vector: getVector() });
             }
         });
         const keyup = xnew$1.scope((event) => {
             state[event.code] = 0;
             xnew$1.emit('-keyup', { event, type: '-keyup', code: event.code });
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                xnew$1.emit('-keyup:arrow', { event, type: '-keyup:arrow', code: event.code, vector: getVector() });
+                xnew$1.emit('-keyup.arrow', { event, type: '-keyup.arrow', code: event.code, vector: getVector() });
             }
         });
         window.addEventListener('keydown', keydown);
@@ -1042,17 +1042,17 @@
         internal.on('pointerout', (event) => xnew$1.emit('-pointerout', { event, position: getPosition(unit.element, event) }));
         const pointerdownoutside = xnew$1.scope((event) => {
             if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-pointerdown:outside', { event, position: getPosition(unit.element, event) });
+                xnew$1.emit('-pointerdown.outside', { event, position: getPosition(unit.element, event) });
             }
         });
         const pointerupoutside = xnew$1.scope((event) => {
             if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-pointerup:outside', { event, position: getPosition(unit.element, event) });
+                xnew$1.emit('-pointerup.outside', { event, position: getPosition(unit.element, event) });
             }
         });
         const clickoutside = xnew$1.scope((event) => {
             if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-click:outside', { event, position: getPosition(unit.element, event) });
+                xnew$1.emit('-click.outside', { event, position: getPosition(unit.element, event) });
             }
         });
         document.addEventListener('pointerdown', pointerdownoutside);
@@ -1518,11 +1518,11 @@
             chars.push(unit);
         }
         let start = 0;
-        unit.on('-start', () => {
+        unit.on('start', () => {
             start = new Date().getTime();
         });
         let state = 0;
-        unit.on('-update', () => {
+        unit.on('update', () => {
             const index = Math.floor((new Date().getTime() - start) / speed);
             // 現在のインデックスまでの文字を表示（フェードイン）
             for (let i = 0; i < chars.length; i++) {
