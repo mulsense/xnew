@@ -39,7 +39,6 @@ function Main(unit) {
 
   xnew.then(() => {
     xrapier3d.world.timestep = 3 / 60;
-    xnew(Controller);
     xnew(CameraController);
     xnew(Player, { x: 0, y: 30, z: 0 });
     xnew(Ground, { x: 0, y: 0, z: 0, width: 100, height: 2, depth: 100 });
@@ -47,41 +46,6 @@ function Main(unit) {
     // Add some obstacles
     xnew(Cube, { x: 20, y: 30, z: 0, size: 10, dynamic: true });
     xnew(Cube, { x: -20, y: 30, z: 20, size: 10, dynamic: true });
-  });
-}
-
-function Controller(unit) {
-  // prevent default event
-  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-
-  const direct = xnew(xnew.basics.DirectEvent);
-  const keys = { w: false, a: false, s: false, d: false, space: false };
-
-  direct.on('-keydown', ({ code }) => {
-    if (code === 'KeyW') keys.w = true;
-    if (code === 'KeyA') keys.a = true;
-    if (code === 'KeyS') keys.s = true;
-    if (code === 'KeyD') keys.d = true;
-    if (code === 'Space') keys.space = true;
-  });
-
-  direct.on('-keyup', ({ code }) => {
-    if (code === 'KeyW') keys.w = false;
-    if (code === 'KeyA') keys.a = false;
-    if (code === 'KeyS') keys.s = false;
-    if (code === 'KeyD') keys.d = false;
-    if (code === 'Space') keys.space = false;
-  });
-
-  unit.on('update', () => {
-    const vector = { x: 0, y: 0, z: 0 };
-    if (keys.w) vector.z -= 1;
-    if (keys.s) vector.z += 1;
-    if (keys.a) vector.x -= 1;
-    if (keys.d) vector.x += 1;
-
-    xnew.emit('+move', { vector });
-    if (keys.space) xnew.emit('+jump');
   });
 }
 
@@ -139,13 +103,13 @@ function Player(unit, { x, y, z }) {
 
   // Movement state
   let velocity = { x: 0, y: 0, z: 0 };
-  const speed = 5;
+  const speed = 15;
   const jumpForce = 8;
   let isGrounded = false;
 
   unit.on('+move', ({ vector }) => {
     velocity.x = vector.x * speed;
-    velocity.z = vector.z * speed;
+    velocity.z = vector.y * speed;
   });
 
   unit.on('+jump', () => {
@@ -160,11 +124,11 @@ function Player(unit, { x, y, z }) {
     xrapier3d.world.removeRigidBody(rigidBody);
   });
 
-  unit.on('update', () => {
-    const dt = 1 / 60;
+  unit.on('logicupdate', () => {
+    const dt = 3 / 60;
 
     // Apply gravity
-    velocity.y -= 9.81 * dt * 10;
+    velocity.y -= 9.81 * dt;
 
     // Calculate desired movement
     const desiredTranslation = {
@@ -192,7 +156,9 @@ function Player(unit, { x, y, z }) {
     if (isGrounded) {
       velocity.y = 0;
     }
-
+  });
+  
+  unit.on('update', () => {
     // Update visual
     const position = rigidBody.translation();
     const rotation = rigidBody.rotation();
@@ -202,6 +168,18 @@ function Player(unit, { x, y, z }) {
     // Update camera to follow player
     xnew.emit('+camera:follow', { position });
   });
+
+  // prevent default event
+  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+
+  const direct = xnew(xnew.basics.DirectEvent);
+  direct.on('-keydown.arrow -keyup.arrow', ({ vector }) => {
+    xnew.emit('+move', { vector });
+  });
+  direct.on('-keydown', ({ code }) => {
+    if (code === 'Space') xnew.emit('+jump');
+  });
+
 }
 
 function Ground(unit, { x, y, z, width, height, depth }) {

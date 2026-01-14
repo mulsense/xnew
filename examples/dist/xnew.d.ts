@@ -81,6 +81,7 @@ declare class Unit {
     static start(unit: Unit): void;
     static stop(unit: Unit): void;
     static update(unit: Unit): void;
+    static logicupdate(unit: Unit): void;
     static root: Unit;
     static current: Unit;
     static ticker: Ticker;

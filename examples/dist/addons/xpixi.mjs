@@ -29,7 +29,7 @@ var xpixi = {
         return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.canvas;
     },
 };
-function Root(self, { canvas }) {
+function Root(unit, { canvas }) {
     const root = {};
     xnew.context('xpixi.root', root);
     root.canvas = canvas;
@@ -41,7 +41,7 @@ function Root(self, { canvas }) {
     root.updates = [];
     root.scene = new PIXI.Container();
     xnew.context('xpixi.object', root.scene);
-    self.on('update', () => {
+    unit.on('update', () => {
         root.updates.forEach((update) => {
             update();
         });
@@ -50,18 +50,18 @@ function Root(self, { canvas }) {
         }
     });
 }
-function Nest(self, { object }) {
+function Nest(unit, { object }) {
     const parent = xnew.context('xpixi.object');
     xnew.context('xpixi.object', object);
     parent.addChild(object);
-    self.on('finalize', () => {
+    unit.on('finalize', () => {
         parent.removeChild(object);
     });
 }
-function PreUpdate(self, callback) {
+function PreUpdate(unit, callback) {
     const root = xnew.context('xpixi.root');
     root.updates.push(callback);
-    self.on('finalize', () => {
+    unit.on('finalize', () => {
         root.updates = root.updates.filter((update) => update !== callback);
     });
 }

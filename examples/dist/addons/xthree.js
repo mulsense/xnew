@@ -64,12 +64,10 @@
     function Nest(unit, { object }) {
         const parent = xnew.context('xthree.object');
         xnew.context('xthree.object', object);
-        if (parent) {
-            parent === null || parent === void 0 ? void 0 : parent.add(object);
-            unit.on('finalize', () => {
-                parent === null || parent === void 0 ? void 0 : parent.remove(object);
-            });
-        }
+        parent.add(object);
+        unit.on('finalize', () => {
+            parent.remove(object);
+        });
     }
 
     return xthree;

@@ -19,7 +19,7 @@ function Root(unit: xnew.Unit, { engine }: any) {
 
     root.engine = engine ?? Matter.Engine.create();
 
-    unit.on('update', () => {
+    unit.on('logicupdate', () => {
         Matter.Engine.update(root.engine);
     });
 }
