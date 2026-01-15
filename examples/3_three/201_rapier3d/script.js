@@ -44,8 +44,8 @@ function Main(unit) {
     xnew(Ground, { x: 0, y: 0, z: 0, width: 100, height: 2, depth: 100 });
 
     // Add some obstacles
-    xnew(Cube, { x: 20, y: 30, z: 0, size: 10, dynamic: true });
-    xnew(Cube, { x: -20, y: 30, z: 20, size: 10, dynamic: true });
+    xnew(Cube, { x: 20, y: 30, z: 0, size: 10 });
+    xnew(Cube, { x: -20, y: 30, z: 20, size: 10 });
   });
 }
 
@@ -105,15 +105,19 @@ function Player(unit, { x, y, z }) {
   let velocity = { x: 0, y: 0, z: 0 };
   const speed = 15;
   const jumpForce = 8;
-  let isGrounded = false;
 
-  unit.on('+move', ({ vector }) => {
+  // prevent default event
+  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+
+  const direct = xnew(xnew.basics.DirectEvent);
+  direct.on('-keydown.arrow -keyup.arrow', ({ vector }) => {
+    // move
     velocity.x = vector.x * speed;
     velocity.z = vector.y * speed;
   });
-
-  unit.on('+jump', () => {
-    if (isGrounded) {
+  direct.on('-keydown', ({ code }) => {
+    // jump
+    if (code === 'Space' && characterController.computedGrounded()) {
       velocity.y = jumpForce;
     }
   });
@@ -124,7 +128,7 @@ function Player(unit, { x, y, z }) {
     xrapier3d.world.removeRigidBody(rigidBody);
   });
 
-  unit.on('logicupdate', () => {
+  unit.on('process', () => {
     const dt = 3 / 60;
 
     // Apply gravity
@@ -150,10 +154,7 @@ function Player(unit, { x, y, z }) {
       y: currentPos.y + correctedMovement.y,
       z: currentPos.z + correctedMovement.z
     });
-
-    // Check if grounded
-    isGrounded = characterController.computedGrounded();
-    if (isGrounded) {
+    if (characterController.computedGrounded()) {
       velocity.y = 0;
     }
   });
@@ -168,18 +169,6 @@ function Player(unit, { x, y, z }) {
     // Update camera to follow player
     xnew.emit('+camera:follow', { position });
   });
-
-  // prevent default event
-  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
-
-  const direct = xnew(xnew.basics.DirectEvent);
-  direct.on('-keydown.arrow -keyup.arrow', ({ vector }) => {
-    xnew.emit('+move', { vector });
-  });
-  direct.on('-keydown', ({ code }) => {
-    if (code === 'Space') xnew.emit('+jump');
-  });
-
 }
 
 function Ground(unit, { x, y, z, width, height, depth }) {
@@ -203,7 +192,7 @@ function Ground(unit, { x, y, z, width, height, depth }) {
   });
 }
 
-function Cube(unit, { x, y, z, size, dynamic = true }) {
+function Cube(unit, { x, y, z, size }) {
   const geometry = new THREE.BoxGeometry(size, size, size);
   const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
   const object = xthree.nest(new THREE.Mesh(geometry, material));
@@ -212,9 +201,7 @@ function Cube(unit, { x, y, z, size, dynamic = true }) {
   object.receiveShadow = true;
 
   // Create a dynamic rigid-body using xrapier3d
-  const rigidBodyDesc = dynamic
-    ? RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y, z)
-    : RAPIER.RigidBodyDesc.fixed().setTranslation(x, y, z);
+  const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y, z)
   const rigidBody = xrapier3d.world.createRigidBody(rigidBodyDesc);
 
   // Create a cuboid collider attached to the rigid body

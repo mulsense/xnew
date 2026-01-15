@@ -18,7 +18,7 @@ function Root(self: xnew.Unit, { gravity }: any) {
         root.world = new RAPIER.World(gravity);
     });
 
-    self.on('logicupdate', () => {
+    self.on('process', () => {
         root.world.step();
     });
 }

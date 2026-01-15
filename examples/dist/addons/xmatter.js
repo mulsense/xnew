@@ -21,7 +21,7 @@
         const root = {};
         xnew.context('xmatter.root', root);
         root.engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
-        unit.on('logicupdate', () => {
+        unit.on('process', () => {
             Matter.Engine.update(root.engine);
         });
     }

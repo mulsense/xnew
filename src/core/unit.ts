@@ -5,7 +5,7 @@ import { Ticker, Timer, TimerOptions } from './time';
 // utils
 //----------------------------------------------------------------------------------------------------
 
-const SYSTEM_EVENTS: string[] = ['start', 'updatelogic', 'update', 'stop', 'finalize'] as const;
+const SYSTEM_EVENTS: string[] = ['start', 'process', 'update', 'stop', 'finalize'] as const;
 
 export type UnitElement = HTMLElement | SVGElement;
 
@@ -134,7 +134,7 @@ export class Unit {
             components: [],
             listeners: new MapMap(),
             defines: {},
-            systems: { start: [], logicupdate: [], update: [], stop: [], finalize: [] },
+            systems: { start: [], process: [], update: [], stop: [], finalize: [] },
         });
 
         // nest html element
@@ -262,10 +262,10 @@ export class Unit {
         }
     }
 
-    static logicupdate(unit: Unit): void {
+    static process(unit: Unit): void {
         if (unit._.state === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.logicupdate(child));
-            unit._.systems.logicupdate.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.children.forEach((child: Unit) => Unit.process(child));
+            unit._.systems.process.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
 
@@ -279,7 +279,7 @@ export class Unit {
         Unit.ticker?.clear();
         Unit.ticker = new Ticker(() => {
             Unit.start(Unit.root);
-            Unit.logicupdate(Unit.root);
+            Unit.process(Unit.root);
             Unit.update(Unit.root);
         });
     }

@@ -19,7 +19,7 @@
         xnew.promise(RAPIER.init()).then(() => {
             root.world = new RAPIER.World(gravity);
         });
-        self.on('fixedupdate', () => {
+        self.on('process', () => {
             root.world.step();
         });
     }

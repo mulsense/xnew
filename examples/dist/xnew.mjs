@@ -203,7 +203,7 @@ class Timer {
 //----------------------------------------------------------------------------------------------------
 // utils
 //----------------------------------------------------------------------------------------------------
-const SYSTEM_EVENTS = ['start', 'logicupdate', 'update', 'stop', 'finalize'];
+const SYSTEM_EVENTS = ['start', 'process', 'update', 'stop', 'finalize'];
 //----------------------------------------------------------------------------------------------------
 // unit
 //----------------------------------------------------------------------------------------------------
@@ -296,7 +296,7 @@ class Unit {
             components: [],
             listeners: new MapMap(),
             defines: {},
-            systems: { start: [], logicupdate: [], update: [], stop: [], finalize: [] },
+            systems: { start: [], process: [], update: [], stop: [], finalize: [] },
         });
         // nest html element
         if (typeof unit._.target === 'string') {
@@ -411,10 +411,10 @@ class Unit {
             unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
-    static logicupdate(unit) {
+    static process(unit) {
         if (unit._.state === 'started') {
-            unit._.children.forEach((child) => Unit.logicupdate(child));
-            unit._.systems.logicupdate.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.children.forEach((child) => Unit.process(child));
+            unit._.systems.process.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }
     }
     static reset() {
@@ -424,7 +424,7 @@ class Unit {
         (_b = Unit.ticker) === null || _b === void 0 ? void 0 : _b.clear();
         Unit.ticker = new Ticker(() => {
             Unit.start(Unit.root);
-            Unit.logicupdate(Unit.root);
+            Unit.process(Unit.root);
             Unit.update(Unit.root);
         });
     }
