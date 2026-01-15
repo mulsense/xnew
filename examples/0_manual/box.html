@@ -24,19 +24,20 @@
       });
 
       unit.on('start', () => {
-        console.log('start');
         running = true;
         text.element.textContent = 'start';
       });
 
-      let count = 0;
+      let rotate = 0;
+      unit.on('process', () => {
+        rotate++;
+      });
+
       unit.on('update', () => {
-        console.log('update');
-        unit.element.style.transform = `rotate(${count++}deg)`;
+        unit.element.style.transform = `rotate(${rotate}deg)`;
       });
       
       unit.on('stop', () => {
-        console.log('stop');
         running = false;
         text.element.textContent = 'stop';
       });

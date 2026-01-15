@@ -256,7 +256,7 @@ export class Unit {
     }
 
     static update(unit: Unit): void {
-        if (unit._.state === 'started') {
+        if (unit._.state === 'started' || unit._.state === 'stopped') {
             unit._.children.forEach((child: Unit) => Unit.update(child));
             unit._.systems.update.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
         }

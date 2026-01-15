@@ -406,7 +406,7 @@ class Unit {
         }
     }
     static update(unit) {
-        if (unit._.state === 'started') {
+        if (unit._.state === 'started' || unit._.state === 'stopped') {
             unit._.children.forEach((child) => Unit.update(child));
             unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
         }

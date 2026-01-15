@@ -201,10 +201,15 @@ Now let's add events and animations! This example creates an interactive rotatin
         text.element.textContent = 'start';
       });
 
+      // Process one step
+      let rotate = 0;
+      unit.on('process', () => {
+        rotate++;
+      });
+
       // Update animation frame
-      let count = 0;
       unit.on('update', () => {
-        unit.element.style.transform = `rotate(${count++}deg)`;
+        unit.element.style.transform = `rotate(${rotate}deg)`;
       });
 
       // When animation stops
