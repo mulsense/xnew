@@ -143,6 +143,7 @@ function Player(unit, { x, y, z }) {
 
     // Compute movement with collision detection
     characterController.computeColliderMovement(collider, desiredTranslation);
+
     const correctedMovement = characterController.computedMovement();
 
     // Get current position
@@ -201,11 +202,14 @@ function Cube(unit, { x, y, z, size }) {
   object.receiveShadow = true;
 
   // Create a dynamic rigid-body using xrapier3d
-  const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y, z)
+  const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y, z);
   const rigidBody = xrapier3d.world.createRigidBody(rigidBodyDesc);
 
-  // Create a cuboid collider attached to the rigid body
-  const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2);
+  // Create a cuboid collider attached to the rigid body with density for mass
+  const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2)
+    .setDensity(0.1)
+    .setRestitution(0.3)
+    .setFriction(0.5);
   const collider = xrapier3d.world.createCollider(colliderDesc, rigidBody);
 
   unit.on('finalize', () => {
