@@ -277,8 +277,6 @@ declare function AccordionContent(content: Unit, {}?: {}): {
 
 declare function ResizeEvent(resize: Unit): void;
 declare function DirectEvent(unit: Unit): void;
-declare function KeyboardEvent(keyboard: Unit): void;
-declare function PointerEvent(unit: Unit): void;
 
 declare function Screen(screen: Unit, { width, height, fit }?: {
     width?: number | undefined;
@@ -730,10 +728,8 @@ declare class Synthesizer {
 
 declare const basics: {
     Screen: typeof Screen;
-    PointerEvent: typeof PointerEvent;
     DirectEvent: typeof DirectEvent;
     ResizeEvent: typeof ResizeEvent;
-    KeyboardEvent: typeof KeyboardEvent;
     ModalFrame: typeof ModalFrame;
     ModalContent: typeof ModalContent;
     AccordionFrame: typeof AccordionFrame;

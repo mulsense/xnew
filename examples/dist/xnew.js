@@ -942,6 +942,8 @@
     function DirectEvent(unit) {
         const state = {};
         const keydown = xnew$1.scope((event) => {
+            if (event.repeat)
+                return;
             state[event.code] = 1;
             xnew$1.emit('-keydown', { event, type: '-keydown', code: event.code });
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
@@ -967,78 +969,6 @@
                 y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
             };
         }
-        const internal = xnew$1();
-        internal.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
-        internal.on('pointermove', (event) => xnew$1.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
-        internal.on('pointerup', (event) => xnew$1.emit('-pointerup', { event, position: getPosition(unit.element, event) }));
-        internal.on('wheel', (event) => xnew$1.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
-        internal.on('click', (event) => xnew$1.emit('-click', { event, position: getPosition(unit.element, event) }));
-        internal.on('pointerover', (event) => xnew$1.emit('-pointerover', { event, position: getPosition(unit.element, event) }));
-        internal.on('pointerout', (event) => xnew$1.emit('-pointerout', { event, position: getPosition(unit.element, event) }));
-        const pointerdownoutside = xnew$1.scope((event) => {
-            if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-pointerdown.outside', { event, position: getPosition(unit.element, event) });
-            }
-        });
-        const pointerupoutside = xnew$1.scope((event) => {
-            if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-pointerup.outside', { event, position: getPosition(unit.element, event) });
-            }
-        });
-        const clickoutside = xnew$1.scope((event) => {
-            if (unit.element.contains(event.target) === false) {
-                xnew$1.emit('-click.outside', { event, position: getPosition(unit.element, event) });
-            }
-        });
-        document.addEventListener('pointerdown', pointerdownoutside);
-        document.addEventListener('pointerup', pointerupoutside);
-        document.addEventListener('click', clickoutside);
-        unit.on('finalize', () => {
-            document.removeEventListener('pointerdown', pointerdownoutside);
-            document.removeEventListener('pointerup', pointerupoutside);
-            document.removeEventListener('click', clickoutside);
-        });
-        const drag = xnew$1(DragEvent);
-        drag.on('-dragstart', (...args) => xnew$1.emit('-dragstart', ...args));
-        drag.on('-dragmove', (...args) => xnew$1.emit('-dragmove', ...args));
-        drag.on('-dragend', (...args) => xnew$1.emit('-dragend', ...args));
-        drag.on('-dragcancel', (...args) => xnew$1.emit('-dragcancel', ...args));
-        const gesture = xnew$1(GestureEvent);
-        gesture.on('-gesturestart', (...args) => xnew$1.emit('-gesturestart', ...args));
-        gesture.on('-gesturemove', (...args) => xnew$1.emit('-gesturemove', ...args));
-        gesture.on('-gestureend', (...args) => xnew$1.emit('-gestureend', ...args));
-        gesture.on('-gesturecancel', (...args) => xnew$1.emit('-gesturecancel', ...args));
-    }
-    function KeyboardEvent(keyboard) {
-        const state = {};
-        const keydown = xnew$1.scope((event) => {
-            state[event.code] = 1;
-            xnew$1.emit('-keydown', { event, type: '-keydown', code: event.code });
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                xnew$1.emit('-keydown.arrow', { event, type: '-keydown.arrow', code: event.code, vector: getVector() });
-            }
-        });
-        const keyup = xnew$1.scope((event) => {
-            state[event.code] = 0;
-            xnew$1.emit('-keyup', { event, type: '-keyup', code: event.code });
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                xnew$1.emit('-keyup.arrow', { event, type: '-keyup.arrow', code: event.code, vector: getVector() });
-            }
-        });
-        window.addEventListener('keydown', keydown);
-        window.addEventListener('keyup', keyup);
-        keyboard.on('finalize', () => {
-            window.removeEventListener('keydown', keydown);
-            window.removeEventListener('keyup', keyup);
-        });
-        function getVector() {
-            return {
-                x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
-                y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
-            };
-        }
-    }
-    function PointerEvent(unit) {
         const internal = xnew$1();
         internal.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
         internal.on('pointermove', (event) => xnew$1.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
@@ -1339,11 +1269,11 @@
     function DragTarget(target, {} = {}) {
         const { frame, absolute } = xnew$1.context('xnew.dragframe');
         xnew$1.nest('<div>');
-        const pointer = xnew$1(absolute.parentElement, PointerEvent);
+        const direct = xnew$1(absolute.parentElement, DirectEvent);
         const current = { x: 0, y: 0 };
         const offset = { x: 0, y: 0 };
         let dragged = false;
-        pointer.on('-dragstart', ({ event, position }) => {
+        direct.on('-dragstart', ({ event, position }) => {
             if (target.element.contains(event.target) === false)
                 return;
             dragged = true;
@@ -1352,7 +1282,7 @@
             current.x = position.x - offset.x;
             current.y = position.y - offset.y;
         });
-        pointer.on('-dragmove', ({ event, delta }) => {
+        direct.on('-dragmove', ({ event, delta }) => {
             if (dragged !== true)
                 return;
             current.x += delta.x;
@@ -1360,7 +1290,7 @@
             absolute.style.left = `${current.x}px`;
             absolute.style.top = `${current.y}px`;
         });
-        pointer.on('-dragcancel -dragend', ({ event }) => {
+        direct.on('-dragcancel -dragend', ({ event }) => {
             dragged = false;
         });
     }
@@ -1397,22 +1327,22 @@
                 xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
                 xnew$1('<circle cx="50" cy="50" r="23">');
             });
-            const pointer = xnew$1(PointerEvent);
-            pointer.on('-dragstart', ({ event, position }) => {
+            const direct = xnew$1(DirectEvent);
+            direct.on('-dragstart', ({ event, position }) => {
                 const vector = getVector(position);
                 target.element.style.filter = 'brightness(90%)';
                 target.element.style.left = vector.x * newsize / 4 + 'px';
                 target.element.style.top = vector.y * newsize / 4 + 'px';
                 xnew$1.emit('-down', { vector });
             });
-            pointer.on('-dragmove', ({ event, position }) => {
+            direct.on('-dragmove', ({ event, position }) => {
                 const vector = getVector(position);
                 target.element.style.filter = 'brightness(90%)';
                 target.element.style.left = vector.x * newsize / 4 + 'px';
                 target.element.style.top = vector.y * newsize / 4 + 'px';
                 xnew$1.emit('-move', { vector });
             });
-            pointer.on('-dragend', ({ event }) => {
+            direct.on('-dragend', ({ event }) => {
                 const vector = { x: 0, y: 0 };
                 target.element.style.filter = '';
                 target.element.style.left = vector.x * newsize / 4 + 'px';
@@ -1464,8 +1394,8 @@
                 xnew$1('<polygon points="11 50 20 42 20 58">');
                 xnew$1('<polygon points="89 50 80 42 80 58">');
             });
-            const pointer = xnew$1(PointerEvent);
-            pointer.on('-dragstart', ({ event, position }) => {
+            const direct = xnew$1(DirectEvent);
+            direct.on('-dragstart', ({ event, position }) => {
                 const vector = getVector(position);
                 targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
                 targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -1473,7 +1403,7 @@
                 targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
                 xnew$1.emit('-down', { vector });
             });
-            pointer.on('-dragmove', ({ event, position }) => {
+            direct.on('-dragmove', ({ event, position }) => {
                 const vector = getVector(position);
                 targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
                 targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -1481,7 +1411,7 @@
                 targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
                 xnew$1.emit('-move', { vector });
             });
-            pointer.on('-dragend', ({ event }) => {
+            direct.on('-dragend', ({ event }) => {
                 const vector = { x: 0, y: 0 };
                 targets[0].element.style.filter = '';
                 targets[1].element.style.filter = '';
@@ -1543,7 +1473,7 @@
         });
         xnew$1.timeout(() => {
             xnew$1(document.body).on('click wheel', action);
-            xnew$1(KeyboardEvent).on('-keydown', action);
+            xnew$1(DirectEvent).on('-keydown', action);
         }, 100);
         function action() {
             if (state === 0) {
@@ -3424,7 +3354,7 @@
 
     function VolumeController(unit, {} = {}) {
         xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
-        xnew$1.extend(PointerEvent);
+        xnew$1.extend(DirectEvent);
         unit.on('-pointerdown', ({ event }) => event.stopPropagation());
         const slider = xnew$1(`<input type="range" min="0" max="100" value="${master.gain.value * 100}"
     style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
@@ -3449,10 +3379,8 @@
 
     const basics = {
         Screen,
-        PointerEvent,
         DirectEvent,
         ResizeEvent,
-        KeyboardEvent,
         ModalFrame,
         ModalContent,
         AccordionFrame,

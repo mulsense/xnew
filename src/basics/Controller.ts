@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { PointerEvent, ResizeEvent } from './Event';
+import { DirectEvent, ResizeEvent } from './Event';
 
 //----------------------------------------------------------------------------------------------------
 // controller
@@ -48,23 +48,23 @@ export function AnalogStick(unit: Unit,
             xnew('<circle cx="50" cy="50" r="23">');
         });
 
-        const pointer = xnew(PointerEvent);
+        const direct = xnew(DirectEvent);
 
-        pointer.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        direct.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             target.element.style.filter = 'brightness(90%)';
             target.element.style.left = vector.x * newsize / 4 + 'px';
             target.element.style.top = vector.y * newsize / 4 + 'px';
             xnew.emit('-down', { vector });
         });
-        pointer.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        direct.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             target.element.style.filter = 'brightness(90%)';
             target.element.style.left = vector.x * newsize / 4 + 'px';
             target.element.style.top = vector.y * newsize / 4 + 'px';
             xnew.emit('-move', { vector });
         });
-        pointer.on('-dragend', ({ event }: { event: any }) => {
+        direct.on('-dragend', ({ event }: { event: any }) => {
             const vector = { x: 0, y: 0 };
             target.element.style.filter = '';
             target.element.style.left = vector.x * newsize / 4 + 'px';
@@ -127,9 +127,9 @@ export function DirectionalPad(unit: Unit,
             xnew('<polygon points="89 50 80 42 80 58">');
         });
 
-        const pointer = xnew(PointerEvent);
+        const direct = xnew(DirectEvent);
 
-        pointer.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        direct.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -137,7 +137,7 @@ export function DirectionalPad(unit: Unit,
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             xnew.emit('-down', { vector });
         });
-        pointer.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        direct.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -145,7 +145,7 @@ export function DirectionalPad(unit: Unit,
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             xnew.emit('-move', { vector });
         });
-        pointer.on('-dragend', ({ event }: { event: any }) => {
+        direct.on('-dragend', ({ event }: { event: any }) => {
             const vector = { x: 0, y: 0 };
             targets[0].element.style.filter = '';
             targets[1].element.style.filter = '';

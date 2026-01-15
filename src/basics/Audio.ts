@@ -1,12 +1,12 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { PointerEvent } from './Event';
+import { DirectEvent } from './Event';
 import { master } from '../audio/audio';
 import { icons } from '../icons/icons';
 
 export function VolumeController(unit: Unit, {}: { } = {}) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
-    xnew.extend(PointerEvent);
+    xnew.extend(DirectEvent);
     unit.on('-pointerdown', ({ event }: { event: PointerEvent }) => event.stopPropagation());
     
     const slider = xnew(`<input type="range" min="0" max="100" value="${master.gain.value * 100}"

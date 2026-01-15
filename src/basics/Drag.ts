@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { PointerEvent } from './Event';
+import { DirectEvent } from './Event';
 
 export function DragFrame(frame: Unit, 
     { x = 0, y = 0 }: { x?: number, y?: number } = {}
@@ -15,11 +15,11 @@ export function DragTarget(target: Unit,
     const { frame, absolute } = xnew.context('xnew.dragframe');
 
     xnew.nest('<div>');
-    const pointer = xnew(absolute.parentElement, PointerEvent);
+    const direct = xnew(absolute.parentElement, DirectEvent);
     const current = { x: 0, y: 0 };
     const offset = { x: 0, y: 0 };
     let dragged = false;
-    pointer.on('-dragstart', ({ event, position }: { event: MouseEvent, position: { x: number, y: number } } ) => {
+    direct.on('-dragstart', ({ event, position }: { event: MouseEvent, position: { x: number, y: number } } ) => {
         if (target.element.contains(event.target as Node) === false) return;
         dragged = true;
         offset.x = position.x - parseFloat(absolute.style.left || '0');
@@ -27,14 +27,14 @@ export function DragTarget(target: Unit,
         current.x = position.x - offset.x;
         current.y = position.y - offset.y;
     });
-    pointer.on('-dragmove', ({ event, delta }: { event: MouseEvent, delta: { x: number, y: number } } ) => {
+    direct.on('-dragmove', ({ event, delta }: { event: MouseEvent, delta: { x: number, y: number } } ) => {
         if (dragged !== true) return;
         current.x += delta.x;
         current.y += delta.y;
         absolute.style.left = `${current.x}px`;
         absolute.style.top = `${current.y}px`;
     });
-    pointer.on('-dragcancel -dragend', ({ event }: { event: MouseEvent } ) => {
+    direct.on('-dragcancel -dragend', ({ event }: { event: MouseEvent } ) => {
         dragged = false;
     });
 }
