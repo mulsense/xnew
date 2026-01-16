@@ -223,11 +223,20 @@ class EventManager {
         else if (['pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'].includes(props.type)) {
             finalize = this.pointer(props);
         }
+        else if (['pointerdown.outside', 'pointermove.outside', 'pointerup.outside'].includes(props.type)) {
+            finalize = this.pointer_outside(props);
+        }
+        else if (['mousedown', 'mousemove', 'mouseup', 'mouseover', 'mouseout'].includes(props.type)) {
+            finalize = this.mouse(props);
+        }
+        else if (['touchstart', 'touchmove', 'touchend', 'touchcancel'].includes(props.type)) {
+            finalize = this.touch(props);
+        }
         else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
             finalize = this.drag(props);
         }
-        else if (['pointerdown.outside', 'pointermove.outside', 'pointerup.outside'].includes(props.type)) {
-            finalize = this.pointer_outside(props);
+        else if (['gesturestart', 'gesturemove', 'gestureend'].includes(props.type)) {
+            finalize = this.gesture(props);
         }
         else if (['keydown', 'keyup'].includes(props.type)) {
             finalize = this.key(props);
@@ -289,6 +298,24 @@ class EventManager {
         };
     }
     pointer(props) {
+        const execute = (event) => {
+            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+    mouse(props) {
+        const execute = (event) => {
+            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+    touch(props) {
         const execute = (event) => {
             props.listener({ event, type: props.type, position: pointer(props.element, event).position });
         };
@@ -371,10 +398,74 @@ class EventManager {
             pointerup = null;
             pointercancel = null;
         }
-        document.addEventListener('pointerdown', pointerdown, props.options);
+        props.element.addEventListener('pointerdown', pointerdown, props.options);
         return () => {
-            document.removeEventListener('pointerdown', pointerdown);
+            props.element.removeEventListener('pointerdown', pointerdown);
             remove();
+        };
+    }
+    gesture(props) {
+        let isActive = false;
+        const map = new Map();
+        const element = props.element;
+        const options = props.options;
+        const dragstart = ({ event, position }) => {
+            map.set(event.pointerId, Object.assign({}, position));
+            isActive = map.size === 2 ? true : false;
+            if (isActive === true && props.type === 'gesturestart') {
+                props.listener({ event, type: props.type });
+            }
+        };
+        const dragmove = ({ event, position, delta }) => {
+            if (map.size >= 2 && isActive === true) {
+                const a = map.get(event.pointerId);
+                const b = getOthers(event.pointerId)[0];
+                let scale = 0.0;
+                {
+                    const v = { x: a.x - b.x, y: a.y - b.y };
+                    const s = v.x * v.x + v.y * v.y;
+                    scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
+                }
+                // let rotate = 0.0;
+                // {
+                //     const c = { x: a.x + delta.x, y: a.y + delta.y };
+                //     const v1 = { x: a.x - b.x, y: a.y - b.y };
+                //     const v2 = { x: c.x - b.x, y: c.y - b.y };
+                //     const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                //     const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                //     if (l1 > 0.0 && l2 > 0.0) {
+                //         const angle = Math.acos((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
+                //         const sign = v1.x * v2.y - v1.y * v2.x;
+                //         rotate = sign > 0.0 ? +angle : -angle;
+                //     }
+                // }
+                if (props.type === 'gesturemove') {
+                    props.listener({ event, type: props.type, scale });
+                }
+            }
+            map.set(event.pointerId, position);
+        };
+        const dragend = ({ event }) => {
+            if (isActive === true) {
+                props.listener({ event, type: props.type, scale: 1.0 });
+            }
+            isActive = false;
+            map.delete(event.pointerId);
+        };
+        this.add({ element, options, type: 'dragstart', listener: dragstart });
+        this.add({ element, options, type: 'dragmove', listener: dragmove });
+        this.add({ element, options, type: 'dragend', listener: dragend });
+        function getOthers(id) {
+            const backup = map.get(id);
+            map.delete(id);
+            const others = [...map.values()];
+            map.set(id, backup);
+            return others;
+        }
+        return () => {
+            this.remove({ type: 'dragstart', listener: dragstart });
+            this.remove({ type: 'dragmove', listener: dragmove });
+            this.remove({ type: 'dragend', listener: dragend });
         };
     }
     key(props) {
@@ -1282,216 +1373,18 @@ function TabContent(content, { key } = {}) {
     };
 }
 
-function ResizeEvent(resize) {
-    const observer = new ResizeObserver(xnew$1.scope((entries) => {
-        for (const entry of entries) {
-            xnew$1.emit('-resize');
-            break;
-        }
-    }));
-    if (resize.element) {
-        observer.observe(resize.element);
-    }
-    resize.on('finalize', () => {
-        if (resize.element) {
-            observer.unobserve(resize.element);
-        }
-    });
-}
-function DirectEvent(unit) {
-    const state = {};
-    const keydown = xnew$1.scope((event) => {
-        if (event.repeat)
-            return;
-        state[event.code] = 1;
-        xnew$1.emit('-keydown', { event, type: '-keydown', code: event.code });
-        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-            xnew$1.emit('-keydown.arrow', { event, type: '-keydown.arrow', code: event.code, vector: getVector() });
-        }
-    });
-    const keyup = xnew$1.scope((event) => {
-        state[event.code] = 0;
-        xnew$1.emit('-keyup', { event, type: '-keyup', code: event.code });
-        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-            xnew$1.emit('-keyup.arrow', { event, type: '-keyup.arrow', code: event.code, vector: getVector() });
-        }
-    });
-    window.addEventListener('keydown', keydown);
-    window.addEventListener('keyup', keyup);
-    unit.on('finalize', () => {
-        window.removeEventListener('keydown', keydown);
-        window.removeEventListener('keyup', keyup);
-    });
-    function getVector() {
-        return {
-            x: (state['ArrowLeft'] ? -1 : 0) + (state['ArrowRight'] ? +1 : 0),
-            y: (state['ArrowUp'] ? -1 : 0) + (state['ArrowDown'] ? +1 : 0)
-        };
-    }
-    const internal = xnew$1();
-    internal.on('pointerdown', (event) => xnew$1.emit('-pointerdown', { event, position: getPosition(unit.element, event) }));
-    internal.on('pointermove', (event) => xnew$1.emit('-pointermove', { event, position: getPosition(unit.element, event) }));
-    internal.on('pointerup', (event) => xnew$1.emit('-pointerup', { event, position: getPosition(unit.element, event) }));
-    internal.on('wheel', (event) => xnew$1.emit('-wheel', { event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } }));
-    internal.on('click', (event) => xnew$1.emit('-click', { event, position: getPosition(unit.element, event) }));
-    internal.on('pointerover', (event) => xnew$1.emit('-pointerover', { event, position: getPosition(unit.element, event) }));
-    internal.on('pointerout', (event) => xnew$1.emit('-pointerout', { event, position: getPosition(unit.element, event) }));
-    const pointerdownoutside = xnew$1.scope((event) => {
-        if (unit.element.contains(event.target) === false) {
-            xnew$1.emit('-pointerdown.outside', { event, position: getPosition(unit.element, event) });
-        }
-    });
-    const pointerupoutside = xnew$1.scope((event) => {
-        if (unit.element.contains(event.target) === false) {
-            xnew$1.emit('-pointerup.outside', { event, position: getPosition(unit.element, event) });
-        }
-    });
-    const clickoutside = xnew$1.scope((event) => {
-        if (unit.element.contains(event.target) === false) {
-            xnew$1.emit('-click.outside', { event, position: getPosition(unit.element, event) });
-        }
-    });
-    document.addEventListener('pointerdown', pointerdownoutside);
-    document.addEventListener('pointerup', pointerupoutside);
-    document.addEventListener('click', clickoutside);
-    unit.on('finalize', () => {
-        document.removeEventListener('pointerdown', pointerdownoutside);
-        document.removeEventListener('pointerup', pointerupoutside);
-        document.removeEventListener('click', clickoutside);
-    });
-    const drag = xnew$1(DragEvent);
-    drag.on('-dragstart', (...args) => xnew$1.emit('-dragstart', ...args));
-    drag.on('-dragmove', (...args) => xnew$1.emit('-dragmove', ...args));
-    drag.on('-dragend', (...args) => xnew$1.emit('-dragend', ...args));
-    drag.on('-dragcancel', (...args) => xnew$1.emit('-dragcancel', ...args));
-    const gesture = xnew$1(GestureEvent);
-    gesture.on('-gesturestart', (...args) => xnew$1.emit('-gesturestart', ...args));
-    gesture.on('-gesturemove', (...args) => xnew$1.emit('-gesturemove', ...args));
-    gesture.on('-gestureend', (...args) => xnew$1.emit('-gestureend', ...args));
-    gesture.on('-gesturecancel', (...args) => xnew$1.emit('-gesturecancel', ...args));
-}
-function DragEvent(unit) {
-    const pointerdown = xnew$1.scope((event) => {
-        const id = event.pointerId;
-        const position = getPosition(unit.element, event);
-        let previous = position;
-        let connect = true;
-        const pointermove = xnew$1.scope((event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(unit.element, event);
-                const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                xnew$1.emit('-dragmove', { event, position, delta });
-                previous = position;
-            }
-        });
-        const pointerup = xnew$1.scope((event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(unit.element, event);
-                xnew$1.emit('-dragend', { event, position, });
-                remove();
-            }
-        });
-        const pointercancel = xnew$1.scope((event) => {
-            if (event.pointerId === id) {
-                const position = getPosition(unit.element, event);
-                xnew$1.emit('-dragcancel', { event, position, });
-                remove();
-            }
-        });
-        window.addEventListener('pointermove', pointermove);
-        window.addEventListener('pointerup', pointerup);
-        window.addEventListener('pointercancel', pointercancel);
-        function remove() {
-            if (connect === true) {
-                window.removeEventListener('pointermove', pointermove);
-                window.removeEventListener('pointerup', pointerup);
-                window.removeEventListener('pointercancel', pointercancel);
-                connect = false;
-            }
-        }
-        xnew$1((unit) => unit.on('-finalize', remove));
-        xnew$1.emit('-dragstart', { event, position });
-    });
-    unit.on('pointerdown', pointerdown);
-}
-function GestureEvent(unit) {
-    const drag = xnew$1(DragEvent);
-    let isActive = false;
-    const map = new Map();
-    drag.on('-dragstart', ({ event, position }) => {
-        map.set(event.pointerId, Object.assign({}, position));
-        isActive = map.size === 2 ? true : false;
-        if (isActive === true) {
-            xnew$1.emit('-gesturestart', {});
-        }
-    });
-    drag.on('-dragmove', ({ event, position, delta }) => {
-        if (map.size >= 2 && isActive === true) {
-            const a = map.get(event.pointerId);
-            const b = getOthers(event.pointerId)[0];
-            let scale = 0.0;
-            {
-                const v = { x: a.x - b.x, y: a.y - b.y };
-                const s = v.x * v.x + v.y * v.y;
-                scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-            }
-            // let rotate = 0.0;
-            // {
-            //     const c = { x: a.x + delta.x, y: a.y + delta.y };
-            //     const v1 = { x: a.x - b.x, y: a.y - b.y };
-            //     const v2 = { x: c.x - b.x, y: c.y - b.y };
-            //     const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-            //     const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-            //     if (l1 > 0.0 && l2 > 0.0) {
-            //         const angle = Math.acos((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
-            //         const sign = v1.x * v2.y - v1.y * v2.x;
-            //         rotate = sign > 0.0 ? +angle : -angle;
-            //     }
-            // }
-            xnew$1.emit('-gesturemove', { event, position, delta, scale });
-        }
-        map.set(event.pointerId, position);
-    });
-    drag.on('-dragend', ({ event }) => {
-        if (isActive === true) {
-            xnew$1.emit('-gestureend', {});
-        }
-        isActive = false;
-        map.delete(event.pointerId);
-    });
-    drag.on('-dragcancel', ({ event }) => {
-        if (isActive === true) {
-            xnew$1.emit('-gesturecancel', { event });
-        }
-        isActive = false;
-        map.delete(event.pointerId);
-    });
-    function getOthers(id) {
-        const backup = map.get(id);
-        map.delete(id);
-        const others = [...map.values()];
-        map.set(id, backup);
-        return others;
-    }
-}
-function getPosition(element, event) {
-    const rect = element.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-}
-
 function DragFrame(frame, { x = 0, y = 0 } = {}) {
     const absolute = xnew$1.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
     xnew$1.context('xnew.dragframe', { frame, absolute });
 }
-function DragTarget(target, {} = {}) {
+function DragTarget(unit, {} = {}) {
     const { frame, absolute } = xnew$1.context('xnew.dragframe');
-    xnew$1.nest('<div>');
-    const direct = xnew$1(absolute.parentElement, DirectEvent);
+    const target = xnew$1(absolute.parentElement);
     const current = { x: 0, y: 0 };
     const offset = { x: 0, y: 0 };
     let dragged = false;
-    direct.on('-dragstart', ({ event, position }) => {
-        if (target.element.contains(event.target) === false)
+    target.on('dragstart', ({ event, position }) => {
+        if (unit.element.contains(event.target) === false)
             return;
         dragged = true;
         offset.x = position.x - parseFloat(absolute.style.left || '0');
@@ -1499,7 +1392,7 @@ function DragTarget(target, {} = {}) {
         current.x = position.x - offset.x;
         current.y = position.y - offset.y;
     });
-    direct.on('-dragmove', ({ event, delta }) => {
+    target.on('dragmove', ({ event, delta }) => {
         if (dragged !== true)
             return;
         current.x += delta.x;
@@ -1507,9 +1400,10 @@ function DragTarget(target, {} = {}) {
         absolute.style.left = `${current.x}px`;
         absolute.style.top = `${current.y}px`;
     });
-    direct.on('-dragcancel -dragend', ({ event }) => {
+    target.on('dragend', ({ event }) => {
         dragged = false;
     });
+    xnew$1.nest('<div>');
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -1518,7 +1412,7 @@ function DragTarget(target, {} = {}) {
 function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
     xnew$1.nest(`<svg
         viewBox="0 0 100 100"
-        style="position: absolute; width: 100%; height: 100%; pointer-select: none;
+        style="position: absolute; width: 100%; height: 100%; select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
@@ -1528,7 +1422,7 @@ function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strok
     const internal = xnew$1((unit) => {
         let newsize = Math.min(outer.clientWidth, outer.clientHeight);
         const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew$1(outer, ResizeEvent).on('-resize', () => {
+        xnew$1(outer).on('resize', () => {
             newsize = Math.min(outer.clientWidth, outer.clientHeight);
             inner.style.width = `${newsize}px`;
             inner.style.height = `${newsize}px`;
@@ -1544,22 +1438,21 @@ function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strok
             xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew$1('<circle cx="50" cy="50" r="23">');
         });
-        const direct = xnew$1(DirectEvent);
-        direct.on('-dragstart', ({ event, position }) => {
+        unit.on('dragstart', ({ event, position }) => {
             const vector = getVector(position);
             target.element.style.filter = 'brightness(90%)';
             target.element.style.left = vector.x * newsize / 4 + 'px';
             target.element.style.top = vector.y * newsize / 4 + 'px';
             xnew$1.emit('-down', { vector });
         });
-        direct.on('-dragmove', ({ event, position }) => {
+        unit.on('dragmove', ({ event, position }) => {
             const vector = getVector(position);
             target.element.style.filter = 'brightness(90%)';
             target.element.style.left = vector.x * newsize / 4 + 'px';
             target.element.style.top = vector.y * newsize / 4 + 'px';
             xnew$1.emit('-move', { vector });
         });
-        direct.on('-dragend', ({ event }) => {
+        unit.on('dragend', ({ event }) => {
             const vector = { x: 0, y: 0 };
             target.element.style.filter = '';
             target.element.style.left = vector.x * newsize / 4 + 'px';
@@ -1583,7 +1476,7 @@ function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', stroke
     const internal = xnew$1((unit) => {
         let newsize = Math.min(outer.clientWidth, outer.clientHeight);
         const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew$1(outer, ResizeEvent).on('-resize', () => {
+        xnew$1(outer).on('resize', () => {
             newsize = Math.min(outer.clientWidth, outer.clientHeight);
             inner.style.width = `${newsize}px`;
             inner.style.height = `${newsize}px`;
@@ -1611,8 +1504,7 @@ function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', stroke
             xnew$1('<polygon points="11 50 20 42 20 58">');
             xnew$1('<polygon points="89 50 80 42 80 58">');
         });
-        const direct = xnew$1(DirectEvent);
-        direct.on('-dragstart', ({ event, position }) => {
+        unit.on('dragstart', ({ event, position }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -1620,7 +1512,7 @@ function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', stroke
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             xnew$1.emit('-down', { vector });
         });
-        direct.on('-dragmove', ({ event, position }) => {
+        unit.on('dragmove', ({ event, position }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -1628,7 +1520,7 @@ function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', stroke
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             xnew$1.emit('-move', { vector });
         });
-        direct.on('-dragend', ({ event }) => {
+        unit.on('dragend', ({ event }) => {
             const vector = { x: 0, y: 0 };
             targets[0].element.style.filter = '';
             targets[1].element.style.filter = '';
@@ -1690,7 +1582,7 @@ function TextStream(unit, { text = '', speed = 50, fade = 300 } = {}) {
     });
     xnew$1.timeout(() => {
         xnew$1(document.body).on('click wheel', action);
-        xnew$1(DirectEvent).on('-keydown', action);
+        unit.on('keydown', action);
     }, 100);
     function action() {
         if (state === 0) {

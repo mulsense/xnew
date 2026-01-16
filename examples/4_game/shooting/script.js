@@ -43,7 +43,7 @@ function Dot(unit) {
 
 function TitleScene(unit) {
   xnew(TitleText);
-  xnew(xnew.basics.DirectEvent).on('-keydown -pointerdown', () => {
+  unit.on('keydown pointerdown', () => {
     xnew.emit('+main:nextscene', GameScene);
   });
 }
@@ -68,7 +68,7 @@ function GameScene(scene) {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      xnew(xnew.basics.DirectEvent).on('-keydown -pointerdown', () =>{
+      scene.on('keydown pointerdown', () =>{
         xnew.emit('+main:nextscene', TitleScene);
       });
     }, 1000);
@@ -88,13 +88,12 @@ function Controller(unit) {
     dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));        
   });
 
-  const direct = xnew(xpixi.canvas, xnew.basics.DirectEvent);
-  direct.on('-pointerdown', () => {
+  unit.on('pointerdown', () => {
       xnew.emit('+shot')
   });
 
-  direct.on('-keydown.arrow -keyup.arrow', ({ vector }) => xnew.emit('+move', { vector }));
-  direct.on('-keydown', ({ code }) => {
+  unit.on('keydown.arrow keyup.arrow', ({ vector }) => xnew.emit('+move', { vector }));
+  unit.on('keydown', ({ code }) => {
     if (code === 'Space') {
       xnew.emit('+shot')
     }

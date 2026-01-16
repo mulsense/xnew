@@ -18,7 +18,7 @@
       const text = xnew('<span>');
      
       let running = false;
-      unit.on('click', (event) => {
+      unit.on('click', ({ event }) => {
         console.log('click');
         running ? unit.stop() : unit.start();
       });

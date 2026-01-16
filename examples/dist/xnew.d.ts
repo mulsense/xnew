@@ -46,9 +46,12 @@ declare class EventManager {
     private click;
     private click_outside;
     private pointer;
+    private mouse;
+    private touch;
     private pointer_outside;
     private wheel;
     private drag;
+    private gesture;
     private key;
     private key_arrow;
 }
@@ -354,7 +357,7 @@ declare function DragFrame(frame: Unit, { x, y }?: {
     x?: number;
     y?: number;
 }): void;
-declare function DragTarget(target: Unit, {}?: {}): void;
+declare function DragTarget(unit: Unit, {}?: {}): void;
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;

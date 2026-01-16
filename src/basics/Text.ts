@@ -1,6 +1,5 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { DirectEvent } from './Event';
 export function TextStream(unit: Unit, { text = '', speed = 50, fade = 300 }: { text?: string, speed?: number, fade?: number } = {}) {
     const chars: Unit[] = [];
 
@@ -33,7 +32,7 @@ export function TextStream(unit: Unit, { text = '', speed = 50, fade = 300 }: { 
     });
     xnew.timeout(() => {
         xnew(document.body).on('click wheel', action);
-        xnew(DirectEvent).on('-keydown', action);
+        unit.on('keydown', action);
     }, 100);
 
     function action() {

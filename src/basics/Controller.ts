@@ -1,6 +1,5 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { DirectEvent, ResizeEvent } from './Event';
 
 //----------------------------------------------------------------------------------------------------
 // controller
@@ -12,7 +11,7 @@ function SVGTemplate(self: Unit,
 ) {
     xnew.nest(`<svg
         viewBox="0 0 100 100"
-        style="position: absolute; width: 100%; height: 100%; pointer-select: none;
+        style="position: absolute; width: 100%; height: 100%; select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
@@ -29,7 +28,7 @@ export function AnalogStick(unit: Unit,
         let newsize = Math.min(outer.clientWidth, outer.clientHeight);
 
         const inner = xnew.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew(outer, ResizeEvent).on('-resize', () => {
+        xnew(outer).on('resize', () => {
             newsize = Math.min(outer.clientWidth, outer.clientHeight);
             inner.style.width = `${newsize}px`;
             inner.style.height = `${newsize}px`;
@@ -48,23 +47,21 @@ export function AnalogStick(unit: Unit,
             xnew('<circle cx="50" cy="50" r="23">');
         });
 
-        const direct = xnew(DirectEvent);
-
-        direct.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        unit.on('dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             target.element.style.filter = 'brightness(90%)';
             target.element.style.left = vector.x * newsize / 4 + 'px';
             target.element.style.top = vector.y * newsize / 4 + 'px';
             xnew.emit('-down', { vector });
         });
-        direct.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        unit.on('dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             target.element.style.filter = 'brightness(90%)';
             target.element.style.left = vector.x * newsize / 4 + 'px';
             target.element.style.top = vector.y * newsize / 4 + 'px';
             xnew.emit('-move', { vector });
         });
-        direct.on('-dragend', ({ event }: { event: any }) => {
+        unit.on('dragend', ({ event }: { event: any }) => {
             const vector = { x: 0, y: 0 };
             target.element.style.filter = '';
             target.element.style.left = vector.x * newsize / 4 + 'px';
@@ -95,7 +92,7 @@ export function DirectionalPad(unit: Unit,
         let newsize = Math.min(outer.clientWidth, outer.clientHeight);
 
         const inner = xnew.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew(outer, ResizeEvent).on('-resize', () => {
+        xnew(outer).on('resize', () => {
             newsize = Math.min(outer.clientWidth, outer.clientHeight);
             inner.style.width = `${newsize}px`;
             inner.style.height = `${newsize}px`;
@@ -127,9 +124,7 @@ export function DirectionalPad(unit: Unit,
             xnew('<polygon points="89 50 80 42 80 58">');
         });
 
-        const direct = xnew(DirectEvent);
-
-        direct.on('-dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        unit.on('dragstart', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -137,7 +132,7 @@ export function DirectionalPad(unit: Unit,
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             xnew.emit('-down', { vector });
         });
-        direct.on('-dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
+        unit.on('dragmove', ({ event, position }: { event: any, position: { x: number, y: number } }) => {
             const vector = getVector(position);
             targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
             targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
@@ -145,7 +140,7 @@ export function DirectionalPad(unit: Unit,
             targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
             xnew.emit('-move', { vector });
         });
-        direct.on('-dragend', ({ event }: { event: any }) => {
+        unit.on('dragend', ({ event }: { event: any }) => {
             const vector = { x: 0, y: 0 };
             targets[0].element.style.filter = '';
             targets[1].element.style.filter = '';

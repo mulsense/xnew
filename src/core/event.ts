@@ -29,10 +29,16 @@ export class EventManager {
             finalize = this.click_outside(props);
         } else if (['pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'].includes(props.type)) {
             finalize = this.pointer(props);
-        } else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
-            finalize = this.drag(props);
         } else if (['pointerdown.outside', 'pointermove.outside', 'pointerup.outside'].includes(props.type)) {
             finalize = this.pointer_outside(props);
+        } else if (['mousedown', 'mousemove', 'mouseup', 'mouseover', 'mouseout'].includes(props.type)) {
+            finalize = this.mouse(props);
+        } else if (['touchstart', 'touchmove', 'touchend', 'touchcancel'].includes(props.type)) {
+            finalize = this.touch(props);
+        } else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
+            finalize = this.drag(props);
+        } else if (['gesturestart', 'gesturemove', 'gestureend'].includes(props.type)) {
+            finalize = this.gesture(props);
         } else if (['keydown', 'keyup'].includes(props.type)) {
             finalize = this.key(props);
         } else if (['keydown.arrow', 'keyup.arrow'].includes(props.type)) {
@@ -96,6 +102,26 @@ export class EventManager {
     }
 
     private pointer(props: EventProps): Function {
+        const execute = (event: any) => {
+            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+
+    private mouse(props: EventProps): Function {
+        const execute = (event: any) => {
+            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+
+    private touch(props: EventProps): Function {
         const execute = (event: any) => {
             props.listener({ event, type: props.type, position: pointer(props.element, event).position });
         };
@@ -184,11 +210,85 @@ export class EventManager {
             pointercancel = null;
         }
 
-        document.addEventListener('pointerdown', pointerdown, props.options);
+        props.element.addEventListener('pointerdown', pointerdown, props.options);
 
         return () => {
-            document.removeEventListener('pointerdown', pointerdown);
+            props.element.removeEventListener('pointerdown', pointerdown);
             remove();
+        };
+    }
+
+    private gesture(props: EventProps): Function {
+        let isActive = false;
+        const map = new Map();
+
+        const element = props.element;
+        const options = props.options;
+
+        const dragstart = ({ event, position }: any) => {
+            map.set(event.pointerId, { ...position });
+
+            isActive = map.size === 2 ? true : false;
+            if (isActive === true && props.type === 'gesturestart') {
+                props.listener({ event, type: props.type });
+            }
+        };
+
+        const dragmove = ({ event, position, delta }: any) => {
+            if (map.size >= 2 && isActive === true) {
+                const a = map.get(event.pointerId);
+                const b = getOthers(event.pointerId)[0];
+
+                let scale = 0.0;
+                {
+                    const v = { x: a.x - b.x, y: a.y - b.y };
+                    const s = v.x * v.x + v.y * v.y;
+                    scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
+                }
+                // let rotate = 0.0;
+                // {
+                //     const c = { x: a.x + delta.x, y: a.y + delta.y };
+                //     const v1 = { x: a.x - b.x, y: a.y - b.y };
+                //     const v2 = { x: c.x - b.x, y: c.y - b.y };
+                //     const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                //     const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+
+                //     if (l1 > 0.0 && l2 > 0.0) {
+                //         const angle = Math.acos((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
+                //         const sign = v1.x * v2.y - v1.y * v2.x;
+                //         rotate = sign > 0.0 ? +angle : -angle;
+                //     }
+                // }
+                if (props.type === 'gesturemove') {
+                    props.listener({ event, type: props.type, scale });
+                }
+            }
+            map.set(event.pointerId, position);
+        };
+
+        const dragend = ({ event }: any) => {
+            if (isActive === true) {
+                props.listener({ event, type: props.type, scale: 1.0 });
+            }
+            isActive = false;
+            map.delete(event.pointerId);
+        };
+        this.add({ element, options, type: 'dragstart', listener: dragstart });
+        this.add({ element, options, type: 'dragmove', listener: dragmove });
+        this.add({ element, options, type: 'dragend', listener: dragend });
+
+        function getOthers(id: number) {
+            const backup = map.get(id);
+            map.delete(id);
+            const others = [...map.values()];
+            map.set(id, backup);
+            return others;
+        }
+
+        return () => {
+            this.remove({ type: 'dragstart', listener: dragstart });
+            this.remove({ type: 'dragmove', listener: dragmove });
+            this.remove({ type: 'dragend', listener: dragend });
         };
     }
 

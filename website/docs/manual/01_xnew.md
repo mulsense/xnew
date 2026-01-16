@@ -146,7 +146,7 @@ function MyComponent(unit) {
   xnew.nest('<div>', 'click here');
 
   // Listen for click events on the element
-  unit.on('click', (event) => {
+  unit.on('click', ({ event }) => {
     console.log('Element was clicked!');
   });
 }
@@ -154,7 +154,7 @@ function MyComponent(unit) {
 const unit = xnew(MyComponent);
 
 // You can also add listeners from outside the component
-unit.on('click', (event) => {
+unit.on('click', ({ event }) => {
   console.log('External click listener');
 });
 ```
@@ -173,7 +173,7 @@ unit.off();
 unit.off('click');
 
 // Remove a specific listener function
-function myClickHandler(event) {
+function myClickHandler({ event }) {
   console.log('Clicked');
 }
 unit.on('click', myClickHandler);
@@ -369,16 +369,16 @@ xnew automatically handles standard DOM events like click, mouseover, keydown, e
 
 ```js
 function InteractiveButton(unit) {
-  unit.on('click', (event) => {
+  unit.on('click', ({ event }) => {
     console.log('Button clicked!');
     event.preventDefault(); // Standard DOM event object
   });
   
-  unit.on('mouseover', (event) => {
+  unit.on('mouseover', ({ event }) => {
     unit.element.style.background = 'lightblue';
   });
   
-  unit.on('mouseout', (event) => {
+  unit.on('mouseout', ({ event }) => {
     unit.element.style.background = '';
   });
 }
