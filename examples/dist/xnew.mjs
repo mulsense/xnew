@@ -446,11 +446,11 @@ class EventManager {
             map.set(event.pointerId, position);
         };
         const dragend = ({ event }) => {
+            map.delete(event.pointerId);
             if (isActive === true && props.type === 'gestureend') {
                 props.listener({ event, type: props.type, scale: 1.0 });
             }
             isActive = false;
-            map.delete(event.pointerId);
         };
         this.add({ element, options, type: 'dragstart', listener: dragstart });
         this.add({ element, options, type: 'dragmove', listener: dragmove });
