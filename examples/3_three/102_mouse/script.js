@@ -6,6 +6,7 @@ xnew('#main', Main);
 
 function Main(main) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+  xnew('<div class="absolute left-0 top-0">', 'drag to rotate, scroll to zoom');
 
   // three setup
   xthree.initialize({ canvas: main.canvas });
