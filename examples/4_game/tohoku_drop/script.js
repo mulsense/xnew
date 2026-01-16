@@ -47,7 +47,7 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', xnew.basics.VolumeController);
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', VolumeController);
 }
 
 function GameScene(unit) {
@@ -63,7 +63,7 @@ function GameScene(unit) {
   xnew(Queue);
   xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
   xnew(ScoreText);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', xnew.basics.VolumeController);
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', VolumeController);
 
   const playing = xnew((unit) => {
     xnew(Controller);
@@ -257,11 +257,10 @@ function ShadowPlane(unit) {
 }
 
 function Controller(unit) {
-  xnew.extend(xnew.basics.DirectEvent);
-  unit.on('-pointermove -pointerdown', ({ position }) => {
+  unit.on('pointermove pointerdown', ({ position }) => {
     xnew.emit('+move', { x: position.x * xpixi.canvas.width / xpixi.canvas.clientWidth });
   });
-  unit.on('-pointerdown', () => xnew.emit('+drop'));
+  unit.on('pointerdown', () => xnew.emit('+drop'));
 }
 
 function Bowl(unit) {
@@ -500,4 +499,31 @@ function screenShot() {
       unit.finalize();
     });
   });
+}
+
+function VolumeController(unit) {
+    xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
+    unit.on('pointerdown', ({ event }) => event.stopPropagation());
+
+    const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
+    style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
+    >`);
+
+    unit.on('click:outside', () => slider.element.style.display = 'none');
+    const button = xnew(() => {
+      xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
+      let icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
+      return {
+          update() {
+            icon?.finalize();
+            icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
+          }
+      };
+    });
+
+    button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
+    slider.on('input', ({ event }) => {
+        xnew.audio.volume = parseFloat(event.target.value) / 100;
+        button.update();
+    });
 }

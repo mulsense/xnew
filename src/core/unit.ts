@@ -1,18 +1,16 @@
 import { MapSet, MapMap } from './map';
 import { Ticker, Timer, TimerOptions } from './time';
+import { SYSTEM_EVENTS, UnitElement } from './types';
+import { EventManager } from './event';
 
 //----------------------------------------------------------------------------------------------------
 // utils
 //----------------------------------------------------------------------------------------------------
 
-const SYSTEM_EVENTS: string[] = ['start', 'process', 'update', 'stop', 'finalize'] as const;
-
-export type UnitElement = HTMLElement | SVGElement;
-
 interface Context { stack: Context | null; key?: string; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; }
 
-interface UnitInternal {
+interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
@@ -36,6 +34,8 @@ interface UnitInternal {
     listeners: MapMap<string, Function, { element: UnitElement, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
+
+    eventManager: EventManager;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ interface UnitInternal {
 
 export class Unit {
     [key: string]: any;
-    public _: UnitInternal;
+    public _: Internal;
 
     constructor(parent: Unit | null, ...args: any[]) {
         let target: Object | string | null;
@@ -83,7 +83,7 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { stack: null };
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as UnitInternal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -135,6 +135,7 @@ export class Unit {
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], process: [], update: [], stop: [], finalize: [] },
+            eventManager: new EventManager(),
         });
 
         // nest html element
@@ -345,7 +346,7 @@ export class Unit {
                 this._.listeners.set(type, listener, { element: this.element, execute });
                 Unit.type2units.add(type, this);
                 if (/^[A-Za-z]/.test(type)) {
-                    this.element.addEventListener(type, execute, options);
+                    this._.eventManager.add({ element: this.element, type, listener: execute, options });
                 }
             }
         });
@@ -359,11 +360,10 @@ export class Unit {
             }
             (listener ? [listener] : [...this._.listeners.keys(type)]).forEach((listener) => {
                 const item = this._.listeners.get(type, listener);
-                if (item !== undefined) {
-                    this._.listeners.delete(type, listener);
-                    if (/^[A-Za-z]/.test(type)) {
-                        item.element.removeEventListener(type, item.execute as EventListener);
-                    }
+                if (item === undefined) return;
+                this._.listeners.delete(type, listener);
+                if (/^[A-Za-z]/.test(type)) {
+                    this._.eventManager.remove({ type, listener: item.execute });
                 }
             });
             if (this._.listeners.has(type) === false) {

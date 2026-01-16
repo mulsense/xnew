@@ -11,28 +11,20 @@
   <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew('#main', (unit) => {
-      const screen = xnew(xnew.basics.Screen, { width: 512, height: 512 });
-
-      const button = xnew('<button class="absolute top-0 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-300">', 'reset');
-      const canvas = screen.canvas;
+      xnew.extend(xnew.basics.Screen, { width: 512, height: 512 });
+      const canvas = unit.canvas;
       const context = canvas.getContext('2d');
-      button.on('click', () => {
-        context.fillStyle = "rgb(0,0,0)";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-      });
 
       context.fillStyle = "rgb(0,0,0)";
       context.fillRect(0, 0, canvas.width, canvas.height);
       
-      const direct = xnew(screen.element, xnew.basics.DirectEvent);
-
-      direct.on('-dragstart -dragmove', ({ position, delta }) => {
+      unit.on('dragstart dragmove', ({ type, position, delta }) => {
         const scaleX = canvas.width / canvas.clientWidth;
         const scaleY = canvas.height / canvas.clientHeight;
 
         context.beginPath();
         context.fillStyle = 'white';
-        if (delta) {
+        if (type === 'dragmove') {
           const length = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
           for (let i = 0; i < length; i++) {
             context.arc((position.x - delta.x * i / length) * scaleX, (position.y - delta.y * i / length) * scaleY, 1, 0, Math.PI * 2, true);
@@ -47,30 +39,14 @@
         const text1 = xnew('<div class="text-white text-lg text-center">', 'pointer over/out');
         const text2 = xnew('<div class="text-white text-lg text-center">', 'pointer');
         const text3 = xnew('<div class="text-white text-lg text-center">', 'drag');
-        direct.on('-pointerover', ({ position }) => {
-          text1.element.textContent = `-pointerover {x:${position.x}, y:${position.y}}`;
+        unit.on('pointerover pointerout', ({ type, position }) => {
+          text1.element.textContent = `${type} {x:${position.x}, y:${position.y}}`;
         });
-        direct.on('-pointerout', ({ position }) => {
-          text1.element.textContent = `-pointerout {x:${position.x}, y:${position.y}}`;
+        unit.on('pointerdown pointermove pointerup', ({ type, position }) => {
+          text2.element.textContent = `${type} {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
-        direct.on('-pointerdown', ({ position }) => {
-          text2.element.textContent = `-pointerdown {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-        direct.on('-pointermove', ({ position }) => {
-          text2.element.textContent = `-pointermove {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-        direct.on('-pointerup', ({ position }) => {
-          text2.element.textContent = `-pointerup {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-
-        direct.on('-dragstart', ({ position }) => {
-          text3.element.textContent = `-dragstart {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-        direct.on('-dragmove', ({ position, delta }) => {
-          text3.element.textContent = `-dragmove: {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}} delta {x:${Math.floor(delta.x)}, y:${Math.floor(delta.y)}}`;
-        });
-        direct.on('-dragend', ({ position }) => {
-          text3.element.textContent = `-dragend: {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
+        unit.on('dragstart dragmove dragend', ({ type, position, delta }) => {
+          text3.element.textContent = `${type} {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
       })
     });

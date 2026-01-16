@@ -70,18 +70,16 @@ function Cube(unit, { x, y, z, size, color }) {
 }
 
 function Controller(unit) {
-  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+  unit.on('touchstart contextmenu wheel', ({ event }) => event.preventDefault());
 
-  const direct = xnew(xnew.basics.DirectEvent);
   let isActive = false;
-  direct.on('-gesturestart', () => isActive = true);
-  direct.on('-gestureend', () => isActive = false);
-  direct.on('-gesturemove', ({ scale }) => {
+  unit.on('-gesturestart', () => isActive = true);
+  unit.on('-gestureend', () => isActive = false);
+  unit.on('-gesturemove', ({ scale }) => {
     xnew.emit('+scale', { scale })
   });
   
-  direct.on('-dragmove', ({ event, delta }) => {
-    console.log(event);
+  unit.on('dragmove', ({ event, delta }) => {
     if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
       xnew.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
@@ -90,5 +88,5 @@ function Controller(unit) {
       xnew.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
     }
   });
-  direct.on('-wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+  unit.on('wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
 }

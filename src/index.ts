@@ -2,21 +2,17 @@ import { xnew as base } from './core/xnew';
 import { Unit, UnitPromise } from './core/unit';
 
 import { AccordionFrame, AccordionHeader, AccordionBullet, AccordionContent } from './basics/Accordion';
-import { ResizeEvent, DirectEvent } from './basics/Event';
 import { Screen } from './basics/Screen';
 import { ModalFrame, ModalContent } from './basics/Modal';
 import { TabFrame, TabButton, TabContent } from './basics/Tab';
 import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 import { TextStream } from './basics/Text';
-import { VolumeController } from './basics/Audio';
 
 import { icons } from './icons/icons';
 
 const basics = {
     Screen,
-    DirectEvent,
-    ResizeEvent,
     ModalFrame,
     ModalContent,
     AccordionFrame,
@@ -31,7 +27,6 @@ const basics = {
     DragTarget,
     AnalogStick,
     DirectionalPad,
-    VolumeController
 };
 
 import { master, AudioFile, AudioFilePlayOptions, AudioFilePauseOptions, Synthesizer, SynthesizerOptions } from './audio/audio';

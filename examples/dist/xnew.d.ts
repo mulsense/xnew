@@ -27,6 +27,32 @@ declare class Ticker {
 }
 
 type UnitElement = HTMLElement | SVGElement;
+
+interface EventProps {
+    element: UnitElement;
+    type: string;
+    listener: Function;
+    options?: boolean | AddEventListenerOptions;
+}
+declare class EventManager {
+    private map;
+    add(props: EventProps): void;
+    remove({ type, listener }: {
+        type: string;
+        listener: Function;
+    }): void;
+    private basic;
+    private resize;
+    private click;
+    private click_outside;
+    private pointer;
+    private pointer_outside;
+    private wheel;
+    private drag;
+    private key;
+    private key_arrow;
+}
+
 interface Context {
     stack: Context | null;
     key?: string;
@@ -37,7 +63,7 @@ interface Snapshot {
     context: Context;
     element: UnitElement;
 }
-interface UnitInternal {
+interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
@@ -62,10 +88,11 @@ interface UnitInternal {
     }>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
+    eventManager: EventManager;
 }
 declare class Unit {
     [key: string]: any;
-    _: UnitInternal;
+    _: Internal;
     constructor(parent: Unit | null, ...args: any[]);
     get element(): UnitElement;
     start(): void;
@@ -275,10 +302,7 @@ declare function AccordionContent(content: Unit, {}?: {}): {
     }): void;
 };
 
-declare function ResizeEvent(resize: Unit): void;
-declare function DirectEvent(unit: Unit): void;
-
-declare function Screen(screen: Unit, { width, height, fit }?: {
+declare function Screen(unit: Unit, { width, height, fit }?: {
     width?: number | undefined;
     height?: number | undefined;
     fit?: string | undefined;
@@ -356,8 +380,6 @@ declare function TextStream(unit: Unit, { text, speed, fade }?: {
     speed?: number;
     fade?: number;
 }): void;
-
-declare function VolumeController(unit: Unit, {}?: {}): void;
 
 declare const icons: {
     AcademicCap(unit: Unit, props: Object): void;
@@ -728,8 +750,6 @@ declare class Synthesizer {
 
 declare const basics: {
     Screen: typeof Screen;
-    DirectEvent: typeof DirectEvent;
-    ResizeEvent: typeof ResizeEvent;
     ModalFrame: typeof ModalFrame;
     ModalContent: typeof ModalContent;
     AccordionFrame: typeof AccordionFrame;
@@ -744,7 +764,6 @@ declare const basics: {
     DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;
     DirectionalPad: typeof DirectionalPad;
-    VolumeController: typeof VolumeController;
 };
 
 declare const audio: {
