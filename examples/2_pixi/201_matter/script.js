@@ -59,9 +59,9 @@ function Circle(unit, { x, y, radius, color, options = {} }) {
  
   const pyshics = Matter.Bodies.circle(0, 0, radius, options);
   Matter.Composite.add(xmatter.world, pyshics);
-  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
   Matter.Body.setPosition(pyshics, { x, y });
 
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
   unit.on('update', () => {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
@@ -75,10 +75,10 @@ function Polygon(unit, { x, y, sides, radius, color, options = {} }) {
   
   const pyshics = Matter.Bodies.polygon(0, 0, sides, radius, options);
   Matter.Composite.add(xmatter.world, pyshics);
-  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
 
   Matter.Body.setPosition(pyshics, { x, y });
 
+  unit.on('finalize', () => Matter.Composite.remove(xmatter.world, pyshics));
   unit.on('update', () => {
       object.rotation = pyshics.angle;
       object.position.set(pyshics.position.x, pyshics.position.y);
