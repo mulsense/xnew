@@ -267,7 +267,7 @@ export class EventManager {
         };
 
         const dragend = ({ event }: any) => {
-            if (isActive === true) {
+            if (isActive === true && props.type === 'gestureend') {
                 props.listener({ event, type: props.type, scale: 1.0 });
             }
             isActive = false;

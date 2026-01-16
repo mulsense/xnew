@@ -452,7 +452,7 @@
                 map.set(event.pointerId, position);
             };
             const dragend = ({ event }) => {
-                if (isActive === true) {
+                if (isActive === true && props.type === 'gestureend') {
                     props.listener({ event, type: props.type, scale: 1.0 });
                 }
                 isActive = false;
