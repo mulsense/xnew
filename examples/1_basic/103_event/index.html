@@ -25,7 +25,7 @@
         xnew.nest('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">');
         unit.element.textContent = 'click';
 
-        unit.on('click', () => xnew.emit('+countup'));
+        unit.on('click', ({ event }) => xnew.emit('+countup'));
       });
 
       xnew((unit) => {

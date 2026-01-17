@@ -1,6 +1,5 @@
 import { MapSet, MapMap } from './map';
 import { UnitElement } from './types';
-import { xnew } from './xnew';
 
 //----------------------------------------------------------------------------------------------------
 // event manager
@@ -68,11 +67,11 @@ export class EventManager {
     }
 
     private resize(props: EventProps) {
-        const observer = new ResizeObserver(xnew.scope((entries: any) => {
+        const observer = new ResizeObserver((entries: any) => {
             for (const entry of entries) {
                 props.listener({ type: 'resize' }); break;
             }
-        }));
+        });
         observer.observe(props.element);
         return () => {
             observer.unobserve(props.element);
@@ -226,7 +225,7 @@ export class EventManager {
         const options = props.options;
 
         const dragstart = ({ event, position }: any) => {
-            map.set(event.pointerId, { ...position });
+            map.set(event.pointerId, position);
 
             isActive = map.size === 2 ? true : false;
             if (isActive === true && props.type === 'gesturestart') {

@@ -1,9 +1,13 @@
 import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js'
+import { createCanvasElement } from 'three';
 
 export default {
-    initialize({ renderer = null, canvas = null }: any = {}) {
-        xnew.extend(Root, { renderer, canvas });
+    initialize(
+        { renderer = null, canvas = null, update = true }:
+        { renderer?: any, canvas?: HTMLCanvasElement | null, update?: boolean } = {}
+    ) {
+        xnew.extend(Root, { renderer, canvas, update });
     },
     nest(object: any) {
         xnew.extend(Nest, { object });
@@ -27,7 +31,7 @@ export default {
     },
 };
 
-function Root(unit: xnew.Unit, { canvas }: any) {
+function Root(unit: xnew.Unit, { canvas, update }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xpixi.root', root);
     root.canvas = canvas;
@@ -42,14 +46,16 @@ function Root(unit: xnew.Unit, { canvas }: any) {
     root.scene = new PIXI.Container();
     xnew.context('xpixi.object', root.scene);
 
-    unit.on('update', () => {
-        root.updates.forEach((update: any) => {
-            update();
+    if (update === true) {
+        unit.on('update', () => {
+            root.updates.forEach((update: any) => {
+                update();
+            });
+            if (root.renderer && root.scene) {
+                root.renderer.render(root.scene);
+            }
         });
-        if (root.renderer && root.scene) {
-            root.renderer.render(root.scene);
-        }
-    });
+    }
 }
 
 function Nest(unit: xnew.Unit, { object }: { object: any }) {

@@ -27,10 +27,10 @@ interface CreateUnit {
 
 export const xnew = Object.assign(
     function(...args: any[]): Unit {
-        if (Unit.root === undefined) {
+        if (Unit.rootUnit === undefined) {
             Unit.reset();
         }        
-        return new Unit(Unit.current, ...args);
+        return new Unit(Unit.currentUnit, ...args);
     } as CreateUnit,
     {
         /**
@@ -44,7 +44,7 @@ export const xnew = Object.assign(
          */
         nest(tag: string): HTMLElement | SVGElement {
             try {
-                return Unit.nest(Unit.current, tag);
+                return Unit.nest(Unit.currentUnit, tag);
             } catch (error: unknown) {
                 console.error('xnew.nest(tag: string): ', error);
                 throw error;
@@ -62,7 +62,7 @@ export const xnew = Object.assign(
          */
         extend(component: Function, props?: Object): { [key: string]: any } {
             try {
-                return Unit.extend(Unit.current, component, props);
+                return Unit.extend(Unit.currentUnit, component, props);
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
                 throw error;
@@ -83,7 +83,7 @@ export const xnew = Object.assign(
          */
         context(key: string, value: any = undefined): any {
             try {
-                return Unit.context(Unit.current, key, value);
+                return Unit.context(Unit.currentUnit, key, value);
             } catch (error: unknown) {
                 console.error('xnew.context(key: string, value?: any): ', error);
                 throw error;
@@ -99,9 +99,9 @@ export const xnew = Object.assign(
          */
         promise(promise: Promise<any>): UnitPromise {
             try {
-                const component = Unit.current._.currentComponent;
-                Unit.current._.promises.push(new UnitPromise(promise, component));
-                return Unit.current._.promises[Unit.current._.promises.length - 1];
+                const component = Unit.currentUnit._.currentComponent;
+                Unit.currentUnit._.promises.push(new UnitPromise(promise, component));
+                return Unit.currentUnit._.promises[Unit.currentUnit._.promises.length - 1];
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
                 throw error;
@@ -117,8 +117,8 @@ export const xnew = Object.assign(
          */
         then(callback: Function): UnitPromise {
             try {
-                const component = Unit.current._.currentComponent;
-                const promises = Unit.current._.promises;
+                const component = Unit.currentUnit._.currentComponent;
+                const promises = Unit.currentUnit._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results: any[]) => {
                     callback(results.filter((_result, index) => promises[index].component !== null && promises[index].component === component));
@@ -138,7 +138,7 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                const promises = Unit.current._.promises;
+                const promises = Unit.currentUnit._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .catch(callback);
             } catch (error: unknown) {
@@ -156,7 +156,7 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                const promises = Unit.current._.promises;
+                const promises = Unit.currentUnit._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .finally(callback);
             } catch (error: unknown) {
@@ -175,7 +175,7 @@ export const xnew = Object.assign(
          * }), 1000)
          */
         scope(callback: any): any {
-            const snapshot = Unit.snapshot(Unit.current);
+            const snapshot = Unit.snapshot(Unit.currentUnit);
             return (...args: any[]) => Unit.scope(snapshot, callback, ...args);
         },
 
@@ -251,7 +251,7 @@ export const xnew = Object.assign(
 
 
         protect() {
-            Unit.current._.protected = true;
+            Unit.currentUnit._.protected = true;
         }
     }
 );

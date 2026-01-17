@@ -24,8 +24,8 @@
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
     var xpixi = {
-        initialize({ renderer = null, canvas = null } = {}) {
-            xnew.extend(Root, { renderer, canvas });
+        initialize({ renderer = null, canvas = null, update = true } = {}) {
+            xnew.extend(Root, { renderer, canvas, update });
         },
         nest(object) {
             xnew.extend(Nest, { object });
@@ -51,7 +51,7 @@
             return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.canvas;
         },
     };
-    function Root(unit, { canvas }) {
+    function Root(unit, { canvas, update }) {
         const root = {};
         xnew.context('xpixi.root', root);
         root.canvas = canvas;
@@ -63,14 +63,16 @@
         root.updates = [];
         root.scene = new PIXI__namespace.Container();
         xnew.context('xpixi.object', root.scene);
-        unit.on('update', () => {
-            root.updates.forEach((update) => {
-                update();
+        if (update === true) {
+            unit.on('update', () => {
+                root.updates.forEach((update) => {
+                    update();
+                });
+                if (root.renderer && root.scene) {
+                    root.renderer.render(root.scene);
+                }
             });
-            if (root.renderer && root.scene) {
-                root.renderer.render(root.scene);
-            }
-        });
+        }
     }
     function Nest(unit, { object }) {
         const parent = xnew.context('xpixi.object');

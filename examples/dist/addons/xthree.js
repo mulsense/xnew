@@ -24,8 +24,8 @@
     var THREE__namespace = /*#__PURE__*/_interopNamespaceDefault(THREE);
 
     var xthree = {
-        initialize({ renderer = null, canvas = null, camera = null } = {}) {
-            xnew.extend(Root, { renderer, canvas, camera });
+        initialize({ renderer = null, canvas = null, camera = null, update = true } = {}) {
+            xnew.extend(Root, { renderer, canvas, camera, update });
         },
         nest(object) {
             xnew.extend(Nest, { object });
@@ -46,9 +46,9 @@
         get canvas() {
             var _a;
             return (_a = xnew.context('xthree.root')) === null || _a === void 0 ? void 0 : _a.canvas;
-        }
+        },
     };
-    function Root(unit, { canvas, camera }) {
+    function Root(unit, { canvas, camera, update }) {
         const root = {};
         xnew.context('xthree.root', root);
         root.canvas = canvas;
@@ -57,9 +57,11 @@
         root.camera = camera !== null && camera !== void 0 ? camera : new THREE__namespace.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
         root.scene = new THREE__namespace.Scene();
         xnew.context('xthree.object', root.scene);
-        unit.on('update', () => {
-            root.renderer.render(root.scene, root.camera);
-        });
+        if (update === true) {
+            unit.on('update', () => {
+                root.renderer.render(root.scene, root.camera);
+            });
+        }
     }
     function Nest(unit, { object }) {
         const parent = xnew.context('xthree.object');

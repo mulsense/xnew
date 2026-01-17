@@ -2,8 +2,11 @@ import xnew from '@mulsense/xnew';
 import * as THREE from 'three';
 
 export default {
-    initialize ({ renderer = null, canvas = null, camera = null }: any = {}) {
-        xnew.extend(Root, { renderer, canvas, camera });
+    initialize (
+        { renderer = null, canvas = null, camera = null, update = true }:
+        { renderer?: any, canvas?: HTMLCanvasElement | null, camera?: THREE.Camera | null, update?: boolean } = {}
+    ) {
+        xnew.extend(Root, { renderer, canvas, camera, update });
     },
     nest (object: any) {
         xnew.extend(Nest, { object });
@@ -20,10 +23,10 @@ export default {
     },
     get canvas() {
         return xnew.context('xthree.root')?.canvas;
-    }
+    },
 };
 
-function Root(unit: xnew.Unit, { canvas, camera }: any) {
+function Root(unit: xnew.Unit, { canvas, camera, update }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xthree.root', root);
     root.canvas = canvas;
@@ -34,9 +37,12 @@ function Root(unit: xnew.Unit, { canvas, camera }: any) {
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
     xnew.context('xthree.object', root.scene);
-    unit.on('update', () => {
-        root.renderer.render(root.scene, root.camera);
-    });
+
+    if (update === true) {
+        unit.on('update', () => {
+            root.renderer.render(root.scene, root.camera);
+        });
+    }
 }
 
 function Nest(unit: xnew.Unit, { object }: { object: any }) {

@@ -21,14 +21,14 @@ function Scene1(scene) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  scene.on('pointerdown', () => xnew.emit('+main:nextscene', Scene2));
+  scene.on('pointerdown', ({ event }) => xnew.emit('+main:nextscene', Scene2));
 }
 
 function Scene2(scene) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  scene.on('pointerdown', () => xnew.emit('+main:nextscene', Scene1));
+  scene.on('pointerdown', ({ event }) => xnew.emit('+main:nextscene', Scene1));
 }
 
 function Text(unit, { text }) {

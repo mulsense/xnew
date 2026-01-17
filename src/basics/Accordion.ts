@@ -36,19 +36,15 @@ export function AccordionFrame(frame: Unit,
     }
 }
 
-export function AccordionHeader(header: Unit,
-    {}: {} = {}
-) {
+export function AccordionHeader(unit: Unit, {}: {} = {}) {
     const internal = xnew.context('xnew.accordionframe');
 
     xnew.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
 
-    header.on('click', () => internal.frame.toggle());
+    unit.on('click', () => internal.frame.toggle());
 }
 
-export function AccordionBullet(bullet: Unit,
-    { type = 'arrow' }: { type?: string } = {}
-) {
+export function AccordionBullet(unit: Unit, { type = 'arrow' }: { type?: string } = {}) {
     const internal = xnew.context('xnew.accordionframe');
     
     xnew.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
@@ -73,15 +69,13 @@ export function AccordionBullet(bullet: Unit,
     }
 }
 
-export function AccordionContent(content: Unit,
-    {}: {} = {}
-) {
+export function AccordionContent(unit: Unit, {}: {} = {}) {
     const internal = xnew.context('xnew.accordionframe');
     xnew.nest(`<div style="display: ${internal.open ? 'block' : 'none'};">`) as HTMLElement;
     xnew.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
 
     internal.on('-transition', ({ rate }: { rate: number }) => {
-        content.transition({ element: content.element, rate });
+        unit.transition({ element: unit.element, rate });
     });
     
     return {

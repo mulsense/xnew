@@ -20,12 +20,6 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
-declare class Ticker {
-    private id;
-    constructor(callback: Function, fps?: number);
-    clear(): void;
-}
-
 type UnitElement = HTMLElement | SVGElement;
 
 interface EventProps {
@@ -65,6 +59,7 @@ interface Snapshot {
     unit: Unit;
     context: Context;
     element: UnitElement;
+    component: Function | null;
 }
 interface Internal {
     parent: Unit | null;
@@ -87,6 +82,7 @@ interface Internal {
     components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
+        component: Function | null;
         execute: Function;
     }>;
     defines: Record<string, any>;
@@ -105,6 +101,7 @@ declare class Unit {
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, tag: string): UnitElement;
+    static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
     };
@@ -112,9 +109,8 @@ declare class Unit {
     static stop(unit: Unit): void;
     static update(unit: Unit): void;
     static process(unit: Unit): void;
-    static root: Unit;
-    static current: Unit;
-    static ticker: Ticker;
+    static rootUnit: Unit;
+    static currentUnit: Unit;
     static reset(): void;
     static wrap(unit: Unit, listener: Function): (...args: any[]) => any;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
@@ -125,6 +121,8 @@ declare class Unit {
     static type2units: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
+    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    static off(unit: Unit, type: string, listener?: Function): void;
     static emit(type: string, ...args: any[]): void;
 }
 declare class UnitPromise {
@@ -294,11 +292,11 @@ declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
     open(): void;
     close(): void;
 };
-declare function AccordionHeader(header: Unit, {}?: {}): void;
-declare function AccordionBullet(bullet: Unit, { type }?: {
+declare function AccordionHeader(unit: Unit, {}?: {}): void;
+declare function AccordionBullet(unit: Unit, { type }?: {
     type?: string;
 }): void;
-declare function AccordionContent(content: Unit, {}?: {}): {
+declare function AccordionContent(unit: Unit, {}?: {}): {
     transition({ element, rate }: {
         element: HTMLElement;
         rate: number;

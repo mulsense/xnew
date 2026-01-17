@@ -20,7 +20,7 @@
       }); 
 
       const button = xnew(Button, { name: 'counter' });
-      button.on('click', () => {
+      button.on('click', ({ event }) => {
         xnew.emit('+toggle');
       });
     });

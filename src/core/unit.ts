@@ -1,5 +1,5 @@
 import { MapSet, MapMap } from './map';
-import { Ticker, Timer, TimerOptions } from './time';
+import { AnimationTicker, Timer, TimerOptions } from './time';
 import { SYSTEM_EVENTS, UnitElement } from './types';
 import { EventManager } from './event';
 
@@ -8,7 +8,7 @@ import { EventManager } from './event';
 //----------------------------------------------------------------------------------------------------
 
 interface Context { stack: Context | null; key?: string; value?: any; }
-interface Snapshot { unit: Unit; context: Context; element: UnitElement; }
+interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
 
 interface Internal {
     parent: Unit | null;
@@ -20,7 +20,6 @@ interface Internal {
     currentElement: UnitElement;
     currentContext: Context;
     currentComponent: Function | null;
-
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
@@ -31,7 +30,7 @@ interface Internal {
     promises: UnitPromise[];
     elements: UnitElement[];
     components: Function[];
-    listeners: MapMap<string, Function, { element: UnitElement, execute: Function }>;
+    listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, Function[]>;
 
@@ -117,8 +116,8 @@ export class Unit {
     }
 
     static initialize(unit: Unit, anchor: UnitElement | null): void {
-        const backup = Unit.current;
-        Unit.current = unit;
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = unit;
         unit._ = Object.assign(unit._, {
             currentElement: unit._.baseElement,
             currentContext: unit._.baseContext,
@@ -149,7 +148,7 @@ export class Unit {
         // whether the unit promise was resolved
         Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
 
-        Unit.current = backup;
+        Unit.currentUnit = backup;
     }
 
     static finalize(unit: Unit): void {
@@ -202,6 +201,8 @@ export class Unit {
         }
     }
 
+    static currentComponent: Function = () => {};
+   
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
         if (unit._.state !== 'invoked') {
             throw new Error('This function can not be called after initialized.');
@@ -270,19 +271,18 @@ export class Unit {
         }
     }
 
-    static root: Unit;
-    static current: Unit;
-    static ticker: Ticker;
+    static rootUnit: Unit;
+    static currentUnit: Unit;
 
     static reset(): void {
-        Unit.root?.finalize();
-        Unit.current = Unit.root = new Unit(null, null);
-        Unit.ticker?.clear();
-        Unit.ticker = new Ticker(() => {
-            Unit.start(Unit.root);
-            Unit.process(Unit.root);
-            Unit.update(Unit.root);
+        Unit.rootUnit?.finalize();
+        Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
+        const ticker = new AnimationTicker(() => {
+            Unit.start(Unit.rootUnit);
+            Unit.process(Unit.rootUnit);
+            Unit.update(Unit.rootUnit);
         });
+        Unit.rootUnit.on('finalize', () => ticker.clear());
     }
 
     static wrap(unit: Unit, listener: Function): (...args: any[]) => any {
@@ -294,24 +294,26 @@ export class Unit {
         if (snapshot.unit._.state === 'finalized') {
             return;
         } 
-        const current = Unit.current;
+        const currentUnit = Unit.currentUnit;
         const backup = Unit.snapshot(snapshot.unit);
         try {
-            Unit.current = snapshot.unit;
+            Unit.currentUnit = snapshot.unit;
             snapshot.unit._.currentContext = snapshot.context;
             snapshot.unit._.currentElement = snapshot.element;
+            snapshot.unit._.currentComponent = snapshot.component;
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
-            Unit.current = current;
+            Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
             snapshot.unit._.currentElement = backup.element;
+            snapshot.unit._.currentComponent = backup.component;
         }
     }
 
     static snapshot(unit: Unit): Snapshot {
-        return { unit, context: unit._.currentContext, element: unit._.currentElement };
+        return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
 
     static context(unit: Unit, key: string, value?: any): any {
@@ -337,43 +339,50 @@ export class Unit {
     static type2units = new MapSet<string, Unit>();
   
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        type.trim().split(/\s+/).forEach((type) => {
-            if (SYSTEM_EVENTS.includes(type)) {
-                this._.systems[type].push(listener);
-            }
-            if (this._.listeners.has(type, listener) === false) {
-                const execute = Unit.wrap(Unit.current, listener);
-                this._.listeners.set(type, listener, { element: this.element, execute });
-                Unit.type2units.add(type, this);
-                if (/^[A-Za-z]/.test(type)) {
-                    this._.eventManager.add({ element: this.element, type, listener: execute, options });
-                }
-            }
-        });
+        const types = type.trim().split(/\s+/);
+        
+        types.forEach((type) => Unit.on(this, type, listener, options));
     }
 
     off(type?: string, listener?: Function): void {
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
-        types.forEach((type) => {
-            if (SYSTEM_EVENTS.includes(type)) {
-                this._.systems[type] = this._.systems[type].filter((lis: Function) => listener ? lis !== listener : false);
+    
+        types.forEach((type) => Unit.off(this, type, listener));
+    }
+    
+    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        if (SYSTEM_EVENTS.includes(type)) {
+            unit._.systems[type].push(listener);
+        }
+        if (unit._.listeners.has(type, listener) === false) {
+            const execute = Unit.wrap(Unit.currentUnit, listener);
+            unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
+            Unit.type2units.add(type, unit);
+            if (/^[A-Za-z]/.test(type)) {
+                unit._.eventManager.add({ element: unit.element, type, listener: execute, options });
             }
-            (listener ? [listener] : [...this._.listeners.keys(type)]).forEach((listener) => {
-                const item = this._.listeners.get(type, listener);
-                if (item === undefined) return;
-                this._.listeners.delete(type, listener);
-                if (/^[A-Za-z]/.test(type)) {
-                    this._.eventManager.remove({ type, listener: item.execute });
-                }
-            });
-            if (this._.listeners.has(type) === false) {
-                Unit.type2units.delete(type, this);
+        }
+    }
+
+    static off(unit: Unit, type: string, listener?: Function): void {
+        if (SYSTEM_EVENTS.includes(type)) {
+            unit._.systems[type] = unit._.systems[type].filter((lis: Function) => listener ? lis !== listener : false);
+        }
+        (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
+            const item = unit._.listeners.get(type, listener);
+            if (item === undefined) return;
+            unit._.listeners.delete(type, listener);
+            if (/^[A-Za-z]/.test(type)) {
+                unit._.eventManager.remove({ type, listener: item.execute });
             }
         });
+        if (unit._.listeners.has(type) === false) {
+            Unit.type2units.delete(type, unit);
+        }
     }
 
     static emit(type: string, ...args: any[]) {
-        const current = Unit.current;
+        const current = Unit.currentUnit;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
                 const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
@@ -399,15 +408,15 @@ export class UnitPromise {
         this.component = component;
     }
     then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
+        this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
         return this;
     }
     catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
+        this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
         return this;
     }
     finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
+        this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
         return this;
     }
 }
@@ -421,7 +430,7 @@ export class UnitTimer {
     private stack: Object[] = [];
 
     constructor(options: TimerOptions) {
-        this.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
+        this.unit = new Unit(Unit.currentUnit, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
     }
 
     clear() {
@@ -446,18 +455,18 @@ export class UnitTimer {
 
     static execute(timer: UnitTimer, options: TimerOptions) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.current), ...options });
+            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
         } else if (timer.stack.length === 0) {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.currentUnit), ...options });
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         } else {
-            timer.stack.push({ snapshot: Unit.snapshot(Unit.current), ...options });  
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.currentUnit), ...options });  
         }
     }
 
     static next(timer: UnitTimer) {
         if (timer.stack.length > 0) {
-            timer.unit = new Unit(Unit.current, UnitTimer.Component, timer.stack.shift());
+            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.stack.shift());
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
     }

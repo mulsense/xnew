@@ -73,15 +73,7 @@ function Cube(unit, { x, y, z, size, color }) {
 function Controller(unit) {
   unit.on('touchstart contextmenu wheel', ({ event }) => event.preventDefault());
 
-  let isActive = false;
-  unit.on('gesturestart', () => isActive = true);
-  unit.on('gestureend', () => isActive = false);
-  unit.on('gesturemove', ({ scale }) => {
-    xnew.emit('+scale', { scale })
-  });
-  
   unit.on('dragmove', ({ event, delta }) => {
-    if (isActive === true) return;
     if (event.buttons & 1 || !event.buttons) {
       xnew.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
     }
