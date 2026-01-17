@@ -51,9 +51,7 @@ function Root(unit: xnew.Unit, { canvas, update }: any) {
             root.updates.forEach((update: any) => {
                 update();
             });
-            if (root.renderer && root.scene) {
-                root.renderer.render(root.scene);
-            }
+            root.renderer.render(root.scene);
         });
     }
 }

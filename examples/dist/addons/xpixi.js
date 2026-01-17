@@ -68,9 +68,7 @@
                 root.updates.forEach((update) => {
                     update();
                 });
-                if (root.renderer && root.scene) {
-                    root.renderer.render(root.scene);
-                }
+                root.renderer.render(root.scene);
             });
         }
     }
