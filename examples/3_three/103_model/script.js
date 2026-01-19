@@ -95,7 +95,7 @@ function Model(unit, { gltf }) {
   unit.on('+synccrossfade', (currentAction, nextAction, duration) => {
     mixer.addEventListener('loop', onLoopFinished);
 
-    function onLoopFinished({ event }) {
+    function onLoopFinished(event) {
       if (event.action === currentAction) {
         mixer.removeEventListener('loop', onLoopFinished);
         xnew.emit('+crossfade', currentAction, nextAction, duration);
@@ -200,9 +200,15 @@ function Panel(frame) {
 function PanelGroup(group, { name, open = false }) {
   xnew.extend(xnew.basics.AccordionFrame, { open });
   xnew((header) => {
-      xnew.nest('<div style="margin: 0.2em 0;">');
-      xnew.extend(xnew.basics.AccordionHeader);
-      xnew(xnew.basics.AccordionBullet);
+      xnew.nest('<div style="margin: 0.2em 0;display: flex; align-items: center; cursor: pointer;">');
+      header.on('click', () => group.toggle());
+      xnew(() => {
+        xnew.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
+        const arrow = xnew(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+        group.on('-transition', ({ rate }) => {
+            arrow.element.style.transform = `rotate(${rate * 90 - 45}deg)`;
+        });  
+      });
       xnew('<div>', name);
   });
   xnew.extend(xnew.basics.AccordionContent);

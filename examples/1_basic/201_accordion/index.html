@@ -20,12 +20,19 @@
       xnew.nest('<div class="w-64 border rounded-lg">');
 
       xnew((header) => {
-        xnew.extend(xnew.basics.AccordionHeader);
-        xnew(xnew.basics.AccordionBullet, { type: 'arrow' });
+        xnew.nest('<div style="display: flex; align-items: center; cursor: pointer;">');
+        header.on('click', () => frame.toggle());
+        xnew((unit) => {
+          xnew.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
+          const arrow = xnew(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+          frame.on('-transition', ({ rate }) => {
+              arrow.element.style.transform = `rotate(${rate * 90 - 45}deg)`;
+          });  
+        });
         xnew('<div class="my-2 w-full select-none cursor-pointer">', 'accordion (click me!)');
       });
 
-      xnew((content) => {
+      xnew((unit) => {
         xnew.extend(xnew.basics.AccordionContent);
         xnew.nest('<div class="p-2 border-t">');
         xnew('<span>', 'Content');

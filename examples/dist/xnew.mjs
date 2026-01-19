@@ -1156,25 +1156,30 @@ const xnew$1 = Object.assign(function (...args) {
     }
 });
 
-function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' } = {}) {
+function AccordionFrame(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
     const internal = xnew$1((internal) => {
         return {
-            frame, open, rate: 0.0,
+            frame: unit, open, rate: 0.0,
             transition(rate) {
                 xnew$1.emit('-transition', { rate });
             }
         };
     });
     xnew$1.context('xnew.accordionframe', internal);
-    internal.on('-transition', ({ rate }) => internal.rate = rate);
-    internal.transition(open ? 1.0 : 0.0);
+    internal.on('-transition', ({ rate }) => {
+        internal.rate = rate;
+        xnew$1.emit('-transition', { rate });
+    });
+    xnew$1.timeout(() => {
+        internal.transition(open ? 1.0 : 0.0);
+    });
     return {
         toggle() {
             if (internal.rate === 1.0) {
-                frame.close();
+                unit.close();
             }
             else if (internal.rate === 0.0) {
-                frame.open();
+                unit.open();
             }
         },
         open() {
@@ -1188,32 +1193,6 @@ function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' }
             }
         }
     };
-}
-function AccordionHeader(unit, {} = {}) {
-    const internal = xnew$1.context('xnew.accordionframe');
-    xnew$1.nest('<button style="display: flex; align-items: center; margin: 0; padding: 0; width: 100%; text-align: left; border: none; font: inherit; color: inherit; background: none; cursor: pointer;">');
-    unit.on('click', () => internal.frame.toggle());
-}
-function AccordionBullet(unit, { type = 'arrow' } = {}) {
-    const internal = xnew$1.context('xnew.accordionframe');
-    xnew$1.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
-    if (type === 'arrow') {
-        const arrow = xnew$1(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
-        arrow.element.style.transform = `rotate(${internal.rate * 90 - 45}deg)`;
-        internal.on('-transition', ({ rate }) => {
-            arrow.element.style.transform = `rotate(${rate * 90 - 45}deg)`;
-        });
-    }
-    else if (type === 'plusminus') {
-        const line1 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
-        const line2 = xnew$1(`<div style="position: absolute; width: 100%; border-top: 0.06em solid currentColor; border-bottom: 0.06em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
-        line2.element.style.transform = `rotate(90deg)`;
-        line2.element.style.opacity = `${1.0 - internal.rate}`;
-        internal.on('-transition', ({ rate }) => {
-            line1.element.style.transform = `rotate(${90 + rate * 90}deg)`;
-            line2.element.style.transform = `rotate(${rate * 180}deg)`;
-        });
-    }
 }
 function AccordionContent(unit, {} = {}) {
     const internal = xnew$1.context('xnew.accordionframe');
@@ -1315,68 +1294,6 @@ function ModalContent(content, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
         transition({ element, rate }) {
             const wrapper = element.parentElement;
             wrapper.style.opacity = rate.toString();
-        }
-    };
-}
-
-function TabFrame(frame, { select } = {}) {
-    const internal = xnew$1((internal) => {
-        const buttons = new Map();
-        const contents = new Map();
-        return {
-            frame, buttons, contents,
-            emit(type, ...args) { xnew$1.emit(type, ...args); }
-        };
-    });
-    xnew$1.context('xnew.tabframe', internal);
-    xnew$1.timeout(() => internal.emit('-select', { key: select !== null && select !== void 0 ? select : [...internal.buttons.keys()][0] }));
-}
-function TabButton(button, { key } = {}) {
-    const internal = xnew$1.context('xnew.tabframe');
-    const div = xnew$1.nest('<div>');
-    key = key !== null && key !== void 0 ? key : (internal.buttons.size).toString();
-    internal.buttons.set(key, button);
-    button.on('click', () => {
-        internal.emit('-select', { key });
-    });
-    internal.on('-select', ({ key }) => {
-        const select = internal.buttons.get(key);
-        if (select === button) {
-            button.select({ element: div });
-        }
-        else {
-            button.deselect({ element: div });
-        }
-    });
-    return {
-        select({ element }) {
-            Object.assign(element.style, { opacity: 1.0, cursor: 'text' });
-        },
-        deselect({ element }) {
-            Object.assign(element.style, { opacity: 0.6, cursor: 'pointer' });
-        }
-    };
-}
-function TabContent(content, { key } = {}) {
-    const internal = xnew$1.context('xnew.tabframe');
-    const div = xnew$1.nest('<div style="display: none;">');
-    key = key !== null && key !== void 0 ? key : (internal.contents.size).toString();
-    internal.contents.set(key, content);
-    internal.on('-select', ({ key }) => {
-        const select = internal.contents.get(key);
-        if (select === content) {
-            content.select({ element: div });
-        }
-        else {
-            content.deselect({ element: div });
-        }
-    });
-    return {
-        select({ element }) {
-            Object.assign(element.style, { display: 'block' });
-        },
-        deselect({ element }) {
-            Object.assign(element.style, { display: 'none' });
         }
     };
 }
@@ -3474,12 +3391,7 @@ const basics = {
     ModalFrame,
     ModalContent,
     AccordionFrame,
-    AccordionHeader,
-    AccordionBullet,
     AccordionContent,
-    TabFrame,
-    TabButton,
-    TabContent,
     TextStream,
     DragFrame,
     DragTarget,

@@ -286,7 +286,7 @@ declare const xnew$1: CreateUnit & {
     protect(): void;
 };
 
-declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
+declare function AccordionFrame(unit: Unit, { open, duration, easing }?: {
     open?: boolean;
     duration?: number;
     easing?: string;
@@ -295,10 +295,6 @@ declare function AccordionFrame(frame: Unit, { open, duration, easing }?: {
     open(): void;
     close(): void;
 };
-declare function AccordionHeader(unit: Unit, {}?: {}): void;
-declare function AccordionBullet(unit: Unit, { type }?: {
-    type?: string;
-}): void;
 declare function AccordionContent(unit: Unit, {}?: {}): {
     transition({ element, rate }: {
         element: HTMLElement;
@@ -327,30 +323,6 @@ declare function ModalContent(content: Unit, { background }?: {
     transition({ element, rate }: {
         element: HTMLElement;
         rate: number;
-    }): void;
-};
-
-declare function TabFrame(frame: Unit, { select }?: {
-    select?: string;
-}): void;
-declare function TabButton(button: Unit, { key }?: {
-    key?: string;
-}): {
-    select({ element }: {
-        element: HTMLElement;
-    }): void;
-    deselect({ element }: {
-        element: HTMLElement;
-    }): void;
-};
-declare function TabContent(content: Unit, { key }?: {
-    key?: string;
-}): {
-    select({ element }: {
-        element: HTMLElement;
-    }): void;
-    deselect({ element }: {
-        element: HTMLElement;
     }): void;
 };
 
@@ -757,12 +729,7 @@ declare const basics: {
     ModalFrame: typeof ModalFrame;
     ModalContent: typeof ModalContent;
     AccordionFrame: typeof AccordionFrame;
-    AccordionHeader: typeof AccordionHeader;
-    AccordionBullet: typeof AccordionBullet;
     AccordionContent: typeof AccordionContent;
-    TabFrame: typeof TabFrame;
-    TabButton: typeof TabButton;
-    TabContent: typeof TabContent;
     TextStream: typeof TextStream;
     DragFrame: typeof DragFrame;
     DragTarget: typeof DragTarget;
