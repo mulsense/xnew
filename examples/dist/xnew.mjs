@@ -200,7 +200,7 @@ class Timer {
     }
 }
 
-const SYSTEM_EVENTS = ['start', 'process', 'update', 'stop', 'finalize'];
+const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
 
 class EventManager {
     constructor() {
@@ -609,7 +609,7 @@ class Unit {
             components: [],
             listeners: new MapMap(),
             defines: {},
-            systems: { start: [], process: [], update: [], stop: [], finalize: [] },
+            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventManager: new EventManager(),
         });
         // nest html element
@@ -626,7 +626,7 @@ class Unit {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
             unit._.children.forEach((child) => child.finalize());
-            unit._.systems.finalize.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.finalize.forEach(({ execute }) => execute());
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             if (unit._.elements.length > 0) {
@@ -706,7 +706,7 @@ class Unit {
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
             unit._.children.forEach((child) => Unit.start(child));
-            unit._.systems.start.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.start.forEach(({ execute }) => execute());
         }
         else if (unit._.state === 'started') {
             unit._.children.forEach((child) => Unit.start(child));
@@ -716,19 +716,19 @@ class Unit {
         if (unit._.state === 'started') {
             unit._.state = 'stopped';
             unit._.children.forEach((child) => Unit.stop(child));
-            unit._.systems.stop.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.stop.forEach(({ execute }) => execute());
         }
     }
     static update(unit) {
-        if (unit._.state === 'started' || unit._.state === 'stopped') {
+        if (unit._.state === 'started') {
             unit._.children.forEach((child) => Unit.update(child));
-            unit._.systems.update.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
-    static process(unit) {
-        if (unit._.state === 'started') {
-            unit._.children.forEach((child) => Unit.process(child));
-            unit._.systems.process.forEach((listener) => Unit.scope(Unit.snapshot(unit), listener));
+    static render(unit) {
+        if (unit._.state === 'started' || unit._.state === 'started' || unit._.state === 'stopped') {
+            unit._.children.forEach((child) => Unit.render(child));
+            unit._.systems.render.forEach(({ execute }) => execute());
         }
     }
     static reset() {
@@ -737,8 +737,8 @@ class Unit {
         Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
         const ticker = new AnimationTicker(() => {
             Unit.start(Unit.rootUnit);
-            Unit.process(Unit.rootUnit);
             Unit.update(Unit.rootUnit);
+            Unit.render(Unit.rootUnit);
         });
         Unit.rootUnit.on('finalize', () => ticker.clear());
     }
@@ -797,7 +797,8 @@ class Unit {
     }
     static on(unit, type, listener, options) {
         if (SYSTEM_EVENTS.includes(type)) {
-            unit._.systems[type].push(listener);
+            const execute = Unit.wrap(Unit.currentUnit, listener);
+            unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
             const execute = Unit.wrap(Unit.currentUnit, listener);
@@ -810,7 +811,7 @@ class Unit {
     }
     static off(unit, type, listener) {
         if (SYSTEM_EVENTS.includes(type)) {
-            unit._.systems[type] = unit._.systems[type].filter((lis) => listener ? lis !== listener : false);
+            unit._.systems[type] = unit._.systems[type].filter(({ listener: lis }) => listener ? lis !== listener : false);
         }
         (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
             const item = unit._.listeners.get(type, listener);

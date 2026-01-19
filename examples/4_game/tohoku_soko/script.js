@@ -22,9 +22,17 @@ function Main(unit) {
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -40 / 180 * Math.PI;
   xthree.scene.fog = new THREE.Fog(0x000000, 10, 18);
+  const threeTexture = PIXI.Texture.from(xthree.canvas);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+    threeTexture.source.update();
+  });
 
-  // pixi 
+  // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   xnew.promise(fetch('./levels.json')).then(response => response.json()).then((levels) => {
     xnew.context('global').levels = levels;

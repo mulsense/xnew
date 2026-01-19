@@ -32,7 +32,7 @@ interface Internal {
     components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
-    systems: Record<string, Function[]>;
+    systems: Record<string, { listener: Function, execute: Function }[]>;
 
     eventManager: EventManager;
 }
@@ -133,7 +133,7 @@ export class Unit {
             components: [],
             listeners: new MapMap(),
             defines: {},
-            systems: { start: [], process: [], update: [], stop: [], finalize: [] },
+            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventManager: new EventManager(),
         });
 
@@ -156,7 +156,7 @@ export class Unit {
             unit._.state = 'finalizing';
 
             unit._.children.forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.finalize.forEach(({ execute }) => execute());
 
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
@@ -243,7 +243,7 @@ export class Unit {
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child));
-            unit._.systems.start.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.start.forEach(({ execute }) => execute());
         } else if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child));
         }
@@ -253,21 +253,21 @@ export class Unit {
         if (unit._.state === 'started') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
-            unit._.systems.stop.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.stop.forEach(({ execute }) => execute());
         }
     }
 
     static update(unit: Unit): void {
-        if (unit._.state === 'started' || unit._.state === 'stopped') {
+        if (unit._.state === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child));
-            unit._.systems.update.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
 
-    static process(unit: Unit): void {
-        if (unit._.state === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.process(child));
-            unit._.systems.process.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+    static render(unit: Unit): void {
+        if (unit._.state === 'started' || unit._.state === 'started' || unit._.state === 'stopped') {
+            unit._.children.forEach((child: Unit) => Unit.render(child));
+            unit._.systems.render.forEach(({ execute }) => execute());
         }
     }
 
@@ -279,8 +279,8 @@ export class Unit {
         Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
         const ticker = new AnimationTicker(() => {
             Unit.start(Unit.rootUnit);
-            Unit.process(Unit.rootUnit);
             Unit.update(Unit.rootUnit);
+            Unit.render(Unit.rootUnit);
         });
         Unit.rootUnit.on('finalize', () => ticker.clear());
     }
@@ -352,7 +352,8 @@ export class Unit {
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (SYSTEM_EVENTS.includes(type)) {
-            unit._.systems[type].push(listener);
+            const execute = Unit.wrap(Unit.currentUnit, listener);
+            unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
             const execute = Unit.wrap(Unit.currentUnit, listener);
@@ -366,7 +367,7 @@ export class Unit {
 
     static off(unit: Unit, type: string, listener?: Function): void {
         if (SYSTEM_EVENTS.includes(type)) {
-            unit._.systems[type] = unit._.systems[type].filter((lis: Function) => listener ? lis !== listener : false);
+            unit._.systems[type] = unit._.systems[type].filter(({ listener: lis }) => listener ? lis !== listener : false);
         }
         (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
             const item = unit._.listeners.get(type, listener);

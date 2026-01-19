@@ -4,11 +4,14 @@ import * as PIXI from 'pixi.js';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
 
   // pixi setup
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   xnew(Boxes);
 }
@@ -22,7 +25,10 @@ function Boxes(unit) {
       xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
     }
   }
-  unit.on('update', () => object.rotation += 0.01);
+
+  unit.on('update', () => {
+    object.rotation += 0.01;
+  });
 }
 
 function Box(unit, { x, y, size, color }) {
@@ -30,5 +36,7 @@ function Box(unit, { x, y, size, color }) {
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-  unit.on('update', () => object.rotation += 0.01);
+  unit.on('update', () => {
+    object.rotation += 0.01;
+  });
 }

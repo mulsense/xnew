@@ -4,17 +4,23 @@ import xthree from '@mulsense/xnew/addons/xthree';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
+const additiveActions = { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } };
+
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 1200, height: 600 });
 
   // three setup
-  xthree.initialize({ canvas: main.canvas });
+  xthree.initialize({ canvas: unit.canvas });
   xthree.scene.background = new THREE.Color(0xa0a0a0);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(- 1, 2, 3);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
   const controls = new OrbitControls(xthree.camera, xthree.canvas);
   controls.target.set(0, 1, 0);
@@ -28,8 +34,8 @@ function Main(main) {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
-    xnew('<div class="absolute w-48 top-2 right-2">', Panel);
   });
+  xnew('<div class="absolute w-48 top-2 right-2">', Panel);
 }
 
 function HemisphereLight(unit, { x, y, z }) {
@@ -50,9 +56,6 @@ function Ground(unit) {
   object.rotation.x = - Math.PI / 2;
   object.receiveShadow = true;
 }
-
-const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
-const additiveActions = { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } };
 
 function Model(unit, { gltf }) {
   const object = xthree.nest(new THREE.Object3D());
@@ -92,7 +95,7 @@ function Model(unit, { gltf }) {
   unit.on('+synccrossfade', (currentAction, nextAction, duration) => {
     mixer.addEventListener('loop', onLoopFinished);
 
-    function onLoopFinished(event) {
+    function onLoopFinished({ event }) {
       if (event.action === currentAction) {
         mixer.removeEventListener('loop', onLoopFinished);
         xnew.emit('+crossfade', currentAction, nextAction, duration);
@@ -167,7 +170,7 @@ function Panel(frame) {
         
         const settings = additiveActions[name];
         const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
-        input.on('input', (event) => {
+        input.on('input', ({ event }) => {
           status.element.textContent = event.target.value;
           settings.weight = parseFloat(event.target.value);
           xnew.emit('+setWeight', settings.action, settings.weight);
@@ -187,7 +190,7 @@ function Panel(frame) {
       });
 
       const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
-      input.on('input', (event) => {
+      input.on('input', ({ event }) => {
         status.element.textContent = event.target.value;
         xnew.emit('+speed', parseFloat(event.target.value));
       });

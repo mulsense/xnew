@@ -64,17 +64,20 @@ function Event(unit) {
     });
   }
 
-  unit.on('wheel', (event) => {
+  unit.on('wheel', ({ event, delta }) => {
     event.preventDefault();
-    transform.ty = Math.max(-300, Math.min(+300, transform.ty + event.wheelDeltaY * 0.2));
+    transform.ty = Math.max(-300, Math.min(+300, transform.ty + delta.y * 0.2));
   }, { passive: false });
 }
 
 function ThreeMain(unit) {
   const screen = xnew('#screen', xnew.basics.Screen, { width: 1200, height: 800, fit: 'cover' });
   xthree.initialize({ canvas: screen.canvas });
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
-  xnew(xnew.basics.ResizeEvent).on('-resize', () => {
+  xnew(xnew.basics.ResizeEvent).on('resize', () => {
     xthree.camera.fov = fov();
     xthree.camera.updateProjectionMatrix();
   });

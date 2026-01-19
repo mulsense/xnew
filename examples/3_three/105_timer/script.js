@@ -4,13 +4,16 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
 
   // three setup
-  xthree.initialize({ canvas: main.canvas });
+  xthree.initialize({ canvas: unit.canvas });
   xthree.camera.position.set(0, 0, +100);
   xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 300);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
   xnew(DirectionalLight);
   xnew.interval(() => xnew(Cube), 50);

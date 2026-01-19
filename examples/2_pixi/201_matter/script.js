@@ -6,17 +6,26 @@ import Matter from 'matter-js';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
 
   // pixi setup
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
-  xnew(Contents);
+  const scene = xnew(Scene);
+
+  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
+  button.on('click', () => scene.reboot());
 }
 
-function Contents(contents) {
+function Scene(unit) {
   xmatter.initialize();
+  unit.on('update', () => {
+    Matter.Engine.update(xmatter.engine);
+  });
 
   // simple bodies
   xnew(Rectangle, { x: 100, y: 200, w: 80, h: 80, color: 0x00CC00 });
@@ -30,9 +39,6 @@ function Contents(contents) {
 
   // ground
   xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888, options: { isStatic: true } });
-
-  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => contents.reboot());
 }
 
 function Rectangle(unit, { x, y, w, h, color, options = {} }) {

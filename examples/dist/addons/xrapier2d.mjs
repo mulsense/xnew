@@ -10,14 +10,11 @@ var xrapier2d = {
         return (_a = xnew.context('xrapier2d.root')) === null || _a === void 0 ? void 0 : _a.world;
     },
 };
-function Root(self, { gravity }) {
+function Root(unit, { gravity }) {
     const root = {};
     xnew.context('xrapier2d.root', root);
     xnew.promise(RAPIER.init()).then(() => {
         root.world = new RAPIER.World(gravity);
-    });
-    self.on('process', () => {
-        root.world.step();
     });
 }
 

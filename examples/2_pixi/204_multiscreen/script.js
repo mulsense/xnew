@@ -4,21 +4,33 @@ import * as PIXI from 'pixi.js';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // pixi setup
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   const sub1 = xnew(SubScreen, { color: 0xEA1E63 });
   const sub2 = xnew(SubScreen, { color: 0x63EA1E });
 
-  xnew(Texture, { texture: xpixi.sync(sub1.canvas), offset: 0 });
-  xnew(Texture, { texture: xpixi.sync(sub2.canvas), offset: xpixi.canvas.width / 2 });
+  const pixiTexture1 = PIXI.Texture.from(sub1.canvas);
+  const pixiTexture2 = PIXI.Texture.from(sub2.canvas);
+  unit.on('render', () => {
+    pixiTexture1.source.update();
+    pixiTexture2.source.update();
+  });
+  xnew(Texture, { texture: pixiTexture1, offset: 0 });
+  xnew(Texture, { texture: pixiTexture2, offset: xpixi.canvas.width / 2 });
 }
 
 function SubScreen(unit, { color }) {
   xpixi.initialize({ canvas: new OffscreenCanvas(xpixi.canvas.width / 2, xpixi.canvas.height) });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   xnew(Boxes, { color });
   return { canvas: xpixi.canvas };

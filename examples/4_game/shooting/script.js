@@ -4,15 +4,18 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // setup pixi
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   xnew(Background);
   let scene = xnew(TitleScene);
-  main.on('+main:nextscene', (NextScene, props) => {
+  unit.on('+nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
@@ -44,7 +47,7 @@ function Dot(unit) {
 function TitleScene(unit) {
   xnew(TitleText);
   unit.on('keydown pointerdown', () => {
-    xnew.emit('+main:nextscene', GameScene);
+    xnew.emit('+nextscene', GameScene);
   });
 }
 
@@ -69,7 +72,7 @@ function GameScene(scene) {
     xnew(GameOverText);
     xnew.timeout(() => {
       scene.on('keydown pointerdown', () =>{
-        xnew.emit('+main:nextscene', TitleScene);
+        xnew.emit('+nextscene', TitleScene);
       });
     }, 1000);
   });
@@ -85,7 +88,11 @@ function Controller(unit) {
     xnew.nest('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">');
     // directional pad
     const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
-    dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));        
+    dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
+
+    dpad.on('pointerdown', ({ event }) => {
+      event.stopPropagation();
+    });
   });
 
   unit.on('pointerdown', () => {

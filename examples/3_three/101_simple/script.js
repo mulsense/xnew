@@ -4,12 +4,15 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
 
   // three setup
-  xthree.initialize({ canvas: main.canvas });
+  xthree.initialize({ canvas: unit.canvas });
   xthree.camera.position.set(0, 0, +100);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
   xnew(Cubes);
 }

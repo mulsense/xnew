@@ -86,7 +86,10 @@ interface Internal {
         execute: Function;
     }>;
     defines: Record<string, any>;
-    systems: Record<string, Function[]>;
+    systems: Record<string, {
+        listener: Function;
+        execute: Function;
+    }[]>;
     eventManager: EventManager;
 }
 declare class Unit {
@@ -108,7 +111,7 @@ declare class Unit {
     static start(unit: Unit): void;
     static stop(unit: Unit): void;
     static update(unit: Unit): void;
-    static process(unit: Unit): void;
+    static render(unit: Unit): void;
     static rootUnit: Unit;
     static currentUnit: Unit;
     static reset(): void;

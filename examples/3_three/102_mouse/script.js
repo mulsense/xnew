@@ -4,16 +4,18 @@ import * as THREE from 'three';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
-  xnew('<div class="absolute left-0 top-0">', 'drag to rotate, scroll to zoom');
 
   // three setup
-  xthree.initialize({ canvas: main.canvas });
+  xthree.initialize({ canvas: unit.canvas });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 0, +20);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
   xnew(ThreeMain);
   xnew(Controller);

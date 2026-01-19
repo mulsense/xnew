@@ -4,31 +4,34 @@ import * as PIXI from 'pixi.js';
 
 xnew('#main', Main);
 
-function Main(main) {
+function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
  
   // pixi setup
-  xpixi.initialize({ canvas: main.canvas });
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   let scene = xnew(Scene1);
-  main.on('+main:nextscene', (NextScene, props) => {
+  unit.on('+nextscene', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
 }
 
-function Scene1(scene) {
+function Scene1(unit) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  scene.on('pointerdown', ({ event }) => xnew.emit('+main:nextscene', Scene2));
+  unit.on('pointerdown', ({ event }) => xnew.emit('+nextscene', Scene2));
 }
 
-function Scene2(scene) {
+function Scene2(unit) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  scene.on('pointerdown', ({ event }) => xnew.emit('+main:nextscene', Scene1));
+  unit.on('pointerdown', ({ event }) => xnew.emit('+nextscene', Scene1));
 }
 
 function Text(unit, { text }) {

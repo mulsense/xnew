@@ -18,8 +18,4 @@ function Root(unit: xnew.Unit, { engine }: any) {
     xnew.context('xmatter.root', root);
 
     root.engine = engine ?? Matter.Engine.create();
-
-    unit.on('process', () => {
-        Matter.Engine.update(root.engine);
-    });
 }

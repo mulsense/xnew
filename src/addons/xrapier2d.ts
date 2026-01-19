@@ -10,15 +10,11 @@ export default {
     },
 };
 
-function Root(self: xnew.Unit, { gravity }: any) {
+function Root(unit: xnew.Unit, { gravity }: any) {
     const root: { [key: string]: any } = {};
     xnew.context('xrapier2d.root', root);
 
     xnew.promise(RAPIER.init()).then(() => {
         root.world = new RAPIER.World(gravity);
-    });
-
-    self.on('process', () => {
-        root.world.step();
     });
 }

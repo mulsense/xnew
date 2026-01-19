@@ -15,7 +15,15 @@ function Main(unit) {
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 50, 100);
   xthree.camera.lookAt(0, 0, 0);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
+
   xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81, z: 0.0 } });
+  unit.on('render', () => {
+    xrapier3d.world.timestep = 3 / 60;
+    xrapier3d.world.step();
+  });
 
   // Add lighting
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -110,12 +118,12 @@ function Player(unit, { x, y, z }) {
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
   const direct = xnew(xnew.basics.DirectEvent);
-  direct.on('-keydown.arrow -keyup.arrow', ({ vector }) => {
+  direct.on('keydown.arrow keyup.arrow', ({ vector }) => {
     // move
     velocity.x = vector.x * speed;
     velocity.z = vector.y * speed;
   });
-  direct.on('-keydown', ({ code }) => {
+  direct.on('keydown', ({ code }) => {
     // jump
     if (code === 'Space' && characterController.computedGrounded()) {
       velocity.y = jumpForce;
@@ -128,7 +136,7 @@ function Player(unit, { x, y, z }) {
     xrapier3d.world.removeRigidBody(rigidBody);
   });
 
-  unit.on('process', () => {
+  unit.on('update', () => {
     const dt = 3 / 60;
 
     // Apply gravity
@@ -160,7 +168,7 @@ function Player(unit, { x, y, z }) {
     }
   });
   
-  unit.on('update', () => {
+  unit.on('render', () => {
     // Update visual
     const position = rigidBody.translation();
     const rotation = rigidBody.rotation();

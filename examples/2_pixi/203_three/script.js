@@ -12,13 +12,21 @@ function Main(unit) {
   // three setup
   xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.camera.position.set(0, 0, +100);
+  const threeTexture = PIXI.Texture.from(xthree.canvas);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+    threeTexture.source.update();
+  });
 
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   xnew(Cubes);
   
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+  xnew(Texture, { texture: threeTexture });
   xnew(Boxes);
 }
 

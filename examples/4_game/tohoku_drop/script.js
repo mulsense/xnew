@@ -18,9 +18,17 @@ function Main(unit) {
   xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
+  const threeTexture = PIXI.Texture.from(xthree.canvas);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+    threeTexture.source.update();
+  });
 
-  // setup pixi
+  // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
   let scene = xnew(TitleScene);
   // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
@@ -52,6 +60,9 @@ function TitleScene(unit) {
 
 function GameScene(unit) {
   xmatter.initialize();
+  unit.on('update', () => {
+    Matter.Engine.update(xmatter.engine);
+  });
   xnew.context('gamescene', { scores: [0, 0, 0, 0, 0, 0, 0, 0] });
 
   xnew(Background);
@@ -90,7 +101,6 @@ function GameScene(unit) {
 function ResultScene(unit, { image, scores }) {
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1, loop: true });
-    console.log(music);
   });
 
   // popup

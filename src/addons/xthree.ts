@@ -37,12 +37,6 @@ function Root(unit: xnew.Unit, { canvas, camera, update }: any) {
     root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
     root.scene = new THREE.Scene();
     xnew.context('xthree.object', root.scene);
-
-    if (update === true) {
-        unit.on('update', () => {
-            root.renderer.render(root.scene, root.camera);
-        });
-    }
 }
 
 function Nest(unit: xnew.Unit, { object }: { object: any }) {

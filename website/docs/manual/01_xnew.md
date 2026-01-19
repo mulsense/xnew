@@ -189,13 +189,8 @@ xnew provides built-in lifecycle events that help you manage your component's be
 ```js
 function MyComponent(unit) {
   unit.on('start', () => {
-    // Called once before the first process
+    // Called once before the first update
     console.log('Component started');
-  });
-
-  unit.on('process', () => {
-    // Process one step
-    console.log('process');
   });
 
   unit.on('update', () => {
@@ -204,8 +199,13 @@ function MyComponent(unit) {
     console.log('update');
   });
 
+  unit.on('render', () => {
+    // render after update
+    console.log('render');
+  });
+
   unit.on('stop', () => {
-    // Called when the process loop is stopped
+    // Called when the update loop is stopped
     console.log('Component stopped');
   });
 
@@ -229,15 +229,12 @@ function AnimatedCounter(unit, { maxCount }) {
   });
 
   let count = 0;
-  unit.on('process', (count) => {
+  unit.on('update', (count) => {
     if (count < maxCount) {
       unit.element.textContent = count++;
     } else {
       unit.stop(); // Stop when target reached
     }
-  });
-
-  unit.on('update', () => {
     unit.element.textContent = count;
   });
 
@@ -321,22 +318,22 @@ function Parent(unit) {
   xnew(Child2);
 
   unit.on('start', () => console.log('Parent start'));
-  unit.on('process', () => console.log('Parent process'));
   unit.on('update', () => console.log('Parent update'));
+  unit.on('render', () => console.log('Parent render'));
   unit.on('stop', () => console.log('Parent stop'));
 }
 
 function Child1(unit) {
   unit.on('start', () => console.log('Child1 start'));
-  unit.on('process', () => console.log('Child1 process'));
   unit.on('update', () => console.log('Parent update'));
+  unit.on('render', () => console.log('Child1 render'));
   unit.on('stop', () => console.log('Child1 stop'));
 }
 
 function Child2(unit) {
   unit.on('start', () => console.log('Child2 start'));
-  unit.on('process', () => console.log('Child2 process'));
   unit.on('update', () => console.log('Parent update'));
+  unit.on('render', () => console.log('Child2 render'));
   unit.on('stop', () => console.log('Child2 stop'));
 }
 
@@ -349,12 +346,12 @@ Child1 start
 Child2 start
 Parent start
 
-Child1 process
-Child2 process
-Parent process
 Child1 update
 Child2 update
 Parent update
+Child1 render
+Child2 render
+Parent render
 (repeats...)
 
 // When parent.stop() is called:
