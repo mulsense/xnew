@@ -212,7 +212,8 @@
         constructor() {
             this.map = new MapMap();
         }
-        add(props) {
+        add(element, type, listener, options) {
+            const props = { element, type, listener, options };
             let finalize;
             if (props.type === 'resize') {
                 finalize = this.resize(props);
@@ -255,7 +256,7 @@
             }
             this.map.set(props.type, props.listener, finalize);
         }
-        remove({ type, listener }) {
+        remove(type, listener) {
             const finalize = this.map.get(type, listener);
             if (finalize) {
                 finalize();
@@ -458,9 +459,9 @@
                 }
                 isActive = false;
             };
-            this.add({ element, options, type: 'dragstart', listener: dragstart });
-            this.add({ element, options, type: 'dragmove', listener: dragmove });
-            this.add({ element, options, type: 'dragend', listener: dragend });
+            this.add(element, 'dragstart', dragstart, options);
+            this.add(element, 'dragmove', dragmove, options);
+            this.add(element, 'dragend', dragend, options);
             function getOthers(id) {
                 const backup = map.get(id);
                 map.delete(id);
@@ -469,9 +470,9 @@
                 return others;
             }
             return () => {
-                this.remove({ type: 'dragstart', listener: dragstart });
-                this.remove({ type: 'dragmove', listener: dragmove });
-                this.remove({ type: 'dragend', listener: dragend });
+                this.remove('dragstart', dragstart);
+                this.remove('dragmove', dragmove);
+                this.remove('dragend', dragend);
             };
         }
         key(props) {
@@ -810,7 +811,7 @@
                 unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
                 Unit.type2units.add(type, unit);
                 if (/^[A-Za-z]/.test(type)) {
-                    unit._.eventManager.add({ element: unit.element, type, listener: execute, options });
+                    unit._.eventManager.add(unit.element, type, execute, options);
                 }
             }
         }
@@ -824,7 +825,7 @@
                     return;
                 unit._.listeners.delete(type, listener);
                 if (/^[A-Za-z]/.test(type)) {
-                    unit._.eventManager.remove({ type, listener: item.execute });
+                    unit._.eventManager.remove(type, item.execute);
                 }
             });
             if (unit._.listeners.has(type) === false) {

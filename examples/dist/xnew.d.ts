@@ -22,19 +22,10 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
 
 type UnitElement = HTMLElement | SVGElement;
 
-interface EventProps {
-    element: UnitElement;
-    type: string;
-    listener: Function;
-    options?: boolean | AddEventListenerOptions;
-}
 declare class EventManager {
     private map;
-    add(props: EventProps): void;
-    remove({ type, listener }: {
-        type: string;
-        listener: Function;
-    }): void;
+    add(element: UnitElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    remove(type: string, listener: Function): void;
     private basic;
     private resize;
     private click;

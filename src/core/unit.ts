@@ -359,7 +359,7 @@ export class Unit {
             unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {
-                unit._.eventManager.add({ element: unit.element, type, listener: execute, options });
+                unit._.eventManager.add(unit.element, type, execute, options);
             }
         }
     }
@@ -373,7 +373,7 @@ export class Unit {
             if (item === undefined) return;
             unit._.listeners.delete(type, listener);
             if (/^[A-Za-z]/.test(type)) {
-                unit._.eventManager.remove({ type, listener: item.execute });
+                unit._.eventManager.remove(type, item.execute);
             }
         });
         if (unit._.listeners.has(type) === false) {

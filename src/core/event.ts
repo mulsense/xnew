@@ -15,7 +15,8 @@ interface EventProps {
 export class EventManager {
     private map = new MapMap<string, Function, Function>();
 
-    public add(props: EventProps): void {
+    public add(element: UnitElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        const props: EventProps = { element, type, listener, options };
         let finalize: Function;
 
         if (props.type === 'resize') {
@@ -48,7 +49,7 @@ export class EventManager {
         this.map.set(props.type, props.listener, finalize);
     }
 
-    public remove({ type, listener }: { type: string, listener: Function }): void {
+    public remove(type: string, listener: Function): void {
         const finalize = this.map.get(type, listener);
         if (finalize) {
             finalize();
@@ -272,9 +273,9 @@ export class EventManager {
             }
             isActive = false;
         };
-        this.add({ element, options, type: 'dragstart', listener: dragstart });
-        this.add({ element, options, type: 'dragmove', listener: dragmove });
-        this.add({ element, options, type: 'dragend', listener: dragend });
+        this.add(element, 'dragstart', dragstart, options);
+        this.add(element, 'dragmove', dragmove, options);
+        this.add(element, 'dragend', dragend, options);
 
         function getOthers(id: number) {
             const backup = map.get(id);
@@ -285,9 +286,9 @@ export class EventManager {
         }
 
         return () => {
-            this.remove({ type: 'dragstart', listener: dragstart });
-            this.remove({ type: 'dragmove', listener: dragmove });
-            this.remove({ type: 'dragend', listener: dragend });
+            this.remove('dragstart', dragstart);
+            this.remove('dragmove', dragmove);
+            this.remove('dragend', dragend);
         };
     }
 
