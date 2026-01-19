@@ -29,11 +29,8 @@
       });
 
       let rotate = 0;
-      unit.on('process', () => {
-        rotate++;
-      });
-
       unit.on('update', () => {
+        rotate++;
         unit.element.style.transform = `rotate(${rotate}deg)`;
       });
       
