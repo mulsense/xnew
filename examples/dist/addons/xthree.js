@@ -57,11 +57,6 @@
         root.camera = camera !== null && camera !== void 0 ? camera : new THREE__namespace.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
         root.scene = new THREE__namespace.Scene();
         xnew.context('xthree.object', root.scene);
-        if (update === true) {
-            unit.on('update', () => {
-                root.renderer.render(root.scene, root.camera);
-            });
-        }
     }
     function Nest(unit, { object }) {
         const parent = xnew.context('xthree.object');

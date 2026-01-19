@@ -352,8 +352,7 @@ export class Unit {
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         if (SYSTEM_EVENTS.includes(type)) {
-            const execute = Unit.wrap(Unit.currentUnit, listener);
-            unit._.systems[type].push({ listener, execute });
+            unit._.systems[type].push({ listener, execute: Unit.wrap(Unit.currentUnit, listener) });
         }
         if (unit._.listeners.has(type, listener) === false) {
             const execute = Unit.wrap(Unit.currentUnit, listener);

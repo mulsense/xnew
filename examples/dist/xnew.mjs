@@ -797,8 +797,7 @@ class Unit {
     }
     static on(unit, type, listener, options) {
         if (SYSTEM_EVENTS.includes(type)) {
-            const execute = Unit.wrap(Unit.currentUnit, listener);
-            unit._.systems[type].push({ listener, execute });
+            unit._.systems[type].push({ listener, execute: Unit.wrap(Unit.currentUnit, listener) });
         }
         if (unit._.listeners.has(type, listener) === false) {
             const execute = Unit.wrap(Unit.currentUnit, listener);
@@ -1161,12 +1160,14 @@ function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' }
     const internal = xnew$1((internal) => {
         return {
             frame, open, rate: 0.0,
-            emit(type, ...args) { xnew$1.emit(type, ...args); }
+            transition(rate) {
+                xnew$1.emit('-transition', { rate });
+            }
         };
     });
     xnew$1.context('xnew.accordionframe', internal);
     internal.on('-transition', ({ rate }) => internal.rate = rate);
-    internal.emit('-transition', { rate: open ? 1.0 : 0.0 });
+    internal.transition(open ? 1.0 : 0.0);
     return {
         toggle() {
             if (internal.rate === 1.0) {
@@ -1178,12 +1179,12 @@ function AccordionFrame(frame, { open = false, duration = 200, easing = 'ease' }
         },
         open() {
             if (internal.rate === 0.0) {
-                xnew$1.transition((x) => internal.emit('-transition', { rate: x }), duration, easing);
+                xnew$1.transition((x) => internal.transition(x), duration, easing);
             }
         },
         close() {
             if (internal.rate === 1.0) {
-                xnew$1.transition((x) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing);
+                xnew$1.transition((x) => internal.transition(1.0 - x), duration, easing);
             }
         }
     };

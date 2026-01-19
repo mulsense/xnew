@@ -7,13 +7,17 @@ export function AccordionFrame(frame: Unit,
     const internal = xnew((internal: Unit) => {
         return {
             frame, open, rate: 0.0,
-            emit(type: string, ...args: any) { xnew.emit(type, ...args); }
+            transition(rate: number) {
+                xnew.emit('-transition', { rate });
+            }
         };
     });
     xnew.context('xnew.accordionframe', internal);
     
-    internal.on('-transition', ({ rate }: { rate: number}) => internal.rate = rate);
-    internal.emit('-transition', { rate: open ? 1.0 : 0.0});
+    internal.on('-transition', ({ rate }: { rate: number}) => {
+        internal.rate = rate;
+    });
+    internal.transition(open ? 1.0 : 0.0);
 
     return {
         toggle() {
@@ -25,12 +29,12 @@ export function AccordionFrame(frame: Unit,
         },
         open() {
             if (internal.rate === 0.0) {
-                xnew.transition((x: number) => internal.emit('-transition', { rate: x }), duration, easing);
+                xnew.transition((x: number) => internal.transition(x), duration, easing);
             }
         },
         close () {
             if (internal.rate === 1.0) {
-                xnew.transition((x: number) => internal.emit('-transition', { rate: 1.0 - x }), duration, easing);
+                xnew.transition((x: number) => internal.transition(1.0 - x), duration, easing);
             }
         }
     }

@@ -15,13 +15,13 @@ export default {
     get renderer() {
         return xnew.context('xthree.root')?.renderer;
     },
-    get camera() {
+    get camera(): THREE.Camera {
         return xnew.context('xthree.root')?.camera;
     },
-    get scene() {
+    get scene(): THREE.Scene {
         return xnew.context('xthree.root')?.scene;
     },
-    get canvas() {
+    get canvas(): HTMLCanvasElement {
         return xnew.context('xthree.root')?.canvas;
     },
 };

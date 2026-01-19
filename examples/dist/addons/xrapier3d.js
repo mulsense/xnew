@@ -5,7 +5,7 @@
 })(this, (function (xnew, RAPIER) { 'use strict';
 
     var xrapier3d = {
-        initialize({ gravity = { x: 0.0, y: 9.81, z: 0.0 } } = {}) {
+        initialize({ gravity = { x: 0.0, y: -9.81, z: 0.0 } } = {}) {
             xnew.extend(Root, { gravity });
         },
         get world() {

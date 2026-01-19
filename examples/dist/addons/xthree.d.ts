@@ -9,9 +9,9 @@ declare const _default: {
     }): void;
     nest(object: any): any;
     readonly renderer: any;
-    readonly camera: any;
-    readonly scene: any;
-    readonly canvas: any;
+    readonly camera: THREE.Camera;
+    readonly scene: THREE.Scene;
+    readonly canvas: HTMLCanvasElement;
 };
 
 export { _default as default };

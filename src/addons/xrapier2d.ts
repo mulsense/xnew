@@ -2,7 +2,7 @@ import xnew from '@mulsense/xnew';
 import RAPIER from '@dimforge/rapier2d-compat';
 
 export default {
-    initialize ({ gravity = { x: 0.0, y: 9.81 } }: any = {}) {
+    initialize ({ gravity = { x: 0.0, y: -9.81 } }: any = {}) {
         xnew.extend(Root, { gravity });
     },
     get world() {

@@ -5,7 +5,7 @@ import { createCanvasElement } from 'three';
 export default {
     initialize(
         { renderer = null, canvas = null }:
-        { renderer?: any, canvas?: HTMLCanvasElement | null, update?: boolean } = {}
+        { renderer?: any, canvas?: HTMLCanvasElement | null } = {}
     ) {
         xnew.extend(Root, { renderer, canvas });
     },
@@ -16,10 +16,10 @@ export default {
     get renderer() {
         return xnew.context('xpixi.root')?.renderer;
     },
-    get scene() {
+    get scene(): PIXI.Container {
         return xnew.context('xpixi.root')?.scene;
     },
-    get canvas() {
+    get canvas(): HTMLCanvasElement {
         return xnew.context('xpixi.root')?.canvas;
     },
 };
