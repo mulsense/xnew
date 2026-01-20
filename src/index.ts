@@ -8,8 +8,6 @@ import { DragFrame, DragTarget } from './basics/Drag';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 import { TextStream } from './basics/Text';
 
-import { icons } from './icons/icons';
-
 const basics = {
     Screen,
     ModalFrame,
@@ -59,7 +57,6 @@ namespace xnew {
 const xnew: (typeof base) & {
     basics: typeof basics;
     audio: typeof audio;
-    icons: typeof icons;
-} = Object.assign(base, { basics, audio, icons });
+} = Object.assign(base, { basics, audio });
 
 export default xnew;
