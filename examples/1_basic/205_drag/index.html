@@ -19,12 +19,13 @@
       xnew.extend(xnew.basics.DragFrame);
       xnew.nest('<div style="width: 300px; border: solid 1px #000; border-radius: 6px;">');
 
-      xnew((target) => {
+      xnew((unit) => {
+        xnew.nest('<div style="user-select: none; cursor: pointer;">');
         xnew.extend(xnew.basics.DragTarget);
-        xnew('<div style="padding: 6px; user-select: none; cursor: pointer;">', 'drag (drag me!)');
+        xnew('<div style="padding: 6px;">', 'drag (drag me!)');
       });
 
-      xnew((content) => {
+      xnew((unit) => {
         xnew.nest('<div style="padding: 6px; border-top: solid 1px #000;">');
         xnew('<span>', 'Content');
         xnew('<ul>', () => {

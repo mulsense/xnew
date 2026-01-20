@@ -4,7 +4,7 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "0.4.3",
+  "version": "0.4.4",
   "main": "dist/xnew.js",
   "module": "dist/xnew.mjs",
   "types": "dist/xnew.d.ts",
@@ -13,6 +13,11 @@
       "types": "./dist/xnew.d.ts",
       "import": "./dist/xnew.mjs",
       "require": "./dist/xnew.js"
+    },
+    "./addons/xaudio": {
+      "types": "./dist/addons/xaudio.d.ts",
+      "import": "./dist/addons/xaudio.mjs",
+      "require": "./dist/addons/xaudio.js"
     },
     "./addons/xmatter": {
       "types": "./dist/addons/xmatter.d.ts",

@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import xnew from '@mulsense/xnew';
+import xaudio from '@mulsense/xnew/addons/xaudio';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import xmatter from '@mulsense/xnew/addons/xmatter';
@@ -19,6 +20,7 @@ function Main(unit) {
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
   const threeTexture = PIXI.Texture.from(xthree.canvas);
+  xnew.context('texture', threeTexture);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
     threeTexture.source.update();
@@ -49,8 +51,7 @@ function TitleScene(unit) {
     const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * id) / 180 * Math.PI, z: 0 };
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
-
+  xnew(Texture, { texture:  xnew.context('texture') });
   unit.on('pointerdown', () => xnew.emit('+nextscene', GameScene));
 
   xnew(TitleText);
@@ -72,13 +73,13 @@ function GameScene(unit) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+  xnew(Texture, { texture:  xnew.context('texture') });
   xnew(ScoreText);
   xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', VolumeController);
 
   const playing = xnew((unit) => {
     xnew(Controller);
-    xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
+    xaudio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
   unit.on('+append', (Component, props) => xnew(Component, props));
 
@@ -99,7 +100,7 @@ function GameScene(unit) {
 }
 
 function ResultScene(unit, { image, scores }) {
-  xnew.audio.load('../assets/st005.mp3').then((music) => {
+  xaudio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1, loop: true });
   });
 
@@ -244,18 +245,6 @@ function ResultFooter(unit) {
             xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
         }
     });
-  }
-  function SVGTemplate(unit){
-    xnew.nest(`<svg viewBox="0 0 24 24" fill="none" style="stroke-width: 1.5; stroke: currentColor; stroke-linejoin: 'round'; stroke-linecap: 'round';">`);
-  }
-  function Camera(unit){
-    xnew.extend(SVGTemplate);
-    xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
-    xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
-  }
-  function ArrowUturnLeft(unit){
-    xnew.extend(SVGTemplate);
-    xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
   }
 }
 
@@ -407,7 +396,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const now = new Date().getTime();
   if (now - prev > 200) {
     prev = now;
-    const synth = xnew.audio.synthesizer({ oscillator: { type: 'triangle', envelope: { amount: 8, ADSR: [0, 500, 1, 0], }, }, filter: { type: 'bandpass', cutoff: 1000}, amp: { envelope: { amount: 1, ADSR: [20, 100, 0, 0], }, }, reverb: { time: 1000, mix: 0.2, },  });
+    const synth = xaudio.synthesizer({ oscillator: { type: 'triangle', envelope: { amount: 8, ADSR: [0, 500, 1, 0], }, }, filter: { type: 'bandpass', cutoff: 1000}, amp: { envelope: { amount: 1, ADSR: [20, 100, 0, 0], }, }, reverb: { time: 1000, mix: 0.2, },  });
     synth.press(['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5', 'C6'][id], 100);
   }
 
@@ -527,25 +516,47 @@ function VolumeController(unit) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
     unit.on('pointerdown', ({ event }) => event.stopPropagation());
 
-    const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
+    const slider = xnew(`<input type="range" min="0" max="100" value="${xaudio.volume * 100}"
     style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
     >`);
 
-    unit.on('click:outside', () => slider.element.style.display = 'none');
+    unit.on('click.outside', () => slider.element.style.display = 'none');
     const button = xnew(() => {
       xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
-      let icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
+      let icon = xnew(xaudio.volume > 0 ? SpeakerWave : SpeakerXMark);
       return {
           update() {
             icon?.finalize();
-            icon = xnew(xnew.audio.volume > 0 ? xnew.icons.SpeakerWave : xnew.icons.SpeakerXMark);
+            icon = xnew(xaudio.volume > 0 ? SpeakerWave : SpeakerXMark);
           }
       };
     });
 
     button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
     slider.on('input', ({ event }) => {
-        xnew.audio.volume = parseFloat(event.target.value) / 100;
+        xaudio.volume = parseFloat(event.target.value) / 100;
         button.update();
     });
+}
+
+function SVGTemplate(unit){
+  xnew.nest(`<svg viewBox="0 0 24 24" fill="none" style="stroke-width: 1.5; stroke: currentColor; stroke-linejoin: 'round'; stroke-linecap: 'round';">`);
+}
+function Camera(unit){
+  xnew.extend(SVGTemplate);
+  xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
+  xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
+}
+function ArrowUturnLeft(unit){
+  xnew.extend(SVGTemplate);
+  xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
+}
+
+function SpeakerWave(unit){
+  xnew.extend(SVGTemplate);
+  xnew('<path d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z" />');
+}
+function SpeakerXMark(unit){
+  xnew.extend(SVGTemplate);
+  xnew('<path d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z" />');
 }

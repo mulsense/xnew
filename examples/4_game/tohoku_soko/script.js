@@ -23,6 +23,7 @@ function Main(unit) {
   xthree.scene.rotation.x = -40 / 180 * Math.PI;
   xthree.scene.fog = new THREE.Fog(0x000000, 10, 18);
   const threeTexture = PIXI.Texture.from(xthree.canvas);
+  xnew.context('texture', threeTexture);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
     threeTexture.source.update();
@@ -118,7 +119,7 @@ function GameScene(unit, { id }) {
   xnew(AmbientLight);
   xnew(Background);
   xnew(Floor);
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas), position: { x: 320 / 2, y: -10 } });
+  xnew(Texture, { texture: xnew.context('texture'), position: { x: 320 / 2, y: -10 } });
 
   xnew(LeftBlock, { id });
   xnew(RightBlock, { id });
@@ -473,6 +474,10 @@ function RightBlock(unit, { id }) {
     xthree.scene.rotation.x = -80 / 180 * Math.PI;
     xthree.scene.rotation.z = -30 / 180 * Math.PI;
     xthree.scene.position.y = -0.9;
+    unit.on('render', () => {
+      xthree.renderer.render(xthree.scene, xthree.camera);
+    });
+    
     xnew(DirectionalLight, { x: 2, y: -5, z: 3 });
     xnew(AmbientLight);
     xnew(Model, { id, scale: 0.9 });
