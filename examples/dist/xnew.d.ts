@@ -282,16 +282,12 @@ declare function AccordionFrame(unit: Unit, { open, duration, easing }?: {
     duration?: number;
     easing?: string;
 }): {
+    state: number;
     toggle(): void;
     open(): void;
     close(): void;
 };
-declare function AccordionContent(unit: Unit, {}?: {}): {
-    transition({ element, rate }: {
-        element: HTMLElement;
-        rate: number;
-    }): void;
-};
+declare function AccordionContent(unit: Unit, {}?: {}): void;
 
 declare function Screen(unit: Unit, { width, height, fit }?: {
     width?: number | undefined;

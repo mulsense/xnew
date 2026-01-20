@@ -1164,65 +1164,51 @@
     });
 
     function AccordionFrame(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
-        const internal = xnew$1((internal) => {
-            return {
-                frame: unit, open, rate: 0.0,
-                transition(rate) {
-                    xnew$1.emit('-transition', { rate });
-                }
-            };
-        });
-        xnew$1.context('xnew.accordionframe', internal);
-        internal.on('-transition', ({ rate }) => {
-            internal.rate = rate;
-            xnew$1.emit('-transition', { rate });
+        xnew$1.context('xnew.accordionframe', unit);
+        unit.on('-transition', ({ state }) => {
+            unit.state = state;
         });
         xnew$1.timeout(() => {
-            internal.transition(open ? 1.0 : 0.0);
+            xnew$1.emit('-transition', { state: open ? 1.0 : 0.0 });
         });
         return {
+            state: open ? 1.0 : 0.0,
             toggle() {
-                if (internal.rate === 1.0) {
+                if (unit.state === 1.0) {
                     unit.close();
                 }
-                else if (internal.rate === 0.0) {
+                else if (unit.state === 0.0) {
                     unit.open();
                 }
             },
             open() {
-                if (internal.rate === 0.0) {
-                    xnew$1.transition((x) => internal.transition(x), duration, easing);
+                if (unit.state === 0.0) {
+                    xnew$1.transition((x) => xnew$1.emit('-transition', { state: x }), duration, easing);
                 }
             },
             close() {
-                if (internal.rate === 1.0) {
-                    xnew$1.transition((x) => internal.transition(1.0 - x), duration, easing);
+                if (unit.state === 1.0) {
+                    xnew$1.transition((x) => xnew$1.emit('-transition', { state: 1.0 - x }), duration, easing);
                 }
             }
         };
     }
     function AccordionContent(unit, {} = {}) {
-        const internal = xnew$1.context('xnew.accordionframe');
-        xnew$1.nest(`<div style="display: ${internal.open ? 'block' : 'none'};">`);
-        xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-        internal.on('-transition', ({ rate }) => {
-            unit.transition({ element: unit.element, rate });
-        });
-        return {
-            transition({ element, rate }) {
-                const wrapper = element.parentElement;
-                wrapper.style.display = 'block';
-                if (rate === 0.0) {
-                    wrapper.style.display = 'none';
-                }
-                else if (rate < 1.0) {
-                    Object.assign(wrapper.style, { height: element.offsetHeight * rate + 'px', overflow: 'hidden', opacity: rate });
-                }
-                else {
-                    Object.assign(wrapper.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
-                }
+        const frame = xnew$1.context('xnew.accordionframe');
+        const outer = xnew$1.nest(`<div style="display: ${frame.state === 1.9 ? 'block' : 'none'};">`);
+        const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
+        frame.on('-transition', ({ state }) => {
+            outer.style.display = 'block';
+            if (state === 0.0) {
+                outer.style.display = 'none';
             }
-        };
+            else if (state < 1.0) {
+                Object.assign(outer.style, { height: inner.offsetHeight * state + 'px', overflow: 'hidden', opacity: state });
+            }
+            else {
+                Object.assign(outer.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
+            }
+        });
     }
 
     function Screen(unit, { width = 640, height = 480, fit = 'contain' } = {}) {
