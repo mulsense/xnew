@@ -6,7 +6,7 @@ export function AccordionFrame(unit: Unit,
 ) {
     xnew.context('xnew.accordionframe', unit);
     
-    unit.on('-transition', ({ state }: { state: number}) => {
+    unit.on('-transition', ({ state }: { state: number }) => {
         unit.state = state;
     });
     xnew.timeout(() => {
@@ -37,7 +37,7 @@ export function AccordionFrame(unit: Unit,
 
 export function AccordionContent(unit: Unit, {}: {} = {}) {
     const frame = xnew.context('xnew.accordionframe');
-    const outer = xnew.nest(`<div style="display: ${frame.state === 1.9 ? 'block' : 'none'};">`) as HTMLElement;
+    const outer = xnew.nest(`<div style="display: ${frame.state === 1.0 ? 'block' : 'none'};">`) as HTMLElement;
     const inner = xnew.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
 
     frame.on('-transition', ({ state }: { state: number }) => {

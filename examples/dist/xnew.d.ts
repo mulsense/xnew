@@ -302,9 +302,10 @@ declare function ModalFrame(unit: Unit, { duration, easing }?: {
     duration?: number;
     easing?: string;
 }): {
+    state: number;
     close(): void;
 };
-declare function ModalContent(content: Unit, { background }?: {
+declare function ModalContent(unit: Unit, { background }?: {
     background?: string;
 }): void;
 

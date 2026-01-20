@@ -935,9 +935,8 @@ class UnitTimer {
 }
 
 const xnew$1 = Object.assign(function (...args) {
-    if (Unit.rootUnit === undefined) {
+    if (Unit.rootUnit === undefined)
         Unit.reset();
-    }
     return new Unit(Unit.currentUnit, ...args);
 }, {
     /**
@@ -1189,7 +1188,7 @@ function AccordionFrame(unit, { open = false, duration = 200, easing = 'ease' } 
 }
 function AccordionContent(unit, {} = {}) {
     const frame = xnew$1.context('xnew.accordionframe');
-    const outer = xnew$1.nest(`<div style="display: ${frame.state === 1.9 ? 'block' : 'none'};">`);
+    const outer = xnew$1.nest(`<div style="display: ${frame.state === 1.0 ? 'block' : 'none'};">`);
     const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
     frame.on('-transition', ({ state }) => {
         outer.style.display = 'block';
@@ -1260,17 +1259,18 @@ function ModalFrame(unit, { duration = 200, easing = 'ease' } = {}) {
         xnew$1.emit('-transition', { state: x });
     }, duration, easing);
     return {
+        state: 0.0,
         close() {
             xnew$1.transition((x) => xnew$1.emit('-transition', { state: 1.0 - x }), duration, easing)
                 .timeout(() => unit.finalize());
         }
     };
 }
-function ModalContent(content, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+function ModalContent(unit, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
     const frame = xnew$1.context('xnew.modalframe');
     const outer = xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0; background: ${background}">`);
     xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-    frame.on('click', ({ event }) => event.stopPropagation());
+    unit.on('click', ({ event }) => event.stopPropagation());
     frame.on('-transition', ({ state }) => {
         outer.style.opacity = state.toString();
     });
@@ -1325,139 +1325,109 @@ function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strok
 }
 function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
     const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-    const internal = xnew$1((unit) => {
-        let newsize = Math.min(outer.clientWidth, outer.clientHeight);
-        const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew$1(outer).on('resize', () => {
-            newsize = Math.min(outer.clientWidth, outer.clientHeight);
-            inner.style.width = `${newsize}px`;
-            inner.style.height = `${newsize}px`;
-        });
-        xnew$1((unit) => {
-            xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<polygon points="50  7 40 18 60 18">');
-            xnew$1('<polygon points="50 93 40 83 60 83">');
-            xnew$1('<polygon points=" 7 50 18 40 18 60">');
-            xnew$1('<polygon points="93 50 83 40 83 60">');
-        });
-        const target = xnew$1((unit) => {
-            xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<circle cx="50" cy="50" r="23">');
-        });
-        unit.on('dragstart', ({ event, position }) => {
-            const vector = getVector(position);
-            target.element.style.filter = 'brightness(90%)';
-            target.element.style.left = vector.x * newsize / 4 + 'px';
-            target.element.style.top = vector.y * newsize / 4 + 'px';
-            xnew$1.emit('-down', { vector });
-        });
-        unit.on('dragmove', ({ event, position }) => {
-            const vector = getVector(position);
-            target.element.style.filter = 'brightness(90%)';
-            target.element.style.left = vector.x * newsize / 4 + 'px';
-            target.element.style.top = vector.y * newsize / 4 + 'px';
-            xnew$1.emit('-move', { vector });
-        });
-        unit.on('dragend', ({ event }) => {
-            const vector = { x: 0, y: 0 };
-            target.element.style.filter = '';
-            target.element.style.left = vector.x * newsize / 4 + 'px';
-            target.element.style.top = vector.y * newsize / 4 + 'px';
-            xnew$1.emit('-up', { vector });
-        });
-        function getVector(position) {
-            const x = position.x - newsize / 2;
-            const y = position.y - newsize / 2;
-            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
-            const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-            return { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        }
+    let newsize = Math.min(outer.clientWidth, outer.clientHeight);
+    const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+    xnew$1(outer).on('resize', () => {
+        newsize = Math.min(outer.clientWidth, outer.clientHeight);
+        inner.style.width = `${newsize}px`;
+        inner.style.height = `${newsize}px`;
     });
-    internal.on('-down', (...args) => xnew$1.emit('-down', ...args));
-    internal.on('-move', (...args) => xnew$1.emit('-move', ...args));
-    internal.on('-up', (...args) => xnew$1.emit('-up', ...args));
+    xnew$1((unit) => {
+        xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew$1('<polygon points="50  7 40 18 60 18">');
+        xnew$1('<polygon points="50 93 40 83 60 83">');
+        xnew$1('<polygon points=" 7 50 18 40 18 60">');
+        xnew$1('<polygon points="93 50 83 40 83 60">');
+    });
+    const target = xnew$1((unit) => {
+        xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew$1('<circle cx="50" cy="50" r="23">');
+    });
+    unit.on('dragstart dragmove', ({ type, position }) => {
+        const x = position.x - newsize / 2;
+        const y = position.y - newsize / 2;
+        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+        const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
+        const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
+        target.element.style.filter = 'brightness(90%)';
+        target.element.style.left = `${vector.x * newsize / 4}px`;
+        target.element.style.top = `${vector.y * newsize / 4}px`;
+        const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
+        xnew$1.emit(nexttype, { type: nexttype, vector });
+    });
+    unit.on('dragend', () => {
+        const vector = { x: 0, y: 0 };
+        target.element.style.filter = '';
+        target.element.style.left = `${vector.x * newsize / 4}px`;
+        target.element.style.top = `${vector.y * newsize / 4}px`;
+        xnew$1.emit('-up', { type: '-up', vector });
+    });
 }
 function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
     const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-    const internal = xnew$1((unit) => {
-        let newsize = Math.min(outer.clientWidth, outer.clientHeight);
-        const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew$1(outer).on('resize', () => {
-            newsize = Math.min(outer.clientWidth, outer.clientHeight);
-            inner.style.width = `${newsize}px`;
-            inner.style.height = `${newsize}px`;
-        });
-        const polygons = [
-            '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
-            '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
-            '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65">',
-            '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65">'
-        ];
-        const targets = polygons.map((polygon) => {
-            return xnew$1((unit) => {
-                xnew$1.extend(SVGTemplate, { stroke: 'none', fill, fillOpacity });
-                xnew$1(polygon);
-            });
-        });
-        xnew$1((unit) => {
-            xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
-            xnew$1('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
-            xnew$1('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
-            xnew$1('<polyline points="65 35 95 35 97 37 97 63 95 65 65 65">');
-            xnew$1('<polygon points="50 11 42 20 58 20">');
-            xnew$1('<polygon points="50 89 42 80 58 80">');
-            xnew$1('<polygon points="11 50 20 42 20 58">');
-            xnew$1('<polygon points="89 50 80 42 80 58">');
-        });
-        unit.on('dragstart', ({ event, position }) => {
-            const vector = getVector(position);
-            targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
-            targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
-            targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
-            targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-            xnew$1.emit('-down', { vector });
-        });
-        unit.on('dragmove', ({ event, position }) => {
-            const vector = getVector(position);
-            targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
-            targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
-            targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
-            targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
-            xnew$1.emit('-move', { vector });
-        });
-        unit.on('dragend', ({ event }) => {
-            const vector = { x: 0, y: 0 };
-            targets[0].element.style.filter = '';
-            targets[1].element.style.filter = '';
-            targets[2].element.style.filter = '';
-            targets[3].element.style.filter = '';
-            xnew$1.emit('-up', { vector });
-        });
-        function getVector(position) {
-            const x = position.x - newsize / 2;
-            const y = position.y - newsize / 2;
-            const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
-            const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-            if (diagonal === true) {
-                vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
-                vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
-            }
-            else if (Math.abs(vector.x) > Math.abs(vector.y)) {
-                vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
-                vector.y = 0;
-            }
-            else {
-                vector.x = 0;
-                vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
-            }
-            return vector;
-        }
+    let newsize = Math.min(outer.clientWidth, outer.clientHeight);
+    const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+    xnew$1(outer).on('resize', () => {
+        newsize = Math.min(outer.clientWidth, outer.clientHeight);
+        inner.style.width = `${newsize}px`;
+        inner.style.height = `${newsize}px`;
     });
-    internal.on('-down', (...args) => xnew$1.emit('-down', ...args));
-    internal.on('-move', (...args) => xnew$1.emit('-move', ...args));
-    internal.on('-up', (...args) => xnew$1.emit('-up', ...args));
+    const polygons = [
+        '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
+        '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
+        '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65">',
+        '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65">'
+    ];
+    const targets = polygons.map((polygon) => {
+        return xnew$1((unit) => {
+            xnew$1.extend(SVGTemplate, { stroke: 'none', fill, fillOpacity });
+            xnew$1(polygon);
+        });
+    });
+    xnew$1((unit) => {
+        xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew$1('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
+        xnew$1('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
+        xnew$1('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
+        xnew$1('<polyline points="65 35 95 35 97 37 97 63 95 65 65 65">');
+        xnew$1('<polygon points="50 11 42 20 58 20">');
+        xnew$1('<polygon points="50 89 42 80 58 80">');
+        xnew$1('<polygon points="11 50 20 42 20 58">');
+        xnew$1('<polygon points="89 50 80 42 80 58">');
+    });
+    unit.on('dragstart dragmove', ({ type, position }) => {
+        const x = position.x - newsize / 2;
+        const y = position.y - newsize / 2;
+        const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
+        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+        const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
+        if (diagonal === true) {
+            vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
+            vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
+        }
+        else if (Math.abs(vector.x) > Math.abs(vector.y)) {
+            vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
+            vector.y = 0;
+        }
+        else {
+            vector.x = 0;
+            vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
+        }
+        targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
+        targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
+        targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
+        targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
+        const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
+        xnew$1.emit(nexttype, { type: nexttype, vector });
+    });
+    unit.on('dragend', () => {
+        const vector = { x: 0, y: 0 };
+        targets[0].element.style.filter = '';
+        targets[1].element.style.filter = '';
+        targets[2].element.style.filter = '';
+        targets[3].element.style.filter = '';
+        xnew$1.emit('-up', { type: '-up', vector });
+    });
 }
 
 function TextStream(unit, { text = '', speed = 50, fade = 300 } = {}) {

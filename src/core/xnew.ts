@@ -27,9 +27,7 @@ interface CreateUnit {
 
 export const xnew = Object.assign(
     function(...args: any[]): Unit {
-        if (Unit.rootUnit === undefined) {
-            Unit.reset();
-        }        
+        if (Unit.rootUnit === undefined) Unit.reset();
         return new Unit(Unit.currentUnit, ...args);
     } as CreateUnit,
     {

@@ -14,6 +14,7 @@ export function ModalFrame(unit: Unit,
     }, duration, easing);
 
     return {
+        state: 0.0,
         close() {
             xnew.transition((x: number) => xnew.emit('-transition', { state: 1.0 - x }), duration, easing)
             .timeout(() => unit.finalize());
@@ -21,14 +22,15 @@ export function ModalFrame(unit: Unit,
     }
 }
 
-export function ModalContent(content: Unit,
+export function ModalContent(unit: Unit,
     { background = 'rgba(0, 0, 0, 0.1)' }: { background?: string } = {}
 ) {
     const frame = xnew.context('xnew.modalframe');
     const outer = xnew.nest(`<div style="width: 100%; height: 100%; opacity: 0; background: ${background}">`);
     const inner = xnew.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
 
-    frame.on('click', ({ event }: { event: Event }) => event.stopPropagation());
+    unit.on('click', ({ event }: { event: Event }) => event.stopPropagation());
+    
     frame.on('-transition', ({ state }: { state: number }) => {
         outer.style.opacity = state.toString();
     });
