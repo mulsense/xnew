@@ -14,9 +14,33 @@ function Main(unit) {
   });
 
   let scene = xnew(Scene1);
+
+  let mode = 'fade';
   unit.on('+nextscene', (NextScene, props) => {
-    scene.finalize();
-    scene = xnew(NextScene, props);
+    switch(mode) {
+      case 'simple':
+        scene.finalize();
+        scene = xnew(NextScene, props);
+        break;
+
+      case 'fade':
+        const duration = 500;
+        const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
+        xnew.transition((x) => {
+          cover.element.style.opacity = x;
+        }, duration, 'ease')
+        .timeout((() => {
+          scene.finalize();
+          scene = xnew(NextScene, props);
+        }))
+        .transition((x) => {
+          cover.element.style.opacity = 1 - x;
+        }, duration, 'ease')
+        .timeout(() => {
+          cover.finalize();
+        });
+        break;
+    }
   });
 }
 
@@ -43,8 +67,6 @@ function Box(unit, { x, y, size, color }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
-  
-  xnew.transition((progress) => object.alpha = progress, 2000);
   
   unit.on('update', () => {
     object.rotation += 0.01;

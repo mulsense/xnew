@@ -184,7 +184,7 @@ function Panel(unit) {
 function PanelGroup(frame, { name, open = false }) {
   xnew.extend(xnew.basics.AccordionFrame, { open });
   xnew((unit) => {
-    xnew.nest('<div style="margin: 0.2em 0;display: flex; align-items: center; cursor: pointer;">');
+    xnew.nest('<div class="flex items-center cursor-pointer">');
     unit.on('click', () => frame.toggle());
     xnew(() => {
       xnew.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
