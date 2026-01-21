@@ -26,6 +26,7 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../dist/addons/xmatter.js', xnewpath + 'addons/xmatter.js');
     code = code.replace('../../dist/addons/xrapier2d.js', xnewpath + 'addons/xrapier2d.js');
     code = code.replace('../../dist/addons/xrapier3d.js', xnewpath + 'addons/xrapier3d.js');
+    code = code.replace('../../dist/addons/xaudio.js', xnewpath + 'addons/xaudio.js');
  
     code = code.replace('../../thirdparty/tailwindcss/playcdn.js', 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4');
  

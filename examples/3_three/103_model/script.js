@@ -183,14 +183,13 @@ function Panel(unit) {
 
 function PanelGroup(frame, { name, open = false }) {
   xnew.extend(xnew.basics.AccordionFrame, { open });
-  xnew((unit) => {
-    xnew.nest('<div class="flex items-center cursor-pointer">');
+  xnew('<div class="flex items-center cursor-pointer">', (unit) => {
     unit.on('click', () => frame.toggle());
-    xnew(() => {
-      xnew.nest('<div style="display:inline-block; position: relative; width: 0.55em; margin: 0 0.3em;">');
-      const arrow = xnew(`<div style="width: 100%; height: 0.55em; border-right: 0.12em solid currentColor; border-bottom: 0.12em solid currentColor; box-sizing: border-box; transform-origin: center;">`);
+    xnew((unit) => {
+      xnew.nest('<svg viewBox="0 0 24 24" class="m-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
+      xnew('<path d="M12 4 20 12 12 20" />');
       frame.on('-transition', ({ state }) => {
-          arrow.element.style.transform = `rotate(${state * 90 - 45}deg)`;
+        unit.element.style.transform = `rotate(${state * 90}deg)`;
       });  
     });
     xnew('<div>', name);
