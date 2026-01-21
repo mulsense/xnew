@@ -11,6 +11,7 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../dist/addons/xpixi.mjs', xnewpath + 'addons/xpixi.mjs');
     code = code.replace('../../dist/addons/xthree.mjs', xnewpath + 'addons/xthree.mjs');
     code = code.replace('../../dist/addons/xmatter.mjs', xnewpath + 'addons/xmatter.mjs');
+    code = code.replace('../../dist/addons/xaudio.mjs', xnewpath + 'addons/xaudio.mjs');
 
     code = code.replace('../../thirdparty/matter/matter.min.js', 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0');
     code = code.replace('../../thirdparty/three/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.176.0');
