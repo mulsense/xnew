@@ -1162,8 +1162,8 @@
         }
     });
 
-    function AccordionFrame(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
-        xnew$1.context('xnew.accordionframe', unit);
+    function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
+        xnew$1.context('xnew.accordion', unit);
         unit.on('-transition', ({ state }) => {
             unit.state = state;
         });
@@ -1191,23 +1191,6 @@
                 }
             }
         };
-    }
-    function AccordionContent(unit, {} = {}) {
-        const frame = xnew$1.context('xnew.accordionframe');
-        const outer = xnew$1.nest(`<div style="display: ${frame.state === 1.0 ? 'block' : 'none'};">`);
-        const inner = xnew$1.nest('<div style="padding: 0; display: flex; flex-direction: column; box-sizing: border-box;">');
-        frame.on('-transition', ({ state }) => {
-            outer.style.display = 'block';
-            if (state === 0.0) {
-                outer.style.display = 'none';
-            }
-            else if (state < 1.0) {
-                Object.assign(outer.style, { height: inner.offsetHeight * state + 'px', overflow: 'hidden', opacity: state });
-            }
-            else {
-                Object.assign(outer.style, { height: 'auto', overflow: 'visible', opacity: 1.0 });
-            }
-        });
     }
 
     function Screen(unit, { width = 640, height = 480, fit = 'contain' } = {}) {
@@ -1257,7 +1240,7 @@
         };
     }
 
-    function ModalFrame(unit, { duration = 200, easing = 'ease' } = {}) {
+    function Modal(unit, { duration = 200, easing = 'ease' } = {}) {
         xnew$1.context('xnew.modalframe', unit);
         xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
         unit.on('click', ({ event }) => unit.close());
@@ -1271,51 +1254,6 @@
                     .timeout(() => unit.finalize());
             }
         };
-    }
-    function ModalContent(unit, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
-        const frame = xnew$1.context('xnew.modalframe');
-        const outer = xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0; background: ${background}">`);
-        xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-        unit.on('click', ({ event }) => event.stopPropagation());
-        frame.on('-transition', ({ state }) => {
-            outer.style.opacity = state.toString();
-        });
-    }
-
-    function DragFrame(unit, { x = 0, y = 0 } = {}) {
-        const absolute = xnew$1.nest(`<div style="position: absolute; top: ${y}px; left: ${x}px;">`);
-        xnew$1.context('xnew.dragframe', unit);
-        return {
-            absolute,
-        };
-    }
-    function DragTarget(unit, {} = {}) {
-        const frame = xnew$1.context('xnew.dragframe');
-        const current = { x: 0, y: 0 };
-        const offset = { x: 0, y: 0 };
-        let dragged = false;
-        const target = xnew$1(frame.absolute.parentElement);
-        target.on('dragstart', ({ event, position }) => {
-            if (unit.element.contains(event.target) === false)
-                return;
-            dragged = true;
-            offset.x = position.x - parseFloat(frame.absolute.style.left || '0');
-            offset.y = position.y - parseFloat(frame.absolute.style.top || '0');
-            current.x = position.x - offset.x;
-            current.y = position.y - offset.y;
-        });
-        target.on('dragmove', ({ event, delta }) => {
-            if (dragged !== true)
-                return;
-            current.x += delta.x;
-            current.y += delta.y;
-            frame.absolute.style.left = `${current.x}px`;
-            frame.absolute.style.top = `${current.y}px`;
-        });
-        target.on('dragend', ({ event }) => {
-            dragged = false;
-        });
-        xnew$1.nest('<div>');
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -1483,13 +1421,9 @@
 
     const basics = {
         Screen,
-        ModalFrame,
-        ModalContent,
-        AccordionFrame,
-        AccordionContent,
+        Modal,
+        Accordion,
         TextStream,
-        DragFrame,
-        DragTarget,
         AnalogStick,
         DirectionalPad,
     };

@@ -1,22 +1,17 @@
 import { xnew as base } from './core/xnew';
 import { Unit } from './core/unit';
 
-import { AccordionFrame, AccordionContent } from './basics/Accordion';
+import { Accordion } from './basics/Accordion';
 import { Screen } from './basics/Screen';
-import { ModalFrame, ModalContent } from './basics/Modal';
-import { DragFrame, DragTarget } from './basics/Drag';
+import { Modal } from './basics/Modal';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 import { TextStream } from './basics/Text';
 
 const basics = {
     Screen,
-    ModalFrame,
-    ModalContent,
-    AccordionFrame,
-    AccordionContent,
+    Modal,
+    Accordion,
     TextStream,
-    DragFrame,
-    DragTarget,
     AnalogStick,
     DirectionalPad,
 };

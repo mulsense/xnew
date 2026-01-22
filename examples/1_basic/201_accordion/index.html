@@ -12,26 +12,31 @@
   <script>
     xnew('#main', (unit) => {
       xnew.nest('<div class="p-2">')
-      xnew(MyAccordion)
+      xnew(Accordion)
     });
 
-    function MyAccordion(frame) {
-      xnew.extend(xnew.basics.AccordionFrame, { open: true, duration: 300, easing: 'ease' });
+    function Accordion(accordion) {
+      xnew.extend(xnew.basics.Accordion, { open: true, duration: 300, easing: 'ease' });
       xnew.nest('<div class="w-64 border rounded-lg">');
 
       xnew('<div class="flex items-center select-none cursor-pointer">', (unit) => {
-        unit.on('click', () => frame.toggle());
+        unit.on('click', () => accordion.toggle());
         xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 24 24" class="m-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
+          xnew.nest('<svg viewBox="0 0 24 24" class="mr-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
           xnew('<path d="M12 4 20 12 12 20" />');
-          frame.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
+          accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
         });
         xnew('<div class="my-2">', 'accordion (click me!)');
       });
 
-      xnew('<div>', (unit) => {
-        xnew.extend(xnew.basics.AccordionContent);
-        xnew.nest('<div class="p-2 border-t">');
+      xnew((unit) => {
+        //const accordion = xnew.context('xnew.accordion');
+        const outer = xnew.nest('<div class="overflow-hidden">');
+        const inner = xnew.nest('<div class="p-2 border-t flex flex-col box-border">');
+        accordion.on('-transition', ({ state }) => {
+          outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+          outer.style.opacity = state;
+        });
         xnew('<span>', 'Content');
         xnew('<ul>', () => {
           xnew('<li class="ml-2">', '1st item');
@@ -39,7 +44,6 @@
           xnew('<li class="ml-2">', '3rd item');
         });
       });
-
     }
   </script>
 </body>

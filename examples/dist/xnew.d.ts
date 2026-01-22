@@ -277,7 +277,7 @@ declare const xnew$1: CreateUnit & {
     protect(): void;
 };
 
-declare function AccordionFrame(unit: Unit, { open, duration, easing }?: {
+declare function Accordion(unit: Unit, { open, duration, easing }?: {
     open?: boolean;
     duration?: number;
     easing?: string;
@@ -287,7 +287,6 @@ declare function AccordionFrame(unit: Unit, { open, duration, easing }?: {
     open(): void;
     close(): void;
 };
-declare function AccordionContent(unit: Unit, {}?: {}): void;
 
 declare function Screen(unit: Unit, { width, height, fit }?: {
     width?: number | undefined;
@@ -297,25 +296,6 @@ declare function Screen(unit: Unit, { width, height, fit }?: {
     readonly canvas: UnitElement;
     resize(width: number, height: number): void;
 };
-
-declare function ModalFrame(unit: Unit, { duration, easing }?: {
-    duration?: number;
-    easing?: string;
-}): {
-    state: number;
-    close(): void;
-};
-declare function ModalContent(unit: Unit, { background }?: {
-    background?: string;
-}): void;
-
-declare function DragFrame(unit: Unit, { x, y }?: {
-    x?: number;
-    y?: number;
-}): {
-    absolute: HTMLElement | SVGElement;
-};
-declare function DragTarget(unit: Unit, {}?: {}): void;
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;
@@ -344,13 +324,9 @@ declare function TextStream(unit: Unit, { text, speed, fade }?: {
 
 declare const basics: {
     Screen: typeof Screen;
-    ModalFrame: typeof ModalFrame;
-    ModalContent: typeof ModalContent;
-    AccordionFrame: typeof AccordionFrame;
-    AccordionContent: typeof AccordionContent;
+    Modal: any;
+    Accordion: typeof Accordion;
     TextStream: typeof TextStream;
-    DragFrame: typeof DragFrame;
-    DragTarget: typeof DragTarget;
     AnalogStick: typeof AnalogStick;
     DirectionalPad: typeof DirectionalPad;
 };

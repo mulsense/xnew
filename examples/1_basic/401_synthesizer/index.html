@@ -79,7 +79,7 @@
     
     function Oscillator(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      xnew.extend(PanelGroup, { name: 'oscillator', open: true });
+      xnew('<p>', 'oscillator');
       const data = {};
       const waveform = xnew(Waveform, { value: 2 });
       const envelope = xnew(Envelope, { value: 0.0, min: -36.0, max: +36.0, step: 1, checkable: true });
@@ -97,7 +97,7 @@
 
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      xnew.extend(PanelGroup, { name: 'filter', open: true });
+      xnew('<p>', 'filter');
       xnew.extend(Check, { checkable: true });
 
       const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
@@ -115,7 +115,7 @@
 
     function Amp(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      xnew.extend(PanelGroup, { name: 'amp', open: true });
+      xnew('<p>', 'amp');
 
       const envelope = xnew(Envelope, { value: 0.1, min: 0.0, max: 1.0, step: 0.1 });
 
@@ -131,7 +131,7 @@
 
     function Options(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      xnew.extend(PanelGroup, { name: 'effect', open: true });
+      xnew('<p>', 'options');
 
       const reverb = xnew((unit) => {
         xnew.extend(PanelGroup, { name: 'reverb', open: true });
@@ -290,20 +290,27 @@
         get checked() { return check ? check.element.checked : true; },
       }
     }
-    function PanelGroup(group, { name, open = false }) {
-      xnew.extend(xnew.basics.AccordionFrame, { open });
+    function PanelGroup(accordion, { name, open = false }) {
+      xnew.extend(xnew.basics.Accordion, { open });
+      
       xnew('<div class="flex items-center cursor-pointer">', (unit) => {
-        unit.on('click', () => group.toggle());
+        unit.on('click', () => accordion.toggle());
         xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 24 24" class="m-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
+          xnew.nest('<svg viewBox="0 0 24 24" class="mr-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
           xnew('<path d="M12 4 20 12 12 20" />');
-          group.on('-transition', ({ state }) => {
-            unit.element.style.transform = `rotate(${state * 90}deg)`;
-          });  
+          accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
         });
         xnew('<div>', name);
       });
-      xnew.extend(xnew.basics.AccordionContent);
+
+      xnew.extend((unit) => {
+        const outer = xnew.nest('<div class="overflow-hidden">');
+        const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
+        accordion.on('-transition', ({ state }) => {
+          outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+          outer.style.opacity = state;
+        });
+      });
     }
   </script>
 </body>

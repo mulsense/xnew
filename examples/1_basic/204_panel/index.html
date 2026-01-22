@@ -15,22 +15,6 @@
       xnew(MyPanel);
     });
 
-    function PanelGroup(frame, { name, open = false }) {
-      xnew.extend(xnew.basics.AccordionFrame, { open });
-      xnew('<div class="flex items-center cursor-pointer">', (unit) => {
-        unit.on('click', () => frame.toggle());
-        xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 24 24" class="m-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
-          xnew('<path d="M12 4 20 12 12 20" />');
-          frame.on('-transition', ({ state }) => {
-            unit.element.style.transform = `rotate(${state * 90}deg)`;
-          });  
-        });
-        xnew('<div>', name);
-      });
-      xnew.extend(xnew.basics.AccordionContent);
-    }
-
     function MyPanel(unit) {
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
 
@@ -85,6 +69,28 @@
       });
     }
 
+    function PanelGroup(accordion, { name, open = false }) {
+      xnew.extend(xnew.basics.Accordion, { open });
+      
+      xnew('<div class="flex items-center cursor-pointer">', (unit) => {
+        unit.on('click', () => accordion.toggle());
+        xnew((unit) => {
+          xnew.nest('<svg viewBox="0 0 24 24" class="mr-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
+          xnew('<path d="M12 4 20 12 12 20" />');
+          accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
+        });
+        xnew('<div>', name);
+      });
+
+      xnew.extend((unit) => {
+        const outer = xnew.nest('<div class="overflow-hidden">');
+        const inner = xnew.nest('<div class="p-2 flex flex-col box-border">');
+        accordion.on('-transition', ({ state }) => {
+          outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+          outer.style.opacity = state;
+        });
+      });
+    }
   </script>
 </body>
 

@@ -1,7 +1,7 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 
-export function ModalFrame(unit: Unit, 
+export function Modal(unit: Unit, 
     { duration = 200, easing = 'ease' }: { duration?: number, easing?: string } = {}
 ) {
     xnew.context('xnew.modalframe', unit);
@@ -20,18 +20,4 @@ export function ModalFrame(unit: Unit,
             .timeout(() => unit.finalize());
         }
     }
-}
-
-export function ModalContent(unit: Unit,
-    { background = 'rgba(0, 0, 0, 0.1)' }: { background?: string } = {}
-) {
-    const frame = xnew.context('xnew.modalframe');
-    const outer = xnew.nest(`<div style="width: 100%; height: 100%; opacity: 0; background: ${background}">`);
-    const inner = xnew.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-
-    unit.on('click', ({ event }: { event: Event }) => event.stopPropagation());
-    
-    frame.on('-transition', ({ state }: { state: number }) => {
-        outer.style.opacity = state.toString();
-    });
 }
