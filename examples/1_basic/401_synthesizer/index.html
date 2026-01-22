@@ -242,7 +242,7 @@
           status = xnew('<div class="flex-none">', `${value}`);
       });
       const input = xnew.nest(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
-      unit.on('input', (event) => {
+      unit.on('input', ({ event }) => {
         status.element.textContent = event.target.value;
       });
       return {
