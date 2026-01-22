@@ -83,7 +83,7 @@ Let's start with a simple example. This creates a basic component that displays 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@0.4.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -118,7 +118,7 @@ Now let's create multiple elements and organize them using `xnew.nest`:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@0.4.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -176,7 +176,7 @@ Now let's add events and animations! This example creates an interactive rotatin
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@0.4.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
