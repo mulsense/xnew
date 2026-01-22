@@ -53,7 +53,7 @@ export function AnalogStick(unit: Unit,
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
 
-        target.element.style.filter = 'brightness(90%)';
+        target.element.style.filter = 'brightness(80%)';
         target.element.style.left = `${vector.x * newsize / 4}px`;
         target.element.style.top = `${vector.y * newsize / 4}px`;
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type] as string;
@@ -128,10 +128,10 @@ export function DirectionalPad(unit: Unit,
             vector.y = Math.abs(vector.y) > 0.5 ? Math.sign(vector.y) : 0;
         }
 
-        targets[0].element.style.filter = (vector.y < 0) ? 'brightness(90%)' : '';
-        targets[1].element.style.filter = (vector.y > 0) ? 'brightness(90%)' : '';
-        targets[2].element.style.filter = (vector.x < 0) ? 'brightness(90%)' : '';
-        targets[3].element.style.filter = (vector.x > 0) ? 'brightness(90%)' : '';
+        targets[0].element.style.filter = (vector.y < 0) ? 'brightness(80%)' : '';
+        targets[1].element.style.filter = (vector.y > 0) ? 'brightness(80%)' : '';
+        targets[2].element.style.filter = (vector.x < 0) ? 'brightness(80%)' : '';
+        targets[3].element.style.filter = (vector.x > 0) ? 'brightness(80%)' : '';
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type] as string;
         xnew.emit(nexttype, { type: nexttype, vector });
     });
