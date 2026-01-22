@@ -13,32 +13,28 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
-  const sub1 = xnew(SubScreen, { color: 0xEA1E63 });
-  const sub2 = xnew(SubScreen, { color: 0x63EA1E });
+  const sub1 = xnew(SubScreen, { width: xpixi.canvas.width / 2, height: xpixi.canvas.height, color: 0xEA1E63 });
+  const sub2 = xnew(SubScreen, { width: xpixi.canvas.width / 2, height: xpixi.canvas.height, color: 0x63EA1E });
 
-  const pixiTexture1 = PIXI.Texture.from(sub1.canvas);
-  const pixiTexture2 = PIXI.Texture.from(sub2.canvas);
-  unit.on('render', () => {
-    pixiTexture1.source.update();
-    pixiTexture2.source.update();
-  });
-  xnew(Texture, { texture: pixiTexture1, offset: 0 });
-  xnew(Texture, { texture: pixiTexture2, offset: xpixi.canvas.width / 2 });
+  xnew(Texture, { texture: sub1.texture, offset: { x: 0, y: 0 } });
+  xnew(Texture, { texture: sub2.texture, offset: { x: xpixi.canvas.width / 2, y: 0 } });
 }
 
-function SubScreen(unit, { color }) {
-  xpixi.initialize({ canvas: new OffscreenCanvas(xpixi.canvas.width / 2, xpixi.canvas.height) });
+function SubScreen(unit, { width, height, color }) {
+  xpixi.initialize({ canvas: new OffscreenCanvas(width, height) });
+  const texture = PIXI.Texture.from(xpixi.canvas);
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
+    texture.source.update();
   });
 
   xnew(Boxes, { color });
-  return { canvas: xpixi.canvas };
+  return { texture };
 }
 
 function Texture(unit, { texture, offset } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
-  object.position.set(offset, 0);
+  object.position.set(offset.x, offset.y);
 }
 
 function Boxes(unit, { color }) {
