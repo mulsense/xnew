@@ -1158,12 +1158,8 @@ const xnew$1 = Object.assign(function (...args) {
 
 function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
     xnew$1.context('xnew.accordion', unit);
-    unit.on('-transition', ({ state }) => {
-        unit.state = state;
-    });
-    xnew$1.timeout(() => {
-        xnew$1.emit('-transition', { state: open ? 1.0 : 0.0 });
-    });
+    unit.on('-transition', ({ state }) => unit.state = state);
+    xnew$1.timeout(() => xnew$1.emit('-transition', { state: open ? 1.0 : 0.0 }));
     return {
         state: open ? 1.0 : 0.0,
         toggle() {
@@ -1238,9 +1234,8 @@ function Modal(unit, { duration = 200, easing = 'ease' } = {}) {
     xnew$1.context('xnew.modalframe', unit);
     xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
     unit.on('click', ({ event }) => unit.close());
-    xnew$1.transition((x) => {
-        xnew$1.emit('-transition', { state: x });
-    }, duration, easing);
+    unit.on('-transition', ({ state }) => unit.state = state);
+    xnew$1.transition((x) => xnew$1.emit('-transition', { state: x }), duration, easing);
     return {
         state: 0.0,
         close() {

@@ -6,12 +6,8 @@ export function Accordion(unit: Unit,
 ) {
     xnew.context('xnew.accordion', unit);
     
-    unit.on('-transition', ({ state }: { state: number }) => {
-        unit.state = state;
-    });
-    xnew.timeout(() => {
-        xnew.emit('-transition', { state: open ? 1.0 : 0.0 });
-    });
+    unit.on('-transition', ({ state }: { state: number }) => unit.state = state);
+    xnew.timeout(() => xnew.emit('-transition', { state: open ? 1.0 : 0.0 }));
 
     return {
         state: open ? 1.0 : 0.0,

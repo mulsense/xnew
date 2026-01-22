@@ -8,10 +8,9 @@ export function Modal(unit: Unit,
     xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
 
     unit.on('click', ({ event }: { event: Event }) => unit.close());
-    
-    xnew.transition((x: number) => {
-        xnew.emit('-transition', { state: x });
-    }, duration, easing);
+    unit.on('-transition', ({ state }: { state: number }) => unit.state = state);
+
+    xnew.transition((x: number) => xnew.emit('-transition', { state: x }), duration, easing);
 
     return {
         state: 0.0,
