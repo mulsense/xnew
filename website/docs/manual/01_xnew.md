@@ -427,7 +427,7 @@ Internal events are scoped to the component and its parent:
 function Timer(unit) {
   let seconds = 0;
 
-  unit.on('-update', () => {
+  unit.on('update', () => {
     seconds++;
     if (seconds % 60 === 0) {
       // Emit internal event every minute
