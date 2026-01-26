@@ -246,10 +246,5 @@ export const xnew = Object.assign(
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
-
-
-        protect() {
-            Unit.currentUnit._.protected = true;
-        }
     }
 );

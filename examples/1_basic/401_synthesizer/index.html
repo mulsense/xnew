@@ -26,13 +26,11 @@
     function Keyboard() {
       xnew.nest('<div class="flex">');
       for (let i = 2; i < 6; i++) {
-        xnew(Keyset, i);
-      }
-      function Keyset(unit, number) {
-        xnew.nest('<div class="flex relative select-none">');
-        for (let i = 0; i < 12; i++) {
-          xnew(Key, { key: i, number });
-        }
+        xnew('<div class="flex relative select-none">', (unit) => {
+          for (let key = 0; key < 12; key++) {
+            xnew(Key, { key, number: i  });
+          }
+        });
       }
       function Key(unit, { key, number }) {
         const list = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', ];
@@ -199,22 +197,14 @@
       const sustain = xnew(Slider, { name: 'sustain', value: 0.2, min: 0.0, max: 1.0, step: 0.1 });
       const release = xnew(Slider, { name: 'release', value: 200, min: 0, max: 500, step: 20 });
 
-      render();
-      attack.on('change input', () => { render(); });
-      decay.on('change input', () => { render(); });
-      sustain.on('change input', () => { render(); });
-      release.on('change input', () => { render(); });
-
-      function render() {
-        const [A, D, S, R] = [attack.value, decay.value, sustain.value, release.value];
-        svg.element.innerHTML = `
-            <polyline stroke="#2B2" stroke-width="4" points="0 150 ${0.1 * A} ${10} ${0.1 * (A + D)} ${150 - 140 * S} ${0.1 * (A + D + 500)} ${150 - 140 * S} ${0.1 * (A + D + 500 + R)} 150" />
-        `;
-      }
+      unit.on('render', () => {
+        const [A, D, S, R] = unit.ADSR;
+        const points = `0 150 ${0.1 * A} ${10} ${0.1 * (A + D)} ${150 - 140 * S} ${0.1 * (A + D + 500)} ${150 - 140 * S} ${0.1 * (A + D + 500 + R)} 150`;
+        svg.element.innerHTML = `<polyline stroke="#2B2" stroke-width="4" points="${points}" />`;
+      });
       return {
-        get value() {
-          return unit.checked ? { envelope: { amount: amount.value, ADSR: [attack.value, decay.value, sustain.value, release.value] }} : {};
-        },
+        get ADSR() { return [attack.value, decay.value, sustain.value, release.value]; },
+        get value() { return unit.checked ? { envelope: { amount: amount.value, ADSR: unit.ADSR }} : {}; },
         get json() { return unit.checked ? `envelope: { amount: ${amount.value}, ADSR: [${attack.value}, ${decay.value}, ${sustain.value}, ${release.value}], }, ` : ''; }
       };
     }
@@ -296,20 +286,18 @@
       xnew('<div class="flex items-center cursor-pointer">', (unit) => {
         unit.on('click', () => accordion.toggle());
         xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 24 24" class="mr-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
-          xnew('<path d="M12 4 20 12 12 20" />');
+          xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
+          xnew('<path d="M6 2 10 6 6 10" />');
           accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
         });
         xnew('<div>', name);
       });
 
-      xnew.extend((unit) => {
-        const outer = xnew.nest('<div class="overflow-hidden">');
-        const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
-        accordion.on('-transition', ({ state }) => {
-          outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-          outer.style.opacity = state;
-        });
+      const outer = xnew.nest('<div class="overflow-hidden">');
+      const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
+      accordion.on('-transition', ({ state }) => {
+        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+        outer.style.opacity = state;
       });
     }
   </script>

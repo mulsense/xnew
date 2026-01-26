@@ -22,8 +22,8 @@
       xnew('<div class="flex items-center select-none cursor-pointer">', (unit) => {
         unit.on('click', () => accordion.toggle());
         xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 24 24" class="mr-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">');
-          xnew('<path d="M12 4 20 12 12 20" />');
+          xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
+          xnew('<path d="M6 2 10 6 6 10" />');
           accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
         });
         xnew('<div class="my-2">', 'accordion (click me!)');

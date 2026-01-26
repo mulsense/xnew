@@ -14,6 +14,8 @@ interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
+    config: { protect: boolean };
+
     baseElement: UnitElement;
     baseContext: Context;
     baseComponent: Function;
@@ -23,7 +25,6 @@ interface Internal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
-    protected: boolean;
 
     ancestors: Unit[];
     children: Unit[];
@@ -61,6 +62,7 @@ export class Unit {
 
         const component: Function | string | undefined = args.shift();
         const props: Object | undefined = args.shift();
+        const config: any = args.shift();
 
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
@@ -81,8 +83,9 @@ export class Unit {
         }
 
         const baseContext = parent?._.currentContext ?? { stack: null };
+        const protect = config?.protect ?? false;
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props, config: { protect } } as Internal;
         parent?._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -125,7 +128,6 @@ export class Unit {
             anchor,
             state: 'invoked',
             tostart: true,
-            protected: false,
             ancestors: [...(unit._.parent ? [unit._.parent] : []), ...(unit._.parent?._.ancestors ?? [])],
             children: [],
             elements: [],
@@ -385,7 +387,7 @@ export class Unit {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
-                const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
+                const find = [unit, ...unit._.ancestors].find(u => u._.config.protect === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
                     unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
                 }

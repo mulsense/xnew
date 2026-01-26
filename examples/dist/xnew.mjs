@@ -523,7 +523,7 @@ function pointer(element, event) {
 //----------------------------------------------------------------------------------------------------
 class Unit {
     constructor(parent, ...args) {
-        var _a;
+        var _a, _b;
         let target;
         if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
             target = args.shift(); // an existing html element
@@ -542,6 +542,7 @@ class Unit {
         }
         const component = args.shift();
         const props = args.shift();
+        const config = args.shift();
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -563,7 +564,8 @@ class Unit {
             baseComponent = (unit) => { };
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props };
+        const protect = (_b = config === null || config === void 0 ? void 0 : config.protect) !== null && _b !== void 0 ? _b : false;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props, config: { protect } };
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -602,7 +604,6 @@ class Unit {
             anchor,
             state: 'invoked',
             tostart: true,
-            protected: false,
             ancestors: [...(unit._.parent ? [unit._.parent] : []), ...((_b = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.ancestors) !== null && _b !== void 0 ? _b : [])],
             children: [],
             elements: [],
@@ -832,7 +833,7 @@ class Unit {
         if (type[0] === '+') {
             (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
-                const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
+                const find = [unit, ...unit._.ancestors].find(u => u._.config.protect === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
                     (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
                 }
@@ -1151,9 +1152,6 @@ const xnew$1 = Object.assign(function (...args) {
     transition(transition, duration = 0, easing = 'linear') {
         return new UnitTimer({ transition, duration, easing, iterations: 1 });
     },
-    protect() {
-        Unit.currentUnit._.protected = true;
-    }
 });
 
 function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {

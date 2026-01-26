@@ -56,6 +56,9 @@ interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
+    config: {
+        protect: boolean;
+    };
     baseElement: UnitElement;
     baseContext: Context;
     baseComponent: Function;
@@ -65,7 +68,6 @@ interface Internal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
-    protected: boolean;
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
@@ -274,7 +276,6 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
-    protect(): void;
 };
 
 declare function Accordion(unit: Unit, { open, duration, easing }?: {
