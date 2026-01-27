@@ -5,7 +5,6 @@ import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import xnew from '@mulsense/xnew';
-import xaudio from '@mulsense/xnew/addons/xaudio';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import xmatter from '@mulsense/xnew/addons/xmatter';
@@ -79,7 +78,7 @@ function GameScene(unit) {
 
   const playing = xnew((unit) => {
     xnew(Controller);
-    xaudio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
+    xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
   unit.on('+append', (Component, props) => xnew(Component, props));
 
@@ -100,7 +99,7 @@ function GameScene(unit) {
 }
 
 function ResultScene(unit, { image, scores }) {
-  xaudio.load('../assets/st005.mp3').then((music) => {
+  xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1, loop: true });
   });
 
@@ -396,7 +395,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const now = new Date().getTime();
   if (now - prev > 200) {
     prev = now;
-    const synth = xaudio.synthesizer({ oscillator: { type: 'triangle', envelope: { amount: 8, ADSR: [0, 500, 1, 0], }, }, filter: { type: 'bandpass', cutoff: 1000}, amp: { envelope: { amount: 1, ADSR: [20, 100, 0, 0], }, }, reverb: { time: 1000, mix: 0.2, },  });
+    const synth = xnew.audio.synthesizer({ oscillator: { type: 'triangle', envelope: { amount: 8, ADSR: [0, 500, 1, 0], }, }, filter: { type: 'bandpass', cutoff: 1000}, amp: { envelope: { amount: 1, ADSR: [20, 100, 0, 0], }, }, reverb: { time: 1000, mix: 0.2, },  });
     synth.press(['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5', 'C6'][id], 100);
   }
 
@@ -516,25 +515,25 @@ function VolumeController(unit) {
     xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
     unit.on('pointerdown', ({ event }) => event.stopPropagation());
 
-    const slider = xnew(`<input type="range" min="0" max="100" value="${xaudio.volume * 100}"
+    const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
     style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
     >`);
 
     unit.on('click.outside', () => slider.element.style.display = 'none');
     const button = xnew(() => {
       xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
-      let icon = xnew(xaudio.volume > 0 ? SpeakerWave : SpeakerXMark);
+      let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
       return {
           update() {
             icon?.finalize();
-            icon = xnew(xaudio.volume > 0 ? SpeakerWave : SpeakerXMark);
+            icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
           }
       };
     });
 
     button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
     slider.on('input', ({ event }) => {
-        xaudio.volume = parseFloat(event.target.value) / 100;
+        xnew.audio.volume = parseFloat(event.target.value) / 100;
         button.update();
     });
 }

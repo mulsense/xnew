@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../dist/xnew.js"></script>
-  <script src="../../dist/addons/xaudio.js"></script>
   <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
@@ -13,7 +12,7 @@
   <script>
     xnew('#main', (unit) => {
       xnew.nest('<div class="m-2 space-y-4">');
-      xaudio.load('b096.mp3').then((music) => {
+      xnew.audio.load('b096.mp3').then((music) => {
         // Play and Stop buttons
         xnew.nest('<div class="space-x-2">');
         xnew(Button, { name: 'play' }).on('click', () => {

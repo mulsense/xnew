@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../../dist/xnew.js"></script>
-  <script src="../../dist/addons/xaudio.js"></script>
   <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
@@ -52,8 +51,8 @@
             const [oscillator, filter, amp, options] = [xnew.find(Oscillator)[0], xnew.find(Filter)[0], xnew.find(Amp)[0], xnew.find(Options)[0]];
             const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, ...options.value};
             xnew.emit('+code1', ' ');
-            xnew.emit('+code2', `const synth = xaudio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}${options.json} });\nsynth.press('${list[key] + number}', duration);`);
-            const synth = xaudio.synthesizer(param);
+            xnew.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}${options.json} });\nsynth.press('${list[key] + number}', duration);`);
+            const synth = xnew.audio.synthesizer(param);
             press = synth.press(list[key] + number);
           }
         });
