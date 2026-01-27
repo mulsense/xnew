@@ -298,6 +298,14 @@ declare function Screen(unit: Unit, { width, height, fit }?: {
     resize(width: number, height: number): void;
 };
 
+declare function Modal(unit: Unit, { duration, easing }?: {
+    duration?: number;
+    easing?: string;
+}): {
+    state: number;
+    close(): void;
+};
+
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;
     strokeOpacity?: number;
@@ -323,19 +331,66 @@ declare function TextStream(unit: Unit, { text, speed, fade }?: {
     fade?: number;
 }): void;
 
+type SynthesizerOptions = {
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
+};
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
+};
+type Envelope = {
+    amount: number;
+    ADSR: [number, number, number, number];
+};
+type LFO = {
+    amount: number;
+    type: OscillatorType;
+    rate: number;
+};
+declare class Synthesizer {
+    props: SynthesizerOptions;
+    constructor(props: SynthesizerOptions);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
+        release: () => void;
+    } | undefined;
+}
+
 declare const basics: {
     Screen: typeof Screen;
-    Modal: any;
+    Modal: typeof Modal;
     Accordion: typeof Accordion;
     TextStream: typeof TextStream;
     AnalogStick: typeof AnalogStick;
     DirectionalPad: typeof DirectionalPad;
+};
+
+declare const audio: {
+    load(path: string): UnitPromise;
+    synthesizer(props: SynthesizerOptions): Synthesizer;
+    volume: number;
 };
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
 declare const xnew: (typeof xnew$1) & {
     basics: typeof basics;
+    audio: typeof audio;
 };
 
 export { xnew as default };
