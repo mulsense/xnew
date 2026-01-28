@@ -528,27 +528,8 @@
     // unit
     //----------------------------------------------------------------------------------------------------
     class Unit {
-        constructor(parent, ...args) {
+        constructor(parent, target, component, props, config) {
             var _a, _b;
-            let target;
-            if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-                target = args.shift(); // an existing html element
-            }
-            else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-                target = args.shift();
-            }
-            else if (typeof args[0] === 'string') {
-                const query = args.shift();
-                target = document.querySelector(query);
-                if (target === null)
-                    throw new Error(`'${query}' can not be found.`);
-            }
-            else {
-                target = null;
-            }
-            const component = args.shift();
-            const props = args.shift();
-            const config = args.shift();
             let baseElement;
             if (target instanceof HTMLElement || target instanceof SVGElement) {
                 baseElement = target;
@@ -883,7 +864,7 @@
     class UnitTimer {
         constructor(options) {
             this.stack = [];
-            this.unit = new Unit(Unit.currentUnit, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
+            this.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
         }
         clear() {
             this.stack = [];
@@ -903,7 +884,7 @@
         }
         static execute(timer, options) {
             if (timer.unit._.state === 'finalized') {
-                timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
+                timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
             }
             else if (timer.stack.length === 0) {
                 timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
@@ -915,7 +896,7 @@
         }
         static next(timer) {
             if (timer.stack.length > 0) {
-                timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.stack.shift());
+                timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
                 timer.unit.on('finalize', () => { UnitTimer.next(timer); });
             }
         }
@@ -941,10 +922,32 @@
         }
     }
 
+    function parseArguments(...args) {
+        let target;
+        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+            target = args.shift(); // an existing html element
+        }
+        else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
+            target = args.shift();
+        }
+        else if (typeof args[0] === 'string') {
+            const query = args.shift();
+            target = document.querySelector(query);
+            if (target === null)
+                throw new Error(`'${query}' can not be found.`);
+        }
+        else {
+            target = null;
+        }
+        const component = args.shift();
+        const props = args.shift();
+        return { target, component, props };
+    }
     const xnew$1 = Object.assign(function (...args) {
         if (Unit.rootUnit === undefined)
             Unit.reset();
-        return new Unit(Unit.currentUnit, ...args);
+        const { target, component, props } = parseArguments(...args);
+        return new Unit(Unit.currentUnit, target, component, props, { protect: false });
     }, {
         /**
          * Creates a nested HTML/SVG element within the current component
@@ -1158,6 +1161,12 @@
         transition(transition, duration = 0, easing = 'linear') {
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
+        protect(...args) {
+            if (Unit.rootUnit === undefined)
+                Unit.reset();
+            const { target, component, props } = parseArguments(...args);
+            return new Unit(Unit.currentUnit, target, component, props, { protect: true });
+        }
     });
 
     function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {

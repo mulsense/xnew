@@ -14,11 +14,6 @@
       "import": "./dist/xnew.mjs",
       "require": "./dist/xnew.js"
     },
-    "./addons/xaudio": {
-      "types": "./dist/addons/xaudio.d.ts",
-      "import": "./dist/addons/xaudio.mjs",
-      "require": "./dist/addons/xaudio.js"
-    },
     "./addons/xmatter": {
       "types": "./dist/addons/xmatter.d.ts",
       "import": "./dist/addons/xmatter.mjs",

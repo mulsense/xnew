@@ -88,7 +88,7 @@ interface Internal {
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, ...args: any[]);
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object, config?: any);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -151,7 +151,7 @@ interface CreateUnit {
      * const unit = xnew('#selector', MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
-    (target: HTMLElement | SVGElement, Component?: Function | string, props?: Object): Unit;
+    (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 declare const xnew$1: CreateUnit & {
     /**
@@ -276,6 +276,7 @@ declare const xnew$1: CreateUnit & {
      * }, 300)
      */
     transition(transition: Function, duration?: number, easing?: string): any;
+    protect(...args: any[]): Unit;
 };
 
 declare function Accordion(unit: Unit, { open, duration, easing }?: {

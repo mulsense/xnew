@@ -13,12 +13,11 @@
   <script>
     let count = 0;
     xnew('#main', (unit) => {
-      xnew(Div);
-      xnew(Div);
+      xnew.protect(Div);
+      xnew.protect(Div);
     });
 
     function Div(unit) {
-      xnew.protect();
       xnew.nest('<div class="p-2 flex items-center">');
 
       xnew((unit) => {

@@ -1,3 +1,4 @@
+import { UnitElement } from './types';
 import { Unit, UnitPromise, UnitTimer } from './unit';
 
 interface CreateUnit {
@@ -22,13 +23,33 @@ interface CreateUnit {
      * const unit = xnew('#selector', MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
-    (target: HTMLElement | SVGElement, Component?: Function | string, props?: Object): Unit;
+    (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
+}
+
+function parseArguments(...args: any[]) {
+    let target: UnitElement | string | null;
+    if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+        target = args.shift(); // an existing html element
+    } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
+        target = args.shift();
+    } else if (typeof args[0] === 'string') {
+        const query = args.shift();
+        target = document.querySelector(query);
+        if (target === null) throw new Error(`'${query}' can not be found.`);
+    } else {
+        target = null;
+    }
+    
+    const component: Function = args.shift();
+    const props: Object = args.shift();
+    return { target, component, props };
 }
 
 export const xnew = Object.assign(
     function(...args: any[]): Unit {
         if (Unit.rootUnit === undefined) Unit.reset();
-        return new Unit(Unit.currentUnit, ...args);
+        const { target, component, props } = parseArguments(...args);
+        return new Unit(Unit.currentUnit, target, component, props, { protect: false });
     } as CreateUnit,
     {
         /**
@@ -246,5 +267,11 @@ export const xnew = Object.assign(
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
+
+        protect(...args: any[]): Unit {
+            if (Unit.rootUnit === undefined) Unit.reset();
+            const { target, component, props } = parseArguments(...args);
+            return new Unit(Unit.currentUnit, target, component, props, { protect: true });
+        }
     }
 );

@@ -44,39 +44,6 @@ export default [
         ]
     },
     {
-        input: './src/addons/xaudio.ts',
-        output: [
-            {
-                file: './dist/addons/xaudio.js',
-                format: 'umd',
-                extend: true,
-                name: 'xaudio',
-                globals: { '@mulsense/xnew': 'xnew' },
-            },
-            {
-                file: './dist/addons/xaudio.mjs',
-                format: 'es',
-            },
-        ],
-        external: ['@mulsense/xnew'],
-        plugins: [
-            typescript({ tsconfig: 'tsconfig.json' }),
-            copyto('./dist/addons/xaudio.js', './examples/dist/addons/xaudio.js'),
-            copyto('./dist/addons/xaudio.mjs', './examples/dist/addons/xaudio.mjs'),
-        ],
-    },
-    {
-        input: './src/addons/xaudio.ts',
-        output: {
-            file: './dist/addons/xaudio.d.ts',
-            format: 'es',
-        },
-        plugins: [
-            dts(),
-            copyto('./dist/addons/xaudio.d.ts', './examples/dist/addons/xaudio.d.ts'),
-        ]
-    },
-    {
         input: './src/addons/xpixi.ts',
         output: [
             {

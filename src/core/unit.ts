@@ -46,23 +46,7 @@ export class Unit {
     [key: string]: any;
     public _: Internal;
 
-    constructor(parent: Unit | null, ...args: any[]) {
-        let target: Object | string | null;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-            target = args.shift();
-        } else if (typeof args[0] === 'string') {
-            const query = args.shift();
-            target = document.querySelector(query);
-            if (target === null) throw new Error(`'${query}' can not be found.`);
-        } else {
-            target = null;
-        }
-
-        const component: Function | string | undefined = args.shift();
-        const props: Object | undefined = args.shift();
-        const config: any = args.shift();
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object, config?: any) {
 
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
@@ -432,7 +416,7 @@ export class UnitTimer {
     private stack: Object[] = [];
 
     constructor(options: TimerOptions) {
-        this.unit = new Unit(Unit.currentUnit, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
+        this.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
     }
 
     clear() {
@@ -457,7 +441,7 @@ export class UnitTimer {
 
     static execute(timer: UnitTimer, options: TimerOptions) {
         if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
         } else if (timer.stack.length === 0) {
             timer.stack.push({ snapshot: Unit.snapshot(Unit.currentUnit), ...options });
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
@@ -468,7 +452,7 @@ export class UnitTimer {
 
     static next(timer: UnitTimer) {
         if (timer.stack.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.stack.shift());
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
             timer.unit.on('finalize', () => { UnitTimer.next(timer); });
         }
     }
