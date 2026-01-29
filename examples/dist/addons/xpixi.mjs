@@ -41,6 +41,9 @@ function Nest(unit, { object }) {
     unit.on('finalize', () => {
         parent.removeChild(object);
     });
+    return {
+        pixiObject: object,
+    };
 }
 
 export { xpixi as default };

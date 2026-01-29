@@ -47,4 +47,7 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     unit.on('finalize', () => {
         parent.remove(object);
     });
+    return {
+        threeObject: object,
+    }
 }

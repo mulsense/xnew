@@ -65,6 +65,9 @@
         unit.on('finalize', () => {
             parent.remove(object);
         });
+        return {
+            threeObject: object,
+        };
     }
 
     return xthree;

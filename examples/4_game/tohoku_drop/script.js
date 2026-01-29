@@ -63,7 +63,7 @@ function GameScene(unit) {
   unit.on('update', () => {
     Matter.Engine.update(xmatter.engine);
   });
-  xnew.context('gamescene', { scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  xnew.global = { scores: [0, 0, 0, 0, 0, 0, 0, 0] };
 
   xnew(Background);
   xnew(ShadowPlane);
@@ -93,7 +93,7 @@ function GameScene(unit) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => xnew.emit('+nextscene', ResultScene, { image, scores: xnew.context('gamescene').scores }));
+      .timeout(() => xnew.emit('+nextscene', ResultScene, { image, scores: xnew.global.scores }));
     }, 2000);
   });
 }
@@ -146,7 +146,7 @@ function ScoreText(unit) {
   let sum = 0;
   unit.on('+scoreup', (i) => {
     text.element.textContent = `score ${sum += Math.pow(2, i)}`;
-    xnew.context('gamescene').scores[i]++;
+    xnew.global.scores[i]++;
   });
 }
 
@@ -298,7 +298,7 @@ function Queue(unit) {
     balls.push(Math.floor(Math.random() * 3));
     xnew.transition((p) => {
       const position = convert3d(10 + p * 70, 70);
-      model.object.position.set(position.x, position.y, position.z);
+      model.threeObject.position.set(position.x, position.y, position.z);
     }, 500).timeout(() => xnew.emit('+relode:done', balls.shift()));
   });
 }
@@ -351,8 +351,6 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
       count++;
     });
   });
-
-  return { id, object }
 }
 
 function Cursor(unit) {
@@ -382,7 +380,7 @@ function Cursor(unit) {
   unit.on('update', () => {
     object.rotation += 0.02;
     const position = convert3d(object.x, object.y + offset);
-    model?.object.position.set(position.x, position.y, position.z);
+    model?.threeObject.position.set(position.x, position.y, position.z);
   });
 }
 
@@ -405,10 +403,10 @@ function ModelBall(ball, { x, y, id = 0 }) {
   xnew.emit('+append', StarParticles, { x, y });
   
   ball.on('update', () => {
-    const position = convert3d(ball.object.x, ball.object.y);
-    model.object.position.set(position.x, position.y, position.z);
-    model.object.rotation.z = -ball.object.rotation;
-    if (ball.object.y > xpixi.canvas.height) {
+    const position = convert3d(ball.pixiObject.x, ball.pixiObject.y);
+    model.threeObject.position.set(position.x, position.y, position.z);
+    model.threeObject.rotation.z = -ball.pixiObject.rotation;
+    if (ball.pixiObject.y > xpixi.canvas.height) {
       xnew.emit('+gameover');
       ball.finalize();
       return;
@@ -416,7 +414,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
 
     // merge check
     for (const target of xnew.find(ModelBall).filter((target) => target !== ball && target.id === ball.id && target.id < 7)) {
-      const [a, b] = [ball.object, target.object];
+      const [a, b] = [ball.pixiObject, target.pixiObject];
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
@@ -474,7 +472,6 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
-  return { object };
 }
 
 // helpers

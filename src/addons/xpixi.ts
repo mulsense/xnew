@@ -47,4 +47,7 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     unit.on('finalize', () => {
         parent.removeChild(object);
     });
+    return {
+        pixiObject: object,
+    }
 }
