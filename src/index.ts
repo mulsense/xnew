@@ -46,12 +46,24 @@ const audio = {
     }
 }
 
+const temp = Object.assign(base, { basics, audio });
+
+Object.defineProperty(temp, 'global', {
+    get: function() {
+        return temp.context('xnew.global');
+    },
+    set: function(value: any) {
+        temp.context('xnew.global', value);
+    }
+});
+
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
 }
-const xnew: (typeof base) & {
+
+const xnew = temp as (typeof base) & {
     basics: typeof basics;
     audio: typeof audio;
-} = Object.assign(base, { basics, audio });
+} & { global: any };
 
 export default xnew;

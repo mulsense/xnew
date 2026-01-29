@@ -1160,7 +1160,7 @@ const xnew$1 = Object.assign(function (...args) {
             Unit.reset();
         const { target, component, props } = parseArguments(...args);
         return new Unit(Unit.currentUnit, target, component, props, { protect: true });
-    }
+    },
 });
 
 function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
@@ -1674,6 +1674,15 @@ const audio = {
         master.gain.value = value;
     }
 };
-const xnew = Object.assign(xnew$1, { basics, audio });
+const temp = Object.assign(xnew$1, { basics, audio });
+Object.defineProperty(temp, 'global', {
+    get: function () {
+        return temp.context('xnew.global');
+    },
+    set: function (value) {
+        temp.context('xnew.global', value);
+    }
+});
+const xnew = temp;
 
 export { xnew as default };

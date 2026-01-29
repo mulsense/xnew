@@ -392,6 +392,8 @@ declare namespace xnew {
 declare const xnew: (typeof xnew$1) & {
     basics: typeof basics;
     audio: typeof audio;
+} & {
+    global: any;
 };
 
 export { xnew as default };

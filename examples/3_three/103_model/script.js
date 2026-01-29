@@ -4,9 +4,6 @@ import xthree from '@mulsense/xnew/addons/xthree';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
-const additiveActions = { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } };
-
 xnew('#main', Main);
 
 function Main(unit) {
@@ -20,12 +17,18 @@ function Main(unit) {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
 
-  const controls = new OrbitControls(xthree.camera, xthree.canvas);
-  controls.target.set(0, 1, 0);
-  controls.update();
+  xnew(Contents);
+}
+
+function Contents(unit) {
+  xnew.global = {
+    baseActions: { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } },
+    additiveActions: { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } }
+  };
 
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
   xnew(Ground);
+  xnew(Controller);
 
   xnew.promise(new Promise((resolve) => {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
@@ -33,6 +36,7 @@ function Main(unit) {
     xnew(Model, { gltf });
   });
   xnew('<div class="absolute w-48 top-2 right-2">', Panel);
+
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -47,6 +51,12 @@ function Ground(unit) {
   const plane = xthree.nest(new THREE.Mesh(geometry, material));
   plane.rotation.x = - Math.PI / 2;
   plane.receiveShadow = true;
+}
+
+function Controller(unit) {
+  const controls = new OrbitControls(xthree.camera, xthree.canvas);
+  controls.target.set(0, 1, 0);
+  controls.update();
 }
 
 function Model(unit, { gltf }) {
@@ -65,11 +75,11 @@ function Model(unit, { gltf }) {
 
   for (const animation of animations) {
     let settings = null;
-    if (baseActions[animation.name]) {
-      settings = baseActions[animation.name];
+    if (xnew.global.baseActions[animation.name]) {
+      settings = xnew.global.baseActions[animation.name];
       settings.action = mixer.clipAction(animation);
-    } else if (additiveActions[animation.name]) {
-      settings = additiveActions[animation.name];
+    } else if (xnew.global.additiveActions[animation.name]) {
+      settings = xnew.global.additiveActions[animation.name];
       // Make the clip additive and remove the reference frame
       THREE.AnimationUtils.makeClipAdditive(animation);
       if (animation.name.endsWith('_pose')) {
@@ -87,8 +97,8 @@ function Model(unit, { gltf }) {
   let select = 'idle';
   unit.on('+crossfade', (name) => {
     if (name === select) return;
-    const current = baseActions[select] ? baseActions[select].action : null;
-    const next = baseActions[name] ? baseActions[name].action : null;
+    const current = xnew.global.baseActions[select] ? xnew.global.baseActions[select].action : null;
+    const next = xnew.global.baseActions[name] ? xnew.global.baseActions[name].action : null;
 
     const duration = 0.35;
     if (next === null) {
@@ -138,7 +148,7 @@ function Panel(unit) {
 
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });
-    for (const name of ['none', ...Object.keys(baseActions)]) {
+    for (const name of ['none', ...Object.keys(xnew.global.baseActions)]) {
       const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
       button.on('click', () => xnew.emit('+crossfade', name));
     }
@@ -146,14 +156,14 @@ function Panel(unit) {
   
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'action weights', open: true });
-    for (const name of Object.keys(additiveActions)) {
+    for (const name of Object.keys(xnew.global.additiveActions)) {
       let status;
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', name);
         status = xnew('<div class="flex-none">', '0');
       });
       
-      const settings = additiveActions[name];
+      const settings = xnew.global.additiveActions[name];
       const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
       input.on('input', ({ event }) => {
         status.element.textContent = event.target.value;

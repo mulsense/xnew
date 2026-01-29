@@ -17,28 +17,17 @@ function Main(unit) {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
 
-  xnew(ThreeMain);
-  xnew(Controller);
+  xnew(Contents);
 }
 
-function ThreeMain(unit) {
+function Contents(unit) {
   xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
   xnew(AmbientLight);
   xnew(Ground, { size: 100, color: 0xF8F8FF });
   xnew(Dorm, { size: 50 });
   xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 
-  unit.on('+scale', ({ scale }) => {
-    xthree.camera.position.z /= scale;
-  });
-  unit.on('+translate', ({ move }) => {
-    xthree.camera.position.x += move.x * xthree.camera.position.z * 0.001;
-    xthree.camera.position.y += move.y * xthree.camera.position.z * 0.001;
-  });
-  unit.on('+rotate', ({ move }) => {
-    xthree.scene.rotation.x += move.y * 0.01;
-    xthree.scene.rotation.z += move.x * 0.01;
-  });
+  xnew(Controller);
 }
 
 function DirectionaLight(unit, { x, y, z }) {
@@ -77,11 +66,17 @@ function Controller(unit) {
 
   unit.on('dragmove', ({ event, delta }) => {
     if (event.buttons & 1 || !event.buttons) {
-      xnew.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
-    }
-    if (event.buttons & 2) {
-      xnew.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
+      // rotate
+      xthree.scene.rotation.x += delta.y * 0.01;
+      xthree.scene.rotation.z += delta.x * 0.01;
+    } else if (event.buttons & 2) {
+      // translate
+      xthree.camera.position.x += -delta.x * xthree.camera.position.z * 0.001;
+      xthree.camera.position.y += +delta.y * xthree.camera.position.z * 0.001;
     }
   });
-  unit.on('wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+  unit.on('wheel', ({ event, delta }) => {
+    // scale
+    xthree.camera.position.z /= 1 + 0.001 * delta.y;
+  });
 }

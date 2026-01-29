@@ -39,7 +39,7 @@ function parseArguments(...args: any[]) {
     } else {
         target = null;
     }
-    
+
     const component: Function = args.shift();
     const props: Object = args.shift();
     return { target, component, props };
@@ -272,6 +272,8 @@ export const xnew = Object.assign(
             if (Unit.rootUnit === undefined) Unit.reset();
             const { target, component, props } = parseArguments(...args);
             return new Unit(Unit.currentUnit, target, component, props, { protect: true });
-        }
+        },
+
     }
 );
+
