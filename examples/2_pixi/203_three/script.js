@@ -12,10 +12,15 @@ function Main(unit) {
   // three setup
   xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.camera.position.set(0, 0, +100);
-  const threeTexture = PIXI.Texture.from(xthree.canvas);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
-    threeTexture.source.update();
+  });
+
+  // convert canvas to pixi texture, and continuous update
+  const texture = PIXI.Texture.from(xthree.canvas);
+  xnew.context('three.texture', texture);
+  unit.on('render', () => {
+    texture.source.update();
   });
 
   // pixi setup
@@ -24,9 +29,14 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xnew(Cubes);
-  
-  xnew(Texture, { texture: threeTexture });
+
+  // set texture as a background of pixi
+  xnew(Texture, { texture: xnew.context('three.texture') });
   xnew(Boxes);
 }
 

@@ -18,11 +18,15 @@ function Main(unit) {
   xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
-  const threeTexture = PIXI.Texture.from(xthree.canvas);
-  xnew.context('texture', threeTexture);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
-    threeTexture.source.update();
+  });
+
+  // convert canvas to pixi texture, and continuous update
+  const texture = PIXI.Texture.from(xthree.canvas);
+  xnew.context('three.texture', texture);
+  unit.on('render', () => {
+    texture.source.update();
   });
 
   // pixi setup
@@ -31,9 +35,13 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(Contents);
+}
+
+function Contents(unit) {
   let scene = xnew(TitleScene);
   // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
-  unit.on('+nextscene', (NextScene, props) => {
+  unit.on('+scenechange', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
@@ -50,8 +58,8 @@ function TitleScene(unit) {
     const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * id) / 180 * Math.PI, z: 0 };
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
-  xnew(Texture, { texture:  xnew.context('texture') });
-  unit.on('pointerdown', () => xnew.emit('+nextscene', GameScene));
+  xnew(Texture, { texture:  xnew.context('three.texture') });
+  unit.on('pointerdown', () => xnew.emit('+scenechange', GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -72,7 +80,7 @@ function GameScene(unit) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xnew(Texture, { texture:  xnew.context('texture') });
+  xnew(Texture, { texture:  xnew.context('three.texture') });
   xnew(ScoreText);
   xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', VolumeController);
 
@@ -93,7 +101,7 @@ function GameScene(unit) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => xnew.emit('+nextscene', ResultScene, { image, scores: xnew.global.scores }));
+      .timeout(() => xnew.emit('+scenechange', ResultScene, { image, scores: xnew.global.scores }));
     }, 2000);
   });
 }
@@ -230,7 +238,7 @@ function ResultFooter(unit) {
       xnew(Frame);
       xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, ArrowUturnLeft);
     });
-    button.on('click', () => xnew.emit('+nextscene', TitleScene));
+    button.on('click', () => xnew.emit('+scenechange', TitleScene));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {

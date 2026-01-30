@@ -13,6 +13,10 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xnew(Boxes);
 }
 
