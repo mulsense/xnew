@@ -39,8 +39,10 @@ function Main(unit) {
 }
 
 function Contents(unit) {
+  xnew.context('gamedata', { scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+
   let scene = xnew(TitleScene);
-  // let scene = xnew(ResultScene, { image: null, scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  // let scene = xnew(ResultScene, { image: null });
   unit.on('+scenechange', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
@@ -63,7 +65,7 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', VolumeController);
+  xnew(VolumeController);
 }
 
 function GameScene(unit) {
@@ -71,7 +73,7 @@ function GameScene(unit) {
   unit.on('update', () => {
     Matter.Engine.update(xmatter.engine);
   });
-  xnew.global = { scores: [0, 0, 0, 0, 0, 0, 0, 0] };
+  xnew.context('gamedata').scores = [0, 0, 0, 0, 0, 0, 0, 0];
 
   xnew(Background);
   xnew(ShadowPlane);
@@ -82,7 +84,7 @@ function GameScene(unit) {
   xnew(Queue);
   xnew(Texture, { texture:  xnew.context('three.texture') });
   xnew(ScoreText);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">', VolumeController);
+  xnew(VolumeController);
 
   const playing = xnew((unit) => {
     xnew(Controller);
@@ -101,12 +103,12 @@ function GameScene(unit) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => xnew.emit('+scenechange', ResultScene, { image, scores: xnew.global.scores }));
+      .timeout(() => xnew.emit('+scenechange', ResultScene, { image }));
     }, 2000);
   });
 }
 
-function ResultScene(unit, { image, scores }) {
+function ResultScene(unit, { image }) {
   xnew.audio.load('../assets/st005.mp3').then((music) => {
     music.play({ fade: 1, loop: true });
   });
@@ -119,7 +121,7 @@ function ResultScene(unit, { image, scores }) {
 
   xnew(ResultBackground);
   xnew(ResultImage, { image });
-  xnew(ResultDetail, { scores });
+  xnew(ResultDetail);
   xnew(ResultFooter);
 }
 
@@ -154,7 +156,7 @@ function ScoreText(unit) {
   let sum = 0;
   unit.on('+scoreup', (i) => {
     text.element.textContent = `score ${sum += Math.pow(2, i)}`;
-    xnew.global.scores[i]++;
+    xnew.context('gamedata').scores[i]++;
   });
 }
 
@@ -198,15 +200,16 @@ function ResultBackground(unit) {
   }
 }
 
-function ResultDetail(unit, { scores }) {
+function ResultDetail(unit) {
   xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
   xnew('<div class="text-[4cqw] text-center text-red-400">', '🎉 生み出した数 🎉');
 
   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
   let sum = 0;
   for (let i = 0; i < 8; i++) {
-    sum += scores[i] * Math.pow(2, i);
-    xnew('<div class="text-[3cqw] text-green-600 text-center">', `${characters[i]}: ${Math.pow(2, i)}点 x ${scores[i]}`);
+    const score = xnew.context('gamedata').scores[i];
+    sum += score * Math.pow(2, i);
+    xnew('<div class="text-[3cqw] text-green-600 text-center">', `${characters[i]}: ${Math.pow(2, i)}点 x ${score}`);
   }
 
   xnew('<div class="mx-[2cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-green-600">');
@@ -517,30 +520,31 @@ function screenShot() {
 }
 
 function VolumeController(unit) {
-    xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
-    unit.on('pointerdown', ({ event }) => event.stopPropagation());
+  xnew.nest('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[8cqw] text-stone-500">');
+  xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
+  unit.on('pointerdown', ({ event }) => event.stopPropagation());
 
-    const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
-    style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
-    >`);
+  const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
+  style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
+  >`);
 
-    unit.on('click.outside', () => slider.element.style.display = 'none');
-    const button = xnew(() => {
-      xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
-      let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
-      return {
-          update() {
-            icon?.finalize();
-            icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
-          }
-      };
-    });
+  unit.on('click.outside', () => slider.element.style.display = 'none');
+  const button = xnew(() => {
+    xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
+    let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
+    return {
+        update() {
+          icon?.finalize();
+          icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
+        }
+    };
+  });
 
-    button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
-    slider.on('input', ({ event }) => {
-        xnew.audio.volume = parseFloat(event.target.value) / 100;
-        button.update();
-    });
+  button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
+  slider.on('input', ({ event }) => {
+      xnew.audio.volume = parseFloat(event.target.value) / 100;
+      button.update();
+  });
 }
 
 function SVGTemplate(unit){

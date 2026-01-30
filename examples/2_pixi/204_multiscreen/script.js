@@ -13,6 +13,10 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(Contents);
+}
+
+function Contents(unit) {
   const sub1 = xnew(SubScreen, { width: xpixi.canvas.width / 2, height: xpixi.canvas.height, color: 0xEA1E63 });
   const sub2 = xnew(SubScreen, { width: xpixi.canvas.width / 2, height: xpixi.canvas.height, color: 0x63EA1E });
 

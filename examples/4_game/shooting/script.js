@@ -13,9 +13,14 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xnew(Background);
+  
   let scene = xnew(TitleScene);
-  unit.on('+nextscene', (NextScene, props) => {
+  unit.on('+scenechange', (NextScene, props) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
@@ -47,7 +52,7 @@ function Dot(unit) {
 function TitleScene(unit) {
   xnew(TitleText);
   unit.on('keydown pointerdown', () => {
-    xnew.emit('+nextscene', GameScene);
+    xnew.emit('+scenechange', GameScene);
   });
 }
 
@@ -72,7 +77,7 @@ function GameScene(scene) {
     xnew(GameOverText);
     xnew.timeout(() => {
       scene.on('keydown pointerdown', () =>{
-        xnew.emit('+nextscene', TitleScene);
+        xnew.emit('+scenechange', TitleScene);
       });
     }, 1000);
   });

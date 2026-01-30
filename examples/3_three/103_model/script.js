@@ -21,22 +21,21 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew.global = {
+  xnew.context('actions', {
     baseActions: { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } },
     additiveActions: { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } }
-  };
+  });
 
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
   xnew(Ground);
   xnew(Controller);
+  xnew(Panel);
 
   xnew.promise(new Promise((resolve) => {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
   });
-  xnew('<div class="absolute w-48 top-2 right-2">', Panel);
-
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -73,13 +72,14 @@ function Model(unit, { gltf }) {
     if (object.isMesh) object.castShadow = true;
   });
 
+  const actions = xnew.context('actions');
   for (const animation of animations) {
     let settings = null;
-    if (xnew.global.baseActions[animation.name]) {
-      settings = xnew.global.baseActions[animation.name];
+    if (actions.baseActions[animation.name]) {
+      settings = actions.baseActions[animation.name];
       settings.action = mixer.clipAction(animation);
-    } else if (xnew.global.additiveActions[animation.name]) {
-      settings = xnew.global.additiveActions[animation.name];
+    } else if (actions.additiveActions[animation.name]) {
+      settings = actions.additiveActions[animation.name];
       // Make the clip additive and remove the reference frame
       THREE.AnimationUtils.makeClipAdditive(animation);
       if (animation.name.endsWith('_pose')) {
@@ -97,30 +97,28 @@ function Model(unit, { gltf }) {
   let select = 'idle';
   unit.on('+crossfade', (name) => {
     if (name === select) return;
-    const current = xnew.global.baseActions[select] ? xnew.global.baseActions[select].action : null;
-    const next = xnew.global.baseActions[name] ? xnew.global.baseActions[name].action : null;
+    const current = actions.baseActions[select] ? actions.baseActions[select].action : null;
+    const next = actions.baseActions[name] ? actions.baseActions[name].action : null;
 
     const duration = 0.35;
     if (next === null) {
       current.fadeOut(duration);
+    } else if (current === null) {
+      activate(next, 1);
+      next.time = 0;
+      next.fadeIn(duration);
+    } else if (select === 'idle' || name === 'idle') {
+      activate(next, 1);
+      next.time = 0;
+      current.crossFadeTo(next, duration, true);
     } else {
-      if (current === null) {
-        activate(next, 1);
-        next.time = 0;
-        next.fadeIn(duration);
-      } else if (select === 'idle' || name === 'idle') {
-        activate(next, 1);
-        next.time = 0;
-        current.crossFadeTo(next, duration, true);
-      } else {
-        mixer.addEventListener('loop', finalize);
-        function finalize(event) {
-          if (event.action === current) {
-            mixer.removeEventListener('loop', finalize);
-            activate(next, 1);
-            next.time = 0;
-            current.crossFadeTo(next, duration, true);
-          }
+      mixer.addEventListener('loop', finalize);
+      function finalize(event) {
+        if (event.action === current) {
+          mixer.removeEventListener('loop', finalize);
+          activate(next, 1);
+          next.time = 0;
+          current.crossFadeTo(next, duration, true);
         }
       }
     }
@@ -143,12 +141,13 @@ function Model(unit, { gltf }) {
 }
 
 function Panel(unit) {
-  xnew.nest('<div class="p-1 bg-white border border-gray-300 rounded shadow-lg">');
+  xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
   xnew('<div>', 'Panel');
 
+  const actions = xnew.context('actions');
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });
-    for (const name of ['none', ...Object.keys(xnew.global.baseActions)]) {
+    for (const name of ['none', ...Object.keys(actions.baseActions)]) {
       const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
       button.on('click', () => xnew.emit('+crossfade', name));
     }
@@ -156,14 +155,14 @@ function Panel(unit) {
   
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'action weights', open: true });
-    for (const name of Object.keys(xnew.global.additiveActions)) {
+    for (const name of Object.keys(actions.additiveActions)) {
       let status;
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', name);
         status = xnew('<div class="flex-none">', '0');
       });
       
-      const settings = xnew.global.additiveActions[name];
+      const settings = actions.additiveActions[name];
       const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
       input.on('input', ({ event }) => {
         status.element.textContent = event.target.value;

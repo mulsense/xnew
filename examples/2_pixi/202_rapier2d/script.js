@@ -7,19 +7,17 @@ import RAPIER from '@dimforge/rapier2d-compat';
 xnew('#main', Main);
 
 function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.canvas });
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+
+  xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });
 
-  const scene = xnew(Scene);
-
-  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => scene.reboot());
+  xnew(Contents);
 }
 
-function Scene(unit) {
+function Contents(unit) {
   xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 } });
   unit.on('render', () => {
     xrapier2d.world.timestep = 3 / 60;
@@ -30,6 +28,9 @@ function Scene(unit) {
     xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
     xnew(Rectangle, { x: 400, y: 400, w: 380, h: 40, color: 0xFFFF00 , dynamic: false });
   });
+
+  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
+  button.on('click', () => scene.reboot());
 }
 
 function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options = {} }) {

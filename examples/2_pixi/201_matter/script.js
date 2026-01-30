@@ -15,13 +15,10 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
-  const scene = xnew(Scene);
-
-  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => scene.reboot());
+  xnew(Contents);
 }
 
-function Scene(unit) {
+function Contents(unit) {
   xmatter.initialize();
   unit.on('update', () => {
     Matter.Engine.update(xmatter.engine);
@@ -39,6 +36,9 @@ function Scene(unit) {
 
   // ground
   xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888, options: { isStatic: true } });
+  
+  const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
+  button.on('click', () => unit.reboot());
 }
 
 function Rectangle(unit, { x, y, w, h, color, options = {} }) {

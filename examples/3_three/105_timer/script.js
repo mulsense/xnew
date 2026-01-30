@@ -15,6 +15,10 @@ function Main(unit) {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
 
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xnew(DirectionalLight);
   xnew.interval(() => xnew(Cube), 50);
 }

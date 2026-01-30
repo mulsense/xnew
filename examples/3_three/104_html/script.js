@@ -11,7 +11,7 @@ xnew(Main);
 
 function Main(unit) {
   xnew(HtmlMain);
-  xnew(ThreeMain);
+  xnew('#screen', ThreeMain);
   xnew(Event);
 }
 
@@ -71,29 +71,23 @@ function Event(unit) {
 }
 
 function ThreeMain(unit) {
-  const screen = xnew('#screen', xnew.basics.Screen, { width: 1200, height: 800, fit: 'cover' });
-  xthree.initialize({ canvas: screen.canvas });
+  xnew.extend(xnew.basics.Screen, { width: 1200, height: 800, fit: 'cover' });
+  xthree.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
 
-  xnew(xnew.basics.ResizeEvent).on('resize', () => {
-    xthree.camera.fov = fov();
+  unit.on('resize', () => {
+    xthree.camera.fov = Math.atan2(unit.element.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
     xthree.camera.updateProjectionMatrix();
   });
 
-  function fov() {
-    return Math.atan2(screen.element.getBoundingClientRect().height / 2, perspective) * 2 * 180 / Math.PI;
-  }
-
   xnew(ThreeContents);
-  xnew(() => {
-    unit.on('update', () => {
-      xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
-      xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
-      xthree.camera.position.x = -(transform.tx + offset.tx);
-      xthree.camera.position.y = +(transform.ty + offset.ty);
-    });
+  unit.on('update', () => {
+    xthree.scene.rotation.x = -(transform.rx + offset.rx) * Math.PI / 180;
+    xthree.scene.rotation.y = +(transform.ry + offset.ry) * Math.PI / 180;
+    xthree.camera.position.x = -(transform.tx + offset.tx);
+    xthree.camera.position.y = +(transform.ty + offset.ty);
   });
 }
 

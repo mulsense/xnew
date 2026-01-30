@@ -18,32 +18,18 @@ function Main(unit) {
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
+  
+  xnew(Contents);
+}
 
+function Contents(unit) {
   xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81, z: 0.0 } });
   unit.on('render', () => {
     xrapier3d.world.timestep = 3 / 60;
     xrapier3d.world.step();
   });
 
-  // Add lighting
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  directionalLight.position.set(50, 50, 50);
-  directionalLight.castShadow = true;
-
-  // Shadow camera settings for wider shadow coverage
-  directionalLight.shadow.camera.left = -100;
-  directionalLight.shadow.camera.right = 100;
-  directionalLight.shadow.camera.top = 100;
-  directionalLight.shadow.camera.bottom = -100;
-  directionalLight.shadow.camera.near = 0.5;
-  directionalLight.shadow.camera.far = 200;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
-
-  xthree.scene.add(directionalLight);
-
-  const ambientLight = new THREE.AmbientLight(0x404040);
-  xthree.scene.add(ambientLight);
+  xnew(DirectionalLight, { x: 50, y: 50, z: 50 });
 
   xnew.then(() => {
     xrapier3d.world.timestep = 3 / 60;
@@ -57,12 +43,27 @@ function Main(unit) {
   });
 }
 
+function DirectionalLight(unit, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
+  object.position.set(x, y, z);
+  object.castShadow = true;
+
+  object.shadow.camera.left = -100;
+  object.shadow.camera.right = 100;
+  object.shadow.camera.top = 100;
+  object.shadow.camera.bottom = -100;
+  object.shadow.camera.near = 0.5;
+  object.shadow.camera.far = 200;
+  object.shadow.mapSize.width = 2048;
+  object.shadow.mapSize.height = 2048;
+}
+
 function CameraController(unit) {
   let targetPosition = { x: 0, y: 0, z: 0 };
   const cameraOffset = { x: 0, y: 20, z: 40 };
   const smoothness = 0.1;
 
-  unit.on('+camera:follow', ({ position }) => {
+  unit.on('+camera.follow', ({ position }) => {
     targetPosition = position;
   });
 
@@ -176,7 +177,7 @@ function Player(unit, { x, y, z }) {
     object.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 
     // Update camera to follow player
-    xnew.emit('+camera:follow', { position });
+    xnew.emit('+camera.follow', { position });
   });
 }
 

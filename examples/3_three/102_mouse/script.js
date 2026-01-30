@@ -10,9 +10,6 @@ function Main(unit) {
   // three setup
   xthree.initialize({ canvas: unit.canvas });
   xthree.renderer.shadowMap.enabled = true;
-  xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  xthree.camera.position.set(0, 0, +20);
-  xthree.scene.rotation.x = -60 / 180 * Math.PI
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
@@ -21,6 +18,9 @@ function Main(unit) {
 }
 
 function Contents(unit) {
+  xthree.camera.position.set(0, 0, +20);
+  xthree.scene.rotation.x = -60 / 180 * Math.PI
+
   xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
   xnew(AmbientLight);
   xnew(Ground, { size: 100, color: 0xF8F8FF });
