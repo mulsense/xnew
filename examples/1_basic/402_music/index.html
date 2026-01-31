@@ -10,7 +10,7 @@
 <body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (unit) => {
+    xnew(document.querySelector('#main'), (unit) => {
       xnew.nest('<div class="m-2 space-y-4">');
       xnew.audio.load('b096.mp3').then((music) => {
         // Play and Stop buttons

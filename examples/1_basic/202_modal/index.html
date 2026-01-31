@@ -10,7 +10,7 @@
 <body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (self) => {
+    xnew(document.querySelector('#main'), (self) => {
       xnew.nest('<div class="p-2">')
       xnew('<button class="h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!').on('click', () => xnew(MyModal));
     });

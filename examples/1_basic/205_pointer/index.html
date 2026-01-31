@@ -10,7 +10,7 @@
 <body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (unit) => {
+    xnew(document.querySelector('#main'), (unit) => {
       xnew.extend(xnew.basics.Screen, { width: 512, height: 512 });
       const canvas = unit.canvas;
       const context = canvas.getContext('2d');

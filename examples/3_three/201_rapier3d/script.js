@@ -4,7 +4,7 @@ import xrapier3d from '@mulsense/xnew/addons/xrapier3d';
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });

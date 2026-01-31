@@ -20,7 +20,7 @@
 <body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full bg-gradient-to-br from-blue-400 to-blue-600"></div>
   <script>
-    xnew('#main', (unit) => {
+    xnew(document.querySelector('#main'), (unit) => {
       // floating particles
       xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">', () => {
         for (let i = 0; i < 20; i++) {

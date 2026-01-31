@@ -11,8 +11,7 @@
   <div id="main" class="relative w-full h-full"></div>
   
   <script>
-    let count = 0;
-    xnew('#main', (unit) => {
+    xnew(document.querySelector('#main'), (unit) => {
       xnew.protect(Div);
       xnew.protect(Div);
     });
