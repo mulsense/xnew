@@ -5,15 +5,18 @@
 ## Usage
 
 ```js
-const timeout = xnew.timeout(callback, delay);
+const timeout = xnew.timeout(callback, interval);
 ```
 
 **Parameters:**
 - `callback`: Function to execute after the delay
-- `delay`: Time in milliseconds before execution
+- `duration`: Time in milliseconds before execution
 
 **Returns:**
-- A timeout object with a `clear()` method to cancel the timeout
+- A transition object with:
+  - `clear()`: Cancel the transition
+  - `timeout(callback, duration)`: Chain another timeout
+  - `transition(callback, duration, easing)`: Chain another transition
 
 ## Example
 

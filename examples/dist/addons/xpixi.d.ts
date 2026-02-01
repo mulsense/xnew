@@ -1,10 +1,14 @@
 import * as PIXI from 'pixi.js';
+
 declare const _default: {
-    initialize({ renderer, canvas }?: any): void;
+    initialize({ renderer, canvas }?: {
+        renderer?: any;
+        canvas?: HTMLCanvasElement | null;
+    }): void;
     nest(object: any): any;
-    sync(canvas: any): PIXI.Texture<PIXI.TextureSource<any>>;
     readonly renderer: any;
-    readonly scene: any;
-    readonly canvas: any;
+    readonly scene: PIXI.Container;
+    readonly canvas: HTMLCanvasElement;
 };
-export default _default;
+
+export { _default as default };

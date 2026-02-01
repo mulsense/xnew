@@ -4,19 +4,39 @@ import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  // three 
-  xthree.initialize({ canvas: new OffscreenCanvas(800, 400) });
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+ 
+  // three setup
+  xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
   xthree.camera.position.set(0, 0, +100);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
-  // pixi
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.element });
+  // convert canvas to pixi texture, and continuous update
+  const texture = PIXI.Texture.from(xthree.canvas);
+  xnew.context('three.texture', texture);
+  unit.on('render', () => {
+    texture.source.update();
+  });
 
+  // pixi setup
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
+
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xnew(Cubes);
-  xnew(Texture, { texture: xpixi.sync(xthree.canvas) });
+
+  // set texture as a background of pixi
+  xnew(Texture, { texture: xnew.context('three.texture') });
   xnew(Boxes);
 }
 
@@ -67,7 +87,7 @@ function Cube(unit, { x, y, z, size }) {
   object.position.set(x, y, z);
 
   unit.on('update', () => {
-      object.rotation.x += 0.01;
-      object.rotation.y += 0.01;
+    object.rotation.x += 0.01;
+    object.rotation.y += 0.01;
   });
 }

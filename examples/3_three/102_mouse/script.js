@@ -2,38 +2,32 @@ import xnew from '@mulsense/xnew';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as THREE from 'three';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xthree.initialize({ canvas: screen.element });
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+
+  // three setup
+  xthree.initialize({ canvas: unit.canvas });
   xthree.renderer.shadowMap.enabled = true;
-  xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
+
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xthree.camera.position.set(0, 0, +20);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
 
-  xnew(ThreeMain);
-  xnew(Controller);
-}
-
-function ThreeMain(unit) {
   xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
   xnew(AmbientLight);
   xnew(Ground, { size: 100, color: 0xF8F8FF });
   xnew(Dorm, { size: 50 });
   xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
 
-  unit.on('+scale', ({ scale }) => {
-    xthree.camera.position.z /= scale;
-  });
-  unit.on('+translate', ({ move }) => {
-    xthree.camera.position.x += move.x * xthree.camera.position.z * 0.001;
-    xthree.camera.position.y += move.y * xthree.camera.position.z * 0.001;
-  });
-  unit.on('+rotate', ({ move }) => {
-    xthree.scene.rotation.x += move.y * 0.01;
-    xthree.scene.rotation.z += move.x * 0.01;
-  });
+  xnew(Controller);
 }
 
 function DirectionaLight(unit, { x, y, z }) {
@@ -68,25 +62,21 @@ function Cube(unit, { x, y, z, size, color }) {
 }
 
 function Controller(unit) {
-  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+  unit.on('touchstart contextmenu wheel', ({ event }) => event.preventDefault());
 
-  const user = xnew(xnew.basics.UserEvent);
-  let isActive = false;
-  user.on('-gesturestart', () => isActive = true);
-  user.on('-gestureend', () => isActive = false);
-  user.on('-gesturemove', ({ scale }) => {
-    unit.emit('+scale', { scale })
-  });
-  
-  user.on('-dragmove', ({ event, delta }) => {
-    console.log(event);
-    if (isActive === true) return;
+  unit.on('dragmove', ({ event, delta }) => {
     if (event.buttons & 1 || !event.buttons) {
-      unit.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
-    }
-    if (event.buttons & 2) {
-      unit.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
+      // rotate
+      xthree.scene.rotation.x += delta.y * 0.01;
+      xthree.scene.rotation.z += delta.x * 0.01;
+    } else if (event.buttons & 2) {
+      // translate
+      xthree.camera.position.x += -delta.x * xthree.camera.position.z * 0.001;
+      xthree.camera.position.y += +delta.y * xthree.camera.position.z * 0.001;
     }
   });
-  user.on('-wheel', ({ delta }) => unit.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+  unit.on('wheel', ({ event, delta }) => {
+    // scale
+    xthree.camera.position.z /= 1 + 0.001 * delta.y;
+  });
 }

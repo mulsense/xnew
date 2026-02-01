@@ -12,11 +12,11 @@ describe('unit system', () => {
             let start = Date.now();
             const margin = 100;
           
-            xnew((self: xnew.Unit) => {
+            xnew((unit: Unit) => {
                 xnew.promise(new Promise<void>((resolve, reject) => {
                     setTimeout(() => resolve(), 500);
                 }));
-                self.on('start', () => {
+                unit.on('start', () => {
                     const d = Date.now() - start;
                     expect(d).toBeGreaterThan(500 - margin);
                     expect(d).toBeLessThan(500 + margin);

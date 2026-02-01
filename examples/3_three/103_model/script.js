@@ -4,35 +4,38 @@ import xthree from '@mulsense/xnew/addons/xthree';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 1200, height: 600 });
-  xthree.initialize({ canvas: screen.element });
-  xthree.scene.background = new THREE.Color(0xa0a0a0);
-  xthree.scene.fog = new THREE.Fog(0xa0a0a0, 10, 50);
+  xnew.extend(xnew.basics.Screen, { width: 1200, height: 600 });
+
+  // three setup
+  xthree.initialize({ canvas: unit.canvas });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(- 1, 2, 3);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
 
-  const controls = new OrbitControls(xthree.camera, xthree.canvas);
-  controls.target.set(0, 1, 0);
-  controls.update();
+  xnew(Contents);
+}
 
-  xnew(HemisphereLight, { x: 0, y: 20, z: 0 });
+function Contents(unit) {
+  xnew.context('actions', {
+    baseActions: { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } },
+    additiveActions: { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } }
+  });
+
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
   xnew(Ground);
+  xnew(Controller);
+  xnew(Panel);
 
   xnew.promise(new Promise((resolve) => {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
-    xnew('<div class="absolute w-48 top-2 right-2">', Panel);
   });
-}
-
-function HemisphereLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 3));
-  object.position.set(x, y, z);
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -43,14 +46,17 @@ function DirectionalLight(unit, { x, y, z }) {
 
 function Ground(unit) {
   const geometry = new THREE.PlaneGeometry(100, 100);
-  const material = new THREE.MeshPhongMaterial({ color: 0xcbcbcb, depthWrite: false });
-  const object = xthree.nest(new THREE.Mesh(geometry, material));
-  object.rotation.x = - Math.PI / 2;
-  object.receiveShadow = true;
+  const material = new THREE.ShadowMaterial({ opacity: 0.20 });
+  const plane = xthree.nest(new THREE.Mesh(geometry, material));
+  plane.rotation.x = - Math.PI / 2;
+  plane.receiveShadow = true;
 }
 
-const baseActions = { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } };
-const additiveActions = { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } };
+function Controller(unit) {
+  const controls = new OrbitControls(xthree.camera, xthree.canvas);
+  controls.target.set(0, 1, 0);
+  controls.update();
+}
 
 function Model(unit, { gltf }) {
   const object = xthree.nest(new THREE.Object3D());
@@ -66,13 +72,14 @@ function Model(unit, { gltf }) {
     if (object.isMesh) object.castShadow = true;
   });
 
+  const actions = xnew.context('actions');
   for (const animation of animations) {
     let settings = null;
-    if (baseActions[animation.name]) {
-      settings = baseActions[animation.name];
+    if (actions.baseActions[animation.name]) {
+      settings = actions.baseActions[animation.name];
       settings.action = mixer.clipAction(animation);
-    } else if (additiveActions[animation.name]) {
-      settings = additiveActions[animation.name];
+    } else if (actions.additiveActions[animation.name]) {
+      settings = actions.additiveActions[animation.name];
       // Make the clip additive and remove the reference frame
       THREE.AnimationUtils.makeClipAdditive(animation);
       if (animation.name.endsWith('_pose')) {
@@ -82,39 +89,46 @@ function Model(unit, { gltf }) {
       }
     }
     if (settings) {
-      setWeight(settings.action, settings.weight);
+      activate(settings.action, settings.weight);
       settings.action.play();
     }
   }
 
-  unit.on('+synccrossfade', (currentAction, nextAction, duration) => {
-    mixer.addEventListener('loop', onLoopFinished);
+  let select = 'idle';
+  unit.on('+crossfade', (name) => {
+    if (name === select) return;
+    const current = actions.baseActions[select] ? actions.baseActions[select].action : null;
+    const next = actions.baseActions[name] ? actions.baseActions[name].action : null;
 
-    function onLoopFinished(event) {
-      if (event.action === currentAction) {
-        mixer.removeEventListener('loop', onLoopFinished);
-        unit.emit('+crossfade', currentAction, nextAction, duration);
-      }
-    }
-  });
-  unit.on('+crossfade', (currentAction, nextAction, duration) => {
-    if (nextAction) {
-      setWeight(nextAction, 1);
-      nextAction.time = 0;
-      if (currentAction) {
-        currentAction.crossFadeTo(nextAction, duration, true);
-      } else {
-        nextAction.fadeIn(duration);
-      }
+    const duration = 0.35;
+    if (next === null) {
+      current.fadeOut(duration);
+    } else if (current === null) {
+      activate(next, 1);
+      next.time = 0;
+      next.fadeIn(duration);
+    } else if (select === 'idle' || name === 'idle') {
+      activate(next, 1);
+      next.time = 0;
+      current.crossFadeTo(next, duration, true);
     } else {
-      currentAction.fadeOut(duration);
+      mixer.addEventListener('loop', finalize);
+      function finalize(event) {
+        if (event.action === current) {
+          mixer.removeEventListener('loop', finalize);
+          activate(next, 1);
+          next.time = 0;
+          current.crossFadeTo(next, duration, true);
+        }
+      }
     }
+    select = name;
   });
+
   unit.on('+speed', (speed) => mixer.timeScale = speed);
+  unit.on('+weight', activate);
 
-  unit.on('+setWeight', setWeight);
-
-  function setWeight(action, weight) {
+  function activate(action, weight) {
     action.enabled = true;
     action.setEffectiveTimeScale(1);
     action.setEffectiveWeight(weight);
@@ -126,84 +140,73 @@ function Model(unit, { gltf }) {
   });
 }
 
-function Panel(frame) {
-  xnew.nest('<div class="p-1 bg-white border border-gray-300 rounded shadow-lg">');
+function Panel(unit) {
+  xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
   xnew('<div>', 'Panel');
 
-  let select = 'idle';
-  xnew((group) => {
+  const actions = xnew.context('actions');
+  xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });
-
-    for (const name of ['none', ...Object.keys(baseActions)]) {
+    for (const name of ['none', ...Object.keys(actions.baseActions)]) {
       const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
-      button.on('click', () => {
-        const currentAction = baseActions[select] ? baseActions[select].action : null;
-        const nextAction = baseActions[name] ? baseActions[name].action : null;
-
-        if (currentAction !== nextAction) {
-          if (select === 'idle' || !currentAction || !nextAction) {
-            group.emit('+crossfade', currentAction, nextAction, 0.35);
-          } else {
-            group.emit('+synccrossfade', currentAction, nextAction, 0.35);
-          }
-          select = nextAction ? nextAction.getClip().name : 'none';
-        }
-      });
+      button.on('click', () => xnew.emit('+crossfade', name));
     }
   });
   
-  xnew((group) => {
+  xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'action weights', open: true });
-
-    for (const name of Object.keys(additiveActions)) {
-      xnew((frame) => {
-        xnew.extend(xnew.basics.InputFrame);
-        xnew('<div class="text-sm flex justify-between">', (unit) => {
-            xnew('<div class="flex-auto">', name);
-            const status = xnew('<div class="flex-none">', '0');
-            frame.on('-input', ({ event }) => {
-              status.element.textContent = event.target.value;
-            })
-        });
-        
-        const settings = additiveActions[name];
-        xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
+    for (const name of Object.keys(actions.additiveActions)) {
+      let status;
+      xnew('<div class="text-sm flex justify-between">', (unit) => {
+        xnew('<div class="flex-auto">', name);
+        status = xnew('<div class="flex-none">', '0');
+      });
       
-        frame.on('-input', ({ event }) => {
-          settings.weight = parseFloat(event.target.value);
-          group.emit('+setWeight', settings.action, settings.weight);
-        });
+      const settings = actions.additiveActions[name];
+      const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
+      input.on('input', ({ event }) => {
+        status.element.textContent = event.target.value;
+        settings.weight = parseFloat(event.target.value);
+        xnew.emit('+weight', settings.action, settings.weight);
       });
     }
-
   });
 
-  xnew((group) => {
+  xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'options', open: true });
-    xnew((frame) => {
-      xnew.extend(xnew.basics.InputFrame);
+    xnew((unit) => {
+      let status;
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', 'speed');
-        const status = xnew('<div class="flex-none">', '1.0');
-        frame.on('-input', ({ event }) => {
-          status.element.textContent = event.target.value;
-        })
+        status = xnew('<div class="flex-none">', '1.0');
       });
 
-      xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
-      frame.on('-input', ({ event }) => {
-        group.emit('+speed', parseFloat(event.target.value));
+      const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
+      input.on('input', ({ event }) => {
+        status.element.textContent = event.target.value;
+        xnew.emit('+speed', parseFloat(event.target.value));
       });
     });
   });
 }
-function PanelGroup(group, { name, open = false }) {
-  xnew.extend(xnew.basics.AccordionFrame, { open });
-  xnew((header) => {
-      xnew.nest('<div style="margin: 0.2em 0;">');
-      xnew.extend(xnew.basics.AccordionHeader);
-      xnew(xnew.basics.AccordionBullet);
-      xnew('<div>', name);
+
+function PanelGroup(accordion, { name, open = false }) {
+  xnew.extend(xnew.basics.Accordion, { open });
+  
+  xnew('<div class="flex items-center cursor-pointer">', (unit) => {
+    unit.on('click', () => accordion.toggle());
+    xnew((unit) => {
+      xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
+      xnew('<path d="M6 2 10 6 6 10" />');
+      accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
+    });
+    xnew('<div>', name);
   });
-  xnew.extend(xnew.basics.AccordionContent);
+
+  const outer = xnew.nest('<div class="overflow-hidden">');
+  const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
+  accordion.on('-transition', ({ state }) => {
+    outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+    outer.style.opacity = state;
+  });
 }

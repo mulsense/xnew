@@ -7,32 +7,24 @@
   <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
-<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+<body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (unit) => {
-      const screen = xnew(xnew.basics.Screen, { width: 512, height: 512 });
-
-      const button = xnew('<button class="absolute top-0 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-300">', 'reset');
-      const canvas = screen.element;
+    xnew(document.querySelector('#main'), (unit) => {
+      xnew.extend(xnew.basics.Screen, { width: 512, height: 512 });
+      const canvas = unit.canvas;
       const context = canvas.getContext('2d');
-      button.on('click', () => {
-        context.fillStyle = "rgb(0,0,0)";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-      });
 
       context.fillStyle = "rgb(0,0,0)";
       context.fillRect(0, 0, canvas.width, canvas.height);
       
-      const user = xnew(screen.element, xnew.basics.UserEvent);
-
-      user.on('-dragstart -dragmove', ({ position, delta }) => {
+      unit.on('dragstart dragmove', ({ type, position, delta }) => {
         const scaleX = canvas.width / canvas.clientWidth;
         const scaleY = canvas.height / canvas.clientHeight;
 
         context.beginPath();
         context.fillStyle = 'white';
-        if (delta) {
+        if (type === 'dragmove') {
           const length = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
           for (let i = 0; i < length; i++) {
             context.arc((position.x - delta.x * i / length) * scaleX, (position.y - delta.y * i / length) * scaleY, 1, 0, Math.PI * 2, true);
@@ -44,33 +36,17 @@
       });
 
       xnew('<div class="absolute bottom-0 left-0 right-0">', () => {
-        const text1 = xnew('<div class="text-white text-lg text-center">', 'mouse over/out');
+        const text1 = xnew('<div class="text-white text-lg text-center">', 'pointer over/out');
         const text2 = xnew('<div class="text-white text-lg text-center">', 'pointer');
         const text3 = xnew('<div class="text-white text-lg text-center">', 'drag');
-        user.on('-mouseover', ({ position }) => {
-          text1.element.textContent = `-mouseover {x:${position.x}, y:${position.y}}`;
+        unit.on('pointerover pointerout', ({ type, position }) => {
+          text1.element.textContent = `${type} {x:${position.x}, y:${position.y}}`;
         });
-        user.on('-mouseout', ({ position }) => {
-          text1.element.textContent = `-mouseout {x:${position.x}, y:${position.y}}`;
+        unit.on('pointerdown pointermove pointerup', ({ type, position }) => {
+          text2.element.textContent = `${type} {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
-        user.on('-pointerdown', ({ position }) => {
-          text2.element.textContent = `-pointerdown {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-        user.on('-pointermove', ({ position }) => {
-          text2.element.textContent = `-pointermove {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-        user.on('-pointerup', ({ position }) => {
-          text2.element.textContent = `-pointerup {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-
-        user.on('-dragstart', ({ position }) => {
-          text3.element.textContent = `-dragstart {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
-        });
-        user.on('-dragmove', ({ position, delta }) => {
-          text3.element.textContent = `-dragmove: {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}} delta {x:${Math.floor(delta.x)}, y:${Math.floor(delta.y)}}`;
-        });
-        user.on('-dragend', ({ position }) => {
-          text3.element.textContent = `-dragend: {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
+        unit.on('dragstart dragmove dragend', ({ type, position, delta }) => {
+          text3.element.textContent = `${type} {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
       })
     });

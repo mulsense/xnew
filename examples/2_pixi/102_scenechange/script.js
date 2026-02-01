@@ -2,33 +2,59 @@ import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xpixi.initialize({ canvas: screen.element });
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+ 
+  // pixi setup
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
-  xnew(Scene1);
+  xnew(Contents);
+}
+
+function Contents(unit) {
+  let scene = xnew(Scene1);
+
+  unit.on('+scenechange', (NextScene, props) => {
+    // simple
+    scene.finalize();
+    scene = xnew(NextScene, props);
+
+    // // fade
+    // const duration = 500;
+    // const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
+    // xnew.transition((x) => {
+    //   cover.element.style.opacity = x;
+    // }, duration)
+    // .timeout((() => {
+    //   scene.finalize();
+    //   scene = xnew(NextScene, props);
+    // }))
+    // .transition((x) => {
+    //   cover.element.style.opacity = 1 - x;
+    // }, duration)
+    // .timeout(() => {
+    //   cover.finalize();
+    // });
+  });
 }
 
 function Scene1(unit) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  unit.on('pointerdown', () => {
-    unit.finalize();
-    xnew.append(Main, Scene2);
-  });
+  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', Scene2));
 }
 
 function Scene2(unit) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  unit.on('pointerdown', () => {
-    unit.finalize();
-    xnew.append(Main, Scene1);
-  });
+  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', Scene1));
 }
 
 function Text(unit, { text }) {
@@ -40,8 +66,6 @@ function Box(unit, { x, y, size, color }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
-  
-  xnew.transition((progress) => object.alpha = progress, 2000);
   
   unit.on('update', () => {
     object.rotation += 0.01;

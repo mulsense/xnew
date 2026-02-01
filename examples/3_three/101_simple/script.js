@@ -2,13 +2,22 @@ import xnew from '@mulsense/xnew';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as THREE from 'three';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400 });
-  xthree.initialize({ canvas: screen.element });
-  xthree.camera.position.set(0, 0, +100);
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
 
+  // three setup
+  xthree.initialize({ canvas: unit.canvas });
+  xthree.camera.position.set(0, 0, +100);
+  unit.on('render', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
+  });
+
+  xnew(Contents);
+}
+
+function Contents(unit) {
   xnew(Cubes);
 }
 

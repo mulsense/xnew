@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+
+  <script>
+    xnew(document.querySelector('#main'), (unit) => {
+      const counter = xnew(Counter);
+
+      const p = xnew('<p>', 'count 0');
+      counter.on('-countup', (count) => {
+        p.element.textContent = `count ${count}`;
+      }); 
+
+      const button = xnew(Button, { name: 'counter' });
+      button.on('click', ({ event }) => {
+        xnew.emit('+toggle');
+      });
+    });
+
+    function Counter(unit) {
+      let count = 0;
+      unit.on('update', () => {
+        xnew.emit('-countup', count++);
+      });
+      let state = true;
+      unit.on('+toggle', () => {
+        state ? unit.stop() : unit.start();
+        state = !state;
+      });
+    }
+
+    function Button(unit, { name }) {
+      xnew.nest('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">');
+      unit.element.textContent = name;
+    }
+    
+  </script>
+</body>
+
+</html>

@@ -33,20 +33,8 @@ const value = xnew.context(name);
 ### Theme System
 
 ```js
-function ThemedComponent(unit) {
-  const theme = xnew.context('theme') || 'light';
-
-  xnew.nest('<div>');
-  unit.element.style.background = theme === 'dark' ? '#333' : '#fff';
-  unit.element.style.color = theme === 'dark' ? '#fff' : '#333';
-  unit.element.textContent = `Theme: ${theme}`;
-}
-
-// Set global theme
 xnew((unit) => {
   xnew.context('theme', 'dark');
-
-  xnew(ThemedComponent); // Uses dark theme
   xnew(ThemedComponent); // Uses dark theme
 
   // Override theme for specific section
@@ -55,6 +43,15 @@ xnew((unit) => {
     xnew(ThemedComponent); // Uses light theme
   });
 });
+
+function ThemedComponent(unit) {
+  const theme = xnew.context('theme');
+
+  xnew.nest('<div>');
+  unit.element.style.background = theme === 'dark' ? '#333' : '#fff';
+  unit.element.style.color = theme === 'dark' ? '#fff' : '#333';
+  unit.element.textContent = `Theme: ${theme}`;
+}
 ```
 
 ### Nested Context Override

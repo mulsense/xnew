@@ -1,74 +1,53 @@
 import { MapSet, MapMap } from './map';
-import { Ticker } from './time';
+import { AnimationTicker, Timer, TimerOptions } from './time';
+import { SYSTEM_EVENTS, UnitElement } from './types';
+import { EventManager } from './event';
 
 //----------------------------------------------------------------------------------------------------
-// defines
+// utils
 //----------------------------------------------------------------------------------------------------
-
-const SYSTEM_EVENTS: string[] = ['start', 'update', 'stop', 'finalize'] as const;
-
-export type UnitElement = HTMLElement | SVGElement;
 
 interface Context { stack: Context | null; key?: string; value?: any; }
-interface Snapshot { unit: Unit; context: Context; element: UnitElement; }
-interface Capture { checker: (unit: Unit) => boolean; execute: (unit: Unit) => any; }
+interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
 
-interface UnitInternal {
+interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
+    config: { protect: boolean };
+
     baseElement: UnitElement;
     baseContext: Context;
     baseComponent: Function;
     currentElement: UnitElement;
     currentContext: Context;
-
+    currentComponent: Function | null;
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
 
+    ancestors: Unit[];
     children: Unit[];
-    promises: Promise<any>[];
-    captures: Capture[];
+    promises: UnitPromise[];
     elements: UnitElement[];
     components: Function[];
-    listeners1: MapMap<string, Function, [UnitElement, Function]>;
-    listeners2: MapMap<string, Function, [UnitElement | Window | Document, Function]>;
+    listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
-    systems: Record<string, Function[]>;
-}
+    systems: Record<string, { listener: Function, execute: Function }[]>;
 
-export class UnitPromise {
-    private promise: Promise<any>;
-    constructor(promise: Promise<any>) {
-        this.promise = promise;
-    }
-    then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-    catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(Unit.wrap(Unit.current, callback));
-        return this;
-    }
-    finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(Unit.wrap(Unit.current, callback));
-        return this;
-    }
+    eventManager: EventManager;
 }
 
 //----------------------------------------------------------------------------------------------------
-// Unit
+// unit
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
     [key: string]: any;
+    public _: Internal;
 
-    public _!: UnitInternal;
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object, config?: any) {
 
-    static current: Unit;
-
-    constructor(parent: Unit | null, target: Object | null, component?: Function | string, props?: Object) {
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -82,25 +61,21 @@ export class Unit {
         if (typeof component === 'function') {
             baseComponent = component;
         } else if (typeof component === 'string') {
-            baseComponent = (self: Unit) => { self.element.textContent = component; };
+            baseComponent = (unit: Unit) => { unit.element.textContent = component; };
         } else {
-            baseComponent = (self: Unit) => {};
+            baseComponent = (unit: Unit) => {};
         }
 
         const baseContext = parent?._.currentContext ?? { stack: null };
-
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as UnitInternal;
-
+        const protect = config?.protect ?? false;
+        
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props, config: { protect } } as Internal;
         parent?._.children.push(this);
         Unit.initialize(this, null);
     }
 
     get element(): UnitElement {
         return this._.currentElement;
-    }
-
-    get components(): Function[] {
-        return this._.components;
     }
 
     start(): void {
@@ -121,68 +96,56 @@ export class Unit {
     }
 
     reboot(): void {
+        const anchor = (this._.elements[0]?.nextElementSibling as UnitElement) ?? null;
         Unit.stop(this);
-        const anchorElement = (this._.elements[0]?.nextElementSibling as UnitElement) ?? null;
         Unit.finalize(this);
-        Unit.initialize(this, anchorElement);
+        Unit.initialize(this, anchor);
     }
 
     static initialize(unit: Unit, anchor: UnitElement | null): void {
-        const backup = Unit.current;
-        Unit.current = unit;
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = unit;
         unit._ = Object.assign(unit._, {
             currentElement: unit._.baseElement,
             currentContext: unit._.baseContext,
+            currentComponent: null,
             anchor,
             state: 'invoked',
             tostart: true,
+            ancestors: [...(unit._.parent ? [unit._.parent] : []), ...(unit._.parent?._.ancestors ?? [])],
             children: [],
             elements: [],
             promises: [],
-            captures: [],
             components: [],
-            listeners1: new MapMap<string, Function, [UnitElement, Function]>(),
-            listeners2: new MapMap<string, Function, [UnitElement | Window | Document, Function]>(),
+            listeners: new MapMap(),
             defines: {},
-            systems: { start: [], update: [], stop: [], finalize: [] },
+            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
+            eventManager: new EventManager(),
         });
 
         // nest html element
         if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target);
+            Unit.nest(unit, unit._.target); 
         }
 
         // setup component
-        Unit.extend(unit, unit._.baseComponent, unit._.props);
+        Unit.extend(unit, unit._.baseComponent, unit._.props); 
 
         // whether the unit promise was resolved
-        Promise.all(unit._.promises).then(() => unit._.state = 'initialized');
+        Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
 
-        // setup capture
-        let captured = false;
-        for (let current: Unit | null = unit; current !== null && captured === false; current = current._.parent) {
-            for (const capture of current._.captures) {
-                if (capture.checker(unit)) {
-                    capture.execute(unit);
-                    captured = true;
-                }
-            }
-        }
-        Unit.current = backup;
+        Unit.currentUnit = backup;
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized' && unit._.state !== 'pre-finalized') {
-            unit._.state = 'pre-finalized';
+        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
+            unit._.state = 'finalizing';
 
             unit._.children.forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.finalize.forEach(({ execute }) => execute());
 
             unit.off();
-            Unit.suboff(unit, null);
-            unit._.components.forEach((component) => {
-                Unit.componentUnits.delete(component, unit);
-            });
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
 
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
@@ -201,6 +164,10 @@ export class Unit {
     }
 
     static nest(unit: Unit, tag: string): UnitElement {
+        if (unit._.state !== 'invoked') {
+            throw new Error('This function can not be called after initialized.');
+        } 
+
         const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element: UnitElement;
@@ -220,44 +187,51 @@ export class Unit {
         }
     }
 
-    static extend(unit: Unit, component: Function, props?: Object): void {
+    static currentComponent: Function = () => {};
+   
+    static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
+        if (unit._.state !== 'invoked') {
+            throw new Error('This function can not be called after initialized.');
+        } 
+        
         unit._.components.push(component);
-        Unit.componentUnits.add(component, unit);
+        Unit.component2units.add(component, unit);
 
+        const backupComponent = unit._.currentComponent;
+        unit._.currentComponent = component;
         const defines = component(unit, props) ?? {};
+        unit._.currentComponent = backupComponent;
 
         Object.keys(defines).forEach((key) => {
-            if (unit[key as keyof Unit] !== undefined && unit._.defines[key] === undefined) {
+            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrappedDesc: PropertyDescriptor = { configurable: true, enumerable: true };
+            const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
 
-            if (descriptor?.get) {
-                wrappedDesc.get = Unit.wrap(unit, descriptor.get);
-            }
-            if (descriptor?.set) {
-                wrappedDesc.set = Unit.wrap(unit, descriptor.set);
-            }
+            if (descriptor?.get) wrapper.get = Unit.wrap(unit, descriptor.get);
+            if (descriptor?.set) wrapper.set = Unit.wrap(unit, descriptor.set);
+
             if (typeof descriptor?.value === 'function') {
-                wrappedDesc.value = Unit.wrap(unit, descriptor.value);
+                wrapper.value = Unit.wrap(unit, descriptor.value);
             } else if (descriptor?.value !== undefined) {
-                wrappedDesc.writable = true;
-                wrappedDesc.value = descriptor.value;
+                wrapper.writable = true;
+                wrapper.value = descriptor.value;
             }
-            Object.defineProperty(unit._.defines, key, wrappedDesc);
-            Object.defineProperty(unit, key, wrappedDesc);
+            Object.defineProperty(unit._.defines, key, wrapper);
+            Object.defineProperty(unit, key, wrapper);
         });
+        return Object.assign({}, unit._.defines);
     }
 
-    static start(unit: Unit, time: number): void {
+    static start(unit: Unit): void {
         if (unit._.tostart === false) return;
         if (unit._.state === 'initialized' || unit._.state === 'stopped') {
             unit._.state = 'started';
-            unit._.children.forEach((child: Unit) => Unit.start(child, time));
-            unit._.systems.start.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.children.forEach((child: Unit) => Unit.start(child));
+            unit._.systems.start.forEach(({ execute }) => execute());
         } else if (unit._.state === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.start(child, time));
+            unit._.children.forEach((child: Unit) => Unit.start(child));
         }
     }
 
@@ -265,37 +239,37 @@ export class Unit {
         if (unit._.state === 'started') {
             unit._.state = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
-            unit._.systems.stop.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.systems.stop.forEach(({ execute }) => execute());
         }
     }
 
-    static update(unit: Unit, time: number): void {
+    static update(unit: Unit): void {
         if (unit._.state === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.update(child, time));
-            unit._.systems.update.forEach((listener: Function) => Unit.scope(Unit.snapshot(unit), listener));
+            unit._.children.forEach((child: Unit) => Unit.update(child));
+            unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
 
-    static root: Unit | null = null;
-   
-    static ticker(time: number) {
-        if (Unit.root !== null) {
-            Unit.start(Unit.root, time);
-            Unit.update(Unit.root, time);
+    static render(unit: Unit): void {
+        if (unit._.state === 'started' || unit._.state === 'started' || unit._.state === 'stopped') {
+            unit._.children.forEach((child: Unit) => Unit.render(child));
+            unit._.systems.render.forEach(({ execute }) => execute());
         }
     }
+
+    static rootUnit: Unit;
+    static currentUnit: Unit;
 
     static reset(): void {
-        Unit.root?.finalize();
-        Unit.root = new Unit(null, null);
-        Unit.current = Unit.root;
-        Ticker.clear(Unit.ticker);
-        Ticker.set(Unit.ticker);
+        Unit.rootUnit?.finalize();
+        Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
+        const ticker = new AnimationTicker(() => {
+            Unit.start(Unit.rootUnit);
+            Unit.update(Unit.rootUnit);
+            Unit.render(Unit.rootUnit);
+        });
+        Unit.rootUnit.on('finalize', () => ticker.clear());
     }
-
-    //----------------------------------------------------------------------------------------------------
-    // scope
-    //----------------------------------------------------------------------------------------------------
 
     static wrap(unit: Unit, listener: Function): (...args: any[]) => any {
         const snapshot = Unit.snapshot(unit);
@@ -303,124 +277,202 @@ export class Unit {
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
-        const current = Unit.current;
+        if (snapshot.unit._.state === 'finalized') {
+            return;
+        } 
+        const currentUnit = Unit.currentUnit;
         const backup = Unit.snapshot(snapshot.unit);
         try {
-            Unit.current = snapshot.unit;
+            Unit.currentUnit = snapshot.unit;
             snapshot.unit._.currentContext = snapshot.context;
             snapshot.unit._.currentElement = snapshot.element;
+            snapshot.unit._.currentComponent = snapshot.component;
             return func(...args);
         } catch (error) {
             throw error;
         } finally {
-            Unit.current = current;
+            Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
             snapshot.unit._.currentElement = backup.element;
+            snapshot.unit._.currentComponent = backup.component;
         }
     }
 
     static snapshot(unit: Unit): Snapshot {
-        return { unit, context: unit._.currentContext, element: unit._.currentElement };
+        return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
 
-    static stack(unit: Unit, key: string, value: any): void {
-        unit._.currentContext = { stack: unit._.currentContext, key, value };
-    }
-
-    static trace(unit: Unit, key: string): any {
-        for (let context: Context | null = unit._.currentContext; context !== null; context = context.stack) {
-            if (context.key === key) {
-                return context.value;
+    static context(unit: Unit, key: string, value?: any): any {
+        if (value !== undefined) {
+            unit._.currentContext = { stack: unit._.currentContext, key, value };
+        } else {
+            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
+                if (context.key === key) return context.value;
             }
         }
     }
 
-    static componentUnits: MapSet<Function, Unit> = new MapSet();
+    static component2units: MapSet<Function, Unit> = new MapSet();
 
     static find(component: Function): Unit[] {
-        return [...(Unit.componentUnits.get(component) ?? [])];
+        return [...(Unit.component2units.get(component) ?? [])];
     }
 
     //----------------------------------------------------------------------------------------------------
     // event
     //----------------------------------------------------------------------------------------------------
     
-    static typeUnits = new MapSet<string, Unit>();
+    static type2units = new MapSet<string, Unit>();
   
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        if (this._.state === 'finalized') return;
-        type.trim().split(/\s+/).forEach((type) => {
-            if (SYSTEM_EVENTS.includes(type)) {
-                this._.systems[type].push(listener);
-            }
-            if (this._.listeners1.has(type, listener) === false) {
-                const execute = Unit.wrap(Unit.current, listener);
-                this._.listeners1.set(type, listener, [this.element, execute]);
-                Unit.typeUnits.add(type, this);
-                if (/^[A-Za-z]/.test(type)) {
-                    this.element.addEventListener(type, execute, options);
-                }
-            }
-        });
+        const types = type.trim().split(/\s+/);
+        
+        types.forEach((type) => Unit.on(this, type, listener, options));
     }
 
     off(type?: string, listener?: Function): void {
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners1.keys()];
-        types.forEach((type) => {
-            if (SYSTEM_EVENTS.includes(type)) {
-                this._.systems[type] = this._.systems[type].filter((lis: Function) => listener ? lis !== listener : false);
-            }
-            (listener ? [listener] : [...this._.listeners1.keys(type)]).forEach((lis) => {
-                const tuple = this._.listeners1.get(type, lis);
-                if (tuple !== undefined) {
-                    const [target, execute] = tuple;
-                    this._.listeners1.delete(type, lis);
-                    if (/^[A-Za-z]/.test(type)) {
-                        target.removeEventListener(type, execute as EventListener);
-                    }
-                }
-            });
-            if (this._.listeners1.has(type) === false) {
-                Unit.typeUnits.delete(type, this);
-            }
-        });
+        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
+    
+        types.forEach((type) => Unit.off(this, type, listener));
     }
-
-    emit(type: string, ...args: any[]) {
-        if (this._.state === 'finalized') return;
-        if (type[0] === '+') {
-            Unit.typeUnits.get(type)?.forEach((unit) => {
-                unit._.listeners1.get(type)?.forEach(([_, execute]) => execute(...args));
-            });
-        } else if (type[0] === '-') {
-            this._.listeners1.get(type)?.forEach(([_, execute]) => execute(...args));
+    
+    static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        if (SYSTEM_EVENTS.includes(type)) {
+            unit._.systems[type].push({ listener, execute: Unit.wrap(Unit.currentUnit, listener) });
+        }
+        if (unit._.listeners.has(type, listener) === false) {
+            const execute = Unit.wrap(Unit.currentUnit, listener);
+            unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
+            Unit.type2units.add(type, unit);
+            if (/^[A-Za-z]/.test(type)) {
+                unit._.eventManager.add(unit.element, type, execute, options);
+            }
         }
     }
 
-    static subon(unit: Unit, target: UnitElement | Window | Document, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
-        type.trim().split(/\s+/).forEach((type) => {
-            if (unit._.listeners2.has(type, listener) === false) {
-                const execute = Unit.wrap(unit, listener);
-                unit._.listeners2.set(type, listener, [target, execute]);
-                target.addEventListener(type, execute, options);
+    static off(unit: Unit, type: string, listener?: Function): void {
+        if (SYSTEM_EVENTS.includes(type)) {
+            unit._.systems[type] = unit._.systems[type].filter(({ listener: lis }) => listener ? lis !== listener : false);
+        }
+        (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
+            const item = unit._.listeners.get(type, listener);
+            if (item === undefined) return;
+            unit._.listeners.delete(type, listener);
+            if (/^[A-Za-z]/.test(type)) {
+                unit._.eventManager.remove(type, item.execute);
             }
         });
+        if (unit._.listeners.has(type) === false) {
+            Unit.type2units.delete(type, unit);
+        }
     }
 
-    static suboff(unit: Unit, target: UnitElement | Window | Document | null, type?: string, listener?: Function): void {
-        const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...unit._.listeners2.keys()];
-        types.forEach((type) => {
-            (listener ? [listener] : [...unit._.listeners2.keys(type)]).forEach((lis) => {
-                const tuple = unit._.listeners2.get(type, lis);
-                if (tuple !== undefined) {
-                    const [element, execute] = tuple;
-                    if (target === null || target === element) {
-                        unit._.listeners2.delete(type, lis);
-                        element.removeEventListener(type, execute as EventListener);
-                    }
+    static emit(type: string, ...args: any[]) {
+        const current = Unit.currentUnit;
+        if (type[0] === '+') {
+            Unit.type2units.get(type)?.forEach((unit) => {
+                const find = [unit, ...unit._.ancestors].find(u => u._.config.protect === true);
+                if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
+                    unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
                 }
             });
-        });
+        } else if (type[0] === '-') {
+            current._.listeners.get(type)?.forEach((item) => item.execute(...args));
+        }
     }
 }
 
+//----------------------------------------------------------------------------------------------------
+// unit promise
+//----------------------------------------------------------------------------------------------------
+
+export class UnitPromise {
+    public promise: Promise<any>;
+    public component: Function | null;
+    constructor(promise: Promise<any>, component: Function | null) {
+        this.promise = promise;
+        this.component = component;
+    }
+    then(callback: Function): UnitPromise {
+        this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
+        return this;
+    }
+    catch(callback: Function): UnitPromise {
+        this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
+        return this;
+    }
+    finally(callback: Function): UnitPromise {
+        this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
+        return this;
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// unit timer
+//----------------------------------------------------------------------------------------------------
+
+export class UnitTimer {
+    private unit: Unit;
+    private stack: Object[] = [];
+
+    constructor(options: TimerOptions) {
+        this.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
+    }
+
+    clear() {
+        this.stack = [];
+        this.unit.finalize();
+    }
+
+    timeout(timeout: Function, duration: number = 0) {
+        UnitTimer.execute(this, { timeout, duration, iterations: 1 })
+        return this;
+    }
+
+    iteration(timeout: Function, duration: number = 0, iterations: number = -1) {
+        UnitTimer.execute(this, { timeout, duration, iterations })
+        return this;
+    }
+
+    transition(transition: Function, duration: number = 0, easing?: string) {
+        UnitTimer.execute(this, { transition, duration, iterations: 1, easing })
+        return this;
+    }
+
+    static execute(timer: UnitTimer, options: TimerOptions) {
+        if (timer.unit._.state === 'finalized') {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { snapshot: Unit.snapshot(Unit.currentUnit), ...options });
+        } else if (timer.stack.length === 0) {
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.currentUnit), ...options });
+            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+        } else {
+            timer.stack.push({ snapshot: Unit.snapshot(Unit.currentUnit), ...options });  
+        }
+    }
+
+    static next(timer: UnitTimer) {
+        if (timer.stack.length > 0) {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
+            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
+        }
+    }
+
+    static Component(unit: Unit, options: TimerOptions & { snapshot: Snapshot }) {
+        let counter = 0;
+        const timer = new Timer({
+            transition: (p: number) => {
+                if (options.transition) Unit.scope(options.snapshot, options.transition, p);
+            }, 
+            timeout: () => {
+                if (options.transition) Unit.scope(options.snapshot, options.transition, 1.0);
+                if (options.timeout) Unit.scope(options.snapshot, options.timeout);
+                if (options.iterations && counter >= options.iterations - 1) {
+                    unit.finalize();
+                }
+                counter++;
+            }, duration: options.duration, iterations: options.iterations, easing: options.easing
+        });
+
+        unit.on('finalize', () => timer.clear());
+    }
+}

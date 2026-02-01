@@ -66,23 +66,19 @@ The `target` parameter specifies which HTML element your component will be attac
 
 ### Targeting Existing Elements
 
-Use CSS selectors or direct element references to target existing HTML elements:
+Use element references to target existing HTML elements:
 
 ```html
 <body>
   <div id="my-container"></div>
   <script>
-    // Using CSS selector
-    xnew('#my-container', (unit) => {
-      unit.element.style.background = 'lightblue';
+    const element = document.querySelector('#my-container'); // HTML element
+    xnew(element, (unit) => {
+      unit.element.style.background = 'my text';
     });
   </script>
 </body>
 ```
-
-**Supported target types:**
-- `'#my-id'` - CSS selector string
-- `document.querySelector('#my-id')` - HTMLElement object
 
 ### Creating New Elements
 
@@ -105,7 +101,7 @@ When no target is specified, xnew inherits the element from its parent context:
 ```html
 <div id="parent"></div>
 <script>
-  xnew('#parent', (unit) => {
+  xnew(document.querySelector('#parent'), (unit) => {
     // unit.element is the #parent div
     
     xnew((unit) => {
@@ -146,7 +142,7 @@ function MyComponent(unit) {
   xnew.nest('<div>', 'click here');
 
   // Listen for click events on the element
-  unit.on('click', (event) => {
+  unit.on('click', ({ event }) => {
     console.log('Element was clicked!');
   });
 }
@@ -154,7 +150,7 @@ function MyComponent(unit) {
 const unit = xnew(MyComponent);
 
 // You can also add listeners from outside the component
-unit.on('click', (event) => {
+unit.on('click', ({ event }) => {
   console.log('External click listener');
 });
 ```
@@ -173,7 +169,7 @@ unit.off();
 unit.off('click');
 
 // Remove a specific listener function
-function myClickHandler(event) {
+function myClickHandler({ event }) {
   console.log('Clicked');
 }
 unit.on('click', myClickHandler);
@@ -193,10 +189,15 @@ function MyComponent(unit) {
     console.log('Component started');
   });
 
-  unit.on('update', (frameCount) => {
+  unit.on('update', () => {
     // Called continuously at ~60fps (or your browser's refresh rate)
     // Use for animations and real-time updates
-    console.log('Frame:', frameCount);
+    console.log('update');
+  });
+
+  unit.on('render', () => {
+    // render after update
+    console.log('render');
   });
 
   unit.on('stop', () => {
@@ -222,15 +223,17 @@ function AnimatedCounter(unit, { maxCount }) {
   unit.on('start', () => {
     unit.element.textContent = '0';
   });
-  
+
+  let count = 0;
   unit.on('update', (count) => {
     if (count < maxCount) {
       unit.element.textContent = count++;
     } else {
       unit.stop(); // Stop when target reached
     }
+    unit.element.textContent = count;
   });
-  
+
   unit.on('stop', () => {
     console.log('Counting finished!');
   });
@@ -249,9 +252,9 @@ Starts the update loop. Components start automatically by default.
 ```js
 const unit = xnew((unit) => {
   unit.stop(); // Prevent auto-start
-  
-  unit.on('update', (count) => {
-    console.log('Updating...', count);
+
+  unit.on('update', () => {
+    console.log('Updating...');
   });
 });
 
@@ -309,21 +312,24 @@ Important: Child components execute their lifecycle events **before** their pare
 function Parent(unit) {
   xnew(Child1);
   xnew(Child2);
-  
+
   unit.on('start', () => console.log('Parent start'));
   unit.on('update', () => console.log('Parent update'));
+  unit.on('render', () => console.log('Parent render'));
   unit.on('stop', () => console.log('Parent stop'));
 }
 
 function Child1(unit) {
   unit.on('start', () => console.log('Child1 start'));
-  unit.on('update', () => console.log('Child1 update'));
+  unit.on('update', () => console.log('Parent update'));
+  unit.on('render', () => console.log('Child1 render'));
   unit.on('stop', () => console.log('Child1 stop'));
 }
 
 function Child2(unit) {
   unit.on('start', () => console.log('Child2 start'));
-  unit.on('update', () => console.log('Child2 update'));
+  unit.on('update', () => console.log('Parent update'));
+  unit.on('render', () => console.log('Child2 render'));
   unit.on('stop', () => console.log('Child2 stop'));
 }
 
@@ -339,6 +345,9 @@ Parent start
 Child1 update
 Child2 update
 Parent update
+Child1 render
+Child2 render
+Parent render
 (repeats...)
 
 // When parent.stop() is called:
@@ -353,16 +362,16 @@ xnew automatically handles standard DOM events like click, mouseover, keydown, e
 
 ```js
 function InteractiveButton(unit) {
-  unit.on('click', (event) => {
+  unit.on('click', ({ event }) => {
     console.log('Button clicked!');
     event.preventDefault(); // Standard DOM event object
   });
   
-  unit.on('mouseover', (event) => {
+  unit.on('mouseover', ({ event }) => {
     unit.element.style.background = 'lightblue';
   });
   
-  unit.on('mouseout', (event) => {
+  unit.on('mouseout', ({ event }) => {
     unit.element.style.background = '';
   });
 }
@@ -384,7 +393,7 @@ function Sender(unit) {
 
   unit.on('click', () => {
     // Emit global event
-    unit.emit('+message', { 
+    xnew.emit('+message', { 
       text: 'Hello from sender!',
       timestamp: Date.now()
     });
@@ -413,12 +422,12 @@ Internal events are scoped to the component and its parent:
 ```js
 function Timer(unit) {
   let seconds = 0;
-  
+
   unit.on('update', () => {
     seconds++;
     if (seconds % 60 === 0) {
       // Emit internal event every minute
-      unit.emit('-message', { minutes: seconds / 60 });
+      xnew.emit('-message', { minutes: seconds / 60 });
     }
   });
 }
@@ -496,7 +505,7 @@ box.randomize();           // Custom method
 
 Avoid these reserved names when creating custom properties:
 - `start`, `stop`, `finalize`, `reboot`
-- `element`, `on`, `off`, `emit`,
+- `element`, `on`, `off`,
 - `_` (internal use)
 
 

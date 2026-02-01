@@ -1,17 +1,17 @@
 {
     "compilerOptions": {
+        "moduleResolution": "bundler",
+        "module": "ESNext",
         "rootDir": "./src",
         "target": "ES6",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "declaration": true,
-        "declarationDir": "./dist/types",
+        "declaration": false,
         "pretty": true,
         "newLine": "lf",
         "outDir": "./dist",
         "lib": ["ES6", "DOM"]
     },
-    "include": ["src/**/*.ts"],
-    "exclude": ["src/addons/*.ts"]
+    "include": ["./src/**/*.ts"]
 }

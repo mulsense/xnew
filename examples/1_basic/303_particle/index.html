@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+  <style>
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); opacity: 0.3; }
+      50% { transform: translateY(-30px); opacity: 0.8; }
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.5); }
+    }
+  </style>
+</head>
+
+<body class="m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full bg-gradient-to-br from-blue-400 to-blue-600"></div>
+  <script>
+    xnew(document.querySelector('#main'), (unit) => {
+      // floating particles
+      xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.3;">', () => {
+        for (let i = 0; i < 20; i++) {
+          const size = Math.random() * 30 + 10;
+          const x = Math.random() * 100;
+          const y = Math.random() * 100;
+          const duration = Math.random() * 5000 + 3000;
+
+          xnew(`<div style="
+            position: absolute;
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            left: ${x}%;
+            top: ${y}%;
+            animation: float ${duration}ms ease-in-out infinite;
+          ">`);
+        }
+      });
+
+      // twinkle particles
+      xnew('<div class="absolute inset-0 w-full h-full pointer-events-none" style="opacity: 0.4;">', () => {
+        for (let i = 0; i < 30; i++) {
+          const x = Math.random() * 100;
+          const y = Math.random() * 100;
+          const duration = Math.random() * 3000 + 2000;
+
+          xnew(`<div style="
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, #ffff99 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            left: ${x}%;
+            top: ${y}%;
+            animation: twinkle ${duration}ms ease-in-out infinite;
+          ">`);
+        }
+      });
+
+      xnew('<div class="absolute inset-0 w-full h-full flex items-center justify-center" style="container-type: size;">', () => {
+        xnew('<div class="text-center text-white font-bold text-[8cqw] drop-shadow-lg">', 'Particle Animation');
+      });
+    });
+  </script>
+</body>
+
+</html>

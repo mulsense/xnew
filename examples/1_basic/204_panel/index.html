@@ -7,10 +7,10 @@
   <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
-<body class="relative m-0 p-0 w-full h-screen overflow-hidden">
+<body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
   <script>
-    xnew('#main', (unit) => {
+    xnew(document.querySelector('#main'), (unit) => {
       xnew.nest('<div class="p-2">');
       xnew(MyPanel);
     });
@@ -30,27 +30,21 @@
       xnew((unit) => {
         xnew.extend(PanelGroup, { name: 'group 2', open: true });
 
-        xnew((frame) => {
-          xnew.extend(xnew.basics.InputFrame);
+        xnew((unit) => {
+          let status;
           xnew('<div class="text-sm flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'range 1');
-              const status = xnew('<div class="flex-none">', '25');
-              frame.on('-input', ({ event }) => {
-                status.element.textContent = event.target.value;
-              })
+              status = xnew('<div class="flex-none">', '25');
           });
-          xnew('<input type="range" name="range 1" min="0" max="100" value="25" class="m-0 w-full">');
+          const input = xnew('<input type="range" name="range 1" min="0" max="100" value="25" class="m-0 w-full">');
+          input.on('input', ({ event }) => {
+            status.element.textContent = event.target.value;
+          });
         });
 
-        xnew((frame) => {
-          xnew.extend(xnew.basics.InputFrame);
-
+        xnew((unit) => {
           xnew('<div class="flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'radio 1');
-              const status = xnew('<div class="flex-none">', 'radio A');
-              frame.on('-input', ({ event }) => {
-                status.element.textContent = event.target.value;
-              })
           });
           xnew('<label class="block">', () => {
             xnew('<input type="radio" name="radio 1" value="radio A" checked>');
@@ -67,8 +61,6 @@
         })
 
         xnew((unit) => {
-          xnew.extend(xnew.basics.InputFrame);
-
           xnew('<div class="flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'text 1');
           });
@@ -77,17 +69,26 @@
       });
     }
 
-    function PanelGroup(group, { name, open = false }) {
-      xnew.extend(xnew.basics.AccordionFrame, { open });
-      xnew((header) => {
-          xnew.nest('<div style="margin: 0.2em 0;">');
-          xnew.extend(xnew.basics.AccordionHeader);
-          xnew(xnew.basics.AccordionBullet);
-          xnew('<div>', name);
+    function PanelGroup(accordion, { name, open = false }) {
+      xnew.extend(xnew.basics.Accordion, { open });
+      
+      xnew('<div class="flex items-center cursor-pointer">', (unit) => {
+        unit.on('click', () => accordion.toggle());
+        xnew((unit) => {
+          xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
+          xnew('<path d="M6 2 10 6 6 10" />');
+          accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
+        });
+        xnew('<div>', name);
       });
-      xnew.extend(xnew.basics.AccordionContent);
-    }
 
+      const outer = xnew.nest('<div class="overflow-hidden">');
+      const inner = xnew.nest('<div class="p-2 flex flex-col box-border">');
+      accordion.on('-transition', ({ state }) => {
+        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+        outer.style.opacity = state;
+      });
+    }
   </script>
 </body>
 

@@ -2,29 +2,43 @@ import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
-function Main(self) {
-  const screen = xnew(xnew.basics.Screen, { width: 800, height: 400, fit: 'contain' });
-  xpixi.initialize({ canvas: screen.element });
+function Main(unit) {
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
-  const sub1 = xnew(SubScreen, { color: 0xEA1E63 });
-  const sub2 = xnew(SubScreen, { color: 0x63EA1E });
+  // pixi setup
+  xpixi.initialize({ canvas: unit.canvas });
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+  });
 
-  xnew(Texture, { texture: xpixi.sync(sub1.canvas), offset: 0 });
-  xnew(Texture, { texture: xpixi.sync(sub2.canvas), offset: xpixi.canvas.width / 2 });
+  xnew(Contents);
 }
 
-function SubScreen(unit, { color }) {
-  xpixi.initialize({ canvas: new OffscreenCanvas(xpixi.canvas.width / 2, xpixi.canvas.height) });
+function Contents(unit) {
+  const sub1 = xnew(SubScreen, { width: xpixi.canvas.width / 2, height: xpixi.canvas.height, color: 0xEA1E63 });
+  const sub2 = xnew(SubScreen, { width: xpixi.canvas.width / 2, height: xpixi.canvas.height, color: 0x63EA1E });
+
+  xnew(Texture, { texture: sub1.texture, offset: { x: 0, y: 0 } });
+  xnew(Texture, { texture: sub2.texture, offset: { x: xpixi.canvas.width / 2, y: 0 } });
+}
+
+function SubScreen(unit, { width, height, color }) {
+  xpixi.initialize({ canvas: new OffscreenCanvas(width, height) });
+  const texture = PIXI.Texture.from(xpixi.canvas);
+  unit.on('render', () => {
+    xpixi.renderer.render(xpixi.scene);
+    texture.source.update();
+  });
 
   xnew(Boxes, { color });
-  return { canvas: xpixi.canvas };
+  return { texture };
 }
 
 function Texture(unit, { texture, offset } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
-  object.position.set(offset, 0);
+  object.position.set(offset.x, offset.y);
 }
 
 function Boxes(unit, { color }) {

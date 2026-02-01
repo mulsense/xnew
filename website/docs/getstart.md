@@ -18,7 +18,7 @@ Choose one of the following methods to include xnew in your project:
 ### Via CDN (Recommended for beginners)
 Include the following script in your HTML file:
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@0.5.x/dist/xnew.js"></script>
 ```
 ### Via CDN (ESM)
 Use the ES module version with an import map:
@@ -26,7 +26,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.1.x/dist/xnew.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.5.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -41,7 +41,7 @@ import xnew from '@mulsense/xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install @mulsense/xnew@0.1.x
+npm install @mulsense/xnew@0.5.x
 ```
 
 Then import it in your JavaScript file:
@@ -83,7 +83,7 @@ Let's start with a simple example. This creates a basic component that displays 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@0.5.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -118,7 +118,7 @@ Now let's create multiple elements and organize them using `xnew.nest`:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@0.5.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -176,7 +176,7 @@ Now let's add events and animations! This example creates an interactive rotatin
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@5.0.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/xnew@0.5.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -191,7 +191,7 @@ Now let's add events and animations! This example creates an interactive rotatin
 
       // Handle click events - toggle start/stop
       let running = false;
-      unit.on('click', (event) => {
+      unit.on('click', ({ event }) => {
         running ? unit.stop() : unit.start();
       });
 
@@ -202,11 +202,12 @@ Now let's add events and animations! This example creates an interactive rotatin
       });
 
       // Update animation frame
-      let count = 0;
+      let rotate = 0;
       unit.on('update', () => {
-        unit.element.style.transform = `rotate(${count++}deg)`;
+        rotate++;
+        unit.element.style.transform = `rotate(${rotate}deg)`;
       });
-      
+
       // When animation stops
       unit.on('stop', () => {
         running = false;

@@ -1,7 +1,7 @@
 import CodeBlock from '@theme/CodeBlock';
 
 export default function ShowExample({ height, name, code }) {
-    const xnewpath = 'https://unpkg.com/@mulsense/xnew@0.1.x/dist/';
+    const xnewpath = 'https://unpkg.com/@mulsense/xnew@0.5.x/dist/';
 
     code = code.replace('../../thirdparty/matter/matter.min.mjs', 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0/+esm');
     code = code.replace('../../thirdparty/three/three.module.js', 'https://cdn.jsdelivr.net/npm/three@0.176.0/+esm');
@@ -11,19 +11,28 @@ export default function ShowExample({ height, name, code }) {
     code = code.replace('../../dist/addons/xpixi.mjs', xnewpath + 'addons/xpixi.mjs');
     code = code.replace('../../dist/addons/xthree.mjs', xnewpath + 'addons/xthree.mjs');
     code = code.replace('../../dist/addons/xmatter.mjs', xnewpath + 'addons/xmatter.mjs');
+    code = code.replace('../../dist/addons/xaudio.mjs', xnewpath + 'addons/xaudio.mjs');
 
     code = code.replace('../../thirdparty/matter/matter.min.js', 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0');
     code = code.replace('../../thirdparty/three/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.176.0');
     code = code.replace('../../thirdparty/pixi/pixi.min.js', 'https://pixijs.download/v7.0.5/pixi.min.js');
+    code = code.replace('../../thirdparty/rapier/rapier2d-compat.mjs', 'https://cdn.jsdelivr.net/npm/@dimforge/rapier2d-compat@0.19.3/+esm');
+    code = code.replace('../../thirdparty/rapier/rapier3d-compat.mjs', 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.19.3/+esm');
+    
     code = code.replace('../../thirdparty/three-vrm/three-vrm.module.min.js', 'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js');
 
     code = code.replace('../../dist/xnew.js', xnewpath + 'xnew.js');
     code = code.replace('../../dist/addons/xpixi.js', xnewpath + 'addons/xpixi.js');
     code = code.replace('../../dist/addons/xthree.js', xnewpath + 'addons/xthree.js');
     code = code.replace('../../dist/addons/xmatter.js', xnewpath + 'addons/xmatter.js');
+    code = code.replace('../../dist/addons/xrapier2d.js', xnewpath + 'addons/xrapier2d.js');
+    code = code.replace('../../dist/addons/xrapier3d.js', xnewpath + 'addons/xrapier3d.js');
+    code = code.replace('../../dist/addons/xaudio.js', xnewpath + 'addons/xaudio.js');
  
     code = code.replace('../../thirdparty/tailwindcss/playcdn.js', 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4');
  
+    code = code.replace('../../thirdparty/html2canvas/html2canvas-pro.min.js', 'https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.13/dist/html2canvas-pro.min.js')
+    code = code.replace('../../thirdparty/html2canvas/html2canvas-pro.esm.js', 'https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.13/+esm')
     return (
         <>
             <iframe style={{width: '100%', height, border: 'solid 1px #DDD', borderRadius: '6px' }} src={'/xnew/' + name} ></iframe>

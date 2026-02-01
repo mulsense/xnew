@@ -1,10 +1,10 @@
 {
   "name": "@mulsense/xnew",
-  "description": "JavaScript Library for Component-Oriented Programming.",
+  "description": "JavaScript / TypeScript library for component-oriented programming.",
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "0.1.6",
+  "version": "0.5.0",
   "main": "dist/xnew.js",
   "module": "dist/xnew.mjs",
   "types": "dist/xnew.d.ts",
@@ -29,6 +29,11 @@
       "import": "./dist/addons/xrapier2d.mjs",
       "require": "./dist/addons/xrapier2d.js"
     },
+    "./addons/xrapier3d": {
+      "types": "./dist/addons/xrapier3d.d.ts",
+      "import": "./dist/addons/xrapier3d.mjs",
+      "require": "./dist/addons/xrapier3d.js"
+    },
     "./addons/xthree": {
       "types": "./dist/addons/xthree.d.ts",
       "import": "./dist/addons/xthree.mjs",
@@ -40,6 +45,11 @@
     "LICENSE",
     "README.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mulsense/xnew.git"
+  },
+  "author": "",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/mulsense/xnew/issues"
@@ -48,15 +58,14 @@
   "scripts": {
     "test": "jest",
     "build": "npx rollup --config rollup.config.js --bundleConfigAsCjs",
-    "dev": "npx rollup --config rollup.config.js --watch --bundleConfigAsCjs",
-    "build:addons": "npx rollup --config rollup.addons.config.js --bundleConfigAsCjs",
-    "dev:addons": "npx rollup --config rollup.addons.config.js --watch --bundleConfigAsCjs"
+    "dev": "npx rollup --config rollup.config.js --watch --bundleConfigAsCjs"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
-    "@dimforge/rapier2d-compat": "^0.19.2",
-    "@mulsense/xnew": "^0.1.0",
+    "@dimforge/rapier2d-compat": "^0.19.3",
+    "@dimforge/rapier3d-compat": "^0.19.3",
+    "@mulsense/xnew": "^0.3.3",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
     "@types/matter-js": "^0.19.8",
@@ -66,7 +75,6 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "matter-js": "^0.20.0",
-    "onchange": "^7.1.0",
     "pixi.js": "^8.9.2",
     "rollup": "^3.3.0",
     "rollup-plugin-dts": "^6.2.1",
