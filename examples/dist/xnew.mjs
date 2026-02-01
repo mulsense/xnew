@@ -1668,15 +1668,6 @@ const audio = {
         master.gain.value = value;
     }
 };
-const temp = Object.assign(xnew$1, { basics, audio });
-Object.defineProperty(temp, 'global', {
-    get: function () {
-        return temp.context('xnew.global');
-    },
-    set: function (value) {
-        temp.context('xnew.global', value);
-    }
-});
-const xnew = temp;
+const xnew = Object.assign(xnew$1, { basics, audio });
 
 export { xnew as default };
