@@ -362,6 +362,7 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
       count++;
     });
   });
+  return { id };
 }
 
 function Cursor(unit) {
