@@ -87,7 +87,7 @@ function Cube(unit, { x, y, z, size }) {
   object.position.set(x, y, z);
 
   unit.on('update', () => {
-      object.rotation.x += 0.01;
-      object.rotation.y += 0.01;
+    object.rotation.x += 0.01;
+    object.rotation.y += 0.01;
   });
 }

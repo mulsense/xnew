@@ -52,7 +52,7 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options
     xrapier2d.world.removeCollider(collider);
     xrapier2d.world.removeRigidBody(rigidBody);
   });
-  self.on('update', () => {
+  self.on('render', () => {
     const position = rigidBody.translation();
     object.position.set(position.x, position.y);
   });

@@ -930,12 +930,6 @@
         else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
             target = args.shift();
         }
-        else if (typeof args[0] === 'string') {
-            const query = args.shift();
-            target = document.querySelector(query);
-            if (target === null)
-                throw new Error(`'${query}' can not be found.`);
-        }
         else {
             target = null;
         }
