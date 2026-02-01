@@ -34,7 +34,7 @@ This allows you to build nested structures naturally by working "inside" element
 xnew((unit) => {
   // Initially, unit.element is document.body
 
-  const header = xnew.nest('<header>');
+  xnew.nest('<header>');
   // Now unit.element === header
 
   xnew.nest('<h1>');

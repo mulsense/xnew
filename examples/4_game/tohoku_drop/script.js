@@ -9,7 +9,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import xmatter from '@mulsense/xnew/addons/xmatter';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });

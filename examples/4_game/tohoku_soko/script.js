@@ -8,7 +8,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import { Background, BlockBUtton, GrowText } from './util.js';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.context('global', { GRID: 10, levels: null });

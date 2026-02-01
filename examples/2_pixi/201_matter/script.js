@@ -4,7 +4,7 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 import * as PIXI from 'pixi.js';
 import Matter from 'matter-js';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });

@@ -66,23 +66,19 @@ The `target` parameter specifies which HTML element your component will be attac
 
 ### Targeting Existing Elements
 
-Use CSS selectors or direct element references to target existing HTML elements:
+Use element references to target existing HTML elements:
 
 ```html
 <body>
   <div id="my-container"></div>
   <script>
-    // Using CSS selector
-    xnew('#my-container', (unit) => {
-      unit.element.style.background = 'lightblue';
+    const element = document.querySelector('#my-container'); // HTML element
+    xnew(element, (unit) => {
+      unit.element.style.background = 'my text';
     });
   </script>
 </body>
 ```
-
-**Supported target types:**
-- `'#my-id'` - CSS selector string
-- `document.querySelector('#my-id')` - HTMLElement object
 
 ### Creating New Elements
 
@@ -105,7 +101,7 @@ When no target is specified, xnew inherits the element from its parent context:
 ```html
 <div id="parent"></div>
 <script>
-  xnew('#parent', (unit) => {
+  xnew(document.querySelector('#parent'), (unit) => {
     // unit.element is the #parent div
     
     xnew((unit) => {

@@ -4,7 +4,7 @@ import xrapier2d from '@mulsense/xnew/addons/xrapier2d';
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });

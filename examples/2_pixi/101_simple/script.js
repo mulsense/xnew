@@ -2,7 +2,7 @@ import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import * as PIXI from 'pixi.js';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });

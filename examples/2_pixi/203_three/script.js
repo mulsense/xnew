@@ -4,7 +4,7 @@ import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 
-xnew('#main', Main);
+xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
