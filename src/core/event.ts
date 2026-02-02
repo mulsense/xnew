@@ -1,12 +1,11 @@
 import { MapSet, MapMap } from './map';
-import { UnitElement } from './types';
 
 //----------------------------------------------------------------------------------------------------
 // event manager
 //----------------------------------------------------------------------------------------------------
 
 interface EventProps {
-    element: UnitElement;
+    element: HTMLElement | SVGElement;
     type: string;
     listener: Function;
     options?: boolean | AddEventListenerOptions
@@ -15,7 +14,7 @@ interface EventProps {
 export class EventManager {
     private map = new MapMap<string, Function, Function>();
 
-    public add(element: UnitElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+    public add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const props: EventProps = { element, type, listener, options };
         let finalize: Function;
 

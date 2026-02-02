@@ -6,7 +6,7 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
-import { Background, BlockBUtton, GrowText } from './util.js';
+import { Background, BlockBUtton, GrowText, TextStream } from './util.js';
 
 xnew(document.querySelector('#main'), Main);
 

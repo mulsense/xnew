@@ -5,13 +5,11 @@ import { Accordion } from './basics/Accordion';
 import { Screen } from './basics/Screen';
 import { Modal } from './basics/Modal';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
-import { TextStream } from './basics/Text';
 
 const basics = {
     Screen,
     Modal,
     Accordion,
-    TextStream,
     AnalogStick,
     DirectionalPad,
 };
