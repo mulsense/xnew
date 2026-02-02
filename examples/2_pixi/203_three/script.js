@@ -44,7 +44,7 @@ function Texture(unit, { texture } = {}) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function Boxes(self) {
+function Boxes(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2); // center
 
@@ -53,15 +53,15 @@ function Boxes(self) {
       xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
     }
   }
-  self.on('update', () => object.rotation += 0.01);
+  unit.on('update', () => object.rotation += 0.01);
 }
 
-function Box(self, { x, y, size, color }) {
+function Box(unit, { x, y, size, color }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
   object.addChild(new PIXI.Graphics().rect(-size / 2, -size / 2, size, size).fill(color));
 
-  self.on('update', () => object.rotation += 0.01);
+  unit.on('update', () => object.rotation += 0.01);
 }
 
 function Cubes(unit) {
