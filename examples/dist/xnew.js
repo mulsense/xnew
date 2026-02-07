@@ -109,7 +109,6 @@
             const self = this;
             this.id = null;
             let previous = 0;
-            ticker();
             function ticker() {
                 const delta = Date.now() - previous;
                 if (delta > (1000 / fps) * 0.9) {
@@ -118,6 +117,7 @@
                 }
                 self.id = requestAnimationFrame(ticker);
             }
+            self.id = requestAnimationFrame(ticker);
         }
         clear() {
             if (this.id !== null) {
@@ -128,7 +128,6 @@
     }
     class Timer {
         constructor(options) {
-            var _a, _b;
             this.options = options;
             this.id = null;
             this.time = 0.0;
@@ -154,7 +153,7 @@
             });
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.visibilitychange);
-            (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
+            // this.options.transition?.(0.0);
             this.start();
         }
         clear() {
