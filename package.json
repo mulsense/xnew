@@ -4,7 +4,7 @@
   "keywords": [
     "Component-Oriented Programming"
   ],
-  "version": "0.5.0",
+  "version": "0.5.2",
   "main": "dist/xnew.js",
   "module": "dist/xnew.mjs",
   "types": "dist/xnew.d.ts",

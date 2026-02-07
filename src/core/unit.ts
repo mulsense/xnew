@@ -1,11 +1,14 @@
 import { MapSet, MapMap } from './map';
 import { AnimationTicker, Timer, TimerOptions } from './time';
-import { SYSTEM_EVENTS, UnitElement } from './types';
 import { EventManager } from './event';
 
 //----------------------------------------------------------------------------------------------------
 // utils
 //----------------------------------------------------------------------------------------------------
+
+export const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
+
+export type UnitElement = HTMLElement | SVGElement;
 
 interface Context { stack: Context | null; key?: string; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
@@ -163,12 +166,12 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, tag: string): UnitElement {
+    static nest(unit: Unit, htmlString: string, textContent?: string): UnitElement {
         if (unit._.state !== 'invoked') {
             throw new Error('This function can not be called after initialized.');
         } 
 
-        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
+        const match = htmlString.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element: UnitElement;
             if (unit._.anchor !== null) {
@@ -180,10 +183,13 @@ export class Unit {
                 element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
             }
             unit._.currentElement = element;
+            if (textContent !== undefined) {
+                element.textContent = textContent;
+            }
             unit._.elements.push(element);
             return element;
         } else {
-            throw new Error(`Invalid tag: ${tag}`);
+            throw new Error(`Invalid html string: ${htmlString}`);
         }
     }
 

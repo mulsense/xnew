@@ -20,11 +20,9 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
-type UnitElement = HTMLElement | SVGElement;
-
 declare class EventManager {
     private map;
-    add(element: UnitElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
     private basic;
     private resize;
@@ -41,6 +39,7 @@ declare class EventManager {
     private key_arrow;
 }
 
+type UnitElement = HTMLElement | SVGElement;
 interface Context {
     stack: Context | null;
     key?: string;
@@ -96,7 +95,7 @@ declare class Unit {
     reboot(): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, tag: string): UnitElement;
+    static nest(unit: Unit, htmlString: string, textContent?: string): UnitElement;
     static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
@@ -142,142 +141,16 @@ interface CreateUnit {
     (Component?: Function | string, props?: Object): Unit;
     /**
      * Creates a new Unit component
-     * @param target - HTMLElement, SVGElement, selector string, or HTML tag for new element
+     * @param target - HTMLElement | SVGElement, or HTML tag for new element
      * @param Component - component function
      * @param props - properties for component function
      * @returns A new Unit instance
      * @example
      * const unit = xnew(element, MyComponent, { data: 0 })
-     * const unit = xnew('#selector', MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
-declare const xnew$1: CreateUnit & {
-    /**
-     * Creates a nested HTML/SVG element within the current component
-     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
-     * @returns The created HTML/SVG element
-     * @throws Error if called after component initialization
-     * @example
-     * const div = xnew.nest('<div>')
-     * div.textContent = 'Hello'
-     */
-    nest(tag: string): HTMLElement | SVGElement;
-    /**
-     * Extends the current component with another component's functionality
-     * @param component - Component function to extend with
-     * @param props - Optional properties to pass to the extended component
-     * @returns The extended component's return value
-     * @throws Error if called after component initialization
-     * @example
-     * const api = xnew.extend(BaseComponent, { data: {} })
-     */
-    extend(component: Function, props?: Object): {
-        [key: string]: any;
-    };
-    /**
-     * Gets or sets a context value that can be accessed by child components
-     * @param key - Context key
-     * @param value - Optional value to set (if undefined, gets the value)
-     * @returns The context value if getting, undefined if setting
-     * @example
-     * // Set context in parent
-     * xnew.context('theme', 'dark')
-     *
-     * // Get context in child
-     * const theme = xnew.context('theme')
-     */
-    context(key: string, value?: any): any;
-    /**
-     * Registers a promise with the current component for lifecycle management
-     * @param promise - Promise to register
-     * @returns UnitPromise wrapper for chaining
-     * @example
-     * xnew.promise(fetchData()).then(data => console.log(data))
-     */
-    promise(promise: Promise<any>): UnitPromise;
-    /**
-     * Handles successful resolution of all registered promises in the current component
-     * @param callback - Function to call when all promises resolve
-     * @returns UnitPromise for chaining
-     * @example
-     * xnew.then(results => console.log('All promises resolved', results))
-     */
-    then(callback: Function): UnitPromise;
-    /**
-     * Handles rejection of any registered promise in the current component
-     * @param callback - Function to call if any promise rejects
-     * @returns UnitPromise for chaining
-     * @example
-     * xnew.catch(error => console.error('Promise failed', error))
-     */
-    catch(callback: Function): UnitPromise;
-    /**
-     * Executes callback after all registered promises settle (resolve or reject)
-     * @param callback - Function to call after promises settle
-     * @returns UnitPromise for chaining
-     * @example
-     * xnew.finally(() => console.log('All promises settled'))
-     */
-    finally(callback: Function): UnitPromise;
-    /**
-     * Creates a scoped callback that captures the current component context
-     * @param callback - Function to wrap with current scope
-     * @returns Function that executes callback in the captured scope
-     * @example
-     * setTimeout(xnew.scope(() => {
-     *   console.log('This runs in the xnew component scope')
-     * }), 1000)
-     */
-    scope(callback: any): any;
-    /**
-     * Finds all instances of a component in the component tree
-     * @param component - Component function to search for
-     * @returns Array of Unit instances matching the component
-     * @throws Error if component parameter is invalid
-     * @example
-     * const buttons = xnew.find(ButtonComponent)
-     * buttons.forEach(btn => btn.finalize())
-     */
-    find(component: Function): Unit[];
-    emit(type: string, ...args: any[]): void;
-    /**
-     * Executes a callback once after a delay, managed by component lifecycle
-     * @param timeout - Function to execute after Duration
-     * @param duration - Duration in milliseconds
-     * @returns Object with clear() method to cancel the timeout
-     * @example
-     * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
-     * // Cancel if needed: timer.clear()
-     */
-    timeout(timeout: Function, duration?: number): any;
-    /**
-     * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-     * @param timeout - Function to execute at each duration
-     * @param duration - Duration in milliseconds
-     * @returns Object with clear() method to stop the interval
-     * @example
-     * const timer = xnew.interval(() => console.log('Tick'), 1000)
-     * // Stop when needed: timer.clear()
-     */
-    interval(timeout: Function, duration: number, iterations?: number): any;
-    /**
-     * Creates a transition animation with easing, executing callback with progress values
-     * @param callback - Function called with progress value (0.0 to 1.0)
-     * @param duration - Duration of transition in milliseconds
-     * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
-     * @returns Object with clear() and next() methods for controlling transitions
-     * @example
-     * xnew.transition(p => {
-     *   element.style.opacity = p
-     * }, 500, 'ease-out').transition(p => {
-     *   element.style.transform = `scale(${p})`
-     * }, 300)
-     */
-    transition(transition: Function, duration?: number, easing?: string): any;
-    protect(...args: any[]): Unit;
-};
 
 declare function Accordion(unit: Unit, { open, duration, easing }?: {
     open?: boolean;
@@ -326,12 +199,6 @@ declare function DirectionalPad(unit: Unit, { diagonal, stroke, strokeOpacity, s
     fillOpacity?: number;
 }): void;
 
-declare function TextStream(unit: Unit, { text, speed, fade }?: {
-    text?: string;
-    speed?: number;
-    fade?: number;
-}): void;
-
 type SynthesizerOptions = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
@@ -372,28 +239,39 @@ declare class Synthesizer {
     } | undefined;
 }
 
-declare const basics: {
-    Screen: typeof Screen;
-    Modal: typeof Modal;
-    Accordion: typeof Accordion;
-    TextStream: typeof TextStream;
-    AnalogStick: typeof AnalogStick;
-    DirectionalPad: typeof DirectionalPad;
-};
-
-declare const audio: {
-    load(path: string): UnitPromise;
-    synthesizer(props: SynthesizerOptions): Synthesizer;
-    volume: number;
-};
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
-declare const xnew: (typeof xnew$1) & {
-    basics: typeof basics;
-    audio: typeof audio;
+declare const xnew: CreateUnit & {
+    nest(htmlString: string, textContent?: string): HTMLElement | SVGElement;
+    extend(component: Function, props?: Object): {
+        [key: string]: any;
+    };
+    context(key: string, value?: any): any;
+    promise(promise: Promise<any>): UnitPromise;
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+    scope(callback: any): any;
+    find(component: Function): Unit[];
+    emit(type: string, ...args: any[]): void;
+    timeout(timeout: Function, duration?: number): any;
+    interval(timeout: Function, duration: number, iterations?: number): any;
+    transition(transition: Function, duration?: number, easing?: string): any;
+    protect(...args: any[]): Unit;
 } & {
-    global: any;
+    basics: {
+        Screen: typeof Screen;
+        Modal: typeof Modal;
+        Accordion: typeof Accordion;
+        AnalogStick: typeof AnalogStick;
+        DirectionalPad: typeof DirectionalPad;
+    };
+    audio: {
+        load(path: string): UnitPromise;
+        synthesizer(props: SynthesizerOptions): Synthesizer;
+        volume: number;
+    };
 };
 
 export { xnew as default };

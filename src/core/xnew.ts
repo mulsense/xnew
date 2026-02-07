@@ -1,9 +1,8 @@
-import { UnitElement } from './types';
-import { Unit, UnitPromise, UnitTimer } from './unit';
+import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
 
-interface CreateUnit {
+export interface CreateUnit {
     /**
-     * Creates a new Unit component  
+     * Creates a new Unit component
      * @param Component - component function
      * @param props - properties for component function
      * @returns A new Unit instance
@@ -14,13 +13,12 @@ interface CreateUnit {
 
     /**
      * Creates a new Unit component
-     * @param target - HTMLElement, SVGElement, selector string, or HTML tag for new element
+     * @param target - HTMLElement | SVGElement, or HTML tag for new element
      * @param Component - component function
      * @param props - properties for component function
      * @returns A new Unit instance
      * @example
      * const unit = xnew(element, MyComponent, { data: 0 })
-     * const unit = xnew('#selector', MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
@@ -36,8 +34,8 @@ function parseArguments(...args: any[]) {
         target = null;
     }
 
-    const component: Function = args.shift();
-    const props: Object = args.shift();
+    const component: Function | undefined = args.shift();
+    const props: Object | undefined = args.shift();
     return { target, component, props };
 }
 
@@ -50,18 +48,18 @@ export const xnew = Object.assign(
     {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+         * @param htmlString - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(tag: string): HTMLElement | SVGElement {
+        nest(htmlString: string, textContent?: string): HTMLElement | SVGElement {
             try {
-                return Unit.nest(Unit.currentUnit, tag);
+                return Unit.nest(Unit.currentUnit, htmlString, textContent);
             } catch (error: unknown) {
-                console.error('xnew.nest(tag: string): ', error);
+                console.error('xnew.nest(htmlString: string): ', error);
                 throw error;
             }
         },

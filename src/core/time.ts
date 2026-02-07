@@ -9,7 +9,7 @@ export class AnimationTicker {
         const self = this;
         this.id = null;
         let previous = 0;
-        ticker();
+
         function ticker() {
             const delta = Date.now() - previous;
             if (delta > (1000 / fps) * 0.9) {
@@ -18,6 +18,7 @@ export class AnimationTicker {
             }
             self.id = requestAnimationFrame(ticker);
         }
+        self.id = requestAnimationFrame(ticker);
     }
  
     clear(): void {
@@ -77,7 +78,7 @@ export class Timer {
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        this.options.transition?.(0.0);
+        // this.options.transition?.(0.0);
         this.start();
     }
 

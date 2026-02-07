@@ -103,7 +103,6 @@ class AnimationTicker {
         const self = this;
         this.id = null;
         let previous = 0;
-        ticker();
         function ticker() {
             const delta = Date.now() - previous;
             if (delta > (1000 / fps) * 0.9) {
@@ -112,6 +111,7 @@ class AnimationTicker {
             }
             self.id = requestAnimationFrame(ticker);
         }
+        self.id = requestAnimationFrame(ticker);
     }
     clear() {
         if (this.id !== null) {
@@ -122,7 +122,6 @@ class AnimationTicker {
 }
 class Timer {
     constructor(options) {
-        var _a, _b;
         this.options = options;
         this.id = null;
         this.time = 0.0;
@@ -148,7 +147,7 @@ class Timer {
         });
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
-        (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
+        // this.options.transition?.(0.0);
         this.start();
     }
     clear() {
@@ -199,8 +198,6 @@ class Timer {
         }
     }
 }
-
-const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
 
 class EventManager {
     constructor() {
@@ -519,6 +516,10 @@ function pointer(element, event) {
 }
 
 //----------------------------------------------------------------------------------------------------
+// utils
+//----------------------------------------------------------------------------------------------------
+const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
+//----------------------------------------------------------------------------------------------------
 // unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
@@ -626,11 +627,11 @@ class Unit {
             unit._.state = 'finalized';
         }
     }
-    static nest(unit, tag) {
+    static nest(unit, htmlString, textContent) {
         if (unit._.state !== 'invoked') {
             throw new Error('This function can not be called after initialized.');
         }
-        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
+        const match = htmlString.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element;
             if (unit._.anchor !== null) {
@@ -643,11 +644,14 @@ class Unit {
                 element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
             }
             unit._.currentElement = element;
+            if (textContent !== undefined) {
+                element.textContent = textContent;
+            }
             unit._.elements.push(element);
             return element;
         }
         else {
-            throw new Error(`Invalid tag: ${tag}`);
+            throw new Error(`Invalid html string: ${htmlString}`);
         }
     }
     static extend(unit, component, props) {
@@ -939,19 +943,19 @@ const xnew$1 = Object.assign(function (...args) {
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
-     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+     * @param htmlString - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
      * @returns The created HTML/SVG element
      * @throws Error if called after component initialization
      * @example
      * const div = xnew.nest('<div>')
      * div.textContent = 'Hello'
      */
-    nest(tag) {
+    nest(htmlString, textContent) {
         try {
-            return Unit.nest(Unit.currentUnit, tag);
+            return Unit.nest(Unit.currentUnit, htmlString, textContent);
         }
         catch (error) {
-            console.error('xnew.nest(tag: string): ', error);
+            console.error('xnew.nest(htmlString: string): ', error);
             throw error;
         }
     },
@@ -1364,51 +1368,6 @@ function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', stroke
     });
 }
 
-function TextStream(unit, { text = '', speed = 50, fade = 300 } = {}) {
-    const chars = [];
-    for (let i = 0; i < text.length; i++) {
-        const unit = xnew$1('<span>');
-        unit.element.textContent = text[i];
-        unit.element.style.opacity = '0';
-        unit.element.style.transition = `opacity ${fade}ms ease-in-out`;
-        chars.push(unit);
-    }
-    let start = 0;
-    unit.on('start', () => {
-        start = new Date().getTime();
-    });
-    let state = 0;
-    unit.on('update', () => {
-        const index = Math.floor((new Date().getTime() - start) / speed);
-        // Display characters up to the current index (fade in)
-        for (let i = 0; i < chars.length; i++) {
-            if (i <= index) {
-                chars[i].element.style.opacity = '1';
-            }
-        }
-        if (state === 0 && index >= text.length) {
-            action();
-        }
-    });
-    xnew$1.timeout(() => {
-        xnew$1(document.body).on('click wheel', action);
-        unit.on('keydown', action);
-    }, 100);
-    function action() {
-        if (state === 0) {
-            state = 1;
-            for (let i = 0; i < chars.length; i++) {
-                chars[i].element.style.opacity = '1';
-            }
-            xnew$1.emit('-complete');
-        }
-        else if (state === 1) {
-            state = 2;
-            xnew$1.emit('-next');
-        }
-    }
-}
-
 const context = new window.AudioContext();
 const master = context.createGain();
 //----------------------------------------------------------------------------------------------------
@@ -1637,7 +1596,6 @@ const basics = {
     Screen,
     Modal,
     Accordion,
-    TextStream,
     AnalogStick,
     DirectionalPad,
 };
