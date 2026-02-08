@@ -199,7 +199,7 @@ class Timer {
     }
 }
 
-class EventManager {
+class Eventor {
     constructor() {
         this.map = new MapMap();
     }
@@ -519,6 +519,84 @@ function pointer(element, event) {
 // utils
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
+class UnitPromise {
+    constructor(promise, component) {
+        this.promise = promise;
+        this.component = component;
+    }
+    then(callback) {
+        this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
+        return this;
+    }
+    catch(callback) {
+        this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
+        return this;
+    }
+    finally(callback) {
+        this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
+        return this;
+    }
+}
+class UnitTimer {
+    constructor(options) {
+        this.stack = [];
+        this.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { options, snapshot: Unit.snapshot(Unit.currentUnit) });
+    }
+    clear() {
+        this.stack = [];
+        this.unit.finalize();
+    }
+    timeout(timeout, duration = 0) {
+        UnitTimer.execute(this, { timeout, duration, iterations: 1 });
+        return this;
+    }
+    iteration(timeout, duration = 0, iterations = -1) {
+        UnitTimer.execute(this, { timeout, duration, iterations });
+        return this;
+    }
+    transition(transition, duration = 0, easing) {
+        UnitTimer.execute(this, { transition, duration, iterations: 1, easing });
+        return this;
+    }
+    static execute(timer, options) {
+        if (timer.unit._.state === 'finalized') {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { options, snapshot: Unit.snapshot(Unit.currentUnit) });
+        }
+        else if (timer.stack.length === 0) {
+            timer.stack.push({ options, snapshot: Unit.snapshot(Unit.currentUnit) });
+            timer.unit.on('finalize', () => UnitTimer.next(timer));
+        }
+        else {
+            timer.stack.push({ options, snapshot: Unit.snapshot(Unit.currentUnit) });
+        }
+    }
+    static next(timer) {
+        if (timer.stack.length > 0) {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
+            timer.unit.on('finalize', () => UnitTimer.next(timer));
+        }
+    }
+    static Component(unit, { options, snapshot }) {
+        let counter = 0;
+        const timer = new Timer({
+            transition: (p) => {
+                if (options.transition)
+                    Unit.scope(snapshot, options.transition, p);
+            },
+            timeout: () => {
+                if (options.transition)
+                    Unit.scope(snapshot, options.transition, 1.0);
+                if (options.timeout)
+                    Unit.scope(snapshot, options.timeout);
+                if (options.iterations && counter >= options.iterations - 1) {
+                    unit.finalize();
+                }
+                counter++;
+            }, duration: options.duration, iterations: options.iterations, easing: options.easing
+        });
+        unit.on('finalize', () => timer.clear());
+    }
+}
 //----------------------------------------------------------------------------------------------------
 // unit
 //----------------------------------------------------------------------------------------------------
@@ -576,7 +654,6 @@ class Unit {
         Unit.initialize(this, anchor);
     }
     static initialize(unit, anchor) {
-        var _a, _b;
         const backup = Unit.currentUnit;
         Unit.currentUnit = unit;
         unit._ = Object.assign(unit._, {
@@ -586,7 +663,7 @@ class Unit {
             anchor,
             state: 'invoked',
             tostart: true,
-            ancestors: [...(unit._.parent ? [unit._.parent] : []), ...((_b = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.ancestors) !== null && _b !== void 0 ? _b : [])],
+            ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
             children: [],
             elements: [],
             promises: [],
@@ -594,7 +671,7 @@ class Unit {
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
-            eventManager: new EventManager(),
+            eventor: new Eventor(),
         });
         // nest html element
         if (typeof unit._.target === 'string') {
@@ -627,11 +704,8 @@ class Unit {
             unit._.state = 'finalized';
         }
     }
-    static nest(unit, htmlString, textContent) {
-        if (unit._.state !== 'invoked') {
-            throw new Error('This function can not be called after initialized.');
-        }
-        const match = htmlString.match(/<((\w+)[^>]*?)\/?>/);
+    static nest(unit, html, textContent) {
+        const match = html.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element;
             if (unit._.anchor !== null) {
@@ -651,14 +725,11 @@ class Unit {
             return element;
         }
         else {
-            throw new Error(`Invalid html string: ${htmlString}`);
+            throw new Error(`xnew.nest: invalid html string [${html}]`);
         }
     }
     static extend(unit, component, props) {
         var _a;
-        if (unit._.state !== 'invoked') {
-            throw new Error('This function can not be called after initialized.');
-        }
         unit._.components.push(component);
         Unit.component2units.add(component, unit);
         const backupComponent = unit._.currentComponent;
@@ -791,7 +862,7 @@ class Unit {
             unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {
-                unit._.eventManager.add(unit.element, type, execute, options);
+                unit._.eventor.add(unit.element, type, execute, options);
             }
         }
     }
@@ -805,7 +876,7 @@ class Unit {
                 return;
             unit._.listeners.delete(type, listener);
             if (/^[A-Za-z]/.test(type)) {
-                unit._.eventManager.remove(type, item.execute);
+                unit._.eventor.remove(type, item.execute);
             }
         });
         if (unit._.listeners.has(type) === false) {
@@ -835,90 +906,6 @@ Unit.component2units = new MapSet();
 // event
 //----------------------------------------------------------------------------------------------------
 Unit.type2units = new MapSet();
-//----------------------------------------------------------------------------------------------------
-// unit promise
-//----------------------------------------------------------------------------------------------------
-class UnitPromise {
-    constructor(promise, component) {
-        this.promise = promise;
-        this.component = component;
-    }
-    then(callback) {
-        this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
-        return this;
-    }
-    catch(callback) {
-        this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
-        return this;
-    }
-    finally(callback) {
-        this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
-        return this;
-    }
-}
-//----------------------------------------------------------------------------------------------------
-// unit timer
-//----------------------------------------------------------------------------------------------------
-class UnitTimer {
-    constructor(options) {
-        this.stack = [];
-        this.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
-    }
-    clear() {
-        this.stack = [];
-        this.unit.finalize();
-    }
-    timeout(timeout, duration = 0) {
-        UnitTimer.execute(this, { timeout, duration, iterations: 1 });
-        return this;
-    }
-    iteration(timeout, duration = 0, iterations = -1) {
-        UnitTimer.execute(this, { timeout, duration, iterations });
-        return this;
-    }
-    transition(transition, duration = 0, easing) {
-        UnitTimer.execute(this, { transition, duration, iterations: 1, easing });
-        return this;
-    }
-    static execute(timer, options) {
-        if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
-        }
-        else if (timer.stack.length === 0) {
-            timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
-            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
-        }
-        else {
-            timer.stack.push(Object.assign({ snapshot: Unit.snapshot(Unit.currentUnit) }, options));
-        }
-    }
-    static next(timer) {
-        if (timer.stack.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
-            timer.unit.on('finalize', () => { UnitTimer.next(timer); });
-        }
-    }
-    static Component(unit, options) {
-        let counter = 0;
-        const timer = new Timer({
-            transition: (p) => {
-                if (options.transition)
-                    Unit.scope(options.snapshot, options.transition, p);
-            },
-            timeout: () => {
-                if (options.transition)
-                    Unit.scope(options.snapshot, options.transition, 1.0);
-                if (options.timeout)
-                    Unit.scope(options.snapshot, options.timeout);
-                if (options.iterations && counter >= options.iterations - 1) {
-                    unit.finalize();
-                }
-                counter++;
-            }, duration: options.duration, iterations: options.iterations, easing: options.easing
-        });
-        unit.on('finalize', () => timer.clear());
-    }
-}
 
 function parseArguments(...args) {
     let target;
@@ -952,6 +939,9 @@ const xnew$1 = Object.assign(function (...args) {
      */
     nest(htmlString, textContent) {
         try {
+            if (Unit.currentUnit._.state !== 'invoked') {
+                throw new Error('xnew.nest can not be called after initialized.');
+            }
             return Unit.nest(Unit.currentUnit, htmlString, textContent);
         }
         catch (error) {
@@ -970,6 +960,9 @@ const xnew$1 = Object.assign(function (...args) {
      */
     extend(component, props) {
         try {
+            if (Unit.currentUnit._.state !== 'invoked') {
+                throw new Error('xnew.extend can not be called after initialized.');
+            }
             return Unit.extend(Unit.currentUnit, component, props);
         }
         catch (error) {

@@ -57,6 +57,9 @@ export const xnew = Object.assign(
          */
         nest(htmlString: string, textContent?: string): HTMLElement | SVGElement {
             try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.nest can not be called after initialized.');
+                } 
                 return Unit.nest(Unit.currentUnit, htmlString, textContent);
             } catch (error: unknown) {
                 console.error('xnew.nest(htmlString: string): ', error);
@@ -75,6 +78,9 @@ export const xnew = Object.assign(
          */
         extend(component: Function, props?: Object): { [key: string]: any } {
             try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.extend can not be called after initialized.');
+                } 
                 return Unit.extend(Unit.currentUnit, component, props);
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
