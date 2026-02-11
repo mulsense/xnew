@@ -156,16 +156,15 @@ function Panel(unit) {
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'action weights', open: true });
     for (const name of Object.keys(actions.additiveActions)) {
-      let status;
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', name);
-        status = xnew('<div class="flex-none">', '0');
+        xnew(`<div key="${name}" class="flex-none">`, '0');
       });
       
       const settings = actions.additiveActions[name];
       const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
       input.on('input', ({ event }) => {
-        status.element.textContent = event.target.value;
+        unit.element.querySelector(`div[key="${name}"]`).textContent = event.target.value;
         settings.weight = parseFloat(event.target.value);
         xnew.emit('+weight', settings.action, settings.weight);
       });
@@ -175,15 +174,14 @@ function Panel(unit) {
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'options', open: true });
     xnew((unit) => {
-      let status;
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', 'speed');
-        status = xnew('<div class="flex-none">', '1.0');
+        xnew('<div key="status" class="flex-none">', '1.0');
       });
 
       const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
       input.on('input', ({ event }) => {
-        status.element.textContent = event.target.value;
+        unit.element.querySelector('div[key="status"]').textContent = event.target.value;
         xnew.emit('+speed', parseFloat(event.target.value));
       });
     });

@@ -40,13 +40,16 @@
       xnew('<p>', '+ event demo');
 
       xnew(Counter, { text: 'non protected counter' });
-      xnew.protect(Counter, { text: 'protected counter' });
+      xnew(Counter, { text: 'protected counter', protect: true });
 
       const button = xnew(Button, { text: 'outer button' });
       button.on('click', ({ event }) => xnew.emit('+mycountup'));
     }
 
-    function Counter(unit, { text }) {
+    function Counter(unit, { text, protect = false } = {}) {
+      if (protect) {
+        xnew.protect();
+      }
       xnew.nest('<div class="w-56 m-4 p-4 text-lg border rounded-lg flex flex-col items-center gap-4">');
       xnew('<p class="font-bold">', text);
       const p = xnew('<p>', 'count 0');

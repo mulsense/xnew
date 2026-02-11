@@ -20,7 +20,7 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
-declare class EventManager {
+declare class Eventor {
     private map;
     add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
@@ -40,6 +40,14 @@ declare class EventManager {
 }
 
 type UnitElement = HTMLElement | SVGElement;
+declare class UnitPromise {
+    promise: Promise<any>;
+    component: Function | null;
+    constructor(promise: Promise<any>, component: Function | null);
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+}
 interface Context {
     stack: Context | null;
     key?: string;
@@ -55,9 +63,6 @@ interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
-    config: {
-        protect: boolean;
-    };
     baseElement: UnitElement;
     baseContext: Context;
     baseComponent: Function;
@@ -67,6 +72,7 @@ interface Internal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
+    protected: boolean;
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
@@ -82,12 +88,12 @@ interface Internal {
         listener: Function;
         execute: Function;
     }[]>;
-    eventManager: EventManager;
+    eventor: Eventor;
 }
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object, config?: any);
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -95,7 +101,7 @@ declare class Unit {
     reboot(): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, htmlString: string, textContent?: string): UnitElement;
+    static nest(unit: Unit, html: string, textContent?: string): UnitElement;
     static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
@@ -119,14 +125,6 @@ declare class Unit {
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static off(unit: Unit, type: string, listener?: Function): void;
     static emit(type: string, ...args: any[]): void;
-}
-declare class UnitPromise {
-    promise: Promise<any>;
-    component: Function | null;
-    constructor(promise: Promise<any>, component: Function | null);
-    then(callback: Function): UnitPromise;
-    catch(callback: Function): UnitPromise;
-    finally(callback: Function): UnitPromise;
 }
 
 interface CreateUnit {
@@ -258,7 +256,7 @@ declare const xnew: CreateUnit & {
     timeout(timeout: Function, duration?: number): any;
     interval(timeout: Function, duration: number, iterations?: number): any;
     transition(transition: Function, duration?: number, easing?: string): any;
-    protect(...args: any[]): Unit;
+    protect(): void;
 } & {
     basics: {
         Screen: typeof Screen;

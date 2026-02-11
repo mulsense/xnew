@@ -11,7 +11,7 @@ interface EventProps {
     options?: boolean | AddEventListenerOptions
 }
 
-export class EventManager {
+export class Eventor {
     private map = new MapMap<string, Function, Function>();
 
     public add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {

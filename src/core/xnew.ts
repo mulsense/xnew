@@ -42,8 +42,20 @@ function parseArguments(...args: any[]) {
 export const xnew = Object.assign(
     function(...args: any[]): Unit {
         if (Unit.rootUnit === undefined) Unit.reset();
-        const { target, component, props } = parseArguments(...args);
-        return new Unit(Unit.currentUnit, target, component, props, { protect: false });
+
+        let target: UnitElement | string | null;
+        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
+            target = args.shift(); // an existing html element
+        } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
+            target = args.shift();
+        } else {
+            target = null;
+        }
+
+        const component: Function | undefined = args.shift();
+        const props: Object | undefined = args.shift();
+        
+        return new Unit(Unit.currentUnit, target, component, props);
     } as CreateUnit,
     {
         /**
@@ -57,6 +69,9 @@ export const xnew = Object.assign(
          */
         nest(htmlString: string, textContent?: string): HTMLElement | SVGElement {
             try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.nest can not be called after initialized.');
+                } 
                 return Unit.nest(Unit.currentUnit, htmlString, textContent);
             } catch (error: unknown) {
                 console.error('xnew.nest(htmlString: string): ', error);
@@ -75,6 +90,9 @@ export const xnew = Object.assign(
          */
         extend(component: Function, props?: Object): { [key: string]: any } {
             try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.extend can not be called after initialized.');
+                } 
                 return Unit.extend(Unit.currentUnit, component, props);
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -262,10 +280,18 @@ export const xnew = Object.assign(
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
 
-        protect(...args: any[]): Unit {
-            if (Unit.rootUnit === undefined) Unit.reset();
-            const { target, component, props } = parseArguments(...args);
-            return new Unit(Unit.currentUnit, target, component, props, { protect: true });
+        /**
+         * Call this method within a component function to enable protection.
+         * Protected components will not respond to global events emitted via xnew.emit,
+         * and will be excluded from xnew.find searches.
+         * @example
+         * function MyComponent(unit) {
+         *   xnew.protect();
+         *   // Component logic here
+         * }
+         */
+        protect(): void {
+            Unit.currentUnit._.protected = true;
         },
 
     }
