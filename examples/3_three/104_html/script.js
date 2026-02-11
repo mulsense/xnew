@@ -16,7 +16,7 @@ function Main(unit) {
 }
 
 function HtmlMain(unit) {
-  const targets = xnew('#targets');
+  const targets = xnew(document.querySelector('#targets'));
   targets.element.style.display = 'block';
 
   document.querySelectorAll('.target').forEach((element, index) => {
@@ -44,8 +44,8 @@ function Plane(unit, id) {
 }
 
 function Event(unit) {
-  xnew('.button.left', Button, +1);
-  xnew('.button.right', Button, -1);
+  xnew(document.querySelector('.button.left'), Button, +1);
+  xnew(document.querySelector('.button.right'), Button, -1);
 
   function Button(unit, direction) {
     unit.on('click', () => {

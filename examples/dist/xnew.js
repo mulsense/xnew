@@ -607,8 +607,8 @@
     // unit
     //----------------------------------------------------------------------------------------------------
     class Unit {
-        constructor(parent, target, component, props, config) {
-            var _a, _b;
+        constructor(parent, target, component, props) {
+            var _a;
             let baseElement;
             if (target instanceof HTMLElement || target instanceof SVGElement) {
                 baseElement = target;
@@ -630,8 +630,7 @@
                 baseComponent = (unit) => { };
             }
             const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
-            const protect = (_b = config === null || config === void 0 ? void 0 : config.protect) !== null && _b !== void 0 ? _b : false;
-            this._ = { parent, target, baseElement, baseContext, baseComponent, props, config: { protect } };
+            this._ = { parent, target, baseElement, baseContext, baseComponent, props };
             parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
             Unit.initialize(this, null);
         }
@@ -669,6 +668,7 @@
                 anchor,
                 state: 'invoked',
                 tostart: true,
+                protected: false,
                 ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
                 children: [],
                 elements: [],
@@ -895,7 +895,7 @@
             if (type[0] === '+') {
                 (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                     var _a;
-                    const find = [unit, ...unit._.ancestors].find(u => u._.config.protect === true);
+                    const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
                     if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
                         (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
                     }
@@ -913,7 +913,9 @@
     //----------------------------------------------------------------------------------------------------
     Unit.type2units = new MapSet();
 
-    function parseArguments(...args) {
+    const xnew$1 = Object.assign(function (...args) {
+        if (Unit.rootUnit === undefined)
+            Unit.reset();
         let target;
         if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
             target = args.shift(); // an existing html element
@@ -926,13 +928,7 @@
         }
         const component = args.shift();
         const props = args.shift();
-        return { target, component, props };
-    }
-    const xnew$1 = Object.assign(function (...args) {
-        if (Unit.rootUnit === undefined)
-            Unit.reset();
-        const { target, component, props } = parseArguments(...args);
-        return new Unit(Unit.currentUnit, target, component, props, { protect: false });
+        return new Unit(Unit.currentUnit, target, component, props);
     }, {
         /**
          * Creates a nested HTML/SVG element within the current component
@@ -1152,11 +1148,18 @@
         transition(transition, duration = 0, easing = 'linear') {
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
-        protect(...args) {
-            if (Unit.rootUnit === undefined)
-                Unit.reset();
-            const { target, component, props } = parseArguments(...args);
-            return new Unit(Unit.currentUnit, target, component, props, { protect: true });
+        /**
+         * Call this method within a component function to enable protection.
+         * Protected components will not respond to global events emitted via xnew.emit,
+         * and will be excluded from xnew.find searches.
+         * @example
+         * function MyComponent(unit) {
+         *   xnew.protect();
+         *   // Component logic here
+         * }
+         */
+        protect() {
+            Unit.currentUnit._.protected = true;
         },
     });
 

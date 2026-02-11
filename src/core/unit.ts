@@ -104,7 +104,6 @@ interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
-    config: { protect: boolean };
 
     baseElement: UnitElement;
     baseContext: Context;
@@ -115,6 +114,7 @@ interface Internal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
+    protected: boolean;
 
     ancestors: Unit[];
     children: Unit[];
@@ -136,8 +136,7 @@ export class Unit {
     [key: string]: any;
     public _: Internal;
 
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object, config?: any) {
-
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object) {
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -157,9 +156,8 @@ export class Unit {
         }
 
         const baseContext = parent?._.currentContext ?? { stack: null };
-        const protect = config?.protect ?? false;
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props, config: { protect } } as Internal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -203,6 +201,7 @@ export class Unit {
             anchor,
             state: 'invoked',
             tostart: true,
+            protected: false,
             ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
             children: [],
             elements: [],
@@ -457,7 +456,7 @@ export class Unit {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
-                const find = [unit, ...unit._.ancestors].find(u => u._.config.protect === true);
+                const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
                     unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
                 }

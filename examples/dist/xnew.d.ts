@@ -63,9 +63,6 @@ interface Internal {
     parent: Unit | null;
     target: Object | null;
     props?: Object;
-    config: {
-        protect: boolean;
-    };
     baseElement: UnitElement;
     baseContext: Context;
     baseComponent: Function;
@@ -75,6 +72,7 @@ interface Internal {
     anchor: UnitElement | null;
     state: string;
     tostart: boolean;
+    protected: boolean;
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
@@ -95,7 +93,7 @@ interface Internal {
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object, config?: any);
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -258,7 +256,7 @@ declare const xnew: CreateUnit & {
     timeout(timeout: Function, duration?: number): any;
     interval(timeout: Function, duration: number, iterations?: number): any;
     transition(transition: Function, duration?: number, easing?: string): any;
-    protect(...args: any[]): Unit;
+    protect(): void;
 } & {
     basics: {
         Screen: typeof Screen;
