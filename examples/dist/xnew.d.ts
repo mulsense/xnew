@@ -93,7 +93,7 @@ interface Internal {
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object);
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string | number, props?: Object);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -101,7 +101,7 @@ declare class Unit {
     reboot(): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, html: string, textContent?: string): UnitElement;
+    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
@@ -113,7 +113,6 @@ declare class Unit {
     static rootUnit: Unit;
     static currentUnit: Unit;
     static reset(): void;
-    static wrap(unit: Unit, listener: Function): (...args: any[]) => any;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static context(unit: Unit, key: string, value?: any): any;
@@ -241,7 +240,7 @@ declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
 }
 declare const xnew: CreateUnit & {
-    nest(htmlString: string, textContent?: string): HTMLElement | SVGElement;
+    nest(tag: string, textContent?: string | number): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };

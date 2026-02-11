@@ -31,14 +31,13 @@
         xnew.extend(PanelGroup, { name: 'group 2', open: true });
 
         xnew((unit) => {
-          let status;
           xnew('<div class="text-sm flex justify-between">', (unit) => {
               xnew('<div class="flex-1">', 'range 1');
-              status = xnew('<div class="flex-none">', '25');
+              xnew('<div key="status" class="flex-none">', '25');
           });
           const input = xnew('<input type="range" name="range 1" min="0" max="100" value="25" class="m-0 w-full">');
           input.on('input', ({ event }) => {
-            status.element.textContent = event.target.value;
+            unit.element.querySelector('[key="status"]').textContent = event.target.value;
           });
         });
 
@@ -54,7 +53,7 @@
             xnew('<input type="radio" name="radio 1" value="radio B">');
             xnew('<span class="mx-2">', 'radio B');
           });
-            xnew('<label class="block">', () => {
+          xnew('<label class="block">', () => {
             xnew('<input type="radio" name="radio 1" value="radio C">');
             xnew('<span class="mx-2">', 'radio C');
           });

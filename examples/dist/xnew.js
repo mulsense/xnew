@@ -531,15 +531,18 @@
             this.component = component;
         }
         then(callback) {
-            this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.then((...args) => Unit.scope(snapshot, callback, ...args));
             return this;
         }
         catch(callback) {
-            this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.catch((...args) => Unit.scope(snapshot, callback, ...args));
             return this;
         }
         finally(callback) {
-            this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.finally(() => Unit.scope(snapshot, callback));
             return this;
         }
     }
@@ -623,8 +626,8 @@
             if (typeof component === 'function') {
                 baseComponent = component;
             }
-            else if (typeof component === 'string') {
-                baseComponent = (unit) => { unit.element.textContent = component; };
+            else if (component !== undefined) {
+                baseComponent = (unit) => { unit.element.textContent = component.toString(); };
             }
             else {
                 baseComponent = (unit) => { };
@@ -710,8 +713,8 @@
                 unit._.state = 'finalized';
             }
         }
-        static nest(unit, html, textContent) {
-            const match = html.match(/<((\w+)[^>]*?)\/?>/);
+        static nest(unit, tag, textContent) {
+            const match = tag.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
                 let element;
                 if (unit._.anchor !== null) {
@@ -725,13 +728,13 @@
                 }
                 unit._.currentElement = element;
                 if (textContent !== undefined) {
-                    element.textContent = textContent;
+                    element.textContent = textContent.toString();
                 }
                 unit._.elements.push(element);
                 return element;
             }
             else {
-                throw new Error(`xnew.nest: invalid html string [${html}]`);
+                throw new Error(`xnew.nest: invalid html string [${tag}]`);
             }
         }
         static extend(unit, component, props) {
@@ -748,12 +751,13 @@
                 }
                 const descriptor = Object.getOwnPropertyDescriptor(defines, key);
                 const wrapper = { configurable: true, enumerable: true };
+                const snapshot = Unit.snapshot(unit);
                 if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
-                    wrapper.get = Unit.wrap(unit, descriptor.get);
+                    wrapper.get = (...args) => Unit.scope(snapshot, descriptor.get, ...args);
                 if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
-                    wrapper.set = Unit.wrap(unit, descriptor.set);
+                    wrapper.set = (...args) => Unit.scope(snapshot, descriptor.set, ...args);
                 if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
-                    wrapper.value = Unit.wrap(unit, descriptor.value);
+                    wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                 }
                 else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
                     wrapper.writable = true;
@@ -806,10 +810,6 @@
             });
             Unit.rootUnit.on('finalize', () => ticker.clear());
         }
-        static wrap(unit, listener) {
-            const snapshot = Unit.snapshot(unit);
-            return (...args) => Unit.scope(snapshot, listener, ...args);
-        }
         static scope(snapshot, func, ...args) {
             if (snapshot.unit._.state === 'finalized') {
                 return;
@@ -860,11 +860,12 @@
             types.forEach((type) => Unit.off(this, type, listener));
         }
         static on(unit, type, listener, options) {
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            const execute = (...args) => Unit.scope(snapshot, listener, ...args);
             if (SYSTEM_EVENTS.includes(type)) {
-                unit._.systems[type].push({ listener, execute: Unit.wrap(Unit.currentUnit, listener) });
+                unit._.systems[type].push({ listener, execute });
             }
             if (unit._.listeners.has(type, listener) === false) {
-                const execute = Unit.wrap(Unit.currentUnit, listener);
                 unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
                 Unit.type2units.add(type, unit);
                 if (/^[A-Za-z]/.test(type)) {
@@ -932,22 +933,22 @@
     }, {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param htmlString - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+         * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(htmlString, textContent) {
+        nest(tag, textContent) {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 }
-                return Unit.nest(Unit.currentUnit, htmlString, textContent);
+                return Unit.nest(Unit.currentUnit, tag, textContent);
             }
             catch (error) {
-                console.error('xnew.nest(htmlString: string): ', error);
+                console.error('xnew.nest(tag: string): ', error);
                 throw error;
             }
         },
@@ -1099,6 +1100,15 @@
                 throw error;
             }
         },
+        /**
+         * Emits a custom event to components
+         * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
+         * @param args - Additional arguments to pass to event listeners
+         * @returns void
+         * @example
+         * xnew.emit('+globalevent', { data: 123 }); // Global event
+         * xnew.emit('-localevent', { data: 123 }); // Local event
+         */
         emit(type, ...args) {
             try {
                 return Unit.emit(type, ...args);

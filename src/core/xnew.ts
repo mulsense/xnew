@@ -24,21 +24,6 @@ export interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-function parseArguments(...args: any[]) {
-    let target: UnitElement | string | null;
-    if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-        target = args.shift(); // an existing html element
-    } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-        target = args.shift();
-    } else {
-        target = null;
-    }
-
-    const component: Function | undefined = args.shift();
-    const props: Object | undefined = args.shift();
-    return { target, component, props };
-}
-
 export const xnew = Object.assign(
     function(...args: any[]): Unit {
         if (Unit.rootUnit === undefined) Unit.reset();
@@ -60,21 +45,21 @@ export const xnew = Object.assign(
     {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param htmlString - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+         * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(htmlString: string, textContent?: string): HTMLElement | SVGElement {
+        nest(tag: string, textContent?: string | number): HTMLElement | SVGElement {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 } 
-                return Unit.nest(Unit.currentUnit, htmlString, textContent);
+                return Unit.nest(Unit.currentUnit, tag, textContent);
             } catch (error: unknown) {
-                console.error('xnew.nest(htmlString: string): ', error);
+                console.error('xnew.nest(tag: string): ', error);
                 throw error;
             }
         },
@@ -228,6 +213,15 @@ export const xnew = Object.assign(
             }
         },
 
+        /**
+         * Emits a custom event to components
+         * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
+         * @param args - Additional arguments to pass to event listeners
+         * @returns void
+         * @example
+         * xnew.emit('+globalevent', { data: 123 }); // Global event
+         * xnew.emit('-localevent', { data: 123 }); // Local event
+         */
         emit(type: string, ...args: any[]): void {
             try {
                 return Unit.emit(type, ...args);
