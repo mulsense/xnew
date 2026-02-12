@@ -25,13 +25,11 @@ function Main(unit) {
   // convert canvas to pixi texture, and continuous update
   const texture = PIXI.Texture.from(xthree.canvas);
   xnew.context('three.texture', texture);
-  unit.on('render', () => {
-    texture.source.update();
-  });
 
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
+    texture.source.update();
     xpixi.renderer.render(xpixi.scene);
   });
 
