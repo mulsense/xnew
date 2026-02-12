@@ -6,27 +6,39 @@ export function Accordion(unit: Unit,
 ) {
     xnew.context('xnew.accordion', unit);
     
-    unit.on('-transition', ({ state }: { state: number }) => unit.state = state);
-    xnew.timeout(() => xnew.emit('-transition', { state: open ? 1.0 : 0.0 }));
+    let state = open ? 1.0 : 0.0;
+    let sign = open ? +1 : -1;
+    let timer = xnew.timeout(() => xnew.emit('-transition', { state: open ? 1.0 : 0.0 }));
 
     return {
-        state: open ? 1.0 : 0.0,
         toggle() {
-            if (unit.state === 1.0) {
+            if (sign > 0) {
                 unit.close();
-            } else if (unit.state === 0.0) {
+            } else {
                 unit.open();
             }
         },
         open() {
-            if (unit.state === 0.0) {
-                xnew.transition((x: number) => xnew.emit('-transition', { state: x }), duration, easing);
+            if (sign < 0) {
+                sign = +1;
+                const [a, b] = [1 - state, state];
+                timer.clear();
+                timer = xnew.transition((x: number) => {
+                    state = x < 1.0 ? (a * x + b) : 1.0;
+                    xnew.emit('-transition', { state });
+                }, duration * a, easing);
             }
         },
         close () {
-            if (unit.state === 1.0) {
-                xnew.transition((x: number) => xnew.emit('-transition', { state: 1.0 - x }), duration, easing);
+            if (sign > 0) {
+                sign = -1;
+                const [a, b] = [state, 1 - state];
+                timer.clear();
+                timer = xnew.transition((x: number) => {
+                    state = x < 1.0 ? 1.0 - (a * x + b) : 0.0;
+                    xnew.emit('-transition', { state });
+                }, duration * a, easing);
             }
-        }
+        },
     }
 }

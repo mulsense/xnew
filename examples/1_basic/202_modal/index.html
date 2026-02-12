@@ -12,11 +12,14 @@
   <script>
     xnew(document.querySelector('#main'), (self) => {
       xnew.nest('<div class="p-2">')
-      xnew('<button class="h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!').on('click', () => xnew(MyModal));
+      const button = xnew('<button class="h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
+      button.on('click', () => xnew(document.body, MyModal));
     });
 
     function MyModal(modal) {
       xnew.extend(xnew.basics.Modal, { duration: 300, easing: 'ease' });
+      xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
+      modal.on('click', ({ event }) => modal.close());
 
       // const modal = xnew.context('xnew.modal');
       const outer = xnew.nest(`<div class="w-full h-full" style="background: rgba(0, 0, 0, 0.1); opacity: 0;">`);

@@ -154,16 +154,15 @@ declare function Accordion(unit: Unit, { open, duration, easing }?: {
     duration?: number;
     easing?: string;
 }): {
-    state: number;
     toggle(): void;
     open(): void;
     close(): void;
 };
 
 declare function Screen(unit: Unit, { width, height, fit }?: {
-    width?: number | undefined;
-    height?: number | undefined;
-    fit?: string | undefined;
+    width?: number;
+    height?: number;
+    fit?: 'contain' | 'cover' | 'fill';
 }): {
     readonly canvas: UnitElement;
     resize(width: number, height: number): void;
@@ -173,7 +172,6 @@ declare function Modal(unit: Unit, { duration, easing }?: {
     duration?: number;
     easing?: string;
 }): {
-    state: number;
     close(): void;
 };
 
