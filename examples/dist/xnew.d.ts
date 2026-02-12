@@ -159,13 +159,13 @@ declare function Accordion(unit: Unit, { open, duration, easing }?: {
     close(): void;
 };
 
+type ScreenFit = 'contain' | 'cover' | 'fill' | 'resize';
 declare function Screen(unit: Unit, { width, height, fit }?: {
     width?: number;
     height?: number;
-    fit?: 'contain' | 'cover' | 'fill';
+    fit?: ScreenFit;
 }): {
     readonly canvas: UnitElement;
-    resize(width: number, height: number): void;
 };
 
 declare function Modal(unit: Unit, { duration, easing }?: {

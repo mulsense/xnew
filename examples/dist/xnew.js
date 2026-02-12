@@ -1212,49 +1212,49 @@
         };
     }
 
-    function Screen(unit, { width = 640, height = 480, fit = 'contain' } = {}) {
-        const size = { width, height };
-        const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
-        unit.on('resize', resize);
+    function Screen(unit, { width, height, fit = 'contain' } = {}) {
+        const size = { width: width !== null && width !== void 0 ? width : 800, height: height !== null && height !== void 0 ? height : 600 };
+        const outer = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
+        xnew$1().on('resize', resize);
         const absolute = xnew$1.nest('<div style="position: absolute; margin: auto; container-type: size; overflow: hidden;">');
-        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
+        const canvas = xnew$1(`<canvas width="${size.width}" height="${size.height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
         resize();
         function resize() {
-            const aspect = size.width / size.height;
             const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
             if (fit === 'contain') {
-                if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
-                    style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
+                const aspect = size.width / size.height;
+                if (outer.clientWidth < outer.clientHeight * aspect) {
+                    style.height = Math.floor(outer.clientWidth / aspect) + 'px';
                 }
                 else {
-                    style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
+                    style.width = Math.floor(outer.clientHeight * aspect) + 'px';
                 }
             }
             else if (fit === 'cover') {
-                if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
-                    style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
-                    style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
+                const aspect = size.width / size.height;
+                if (outer.clientWidth < outer.clientHeight * aspect) {
+                    style.width = Math.floor(outer.clientHeight * aspect) + 'px';
+                    style.left = Math.floor((outer.clientWidth - outer.clientHeight * aspect) / 2) + 'px';
                     style.right = 'auto';
                 }
                 else {
-                    style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
-                    style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
+                    style.height = Math.floor(outer.clientWidth / aspect) + 'px';
+                    style.top = Math.floor((outer.clientHeight - outer.clientWidth / aspect) / 2) + 'px';
                     style.bottom = 'auto';
                 }
             }
-            else ;
+            else if (fit === 'resize') {
+                size.width = outer.clientWidth > 0 ? outer.clientWidth : size.width;
+                size.height = outer.clientHeight > 0 ? outer.clientHeight : size.height;
+                console.log(size);
+                canvas.element.setAttribute('width', size.width + 'px');
+                canvas.element.setAttribute('height', size.height + 'px');
+            }
             Object.assign(absolute.style, style);
         }
         return {
             get canvas() {
                 return canvas.element;
-            },
-            resize(width, height) {
-                size.width = width;
-                size.height = height;
-                canvas.element.setAttribute('width', width + 'px');
-                canvas.element.setAttribute('height', height + 'px');
-                resize();
             },
         };
     }
