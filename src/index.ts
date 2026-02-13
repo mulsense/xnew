@@ -3,14 +3,14 @@ import { Unit } from './core/unit';
 
 import { Accordion, Modal } from './basics/Transition';
 import { Screen } from './basics/Screen';
-import { AnalogStick, DirectionalPad } from './basics/Controller';
+import { AnalogStick, DPad } from './basics/Controller';
 
 const basics = {
     Screen,
     Modal,
     Accordion,
     AnalogStick,
-    DirectionalPad,
+    DPad,
 };
 
 import { master, AudioFile, Synthesizer, SynthesizerOptions } from './audio/audio';

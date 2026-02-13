@@ -1314,7 +1314,7 @@ function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strok
         xnew$1.emit('-up', { type: '-up', vector });
     });
 }
-function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
+function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
     const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
     let newsize = Math.min(outer.clientWidth, outer.clientHeight);
     const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
@@ -1610,7 +1610,7 @@ const basics = {
     Modal,
     Accordion,
     AnalogStick,
-    DirectionalPad,
+    DPad,
 };
 const audio = {
     load(path) {

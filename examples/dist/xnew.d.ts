@@ -183,7 +183,7 @@ declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, s
     fill?: string;
     fillOpacity?: number;
 }): void;
-declare function DirectionalPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
+declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     diagonal?: boolean;
     stroke?: string;
     strokeOpacity?: number;
@@ -259,7 +259,7 @@ declare const xnew: CreateUnit & {
         Modal: typeof Modal;
         Accordion: typeof Accordion;
         AnalogStick: typeof AnalogStick;
-        DirectionalPad: typeof DirectionalPad;
+        DPad: typeof DPad;
     };
     audio: {
         load(path: string): UnitPromise;

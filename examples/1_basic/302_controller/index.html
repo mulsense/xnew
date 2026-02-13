@@ -24,7 +24,7 @@
       // left bottom
       xnew('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">', () => {
         // directional pad
-        const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
+        const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DPad, {});
         dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));        
       });
 
