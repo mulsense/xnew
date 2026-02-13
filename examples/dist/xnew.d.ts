@@ -77,7 +77,10 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    components: Function[];
+    extends: {
+        component: Function;
+        defines: Record<string, any>;
+    }[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
         component: Function | null;

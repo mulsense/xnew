@@ -123,7 +123,7 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    components: Function[];
+    extends: { component: Function, defines: Record<string, any> }[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, { listener: Function, execute: Function }[]>;
@@ -209,7 +209,7 @@ export class Unit {
             children: [],
             elements: [],
             promises: [],
-            components: [],
+            extends: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -238,7 +238,7 @@ export class Unit {
             unit._.systems.finalize.forEach(({ execute }) => execute());
 
             unit.off();
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            unit._.extends.forEach(({ component }) => Unit.component2units.delete(component, unit));
 
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
@@ -282,35 +282,37 @@ export class Unit {
     static currentComponent: Function = () => {};
    
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
-        unit._.components.push(component);
-        Unit.component2units.add(component, unit);
+        if (unit._.extends?.some(({ component: c }) => c === component) === false) {
+            Unit.component2units.add(component, unit);
 
-        const backupComponent = unit._.currentComponent;
-        unit._.currentComponent = component;
-        const defines = component(unit, props) ?? {};
-        unit._.currentComponent = backupComponent;
+            const backupComponent = unit._.currentComponent;
+            unit._.currentComponent = component;
+            const defines = component(unit, props) ?? {};
+            unit._.extends.push({ component, defines });
+            unit._.currentComponent = backupComponent;
 
-        Object.keys(defines).forEach((key) => {
-            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
-                throw new Error(`The property "${key}" already exists.`);
-            }
-            const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
-            const snapshot = Unit.snapshot(unit);
+            Object.keys(defines).forEach((key) => {
+                if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+                    throw new Error(`The property "${key}" already exists.`);
+                }
+                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+                const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
+                const snapshot = Unit.snapshot(unit);
 
-            if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
-            if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
+                if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
+                if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
 
-            if (typeof descriptor?.value === 'function') {
-                wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
-            } else if (descriptor?.value !== undefined) {
-                wrapper.writable = true;
-                wrapper.value = descriptor.value;
-            }
-            Object.defineProperty(unit._.defines, key, wrapper);
-            Object.defineProperty(unit, key, wrapper);
-        });
-        return Object.assign({}, unit._.defines);
+                if (typeof descriptor?.value === 'function') {
+                    wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
+                } else if (descriptor?.value !== undefined) {
+                    wrapper.writable = true;
+                    wrapper.value = descriptor.value;
+                }
+                Object.defineProperty(unit._.defines, key, wrapper);
+                Object.defineProperty(unit, key, wrapper);
+            });
+            return Object.assign({}, unit._.defines);
+        }
     }
 
     static start(unit: Unit): void {

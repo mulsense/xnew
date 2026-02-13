@@ -1,6 +1,12 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 
+function State(unit: Unit, { state: initial = 0.0 } = {}) {
+    return {
+        state: initial,
+    }
+}
+
 export function Accordion(unit: Unit, 
     { open = false, duration = 200, easing = 'ease'}: { open?: boolean, duration?: number, easing?: string } = {}
 ) {
