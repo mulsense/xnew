@@ -54,7 +54,7 @@ function TitleScene(unit) {
     const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * id) / 180 * Math.PI, z: 0 };
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
-  xnew(CanvasTranster);
+  xnew(CanvasTransfer);
   unit.on('pointerdown', () => xnew.emit('+scenechange', GameScene));
 
   xnew(TitleText);
@@ -76,7 +76,7 @@ function GameScene(unit) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xnew(CanvasTranster);
+  xnew(CanvasTransfer);
   xnew(ScoreText);
   xnew(VolumeController);
 
@@ -128,7 +128,7 @@ function Background(unit) {
   });
 }
 
-function CanvasTranster(unit) {
+function CanvasTransfer(unit) {
   const texture = PIXI.Texture.from(xthree.canvas);
   const object = xpixi.nest(new PIXI.Sprite(texture));
 

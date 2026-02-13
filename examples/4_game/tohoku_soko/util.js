@@ -88,7 +88,7 @@ export function Background(unit) {
   }
 
   let count = 0;
-  unit.on('-update', () => {
+  unit.on('update', () => {
     count++;
 
     // 霞の更新
@@ -147,7 +147,7 @@ export function BlockBUtton(unit, { text }) {
   xnew('<div class="absolute inset-0 flex items-center justify-center">', GrowText, { text });
 
   let count = 0;
-  unit.on('-update', () => {
+  unit.on('update', () => {
     unit.element.style.opacity = 0.9 + Math.sin(count * 0.04) * 0.1;
     count++;
   });
@@ -158,7 +158,7 @@ export function GrowText(unit, { text }) {
   unit.element.textContent = text;
 
   let count = 0;
-  unit.on('-update', () => {
+  unit.on('update', () => {
     unit.element.style.textShadow = `0 0 ${0.6 + Math.sin(count * 0.04) * 0.1}cqw currentColor`;
     count++;
   });

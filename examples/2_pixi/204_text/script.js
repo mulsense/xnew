@@ -36,11 +36,11 @@ function Contents(unit) {
   xnew(ThreeText);
 
   // pixi.js (screen canvas)
-  xnew(CanvasTranster); // three.js -> pixi.js
+  xnew(CanvasTransfer); // three.js -> pixi.js
   xnew(PixiText);
 }
 
-function CanvasTranster(unit) {
+function CanvasTransfer(unit) {
   const texture = PIXI.Texture.from(xthree.canvas);
   const object = xpixi.nest(new PIXI.Sprite(texture));
 
