@@ -19,14 +19,10 @@ function Main(unit) {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
 
-  // convert canvas to pixi texture, and continuous update
-  const texture = PIXI.Texture.from(xthree.canvas);
-  xnew.context('three.texture', texture);
-
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
-    texture.source.update();
+    xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
   });
 
@@ -36,14 +32,21 @@ function Main(unit) {
 function Contents(unit) {
   xnew(HtmlText);
 
+  // three.js (offscreen canvas)
   xnew(ThreeText);
 
-  xnew(Texture, { texture: xnew.context('three.texture') });
+  // pixi.js (screen canvas)
+  xnew(CanvasTranster); // three.js -> pixi.js
   xnew(PixiText);
 }
 
-function Texture(unit, { texture } = {}) {
+function CanvasTranster(unit) {
+  const texture = PIXI.Texture.from(xthree.canvas);
   const object = xpixi.nest(new PIXI.Sprite(texture));
+
+  unit.on('+prerender', () => {
+    texture.source.update();
+  });
 }
 
 function HtmlText(unit) {
