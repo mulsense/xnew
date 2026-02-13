@@ -158,6 +158,12 @@ declare function Accordion(unit: Unit, { open, duration, easing }?: {
     open(): void;
     close(): void;
 };
+declare function Modal(unit: Unit, { duration, easing }?: {
+    duration?: number;
+    easing?: string;
+}): {
+    close(): void;
+};
 
 type ScreenFit = 'contain' | 'cover' | 'fill' | 'resize';
 declare function Screen(unit: Unit, { width, height, fit }?: {
@@ -166,13 +172,6 @@ declare function Screen(unit: Unit, { width, height, fit }?: {
     fit?: ScreenFit;
 }): {
     readonly canvas: UnitElement;
-};
-
-declare function Modal(unit: Unit, { duration, easing }?: {
-    duration?: number;
-    easing?: string;
-}): {
-    close(): void;
 };
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {

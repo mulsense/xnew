@@ -137,11 +137,11 @@ class Timer {
             else if (this.options.easing === 'ease-in') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
             }
-            else if (this.options.easing === 'ease') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0; // todo
-            }
-            else if (this.options.easing === 'ease-in-out') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+            else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
+                // p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+                const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
+                const s = Math.pow(p, bias);
+                p = s * s * (3 - 2 * s);
             }
             (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
         });
@@ -1171,37 +1171,47 @@ function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {})
     xnew$1.context('xnew.accordion', unit);
     let state = open ? 1.0 : 0.0;
     let sign = open ? +1 : -1;
-    let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state: open ? 1.0 : 0.0 }));
+    let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
     return {
         toggle() {
-            if (sign > 0) {
-                unit.close();
-            }
-            else {
-                unit.open();
-            }
+            sign > 0 ? unit.close() : unit.open();
         },
         open() {
-            if (sign < 0) {
-                sign = +1;
-                const [a, b] = [1 - state, state];
-                timer.clear();
-                timer = xnew$1.transition((x) => {
-                    state = x < 1.0 ? (a * x + b) : 1.0;
-                    xnew$1.emit('-transition', { state });
-                }, duration * a, easing);
-            }
+            if (sign < 0)
+                transition();
         },
         close() {
-            if (sign > 0) {
-                sign = -1;
-                const [a, b] = [state, 1 - state];
-                timer.clear();
-                timer = xnew$1.transition((x) => {
-                    state = x < 1.0 ? 1.0 - (a * x + b) : 0.0;
-                    xnew$1.emit('-transition', { state });
-                }, duration * a, easing);
-            }
+            if (sign > 0)
+                transition();
+        },
+    };
+    function transition() {
+        sign *= -1;
+        const d = sign > 0 ? 1 - state : state;
+        timer.clear();
+        timer = xnew$1.transition((x) => {
+            const y = x < 1.0 ? (1 - x) * d : 0.0;
+            state = sign > 0 ? 1.0 - y : y;
+            xnew$1.emit('-transition', { state });
+        }, duration * d, easing);
+    }
+}
+function Modal(unit, { duration = 200, easing = 'ease' } = {}) {
+    xnew$1.context('xnew.modal', unit);
+    let state = 0.0;
+    let timer = xnew$1.transition((x) => {
+        state = x;
+        xnew$1.emit('-transition', { state });
+    }, duration, easing);
+    return {
+        close() {
+            const d = state;
+            timer.clear();
+            timer = xnew$1.transition((x) => {
+                state = x < 1.0 ? (1 - x) * d : 0.0;
+                xnew$1.emit('-transition', { state });
+            }, duration * d, easing)
+                .timeout(() => unit.finalize());
         },
     };
 }
@@ -1249,26 +1259,6 @@ function Screen(unit, { width, height, fit = 'contain' } = {}) {
     return {
         get canvas() {
             return canvas.element;
-        },
-    };
-}
-
-function Modal(unit, { duration = 200, easing = 'ease' } = {}) {
-    xnew$1.context('xnew.modal', unit);
-    let state = 0.0;
-    let timer = xnew$1.transition((x) => {
-        state = x;
-        xnew$1.emit('-transition', { state });
-    }, duration, easing);
-    return {
-        close() {
-            const [a, b] = [state, 1 - state];
-            timer.clear();
-            timer = xnew$1.transition((x) => {
-                state = x < 1.0 ? 1.0 - (a * x + b) : 0.0;
-                xnew$1.emit('-transition', { state });
-            }, duration * a, easing)
-                .timeout(() => unit.finalize());
         },
     };
 }

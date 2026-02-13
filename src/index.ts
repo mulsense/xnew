@@ -1,9 +1,8 @@
 import { xnew as base } from './core/xnew';
 import { Unit } from './core/unit';
 
-import { Accordion } from './basics/Accordion';
+import { Accordion, Modal } from './basics/Transition';
 import { Screen } from './basics/Screen';
-import { Modal } from './basics/Modal';
 import { AnalogStick, DirectionalPad } from './basics/Controller';
 
 const basics = {
