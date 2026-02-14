@@ -137,11 +137,11 @@ class Timer {
             else if (this.options.easing === 'ease-in') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
             }
-            else if (this.options.easing === 'ease') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0; // todo
-            }
-            else if (this.options.easing === 'ease-in-out') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+            else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
+                // p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+                const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
+                const s = Math.pow(p, bias);
+                p = s * s * (3 - 2 * s);
             }
             (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
         });
@@ -525,15 +525,18 @@ class UnitPromise {
         this.component = component;
     }
     then(callback) {
-        this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.then((...args) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
     catch(callback) {
-        this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.catch((...args) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
     finally(callback) {
-        this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.finally(() => Unit.scope(snapshot, callback));
         return this;
     }
 }
@@ -617,8 +620,8 @@ class Unit {
         if (typeof component === 'function') {
             baseComponent = component;
         }
-        else if (typeof component === 'string') {
-            baseComponent = (unit) => { unit.element.textContent = component; };
+        else if (component !== undefined) {
+            baseComponent = (unit) => { unit.element.textContent = component.toString(); };
         }
         else {
             baseComponent = (unit) => { };
@@ -667,7 +670,7 @@ class Unit {
             children: [],
             elements: [],
             promises: [],
-            components: [],
+            extends: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -689,23 +692,21 @@ class Unit {
             unit._.children.forEach((child) => child.finalize());
             unit._.systems.finalize.forEach(({ execute }) => execute());
             unit.off();
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            unit._.extends.forEach(({ component }) => Unit.component2units.delete(component, unit));
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
                 unit._.currentElement = unit._.baseElement;
             }
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
-                if (SYSTEM_EVENTS.includes(key) === false) {
-                    delete unit[key];
-                }
+                delete unit[key];
             });
             unit._.defines = {};
             unit._.state = 'finalized';
         }
     }
-    static nest(unit, html, textContent) {
-        const match = html.match(/<((\w+)[^>]*?)\/?>/);
+    static nest(unit, tag, textContent) {
+        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element;
             if (unit._.anchor !== null) {
@@ -719,44 +720,53 @@ class Unit {
             }
             unit._.currentElement = element;
             if (textContent !== undefined) {
-                element.textContent = textContent;
+                element.textContent = textContent.toString();
             }
             unit._.elements.push(element);
             return element;
         }
         else {
-            throw new Error(`xnew.nest: invalid html string [${html}]`);
+            throw new Error(`xnew.nest: invalid html string [${tag}]`);
         }
     }
     static extend(unit, component, props) {
         var _a;
-        unit._.components.push(component);
-        Unit.component2units.add(component, unit);
-        const backupComponent = unit._.currentComponent;
-        unit._.currentComponent = component;
-        const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
-        unit._.currentComponent = backupComponent;
-        Object.keys(defines).forEach((key) => {
-            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
-                throw new Error(`The property "${key}" already exists.`);
-            }
-            const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrapper = { configurable: true, enumerable: true };
-            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
-                wrapper.get = Unit.wrap(unit, descriptor.get);
-            if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
-                wrapper.set = Unit.wrap(unit, descriptor.set);
-            if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
-                wrapper.value = Unit.wrap(unit, descriptor.value);
-            }
-            else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                wrapper.writable = true;
-                wrapper.value = descriptor.value;
-            }
-            Object.defineProperty(unit._.defines, key, wrapper);
-            Object.defineProperty(unit, key, wrapper);
-        });
-        return Object.assign({}, unit._.defines);
+        const find = unit._.extends.find(({ component: c }) => c === component);
+        if (find !== undefined) {
+            throw new Error(`The component is already extended.`);
+        }
+        else {
+            const backupComponent = unit._.currentComponent;
+            unit._.currentComponent = component;
+            const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
+            unit._.currentComponent = backupComponent;
+            Object.keys(defines).forEach((key) => {
+                if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+                    throw new Error(`The property "${key}" already exists.`);
+                }
+                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+                const wrapper = { configurable: true, enumerable: true };
+                const snapshot = Unit.snapshot(unit);
+                if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) || (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)) {
+                    if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
+                        wrapper.get = (...args) => Unit.scope(snapshot, descriptor.get, ...args);
+                    if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
+                        wrapper.set = (...args) => Unit.scope(snapshot, descriptor.set, ...args);
+                }
+                else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
+                    wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
+                }
+                else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
+                    wrapper.get = () => defines[key];
+                    wrapper.set = (value) => defines[key] = value;
+                }
+                Object.defineProperty(unit._.defines, key, wrapper);
+                Object.defineProperty(unit, key, wrapper);
+            });
+            Unit.component2units.add(component, unit);
+            unit._.extends.push({ component, defines });
+            return defines;
+        }
     }
     static start(unit) {
         if (unit._.tostart === false)
@@ -799,10 +809,6 @@ class Unit {
             Unit.render(Unit.rootUnit);
         });
         Unit.rootUnit.on('finalize', () => ticker.clear());
-    }
-    static wrap(unit, listener) {
-        const snapshot = Unit.snapshot(unit);
-        return (...args) => Unit.scope(snapshot, listener, ...args);
     }
     static scope(snapshot, func, ...args) {
         if (snapshot.unit._.state === 'finalized') {
@@ -854,11 +860,12 @@ class Unit {
         types.forEach((type) => Unit.off(this, type, listener));
     }
     static on(unit, type, listener, options) {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        const execute = (...args) => Unit.scope(snapshot, listener, ...args);
         if (SYSTEM_EVENTS.includes(type)) {
-            unit._.systems[type].push({ listener, execute: Unit.wrap(Unit.currentUnit, listener) });
+            unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
-            const execute = Unit.wrap(Unit.currentUnit, listener);
             unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {
@@ -926,22 +933,22 @@ const xnew$1 = Object.assign(function (...args) {
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
-     * @param htmlString - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
      * @returns The created HTML/SVG element
      * @throws Error if called after component initialization
      * @example
      * const div = xnew.nest('<div>')
      * div.textContent = 'Hello'
      */
-    nest(htmlString, textContent) {
+    nest(tag, textContent) {
         try {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.nest can not be called after initialized.');
             }
-            return Unit.nest(Unit.currentUnit, htmlString, textContent);
+            return Unit.nest(Unit.currentUnit, tag, textContent);
         }
         catch (error) {
-            console.error('xnew.nest(htmlString: string): ', error);
+            console.error('xnew.nest(tag: string): ', error);
             throw error;
         }
     },
@@ -949,7 +956,7 @@ const xnew$1 = Object.assign(function (...args) {
      * Extends the current component with another component's functionality
      * @param component - Component function to extend with
      * @param props - Optional properties to pass to the extended component
-     * @returns The extended component's return value
+     * @returns defines returned by the extended component
      * @throws Error if called after component initialization
      * @example
      * const api = xnew.extend(BaseComponent, { data: {} })
@@ -1093,6 +1100,15 @@ const xnew$1 = Object.assign(function (...args) {
             throw error;
         }
     },
+    /**
+     * Emits a custom event to components
+     * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
+     * @param args - Additional arguments to pass to event listeners
+     * @returns void
+     * @example
+     * xnew.emit('+globalevent', { data: 123 }); // Global event
+     * xnew.emit('-localevent', { data: 123 }); // Local event
+     */
     emit(type, ...args) {
         try {
             return Unit.emit(type, ...args);
@@ -1157,92 +1173,96 @@ const xnew$1 = Object.assign(function (...args) {
     },
 });
 
-function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
-    xnew$1.context('xnew.accordion', unit);
-    unit.on('-transition', ({ state }) => unit.state = state);
-    xnew$1.timeout(() => xnew$1.emit('-transition', { state: open ? 1.0 : 0.0 }));
+function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
+    let state = Math.max(0.0, Math.min(1.0, initialState));
+    let direction = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
+    let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
     return {
-        state: open ? 1.0 : 0.0,
-        toggle() {
-            if (unit.state === 1.0) {
-                unit.close();
+        toggle(duration = 200, easing = 'ease') {
+            if (direction === null || direction < 0) {
+                unit.open(duration, easing);
             }
-            else if (unit.state === 0.0) {
-                unit.open();
-            }
-        },
-        open() {
-            if (unit.state === 0.0) {
-                xnew$1.transition((x) => xnew$1.emit('-transition', { state: x }), duration, easing);
+            else {
+                unit.close(duration, easing);
             }
         },
-        close() {
-            if (unit.state === 1.0) {
-                xnew$1.transition((x) => xnew$1.emit('-transition', { state: 1.0 - x }), duration, easing);
+        open(duration = 200, easing = 'ease') {
+            if (direction === null || direction < 0) {
+                direction = +1;
+                const d = 1 - state;
+                timer === null || timer === void 0 ? void 0 : timer.clear();
+                timer = xnew$1.transition((x) => {
+                    const y = x < 1.0 ? (1 - x) * d : 0.0;
+                    state = 1.0 - y;
+                    xnew$1.emit('-transition', { state, type: '-transition' });
+                }, duration * d, easing)
+                    .timeout(() => {
+                    xnew$1.emit('-opened', { state, type: '-opened' });
+                });
             }
-        }
+        },
+        close(duration = 200, easing = 'ease') {
+            if (direction === null || direction > 0) {
+                direction = -1;
+                const d = state;
+                timer === null || timer === void 0 ? void 0 : timer.clear();
+                timer = xnew$1.transition((x) => {
+                    const y = x < 1.0 ? (1 - x) * d : 0.0;
+                    state = y;
+                    xnew$1.emit('-transition', { state, type: '-transition' });
+                }, duration * d, easing)
+                    .timeout(() => {
+                    xnew$1.emit('-closed', { state, type: '-closed' });
+                });
+            }
+        },
     };
 }
 
-function Screen(unit, { width = 640, height = 480, fit = 'contain' } = {}) {
-    const size = { width, height };
-    const wrapper = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
-    unit.on('resize', resize);
+function Screen(unit, { width, height, fit = 'contain' } = {}) {
+    const size = { width: width !== null && width !== void 0 ? width : 800, height: height !== null && height !== void 0 ? height : 600 };
+    const outer = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
+    xnew$1().on('resize', resize);
     const absolute = xnew$1.nest('<div style="position: absolute; margin: auto; container-type: size; overflow: hidden;">');
-    const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
+    const canvas = xnew$1(`<canvas width="${size.width}" height="${size.height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
     resize();
     function resize() {
-        const aspect = size.width / size.height;
         const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
         if (fit === 'contain') {
-            if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
-                style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
+            const aspect = size.width / size.height;
+            if (outer.clientWidth < outer.clientHeight * aspect) {
+                style.height = Math.floor(outer.clientWidth / aspect) + 'px';
             }
             else {
-                style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
+                style.width = Math.floor(outer.clientHeight * aspect) + 'px';
             }
         }
         else if (fit === 'cover') {
-            if (wrapper.clientWidth < wrapper.clientHeight * aspect) {
-                style.width = Math.floor(wrapper.clientHeight * aspect) + 'px';
-                style.left = Math.floor((wrapper.clientWidth - wrapper.clientHeight * aspect) / 2) + 'px';
+            const aspect = size.width / size.height;
+            if (outer.clientWidth < outer.clientHeight * aspect) {
+                style.width = Math.floor(outer.clientHeight * aspect) + 'px';
+                style.left = Math.floor((outer.clientWidth - outer.clientHeight * aspect) / 2) + 'px';
                 style.right = 'auto';
             }
             else {
-                style.height = Math.floor(wrapper.clientWidth / aspect) + 'px';
-                style.top = Math.floor((wrapper.clientHeight - wrapper.clientWidth / aspect) / 2) + 'px';
+                style.height = Math.floor(outer.clientWidth / aspect) + 'px';
+                style.top = Math.floor((outer.clientHeight - outer.clientWidth / aspect) / 2) + 'px';
                 style.bottom = 'auto';
             }
         }
-        else ;
+        else if (fit === 'resize') {
+            size.width = outer.clientWidth > 0 ? outer.clientWidth : size.width;
+            size.height = outer.clientHeight > 0 ? outer.clientHeight : size.height;
+            console.log(size);
+            canvas.element.setAttribute('width', size.width + 'px');
+            canvas.element.setAttribute('height', size.height + 'px');
+        }
         Object.assign(absolute.style, style);
     }
     return {
         get canvas() {
             return canvas.element;
         },
-        resize(width, height) {
-            size.width = width;
-            size.height = height;
-            canvas.element.setAttribute('width', width + 'px');
-            canvas.element.setAttribute('height', height + 'px');
-            resize();
-        },
-    };
-}
-
-function Modal(unit, { duration = 200, easing = 'ease' } = {}) {
-    xnew$1.context('xnew.modalframe', unit);
-    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-    unit.on('click', ({ event }) => unit.close());
-    unit.on('-transition', ({ state }) => unit.state = state);
-    xnew$1.transition((x) => xnew$1.emit('-transition', { state: x }), duration, easing);
-    return {
-        state: 0.0,
-        close() {
-            xnew$1.transition((x) => xnew$1.emit('-transition', { state: 1.0 - x }), duration, easing)
-                .timeout(() => unit.finalize());
-        }
     };
 }
 
@@ -1297,7 +1317,7 @@ function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strok
         xnew$1.emit('-up', { type: '-up', vector });
     });
 }
-function DirectionalPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
+function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
     const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
     let newsize = Math.min(outer.clientWidth, outer.clientHeight);
     const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
@@ -1590,10 +1610,9 @@ class Synthesizer {
 
 const basics = {
     Screen,
-    Modal,
-    Accordion,
+    OpenAndClose,
     AnalogStick,
-    DirectionalPad,
+    DPad,
 };
 const audio = {
     load(path) {

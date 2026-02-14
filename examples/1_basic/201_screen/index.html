@@ -15,40 +15,56 @@
         
       xnew('<div>', (unit) => {
         xnew('<p>', 'canvas');
+        const p = xnew('<p>');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const canvas = xnew('<canvas width="400" height="200" class="w-full">');
-        draw(canvas.element)
+        draw(p, canvas.element)
       });
 
       xnew('<div>', (unit) => {
-        xnew('<p>', 'screen: contain');
+        xnew('<p>', 'fit: contain');
+        const p = xnew('<p>');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'contain' });
-        draw(screen.canvas)
+        draw(p, screen.canvas)
       });
       
       xnew('<div>', (unit) => {
-        xnew('<p>', 'screen: cover');
+        xnew('<p>', 'fit: cover');
+        const p = xnew('<p>');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
 
         const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'cover' });
-        draw(screen.canvas)
+        draw(p, screen.canvas)
       });
 
       xnew('<div>', (unit) => {
-        xnew('<p>', 'screen: fill');
+        xnew('<p>', 'fit: fill');
+        const p = xnew('<p>');
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
-
         const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'fill' });
-        draw(screen.canvas)
+        draw(p, screen.canvas)
       });
 
-      function draw(canvas) {
+      xnew('<div>', (unit) => {
+        xnew('<p>', 'fit: resize');
+        const p = xnew('<p>');
+        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+
+        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'resize' });
+        screen.on('resize', () => {
+          draw(p, screen.canvas)
+        });
+      });
+
+      function draw(p, canvas) {
+        p.element.textContent = `(${canvas.width}, ${canvas.height})`;
+
         const context = canvas.getContext('2d');
         const [cx, cy] = [canvas.width / 2, canvas.height / 2];
-        const size = 80;
+        const size = canvas.width / 6;
 
         context.fillStyle = 'rgb(0,0,0)';
         context.fillRect(0, 0, canvas.width, canvas.height);

@@ -22,24 +22,22 @@ function Main(unit) {
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -40 / 180 * Math.PI;
   xthree.scene.fog = new THREE.Fog(0x000000, 10, 18);
-  const threeTexture = PIXI.Texture.from(xthree.canvas);
-  xnew.context('texture', threeTexture);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
-    threeTexture.source.update();
   });
 
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
+    xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
   });
 
   xnew.promise(fetch('./levels.json')).then(response => response.json()).then((levels) => {
     xnew.context('global').levels = levels;
-    //let scene = xnew(TitleScene);
+    let scene = xnew(TitleScene);
     // let scene = xnew(StoryScene, { id: 0, });
-    let scene = xnew(GameScene, { id: 0 });
+    // let scene = xnew(GameScene, { id: 0 });
 
     unit.on('+main', (NextScene, props) => {
       xnew(Fade, { fadeout: 300, fadein: 300 }).on('-fadeout', () => {
@@ -95,7 +93,7 @@ function StoryScene(unit, { id, next = false }) {
     action();
   });
   function action() {
-    const stream = xnew(xnew.basics.TextStream, { text: story[index].text, speed: 50 });
+    const stream = xnew(TextStream, { text: story[index].text, speed: 50 });
     stream.on('-next', () => {
       if (index + 1 < story.length) {
         index++;
@@ -119,7 +117,7 @@ function GameScene(unit, { id }) {
   xnew(AmbientLight);
   xnew(Background);
   xnew(Floor);
-  xnew(Texture, { texture: xnew.context('texture'), position: { x: 320 / 2, y: -10 } });
+  xnew(CanvasTransfer, { position: { x: 320 / 2, y: -10 } });
 
   xnew(LeftBlock, { id });
   xnew(RightBlock, { id });
@@ -168,6 +166,16 @@ function GameScene(unit, { id }) {
   });
 }
 
+function CanvasTransfer(unit, { position = { x: 0, y: 0} }) {
+  const texture = PIXI.Texture.from(xthree.canvas);
+  const object = xpixi.nest(new PIXI.Sprite(texture));
+  object.position.set(position.x, position.y);
+
+  unit.on('+prerender', () => {
+    texture.source.update();
+  });
+}
+
 function DirectionalLight(unit, { x, y, z }) {
   const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 0.8));
   object.position.set(x, y, z);
@@ -178,12 +186,6 @@ function DirectionalLight(unit, { x, y, z }) {
 function AmbientLight(unit) {
   const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 0.4));
 }
-
-function Texture(unit, { texture, position = { x: 0, y: 0} }) {
-  const object = xpixi.nest(new PIXI.Sprite(texture));
-  object.position.set(position.x, position.y);
-}
-
 
 function TitleText(unit) {
   xnew.nest('<div class="absolute top-[20cqh] w-full text-green-700 text-center text-[16cqw] flex justify-center">');
@@ -437,13 +439,13 @@ function LeftBlock(unit, { id }) {
     xnew(BlockBUtton, { text: '帰'} ).on('click', () => xnew.emit('+main', TitleScene));
   });
 
-  xnew(xnew.basics.KeyboardEvent).on('-keydown.arrow', ({ event, vector }) => {
+  unit.on('keydown.arrow', ({ event, vector }) => {
     event.preventDefault();
     move(vector);
   });
 
   xnew('<div class="absolute bottom-[8cqh] left-0 right-0 m-auto size-[18cqw] text-green-700">', () => {
-    const dpad = xnew(xnew.basics.DirectionalPad, { diagonal: false, fill: '#228B22', fillOpacity: 0.4 });
+    const dpad = xnew(xnew.basics.DPad, { diagonal: false, fill: '#228B22', fillOpacity: 0.4 });
     dpad.on('-down', ({ vector }) => move(vector));
   });
 

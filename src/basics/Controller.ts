@@ -69,7 +69,7 @@ export function AnalogStick(unit: Unit,
     });
 }
 
-export function DirectionalPad(unit: Unit,
+export function DPad(unit: Unit,
     { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 }:
     { diagonal?: boolean, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, fill?: string, fillOpacity?: number } = {}
 ) {

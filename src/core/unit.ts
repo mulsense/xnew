@@ -18,15 +18,18 @@ export class UnitPromise {
         this.component = component;
     }
     then(callback: Function): UnitPromise {
-        this.promise = this.promise.then(Unit.wrap(Unit.currentUnit, callback));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.then((...args: any[]) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
     catch(callback: Function): UnitPromise {
-        this.promise = this.promise.catch(Unit.wrap(Unit.currentUnit, callback));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.catch((...args: any[]) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
     finally(callback: Function): UnitPromise {
-        this.promise = this.promise.finally(Unit.wrap(Unit.currentUnit, callback));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.finally(() => Unit.scope(snapshot, callback));
         return this;
     }
 }
@@ -120,7 +123,7 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    components: Function[];
+    extends: { component: Function, defines: Record<string, any> }[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, { listener: Function, execute: Function }[]>;
@@ -136,7 +139,7 @@ export class Unit {
     [key: string]: any;
     public _: Internal;
 
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object) {
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string | number, props?: Object) {
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -149,8 +152,8 @@ export class Unit {
         let baseComponent: Function;
         if (typeof component === 'function') {
             baseComponent = component;
-        } else if (typeof component === 'string') {
-            baseComponent = (unit: Unit) => { unit.element.textContent = component; };
+        } else if (component !== undefined) {
+            baseComponent = (unit: Unit) => { unit.element.textContent = component.toString(); };
         } else {
             baseComponent = (unit: Unit) => {};
         }
@@ -162,20 +165,20 @@ export class Unit {
         Unit.initialize(this, null);
     }
 
-    get element(): UnitElement {
+    public get element(): UnitElement {
         return this._.currentElement;
     }
 
-    start(): void {
+    public start(): void {
         this._.tostart = true;
     }
 
-    stop(): void {
+    public stop(): void {
         this._.tostart = false;
         Unit.stop(this);
     }
 
-    finalize(): void {
+    public finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
         if (this._.parent) {
@@ -183,7 +186,7 @@ export class Unit {
         }
     }
 
-    reboot(): void {
+    public reboot(): void {
         const anchor = (this._.elements[0]?.nextElementSibling as UnitElement) ?? null;
         Unit.stop(this);
         Unit.finalize(this);
@@ -206,7 +209,7 @@ export class Unit {
             children: [],
             elements: [],
             promises: [],
-            components: [],
+            extends: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -235,7 +238,7 @@ export class Unit {
             unit._.systems.finalize.forEach(({ execute }) => execute());
 
             unit.off();
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            unit._.extends.forEach(({ component }) => Unit.component2units.delete(component, unit));
 
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
@@ -244,17 +247,15 @@ export class Unit {
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
-                if (SYSTEM_EVENTS.includes(key) === false) {
-                    delete unit[key as keyof Unit];
-                }
+                delete unit[key as keyof Unit];
             });
             unit._.defines = {};
             unit._.state = 'finalized';
         }
     }
 
-    static nest(unit: Unit, html: string, textContent?: string): UnitElement {
-        const match = html.match(/<((\w+)[^>]*?)\/?>/);
+    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement {
+        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
         if (match !== null) {
             let element: UnitElement;
             if (unit._.anchor !== null) {
@@ -267,46 +268,53 @@ export class Unit {
             }
             unit._.currentElement = element;
             if (textContent !== undefined) {
-                element.textContent = textContent;
+                element.textContent = textContent.toString();
             }
             unit._.elements.push(element);
             return element;
         } else {
-            throw new Error(`xnew.nest: invalid html string [${html}]`);
+            throw new Error(`xnew.nest: invalid html string [${tag}]`);
         }
     }
 
     static currentComponent: Function = () => {};
    
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
-        unit._.components.push(component);
-        Unit.component2units.add(component, unit);
+        const find = unit._.extends.find(({ component: c }) => c === component);
+        if (find !== undefined) {
+            throw new Error(`The component is already extended.`);
+        } else {
+            const backupComponent = unit._.currentComponent;
+            unit._.currentComponent = component;
+            const defines = component(unit, props) ?? {};
+            unit._.currentComponent = backupComponent;
 
-        const backupComponent = unit._.currentComponent;
-        unit._.currentComponent = component;
-        const defines = component(unit, props) ?? {};
-        unit._.currentComponent = backupComponent;
+            Object.keys(defines).forEach((key) => {
+                if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+                    throw new Error(`The property "${key}" already exists.`);
+                }
+                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+                const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
+                const snapshot = Unit.snapshot(unit);
 
-        Object.keys(defines).forEach((key) => {
-            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
-                throw new Error(`The property "${key}" already exists.`);
-            }
-            const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-            const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
+                if (descriptor?.get || descriptor?.set) {
+                    if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
+                    if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
+                } else if (typeof descriptor?.value === 'function') {
+                    wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
+                } else if (descriptor?.value !== undefined) {
+                    wrapper.get = () => defines[key];
+                    wrapper.set = (value: any) => defines[key] = value;
+                }
+                Object.defineProperty(unit._.defines, key, wrapper);
+                Object.defineProperty(unit, key, wrapper);
+            });
 
-            if (descriptor?.get) wrapper.get = Unit.wrap(unit, descriptor.get);
-            if (descriptor?.set) wrapper.set = Unit.wrap(unit, descriptor.set);
+            Unit.component2units.add(component, unit);
+            unit._.extends.push({ component, defines });
 
-            if (typeof descriptor?.value === 'function') {
-                wrapper.value = Unit.wrap(unit, descriptor.value);
-            } else if (descriptor?.value !== undefined) {
-                wrapper.writable = true;
-                wrapper.value = descriptor.value;
-            }
-            Object.defineProperty(unit._.defines, key, wrapper);
-            Object.defineProperty(unit, key, wrapper);
-        });
-        return Object.assign({}, unit._.defines);
+            return defines;
+        }
     }
 
     static start(unit: Unit): void {
@@ -354,11 +362,6 @@ export class Unit {
             Unit.render(Unit.rootUnit);
         });
         Unit.rootUnit.on('finalize', () => ticker.clear());
-    }
-
-    static wrap(unit: Unit, listener: Function): (...args: any[]) => any {
-        const snapshot = Unit.snapshot(unit);
-        return (...args: any[]) => Unit.scope(snapshot, listener, ...args);
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
@@ -409,24 +412,25 @@ export class Unit {
     
     static type2units = new MapSet<string, Unit>();
   
-    on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+    public on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const types = type.trim().split(/\s+/);
         
         types.forEach((type) => Unit.on(this, type, listener, options));
     }
 
-    off(type?: string, listener?: Function): void {
+    public off(type?: string, listener?: Function): void {
         const types = typeof type === 'string' ? type.trim().split(/\s+/) : [...this._.listeners.keys()];
     
         types.forEach((type) => Unit.off(this, type, listener));
     }
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        const execute = (...args: any[]) => Unit.scope(snapshot, listener, ...args);
         if (SYSTEM_EVENTS.includes(type)) {
-            unit._.systems[type].push({ listener, execute: Unit.wrap(Unit.currentUnit, listener) });
+            unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
-            const execute = Unit.wrap(Unit.currentUnit, listener);
             unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {

@@ -20,6 +20,14 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
+interface TimerOptions {
+    transition?: Function;
+    timeout?: Function;
+    duration: number;
+    iterations: number;
+    easing?: string;
+}
+
 declare class Eventor {
     private map;
     add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
@@ -47,6 +55,21 @@ declare class UnitPromise {
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
+}
+declare class UnitTimer {
+    private unit;
+    private stack;
+    constructor(options: TimerOptions);
+    clear(): void;
+    timeout(timeout: Function, duration?: number): this;
+    iteration(timeout: Function, duration?: number, iterations?: number): this;
+    transition(transition: Function, duration?: number, easing?: string): this;
+    static execute(timer: UnitTimer, options: TimerOptions): void;
+    static next(timer: UnitTimer): void;
+    static Component(unit: Unit, { options, snapshot }: {
+        options: TimerOptions;
+        snapshot: Snapshot;
+    }): void;
 }
 interface Context {
     stack: Context | null;
@@ -77,7 +100,10 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    components: Function[];
+    extends: {
+        component: Function;
+        defines: Record<string, any>;
+    }[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
         component: Function | null;
@@ -93,7 +119,7 @@ interface Internal {
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string, props?: Object);
+    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string | number, props?: Object);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -101,7 +127,7 @@ declare class Unit {
     reboot(): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, html: string, textContent?: string): UnitElement;
+    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
@@ -113,7 +139,6 @@ declare class Unit {
     static rootUnit: Unit;
     static currentUnit: Unit;
     static reset(): void;
-    static wrap(unit: Unit, listener: Function): (...args: any[]) => any;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static context(unit: Unit, key: string, value?: any): any;
@@ -150,32 +175,21 @@ interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-declare function Accordion(unit: Unit, { open, duration, easing }?: {
-    open?: boolean;
-    duration?: number;
-    easing?: string;
+declare function OpenAndClose(unit: Unit, { state: initialState }?: {
+    state?: number;
 }): {
-    state: number;
-    toggle(): void;
-    open(): void;
-    close(): void;
+    toggle(duration?: number, easing?: string): void;
+    open(duration?: number, easing?: string): void;
+    close(duration?: number, easing?: string): void;
 };
 
+type ScreenFit = 'contain' | 'cover' | 'fill' | 'resize';
 declare function Screen(unit: Unit, { width, height, fit }?: {
-    width?: number | undefined;
-    height?: number | undefined;
-    fit?: string | undefined;
+    width?: number;
+    height?: number;
+    fit?: ScreenFit;
 }): {
     readonly canvas: UnitElement;
-    resize(width: number, height: number): void;
-};
-
-declare function Modal(unit: Unit, { duration, easing }?: {
-    duration?: number;
-    easing?: string;
-}): {
-    state: number;
-    close(): void;
 };
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
@@ -187,7 +201,7 @@ declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, s
     fill?: string;
     fillOpacity?: number;
 }): void;
-declare function DirectionalPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
+declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     diagonal?: boolean;
     stroke?: string;
     strokeOpacity?: number;
@@ -239,10 +253,14 @@ declare class Synthesizer {
 
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
+    type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(htmlString: string, textContent?: string): HTMLElement | SVGElement;
+    nest(tag: string, textContent?: string | number): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
+        [key: string]: any;
+    };
+    internal(component: Function, props?: Object): {
         [key: string]: any;
     };
     context(key: string, value?: any): any;
@@ -253,17 +271,18 @@ declare const xnew: CreateUnit & {
     scope(callback: any): any;
     find(component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
-    timeout(timeout: Function, duration?: number): any;
-    interval(timeout: Function, duration: number, iterations?: number): any;
-    transition(transition: Function, duration?: number, easing?: string): any;
+    timeout(timeout: Function, duration?: number): UnitTimer;
+    interval(timeout: Function, duration: number, iterations?: number): UnitTimer;
+    transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
 } & {
     basics: {
         Screen: typeof Screen;
-        Modal: typeof Modal;
-        Accordion: typeof Accordion;
+        Modal: any;
+        Accordion: any;
+        OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
-        DirectionalPad: typeof DirectionalPad;
+        DPad: typeof DPad;
     };
     audio: {
         load(path: string): UnitPromise;

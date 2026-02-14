@@ -24,7 +24,7 @@
       // left bottom
       xnew('<div class="absolute left-0 top-0 bottom-0 w-[100cqh] h-full">', () => {
         // directional pad
-        const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DirectionalPad, {});
+        const dpad = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.DPad, {});
         dpad.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));        
       });
 
@@ -33,13 +33,14 @@
         // analog stick
         const stick = xnew('<div class="absolute inset-[5cqh]">', xnew.basics.AnalogStick, {});
         stick.on('-down -move -up', ({ vector }) => xnew.emit('+move', { vector }));
+
       });
 
       // xnew(Gamepad);
     }
 
     function Box(unit) {
-      const box = xnew.nest('<div class="absolute w-48 h-48 inset-0 m-auto bg-blue-500">');
+      const box = xnew.nest('<div class="absolute size-48 inset-0 m-auto bg-blue-500">');
       let current = { x: 0, y: 0, r: 0 };
       let move = { x: 0, y: 0 };
       let direction = +1;
@@ -50,9 +51,7 @@
         current.x += move.x * 10;
         current.y += move.y * 10;
         current.r += direction;
-        box.style.left = current.x + 'px';
-        box.style.top = current.y + 'px';
-        box.style.transform = `rotate(${current.r}deg)`;
+        box.style.transform = `translate(${current.x}px, ${current.y}px) rotate(${current.r}deg)`;
       });
     }
   </script>

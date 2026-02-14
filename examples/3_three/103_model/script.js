@@ -189,21 +189,21 @@ function Panel(unit) {
 }
 
 function PanelGroup(accordion, { name, open = false }) {
-  xnew.extend(xnew.basics.Accordion, { open });
+  const system = xnew(xnew.basics.OpenAndClose, { state: open ? 1.0 : 0.0 });
   
   xnew('<div class="flex items-center cursor-pointer">', (unit) => {
-    unit.on('click', () => accordion.toggle());
+    unit.on('click', () => system.toggle());
     xnew((unit) => {
       xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
       xnew('<path d="M6 2 10 6 6 10" />');
-      accordion.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
+      system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
     });
     xnew('<div>', name);
   });
 
   const outer = xnew.nest('<div class="overflow-hidden">');
   const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
-  accordion.on('-transition', ({ state }) => {
+  system.on('-transition', ({ state }) => {
     outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
     outer.style.opacity = state;
   });

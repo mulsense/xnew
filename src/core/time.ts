@@ -65,12 +65,16 @@ export class Timer {
             let p = Math.min(this.elapsed() / this.options.duration, 1.0);
             if (this.options.easing === 'ease-out') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
+
             } else if (this.options.easing === 'ease-in') {
                 p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-            } else if (this.options.easing === 'ease') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;  // todo
-            } else if (this.options.easing === 'ease-in-out') {
-                p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+
+            } else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
+                // p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
+
+                const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
+                const s = p ** bias;
+                p = s * s * (3 - 2 * s);
             }
             this.options.transition?.(p);
         });
