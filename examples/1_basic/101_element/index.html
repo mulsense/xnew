@@ -17,14 +17,14 @@
       xnew(Design);
     });
 
-    function Wrapper(unit, { name }) {
+    function Base(unit, { name }) {
       xnew.nest('<div class="m-2 p-2 border rounded-lg border-gray-600">');
       xnew('<div class="my-2">', name);
       xnew.nest('<div class="flex gap-x-2 flex-wrap">');
     }
 
     function Div(unit) {
-      xnew.extend(Wrapper, { name: 'div' });
+      xnew.extend(Base, { name: 'div' });
 
       xnew('<div class="w-32 h-8 bg-red-400 border rounded">', '1');
 
@@ -39,7 +39,7 @@
     }
 
     function Input(unit) {
-      xnew.extend(Wrapper, { name: 'input' });
+      xnew.extend(Base, { name: 'input' });
 
       xnew('<div>', (unit) => {
         let count = 0;
@@ -73,7 +73,7 @@
     }
 
     function Design(unit) {
-      xnew.extend(Wrapper, { name: 'design' });
+      xnew.extend(Base, { name: 'design' });
       
       xnew('<svg viewBox="0 0 100 100" class="w-30 h-30 border rounded-lg" style="stroke: #000;">', (unit) => {
         xnew('<circle cx="20" cy="20" r="40" class="fill-current text-green-600">');

@@ -1253,7 +1253,6 @@ function Screen(unit, { width, height, fit = 'contain' } = {}) {
         else if (fit === 'resize') {
             size.width = outer.clientWidth > 0 ? outer.clientWidth : size.width;
             size.height = outer.clientHeight > 0 ? outer.clientHeight : size.height;
-            console.log(size);
             canvas.element.setAttribute('width', size.width + 'px');
             canvas.element.setAttribute('height', size.height + 'px');
         }
