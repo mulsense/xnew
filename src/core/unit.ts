@@ -247,9 +247,7 @@ export class Unit {
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
-                if (SYSTEM_EVENTS.includes(key) === false) {
-                    delete unit[key as keyof Unit];
-                }
+                delete unit[key as keyof Unit];
             });
             unit._.defines = {};
             unit._.state = 'finalized';
@@ -282,13 +280,14 @@ export class Unit {
     static currentComponent: Function = () => {};
    
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
-        if (unit._.extends?.some(({ component: c }) => c === component) === false) {
-            Unit.component2units.add(component, unit);
+        const find = unit._.extends.find(({ component: c }) => c === component);
+        if (find !== undefined) {
+            return find.defines;
+        } else {
 
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = component;
             const defines = component(unit, props) ?? {};
-            unit._.extends.push({ component, defines });
             unit._.currentComponent = backupComponent;
 
             Object.keys(defines).forEach((key) => {
@@ -299,10 +298,10 @@ export class Unit {
                 const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
                 const snapshot = Unit.snapshot(unit);
 
-                if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
-                if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
-
-                if (typeof descriptor?.value === 'function') {
+                if (descriptor?.get || descriptor?.set) {
+                    if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
+                    if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
+                } else if (typeof descriptor?.value === 'function') {
                     wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
                 } else if (descriptor?.value !== undefined) {
                     wrapper.writable = true;
@@ -311,6 +310,10 @@ export class Unit {
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
             });
+
+            Unit.component2units.add(component, unit);
+            unit._.extends.push({ component, defines });
+
             return Object.assign({}, unit._.defines);
         }
     }
