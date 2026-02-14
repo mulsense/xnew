@@ -705,9 +705,7 @@
                 }
                 // reset defines
                 Object.keys(unit._.defines).forEach((key) => {
-                    if (SYSTEM_EVENTS.includes(key) === false) {
-                        delete unit[key];
-                    }
+                    delete unit[key];
                 });
                 unit._.defines = {};
                 unit._.state = 'finalized';
@@ -738,13 +736,15 @@
             }
         }
         static extend(unit, component, props) {
-            var _a, _b;
-            if (((_a = unit._.extends) === null || _a === void 0 ? void 0 : _a.some(({ component: c }) => c === component)) === false) {
-                Unit.component2units.add(component, unit);
+            var _a;
+            const find = unit._.extends.find(({ component: c }) => c === component);
+            if (find !== undefined) {
+                throw new Error(`The component is already extended.`);
+            }
+            else {
                 const backupComponent = unit._.currentComponent;
                 unit._.currentComponent = component;
-                const defines = (_b = component(unit, props)) !== null && _b !== void 0 ? _b : {};
-                unit._.extends.push({ component, defines });
+                const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
                 unit._.currentComponent = backupComponent;
                 Object.keys(defines).forEach((key) => {
                     if (unit[key] !== undefined && unit._.defines[key] === undefined) {
@@ -753,21 +753,25 @@
                     const descriptor = Object.getOwnPropertyDescriptor(defines, key);
                     const wrapper = { configurable: true, enumerable: true };
                     const snapshot = Unit.snapshot(unit);
-                    if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
-                        wrapper.get = (...args) => Unit.scope(snapshot, descriptor.get, ...args);
-                    if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
-                        wrapper.set = (...args) => Unit.scope(snapshot, descriptor.set, ...args);
-                    if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
+                    if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) || (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)) {
+                        if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
+                            wrapper.get = (...args) => Unit.scope(snapshot, descriptor.get, ...args);
+                        if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
+                            wrapper.set = (...args) => Unit.scope(snapshot, descriptor.set, ...args);
+                    }
+                    else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
                         wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                     }
                     else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                        wrapper.writable = true;
-                        wrapper.value = descriptor.value;
+                        wrapper.get = () => defines[key];
+                        wrapper.set = (value) => defines[key] = value;
                     }
                     Object.defineProperty(unit._.defines, key, wrapper);
                     Object.defineProperty(unit, key, wrapper);
                 });
-                return Object.assign({}, unit._.defines);
+                Unit.component2units.add(component, unit);
+                unit._.extends.push({ component, defines });
+                return defines;
             }
         }
         static start(unit) {
@@ -958,7 +962,7 @@
          * Extends the current component with another component's functionality
          * @param component - Component function to extend with
          * @param props - Optional properties to pass to the extended component
-         * @returns The extended component's return value
+         * @returns defines returned by the extended component
          * @throws Error if called after component initialization
          * @example
          * const api = xnew.extend(BaseComponent, { data: {} })
@@ -1175,51 +1179,48 @@
         },
     });
 
-    function Accordion(unit, { open = false, duration = 200, easing = 'ease' } = {}) {
-        xnew$1.context('xnew.accordion', unit);
-        let state = open ? 1.0 : 0.0;
-        let sign = open ? +1 : -1;
+    function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
+        let state = Math.max(0.0, Math.min(1.0, initialState));
+        let direction = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
         let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
         return {
-            toggle() {
-                sign > 0 ? unit.close() : unit.open();
+            toggle(duration = 200, easing = 'ease') {
+                if (direction === null || direction < 0) {
+                    unit.open(duration, easing);
+                }
+                else {
+                    unit.close(duration, easing);
+                }
             },
-            open() {
-                if (sign < 0)
-                    transition();
+            open(duration = 200, easing = 'ease') {
+                if (direction === null || direction < 0) {
+                    direction = +1;
+                    const d = 1 - state;
+                    timer === null || timer === void 0 ? void 0 : timer.clear();
+                    timer = xnew$1.transition((x) => {
+                        const y = x < 1.0 ? (1 - x) * d : 0.0;
+                        state = 1.0 - y;
+                        xnew$1.emit('-transition', { state, type: '-transition' });
+                    }, duration * d, easing)
+                        .timeout(() => {
+                        xnew$1.emit('-opened', { state, type: '-opened' });
+                    });
+                }
             },
-            close() {
-                if (sign > 0)
-                    transition();
-            },
-        };
-        function transition() {
-            sign *= -1;
-            const d = sign > 0 ? 1 - state : state;
-            timer.clear();
-            timer = xnew$1.transition((x) => {
-                const y = x < 1.0 ? (1 - x) * d : 0.0;
-                state = sign > 0 ? 1.0 - y : y;
-                xnew$1.emit('-transition', { state });
-            }, duration * d, easing);
-        }
-    }
-    function Modal(unit, { duration = 200, easing = 'ease' } = {}) {
-        xnew$1.context('xnew.modal', unit);
-        let state = 0.0;
-        let timer = xnew$1.transition((x) => {
-            state = x;
-            xnew$1.emit('-transition', { state });
-        }, duration, easing);
-        return {
-            close() {
-                const d = state;
-                timer.clear();
-                timer = xnew$1.transition((x) => {
-                    state = x < 1.0 ? (1 - x) * d : 0.0;
-                    xnew$1.emit('-transition', { state });
-                }, duration * d, easing)
-                    .timeout(() => unit.finalize());
+            close(duration = 200, easing = 'ease') {
+                if (direction === null || direction > 0) {
+                    direction = -1;
+                    const d = state;
+                    timer === null || timer === void 0 ? void 0 : timer.clear();
+                    timer = xnew$1.transition((x) => {
+                        const y = x < 1.0 ? (1 - x) * d : 0.0;
+                        state = y;
+                        xnew$1.emit('-transition', { state, type: '-transition' });
+                    }, duration * d, easing)
+                        .timeout(() => {
+                        xnew$1.emit('-closed', { state, type: '-closed' });
+                    });
+                }
             },
         };
     }
@@ -1615,8 +1616,7 @@
 
     const basics = {
         Screen,
-        Modal,
-        Accordion,
+        OpenAndClose,
         AnalogStick,
         DPad,
     };

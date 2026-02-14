@@ -282,9 +282,8 @@ export class Unit {
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
         const find = unit._.extends.find(({ component: c }) => c === component);
         if (find !== undefined) {
-            return find.defines;
+            throw new Error(`The component is already extended.`);
         } else {
-
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = component;
             const defines = component(unit, props) ?? {};
@@ -304,8 +303,8 @@ export class Unit {
                 } else if (typeof descriptor?.value === 'function') {
                     wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
                 } else if (descriptor?.value !== undefined) {
-                    wrapper.writable = true;
-                    wrapper.value = descriptor.value;
+                    wrapper.get = () => defines[key];
+                    wrapper.set = (value: any) => defines[key] = value;
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
@@ -314,7 +313,7 @@ export class Unit {
             Unit.component2units.add(component, unit);
             unit._.extends.push({ component, defines });
 
-            return Object.assign({}, unit._.defines);
+            return defines;
         }
     }
 

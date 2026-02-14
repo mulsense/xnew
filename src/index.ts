@@ -1,14 +1,13 @@
 import { xnew as base } from './core/xnew';
-import { Unit } from './core/unit';
+import { Unit, UnitTimer } from './core/unit';
 
-import { Accordion, Modal } from './basics/Transition';
+import { OpenAndClose } from './basics/Transition';
 import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
 
 const basics = {
     Screen,
-    Modal,
-    Accordion,
+    OpenAndClose,
     AnalogStick,
     DPad,
 };
@@ -45,6 +44,7 @@ const audio = {
 
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
+    export type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 
 const xnew = Object.assign(base, { basics, audio });

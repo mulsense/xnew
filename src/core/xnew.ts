@@ -68,7 +68,7 @@ export const xnew = Object.assign(
          * Extends the current component with another component's functionality
          * @param component - Component function to extend with
          * @param props - Optional properties to pass to the extended component
-         * @returns The extended component's return value
+         * @returns defines returned by the extended component
          * @throws Error if called after component initialization
          * @example
          * const api = xnew.extend(BaseComponent, { data: {} })
@@ -240,7 +240,7 @@ export const xnew = Object.assign(
          * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
          * // Cancel if needed: timer.clear()
          */
-        timeout(timeout: Function, duration: number = 0): any {
+        timeout(timeout: Function, duration: number = 0): UnitTimer {
             return new UnitTimer({ timeout, duration, iterations: 1 });
         },
 
@@ -253,7 +253,7 @@ export const xnew = Object.assign(
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(timeout: Function, duration: number, iterations: number = 0): any {
+        interval(timeout: Function, duration: number, iterations: number = 0): UnitTimer {
             return new UnitTimer({ timeout, duration, iterations });
         },
 
@@ -270,7 +270,7 @@ export const xnew = Object.assign(
          *   element.style.transform = `scale(${p})`
          * }, 300)
          */
-        transition(transition: Function, duration: number = 0, easing: string = 'linear'): any {
+        transition(transition: Function, duration: number = 0, easing: string = 'linear'): UnitTimer {
             return new UnitTimer({ transition, duration, easing, iterations: 1 });
         },
 

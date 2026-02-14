@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+  
+  <script>
+    xnew(document.querySelector('#main'), (unit) => {
+      xnew(MyComponent);
+    });
+
+    function MyComponent(unit) {
+      xnew.extend(Derived1);
+      xnew.extend(Derived2);
+
+      unit.countup1();
+      unit.countup2();
+
+      console.log(unit.data);
+    }
+
+    function Derived1(unit) {
+      xnew.extend(Base);
+
+      return {
+        countup1() {
+          unit.data += 1;
+        }
+      }
+    }
+
+    function Derived2(unit) {
+      xnew.extend(Base);
+
+      return {
+        countup2() {
+          unit.data += 1;
+        }
+      }
+    }
+
+    function Base(unit) {
+      return {
+        data: 0,
+      }
+    }
+
+
+  </script>
+</body>
+
+</html>

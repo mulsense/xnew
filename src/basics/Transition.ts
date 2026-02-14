@@ -1,65 +1,51 @@
 import { xnew } from '../core/xnew';
-import { Unit } from '../core/unit';
+import { Unit, UnitTimer } from '../core/unit';
 
-function State(unit: Unit, { state: initial = 0.0 } = {}) {
-    return {
-        state: initial,
-    }
-}
-
-export function Accordion(unit: Unit, 
-    { open = false, duration = 200, easing = 'ease'}: { open?: boolean, duration?: number, easing?: string } = {}
+export function OpenAndClose(unit: Unit,
+    { state: initialState = 0.0 }:
+    { state?: number } = {}
 ) {
-    xnew.context('xnew.accordion', unit);
-    
-    let state = open ? 1.0 : 0.0;
-    let sign = open ? +1 : -1;
-
+    let state = Math.max(0.0, Math.min(1.0, initialState));
+    let direction: number | null = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
     let timer = xnew.timeout(() => xnew.emit('-transition', { state }));
 
     return {
-        toggle() {
-            sign > 0 ? unit.close() : unit.open();
+        toggle(duration = 200, easing = 'ease') {
+            if (direction === null || direction < 0) {
+                unit.open(duration, easing);
+            } else {
+                unit.close(duration, easing);
+            }
         },
-        open() {
-            if (sign < 0) transition();
+        open(duration = 200, easing = 'ease') {
+            if (direction === null || direction < 0) {
+                direction = +1;
+                const d = 1 - state;
+                timer?.clear();
+                timer = xnew.transition((x: number) => {
+                    const y = x < 1.0 ? (1 - x) * d : 0.0;
+                    state = 1.0 - y;
+                    xnew.emit('-transition', { state, type: '-transition' });
+                }, duration * d, easing)
+                .timeout(() => {
+                    xnew.emit('-opened', { state, type: '-opened' });
+                });
+            }
         },
-        close () {
-            if (sign > 0) transition();
-        },
-    }
-    function transition() {
-        sign *= -1;
-        const d = sign > 0 ? 1 - state : state;
-        timer.clear();
-        timer = xnew.transition((x: number) => {
-            const y = x < 1.0 ? (1 - x) * d : 0.0;
-            state = sign > 0 ? 1.0 - y : y;
-            xnew.emit('-transition', { state });
-        }, duration * d, easing);
-    }
-}
-
-export function Modal(unit: Unit, 
-    { duration = 200, easing = 'ease' }: { duration?: number, easing?: string } = {}
-) {
-    xnew.context('xnew.modal', unit);
-
-    let state = 0.0;
-    let timer = xnew.transition((x: number) => {
-        state = x;
-        xnew.emit('-transition', { state });
-    }, duration, easing);
-
-    return {
-        close() {
-            const d = state;
-            timer.clear();
-            timer = xnew.transition((x: number) => {
-                state = x < 1.0 ? (1 - x) * d : 0.0;
-                xnew.emit('-transition', { state });
-            }, duration * d, easing)
-            .timeout(() => unit.finalize());
+        close(duration = 200, easing = 'ease') {
+            if (direction === null || direction > 0) {
+                direction = -1;
+                const d = state;
+                timer?.clear();
+                timer = xnew.transition((x: number) => {
+                    const y = x < 1.0 ? (1 - x) * d : 0.0;
+                    state = y;
+                    xnew.emit('-transition', { state, type: '-transition' });
+                }, duration * d, easing)
+                .timeout(() => {
+                    xnew.emit('-closed', { state, type: '-closed' });
+                });
+            }
         },
     }
 }
