@@ -21,21 +21,29 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew.context('actions', {
-    baseActions: { idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 } },
-    additiveActions: { sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 } }
-  });
+  xnew.context('state', xnew(State));
+  xnew(Panel);
 
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
   xnew(Ground);
   xnew(Controller);
-  xnew(Panel);
 
   xnew.promise(new Promise((resolve) => {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
   });
+}
+
+function State(unit) {
+  return {
+    baseActions: {
+      idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 }
+    },
+    additiveActions: {
+      sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 }
+    },
+  }
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -72,14 +80,14 @@ function Model(unit, { gltf }) {
     if (object.isMesh) object.castShadow = true;
   });
 
-  const actions = xnew.context('actions');
+  const state = xnew.context('state');
   for (const animation of animations) {
     let settings = null;
-    if (actions.baseActions[animation.name]) {
-      settings = actions.baseActions[animation.name];
+    if (state.baseActions[animation.name]) {
+      settings = state.baseActions[animation.name];
       settings.action = mixer.clipAction(animation);
-    } else if (actions.additiveActions[animation.name]) {
-      settings = actions.additiveActions[animation.name];
+    } else if (state.additiveActions[animation.name]) {
+      settings = state.additiveActions[animation.name];
       // Make the clip additive and remove the reference frame
       THREE.AnimationUtils.makeClipAdditive(animation);
       if (animation.name.endsWith('_pose')) {
@@ -97,8 +105,8 @@ function Model(unit, { gltf }) {
   let select = 'idle';
   unit.on('+crossfade', (name) => {
     if (name === select) return;
-    const current = actions.baseActions[select] ? actions.baseActions[select].action : null;
-    const next = actions.baseActions[name] ? actions.baseActions[name].action : null;
+    const current = state.baseActions[select] ? state.baseActions[select].action : null;
+    const next = state.baseActions[name] ? state.baseActions[name].action : null;
 
     const duration = 0.35;
     if (next === null) {
@@ -144,10 +152,10 @@ function Panel(unit) {
   xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
   xnew('<div>', 'Panel');
 
-  const actions = xnew.context('actions');
+  const state = xnew.context('state');
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });
-    for (const name of ['none', ...Object.keys(actions.baseActions)]) {
+    for (const name of ['none', ...Object.keys(state.baseActions)]) {
       const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
       button.on('click', () => xnew.emit('+crossfade', name));
     }
@@ -155,13 +163,13 @@ function Panel(unit) {
   
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'action weights', open: true });
-    for (const name of Object.keys(actions.additiveActions)) {
+    for (const name of Object.keys(state.additiveActions)) {
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', name);
         xnew(`<div key="${name}" class="flex-none">`, '0');
       });
       
-      const settings = actions.additiveActions[name];
+      const settings = state.additiveActions[name];
       const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
       input.on('input', ({ event }) => {
         unit.element.querySelector(`div[key="${name}"]`).textContent = event.target.value;

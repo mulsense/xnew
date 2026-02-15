@@ -42,6 +42,8 @@ export class Eventor {
             finalize = this.key(props);
         } else if (['keydown.arrow', 'keyup.arrow'].includes(props.type)) {
             finalize = this.key_arrow(props);
+        } else if (['keydown.wasd', 'keyup.wasd'].includes(props.type)) {
+            finalize = this.key_wasd(props);
         } else {
             finalize = this.basic(props);
         }
@@ -321,6 +323,38 @@ export class Eventor {
                 const vector = {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
+                };
+                props.listener({ event, type: props.type, code: event.code, vector } );
+            }
+        };
+
+        window.addEventListener('keydown', keydown, props.options);
+        window.addEventListener('keyup', keyup, props.options);
+        return () => {
+            window.removeEventListener('keydown', keydown);
+            window.removeEventListener('keyup', keyup);
+        }
+    }
+
+    private key_wasd(props: EventProps) {
+        const keymap: any = {};
+        const keydown = (event: any) => {
+            if (event.repeat) return;
+            keymap[event.code] = 1;
+            if (props.type === 'keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                const vector = {
+                    x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
+                    y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
+                };
+                props.listener({ event, type: props.type, code: event.code, vector } );
+            }
+        };
+        const keyup = (event: any) => {
+            keymap[event.code] = 0;
+            if (props.type === 'keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                const vector = {
+                    x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
+                    y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
                 props.listener({ event, type: props.type, code: event.code, vector } );
             }

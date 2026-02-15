@@ -45,6 +45,7 @@ declare class Eventor {
     private gesture;
     private key;
     private key_arrow;
+    private key_wasd;
 }
 
 type UnitElement = HTMLElement | SVGElement;
@@ -100,10 +101,7 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    extends: {
-        component: Function;
-        defines: Record<string, any>;
-    }[];
+    components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
         component: Function | null;
@@ -256,11 +254,8 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(tag: string, textContent?: string | number): HTMLElement | SVGElement;
+    nest(tag: string): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
-        [key: string]: any;
-    };
-    internal(component: Function, props?: Object): {
         [key: string]: any;
     };
     context(key: string, value?: any): any;
@@ -278,8 +273,6 @@ declare const xnew: CreateUnit & {
 } & {
     basics: {
         Screen: typeof Screen;
-        Modal: any;
-        Accordion: any;
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
         DPad: typeof DPad;

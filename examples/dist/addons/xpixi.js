@@ -64,7 +64,7 @@
             parent.removeChild(object);
         });
         return {
-            pixiObject: object,
+            get pixiObject() { return object; },
         };
     }
 

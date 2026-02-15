@@ -248,6 +248,9 @@
             else if (['keydown.arrow', 'keyup.arrow'].includes(props.type)) {
                 finalize = this.key_arrow(props);
             }
+            else if (['keydown.wasd', 'keyup.wasd'].includes(props.type)) {
+                finalize = this.key_wasd(props);
+            }
             else {
                 finalize = this.basic(props);
             }
@@ -514,6 +517,37 @@
                 window.removeEventListener('keyup', keyup);
             };
         }
+        key_wasd(props) {
+            const keymap = {};
+            const keydown = (event) => {
+                if (event.repeat)
+                    return;
+                keymap[event.code] = 1;
+                if (props.type === 'keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                    const vector = {
+                        x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
+                        y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
+                    };
+                    props.listener({ event, type: props.type, code: event.code, vector });
+                }
+            };
+            const keyup = (event) => {
+                keymap[event.code] = 0;
+                if (props.type === 'keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                    const vector = {
+                        x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
+                        y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
+                    };
+                    props.listener({ event, type: props.type, code: event.code, vector });
+                }
+            };
+            window.addEventListener('keydown', keydown, props.options);
+            window.addEventListener('keyup', keyup, props.options);
+            return () => {
+                window.removeEventListener('keydown', keydown);
+                window.removeEventListener('keyup', keyup);
+            };
+        }
     }
     function pointer(element, event) {
         const rect = element.getBoundingClientRect();
@@ -676,7 +710,7 @@
                 children: [],
                 elements: [],
                 promises: [],
-                extends: [],
+                components: [],
                 listeners: new MapMap(),
                 defines: {},
                 systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -698,7 +732,7 @@
                 unit._.children.forEach((child) => child.finalize());
                 unit._.systems.finalize.forEach(({ execute }) => execute());
                 unit.off();
-                unit._.extends.forEach(({ component }) => Unit.component2units.delete(component, unit));
+                unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
                 if (unit._.elements.length > 0) {
                     unit._.baseElement.removeChild(unit._.elements[0]);
                     unit._.currentElement = unit._.baseElement;
@@ -737,8 +771,7 @@
         }
         static extend(unit, component, props) {
             var _a;
-            const find = unit._.extends.find(({ component: c }) => c === component);
-            if (find !== undefined) {
+            if (unit._.components.includes(component) === true) {
                 throw new Error(`The component is already extended.`);
             }
             else {
@@ -746,6 +779,8 @@
                 unit._.currentComponent = component;
                 const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
                 unit._.currentComponent = backupComponent;
+                Unit.component2units.add(component, unit);
+                unit._.components.push(component);
                 Object.keys(defines).forEach((key) => {
                     if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                         throw new Error(`The property "${key}" already exists.`);
@@ -762,15 +797,9 @@
                     else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
                         wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                     }
-                    else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                        wrapper.get = () => defines[key];
-                        wrapper.set = (value) => defines[key] = value;
-                    }
                     Object.defineProperty(unit._.defines, key, wrapper);
                     Object.defineProperty(unit, key, wrapper);
                 });
-                Unit.component2units.add(component, unit);
-                unit._.extends.push({ component, defines });
                 return defines;
             }
         }
@@ -939,19 +968,19 @@
     }, {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+         * @param tag - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(tag, textContent) {
+        nest(tag) {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 }
-                return Unit.nest(Unit.currentUnit, tag, textContent);
+                return Unit.nest(Unit.currentUnit, tag);
             }
             catch (error) {
                 console.error('xnew.nest(tag: string): ', error);
@@ -1274,15 +1303,15 @@
     //----------------------------------------------------------------------------------------------------
     // controller
     //----------------------------------------------------------------------------------------------------
-    function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
+    function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
         xnew$1.nest(`<svg
-        viewBox="0 0 100 100"
+        viewBox="0 0 64 64"
         style="position: absolute; width: 100%; height: 100%; select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
     }
-    function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
+    function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
         const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
         let newsize = Math.min(outer.clientWidth, outer.clientHeight);
         const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
@@ -1293,14 +1322,14 @@
         });
         xnew$1((unit) => {
             xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<polygon points="50  7 40 18 60 18">');
-            xnew$1('<polygon points="50 93 40 83 60 83">');
-            xnew$1('<polygon points=" 7 50 18 40 18 60">');
-            xnew$1('<polygon points="93 50 83 40 83 60">');
+            xnew$1('<polygon points="32  7 27 13 37 13">');
+            xnew$1('<polygon points="32 57 27 51 37 51">');
+            xnew$1('<polygon points=" 7 32 13 27 13 37">');
+            xnew$1('<polygon points="57 32 51 27 51 37">');
         });
         const target = xnew$1((unit) => {
             xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<circle cx="50" cy="50" r="23">');
+            xnew$1('<circle cx="32" cy="32" r="14">');
         });
         unit.on('dragstart dragmove', ({ type, position }) => {
             const x = position.x - newsize / 2;
@@ -1322,7 +1351,7 @@
             xnew$1.emit('-up', { type: '-up', vector });
         });
     }
-    function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
+    function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
         const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
         let newsize = Math.min(outer.clientWidth, outer.clientHeight);
         const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
@@ -1332,10 +1361,10 @@
             inner.style.height = `${newsize}px`;
         });
         const polygons = [
-            '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
-            '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
-            '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65">',
-            '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65">'
+            '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
+            '<polygon points="32 32 23 41 23 60 24 61 40 61 41 60 41 41">',
+            '<polygon points="32 32 23 23  4 23  3 24  3 40  4 41 23 41">',
+            '<polygon points="32 32 41 23 60 23 61 24 61 40 60 41 41 41">'
         ];
         const targets = polygons.map((polygon) => {
             return xnew$1((unit) => {
@@ -1345,14 +1374,14 @@
         });
         xnew$1((unit) => {
             xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-            xnew$1('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
-            xnew$1('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
-            xnew$1('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
-            xnew$1('<polyline points="65 35 95 35 97 37 97 63 95 65 65 65">');
-            xnew$1('<polygon points="50 11 42 20 58 20">');
-            xnew$1('<polygon points="50 89 42 80 58 80">');
-            xnew$1('<polygon points="11 50 20 42 20 58">');
-            xnew$1('<polygon points="89 50 80 42 80 58">');
+            xnew$1('<polyline points="23 23 23  4 24  3 40  3 41  4 41 23">');
+            xnew$1('<polyline points="23 41 23 60 24 61 40 61 41 60 41 41">');
+            xnew$1('<polyline points="23 23  4 23  3 24  3 40  4 41 23 41">');
+            xnew$1('<polyline points="41 23 60 23 61 24 61 40 60 41 41 41">');
+            xnew$1('<polygon points="32  7 27 13 37 13">');
+            xnew$1('<polygon points="32 57 27 51 37 51">');
+            xnew$1('<polygon points=" 7 32 13 27 13 37">');
+            xnew$1('<polygon points="57 32 51 27 51 37">');
         });
         unit.on('dragstart dragmove', ({ type, position }) => {
             const x = position.x - newsize / 2;

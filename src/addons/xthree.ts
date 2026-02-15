@@ -48,6 +48,6 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
         parent.remove(object);
     });
     return {
-        threeObject: object,
+        get threeObject() { return object; },
     }
 }

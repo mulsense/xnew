@@ -48,6 +48,6 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
         parent.removeChild(object);
     });
     return {
-        pixiObject: object,
+        get pixiObject() { return object; },
     }
 }

@@ -68,7 +68,7 @@ function GameScene(scene) {
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
 
-  scene.on('+gamescene:append', (Component, props) => {
+  scene.on('+sceneappend', (Component, props) => {
     xnew(Component, props);
   });
 
@@ -104,7 +104,7 @@ function Controller(unit) {
       xnew.emit('+shot')
   });
 
-  unit.on('keydown.arrow keyup.arrow', ({ vector }) => xnew.emit('+move', { vector }));
+  unit.on('keydown.arrow keyup.arrow keydown.wasd keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
   unit.on('keydown', ({ code }) => {
     if (code === 'Space') {
       xnew.emit('+shot')
@@ -135,7 +135,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.emit('+gamescene:append', Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.emit('+sceneappend', Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('update', () => {
@@ -215,9 +215,9 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.emit('+gamescene:append', Crash, { x: object.x, y: object.y, score });
+        xnew.emit('+sceneappend', Crash, { x: object.x, y: object.y, score });
       }
-      xnew.emit('+gamescene:append', CrashText, { x: object.x, y: object.y, score });
+      xnew.emit('+sceneappend', CrashText, { x: object.x, y: object.y, score });
       xnew.emit('+scoreup', score);
       unit.finalize();
     },

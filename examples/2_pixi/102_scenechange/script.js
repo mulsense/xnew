@@ -20,26 +20,26 @@ function Contents(unit) {
   let scene = xnew(Scene1);
 
   unit.on('+scenechange', (NextScene, props) => {
-    // simple
-    scene.finalize();
-    scene = xnew(NextScene, props);
 
-    // // fade
-    // const duration = 500;
-    // const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
-    // xnew.transition((x) => {
-    //   cover.element.style.opacity = x;
-    // }, duration)
-    // .timeout((() => {
-    //   scene.finalize();
-    //   scene = xnew(NextScene, props);
-    // }))
-    // .transition((x) => {
-    //   cover.element.style.opacity = 1 - x;
-    // }, duration)
-    // .timeout(() => {
-    //   cover.finalize();
-    // });
+    const duration = 500;
+    const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
+    xnew.transition((x) => {
+      // fadeout
+      cover.element.style.opacity = x;
+    }, duration)
+    .timeout((() => {
+      // scene change
+      scene.finalize();
+      scene = xnew(NextScene, props);
+    }), 500)
+    .transition((x) => {
+      // fadein
+      cover.element.style.opacity = 1 - x;
+    }, duration)
+    .timeout(() => {
+      // remove cover
+      cover.finalize();
+    });
   });
 }
 

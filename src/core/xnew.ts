@@ -45,19 +45,19 @@ export const xnew = Object.assign(
     {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+         * @param tag - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(tag: string, textContent?: string | number): HTMLElement | SVGElement {
+        nest(tag: string): HTMLElement | SVGElement {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 } 
-                return Unit.nest(Unit.currentUnit, tag, textContent);
+                return Unit.nest(Unit.currentUnit, tag);
             } catch (error: unknown) {
                 console.error('xnew.nest(tag: string): ', error);
                 throw error;
