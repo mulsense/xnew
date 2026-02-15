@@ -100,7 +100,7 @@ export class UnitTimer {
     }
 }
 
-interface Context { stack: Context | null; key?: string; value?: any; }
+interface Context { stack: Context | null; key?: any; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
 
 interface Internal {
@@ -304,6 +304,8 @@ export class Unit {
                     if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
                 } else if (typeof descriptor?.value === 'function') {
                     wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
+                } else {
+                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
@@ -386,7 +388,7 @@ export class Unit {
         return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
 
-    static context(unit: Unit, key: string, value?: any): any {
+    static context(unit: Unit, key: any, value?: any): any {
         if (value !== undefined) {
             unit._.currentContext = { stack: unit._.currentContext, key, value };
         } else {

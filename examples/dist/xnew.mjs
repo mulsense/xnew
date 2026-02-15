@@ -791,6 +791,9 @@ class Unit {
                 else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
                     wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                 }
+                else {
+                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
+                }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
             });

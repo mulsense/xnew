@@ -33,7 +33,8 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew.context('gamedata', xnew(GameData));
+  const data = xnew(GameData);
+  xnew.context('gamedata', data);
 
   let scene = xnew(TitleScene);
   // let scene = xnew(ResultScene, { image: null });

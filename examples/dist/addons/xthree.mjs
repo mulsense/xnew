@@ -44,7 +44,7 @@ function Nest(unit, { object }) {
         parent.remove(object);
     });
     return {
-        threeObject: object,
+        get threeObject() { return object; },
     };
 }
 

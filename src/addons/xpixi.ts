@@ -4,10 +4,10 @@ import { createCanvasElement } from 'three';
 
 export default {
     initialize(
-        { renderer = null, canvas = null }:
-        { renderer?: any, canvas?: HTMLCanvasElement | null } = {}
+        { canvas = null }:
+        { canvas?: HTMLCanvasElement | null } = {}
     ) {
-        xnew.extend(Root, { renderer, canvas });
+        xnew.extend(Root, { canvas });
     },
     nest(object: any) {
         xnew.extend(Nest, { object });

@@ -66,7 +66,7 @@
             parent.remove(object);
         });
         return {
-            threeObject: object,
+            get threeObject() { return object; },
         };
     }
 

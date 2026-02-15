@@ -21,7 +21,8 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew.context('state', xnew(State));
+  const state = xnew(ModelState);
+  xnew.context('state', state);
   xnew(Panel);
 
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
@@ -35,13 +36,89 @@ function Contents(unit) {
   });
 }
 
-function State(unit) {
+function ModelState(unit) {
+  let select = 'idle';
+  let mixer = null;
+
+  const settings = {
+    idle: { type: 'base', action: null, weight: 1 },
+    walk: { type: 'base', action: null, weight: 0 },
+    run: { type: 'base', action: null, weight: 0 },
+
+    snake_pose: { type: 'additive', action: null, weight: 0 },
+    sad_pose: { type: 'additive', action: null, weight: 0 },
+    agree: { type: 'additive', action: null, weight: 0 },
+    headShake: { type: 'additive', action: null, weight: 0 }
+  };
+
   return {
-    baseActions: {
-      idle: { weight: 1 }, walk: { weight: 0 }, run: { weight: 0 }
+    build(gltf) {
+      mixer = new THREE.AnimationMixer(gltf.scene);
+      for (const animation of gltf.animations) {
+        const setting = settings[animation.name];
+        switch(setting?.type) {
+          case 'base': {
+            setting.action = mixer.clipAction(animation);
+            break;
+          }
+          case 'additive': {
+            // Make the clip additive and remove the reference frame
+            THREE.AnimationUtils.makeClipAdditive(animation);
+            if (animation.name.endsWith('_pose')) {
+              setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
+            } else {
+              setting.action = mixer.clipAction(animation);
+            }
+            break;
+          }
+        }
+        if (setting) {
+          unit.activate(setting.action, setting.weight);
+          setting.action.play();
+        }
+      }
     },
-    additiveActions: {
-      sneak_pose: { weight: 0 }, sad_pose: { weight: 0 }, agree: { weight: 0 }, headShake: { weight: 0 }
+    get select() { return select; },
+    set select(value) { select = value; },
+
+    get settings() { return settings; },
+
+    get mixer() { return mixer; },
+
+    activate(action, weight) {
+      action.enabled = true;
+      action.setEffectiveTimeScale(1);
+      action.setEffectiveWeight(weight);
+    },
+
+    crossfade(name) {
+      if (name === select) return;
+      const current = settings[select] ? settings[select].action : null;
+      const next = settings[name] ? settings[name].action : null;
+
+      const duration = 0.35;
+      if (next === null) {
+        current.fadeOut(duration);
+      } else if (current === null) {
+        unit.activate(next, 1);
+        next.time = 0;
+        next.fadeIn(duration);
+      } else if (select === 'idle' || name === 'idle') {
+        unit.activate(next, 1);
+        next.time = 0;
+        current.crossFadeTo(next, duration, true);
+      } else {
+        mixer.addEventListener('loop', finalize);
+        function finalize(event) {
+          if (event.action === current) {
+            mixer.removeEventListener('loop', finalize);
+            unit.activate(next, 1);
+            next.time = 0;
+            current.crossFadeTo(next, duration, true);
+          }
+        }
+      }
+      select = name;
     },
   }
 }
@@ -69,8 +146,6 @@ function Controller(unit) {
 function Model(unit, { gltf }) {
   const object = xthree.nest(new THREE.Object3D());
   const model = gltf.scene;
-  const animations = gltf.animations;
-  const mixer = new THREE.AnimationMixer(model);
   const skeleton = new THREE.SkeletonHelper(model);
  
   object.add(model);
@@ -81,70 +156,11 @@ function Model(unit, { gltf }) {
   });
 
   const state = xnew.context('state');
-  for (const animation of animations) {
-    let settings = null;
-    if (state.baseActions[animation.name]) {
-      settings = state.baseActions[animation.name];
-      settings.action = mixer.clipAction(animation);
-    } else if (state.additiveActions[animation.name]) {
-      settings = state.additiveActions[animation.name];
-      // Make the clip additive and remove the reference frame
-      THREE.AnimationUtils.makeClipAdditive(animation);
-      if (animation.name.endsWith('_pose')) {
-        settings.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
-      } else {
-        settings.action = mixer.clipAction(animation);
-      }
-    }
-    if (settings) {
-      activate(settings.action, settings.weight);
-      settings.action.play();
-    }
-  }
-
-  let select = 'idle';
-  unit.on('+crossfade', (name) => {
-    if (name === select) return;
-    const current = state.baseActions[select] ? state.baseActions[select].action : null;
-    const next = state.baseActions[name] ? state.baseActions[name].action : null;
-
-    const duration = 0.35;
-    if (next === null) {
-      current.fadeOut(duration);
-    } else if (current === null) {
-      activate(next, 1);
-      next.time = 0;
-      next.fadeIn(duration);
-    } else if (select === 'idle' || name === 'idle') {
-      activate(next, 1);
-      next.time = 0;
-      current.crossFadeTo(next, duration, true);
-    } else {
-      mixer.addEventListener('loop', finalize);
-      function finalize(event) {
-        if (event.action === current) {
-          mixer.removeEventListener('loop', finalize);
-          activate(next, 1);
-          next.time = 0;
-          current.crossFadeTo(next, duration, true);
-        }
-      }
-    }
-    select = name;
-  });
-
-  unit.on('+speed', (speed) => mixer.timeScale = speed);
-  unit.on('+weight', activate);
-
-  function activate(action, weight) {
-    action.enabled = true;
-    action.setEffectiveTimeScale(1);
-    action.setEffectiveWeight(weight);
-  }
+  state.build(gltf);
 
   const clock = new THREE.Clock();
   unit.on('update', () => {
-    mixer.update(clock.getDelta());
+    state.mixer.update(clock.getDelta());
   });
 }
 
@@ -153,28 +169,32 @@ function Panel(unit) {
   xnew('<div>', 'Panel');
 
   const state = xnew.context('state');
+
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });
-    for (const name of ['none', ...Object.keys(state.baseActions)]) {
+
+    const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
+    for (const name of ['none', ...keys]) {
       const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
-      button.on('click', () => xnew.emit('+crossfade', name));
+      button.on('click', () => state.crossfade(name));
     }
   });
-  
+
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'action weights', open: true });
-    for (const name of Object.keys(state.additiveActions)) {
+    const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
+    for (const name of keys) {
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', name);
         xnew(`<div key="${name}" class="flex-none">`, '0');
       });
       
-      const settings = state.additiveActions[name];
-      const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${settings.weight}" step="0.01" class="w-full">`);
+      const setting = state.settings[name];
+      const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${setting.weight}" step="0.01" class="w-full">`);
       input.on('input', ({ event }) => {
         unit.element.querySelector(`div[key="${name}"]`).textContent = event.target.value;
-        settings.weight = parseFloat(event.target.value);
-        xnew.emit('+weight', settings.action, settings.weight);
+        setting.weight = parseFloat(event.target.value);
+        state.activate(setting.action, setting.weight);
       });
     }
   });
@@ -190,7 +210,7 @@ function Panel(unit) {
       const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
       input.on('input', ({ event }) => {
         unit.element.querySelector('div[key="status"]').textContent = event.target.value;
-        xnew.emit('+speed', parseFloat(event.target.value));
+        state.mixer.timeScale = parseFloat(event.target.value);
       });
     });
   });
