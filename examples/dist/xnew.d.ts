@@ -258,7 +258,7 @@ declare const xnew: CreateUnit & {
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(key: any, value?: any): any;
+    context(component: Function): any;
     promise(promise: Promise<any>): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;

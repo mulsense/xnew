@@ -21,9 +21,6 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew(ModelState);
-  xnew(Panel);
-
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
   xnew(Ground);
   xnew(Controller);
@@ -32,12 +29,43 @@ function Contents(unit) {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
+    xnew(Panel);
   });
 }
 
-function ModelState(unit) {
+function DirectionalLight(unit, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
+  object.position.set(x, y, z);
+  object.castShadow = true;
+}
+
+function Ground(unit) {
+  const geometry = new THREE.PlaneGeometry(100, 100);
+  const material = new THREE.ShadowMaterial({ opacity: 0.20 });
+  const plane = xthree.nest(new THREE.Mesh(geometry, material));
+  plane.rotation.x = - Math.PI / 2;
+  plane.receiveShadow = true;
+}
+
+function Controller(unit) {
+  const controls = new OrbitControls(xthree.camera, xthree.canvas);
+  controls.target.set(0, 1, 0);
+  controls.update();
+}
+
+function Model(unit, { gltf }) {
+  const object = xthree.nest(new THREE.Object3D());
+  const model = gltf.scene;
+  const skeleton = new THREE.SkeletonHelper(model);
+ 
+  object.add(model);
+  object.add(skeleton);
+
+  model.traverse((object) => {
+    if (object.isMesh) object.castShadow = true;
+  });
+
   let select = 'idle';
-  let mixer = null;
 
   const settings = {
     idle: { type: 'base', action: null, weight: 1 },
@@ -50,40 +78,44 @@ function ModelState(unit) {
     headShake: { type: 'additive', action: null, weight: 0 }
   };
 
-  return {
-    build(gltf) {
-      mixer = new THREE.AnimationMixer(gltf.scene);
-      for (const animation of gltf.animations) {
-        const setting = settings[animation.name];
+  const mixer = new THREE.AnimationMixer(gltf.scene);
+  for (const animation of gltf.animations) {
+    const setting = settings[animation.name];
 
-        switch(setting?.type) {
-          case 'base': {
-            setting.action = mixer.clipAction(animation);
-            break;
-          }
-          case 'additive': {
-            // Make the clip additive and remove the reference frame
-            THREE.AnimationUtils.makeClipAdditive(animation);
-            if (animation.name.endsWith('_pose')) {
-              setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
-            } else {
-              setting.action = mixer.clipAction(animation);
-            }
-            break;
-          }
+    switch(setting?.type) {
+      case 'base': 
+        setting.action = mixer.clipAction(animation);
+        break;
+      case 'additive': 
+        // Make the clip additive and remove the reference frame
+        THREE.AnimationUtils.makeClipAdditive(animation);
+        if (animation.name.endsWith('_pose')) {
+          setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
+        } else {
+          setting.action = mixer.clipAction(animation);
         }
-        if (setting) {
-          unit.activate(setting.action, setting.weight);
-          setting.action.play();
-        }
-      }
-    },
+        break;
+    }
+    if (setting) {
+      setting.action.enabled = true;
+      setting.action.setEffectiveTimeScale(1);
+      setting.action.setEffectiveWeight(setting.weight);
+      setting.action.play();
+    }
+  }
+
+  const clock = new THREE.Clock();
+  unit.on('update', () => {
+    mixer.update(clock.getDelta());
+  });
+
+  return {
     get select() { return select; },
     set select(value) { select = value; },
 
     get settings() { return settings; },
 
-    get mixer() { return mixer; },
+    set speed(value) { mixer.timeScale = value; },
 
     activate(action, weight) {
       action.enabled = true;
@@ -123,52 +155,11 @@ function ModelState(unit) {
   }
 }
 
-function DirectionalLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
-  object.position.set(x, y, z);
-  object.castShadow = true;
-}
-
-function Ground(unit) {
-  const geometry = new THREE.PlaneGeometry(100, 100);
-  const material = new THREE.ShadowMaterial({ opacity: 0.20 });
-  const plane = xthree.nest(new THREE.Mesh(geometry, material));
-  plane.rotation.x = - Math.PI / 2;
-  plane.receiveShadow = true;
-}
-
-function Controller(unit) {
-  const controls = new OrbitControls(xthree.camera, xthree.canvas);
-  controls.target.set(0, 1, 0);
-  controls.update();
-}
-
-function Model(unit, { gltf }) {
-  const object = xthree.nest(new THREE.Object3D());
-  const model = gltf.scene;
-  const skeleton = new THREE.SkeletonHelper(model);
- 
-  object.add(model);
-  object.add(skeleton);
-
-  model.traverse((object) => {
-    if (object.isMesh) object.castShadow = true;
-  });
-
-  const state = xnew.context(ModelState);
-  state.build(gltf);
-
-  const clock = new THREE.Clock();
-  unit.on('update', () => {
-    state.mixer.update(clock.getDelta());
-  });
-}
-
 function Panel(unit) {
   xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
   xnew('<div>', 'Panel');
 
-  const state = xnew.context(ModelState);
+  const state = xnew.context(Model);
 
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });
@@ -210,7 +201,7 @@ function Panel(unit) {
       const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
       input.on('input', ({ event }) => {
         unit.element.querySelector('div[key="status"]').textContent = event.target.value;
-        state.mixer.timeScale = parseFloat(event.target.value);
+        state.speed = parseFloat(event.target.value);
       });
     });
   });
