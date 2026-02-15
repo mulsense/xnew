@@ -6,7 +6,7 @@ export default {
         { canvas = null, camera = null }:
         { canvas?: HTMLCanvasElement | null, camera?: THREE.Camera | null } = {}
     ) {
-        xnew.extend(Root, { canvas, camera });
+        xnew(Root, { canvas, camera });
     },
     nest (object: any) {
         xnew.extend(Nest, { object });

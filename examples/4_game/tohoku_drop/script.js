@@ -99,7 +99,7 @@ function GameScene(unit) {
   })
   unit.on('+sceneappend', (Component, props) => xnew(Component, props));
 
-  // xnew.timeout(() => xnew.emit('+gameover'), 100);
+  // xnew.timeout(() => xnew.emit('+gameover'), 1100);
 
   unit.on('+gameover', () => {
     unit.off('+gameover');

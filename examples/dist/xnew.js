@@ -129,7 +129,8 @@
     class Timer {
         constructor(options) {
             this.options = options;
-            this.id = null;
+            this.startid = null;
+            this.endid = null;
             this.time = 0.0;
             this.counter = 0;
             this.offset = 0.0;
@@ -153,19 +154,26 @@
             });
             this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
             document.addEventListener('visibilitychange', this.visibilitychange);
-            // this.options.transition?.(0.0);
+            this.startid = setTimeout(() => {
+                var _a, _b;
+                (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
+            }, 0);
             this.start();
         }
         clear() {
-            if (this.id !== null) {
-                clearTimeout(this.id);
-                this.id = null;
+            if (this.startid !== null) {
+                clearTimeout(this.startid);
+                this.startid = null;
+            }
+            if (this.endid !== null) {
+                clearTimeout(this.endid);
+                this.endid = null;
             }
             document.removeEventListener('visibilitychange', this.visibilitychange);
             this.ticker.clear();
         }
         elapsed() {
-            return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+            return this.offset + (this.endid !== null ? (Date.now() - this.time) : 0);
         }
         start() {
             this.status = 1;
@@ -176,12 +184,12 @@
             this.status = 0;
         }
         _start() {
-            if (this.status === 1 && this.id === null) {
-                this.id = setTimeout(() => {
+            if (this.status === 1 && this.endid === null) {
+                this.endid = setTimeout(() => {
                     var _a, _b, _c, _d;
                     (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 1.0);
                     (_d = (_c = this.options).timeout) === null || _d === void 0 ? void 0 : _d.call(_c);
-                    this.id = null;
+                    this.endid = null;
                     this.time = 0.0;
                     this.offset = 0.0;
                     this.counter++;
@@ -196,10 +204,10 @@
             }
         }
         _stop() {
-            if (this.status === 1 && this.id !== null) {
+            if (this.status === 1 && this.endid !== null) {
                 this.offset = this.offset + Date.now() - this.time;
-                clearTimeout(this.id);
-                this.id = null;
+                clearTimeout(this.endid);
+                this.endid = null;
                 this.time = 0.0;
             }
         }
@@ -729,8 +737,8 @@
         static finalize(unit) {
             if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
                 unit._.state = 'finalizing';
-                unit._.children.forEach((child) => child.finalize());
-                unit._.systems.finalize.forEach(({ execute }) => execute());
+                [...unit._.children].reverse().forEach((child) => child.finalize());
+                [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
                 unit.off();
                 unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
                 if (unit._.elements.length > 0) {
@@ -1009,7 +1017,7 @@
                     throw new Error('xnew.extend can not be called after initialized.');
                 }
                 const defines = Unit.extend(Unit.currentUnit, component, props);
-                if (component) {
+                if (typeof component === 'function') {
                     return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
                 }
                 return defines;
@@ -1020,23 +1028,23 @@
             }
         },
         /**
-         * Gets or sets a context value that can be accessed by child components
-         * @param key - Context key
-         * @param value - Optional value to set (if undefined, gets the value)
-         * @returns The context value if getting, undefined if setting
+         * Gets a context value that can be accessed in follow context
+         * @param component - component function
+         * @returns The context value
          * @example
-         * // Set context in parent
-         * xnew.context('theme', 'dark')
+         * // Create unit
+         * const a = xnew(A);
+         * ------------------------------
          *
          * // Get context in child
-         * const theme = xnew.context('theme')
+         * const a = xnew.context(A)
          */
-        context(key, value = undefined) {
+        context(component) {
             try {
-                return Unit.context(Unit.currentUnit, key, value);
+                return Unit.context(Unit.currentUnit, component);
             }
             catch (error) {
-                console.error('xnew.context(key: any, value?: any): ', error);
+                console.error('xnew.context(component: Function): ', error);
                 throw error;
             }
         },

@@ -7,7 +7,7 @@ export default {
         { canvas = null }:
         { canvas?: HTMLCanvasElement | null } = {}
     ) {
-        xnew.extend(Root, { canvas });
+        xnew(Root, { canvas });
     },
     nest(object: any) {
         xnew.extend(Nest, { object });

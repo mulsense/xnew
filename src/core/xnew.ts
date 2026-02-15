@@ -83,7 +83,7 @@ export const xnew = Object.assign(
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
                 const defines = Unit.extend(Unit.currentUnit, component, props);
-                if (component) {
+                if (typeof component === 'function') {
                     return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
                 }
                 return defines;

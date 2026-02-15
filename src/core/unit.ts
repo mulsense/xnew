@@ -235,8 +235,8 @@ export class Unit {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
 
-            unit._.children.forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.forEach(({ execute }) => execute());
+            [...unit._.children].reverse().forEach((child: Unit) => child.finalize());
+            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
 
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));

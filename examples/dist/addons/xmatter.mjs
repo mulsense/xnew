@@ -2,8 +2,8 @@ import xnew from '@mulsense/xnew';
 import Matter from 'matter-js';
 
 var xmatter = {
-    initialize({ engine = null } = {}) {
-        xnew.extend(Root, { engine });
+    initialize({} = {}) {
+        xnew(Root, {});
     },
     get engine() {
         var _a;
@@ -14,8 +14,8 @@ var xmatter = {
         return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine.world;
     },
 };
-function Root(unit, { engine }) {
-    engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
+function Root(unit, {}) {
+    const engine = Matter.Engine.create();
     return {
         get engine() { return engine; },
     };

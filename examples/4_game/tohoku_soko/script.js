@@ -10,12 +10,23 @@ import { Background, BlockBUtton, GrowText, TextStream } from './util.js';
 
 xnew(document.querySelector('#main'), Main);
 
+function GameData(unit) {
+  let GRID = 10;
+  let levels = null;
+
+  return {
+    get GRID() { return GRID; },
+    get levels() { return levels; },
+    set levels(value) { levels = value; },
+  }
+}
+
 function Main(unit) {
-  xnew.context('global', { GRID: 10, levels: null });
+  xnew(GameData);
   xnew.extend(xnew.basics.Screen, { width: 800, height: 450 });
 
   // three
-  const size = xnew.context('global').GRID / 2;
+  const size = xnew.context(GameData).GRID / 2;
   const camera = new THREE.OrthographicCamera(-size, +size, +size, -size, 0, 100);
   xthree.initialize({ canvas: new OffscreenCanvas(480, 480), camera });
   xthree.renderer.shadowMap.enabled = true;
@@ -34,7 +45,7 @@ function Main(unit) {
   });
 
   xnew.promise(fetch('./levels.json')).then(response => response.json()).then((levels) => {
-    xnew.context('global').levels = levels;
+    xnew.context(GameData).levels = levels;
     let scene = xnew(TitleScene);
     // let scene = xnew(StoryScene, { id: 0, });
     // let scene = xnew(GameScene, { id: 0 });
@@ -107,11 +118,17 @@ function StoryScene(unit, { id, next = false }) {
     });
   }
 }
+function MapState(unit) {
+  const map = [];
+
+  return {
+    get map() { return map; },
+  }
+}
 
 function GameScene(unit, { id }) {
-  const global = xnew.context('global');
-  const state = { map: [] };
-  xnew.context('state', state);
+  const global = xnew.context(GameData);
+  const state = xnew(MapState);
 
   xnew(DirectionalLight, { x: 2, y: -5, z: 10 });
   xnew(AmbientLight);
@@ -208,7 +225,7 @@ function TitleText(unit) {
 }
 
 function StageSelect(unit) {
-  const global = xnew.context('global');
+  const global = xnew.context(GameData);
   const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[3cqw]" style="opacity: 0">');
   xnew.timeout(() => {}, 1).transition((p) => {
     div.style.opacity = p;
@@ -220,7 +237,7 @@ function StageSelect(unit) {
 }
 
 function Floor(unit) {
-  const global = xnew.context('global');
+  const global = xnew.context(GameData);
   const object = xthree.nest(new THREE.Group());
 
   for (let y = 0; y < global.GRID; y++) {
@@ -536,18 +553,20 @@ function Model(unit, { id = 0, scale }) {
     count += 0.6;
   });
 
-  return { object }
+  return {
+    get obejct() { return object; },
+  }
 }
 
 // helpers
 function convert3d(gridX, gridY, z = 0) {
-  const global = xnew.context('global');
+  const global = xnew.context(GameData);
   return { x: (gridX + 0.5) - global.GRID / 2, y: -((gridY + 0.5) - global.GRID / 2), z: z };
 }
 
 function canMove(x, y) {
-  const global = xnew.context('global');
-  const state = xnew.context('state');
+  const global = xnew.context(GameData);
+  const state = xnew.context(MapState);
   if (x < 0 || x >= global.GRID || y < 0 || y >= global.GRID) return false;
   if (state.map[y][x] === '#') return false;
   return true;
