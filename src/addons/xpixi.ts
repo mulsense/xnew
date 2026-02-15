@@ -14,34 +14,35 @@ export default {
         return object;
     },
     get renderer() {
-        return xnew.context('xpixi.root')?.renderer;
+        return xnew.context(Root)?.renderer;
     },
     get scene(): PIXI.Container {
-        return xnew.context('xpixi.root')?.scene;
+        return xnew.context(Root)?.scene;
     },
     get canvas(): HTMLCanvasElement {
-        return xnew.context('xpixi.root')?.canvas;
+        return xnew.context(Root)?.canvas;
     },
 };
 
-function Root(unit: xnew.Unit, { canvas }: any) {
-    const root: { [key: string]: any } = {};
-    xnew.context('xpixi.root', root);
-    root.canvas = canvas;
-    
-    root.renderer = null;
+function Root(unit: xnew.Unit, { canvas }: { canvas: HTMLCanvasElement }) {
+    let renderer: PIXI.Renderer | null = null;
     xnew.promise(PIXI.autoDetectRenderer({
         width: canvas.width, height: canvas.height, view: canvas,
         antialias: true, backgroundAlpha: 0,
-    })).then((renderer: any) => root.renderer = renderer);
+    })).then((value: any) => renderer = value);
 
-    root.scene = new PIXI.Container();
-    xnew.context('xpixi.object', root.scene);
+    let scene = new PIXI.Container();
+
+    return {
+        get renderer() { return renderer; },
+        get scene() { return scene; },
+        get canvas() { return canvas; },
+    }
 }
 
 function Nest(unit: xnew.Unit, { object }: { object: any }) {
-    const parent = xnew.context('xpixi.object');
-    xnew.context('xpixi.object', object);
+    const root = xnew.context(Root);
+    const parent = xnew.context(Nest)?.pixiObject ?? root.scene;
 
     parent.addChild(object);
     unit.on('finalize', () => {

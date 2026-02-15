@@ -6,15 +6,17 @@ export default {
         xnew.extend(Root, { gravity });
     },
     get world() {
-        return xnew.context('xrapier2d.root')?.world;
+        return xnew.context(Root)?.world;
     },
 };
 
 function Root(unit: xnew.Unit, { gravity }: any) {
-    const root: { [key: string]: any } = {};
-    xnew.context('xrapier2d.root', root);
-
+    let world: RAPIER.World | null = null;
+    
     xnew.promise(RAPIER.init()).then(() => {
-        root.world = new RAPIER.World(gravity);
+        world = new RAPIER.World(gravity);
     });
+    return {
+        get world() { return world; },
+    };
 }

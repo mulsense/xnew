@@ -33,8 +33,7 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  const data = xnew(GameData);
-  xnew.context('gamedata', data);
+  xnew(GameData);
 
   let scene = xnew(TitleScene);
   // let scene = xnew(ResultScene, { image: null });
@@ -81,7 +80,7 @@ function GameScene(unit) {
   unit.on('update', () => {
     Matter.Engine.update(xmatter.engine);
   });
-  xnew.context('gamedata').reset();
+  xnew.context(GameData).reset();
   
   xnew(Background);
   xnew(ShadowPlane);
@@ -169,7 +168,7 @@ function ScoreText(unit) {
   let sum = 0;
   unit.on('+scoreup', (i) => {
     text.element.textContent = `score ${sum += Math.pow(2, i)}`;
-    xnew.context('gamedata').scores[i]++;
+    xnew.context(GameData).scores[i]++;
   });
 }
 
@@ -220,7 +219,7 @@ function ResultDetail(unit) {
   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
   let sum = 0;
   for (let i = 0; i < 8; i++) {
-    const score = xnew.context('gamedata').scores[i];
+    const score = xnew.context(GameData).scores[i];
     sum += score * Math.pow(2, i);
     xnew('<div class="text-[3cqw] text-green-600 text-center">', `${characters[i]}: ${Math.pow(2, i)}点 x ${score}`);
   }

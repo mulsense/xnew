@@ -3,45 +3,47 @@ import * as THREE from 'three';
 
 export default {
     initialize (
-        { renderer = null, canvas = null, camera = null, update = true }:
-        { renderer?: any, canvas?: HTMLCanvasElement | null, camera?: THREE.Camera | null, update?: boolean } = {}
+        { canvas = null, camera = null }:
+        { canvas?: HTMLCanvasElement | null, camera?: THREE.Camera | null } = {}
     ) {
-        xnew.extend(Root, { renderer, canvas, camera, update });
+        xnew.extend(Root, { canvas, camera });
     },
     nest (object: any) {
         xnew.extend(Nest, { object });
         return object;
     },
     get renderer() {
-        return xnew.context('xthree.root')?.renderer;
+        return xnew.context(Root)?.renderer;
     },
     get camera(): THREE.Camera {
-        return xnew.context('xthree.root')?.camera;
+        return xnew.context(Root)?.camera;
     },
     get scene(): THREE.Scene {
-        return xnew.context('xthree.root')?.scene;
+        return xnew.context(Root)?.scene;
     },
     get canvas(): HTMLCanvasElement {
-        return xnew.context('xthree.root')?.canvas;
+        return xnew.context(Root)?.canvas;
     },
 };
 
-function Root(unit: xnew.Unit, { canvas, camera, update }: any) {
-    const root: { [key: string]: any } = {};
-    xnew.context('xthree.root', root);
-    root.canvas = canvas;
-
-    root.renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-    root.renderer.setClearColor(0x000000, 0);
+function Root(unit: xnew.Unit, { canvas, camera }: any) {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+    renderer.setClearColor(0x000000, 0);
     
-    root.camera = camera ?? new THREE.PerspectiveCamera(45, root.renderer.domElement.width / root.renderer.domElement.height);
-    root.scene = new THREE.Scene();
-    xnew.context('xthree.object', root.scene);
+    camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
+    const scene = new THREE.Scene();
+
+    return {
+        get canvas() { return canvas; },
+        get camera() { return camera; },
+        get renderer() { return renderer; },
+        get scene() { return scene; },
+    }
 }
 
 function Nest(unit: xnew.Unit, { object }: { object: any }) {
-    const parent = xnew.context('xthree.object');
-    xnew.context('xthree.object', object);
+    const root = xnew.context(Root);
+    const parent = xnew.context(Nest)?.threeObject ?? root.scene;
 
     parent.add(object);
     unit.on('finalize', () => {

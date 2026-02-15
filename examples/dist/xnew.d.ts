@@ -74,7 +74,7 @@ declare class UnitTimer {
 }
 interface Context {
     stack: Context | null;
-    key?: string;
+    key?: any;
     value?: any;
 }
 interface Snapshot {
@@ -139,7 +139,7 @@ declare class Unit {
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
-    static context(unit: Unit, key: string, value?: any): any;
+    static context(unit: Unit, key: any, value?: any): any;
     static component2units: MapSet<Function, Unit>;
     static find(component: Function): Unit[];
     static type2units: MapSet<string, Unit>;
@@ -254,14 +254,11 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(tag: string, textContent?: string | number): HTMLElement | SVGElement;
+    nest(tag: string): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
-    internal(component: Function, props?: Object): {
-        [key: string]: any;
-    };
-    context(key: string, value?: any): any;
+    context(key: any, value?: any): any;
     promise(promise: Promise<any>): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
@@ -276,8 +273,6 @@ declare const xnew: CreateUnit & {
 } & {
     basics: {
         Screen: typeof Screen;
-        Modal: any;
-        Accordion: any;
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
         DPad: typeof DPad;

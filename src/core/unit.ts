@@ -162,6 +162,7 @@ export class Unit {
         
         this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
+        
         Unit.initialize(this, null);
     }
 

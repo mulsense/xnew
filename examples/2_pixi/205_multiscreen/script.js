@@ -33,7 +33,9 @@ function SubScreen(unit, { width, height, color }) {
   });
 
   xnew(Boxes, { color });
-  return { texture };
+  return { 
+    get texture() { return texture; }
+  };
 }
 
 function Texture(unit, { texture, offset } = {}) {

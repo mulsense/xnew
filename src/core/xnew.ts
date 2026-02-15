@@ -37,10 +37,14 @@ export const xnew = Object.assign(
             target = null;
         }
 
-        const component: Function | undefined = args.shift();
+        const component: Function | string | undefined = args.shift();
         const props: Object | undefined = args.shift();
         
-        return new Unit(Unit.currentUnit, target, component, props);
+        const unit = new Unit(Unit.currentUnit, target, component, props);
+        if (typeof component === 'function') {
+            Unit.context(Unit.currentUnit, component, unit);
+        }
+        return unit;
     } as CreateUnit,
     {
         /**
@@ -78,7 +82,11 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
-                return Unit.extend(Unit.currentUnit, component, props);
+                const defines = Unit.extend(Unit.currentUnit, component, props);
+                if (component) {
+                    return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                }
+                return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
                 throw error;
@@ -86,22 +94,22 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Gets or sets a context value that can be accessed by child components
-         * @param key - Context key
-         * @param value - Optional value to set (if undefined, gets the value)
-         * @returns The context value if getting, undefined if setting
+         * Gets a context value that can be accessed in follow context
+         * @param component - component function
+         * @returns The context value
          * @example
-         * // Set context in parent
-         * xnew.context('theme', 'dark')
-         *
+         * // Create unit
+         * const a = xnew(A);
+         * ------------------------------
+         * 
          * // Get context in child
-         * const theme = xnew.context('theme')
+         * const a = xnew.context(A)
          */
-        context(key: string, value: any = undefined): any {
+        context(component: Function): any {
             try {
-                return Unit.context(Unit.currentUnit, key, value);
+                return Unit.context(Unit.currentUnit, component);
             } catch (error: unknown) {
-                console.error('xnew.context(key: string, value?: any): ', error);
+                console.error('xnew.context(component: Function): ', error);
                 throw error;
             }
         },

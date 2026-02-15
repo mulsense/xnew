@@ -4,19 +4,13 @@
 
 ## Usage
 
-### Set Context Value
-```js
-xnew.context(name, value);
-```
-
 ### Get Context Value
 ```js
-const value = xnew.context(name);
+const value = xnew.context(component);
 ```
 
 **Parameters:**
-- `name`: String key for the context property
-- `value`: Any value to store in the context (optional, used when setting)
+- `component`: Component function for the context property
 
 **Returns:**
 - When getting: The context value, or `undefined` if not found
@@ -30,66 +24,62 @@ const value = xnew.context(name);
 
 ## Example
 
-### Theme System
+### Data Share
 
 ```js
 xnew((unit) => {
-  xnew.context('theme', 'dark');
-  xnew(ThemedComponent); // Uses dark theme
-
-  // Override theme for specific section
-  xnew((unit) => {
-    xnew.context('theme', 'light');
-    xnew(ThemedComponent); // Uses light theme
-  });
+  xnew(Data, { value: 1 });
+  xnew(Child);
 });
 
-function ThemedComponent(unit) {
-  const theme = xnew.context('theme');
-
-  xnew.nest('<div>');
-  unit.element.style.background = theme === 'dark' ? '#333' : '#fff';
-  unit.element.style.color = theme === 'dark' ? '#fff' : '#333';
-  unit.element.textContent = `Theme: ${theme}`;
+function Data(unit, { value }) {
+  return {
+    get value() { return value; }
+  }
 }
+
+function Child(unit) {
+  const data = xnew.context(Data);
+  
+  // data.value
+}
+
 ```
 
 ### Nested Context Override
 
 ```js
 xnew((unit) => {
-  xnew.context('color', 'red');
-  console.log(xnew.context('color')); // "red"
-
-  xnew((unit) => {
-    // Inherits parent's value
-    console.log(xnew.context('color')); // "red"
-
-    // Override locally
-    xnew.context('color', 'blue');
-    console.log(xnew.context('color')); // "blue"
-
-    xnew((unit) => {
-      // Inherits overridden value
-      console.log(xnew.context('color')); // "blue"
-    });
-  });
-
-  // Parent value unchanged
-  console.log(xnew.context('color')); // "red"
+  xnew(Data, { value: 1 });
+  xnew(Child1);
 });
+
+function Data(unit, { value }) {
+  return {
+    get value() { return value; }
+  }
+}
+
+function Child1(unit) {
+  const data = xnew.context(Data);
+  // data.value == 1
+  
+  xnew(Data, { value: 2 });
+  xnew(Child2);
+}
+
+function Child2(unit) {
+  const data = xnew.context(Data);
+  
+  // data.value == 2
+}
 ```
 
 ## Use Cases
 
 `xnew.context` is particularly useful for:
 
-- **Theming**: Share color schemes, fonts, and styling configurations
-- **Configuration**: Provide default settings that can be overridden
-- **Authentication**: Pass user information and permissions down the tree
-- **Localization**: Share language settings across components
-- **API Configuration**: Share base URLs, headers, or authentication tokens
-- **Feature Flags**: Enable/disable features based on context
+- **Data**: Data share
 
 :::tip
 Use `xnew.context` to avoid prop drilling - passing data through many layers of components. Context values are automatically available to all descendant units.

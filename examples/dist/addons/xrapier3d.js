@@ -10,15 +10,17 @@
         },
         get world() {
             var _a;
-            return (_a = xnew.context('xrapier3d.root')) === null || _a === void 0 ? void 0 : _a.world;
+            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.world;
         },
     };
     function Root(unit, { gravity }) {
-        const root = {};
-        xnew.context('xrapier3d.root', root);
+        let world = null;
         xnew.promise(RAPIER.init()).then(() => {
-            root.world = new RAPIER.World(gravity);
+            world = new RAPIER.World(gravity);
         });
+        return {
+            get world() { return world; },
+        };
     }
 
     return xrapier3d;

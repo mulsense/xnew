@@ -961,7 +961,11 @@ const xnew$1 = Object.assign(function (...args) {
     }
     const component = args.shift();
     const props = args.shift();
-    return new Unit(Unit.currentUnit, target, component, props);
+    const unit = new Unit(Unit.currentUnit, target, component, props);
+    if (typeof component === 'function') {
+        Unit.context(Unit.currentUnit, component, unit);
+    }
+    return unit;
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
@@ -998,7 +1002,11 @@ const xnew$1 = Object.assign(function (...args) {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.extend can not be called after initialized.');
             }
-            return Unit.extend(Unit.currentUnit, component, props);
+            const defines = Unit.extend(Unit.currentUnit, component, props);
+            if (component) {
+                return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+            }
+            return defines;
         }
         catch (error) {
             console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -1022,7 +1030,7 @@ const xnew$1 = Object.assign(function (...args) {
             return Unit.context(Unit.currentUnit, key, value);
         }
         catch (error) {
-            console.error('xnew.context(key: string, value?: any): ', error);
+            console.error('xnew.context(key: any, value?: any): ', error);
             throw error;
         }
     },

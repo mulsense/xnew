@@ -21,8 +21,7 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  const state = xnew(ModelState);
-  xnew.context('state', state);
+  xnew(ModelState);
   xnew(Panel);
 
   xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
@@ -45,7 +44,7 @@ function ModelState(unit) {
     walk: { type: 'base', action: null, weight: 0 },
     run: { type: 'base', action: null, weight: 0 },
 
-    snake_pose: { type: 'additive', action: null, weight: 0 },
+    sneak_pose: { type: 'additive', action: null, weight: 0 },
     sad_pose: { type: 'additive', action: null, weight: 0 },
     agree: { type: 'additive', action: null, weight: 0 },
     headShake: { type: 'additive', action: null, weight: 0 }
@@ -56,6 +55,7 @@ function ModelState(unit) {
       mixer = new THREE.AnimationMixer(gltf.scene);
       for (const animation of gltf.animations) {
         const setting = settings[animation.name];
+
         switch(setting?.type) {
           case 'base': {
             setting.action = mixer.clipAction(animation);
@@ -155,7 +155,7 @@ function Model(unit, { gltf }) {
     if (object.isMesh) object.castShadow = true;
   });
 
-  const state = xnew.context('state');
+  const state = xnew.context(ModelState);
   state.build(gltf);
 
   const clock = new THREE.Clock();
@@ -168,7 +168,7 @@ function Panel(unit) {
   xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
   xnew('<div>', 'Panel');
 
-  const state = xnew.context('state');
+  const state = xnew.context(ModelState);
 
   xnew((unit) => {
     xnew.extend(PanelGroup, { name: 'actions', open: true });

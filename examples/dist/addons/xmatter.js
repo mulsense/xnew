@@ -10,17 +10,18 @@
         },
         get engine() {
             var _a;
-            return (_a = xnew.context('xmatter.root')) === null || _a === void 0 ? void 0 : _a.engine;
+            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine;
         },
         get world() {
             var _a;
-            return (_a = xnew.context('xmatter.root')) === null || _a === void 0 ? void 0 : _a.engine.world;
+            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine.world;
         },
     };
     function Root(unit, { engine }) {
-        const root = {};
-        xnew.context('xmatter.root', root);
-        root.engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
+        engine = engine !== null && engine !== void 0 ? engine : Matter.Engine.create();
+        return {
+            get engine() { return engine; },
+        };
     }
 
     return xmatter;
