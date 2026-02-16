@@ -9,7 +9,7 @@ import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const [width, height] = [800, 400];
+  const [width, height] = [800, 600];
   xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
 
   const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
