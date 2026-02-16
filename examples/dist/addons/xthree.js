@@ -28,7 +28,7 @@
             xnew(Root, { canvas, camera });
         },
         nest(object) {
-            xnew.extend(Nest, { object });
+            xnew(Nest, { object });
             return object;
         },
         get renderer() {
@@ -68,9 +68,6 @@
         unit.on('finalize', () => {
             parent.remove(object);
         });
-        return {
-            get threeObject() { return object; },
-        };
     }
 
     return xthree;

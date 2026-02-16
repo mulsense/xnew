@@ -10,7 +10,7 @@ export default {
         xnew(Root, { canvas });
     },
     nest(object: any) {
-        xnew.extend(Nest, { object });
+        xnew(Nest, { object });
         return object;
     },
     get renderer() {
@@ -48,7 +48,4 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     unit.on('finalize', () => {
         parent.removeChild(object);
     });
-    return {
-        get pixiObject() { return object; },
-    }
 }

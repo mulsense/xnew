@@ -9,7 +9,7 @@ export default {
         xnew(Root, { canvas, camera });
     },
     nest (object: any) {
-        xnew.extend(Nest, { object });
+        xnew(Nest, { object });
         return object;
     },
     get renderer() {
@@ -49,7 +49,4 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     unit.on('finalize', () => {
         parent.remove(object);
     });
-    return {
-        get threeObject() { return object; },
-    }
 }

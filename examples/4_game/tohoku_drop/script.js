@@ -378,7 +378,8 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
     });
   });
   return { 
-    get id() { return id; }
+    get id() { return id; },
+    get threeObject() { return object }
   };
 }
 
@@ -504,6 +505,9 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
+  return {
+    get pixiObject() { return object; }
+  }
 }
 
 // helpers
