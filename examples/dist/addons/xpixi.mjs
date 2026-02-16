@@ -6,7 +6,7 @@ var xpixi = {
         xnew(Root, { canvas });
     },
     nest(object) {
-        xnew(Nest, { object });
+        xnew.extend(Nest, { object });
         return object;
     },
     get renderer() {
@@ -43,6 +43,9 @@ function Nest(unit, { object }) {
     unit.on('finalize', () => {
         parent.removeChild(object);
     });
+    return {
+        get pixiObject() { return object; },
+    };
 }
 
 export { xpixi as default };

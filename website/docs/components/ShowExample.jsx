@@ -1,7 +1,7 @@
 import CodeBlock from '@theme/CodeBlock';
 
 export default function ShowExample({ height, name, code }) {
-    const xnewpath = 'https://unpkg.com/@mulsense/xnew@0.5.x/dist/';
+    const xnewpath = 'https://unpkg.com/@mulsense/xnew@0.6.x/dist/';
 
     code = code.replace('../../thirdparty/matter/matter.min.mjs', 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0/+esm');
     code = code.replace('../../thirdparty/three/three.module.js', 'https://cdn.jsdelivr.net/npm/three@0.176.0/+esm');
