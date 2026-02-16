@@ -23,9 +23,13 @@ function GameData(unit) {
 
 function Main(unit) {
   xnew(GameData);
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 450 });
 
-  // three
+  const [width, height] = [800, 450];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+
+  // three setup
   const size = xnew.context(GameData).GRID / 2;
   const camera = new THREE.OrthographicCamera(-size, +size, +size, -size, 0, 100);
   xthree.initialize({ canvas: new OffscreenCanvas(480, 480), camera });
@@ -38,7 +42,7 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
@@ -483,10 +487,13 @@ function RightBlock(unit, { id }) {
   xnew.nest('<div class="absolute right-0 top-0 w-[20cqw] h-full select-none">');
 
   xnew('<div class="absolute bottom-[6cqh] size-[20cqw]">', (screen) => {
-    xnew.extend(xnew.basics.Screen, { width: 300, height: 300 });
+    const [width, height] = [300, 300];
+    xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+    const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);
-    xthree.initialize({ canvas: screen.canvas, camera });
+    xthree.initialize({ canvas: canvas.element, camera });
     xthree.renderer.shadowMap.enabled = true;
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);

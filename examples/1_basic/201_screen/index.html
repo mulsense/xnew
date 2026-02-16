@@ -12,56 +12,44 @@
   <script>
     xnew(document.querySelector('#main'), (unit) => {
       xnew.nest('<div class="p-2 flex gap-x-4 flex-wrap">');
+      const [width, height] = [400, 300];
         
-      xnew('<div>', (unit) => {
-        xnew('<p>', 'canvas');
-        const p = xnew('<p>');
+      function Template(unit, { text }) {
+        xnew('<p>', text);
         xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+      }
 
-        const canvas = xnew('<canvas width="400" height="200" class="w-full">');
-        draw(p, canvas.element)
+      xnew('<div>', (unit) => {
+        xnew.extend(Template, { text: 'normal' });
+      
+        const canvas = xnew(`<canvas width="${width}" height="${height}" class="w-full align-bottom">`);
+        draw(canvas.element)
       });
 
       xnew('<div>', (unit) => {
-        xnew('<p>', 'fit: contain');
-        const p = xnew('<p>');
-        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
+        xnew.extend(Template, { text: 'fit' });
+      
+        const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+        draw(canvas.element)
+      });
 
-        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'contain' });
-        draw(p, screen.canvas)
+      xnew('<div>', (unit) => {
+        xnew.extend(Template, { text: 'contain' });
+        xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+      
+        const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+        draw(canvas.element)
       });
       
       xnew('<div>', (unit) => {
-        xnew('<p>', 'fit: cover');
-        const p = xnew('<p>');
-        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
-
-        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'cover' });
-        draw(p, screen.canvas)
+        xnew.extend(Template, { text: 'cover' });
+        xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'cover' });
+      
+        const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+        draw(canvas.element)
       });
 
-      xnew('<div>', (unit) => {
-        xnew('<p>', 'fit: fill');
-        const p = xnew('<p>');
-        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
-        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'fill' });
-        draw(p, screen.canvas)
-      });
-
-      xnew('<div>', (unit) => {
-        xnew('<p>', 'fit: resize');
-        const p = xnew('<p>');
-        xnew.nest('<div class="w-32 h-32 border rounded-lg overflow-hidden">');
-
-        const screen = xnew(xnew.basics.Screen, { width: 400, height: 200, fit: 'resize' });
-        screen.on('resize', () => {
-          draw(p, screen.canvas)
-        });
-      });
-
-      function draw(p, canvas) {
-        p.element.textContent = `(${canvas.width}, ${canvas.height})`;
-
+      function draw(canvas) {
         const context = canvas.getContext('2d');
         const [cx, cy] = [canvas.width / 2, canvas.height / 2];
         const size = canvas.width / 6;

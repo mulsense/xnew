@@ -5,10 +5,13 @@ import * as PIXI from 'pixi.js';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // pixi setup
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });
@@ -26,7 +29,7 @@ function Boxes(unit) {
 
   for (let y = -1; y <= 1; y++) {
     for (let x = -1; x <= 1; x++) {
-      xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
+      xnew(Box, { x: 120 * x, y: 120 * y, size: 60, color: 0xEA1E63 });
     }
   }
 

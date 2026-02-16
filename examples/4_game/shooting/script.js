@@ -5,10 +5,13 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // setup pixi
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });

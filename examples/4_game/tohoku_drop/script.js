@@ -12,10 +12,13 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // setup three 
-  xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
   unit.on('render', () => {
@@ -23,7 +26,7 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);

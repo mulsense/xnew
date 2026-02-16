@@ -7,10 +7,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 1200, height: 600 });
+  const [width, height] = [1600, 1200];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // three setup
-  xthree.initialize({ canvas: unit.canvas });
+  xthree.initialize({ canvas: canvas.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(- 1, 2, 3);
   unit.on('render', () => {

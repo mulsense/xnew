@@ -1267,50 +1267,16 @@ function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
     };
 }
 
-function Screen(unit, { width, height, fit = 'contain' } = {}) {
-    const size = { width: width !== null && width !== void 0 ? width : 800, height: height !== null && height !== void 0 ? height : 600 };
-    const outer = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
-    xnew$1().on('resize', resize);
-    const absolute = xnew$1.nest('<div style="position: absolute; margin: auto; container-type: size; overflow: hidden;">');
-    const canvas = xnew$1(`<canvas width="${size.width}" height="${size.height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
-    resize();
-    function resize() {
-        const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
-        if (fit === 'contain') {
-            const aspect = size.width / size.height;
-            if (outer.clientWidth < outer.clientHeight * aspect) {
-                style.height = Math.floor(outer.clientWidth / aspect) + 'px';
-            }
-            else {
-                style.width = Math.floor(outer.clientHeight * aspect) + 'px';
-            }
-        }
-        else if (fit === 'cover') {
-            const aspect = size.width / size.height;
-            if (outer.clientWidth < outer.clientHeight * aspect) {
-                style.width = Math.floor(outer.clientHeight * aspect) + 'px';
-                style.left = Math.floor((outer.clientWidth - outer.clientHeight * aspect) / 2) + 'px';
-                style.right = 'auto';
-            }
-            else {
-                style.height = Math.floor(outer.clientWidth / aspect) + 'px';
-                style.top = Math.floor((outer.clientHeight - outer.clientWidth / aspect) / 2) + 'px';
-                style.bottom = 'auto';
-            }
-        }
-        else if (fit === 'resize') {
-            size.width = outer.clientWidth > 0 ? outer.clientWidth : size.width;
-            size.height = outer.clientHeight > 0 ? outer.clientHeight : size.height;
-            canvas.element.setAttribute('width', size.width + 'px');
-            canvas.element.setAttribute('height', size.height + 'px');
-        }
-        Object.assign(absolute.style, style);
+function Screen(unit, { aspect, fit = 'contain' } = {}) {
+    xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size; overflow: hidden;">');
+    xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size; overflow: hidden;">`);
+    if (fit === 'contain') {
+        unit.element.style.width = `min(100cqw, calc(100cqh * ${aspect}))`;
     }
-    return {
-        get canvas() {
-            return canvas.element;
-        },
-    };
+    else {
+        unit.element.style.flexShrink = '0';
+        unit.element.style.width = `max(100cqw, calc(100cqh * ${aspect}))`;
+    }
 }
 
 //----------------------------------------------------------------------------------------------------

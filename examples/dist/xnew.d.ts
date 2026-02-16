@@ -181,14 +181,11 @@ declare function OpenAndClose(unit: Unit, { state: initialState }?: {
     close(duration?: number, easing?: string): void;
 };
 
-type ScreenFit = 'contain' | 'cover' | 'fill' | 'resize';
-declare function Screen(unit: Unit, { width, height, fit }?: {
-    width?: number;
-    height?: number;
+type ScreenFit = 'contain' | 'cover';
+declare function Screen(unit: Unit, { aspect, fit }?: {
+    aspect?: number;
     fit?: ScreenFit;
-}): {
-    readonly canvas: UnitElement;
-};
+}): void;
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;

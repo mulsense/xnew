@@ -5,10 +5,13 @@ import * as THREE from 'three';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // three setup
-  xthree.initialize({ canvas: unit.canvas });
+  xthree.initialize({ canvas: canvas.element });
   xthree.renderer.shadowMap.enabled = true;
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
