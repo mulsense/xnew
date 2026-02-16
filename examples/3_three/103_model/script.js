@@ -66,42 +66,31 @@ function Model(unit, { gltf }) {
   });
 
   let select = 'idle';
-
-  const settings = {
-    idle: { type: 'base', action: null, weight: 1 },
-    walk: { type: 'base', action: null, weight: 0 },
-    run: { type: 'base', action: null, weight: 0 },
-
-    sneak_pose: { type: 'additive', action: null, weight: 0 },
-    sad_pose: { type: 'additive', action: null, weight: 0 },
-    agree: { type: 'additive', action: null, weight: 0 },
-    headShake: { type: 'additive', action: null, weight: 0 }
-  };
+  const baseActions = ['idle', 'walk', 'run'];
+  const settings = {};
 
   const mixer = new THREE.AnimationMixer(gltf.scene);
   for (const animation of gltf.animations) {
-    const setting = settings[animation.name];
+    let setting = null;
+    if (baseActions.includes(animation.name)) {
+      setting = { type: 'base', action: mixer.clipAction(animation), weight: animation.name === 'idle' ? 1 : 0 };
+    } else {
+      setting = { type: 'additive', action: null, weight: 0 };
 
-    switch(setting?.type) {
-      case 'base': 
+      // Make the clip additive and remove the reference frame
+      THREE.AnimationUtils.makeClipAdditive(animation);
+      if (animation.name.endsWith('_pose')) {
+        setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
+      } else {
         setting.action = mixer.clipAction(animation);
-        break;
-      case 'additive': 
-        // Make the clip additive and remove the reference frame
-        THREE.AnimationUtils.makeClipAdditive(animation);
-        if (animation.name.endsWith('_pose')) {
-          setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
-        } else {
-          setting.action = mixer.clipAction(animation);
-        }
-        break;
+      }
     }
-    if (setting) {
-      setting.action.enabled = true;
-      setting.action.setEffectiveTimeScale(1);
-      setting.action.setEffectiveWeight(setting.weight);
-      setting.action.play();
-    }
+    
+    setting.action.enabled = true;
+    setting.action.setEffectiveTimeScale(1);
+    setting.action.setEffectiveWeight(setting.weight);
+    setting.action.play();
+    settings[animation.name] = setting;
   }
 
   const clock = new THREE.Clock();
@@ -110,11 +99,7 @@ function Model(unit, { gltf }) {
   });
 
   return {
-    get select() { return select; },
-    set select(value) { select = value; },
-
     get settings() { return settings; },
-
     set speed(value) { mixer.timeScale = value; },
 
     activate(action, weight) {
@@ -125,8 +110,7 @@ function Model(unit, { gltf }) {
 
     crossfade(name) {
       if (name === select) return;
-      const current = settings[select] ? settings[select].action : null;
-      const next = settings[name] ? settings[name].action : null;
+      const [current, next] = [settings[select].action, settings[name].action];
 
       const duration = 0.35;
       if (next === null) {
@@ -162,7 +146,7 @@ function Panel(unit) {
   const state = xnew.context(Model);
 
   xnew((unit) => {
-    xnew.extend(PanelGroup, { name: 'actions', open: true });
+    xnew.extend(Accordion, { name: 'actions', open: true });
 
     const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
     for (const name of ['none', ...keys]) {
@@ -172,7 +156,7 @@ function Panel(unit) {
   });
 
   xnew((unit) => {
-    xnew.extend(PanelGroup, { name: 'action weights', open: true });
+    xnew.extend(Accordion, { name: 'action weights', open: true });
     const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
     for (const name of keys) {
       xnew('<div class="text-sm flex justify-between">', (unit) => {
@@ -185,13 +169,13 @@ function Panel(unit) {
       input.on('input', ({ event }) => {
         unit.element.querySelector(`div[key="${name}"]`).textContent = event.target.value;
         setting.weight = parseFloat(event.target.value);
-        state.activate(setting.action, setting.weight);
+        state.activate(setting, parseFloat(event.target.value));
       });
     }
   });
 
   xnew((unit) => {
-    xnew.extend(PanelGroup, { name: 'options', open: true });
+    xnew.extend(Accordion, { name: 'options', open: true });
     xnew((unit) => {
       xnew('<div class="text-sm flex justify-between">', (unit) => {
         xnew('<div class="flex-auto">', 'speed');
@@ -207,7 +191,7 @@ function Panel(unit) {
   });
 }
 
-function PanelGroup(accordion, { name, open = false }) {
+function Accordion(accordion, { name, open = false }) {
   const system = xnew(xnew.basics.OpenAndClose, { state: open ? 1.0 : 0.0 });
   
   xnew('<div class="flex items-center cursor-pointer">', (unit) => {
