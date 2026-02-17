@@ -133,7 +133,7 @@ export function DPad(unit: Unit,
         targets[2].element.style.filter = (vector.x < 0) ? 'brightness(80%)' : '';
         targets[3].element.style.filter = (vector.x > 0) ? 'brightness(80%)' : '';
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type] as string;
-        xnew.emit(nexttype, { type: nexttype, vector });
+        xnew.emit(nexttype, { vector });
     });
 
     unit.on('dragend', () => {
@@ -142,7 +142,7 @@ export function DPad(unit: Unit,
         targets[1].element.style.filter = '';
         targets[2].element.style.filter = '';
         targets[3].element.style.filter = '';
-        xnew.emit('-up', { type: '-up', vector });
+        xnew.emit('-up', { vector });
     });
 }
 

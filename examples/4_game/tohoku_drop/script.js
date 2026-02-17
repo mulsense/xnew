@@ -40,7 +40,7 @@ function Contents(unit) {
 
   let scene = xnew(TitleScene);
   // let scene = xnew(ResultScene, { image: null });
-  unit.on('+scenechange', (NextScene, props) => {
+  unit.on('+scenechange', ({ NextScene, props }) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
@@ -71,7 +71,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(CanvasTransfer);
-  unit.on('pointerdown', () => xnew.emit('+scenechange', GameScene));
+  unit.on('pointerdown', () => xnew.emit('+scenechange', { NextScene: GameScene }));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -113,7 +113,7 @@ function GameScene(unit) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => xnew.emit('+scenechange', ResultScene, { image }));
+      .timeout(() => xnew.emit('+scenechange', { NextScene: ResultScene, props: { image } }));
     }, 2000);
   });
 }
@@ -256,7 +256,7 @@ function ResultFooter(unit) {
       xnew(Frame);
       xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, ArrowUturnLeft);
     });
-    button.on('click', () => xnew.emit('+scenechange', TitleScene));
+    button.on('click', () => xnew.emit('+scenechange', { NextScene: TitleScene }));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {

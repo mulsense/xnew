@@ -147,7 +147,7 @@ declare class Unit {
     off(type?: string, listener?: Function): void;
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static off(unit: Unit, type: string, listener?: Function): void;
-    static emit(type: string, ...args: any[]): void;
+    static emit(type: string, props?: object): void;
 }
 
 interface CreateUnit {
@@ -255,7 +255,7 @@ declare const xnew: CreateUnit & {
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(component: Function): any;
+    context(key: any, value?: any): any;
     promise(promise: Promise<any>): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;

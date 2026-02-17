@@ -267,7 +267,7 @@ class Eventor {
     }
     basic(props) {
         const execute = (event) => {
-            props.listener({ event, type: event.type });
+            props.listener({ event });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -277,7 +277,7 @@ class Eventor {
     resize(props) {
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                props.listener({ type: 'resize' });
+                props.listener({});
                 break;
             }
         });
@@ -288,7 +288,7 @@ class Eventor {
     }
     click(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -298,7 +298,7 @@ class Eventor {
     click_outside(props) {
         const execute = (event) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+                props.listener({ event, position: pointer(props.element, event).position });
             }
         };
         document.addEventListener(props.type.split('.')[0], execute, props.options);
@@ -308,7 +308,7 @@ class Eventor {
     }
     pointer(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -317,7 +317,7 @@ class Eventor {
     }
     mouse(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -326,7 +326,7 @@ class Eventor {
     }
     touch(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -336,7 +336,7 @@ class Eventor {
     pointer_outside(props) {
         const execute = (event) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+                props.listener({ event, position: pointer(props.element, event).position });
             }
         };
         document.addEventListener(props.type.split('.')[0], execute, props.options);
@@ -346,7 +346,7 @@ class Eventor {
     }
     wheel(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
+            props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -366,7 +366,7 @@ class Eventor {
                     const position = pointer(props.element, event).position;
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     if (props.type === 'dragmove') {
-                        props.listener({ event, type: props.type, position, delta });
+                        props.listener({ event, position, delta });
                     }
                     previous = position;
                 }
@@ -375,7 +375,7 @@ class Eventor {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
-                        props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                        props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
@@ -384,7 +384,7 @@ class Eventor {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
-                        props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                        props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
@@ -393,7 +393,7 @@ class Eventor {
             window.addEventListener('pointerup', pointerup);
             window.addEventListener('pointercancel', pointercancel);
             if (props.type === 'dragstart') {
-                props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                props.listener({ event, position, delta: { x: 0, y: 0 } });
             }
         };
         function remove() {
@@ -422,7 +422,7 @@ class Eventor {
             map.set(event.pointerId, position);
             isActive = map.size === 2 ? true : false;
             if (isActive === true && props.type === 'gesturestart') {
-                props.listener({ event, type: props.type });
+                props.listener({ event });
             }
         };
         const dragmove = ({ event, position, delta }) => {
@@ -449,7 +449,7 @@ class Eventor {
                 //     }
                 // }
                 if (props.type === 'gesturemove') {
-                    props.listener({ event, type: props.type, scale });
+                    props.listener({ event, scale });
                 }
             }
             map.set(event.pointerId, position);
@@ -457,7 +457,7 @@ class Eventor {
         const dragend = ({ event }) => {
             map.delete(event.pointerId);
             if (isActive === true && props.type === 'gestureend') {
-                props.listener({ event, type: props.type, scale: 1.0 });
+                props.listener({ event, scale: 1.0 });
             }
             isActive = false;
         };
@@ -481,7 +481,7 @@ class Eventor {
         const execute = (event) => {
             if (props.type === 'keydown' && event.repeat)
                 return;
-            props.listener({ event, type: props.type, code: event.code });
+            props.listener({ event, code: event.code });
         };
         window.addEventListener(props.type, execute, props.options);
         return () => {
@@ -499,7 +499,7 @@ class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector });
+                props.listener({ event, code: event.code, vector });
             }
         };
         const keyup = (event) => {
@@ -509,7 +509,7 @@ class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector });
+                props.listener({ event, code: event.code, vector });
             }
         };
         window.addEventListener('keydown', keydown, props.options);
@@ -530,7 +530,7 @@ class Eventor {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector });
+                props.listener({ event, code: event.code, vector });
             }
         };
         const keyup = (event) => {
@@ -540,7 +540,7 @@ class Eventor {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector });
+                props.listener({ event, code: event.code, vector });
             }
         };
         window.addEventListener('keydown', keydown, props.options);
@@ -901,7 +901,9 @@ class Unit {
     }
     static on(unit, type, listener, options) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (...args) => Unit.scope(snapshot, listener, ...args);
+        const execute = (props) => {
+            Unit.scope(snapshot, listener, Object.assign({ type }, props));
+        };
         if (SYSTEM_EVENTS.includes(type)) {
             unit._.systems[type].push({ listener, execute });
         }
@@ -930,7 +932,7 @@ class Unit {
             Unit.type2units.delete(type, unit);
         }
     }
-    static emit(type, ...args) {
+    static emit(type, props = {}) {
         var _a, _b;
         const current = Unit.currentUnit;
         if (type[0] === '+') {
@@ -938,12 +940,12 @@ class Unit {
                 var _a;
                 const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
-                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
+                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
                 }
             });
         }
         else if (type[0] === '-') {
-            (_b = current._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(...args));
+            (_b = current._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(props));
         }
     }
 }
@@ -1242,10 +1244,10 @@ function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
                 timer = xnew$1.transition((x) => {
                     const y = x < 1.0 ? (1 - x) * d : 0.0;
                     state = 1.0 - y;
-                    xnew$1.emit('-transition', { state, type: '-transition' });
+                    xnew$1.emit('-transition', { state });
                 }, duration * d, easing)
                     .timeout(() => {
-                    xnew$1.emit('-opened', { state, type: '-opened' });
+                    xnew$1.emit('-opened', { state });
                 });
             }
         },
@@ -1257,10 +1259,10 @@ function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
                 timer = xnew$1.transition((x) => {
                     const y = x < 1.0 ? (1 - x) * d : 0.0;
                     state = y;
-                    xnew$1.emit('-transition', { state, type: '-transition' });
+                    xnew$1.emit('-transition', { state });
                 }, duration * d, easing)
                     .timeout(() => {
-                    xnew$1.emit('-closed', { state, type: '-closed' });
+                    xnew$1.emit('-closed', { state });
                 });
             }
         },
@@ -1385,7 +1387,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
         targets[2].element.style.filter = (vector.x < 0) ? 'brightness(80%)' : '';
         targets[3].element.style.filter = (vector.x > 0) ? 'brightness(80%)' : '';
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
-        xnew$1.emit(nexttype, { type: nexttype, vector });
+        xnew$1.emit(nexttype, { vector });
     });
     unit.on('dragend', () => {
         const vector = { x: 0, y: 0 };
@@ -1393,7 +1395,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
         targets[1].element.style.filter = '';
         targets[2].element.style.filter = '';
         targets[3].element.style.filter = '';
-        xnew$1.emit('-up', { type: '-up', vector });
+        xnew$1.emit('-up', { vector });
     });
 }
 

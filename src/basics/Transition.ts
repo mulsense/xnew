@@ -25,10 +25,10 @@ export function OpenAndClose(unit: Unit,
                 timer = xnew.transition((x: number) => {
                     const y = x < 1.0 ? (1 - x) * d : 0.0;
                     state = 1.0 - y;
-                    xnew.emit('-transition', { state, type: '-transition' });
+                    xnew.emit('-transition', { state });
                 }, duration * d, easing)
                 .timeout(() => {
-                    xnew.emit('-opened', { state, type: '-opened' });
+                    xnew.emit('-opened', { state });
                 });
             }
         },
@@ -40,10 +40,10 @@ export function OpenAndClose(unit: Unit,
                 timer = xnew.transition((x: number) => {
                     const y = x < 1.0 ? (1 - x) * d : 0.0;
                     state = y;
-                    xnew.emit('-transition', { state, type: '-transition' });
+                    xnew.emit('-transition', { state });
                 }, duration * d, easing)
                 .timeout(() => {
-                    xnew.emit('-closed', { state, type: '-closed' });
+                    xnew.emit('-closed', { state });
                 });
             }
         },

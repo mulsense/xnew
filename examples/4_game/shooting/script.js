@@ -23,7 +23,7 @@ function Contents(unit) {
   xnew(Background);
   
   let scene = xnew(TitleScene);
-  unit.on('+scenechange', (NextScene, props) => {
+  unit.on('+scenechange', ({ NextScene, props }) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
@@ -55,7 +55,7 @@ function Dot(unit) {
 function TitleScene(unit) {
   xnew(TitleText);
   unit.on('keydown pointerdown', () => {
-    xnew.emit('+scenechange', GameScene);
+    xnew.emit('+scenechange', { NextScene: GameScene });
   });
 }
 
@@ -80,7 +80,7 @@ function GameScene(scene) {
     xnew(GameOverText);
     xnew.timeout(() => {
       scene.on('keydown pointerdown', () =>{
-        xnew.emit('+scenechange', TitleScene);
+        xnew.emit('+scenechange', { NextScene: TitleScene });
       });
     }, 1000);
   });

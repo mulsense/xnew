@@ -11,16 +11,17 @@
   <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew(document.querySelector('#main'), (unit) => {
-      xnew.extend(xnew.basics.Screen, { width: 512, height: 512 });
-      const canvas = unit.canvas;
-      const context = canvas.getContext('2d');
+      xnew.extend(xnew.basics.Screen, { aspect: 1.0 });
+
+      const canvas = xnew('<canvas width="512" height="512" class="size-full align-bottom">');
+      const context = canvas.element.getContext('2d');
 
       context.fillStyle = "rgb(0,0,0)";
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillRect(0, 0, canvas.element.width, canvas.element.height);
       
       unit.on('dragstart dragmove', ({ type, position, delta }) => {
-        const scaleX = canvas.width / canvas.clientWidth;
-        const scaleY = canvas.height / canvas.clientHeight;
+        const scaleX = canvas.element.width / canvas.element.clientWidth;
+        const scaleY = canvas.element.height / canvas.element.clientHeight;
 
         context.beginPath();
         context.fillStyle = 'white';

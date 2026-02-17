@@ -425,7 +425,9 @@ export class Unit {
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (...args: any[]) => Unit.scope(snapshot, listener, ...args);
+        const execute = (props: object) => {
+            Unit.scope(snapshot, listener, Object.assign({ type }, props));
+        }
         if (SYSTEM_EVENTS.includes(type)) {
             unit._.systems[type].push({ listener, execute });
         }
@@ -455,17 +457,17 @@ export class Unit {
         }
     }
 
-    static emit(type: string, ...args: any[]) {
+    static emit(type: string, props: object = {}): void {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
                 const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
-                    unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
+                    unit._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });
         } else if (type[0] === '-') {
-            current._.listeners.get(type)?.forEach((item) => item.execute(...args));
+            current._.listeners.get(type)?.forEach((item) => item.execute(props));
         }
     }
 }

@@ -60,7 +60,7 @@ export class Eventor {
 
     private basic(props: EventProps): Function {
         const execute = (event: Event) => {
-            props.listener({ event, type: event.type });
+            props.listener({ event });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -71,7 +71,7 @@ export class Eventor {
     private resize(props: EventProps) {
         const observer = new ResizeObserver((entries: any) => {
             for (const entry of entries) {
-                props.listener({ type: 'resize' }); break;
+                props.listener({}); break;
             }
         });
         observer.observe(props.element);
@@ -82,7 +82,7 @@ export class Eventor {
 
     private click(props: EventProps): Function {
         const execute = (event: any) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -93,7 +93,7 @@ export class Eventor {
     private click_outside(props: EventProps): Function {
         const execute = (event: any) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+                props.listener({ event, position: pointer(props.element, event).position });
             }
         };
         document.addEventListener(props.type.split('.')[0], execute, props.options);
@@ -104,7 +104,7 @@ export class Eventor {
 
     private pointer(props: EventProps): Function {
         const execute = (event: any) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -114,7 +114,7 @@ export class Eventor {
 
     private mouse(props: EventProps): Function {
         const execute = (event: any) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -124,7 +124,7 @@ export class Eventor {
 
     private touch(props: EventProps): Function {
         const execute = (event: any) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -135,7 +135,7 @@ export class Eventor {
     private pointer_outside(props: EventProps): Function {
         const execute = (event: any) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+                props.listener({ event, position: pointer(props.element, event).position });
             }
         };
         document.addEventListener(props.type.split('.')[0], execute, props.options);
@@ -146,7 +146,7 @@ export class Eventor {
 
     private wheel(props: EventProps): Function {
         const execute = (event: any) => {
-            props.listener({ event, type: props.type, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
+            props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -169,7 +169,7 @@ export class Eventor {
                     const position = pointer(props.element, event).position;
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     if (props.type === 'dragmove') {
-                        props.listener({ event, type: props.type, position, delta });
+                        props.listener({ event, position, delta });
                     }
                     previous = position;
                 }
@@ -178,7 +178,7 @@ export class Eventor {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
-                        props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                        props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
@@ -187,7 +187,7 @@ export class Eventor {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
-                        props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                        props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
@@ -198,7 +198,7 @@ export class Eventor {
             window.addEventListener('pointercancel', pointercancel);
     
             if (props.type === 'dragstart') {
-                props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                props.listener({ event, position, delta: { x: 0, y: 0 } });
             }
         };
 
@@ -231,7 +231,7 @@ export class Eventor {
 
             isActive = map.size === 2 ? true : false;
             if (isActive === true && props.type === 'gesturestart') {
-                props.listener({ event, type: props.type });
+                props.listener({ event });
             }
         };
 
@@ -261,7 +261,7 @@ export class Eventor {
                 //     }
                 // }
                 if (props.type === 'gesturemove') {
-                    props.listener({ event, type: props.type, scale });
+                    props.listener({ event, scale });
                 }
             }
             map.set(event.pointerId, position);
@@ -270,7 +270,7 @@ export class Eventor {
         const dragend = ({ event }: any) => {
             map.delete(event.pointerId);
             if (isActive === true && props.type === 'gestureend') {
-                props.listener({ event, type: props.type, scale: 1.0 });
+                props.listener({ event, scale: 1.0 });
             }
             isActive = false;
         };
@@ -296,7 +296,7 @@ export class Eventor {
     private key(props: EventProps) {
         const execute = (event: any) => {
             if (props.type === 'keydown' && event.repeat) return;
-            props.listener({ event, type: props.type, code: event.code } );
+            props.listener({ event, code: event.code } );
         };
         window.addEventListener(props.type, execute, props.options);
         return () => {
@@ -314,7 +314,7 @@ export class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector } );
+                props.listener({ event, code: event.code, vector } );
             }
         };
         const keyup = (event: any) => {
@@ -324,7 +324,7 @@ export class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector } );
+                props.listener({ event, code: event.code, vector } );
             }
         };
 
@@ -346,7 +346,7 @@ export class Eventor {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector } );
+                props.listener({ event, code: event.code, vector } );
             }
         };
         const keyup = (event: any) => {
@@ -356,7 +356,7 @@ export class Eventor {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector } );
+                props.listener({ event, code: event.code, vector } );
             }
         };
 

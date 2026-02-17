@@ -15,17 +15,25 @@
       xnew(MyPanel);
     });
 
-    function MyPanel(unit) {
+    function MyPanel(panel) {
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
-
+      xnew.extend(GUIPanel, { name: 'My Panel', open: true });
       xnew('<div">', 'My Panel');
 
-      xnew((unit) => {
-        xnew.extend(PanelGroup, { name: 'group 1', open: false });
-        xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 1');
-        xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 2');
-        xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 3');
+      const params = {
+        data: 20,
+      };
+
+      panel.group('group 1', (group) => {
+        group.button('button 1');
+        group.button('button 2');
+        group.button('button 3');
+        group.border();
+        xnew('<div">', 'ccc');
       });
+      xnew('<div">', 'xxx');
+        panel.param(params, 'data');
+      return;
 
       xnew((unit) => {
         xnew.extend(PanelGroup, { name: 'group 2', open: true });
@@ -68,7 +76,7 @@
       });
     }
 
-    function PanelGroup(accordion, { name, open = false }) {
+    function GUIPanel(unit, { name, open = true } = {}) {
       const system = xnew(xnew.basics.OpenAndClose, { state: open ? 1.0 : 0.0 });
       
       xnew('<div class="flex items-center cursor-pointer">', (unit) => {
@@ -82,12 +90,50 @@
       });
 
       const outer = xnew.nest('<div class="overflow-hidden">');
-      const inner = xnew.nest('<div class="p-2 flex flex-col box-border">');
+      const inner = xnew.nest('<div class="p-0.5 flex flex-col box-border">');
       system.on('-transition', ({ state }) => {
         outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
         outer.style.opacity = state;
       });
+      return {
+        group(name, inner) {
+          const group = xnew((unit) => {
+            xnew.extend(GUIPanel, { name, state: 0.0 });
+            inner(unit);
+          });
+          return group;
+        },
+        button(key) {
+          const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">');
+          button.element.textContent = key;
+          button.on('click', ({ event }) => {
+            xnew.emit('-click.' + key, { event });
+          });
+          return button;
+        },
+        param(object, key, {} = {}) {
+          
+          if (typeof object[key] === 'number') {
+            const paramer = xnew((unit) => {
+              xnew('<div class="text-sm flex justify-between">', (unit) => {
+                  xnew('<div class="flex-1">', key);
+                  xnew('<div key="status" class="flex-none">', object[key]);
+              });
+              const input = xnew('<input type="range" name="' + key + '" min="0" max="100" value="' + object[key] + '" class="m-0 w-full">');
+              input.on('input', ({ event }) => {
+                object[key] = event.target.value;
+                unit.element.querySelector('[key="status"]').textContent = event.target.value;
+              });
+            });
+            return paramer;
+          }
+        },
+        border() {
+          xnew('<div class="my-2 border-t">');
+        }
+      }
     }
+
   </script>
 </body>
 
