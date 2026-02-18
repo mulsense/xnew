@@ -1229,8 +1229,8 @@
         },
     });
 
-    function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
-        let state = Math.max(0.0, Math.min(1.0, initialState));
+    function OpenAndClose(unit, { open = false } = {}) {
+        let state = open ? 1.0 : 0.0;
         let direction = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
         let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
         return {
@@ -1274,6 +1274,28 @@
             },
         };
     }
+    function Accordion(unit) {
+        const system = xnew$1.context(OpenAndClose);
+        const outer = xnew$1.nest('<div style="overflow: hidden;">');
+        const inner = xnew$1.nest('<div style="display: flex; flex-direction: column; box-sizing: border-box;">');
+        system.on('-transition', ({ state }) => {
+            outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+            outer.style.opacity = state.toString();
+        });
+    }
+    function Modal(unit, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+        const system = xnew$1.context(OpenAndClose);
+        system.on('-closed', () => unit.finalize());
+        xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
+        unit.on('click', ({ event }) => system.close());
+        const outer = xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0;"">`);
+        xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
+        unit.on('click', ({ event }) => event.stopPropagation());
+        outer.style.background = background;
+        system.on('-transition', ({ state }) => {
+            outer.style.opacity = state.toString();
+        });
+    }
 
     function Screen(unit, { aspect, fit = 'contain' } = {}) {
         xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size; overflow: hidden;">');
@@ -1299,14 +1321,8 @@
     ">`);
     }
     function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
-        const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-        let newsize = Math.min(outer.clientWidth, outer.clientHeight);
-        const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew$1(outer).on('resize', () => {
-            newsize = Math.min(outer.clientWidth, outer.clientHeight);
-            inner.style.width = `${newsize}px`;
-            inner.style.height = `${newsize}px`;
-        });
+        xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
+        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
         xnew$1((unit) => {
             xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew$1('<polygon points="32  7 27 13 37 13">');
@@ -1319,34 +1335,30 @@
             xnew$1('<circle cx="32" cy="32" r="14">');
         });
         unit.on('dragstart dragmove', ({ type, position }) => {
-            const x = position.x - newsize / 2;
-            const y = position.y - newsize / 2;
-            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+            const size = unit.element.clientWidth;
+            const x = position.x - size / 2;
+            const y = position.y - size / 2;
+            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
             const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
             const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
             target.element.style.filter = 'brightness(80%)';
-            target.element.style.left = `${vector.x * newsize / 4}px`;
-            target.element.style.top = `${vector.y * newsize / 4}px`;
+            target.element.style.left = `${vector.x * size / 4}px`;
+            target.element.style.top = `${vector.y * size / 4}px`;
             const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
             xnew$1.emit(nexttype, { type: nexttype, vector });
         });
         unit.on('dragend', () => {
+            const size = unit.element.clientWidth;
             const vector = { x: 0, y: 0 };
             target.element.style.filter = '';
-            target.element.style.left = `${vector.x * newsize / 4}px`;
-            target.element.style.top = `${vector.y * newsize / 4}px`;
+            target.element.style.left = `${vector.x * size / 4}px`;
+            target.element.style.top = `${vector.y * size / 4}px`;
             xnew$1.emit('-up', { type: '-up', vector });
         });
     }
     function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
-        const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-        let newsize = Math.min(outer.clientWidth, outer.clientHeight);
-        const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-        xnew$1(outer).on('resize', () => {
-            newsize = Math.min(outer.clientWidth, outer.clientHeight);
-            inner.style.width = `${newsize}px`;
-            inner.style.height = `${newsize}px`;
-        });
+        xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
+        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
         const polygons = [
             '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
             '<polygon points="32 32 23 41 23 60 24 61 40 61 41 60 41 41">',
@@ -1371,10 +1383,11 @@
             xnew$1('<polygon points="57 32 51 27 51 37">');
         });
         unit.on('dragstart dragmove', ({ type, position }) => {
-            const x = position.x - newsize / 2;
-            const y = position.y - newsize / 2;
+            const size = unit.element.clientWidth;
+            const x = position.x - size / 2;
+            const y = position.y - size / 2;
             const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+            const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
             const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
             if (diagonal === true) {
                 vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
@@ -1403,6 +1416,102 @@
             targets[3].element.style.filter = '';
             xnew$1.emit('-up', { vector });
         });
+    }
+
+    function GUIPanel(unit, { name = '', open, params } = {}) {
+        const object = params !== null && params !== void 0 ? params : {};
+        xnew$1.extend(Group, { name, open });
+        return {
+            group(key, { name, open, params }, inner) {
+                const group = xnew$1((unit) => {
+                    xnew$1.extend(GUIPanel, { name: name !== null && name !== void 0 ? name : key, open, params: params !== null && params !== void 0 ? params : object });
+                    inner(unit);
+                });
+                group.on('-change', ({ event, key }) => {
+                    xnew$1.emit('-change.' + key, { event, key });
+                    xnew$1.emit('-change', { event, key });
+                });
+                return group;
+            },
+            button(key) {
+                const button = xnew$1(Button, { key });
+                return button;
+            },
+            number(key, options = {}) {
+                var _a;
+                object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
+                const number = xnew$1(Number, Object.assign({ key, value: object[key] }, options));
+                number.on('input', ({ event }) => {
+                    object[key] = parseFloat(event.target.value);
+                    xnew$1.emit('-change.' + key, { event, key });
+                    xnew$1.emit('-change', { event, key });
+                });
+                return number;
+            },
+            checkbox(key) {
+                var _a;
+                object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : false;
+                const checkbox = xnew$1(Checkbox, { key, value: object[key] });
+                checkbox.on('input', ({ event }) => {
+                    object[key] = event.target.checked;
+                    xnew$1.emit('-change.' + key, { event, key });
+                    xnew$1.emit('-change', { event, key });
+                });
+                return checkbox;
+            },
+            border() {
+                xnew$1(Border);
+            }
+        };
+    }
+    function Group(unit, { name = '', open } = {}) {
+        if (open === undefined) {
+            xnew$1('<div style="display: flex; align-items: center;">', (unit) => {
+                xnew$1('<div>', name);
+            });
+        }
+        else {
+            const system = xnew$1(OpenAndClose, { open });
+            xnew$1('<div style="display: flex; align-items: center; cursor: pointer;">', (unit) => {
+                unit.on('click', () => system.toggle());
+                xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
+                    xnew$1('<path d="M6 2 10 6 6 10" />');
+                    system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
+                });
+                xnew$1('<div>', name);
+            });
+            xnew$1.extend(Accordion);
+        }
+    }
+    function Button(unit, { key = '' } = {}) {
+        xnew$1.nest('<button style="margin: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+        unit.element.textContent = key;
+        unit.on('mouseover', () => {
+            unit.element.style.background = 'rgba(0, 0, 128, 0.1)';
+            unit.element.style.borderColor = 'blue';
+        });
+        unit.on('mouseout', () => {
+            unit.element.style.background = '';
+            unit.element.style.borderColor = '';
+        });
+    }
+    function Border(unit) {
+        xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
+    }
+    function Number(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
+        const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
+            xnew$1('<div style="flex: 1;">', key);
+            xnew$1('<div key="status" style="flex: none;">', value);
+        });
+        xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="width: 100%; cursor: pointer;">`);
+        unit.on('input', ({ event }) => {
+            status.element.querySelector('[key="status"]').textContent = event.target.value;
+        });
+    }
+    function Checkbox(unit, { key = '', value } = {}) {
+        xnew$1.nest(`<label style="display: flex; align-items: center; cursor: pointer;">`);
+        xnew$1('<div style="flex: 1;">', key);
+        xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="margin-right: 0.25rem;">`);
     }
 
     const context = new window.AudioContext();
@@ -1634,6 +1743,9 @@
         OpenAndClose,
         AnalogStick,
         DPad,
+        GUIPanel,
+        Accordion,
+        Modal,
     };
     const audio = {
         load(path) {

@@ -50,15 +50,15 @@
             startTime = Date.now();
             const [oscillator, filter, amp, options] = [xnew.find(Oscillator)[0], xnew.find(Filter)[0], xnew.find(Amp)[0], xnew.find(Options)[0]];
             const param = { oscillator: oscillator.value, ...filter.value, ...amp.value, ...options.value};
-            xnew.emit('+code1', ' ');
-            xnew.emit('+code2', `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}${options.json} });\nsynth.press('${list[key] + number}', duration);`);
+            xnew.emit('+code1', { text: ' ' });
+            xnew.emit('+code2', { text: `const synth = xnew.audio.synthesizer({ ${oscillator.json}${filter.json}${amp.json}${options.json} });\nsynth.press('${list[key] + number}', duration);` });
             const synth = xnew.audio.synthesizer(param);
             press = synth.press(list[key] + number);
           }
         });
         unit.on('touchend mouseup mouseout', () => {
           if (press) {
-            xnew.emit('+code1',`const duration = ${Date.now() - startTime};`);
+            xnew.emit('+code1', { text: `const duration = ${Date.now() - startTime};` });
             press.release();
             press = null;
           }
@@ -70,8 +70,8 @@
       xnew.nest('<div class="w-[670px] p-1 border rounded-lg text-sm">');
       const code1 = xnew('<pre class="user-select-text whitespace-pre-wrap p-1 m-1">');
       const code2 = xnew('<pre class="user-select-text whitespace-pre-wrap p-1 m-1">');
-      code1.on('+code1', (text) => code1.element.textContent = text);
-      code2.on('+code2', (text) => code2.element.textContent = text);
+      code1.on('+code1', ({ text }) => code1.element.textContent = text);
+      code2.on('+code2', ({ text }) => code2.element.textContent = text);
     }
     
     function Oscillator(unit) {
@@ -94,18 +94,19 @@
 
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      xnew('<p>', 'filter');
-      xnew.extend(Check, { checkable: true });
+      const params = { activate: false, type: 'lowpass', cutoff: 1000 };
+      xnew.extend(xnew.basics.GUIPanel, { name: 'filter', params });
 
+      unit.checkbox('activate');
       const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
-      const cutoff = xnew(Slider, { name: 'cutoff', value: 1000, min: 100, max: 4000, step: 10 });
+      unit.number('cutoff', { min: 100, max: 4000, step: 10 });
 
       return {
         get value() {
-          return unit.checked ? { filter: { type: type.value, cutoff: cutoff.value }} : {};
+          return params.activate ? { filter: { type: type.value, cutoff: params.cutoff }} : {};
         },
         get json() {
-          return unit.checked ? `filter: { type: '${type.value}', cutoff: ${cutoff.value}}, ` : '';
+          return params.activate ? `filter: { type: '${type.value}', cutoff: ${params.cutoff}}, ` : '';
         },
       }
     }
@@ -131,14 +132,15 @@
       xnew('<p>', 'options');
 
       const reverb = xnew((unit) => {
-        xnew.extend(PanelGroup, { name: 'reverb', open: true });
-        xnew.extend(Check, { checkable: true });
+        const params = { time: 1000, mix: 0.5 };
+        xnew.extend(xnew.basics.GUIPanel, { name: 'reverb', open: true, params });
 
-        const time = xnew(Slider, { name: 'time', value: 1000, min: 0.0, max: 2000, step: 100 });
-        const mix = xnew(Slider, { name: 'mix', value: 0.5, min: 0.0, max: 1.0, step: 0.1 });
+        unit.checkbox('activate');
+        unit.number('time', { min: 0.0, max: 2000, step: 100 });
+        unit.number('mix', { min: 0.0, max: 1.0, step: 0.1 });
         return {
-          get value() { return unit.checked ? { reverb: { time: time.value, mix: mix.value }} : {}; },
-          get json() { return unit.checked ? `reverb: { time: ${time.value}, mix: ${mix.value}, }, ` : ''; }
+          get value() { return params.activate ? { reverb: { time: params.time, mix: params.mix }} : {}; },
+          get json() { return params.activate ? `reverb: { time: ${params.time}, mix: ${params.mix}, }, ` : ''; }
         };
       });
 
@@ -153,8 +155,8 @@
     }
 
     function Waveform(unit, { value = 0 }) {
-      xnew.extend(PanelGroup, { name: 'type', open: true });
-      xnew.nest('<div class="flex">');
+      xnew.extend(xnew.basics.GUIPanel, { name: 'type', open: true });
+      xnew.nest('<div class="m-1 flex">');
       const name = 'waveform' + xnew.find(Waveform).length;
       const labels = ['sine', 'triangle', 'square', 'sawtooth'];
       labels.forEach((label, i) => {
@@ -186,57 +188,43 @@
       }
     }
     function Envelope(unit, { value, min, max, step, checkable = false }) {
-      xnew.extend(PanelGroup, { name: 'envelope', open: true });
-      xnew.extend(Check, { checkable });
+      const params = { activate: !checkable, amount: value, attack: 200, decay: 200, sustain: 0.2, release: 200 };
+      xnew.extend(xnew.basics.GUIPanel, { name: 'envelope', open: true, params });
 
+      if (checkable) unit.checkbox('activate');
       const svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
-      const amount = xnew(Slider, { name: 'amount', value, min, max, step });
-      const attack = xnew(Slider, { name: 'attack', value: 200, min: 0, max: 500, step: 20 });
-      const decay = xnew(Slider, { name: 'decay', value: 200, min: 0, max: 500, step: 20 });
-      const sustain = xnew(Slider, { name: 'sustain', value: 0.2, min: 0.0, max: 1.0, step: 0.1 });
-      const release = xnew(Slider, { name: 'release', value: 200, min: 0, max: 500, step: 20 });
+      unit.number('amount', { min, max, step });
+      unit.number('attack', { min: 0, max: 500, step: 20 });
+      unit.number('decay', { min: 0, max: 500, step: 20 });
+      unit.number('sustain', { min: 0.0, max: 1.0, step: 0.1 });
+      unit.number('release', { min: 0, max: 500, step: 20 }); 
 
       unit.on('render', () => {
-        const [A, D, S, R] = unit.ADSR;
+        const [A, D, S, R] = [params.attack, params.decay, params.sustain, params.release];
         const points = `0 150 ${0.1 * A} ${10} ${0.1 * (A + D)} ${150 - 140 * S} ${0.1 * (A + D + 500)} ${150 - 140 * S} ${0.1 * (A + D + 500 + R)} 150`;
         svg.element.innerHTML = `<polyline stroke="#2B2" stroke-width="4" points="${points}" />`;
       });
       return {
-        get ADSR() { return [attack.value, decay.value, sustain.value, release.value]; },
-        get value() { return unit.checked ? { envelope: { amount: amount.value, ADSR: unit.ADSR }} : {}; },
-        get json() { return unit.checked ? `envelope: { amount: ${amount.value}, ADSR: [${attack.value}, ${decay.value}, ${sustain.value}, ${release.value}], }, ` : ''; }
+        get value() { return params.activate ? { envelope: { amount: params.amount, ADSR: [params.attack, params.decay, params.sustain, params.release] }} : {}; },
+        get json() { return params.activate ? `envelope: { amount: ${params.amount}, ADSR: [${params.attack}, ${params.decay}, ${params.sustain}, ${params.release}], }, ` : ''; }
       };
     }
 
     function LFO(unit, { value, min, max, step }) {
-      xnew.extend(PanelGroup, { name: 'LFO', open: true });
-      xnew.extend(Check, { checkable: true });
+      const params = { amount: value, rate: 8 };
+      xnew.extend(xnew.basics.GUIPanel, { name: 'LFO', open: true, params });
 
+      unit.checkbox('activate');
       const waveform = xnew(Waveform, { value: 2 });
-      const amount = xnew(Slider, { name: 'amount', value, min, max, step });
-      const rate = xnew(Slider, { name: 'rate', value: 8, min: 2, max: 36, step: 1 });
+      unit.number('amount', { min, max, step });
+      unit.number('rate', { min: 2, max: 36, step: 1 });
 
       return {
         get value() {
-          return unit.checked ? { LFO: { type: waveform.value, amount: amount.value, rate: rate.value }} : {};
+          return params.activate ? { LFO: { type: waveform.value, amount: params.amount, rate: params.rate }} : {};
         },
-        get json() { return unit.checked ? `LFO: { type: '${waveform.value}', amount: ${amount.value}, rate: ${rate.value}, }, ` : ''; }
+        get json() { return params.activate ? `LFO: { type: '${waveform.value}', amount: ${params.amount}, rate: ${params.rate}, }, ` : ''; }
       };
-    }
-
-    function Slider(unit, { name, value, max, min, step }) {
-      let status;
-      xnew('<div class="flex justify-between text-sm">', (unit) => {
-          xnew('<div class="flex-1">', name);
-          status = xnew('<div class="flex-none">', `${value}`);
-      });
-      const input = xnew.nest(`<input type="range" class="w-full" min="${min}" max="${max}" step="${step}" value="${value}">`);
-      unit.on('input', ({ event }) => {
-        status.element.textContent = event.target.value;
-      });
-      return {
-        get value() { return Number(input.value); },
-      }
     }
 
     function Radio(unit, { name, labels, value = 0 }) {
@@ -258,47 +246,6 @@
       }
     }
 
-    function Block(unit, { name, checkable = false }) {
-      xnew.nest('<div class="w-[160px] p-[4px] border border-[#000000] rounded-[4px]">');
-      xnew.extend(Check, { name, checkable });
-    }
-
-    function Check(unit, { checkable = false }) {
-      xnew.nest('<div>');
-      let check = null;
-
-      if (checkable) {
-        check = xnew(`<input type="checkbox" >`);
-      }
-
-      xnew.nest(`<div class="${checkable ? 'hidden' : ''}">`);
-      check?.on('change', () => {
-        unit.element.style.display = check.element.checked ? 'block' : 'none';
-      });
-      return {
-        get checked() { return check ? check.element.checked : true; },
-      }
-    }
-    function PanelGroup(accordion, { name, open = false }) {
-      const system = xnew(xnew.basics.OpenAndClose, { state: open ? 1.0 : 0.0 });
-      
-      xnew('<div class="flex items-center cursor-pointer">', (unit) => {
-        unit.on('click', () => system.toggle());
-        xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
-          xnew('<path d="M6 2 10 6 6 10" />');
-          system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
-        });
-        xnew('<div>', name);
-      });
-
-      const outer = xnew.nest('<div class="overflow-hidden">');
-      const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
-      system.on('-transition', ({ state }) => {
-        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-        outer.style.opacity = state;
-      });
-    }
   </script>
 </body>
 </html>

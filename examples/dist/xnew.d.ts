@@ -173,13 +173,17 @@ interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-declare function OpenAndClose(unit: Unit, { state: initialState }?: {
-    state?: number;
+declare function OpenAndClose(unit: Unit, { open }?: {
+    open?: boolean;
 }): {
     toggle(duration?: number, easing?: string): void;
     open(duration?: number, easing?: string): void;
     close(duration?: number, easing?: string): void;
 };
+declare function Accordion(unit: Unit): void;
+declare function Modal(unit: Unit, { background }?: {
+    background?: string;
+}): void;
 
 type ScreenFit = 'contain' | 'cover';
 declare function Screen(unit: Unit, { aspect, fit }?: {
@@ -205,6 +209,23 @@ declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth
     fill?: string;
     fillOpacity?: number;
 }): void;
+
+interface GUIPanelOptions {
+    name?: string;
+    open?: boolean;
+    params?: Record<string, any>;
+}
+declare function GUIPanel(unit: Unit, { name, open, params }?: GUIPanelOptions): {
+    group(key: string, { name, open, params }: GUIPanelOptions, inner: Function): Unit;
+    button(key: string): Unit;
+    number(key: string, options?: {
+        min?: number;
+        max?: number;
+        step?: number;
+    }): Unit;
+    checkbox(key: string): Unit;
+    border(): void;
+};
 
 type SynthesizerOptions = {
     oscillator: OscillatorOptions;
@@ -255,7 +276,7 @@ declare const xnew: CreateUnit & {
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(key: any, value?: any): any;
+    context(component: Function): any;
     promise(promise: Promise<any>): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
@@ -273,6 +294,9 @@ declare const xnew: CreateUnit & {
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
         DPad: typeof DPad;
+        GUIPanel: typeof GUIPanel;
+        Accordion: typeof Accordion;
+        Modal: typeof Modal;
     };
     audio: {
         load(path: string): UnitPromise;

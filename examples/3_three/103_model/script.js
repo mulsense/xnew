@@ -70,7 +70,7 @@ function Model(unit, { gltf }) {
 
   let select = 'idle';
   const baseActions = ['idle', 'walk', 'run'];
-  const settings = {};
+  const settings = { none: { type: 'base', action: null, weight: 0 } };
 
   const mixer = new THREE.AnimationMixer(gltf.scene);
   for (const animation of gltf.animations) {
@@ -142,39 +142,34 @@ function Model(unit, { gltf }) {
   }
 }
 
-function Panel(unit) {
-  xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
-  xnew('<div>', 'Panel');
-
+function Panel(panel) {
   const state = xnew.context(Model);
+  const params = {
+    speed: 1.0
+  };
+  xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
+  xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
 
-  xnew((unit) => {
-    xnew.extend(Accordion, { name: 'actions', open: true });
-
+  panel.group({ name: 'actions', open: true }, (group) => {
     const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
-    for (const name of ['none', ...keys]) {
-      const button = xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-100 cursor-pointer">', name);
-      button.on('click', () => state.crossfade(name));
+    for (const name of keys) {
+      group.button(name).on('click', () => state.crossfade(name));
     }
   });
-
-  xnew((unit) => {
-    xnew.extend(Accordion, { name: 'action weights', open: true });
+  panel.group({ name: 'weights', open: true }, (group) => {
     const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
     for (const name of keys) {
-      xnew('<div class="text-sm flex justify-between">', (unit) => {
-        xnew('<div class="flex-auto">', name);
-        xnew(`<div key="${name}" class="flex-none">`, '0');
-      });
-      
-      const setting = state.settings[name];
-      const input = xnew(`<input type="range" name="${name}" min="0.00" max="1.00" value="${setting.weight}" step="0.01" class="w-full">`);
-      input.on('input', ({ event }) => {
-        unit.element.querySelector(`div[key="${name}"]`).textContent = event.target.value;
-        setting.weight = parseFloat(event.target.value);
-        state.activate(setting, parseFloat(event.target.value));
+      params[name] = state.settings[name].weight;
+      group.number(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
+        state.settings[name].weight = parseFloat(event.target.value);
+        state.activate(state.settings[name].action, parseFloat(event.target.value));
       });
     }
+  });
+  return;
+
+  panel.group({ name: 'options', open: true }, (group) => {
+    group.number('speed', { min: 0.01, max: 2.00, step: 0.01 });
   });
 
   xnew((unit) => {

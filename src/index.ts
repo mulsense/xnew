@@ -1,15 +1,19 @@
 import { xnew as base } from './core/xnew';
 import { Unit, UnitTimer } from './core/unit';
 
-import { OpenAndClose } from './basics/Transition';
+import { OpenAndClose, Accordion, Modal } from './basics/Transition';
 import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
+import { GUIPanel} from './basics/GUIPanel';
 
 const basics = {
     Screen,
     OpenAndClose,
     AnalogStick,
     DPad,
+    GUIPanel,
+    Accordion,
+    Modal,
 };
 
 import { master, AudioFile, Synthesizer, SynthesizerOptions } from './audio/audio';
