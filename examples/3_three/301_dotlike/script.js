@@ -11,17 +11,17 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+  const aspect = width / height;
+  xnew.extend(xnew.basics.Screen, { aspect, fit: 'contain' });
 
   const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
   
   // three setup
-  const camera = new THREE.OrthographicCamera(-width / height, width / height, 1, -1, 0.1, 10);
+  const camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 10);
   xthree.initialize({ canvas: canvas.element, camera });
   xthree.camera.position.set(0, 2 * Math.tan(Math.PI / 6), +2);
   xthree.scene.background = new THREE.Color(0x151729);
   xthree.renderer.shadowMap.enabled = true;
-  xthree.renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const renderer = xnew(Renderer);
   unit.on('render', () => {
@@ -37,32 +37,31 @@ function Contents(unit) {
   xnew(document.body, GUIPanel);
 
   // lighting
-  xnew(AmbientLight);
-  xnew(SpotLight, { position: { x: 2, y: 2, z: 0 } });
-  xnew(DirectionaLight, { position: { x: 100, y: 100, z: 100 } });
+  xnew(AmbientLight, { color: 0x757f8e, intensity: 3 });
+  xnew(SpotLight, { color: 0xffc100, intensity: 10, position: { x: 2, y: 2, z: 0 } });
+  xnew(DirectionaLight, { color: 0xfffecd, intensity: 1.5, position: { x: 100, y: 100, z: 100 } });
 
   // objects
-  xnew(Box, { size: 0.4, position: { x: 0.0, y:  0.2, z: 0.0 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 } });
+  xnew(Box, { size: 0.4, position: { x: 0.0, y:  0.2, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 } });
   xnew(Box, { size: 0.5, position: { x: -0.5, y: 0.3, z: -0.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 } });
   xnew(Plane, { size: 2, position: { x: 0.0, y: 0.0, z: 0.0 }, rotation: { x: -Math.PI / 2, y: 0.0, z: 0.0 } });
   xnew(Crystal, { radius: 0.2, position: { x: 0.0, y: 0.7, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 } });
 }
 
-function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0x757f8e, 3));
+function AmbientLight(unit, { color = 0xffffff, intensity = 1.0 }) {
+  const object = xthree.nest(new THREE.AmbientLight(color, intensity));
 }
 
-function DirectionaLight(unit, { position }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xfffecd, 1.5));
+function DirectionaLight(unit, { color = 0xffffff, intensity = 1.0, position }) {
+  const object = xthree.nest(new THREE.DirectionalLight(color, intensity));
   object.position.set(position.x, position.y, position.z);
   object.castShadow = true;
-  object.shadow.mapSize.set( 2048, 2048 );
 }
 
-function SpotLight(unit, { position }) {
-  const object = xthree.nest(new THREE.SpotLight(0xffc100, 10, 10, Math.PI / 16, 0.02, 2));
-  object.target.position.set(0, 0, 0);
+function SpotLight(unit, { color = 0xffffff, intensity = 1.0, position }) {
+  const object = xthree.nest(new THREE.SpotLight(color, intensity, 10, Math.PI / 16, 0.02, 2));
   object.castShadow = true;
+  object.target.position.set(0, 0, 0);
   object.position.set(position.x, position.y, position.z );
 }
 
@@ -139,12 +138,12 @@ function chessboard(gridX, gridY) {
 
 function Renderer(unit) {
   const composer = new EffectComposer(xthree.renderer);
-  const renderPixelatedPass = new RenderPixelatedPass(6, xthree.scene, xthree.camera);
-  composer.addPass(renderPixelatedPass);
+  const rpp = new RenderPixelatedPass(6, xthree.scene, xthree.camera);
+  composer.addPass(rpp);
   composer.addPass(new OutputPass());
 
   return {
-    get renderPixelatedPass() { return renderPixelatedPass; },
+    get renderPixelatedPass() { return rpp; },
     render() {
       pixelAlignFrustum();
       composer.render();
@@ -154,8 +153,8 @@ function Renderer(unit) {
   function pixelAlignFrustum() {
     const baseline = 1.0;
 
-    // Get Pixel Grid Units
-    const pixelUnit = 2 * baseline / (xthree.camera.zoom * Math.floor(xthree.canvas.height / renderPixelatedPass.pixelSize));
+    // Pixel Grid Units
+    const pixelUnit = 2 * baseline / (xthree.camera.zoom * Math.floor(xthree.canvas.height / rpp.pixelSize));
 
     // Project the current camera position along its local rotation bases
     const [camPos, camRot] = [new THREE.Vector3(), new THREE.Quaternion()];
@@ -177,21 +176,21 @@ function Renderer(unit) {
   }
 }
 
-function GUIPanel(unit) {
+function GUIPanel(panel) {
   const renderer = xnew.context(Renderer);
-  const renderPixelatedPass = renderer.renderPixelatedPass;
-  const params = { pixelSize: renderPixelatedPass.pixelSize, normalEdgeStrength: renderPixelatedPass.normalEdgeStrength, depthEdgeStrength: renderPixelatedPass.depthEdgeStrength, };
+  const rpp = renderer.renderPixelatedPass;
+  const params = { pixelSize: rpp.pixelSize, normalEdgeStrength: rpp.normalEdgeStrength, depthEdgeStrength: rpp.depthEdgeStrength, };
 
   xnew.nest('<div class="absolute text-sm right-2 top-2 w-48 p-1 border rounded-lg shadow-lg bg-white">');
   xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
 
-  unit.slider('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
-    renderPixelatedPass.setPixelSize(value);
+  panel.range('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
+    rpp.setPixelSize(value);
   });
-  unit.slider('normalEdgeStrength', { min: 0, max: 2, step: 0.05 }).on('input', ({ value }) => {
-    renderPixelatedPass.normalEdgeStrength = value;
+  panel.range('normalEdgeStrength', { min: 0, max: 2, step: 0.1 }).on('input', ({ value }) => {
+    rpp.normalEdgeStrength = value;
   });
-  unit.slider('depthEdgeStrength', { min: 0, max: 1, step: 0.05 }).on('input', ({ value }) => {
-    renderPixelatedPass.depthEdgeStrength = value;
+  panel.range('depthEdgeStrength', { min: 0, max: 1, step: 0.1 }).on('input', ({ value }) => {
+    rpp.depthEdgeStrength = value;
   });
 }

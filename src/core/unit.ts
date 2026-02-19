@@ -160,7 +160,7 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { stack: null };
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props: props ?? {} } as Internal;
         parent?._.children.push(this);
         
         Unit.initialize(this, null);
