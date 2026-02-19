@@ -34,6 +34,8 @@ declare class Eventor {
     remove(type: string, listener: Function): void;
     private basic;
     private resize;
+    private change;
+    private input;
     private click;
     private click_outside;
     private pointer;
@@ -216,15 +218,19 @@ interface GUIPanelOptions {
     params?: Record<string, any>;
 }
 declare function GUIPanel(unit: Unit, { name, open, params }?: GUIPanelOptions): {
-    group(key: string, { name, open, params }: GUIPanelOptions, inner: Function): Unit;
+    group({ name, open, params }: GUIPanelOptions, inner: Function): Unit;
+    text(name: string): Unit;
     button(key: string): Unit;
+    select(key: string, { options }?: {
+        options?: string[];
+    }): Unit;
     number(key: string, options?: {
         min?: number;
         max?: number;
         step?: number;
     }): Unit;
     checkbox(key: string): Unit;
-    border(): void;
+    separator(): void;
 };
 
 type SynthesizerOptions = {

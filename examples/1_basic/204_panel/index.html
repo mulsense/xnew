@@ -16,39 +16,28 @@
     });
 
     function MyPanel(panel) {
-      const params = {
-        data: 20,
-        flag: true,
-      };
+      const params = { data: 20, flag: true, color: 'red', };
 
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
       xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
-      xnew('<div">', 'My aa');
       panel.group({ name: 'group 1', open: true }, (group) => {
         group.button('button1');
         group.button('button2');
         group.button('button3');
-        group.border();
-        group.on('-click.button1', () => {
-          console.log('button1 clicked');
-        });
+        group.separator();
       });
       panel.number('data', { min: 0, max: 60, step: 2 });
       panel.checkbox('flag');
-      panel.on('-click.button1', () => {
-        console.log('button1 clicked 2');
-      });
-      return;
+      panel.select('color', { options: ['red', 'green', 'blue'] });
+      panel.separator();
 
-      panel.group('group 1', (group) => {
-        group.button('button 1');
-        group.button('button 2');
-        group.button('button 3');
-        group.border();
-        xnew('<div">', 'ccc');
+      const show = panel.checkbox('show');
+      const group = panel.group({ open: false }, (group) => {
+        group.button('button4');
+        group.number('data2', { min: 0, max: 60, step: 2 });
       });
-      xnew('<div">', 'xxx');
-        panel.param(params, 'data');
+      show.on('change', ({ value }) => value ? group.open() : group.close());;
+
       return;
 
       xnew((unit) => {

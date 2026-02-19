@@ -217,6 +217,12 @@ class Eventor {
         if (props.type === 'resize') {
             finalize = this.resize(props);
         }
+        else if (props.type === 'change') {
+            finalize = this.change(props);
+        }
+        else if (props.type === 'input') {
+            finalize = this.input(props);
+        }
         else if (props.type === 'wheel') {
             finalize = this.wheel(props);
         }
@@ -284,6 +290,44 @@ class Eventor {
         observer.observe(props.element);
         return () => {
             observer.unobserve(props.element);
+        };
+    }
+    change(props) {
+        const execute = (event) => {
+            let value = null;
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            }
+            else if (event.target.type === 'number') {
+                value = parseFloat(event.target.value);
+            }
+            else {
+                value = event.target.value;
+            }
+            props.listener({ event, value });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+    input(props) {
+        const execute = (event) => {
+            let value = null;
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            }
+            else if (event.target.type === 'number') {
+                value = parseFloat(event.target.value);
+            }
+            else {
+                value = event.target.value;
+            }
+            props.listener({ event, value });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
         };
     }
     click(props) {
@@ -1412,13 +1456,13 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
 }
 
-function GUIPanel(unit, { name = '', open, params } = {}) {
+function GUIPanel(unit, { name, open = false, params } = {}) {
     const object = params !== null && params !== void 0 ? params : {};
     xnew$1.extend(Group, { name, open });
     return {
-        group(key, { name, open, params }, inner) {
+        group({ name, open, params }, inner) {
             const group = xnew$1((unit) => {
-                xnew$1.extend(GUIPanel, { name: name !== null && name !== void 0 ? name : key, open, params: params !== null && params !== void 0 ? params : object });
+                xnew$1.extend(GUIPanel, { name, open, params: params !== null && params !== void 0 ? params : object });
                 inner(unit);
             });
             group.on('-change', ({ event, key }) => {
@@ -1427,9 +1471,18 @@ function GUIPanel(unit, { name = '', open, params } = {}) {
             });
             return group;
         },
+        text(name) {
+            return xnew$1('<div style="margin: 0.125rem;">', name);
+        },
         button(key) {
             const button = xnew$1(Button, { key });
             return button;
+        },
+        select(key, { options = [] } = {}) {
+            var _a, _b;
+            object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
+            const select = xnew$1(Select, { key, value: object[key], options });
+            return select;
         },
         number(key, options = {}) {
             var _a;
@@ -1453,46 +1506,48 @@ function GUIPanel(unit, { name = '', open, params } = {}) {
             });
             return checkbox;
         },
-        border() {
-            xnew$1(Border);
+        separator() {
+            xnew$1(Separator);
         }
     };
 }
-function Group(unit, { name = '', open } = {}) {
-    if (open === undefined) {
-        xnew$1('<div style="display: flex; align-items: center;">', (unit) => {
-            xnew$1('<div>', name);
-        });
-    }
-    else {
-        const system = xnew$1(OpenAndClose, { open });
+function Group(group, { name, open = false } = {}) {
+    xnew$1.extend(OpenAndClose, { open });
+    if (name) {
         xnew$1('<div style="display: flex; align-items: center; cursor: pointer;">', (unit) => {
-            unit.on('click', () => system.toggle());
+            unit.on('click', () => group.toggle());
             xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
                 xnew$1('<path d="M6 2 10 6 6 10" />');
-                system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
+                group.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
             });
             xnew$1('<div>', name);
         });
-        xnew$1.extend(Accordion);
     }
+    xnew$1.extend(Accordion);
 }
 function Button(unit, { key = '' } = {}) {
-    xnew$1.nest('<button style="margin: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew$1.nest('<button style="margin: 0.125rem; padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
-    unit.on('mouseover', () => {
+    unit.on('pointerover', () => {
         unit.element.style.background = 'rgba(0, 0, 128, 0.1)';
         unit.element.style.borderColor = 'blue';
     });
-    unit.on('mouseout', () => {
+    unit.on('pointerout', () => {
         unit.element.style.background = '';
         unit.element.style.borderColor = '';
     });
+    unit.on('pointerdown', () => {
+        unit.element.style.filter = 'brightness(0.5)';
+    });
+    unit.on('pointerup', () => {
+        unit.element.style.filter = '';
+    });
 }
-function Border(unit) {
+function Separator(unit) {
     xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
 }
 function Number(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
+    xnew$1.nest(`<div style="margin: 0.125rem;">`);
     const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
         xnew$1('<div style="flex: 1;">', key);
         xnew$1('<div key="status" style="flex: none;">', value);
@@ -1503,9 +1558,17 @@ function Number(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
     });
 }
 function Checkbox(unit, { key = '', value } = {}) {
-    xnew$1.nest(`<label style="display: flex; align-items: center; cursor: pointer;">`);
+    xnew$1.nest(`<label style="margin: 0.125rem; display: flex; align-items: center; cursor: pointer;">`);
     xnew$1('<div style="flex: 1;">', key);
     xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="margin-right: 0.25rem;">`);
+}
+function Select(unit, { key = '', value, options = [] } = {}) {
+    xnew$1.nest(`<div style="margin: 0.125rem; display: flex; align-items: center;">`);
+    xnew$1('<div style="flex: 1;">', key);
+    xnew$1.nest(`<select name="${key}" style="padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">`);
+    for (const option of options) {
+        xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''}>`, option);
+    }
 }
 
 const context = new window.AudioContext();

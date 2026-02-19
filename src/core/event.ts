@@ -20,6 +20,10 @@ export class Eventor {
 
         if (props.type === 'resize') {
             finalize = this.resize(props);
+        } else if (props.type === 'change') {
+            finalize = this.change(props);
+        } else if (props.type === 'input') {
+            finalize = this.input(props);
         } else if (props.type === 'wheel') {
             finalize = this.wheel(props);
         } else if (props.type === 'click') {
@@ -77,6 +81,42 @@ export class Eventor {
         observer.observe(props.element);
         return () => {
             observer.unobserve(props.element);
+        };
+    }
+
+    private change(props: EventProps): Function {
+        const execute = (event: any) => {
+            let value: any = null;
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            } else if (event.target.type === 'number') {
+                value = parseFloat(event.target.value);
+            } else {
+                value = event.target.value;
+            }
+            props.listener({ event, value });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+
+    private input(props: EventProps): Function {
+        const execute = (event: any) => {
+            let value: any = null;
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            } else if (event.target.type === 'number') {
+                value = parseFloat(event.target.value);
+            } else {
+                value = event.target.value;
+            }
+            props.listener({ event, value });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
         };
     }
 

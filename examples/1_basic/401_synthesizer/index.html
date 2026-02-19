@@ -95,11 +95,16 @@
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       const params = { activate: false, type: 'lowpass', cutoff: 1000 };
-      xnew.extend(xnew.basics.GUIPanel, { name: 'filter', params });
+      xnew.extend(xnew.basics.GUIPanel, { open: true, params });
+      xnew('<p>', 'filter');
 
-      unit.checkbox('activate');
-      const type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
-      unit.number('cutoff', { min: 100, max: 4000, step: 10 });
+      const activate = unit.checkbox('activate');
+      let type = null;
+      const group = unit.group({ open: false }, (group) => {
+        type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
+        group.number('cutoff', { min: 100, max: 4000, step: 10 });
+      });
+      activate.on('change', ({ value }) => value ? group.open() : group.close());
 
       return {
         get value() {
@@ -135,9 +140,12 @@
         const params = { time: 1000, mix: 0.5 };
         xnew.extend(xnew.basics.GUIPanel, { name: 'reverb', open: true, params });
 
-        unit.checkbox('activate');
-        unit.number('time', { min: 0.0, max: 2000, step: 100 });
-        unit.number('mix', { min: 0.0, max: 1.0, step: 0.1 });
+        const activate = unit.checkbox('activate');
+        const group = unit.group({ open: false }, (group) => {
+          group.number('time', { min: 0.0, max: 2000, step: 100 });
+          group.number('mix', { min: 0.0, max: 1.0, step: 0.1 });
+        });
+        activate.on('change', ({ value }) => value ? group.open() : group.close());
         return {
           get value() { return params.activate ? { reverb: { time: params.time, mix: params.mix }} : {}; },
           get json() { return params.activate ? `reverb: { time: ${params.time}, mix: ${params.mix}, }, ` : ''; }
@@ -191,13 +199,19 @@
       const params = { activate: !checkable, amount: value, attack: 200, decay: 200, sustain: 0.2, release: 200 };
       xnew.extend(xnew.basics.GUIPanel, { name: 'envelope', open: true, params });
 
-      if (checkable) unit.checkbox('activate');
-      const svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
-      unit.number('amount', { min, max, step });
-      unit.number('attack', { min: 0, max: 500, step: 20 });
-      unit.number('decay', { min: 0, max: 500, step: 20 });
-      unit.number('sustain', { min: 0.0, max: 1.0, step: 0.1 });
-      unit.number('release', { min: 0, max: 500, step: 20 }); 
+      let activate = null;
+      if (checkable) activate = unit.checkbox('activate');
+
+      let svg = null;
+      const group = unit.group({ open: checkable ? false : true }, (group) => {
+        svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
+        group.number('amount', { min, max, step });
+        group.number('attack', { min: 0, max: 500, step: 20 });
+        group.number('decay', { min: 0, max: 500, step: 20 });
+        group.number('sustain', { min: 0.0, max: 1.0, step: 0.1 });
+        group.number('release', { min: 0, max: 500, step: 20 }); 
+      });
+      activate?.on('change', ({ value }) => value ? group.open() : group.close());
 
       unit.on('render', () => {
         const [A, D, S, R] = [params.attack, params.decay, params.sustain, params.release];
@@ -214,10 +228,14 @@
       const params = { amount: value, rate: 8 };
       xnew.extend(xnew.basics.GUIPanel, { name: 'LFO', open: true, params });
 
-      unit.checkbox('activate');
-      const waveform = xnew(Waveform, { value: 2 });
-      unit.number('amount', { min, max, step });
-      unit.number('rate', { min: 2, max: 36, step: 1 });
+      const activate = unit.checkbox('activate');
+      let waveform = null;
+      const group = unit.group({ open: false }, (group) => {
+        waveform = xnew(Waveform, { value: 2 });
+        group.number('amount', { min, max, step });
+        group.number('rate', { min: 2, max: 36, step: 1 });
+      });
+      activate.on('change', ({ value }) => value ? group.open() : group.close());
 
       return {
         get value() {

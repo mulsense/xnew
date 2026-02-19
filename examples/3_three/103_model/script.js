@@ -145,32 +145,31 @@ function Model(unit, { gltf }) {
 function Panel(panel) {
   const state = xnew.context(Model);
   const params = {
-    speed: 1.0
+    speed: 1.0,
+    action: 'idle',
   };
-  xnew.nest('<div class="absolute w-48 top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-lg">');
+  xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
 
-  panel.group({ name: 'actions', open: true }, (group) => {
-    const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
-    for (const name of keys) {
-      group.button(name).on('click', () => state.crossfade(name));
-    }
+  const baseActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
+  const additiveActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
+  panel.select('action', { options: baseActions }).on('change', ({ value }) => {
+    state.crossfade(value);
   });
-  panel.group({ name: 'weights', open: true }, (group) => {
-    const keys = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
-    for (const name of keys) {
-      params[name] = state.settings[name].weight;
-      group.number(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
-        state.settings[name].weight = parseFloat(event.target.value);
-        state.activate(state.settings[name].action, parseFloat(event.target.value));
-      });
-    }
+
+  panel.text('weights');
+  for (const name of additiveActions) {
+    params[name] = state.settings[name].weight;
+    panel.number(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
+      state.settings[name].weight = parseFloat(event.target.value);
+      state.activate(state.settings[name].action, parseFloat(event.target.value));
+    });
+  }
+  panel.number('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
+    state.speed = value;
   });
   return;
 
-  panel.group({ name: 'options', open: true }, (group) => {
-    group.number('speed', { min: 0.01, max: 2.00, step: 0.01 });
-  });
 
   xnew((unit) => {
     xnew.extend(Accordion, { name: 'options', open: true });
