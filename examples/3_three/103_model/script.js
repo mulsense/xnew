@@ -24,30 +24,35 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew(DirectionalLight, { x: 3, y: 10, z: 10 });
-  xnew(Ground);
+  // gui
   xnew(Controller);
 
+  // lights
+  xnew(DirectionalLight, { position: { x: 3, y: 10, z: 10 } });
+
+  // objects
+  xnew(Ground);
+ 
   xnew.promise(new Promise((resolve) => {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
-    xnew(Panel);
+    xnew(document.body, GUIPanel);
   });
 }
 
-function DirectionalLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xffffff, 3));
-  object.position.set(x, y, z);
+function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
+  const object = xthree.nest(new THREE.DirectionalLight(color, intensity));
+  object.position.set(position.x, position.y, position.z);
   object.castShadow = true;
 }
 
 function Ground(unit) {
   const geometry = new THREE.PlaneGeometry(100, 100);
   const material = new THREE.ShadowMaterial({ opacity: 0.20 });
-  const plane = xthree.nest(new THREE.Mesh(geometry, material));
-  plane.rotation.x = - Math.PI / 2;
-  plane.receiveShadow = true;
+  const object = xthree.nest(new THREE.Mesh(geometry, material));
+  object.rotation.x = - Math.PI / 2;
+  object.receiveShadow = true;
 }
 
 function Controller(unit) {
@@ -142,27 +147,28 @@ function Model(unit, { gltf }) {
   }
 }
 
-function Panel(panel) {
+function GUIPanel(panel) {
   const state = xnew.context(Model);
   const params = { action: 'idle', speed: 1.0, };
+  
   xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
-  xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
+  xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
 
   const baseActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
   panel.select('action', { options: baseActions }).on('input', ({ value }) => {
     state.crossfade(value);
   });
 
-  panel.text('weights');
+  xnew('<p>', 'weights');
   const additiveActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
   for (const name of additiveActions) {
     params[name] = state.settings[name].weight;
-    panel.slider(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
+    panel.range(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
       state.settings[name].weight = parseFloat(event.target.value);
       state.activate(state.settings[name].action, parseFloat(event.target.value));
     });
   }
-  panel.slider('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
+  panel.range('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
     state.speed = value;
   });
 }

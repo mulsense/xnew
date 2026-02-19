@@ -713,7 +713,7 @@ class Unit {
             baseComponent = (unit) => { };
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props };
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props: props !== null && props !== void 0 ? props : {} };
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -1456,7 +1456,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
 }
 
-function GUIPanel(unit, { name, open = false, params } = {}) {
+function GUIPanel(unit, { name, open = false, params }) {
     const object = params !== null && params !== void 0 ? params : {};
     xnew$1.extend(Group, { name, open });
     return {
@@ -1469,9 +1469,6 @@ function GUIPanel(unit, { name, open = false, params } = {}) {
                 xnew$1.emit('-eventcapture', { event, key, value });
             });
             return group;
-        },
-        text(name) {
-            return xnew$1('<div style="margin: 0.125rem;">', name);
         },
         button(key) {
             const button = xnew$1(Button, { key });
@@ -1489,10 +1486,10 @@ function GUIPanel(unit, { name, open = false, params } = {}) {
             });
             return select;
         },
-        slider(key, options = {}) {
+        range(key, options = {}) {
             var _a;
             object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
-            const number = xnew$1(Slider, Object.assign({ key, value: object[key] }, options));
+            const number = xnew$1(Range, Object.assign({ key, value: object[key] }, options));
             number.on('input', ({ event, value }) => {
                 object[key] = value;
                 xnew$1.emit('-eventcapture', { event, key, value });
@@ -1514,7 +1511,7 @@ function GUIPanel(unit, { name, open = false, params } = {}) {
         }
     };
 }
-function Group(group, { name, open = false } = {}) {
+function Group(group, { name, open = false }) {
     xnew$1.extend(OpenAndClose, { open });
     if (name) {
         xnew$1('<div style="display: flex; align-items: center; cursor: pointer;">', (unit) => {
@@ -1528,7 +1525,7 @@ function Group(group, { name, open = false } = {}) {
     }
     xnew$1.extend(Accordion);
 }
-function Button(unit, { key = '' } = {}) {
+function Button(unit, { key = '' }) {
     xnew$1.nest('<button style="margin: 0.125rem; padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
@@ -1549,7 +1546,7 @@ function Button(unit, { key = '' } = {}) {
 function Separator(unit) {
     xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
 }
-function Slider(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
+function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     xnew$1.nest(`<div style="margin: 0.125rem;">`);
     const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
         xnew$1('<div style="flex: 1;">', key);

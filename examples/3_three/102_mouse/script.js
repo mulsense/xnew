@@ -12,6 +12,8 @@ function Main(unit) {
 
   // three setup
   xthree.initialize({ canvas: canvas.element });
+  xthree.camera.position.set(0, 0, +20);
+  xthree.scene.rotation.x = -60 / 180 * Math.PI
   xthree.renderer.shadowMap.enabled = true;
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
@@ -21,26 +23,27 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xthree.camera.position.set(0, 0, +20);
-  xthree.scene.rotation.x = -60 / 180 * Math.PI
-
-  xnew(DirectionaLight, { x: 20, y: -50, z: 100 });
-  xnew(AmbientLight);
-  xnew(Ground, { size: 100, color: 0xF8F8FF });
-  xnew(Dorm, { size: 50 });
-  xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xAAAAFF });
-
+  // gui
   xnew(Controller);
+
+  // lights
+  xnew(DirectionaLight, { position: { x: 20, y: -50, z: 100 } });
+  xnew(AmbientLight);
+
+  // objects
+  xnew(Ground, { size: 100, color: 0xf8f8ff });
+  xnew(Dorm, { size: 50 });
+  xnew(Cube, { x: 0, y: 0, z: 2, size: 4, color: 0xaaaaff });
 }
 
-function DirectionaLight(unit, { x, y, z }) {
-  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1));
-  object.position.set(x, y, z);
+function DirectionaLight(unit, { color = 0xffffff, intensity = 1.0, position }) {
+  const object = xthree.nest(new THREE.DirectionalLight(color, intensity));
+  object.position.set(position.x, position.y, position.z);
   object.castShadow = true;
 }
 
-function AmbientLight(unit) {
-  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1));
+function AmbientLight(unit, { color = 0xffffff, intensity = 1.0 }) {
+  const object = xthree.nest(new THREE.AmbientLight(color, intensity));
 }
 
 function Dorm(unit, { size }) {

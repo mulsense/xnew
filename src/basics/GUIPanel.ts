@@ -2,13 +2,9 @@ import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { OpenAndClose, Accordion } from '../basics/Transition';
 
-interface GUIPanelOptions {
-    name?: string;
-    open?: boolean;
-    params?: Record<string, any>;
-}
+interface GUIPanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
 
-export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOptions = {}) {
+export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOptions) {
     const object = params ?? {} as Record<string, any>;
     xnew.extend(Group, { name, open });
     
@@ -22,9 +18,6 @@ export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOpt
                 xnew.emit('-eventcapture', { event, key, value });
             });
             return group;
-        },
-        text(name: string) {
-            return xnew('<div style="margin: 0.125rem;">', name);
         },
         button(key: string) {
             const button = xnew(Button, { key });
@@ -41,10 +34,10 @@ export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOpt
             });
             return select;
         },
-        slider(key: string, options: { min?: number, max?: number, step?: number } = {}) {
+        range(key: string, options: { min?: number, max?: number, step?: number } = {}) {
             object[key] = object[key] ?? 0;
 
-            const number = xnew(Slider, { key, value: object[key], ...options });
+            const number = xnew(Range, { key, value: object[key], ...options });
             number.on('input', ({ event, value }: { event: Event, value: number }) => {
                 object[key] = value;
                 xnew.emit('-eventcapture', { event, key, value });
@@ -67,7 +60,7 @@ export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOpt
     }
 }
 
-function Group(group: Unit, { name, open = false }: { name?: string, open?: boolean } = {}) {
+function Group(group: Unit, { name, open = false }: { name?: string, open?: boolean }) {
     xnew.extend(OpenAndClose, { open });
     if (name) {
         xnew('<div style="display: flex; align-items: center; cursor: pointer;">', (unit: Unit) => {
@@ -82,7 +75,7 @@ function Group(group: Unit, { name, open = false }: { name?: string, open?: bool
     xnew.extend(Accordion);
 }
 
-function Button(unit: Unit, { key = '' }: { key?: string } = {}) {
+function Button(unit: Unit, { key = '' }: { key?: string }) {
     xnew.nest('<button style="margin: 0.125rem; padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
@@ -105,9 +98,9 @@ function Separator(unit: Unit) {
     xnew.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
 }
 
-function Slider(unit: Unit,
+function Range(unit: Unit,
     { key = '', value, min = 0, max = 100, step = 1 }:
-    { key?: string, value?: number, min?: number, max?: number, step?: number } = {}
+    { key?: string, value?: number, min?: number, max?: number, step?: number }
 ) {
     xnew.nest(`<div style="margin: 0.125rem;">`);
     const status = xnew('<div style="display: flex; justify-content: space-between;">', (unit: Unit) => {

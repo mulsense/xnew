@@ -14,7 +14,7 @@
       xnew.nest('<div class="m-2">')
       xnew(Keyboard);
       xnew(CodeBlock);
-      xnew('<div class="flex my-3">', () => {
+      xnew('<div class="text-sm flex my-3">', () => {
         xnew(Oscillator);
         xnew(Filter);
         xnew(Amp);
@@ -102,7 +102,7 @@
       let type = null;
       const group = unit.group({ open: false }, (group) => {
         type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
-        group.number('cutoff', { min: 100, max: 4000, step: 10 });
+        group.range('cutoff', { min: 100, max: 4000, step: 10 });
       });
       activate.on('change', ({ value }) => value ? group.open() : group.close());
 
@@ -142,8 +142,8 @@
 
         const activate = unit.checkbox('activate');
         const group = unit.group({ open: false }, (group) => {
-          group.number('time', { min: 0.0, max: 2000, step: 100 });
-          group.number('mix', { min: 0.0, max: 1.0, step: 0.1 });
+          group.range('time', { min: 0.0, max: 2000, step: 100 });
+          group.range('mix', { min: 0.0, max: 1.0, step: 0.1 });
         });
         activate.on('change', ({ value }) => value ? group.open() : group.close());
         return {
@@ -205,11 +205,11 @@
       let svg = null;
       const group = unit.group({ open: checkable ? false : true }, (group) => {
         svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
-        group.number('amount', { min, max, step });
-        group.number('attack', { min: 0, max: 500, step: 20 });
-        group.number('decay', { min: 0, max: 500, step: 20 });
-        group.number('sustain', { min: 0.0, max: 1.0, step: 0.1 });
-        group.number('release', { min: 0, max: 500, step: 20 }); 
+        group.range('amount', { min, max, step });
+        group.range('attack', { min: 0, max: 500, step: 20 });
+        group.range('decay', { min: 0, max: 500, step: 20 });
+        group.range('sustain', { min: 0.0, max: 1.0, step: 0.1 });
+        group.range('release', { min: 0, max: 500, step: 20 }); 
       });
       activate?.on('change', ({ value }) => value ? group.open() : group.close());
 
@@ -232,8 +232,8 @@
       let waveform = null;
       const group = unit.group({ open: false }, (group) => {
         waveform = xnew(Waveform, { value: 2 });
-        group.number('amount', { min, max, step });
-        group.number('rate', { min: 2, max: 36, step: 1 });
+        group.range('amount', { min, max, step });
+        group.range('rate', { min: 2, max: 36, step: 1 });
       });
       activate.on('change', ({ value }) => value ? group.open() : group.close());
 

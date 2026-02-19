@@ -31,7 +31,7 @@
       const div = xnew((unit) => {
         xnew.nest('<div class="w-48 p-4 border rounded-lg flex flex-col items-center gap-2">');
 
-        xnew(Button, { text: '-myclick' }).on('click', ({ event }) => xnew.emit('-myclick'));
+        xnew(Button, { name: '-myclick' }).on('click', ({ event }) => xnew.emit('-myclick'));
       });
 
       const p = xnew('<p>', '-myclick 0');
@@ -50,10 +50,10 @@
         let count = 0;
         unit.on('+myclick', () => p.element.textContent = `+myclick ${++count}`); 
 
-        xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+        xnew(Button, { name: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
       });
 
-      xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+      xnew(Button, { name: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
     }
 
     function ProtectedGlobalEvent(unit) {
@@ -68,14 +68,15 @@
         let count = 0;
         unit.on('+myclick', () => p.element.textContent = `+myclick ${++count}`); 
 
-        xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+        xnew(Button, { name: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
       });
 
-      xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+      xnew(Button, { name: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
     }
 
-    function Button(unit, { text = 'button' } = {}) {
-      xnew.nest('<button class="px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', text);
+    function Button(unit, { name = 'button' }) {
+      xnew.nest('<button class="px-2 border rounded-lg cursor-pointer hover:bg-gray-200">');
+      unit.element.textContent = name;
     }
 
   </script>
