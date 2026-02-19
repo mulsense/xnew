@@ -22,7 +22,7 @@ function Main(unit) {
 function Contents(unit) {
   let scene = xnew(Scene1);
 
-  unit.on('+scenechange', (NextScene, props) => {
+  unit.on('+scenechange', ({ NextScene, props }) => {
 
     const duration = 500;
     const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
@@ -50,14 +50,14 @@ function Scene1(unit) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', Scene2));
+  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', { NextScene: Scene2, props: {} }));
 }
 
 function Scene2(unit) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', Scene1));
+  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', { NextScene: Scene1, props: {} }));
 }
 
 function Text(unit, { text }) {
