@@ -100,10 +100,10 @@ function Crystal(unit, { radius, position, rotation }) {
   object.rotation.set(rotation.x, rotation.y, rotation.z);
   object.position.set(position.x, position.y, position.z);
 
-  const clock = new THREE.Clock();
+  const time = new Date();
   unit.on('render', () => {
-    const t = clock.getElapsedTime();
-
+    const t = (new Date() - time) / 1000;
+    
     object.material.emissiveIntensity = Math.sin(t * 2) * 0.5 + 0.5;
     object.position.y = position.y + Math.sin(t * 2) * 0.05;
     object.rotation.y += (Math.sin(t * 2) + 1.0) * 0.05;
@@ -196,7 +196,6 @@ function GUIPanel(unit) {
     renderPixelatedPass.normalEdgeStrength = value;
   });
   unit.slider('depthEdgeStrength', { min: 0, max: 1, step: 0.05 }).on('input', ({ value }) => {
-    console.log(value);
     renderPixelatedPass.depthEdgeStrength = value;
   });
 }
