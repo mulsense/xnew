@@ -59,14 +59,14 @@ function GUIPanel(unit, { renderPixelatedPass }) {
   xnew.nest('<div class="absolute right-2 top-2 w-64 p-1 border rounded-lg shadow-lg bg-white">');
   xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
 
-  unit.number('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
+  unit.slider('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
     renderPixelatedPass.setPixelSize(value);
   });
 
-  unit.number('normalEdgeStrength', { min: 0, max: 2, step: 0.05 }).on('input', ({ value }) => {
+  unit.slider('normalEdgeStrength', { min: 0, max: 2, step: 0.05 }).on('input', ({ value }) => {
     renderPixelatedPass.normalEdgeStrength = value;
   });
-  unit.number('depthEdgeStrength', { min: 0, max: 1, step: 0.05 }).on('input', ({ value }) => {
+  unit.slider('depthEdgeStrength', { min: 0, max: 1, step: 0.05 }).on('input', ({ value }) => {
     renderPixelatedPass.depthEdgeStrength = value;
   });
 }
@@ -91,10 +91,7 @@ function SpotLight(unit, { position }) {
 }
 
 function Box(unit, { size, position, rotation }) {
-  const texture = create();
-  texture.repeat.set(1.5, 1.5);
-
-  const material = new THREE.MeshPhongMaterial( { map: texture } );
+  const material = new THREE.MeshPhongMaterial( { map: chessboard(3, 3) } );
 
   const mesh = xthree.nest(new THREE.Mesh( new THREE.BoxGeometry(size, size, size), material ));
   mesh.castShadow = true;
@@ -104,10 +101,7 @@ function Box(unit, { size, position, rotation }) {
 }
 
 function Plane(unit, { size, position, rotation }) {
-  const texture = create();
-  texture.repeat.set(3, 3);
-
-  const material = new THREE.MeshPhongMaterial( { map: texture } );
+  const material = new THREE.MeshPhongMaterial( { map: chessboard(6, 6) } );
   const mesh = xthree.nest(new THREE.Mesh( new THREE.PlaneGeometry(size, size), material ));
 
   mesh.castShadow = true;
@@ -116,56 +110,33 @@ function Plane(unit, { size, position, rotation }) {
   mesh.position.set(position.x, position.y, position.z);
 }
 
-function Crystal(unit) {
-  
-  const radius = .2;
+function Crystal(unit, { radius = 0.2 } = {}) {
   const geometry = new THREE.IcosahedronGeometry( radius );
-  const mesh = xthree.nest(new THREE.Mesh(
-    geometry,
-    new THREE.MeshPhongMaterial( {
+  const material = new THREE.MeshPhongMaterial( {
       color: 0x68b7e9,
       emissive: 0x4f7e8b,
       shininess: 10,
       specular: 0xffffff
     } )
-  ));
+  const mesh = xthree.nest(new THREE.Mesh(geometry, material));
   mesh.receiveShadow = true;
   mesh.castShadow = true;
 
-  
   const clock = new THREE.Clock();
 
   unit.on('render', () => {
     const t = clock.getElapsedTime();
 
     mesh.material.emissiveIntensity = Math.sin( t * 3 ) * .5 + .5;
-    mesh.position.y = .7 + Math.sin( t * 2 ) * .05;
-    mesh.rotation.y = stopGoEased( t, 2, 4 ) * 2 * Math.PI;
+    mesh.position.y = 0.7 + Math.sin( t * 2 ) * 0.05;
+
+    const speed = (Math.sin(t * 2) + 1.0) * 0.05;
+    mesh.rotation.y += speed;
   });
 }
 function Controller(unit) {
   const controls = new OrbitControls(xthree.camera, xthree.canvas);
   controls.maxZoom = 2;
-}
-
-function easeInOutCubic( x ) {
-  return x ** 2 * 3 - x ** 3 * 2;
-}
-
-function linearStep( x, edge0, edge1 ) {
-
-  const w = edge1 - edge0;
-  const m = 1 / w;
-  const y0 = - m * edge0;
-  return THREE.MathUtils.clamp( y0 + m * x, 0, 1 );
-
-}
-
-function stopGoEased( x, downtime, period ) {
-  const cycle = ( x / period ) | 0;
-  const tween = x - cycle * period;
-  const linStep = easeInOutCubic( linearStep( tween, downtime, period ) );
-  return cycle + linStep;
 }
 
 function pixelAlignFrustum(pixelSize) {
@@ -204,41 +175,31 @@ function pixelAlignFrustum(pixelSize) {
 }
 
 
-function create() {
+function chessboard(gridX, gridY) {
   const s = 2;
   const data = new Uint8Array(s * s * 4);
 
-  data[(0 * s + 0) * 4 + 0] = 128;
-  data[(0 * s + 0) * 4 + 1] = 128;
-  data[(0 * s + 0) * 4 + 2] = 128;
-  data[(0 * s + 0) * 4 + 3] = 255;
+  for (let y = 0; y < 2; y++) {
+    for (let x = 0; x < 2; x++) {
+      data[(y * s + x) * 4 + 0] = ((x + y) % 2 === 0) ? 128 : 192;
+      data[(y * s + x) * 4 + 1] = ((x + y) % 2 === 0) ? 128 : 192;
+      data[(y * s + x) * 4 + 2] = ((x + y) % 2 === 0) ? 128 : 192;
+      data[(y * s + x) * 4 + 3] = ((x + y) % 2 === 0) ? 128 : 192;
+    }
+  }
 
-  data[(0 * s + 1) * 4 + 0] = 192;
-  data[(0 * s + 1) * 4 + 1] = 192;
-  data[(0 * s + 1) * 4 + 2] = 192;
-  data[(0 * s + 1) * 4 + 3] = 255;
+  const texture = new THREE.DataTexture(data, s, s, THREE.RGBAFormat, THREE.UnsignedByteType);
+  texture.needsUpdate = true;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
 
-  data[(1 * s + 0) * 4 + 0] = 192;
-  data[(1 * s + 0) * 4 + 1] = 192;
-  data[(1 * s + 0) * 4 + 2] = 192;
-  data[(1 * s + 0) * 4 + 3] = 255;
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.repeat.set(gridX / 2, gridY / 2);
 
-  data[(1 * s + 1) * 4 + 0] = 128;
-  data[(1 * s + 1) * 4 + 1] = 128;
-  data[(1 * s + 1) * 4 + 2] = 128;
-  data[(1 * s + 1) * 4 + 3] = 255;
-
-  const tex = new THREE.DataTexture(data, s, s, THREE.RGBAFormat, THREE.UnsignedByteType);
-  tex.needsUpdate = true;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-
-  tex.minFilter = THREE.NearestFilter;
-  tex.magFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-
-  return tex;
+  return texture;
 }

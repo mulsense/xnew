@@ -157,12 +157,12 @@ function Panel(panel) {
   const additiveActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
   for (const name of additiveActions) {
     params[name] = state.settings[name].weight;
-    panel.number(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
+    panel.slider(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
       state.settings[name].weight = parseFloat(event.target.value);
       state.activate(state.settings[name].action, parseFloat(event.target.value));
     });
   }
-  panel.number('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
+  panel.slider('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
     state.speed = value;
   });
 }

@@ -1472,7 +1472,6 @@
                     inner(unit);
                 });
                 group.on('-eventcapture', ({ event, key, value }) => {
-                    xnew$1.emit('-eventcapture.' + key, { event, key, value });
                     xnew$1.emit('-eventcapture', { event, key, value });
                 });
                 return group;
@@ -1483,7 +1482,6 @@
             button(key) {
                 const button = xnew$1(Button, { key });
                 button.on('click', ({ event }) => {
-                    xnew$1.emit('-eventcapture.' + key, { event, key });
                     xnew$1.emit('-eventcapture', { event, key });
                 });
                 return button;
@@ -1493,18 +1491,16 @@
                 object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
                 const select = xnew$1(Select, { key, value: object[key], options });
                 select.on('input', ({ event, value }) => {
-                    xnew$1.emit('-eventcapture.' + key, { event, key, value });
                     xnew$1.emit('-eventcapture', { event, key, value });
                 });
                 return select;
             },
-            number(key, options = {}) {
+            slider(key, options = {}) {
                 var _a;
                 object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
-                const number = xnew$1(Number, Object.assign({ key, value: object[key] }, options));
+                const number = xnew$1(Slider, Object.assign({ key, value: object[key] }, options));
                 number.on('input', ({ event, value }) => {
                     object[key] = value;
-                    xnew$1.emit('-eventcapture.' + key, { event, key, value });
                     xnew$1.emit('-eventcapture', { event, key, value });
                 });
                 return number;
@@ -1515,7 +1511,6 @@
                 const checkbox = xnew$1(Checkbox, { key, value: object[key] });
                 checkbox.on('input', ({ event, value }) => {
                     object[key] = value;
-                    xnew$1.emit('-eventcapture.' + key, { event, key, value });
                     xnew$1.emit('-eventcapture', { event, key, value });
                 });
                 return checkbox;
@@ -1560,7 +1555,7 @@
     function Separator(unit) {
         xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
     }
-    function Number(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
+    function Slider(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
         xnew$1.nest(`<div style="margin: 0.125rem;">`);
         const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
             xnew$1('<div style="flex: 1;">', key);

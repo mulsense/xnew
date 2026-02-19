@@ -224,7 +224,7 @@ declare function GUIPanel(unit: Unit, { name, open, params }?: GUIPanelOptions):
     select(key: string, { options }?: {
         options?: string[];
     }): Unit;
-    number(key: string, options?: {
+    slider(key: string, options?: {
         min?: number;
         max?: number;
         step?: number;
