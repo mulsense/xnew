@@ -100,7 +100,7 @@ function GameScene(unit) {
     xnew(Controller);
     xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
-  unit.on('+sceneappend', (Component, props) => xnew(Component, props));
+  unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
 
   // xnew.timeout(() => xnew.emit('+gameover'), 1100);
 
@@ -169,9 +169,9 @@ function ScoreText(unit) {
   xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600 font-bold">');
   const text = xnew(StrokeText, { text: 'score 0' });
   let sum = 0;
-  unit.on('+scoreup', (i) => {
-    text.element.textContent = `score ${sum += Math.pow(2, i)}`;
-    xnew.context(GameData).scores[i]++;
+  unit.on('+scoreup', ({ score }) => {
+    text.element.textContent = `score ${sum += Math.pow(2, score)}`;
+    xnew.context(GameData).scores[score]++;
   });
 }
 
@@ -309,7 +309,7 @@ function Bowl(unit) {
 
 function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  xnew.emit('+relode:done', 0);
+  xnew.emit('+relode:done', { id: 0 });
 
   const position = convert3d(10 + 70, 70);
   const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
@@ -325,7 +325,7 @@ function Queue(unit) {
     xnew.transition((p) => {
       const position = convert3d(10 + p * 70, 70);
       model.threeObject.position.set(position.x, position.y, position.z);
-    }, 500).timeout(() => xnew.emit('+relode:done', balls.shift()));
+    }, 500).timeout(() => xnew.emit('+relode:done', { id: balls.shift() }));
   });
 }
 
@@ -395,13 +395,13 @@ function Cursor(unit) {
 
   const offset = 50;
   let model = null
-  unit.on('+relode:done', (id) => {
+  unit.on('+relode:done', ({ id }) => {
     const position = convert3d(object.x, object.y + offset);
     model = xnew(Model, { position, id, scale: 0.5 });
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      xnew.emit('+sceneappend', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      xnew.emit('+sceneappend', { Component: ModelBall, props: { x: object.x, y: object.y + offset, id: model.id } });
       model.finalize();
       model = null;
       xnew.emit('+reload');
@@ -428,9 +428,9 @@ function ModelBall(ball, { x, y, id = 0 }) {
   }
 
   const model = xnew(Model, { id, scale });
-  xnew.emit('+scoreup', id);
+  xnew.emit('+scoreup', { score: id });
 
-  xnew.emit('+sceneappend', StarParticles, { x, y });
+  xnew.emit('+sceneappend', { Component: StarParticles, props: { x, y } });
   
   ball.on('update', () => {
     const position = convert3d(ball.pixiObject.x, ball.pixiObject.y);
@@ -448,7 +448,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
-        xnew.emit('+sceneappend', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
+        xnew.emit('+sceneappend', { Component: ModelBall, props: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 } });
         ball.finalize();
         target.finalize();
         break;

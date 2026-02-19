@@ -13,11 +13,10 @@ function Main(unit) {
   const [width, height] = [800, 600];
   xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
 
-  const aspect = width / height;
   const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
   
   // three setup
-  const camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 10);
+  const camera = new THREE.OrthographicCamera(-width / height, width / height, 1, -1, 0.1, 10);
   xthree.initialize({ canvas: canvas.element, camera });
   xthree.camera.position.set(0, 2 * Math.tan(Math.PI / 6), +2);
   xthree.scene.background = new THREE.Color(0x151729);
@@ -121,11 +120,9 @@ function chessboard(gridX, gridY) {
 
   for (let y = 0; y < 2; y++) {
     for (let x = 0; x < 2; x++) {
-      const value = ((x + y) % 2 === 0) ? 128 : 192;
-      data[(y * s + x) * 4 + 0] = value;
-      data[(y * s + x) * 4 + 1] = value;
-      data[(y * s + x) * 4 + 2] = value;
-      data[(y * s + x) * 4 + 3] = value;
+      const ptr = (y * s + x) * 4;
+      data[ptr + 0] = data[ptr + 1] = data[ptr + 2] = ((x + y) % 2 === 0) ? 128 : 192;
+      data[ptr + 3] = 255;
     }
   }
   const texture = new THREE.DataTexture(data, s, s, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -142,7 +139,7 @@ function chessboard(gridX, gridY) {
 
 function Renderer(unit) {
   const composer = new EffectComposer(xthree.renderer);
-  const renderPixelatedPass = new RenderPixelatedPass( 6, xthree.scene, xthree.camera );
+  const renderPixelatedPass = new RenderPixelatedPass(6, xthree.scene, xthree.camera);
   composer.addPass(renderPixelatedPass);
   composer.addPass(new OutputPass());
 
@@ -156,7 +153,6 @@ function Renderer(unit) {
 
   function pixelAlignFrustum() {
     const baseline = 1.0;
-    const aspect = xthree.canvas.width / xthree.canvas.height;
 
     // Get Pixel Grid Units
     const pixelUnit = 2 * baseline / (xthree.camera.zoom * Math.floor(xthree.canvas.height / renderPixelatedPass.pixelSize));
@@ -172,6 +168,7 @@ function Renderer(unit) {
     const fractX = (camX / pixelUnit) - Math.round(camX / pixelUnit);
     const fractY = (camY / pixelUnit) - Math.round(camY / pixelUnit);
 
+    const aspect = xthree.canvas.width / xthree.canvas.height;
     xthree.camera.left = - baseline * aspect - (fractX * pixelUnit);
     xthree.camera.right = baseline * aspect - (fractX * pixelUnit);
     xthree.camera.top = baseline - (fractY * pixelUnit);
@@ -183,10 +180,9 @@ function Renderer(unit) {
 function GUIPanel(unit) {
   const renderer = xnew.context(Renderer);
   const renderPixelatedPass = renderer.renderPixelatedPass;
+  const params = { pixelSize: renderPixelatedPass.pixelSize, normalEdgeStrength: renderPixelatedPass.normalEdgeStrength, depthEdgeStrength: renderPixelatedPass.depthEdgeStrength, };
 
-  const params = { pixelSize: 6, normalEdgeStrength: 0.3, depthEdgeStrength: 0.4, };
-
-  xnew.nest('<div class="absolute text-sm right-2 top-2 w-64 p-1 border rounded-lg shadow-lg bg-white">');
+  xnew.nest('<div class="absolute text-sm right-2 top-2 w-48 p-1 border rounded-lg shadow-lg bg-white">');
   xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
 
   unit.slider('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {

@@ -71,7 +71,7 @@ function GameScene(scene) {
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
 
-  scene.on('+sceneappend', (Component, props) => {
+  scene.on('+sceneappend', ({ Component, props }) => {
     xnew(Component, props);
   });
 
@@ -121,7 +121,7 @@ function ScoreText(unit) {
   object.anchor.set(1.0, 0.0);
 
   let sum = 0;
-  unit.on('+scoreup', (score) => object.text = `score ${sum += score}`);
+  unit.on('+scoreup', ({ score }) => object.text = `score ${sum += score}`);
 }
 
 function GameOverText(unit) {
@@ -138,7 +138,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.emit('+sceneappend', Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.emit('+sceneappend', { Component: Shot, props: { x: object.x, y: object.y } }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('update', () => {
@@ -218,10 +218,10 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.emit('+sceneappend', Crash, { x: object.x, y: object.y, score });
+        xnew.emit('+sceneappend', { Component: Crash, props: { x: object.x, y: object.y, score } });
       }
-      xnew.emit('+sceneappend', CrashText, { x: object.x, y: object.y, score });
-      xnew.emit('+scoreup', score);
+      xnew.emit('+sceneappend', { Component: CrashText, props: { x: object.x, y: object.y, score } });
+      xnew.emit('+scoreup', { score });
       unit.finalize();
     },
     distance(target) {

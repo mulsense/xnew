@@ -54,7 +54,7 @@ function Main(unit) {
     // let scene = xnew(StoryScene, { id: 0, });
     // let scene = xnew(GameScene, { id: 0 });
 
-    unit.on('+main', (NextScene, props) => {
+    unit.on('+main', ({ NextScene, props }) => {
       xnew(Fade, { fadeout: 300, fadein: 300 }).on('-fadeout', () => {
         scene.finalize();
         scene = xnew(NextScene, props);
@@ -115,9 +115,9 @@ function StoryScene(unit, { id, next = false }) {
         stream.finalize();
         action();
       } else if (next === false) {
-        xnew.emit('+main', GameScene, { id });
+        xnew.emit('+main', { NextScene: GameScene, props: { id } });
       } else {
-        xnew.emit('+main', StoryScene, { id: id + 1 } );
+        xnew.emit('+main', { NextScene: StoryScene, props: { id: id + 1 } });
       }
     });
   }
@@ -178,9 +178,9 @@ function GameScene(unit, { id }) {
       unit.on('pointerdown', next);
       function next(){
         if (id + 1 < global.levels.length) {
-            xnew.emit('+main', StoryScene, { id, next: true });
+            xnew.emit('+main', { NextScene: StoryScene, props: { id, next: true } });
         } else {
-            xnew.emit('+main', TitleScene);
+            xnew.emit('+main', { NextScene: TitleScene, props: {} });
         }
       }
     }, 1000);
@@ -236,7 +236,7 @@ function StageSelect(unit) {
   }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
     const button = xnew(BlockBUtton, { text: `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}` });
-    button.on('click', () => xnew.emit('+main', StoryScene, { id: i }));
+    button.on('click', () => xnew.emit('+main', { NextScene: StoryScene, props: { id: i } }));
   }
 }
 
