@@ -7,17 +7,20 @@ import * as THREE from 'three';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
- 
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+
   // three setup
-  xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.camera.position.set(0, 0, +100);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
@@ -50,7 +53,7 @@ function Boxes(unit) {
 
   for (let y = -1; y <= 1; y++) {
     for (let x = -1; x <= 1; x++) {
-      xnew(Box, { x: 80 * x, y: 80 * y, size: 40, color: 0xEA1E63 });
+        xnew(Box, { x: 120 * x, y: 120 * y, size: 60, color: 0xEA1E63 });
     }
   }
   unit.on('update', () => object.rotation += 0.01);

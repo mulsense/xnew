@@ -43,7 +43,9 @@ export interface TimerOptions {
 
 export class Timer {
     private options: TimerOptions;
-    private id: NodeJS.Timeout | null;
+
+    private startid: NodeJS.Timeout | null;
+    private endid: NodeJS.Timeout | null;
 
     private time: number;
     private counter: number;
@@ -55,7 +57,8 @@ export class Timer {
     constructor(options: TimerOptions) {
         this.options = options;
 
-        this.id = null;
+        this.startid = null;
+        this.endid = null;
         this.time = 0.0;
         this.counter = 0;
         this.offset = 0.0;
@@ -82,21 +85,27 @@ export class Timer {
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
 
-        // this.options.transition?.(0.0);
+        this.startid = setTimeout(() => {
+            this.options.transition?.(0.0);
+        }, 0);
         this.start();
     }
 
     public clear(): void {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
+        if (this.startid !== null) {
+            clearTimeout(this.startid);
+            this.startid = null;
+        }
+        if (this.endid !== null) {
+            clearTimeout(this.endid);
+            this.endid = null;
         }
         document.removeEventListener('visibilitychange', this.visibilitychange);
         this.ticker.clear();
     }
 
     public elapsed(): number {
-        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+        return this.offset + (this.endid !== null ? (Date.now() - this.time) : 0);
     }
 
     public start(): void {
@@ -110,12 +119,12 @@ export class Timer {
     }
 
     private _start(): void {
-        if (this.status === 1 && this.id === null) {
-            this.id = setTimeout(() => {
+        if (this.status === 1 && this.endid === null) {
+            this.endid = setTimeout(() => {
                 this.options.transition?.(1.0);
                 this.options.timeout?.();
 
-                this.id = null;
+                this.endid = null;
                 this.time = 0.0;
                 this.offset = 0.0;
                 this.counter++;
@@ -131,11 +140,11 @@ export class Timer {
     }
 
     private _stop(): void {
-        if (this.status === 1 && this.id !== null) {
+        if (this.status === 1 && this.endid !== null) {
             this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.id);
+            clearTimeout(this.endid);
 
-            this.id = null;
+            this.endid = null;
             this.time = 0.0;
         }
     }

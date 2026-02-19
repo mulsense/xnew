@@ -123,7 +123,8 @@ class AnimationTicker {
 class Timer {
     constructor(options) {
         this.options = options;
-        this.id = null;
+        this.startid = null;
+        this.endid = null;
         this.time = 0.0;
         this.counter = 0;
         this.offset = 0.0;
@@ -147,19 +148,26 @@ class Timer {
         });
         this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
         document.addEventListener('visibilitychange', this.visibilitychange);
-        // this.options.transition?.(0.0);
+        this.startid = setTimeout(() => {
+            var _a, _b;
+            (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
+        }, 0);
         this.start();
     }
     clear() {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
+        if (this.startid !== null) {
+            clearTimeout(this.startid);
+            this.startid = null;
+        }
+        if (this.endid !== null) {
+            clearTimeout(this.endid);
+            this.endid = null;
         }
         document.removeEventListener('visibilitychange', this.visibilitychange);
         this.ticker.clear();
     }
     elapsed() {
-        return this.offset + (this.id !== null ? (Date.now() - this.time) : 0);
+        return this.offset + (this.endid !== null ? (Date.now() - this.time) : 0);
     }
     start() {
         this.status = 1;
@@ -170,12 +178,12 @@ class Timer {
         this.status = 0;
     }
     _start() {
-        if (this.status === 1 && this.id === null) {
-            this.id = setTimeout(() => {
+        if (this.status === 1 && this.endid === null) {
+            this.endid = setTimeout(() => {
                 var _a, _b, _c, _d;
                 (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 1.0);
                 (_d = (_c = this.options).timeout) === null || _d === void 0 ? void 0 : _d.call(_c);
-                this.id = null;
+                this.endid = null;
                 this.time = 0.0;
                 this.offset = 0.0;
                 this.counter++;
@@ -190,10 +198,10 @@ class Timer {
         }
     }
     _stop() {
-        if (this.status === 1 && this.id !== null) {
+        if (this.status === 1 && this.endid !== null) {
             this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.id);
-            this.id = null;
+            clearTimeout(this.endid);
+            this.endid = null;
             this.time = 0.0;
         }
     }
@@ -208,6 +216,12 @@ class Eventor {
         let finalize;
         if (props.type === 'resize') {
             finalize = this.resize(props);
+        }
+        else if (props.type === 'change') {
+            finalize = this.change(props);
+        }
+        else if (props.type === 'input') {
+            finalize = this.input(props);
         }
         else if (props.type === 'wheel') {
             finalize = this.wheel(props);
@@ -242,6 +256,9 @@ class Eventor {
         else if (['keydown.arrow', 'keyup.arrow'].includes(props.type)) {
             finalize = this.key_arrow(props);
         }
+        else if (['keydown.wasd', 'keyup.wasd'].includes(props.type)) {
+            finalize = this.key_wasd(props);
+        }
         else {
             finalize = this.basic(props);
         }
@@ -256,7 +273,7 @@ class Eventor {
     }
     basic(props) {
         const execute = (event) => {
-            props.listener({ event, type: event.type });
+            props.listener({ event });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -266,7 +283,7 @@ class Eventor {
     resize(props) {
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                props.listener({ type: 'resize' });
+                props.listener({});
                 break;
             }
         });
@@ -275,9 +292,47 @@ class Eventor {
             observer.unobserve(props.element);
         };
     }
+    change(props) {
+        const execute = (event) => {
+            let value = null;
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            }
+            else if (event.target.type === 'range' || event.target.type === 'number') {
+                value = parseFloat(event.target.value);
+            }
+            else {
+                value = event.target.value;
+            }
+            props.listener({ event, value });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
+    input(props) {
+        const execute = (event) => {
+            let value = null;
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            }
+            else if (event.target.type === 'range' || event.target.type === 'number') {
+                value = parseFloat(event.target.value);
+            }
+            else {
+                value = event.target.value;
+            }
+            props.listener({ event, value });
+        };
+        props.element.addEventListener(props.type, execute, props.options);
+        return () => {
+            props.element.removeEventListener(props.type, execute);
+        };
+    }
     click(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -287,7 +342,7 @@ class Eventor {
     click_outside(props) {
         const execute = (event) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+                props.listener({ event, position: pointer(props.element, event).position });
             }
         };
         document.addEventListener(props.type.split('.')[0], execute, props.options);
@@ -297,7 +352,7 @@ class Eventor {
     }
     pointer(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -306,7 +361,7 @@ class Eventor {
     }
     mouse(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -315,7 +370,7 @@ class Eventor {
     }
     touch(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+            props.listener({ event, position: pointer(props.element, event).position });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -325,7 +380,7 @@ class Eventor {
     pointer_outside(props) {
         const execute = (event) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, type: props.type, position: pointer(props.element, event).position });
+                props.listener({ event, position: pointer(props.element, event).position });
             }
         };
         document.addEventListener(props.type.split('.')[0], execute, props.options);
@@ -335,7 +390,7 @@ class Eventor {
     }
     wheel(props) {
         const execute = (event) => {
-            props.listener({ event, type: props.type, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
+            props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         };
         props.element.addEventListener(props.type, execute, props.options);
         return () => {
@@ -355,7 +410,7 @@ class Eventor {
                     const position = pointer(props.element, event).position;
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     if (props.type === 'dragmove') {
-                        props.listener({ event, type: props.type, position, delta });
+                        props.listener({ event, position, delta });
                     }
                     previous = position;
                 }
@@ -364,7 +419,7 @@ class Eventor {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
-                        props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                        props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
@@ -373,7 +428,7 @@ class Eventor {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
-                        props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                        props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
@@ -382,7 +437,7 @@ class Eventor {
             window.addEventListener('pointerup', pointerup);
             window.addEventListener('pointercancel', pointercancel);
             if (props.type === 'dragstart') {
-                props.listener({ event, type: props.type, position, delta: { x: 0, y: 0 } });
+                props.listener({ event, position, delta: { x: 0, y: 0 } });
             }
         };
         function remove() {
@@ -411,7 +466,7 @@ class Eventor {
             map.set(event.pointerId, position);
             isActive = map.size === 2 ? true : false;
             if (isActive === true && props.type === 'gesturestart') {
-                props.listener({ event, type: props.type });
+                props.listener({ event });
             }
         };
         const dragmove = ({ event, position, delta }) => {
@@ -438,7 +493,7 @@ class Eventor {
                 //     }
                 // }
                 if (props.type === 'gesturemove') {
-                    props.listener({ event, type: props.type, scale });
+                    props.listener({ event, scale });
                 }
             }
             map.set(event.pointerId, position);
@@ -446,7 +501,7 @@ class Eventor {
         const dragend = ({ event }) => {
             map.delete(event.pointerId);
             if (isActive === true && props.type === 'gestureend') {
-                props.listener({ event, type: props.type, scale: 1.0 });
+                props.listener({ event, scale: 1.0 });
             }
             isActive = false;
         };
@@ -470,7 +525,7 @@ class Eventor {
         const execute = (event) => {
             if (props.type === 'keydown' && event.repeat)
                 return;
-            props.listener({ event, type: props.type, code: event.code });
+            props.listener({ event, code: event.code });
         };
         window.addEventListener(props.type, execute, props.options);
         return () => {
@@ -488,7 +543,7 @@ class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector });
+                props.listener({ event, code: event.code, vector });
             }
         };
         const keyup = (event) => {
@@ -498,7 +553,38 @@ class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, type: props.type, code: event.code, vector });
+                props.listener({ event, code: event.code, vector });
+            }
+        };
+        window.addEventListener('keydown', keydown, props.options);
+        window.addEventListener('keyup', keyup, props.options);
+        return () => {
+            window.removeEventListener('keydown', keydown);
+            window.removeEventListener('keyup', keyup);
+        };
+    }
+    key_wasd(props) {
+        const keymap = {};
+        const keydown = (event) => {
+            if (event.repeat)
+                return;
+            keymap[event.code] = 1;
+            if (props.type === 'keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                const vector = {
+                    x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
+                    y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
+                };
+                props.listener({ event, code: event.code, vector });
+            }
+        };
+        const keyup = (event) => {
+            keymap[event.code] = 0;
+            if (props.type === 'keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                const vector = {
+                    x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
+                    y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
+                };
+                props.listener({ event, code: event.code, vector });
             }
         };
         window.addEventListener('keydown', keydown, props.options);
@@ -670,7 +756,7 @@ class Unit {
             children: [],
             elements: [],
             promises: [],
-            extends: [],
+            components: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -689,10 +775,10 @@ class Unit {
     static finalize(unit) {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
-            unit._.children.forEach((child) => child.finalize());
-            unit._.systems.finalize.forEach(({ execute }) => execute());
+            [...unit._.children].reverse().forEach((child) => child.finalize());
+            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
             unit.off();
-            unit._.extends.forEach(({ component }) => Unit.component2units.delete(component, unit));
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
                 unit._.currentElement = unit._.baseElement;
@@ -731,8 +817,7 @@ class Unit {
     }
     static extend(unit, component, props) {
         var _a;
-        const find = unit._.extends.find(({ component: c }) => c === component);
-        if (find !== undefined) {
+        if (unit._.components.includes(component) === true) {
             throw new Error(`The component is already extended.`);
         }
         else {
@@ -740,6 +825,8 @@ class Unit {
             unit._.currentComponent = component;
             const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
             unit._.currentComponent = backupComponent;
+            Unit.component2units.add(component, unit);
+            unit._.components.push(component);
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
@@ -756,15 +843,12 @@ class Unit {
                 else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
                     wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                 }
-                else if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) !== undefined) {
-                    wrapper.get = () => defines[key];
-                    wrapper.set = (value) => defines[key] = value;
+                else {
+                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
             });
-            Unit.component2units.add(component, unit);
-            unit._.extends.push({ component, defines });
             return defines;
         }
     }
@@ -861,7 +945,9 @@ class Unit {
     }
     static on(unit, type, listener, options) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (...args) => Unit.scope(snapshot, listener, ...args);
+        const execute = (props) => {
+            Unit.scope(snapshot, listener, Object.assign({ type }, props));
+        };
         if (SYSTEM_EVENTS.includes(type)) {
             unit._.systems[type].push({ listener, execute });
         }
@@ -890,7 +976,7 @@ class Unit {
             Unit.type2units.delete(type, unit);
         }
     }
-    static emit(type, ...args) {
+    static emit(type, props = {}) {
         var _a, _b;
         const current = Unit.currentUnit;
         if (type[0] === '+') {
@@ -898,12 +984,12 @@ class Unit {
                 var _a;
                 const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
-                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(...args));
+                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
                 }
             });
         }
         else if (type[0] === '-') {
-            (_b = current._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(...args));
+            (_b = current._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(props));
         }
     }
 }
@@ -929,23 +1015,27 @@ const xnew$1 = Object.assign(function (...args) {
     }
     const component = args.shift();
     const props = args.shift();
-    return new Unit(Unit.currentUnit, target, component, props);
+    const unit = new Unit(Unit.currentUnit, target, component, props);
+    if (typeof component === 'function') {
+        Unit.context(Unit.currentUnit, component, unit);
+    }
+    return unit;
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
-     * @param tag - HTML or SVG tag name (e.g., '<div>', '<span>', '<svg>')
+     * @param tag - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
      * @returns The created HTML/SVG element
      * @throws Error if called after component initialization
      * @example
      * const div = xnew.nest('<div>')
      * div.textContent = 'Hello'
      */
-    nest(tag, textContent) {
+    nest(tag) {
         try {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.nest can not be called after initialized.');
             }
-            return Unit.nest(Unit.currentUnit, tag, textContent);
+            return Unit.nest(Unit.currentUnit, tag);
         }
         catch (error) {
             console.error('xnew.nest(tag: string): ', error);
@@ -966,7 +1056,11 @@ const xnew$1 = Object.assign(function (...args) {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.extend can not be called after initialized.');
             }
-            return Unit.extend(Unit.currentUnit, component, props);
+            const defines = Unit.extend(Unit.currentUnit, component, props);
+            if (typeof component === 'function') {
+                return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+            }
+            return defines;
         }
         catch (error) {
             console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -974,23 +1068,23 @@ const xnew$1 = Object.assign(function (...args) {
         }
     },
     /**
-     * Gets or sets a context value that can be accessed by child components
-     * @param key - Context key
-     * @param value - Optional value to set (if undefined, gets the value)
-     * @returns The context value if getting, undefined if setting
+     * Gets a context value that can be accessed in follow context
+     * @param component - component function
+     * @returns The context value
      * @example
-     * // Set context in parent
-     * xnew.context('theme', 'dark')
+     * // Create unit
+     * const a = xnew(A);
+     * ------------------------------
      *
      * // Get context in child
-     * const theme = xnew.context('theme')
+     * const a = xnew.context(A)
      */
-    context(key, value = undefined) {
+    context(component) {
         try {
-            return Unit.context(Unit.currentUnit, key, value);
+            return Unit.context(Unit.currentUnit, component);
         }
         catch (error) {
-            console.error('xnew.context(key: string, value?: any): ', error);
+            console.error('xnew.context(component: Function): ', error);
             throw error;
         }
     },
@@ -1173,8 +1267,8 @@ const xnew$1 = Object.assign(function (...args) {
     },
 });
 
-function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
-    let state = Math.max(0.0, Math.min(1.0, initialState));
+function OpenAndClose(unit, { open = false } = {}) {
+    let state = open ? 1.0 : 0.0;
     let direction = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
     let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
     return {
@@ -1194,10 +1288,10 @@ function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
                 timer = xnew$1.transition((x) => {
                     const y = x < 1.0 ? (1 - x) * d : 0.0;
                     state = 1.0 - y;
-                    xnew$1.emit('-transition', { state, type: '-transition' });
+                    xnew$1.emit('-transition', { state });
                 }, duration * d, easing)
                     .timeout(() => {
-                    xnew$1.emit('-opened', { state, type: '-opened' });
+                    xnew$1.emit('-opened', { state });
                 });
             }
         },
@@ -1209,128 +1303,105 @@ function OpenAndClose(unit, { state: initialState = 0.0 } = {}) {
                 timer = xnew$1.transition((x) => {
                     const y = x < 1.0 ? (1 - x) * d : 0.0;
                     state = y;
-                    xnew$1.emit('-transition', { state, type: '-transition' });
+                    xnew$1.emit('-transition', { state });
                 }, duration * d, easing)
                     .timeout(() => {
-                    xnew$1.emit('-closed', { state, type: '-closed' });
+                    xnew$1.emit('-closed', { state });
                 });
             }
         },
     };
 }
+function Accordion(unit) {
+    const system = xnew$1.context(OpenAndClose);
+    const outer = xnew$1.nest('<div style="overflow: hidden;">');
+    const inner = xnew$1.nest('<div style="display: flex; flex-direction: column; box-sizing: border-box;">');
+    system.on('-transition', ({ state }) => {
+        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
+        outer.style.opacity = state.toString();
+    });
+}
+function Modal(unit, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+    const system = xnew$1.context(OpenAndClose);
+    system.on('-closed', () => unit.finalize());
+    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
+    unit.on('click', ({ event }) => system.close());
+    const outer = xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0;"">`);
+    xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
+    unit.on('click', ({ event }) => event.stopPropagation());
+    outer.style.background = background;
+    system.on('-transition', ({ state }) => {
+        outer.style.opacity = state.toString();
+    });
+}
 
-function Screen(unit, { width, height, fit = 'contain' } = {}) {
-    const size = { width: width !== null && width !== void 0 ? width : 800, height: height !== null && height !== void 0 ? height : 600 };
-    const outer = xnew$1.nest('<div style="position: relative; width: 100%; height: 100%; overflow: hidden;">');
-    xnew$1().on('resize', resize);
-    const absolute = xnew$1.nest('<div style="position: absolute; margin: auto; container-type: size; overflow: hidden;">');
-    const canvas = xnew$1(`<canvas width="${size.width}" height="${size.height}" style="width: 100%; height: 100%; vertical-align: bottom; user-select: none; user-drag: none; pointer-events: auto;">`);
-    resize();
-    function resize() {
-        const style = { width: '100%', height: '100%', top: 0, left: 0, bottom: 0, right: 0 };
-        if (fit === 'contain') {
-            const aspect = size.width / size.height;
-            if (outer.clientWidth < outer.clientHeight * aspect) {
-                style.height = Math.floor(outer.clientWidth / aspect) + 'px';
-            }
-            else {
-                style.width = Math.floor(outer.clientHeight * aspect) + 'px';
-            }
-        }
-        else if (fit === 'cover') {
-            const aspect = size.width / size.height;
-            if (outer.clientWidth < outer.clientHeight * aspect) {
-                style.width = Math.floor(outer.clientHeight * aspect) + 'px';
-                style.left = Math.floor((outer.clientWidth - outer.clientHeight * aspect) / 2) + 'px';
-                style.right = 'auto';
-            }
-            else {
-                style.height = Math.floor(outer.clientWidth / aspect) + 'px';
-                style.top = Math.floor((outer.clientHeight - outer.clientWidth / aspect) / 2) + 'px';
-                style.bottom = 'auto';
-            }
-        }
-        else if (fit === 'resize') {
-            size.width = outer.clientWidth > 0 ? outer.clientWidth : size.width;
-            size.height = outer.clientHeight > 0 ? outer.clientHeight : size.height;
-            console.log(size);
-            canvas.element.setAttribute('width', size.width + 'px');
-            canvas.element.setAttribute('height', size.height + 'px');
-        }
-        Object.assign(absolute.style, style);
+function Screen(unit, { aspect, fit = 'contain' } = {}) {
+    xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size; overflow: hidden;">');
+    xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size; overflow: hidden;">`);
+    if (fit === 'contain') {
+        unit.element.style.width = `min(100cqw, calc(100cqh * ${aspect}))`;
     }
-    return {
-        get canvas() {
-            return canvas.element;
-        },
-    };
+    else {
+        unit.element.style.flexShrink = '0';
+        unit.element.style.width = `max(100cqw, calc(100cqh * ${aspect}))`;
+    }
 }
 
 //----------------------------------------------------------------------------------------------------
 // controller
 //----------------------------------------------------------------------------------------------------
-function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
+function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
     xnew$1.nest(`<svg
-        viewBox="0 0 100 100"
+        viewBox="0 0 64 64"
         style="position: absolute; width: 100%; height: 100%; select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
 }
-function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
-    const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-    let newsize = Math.min(outer.clientWidth, outer.clientHeight);
-    const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-    xnew$1(outer).on('resize', () => {
-        newsize = Math.min(outer.clientWidth, outer.clientHeight);
-        inner.style.width = `${newsize}px`;
-        inner.style.height = `${newsize}px`;
-    });
+function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
+    xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
+    xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
     xnew$1((unit) => {
         xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-        xnew$1('<polygon points="50  7 40 18 60 18">');
-        xnew$1('<polygon points="50 93 40 83 60 83">');
-        xnew$1('<polygon points=" 7 50 18 40 18 60">');
-        xnew$1('<polygon points="93 50 83 40 83 60">');
+        xnew$1('<polygon points="32  7 27 13 37 13">');
+        xnew$1('<polygon points="32 57 27 51 37 51">');
+        xnew$1('<polygon points=" 7 32 13 27 13 37">');
+        xnew$1('<polygon points="57 32 51 27 51 37">');
     });
     const target = xnew$1((unit) => {
         xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-        xnew$1('<circle cx="50" cy="50" r="23">');
+        xnew$1('<circle cx="32" cy="32" r="14">');
     });
     unit.on('dragstart dragmove', ({ type, position }) => {
-        const x = position.x - newsize / 2;
-        const y = position.y - newsize / 2;
-        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+        const size = unit.element.clientWidth;
+        const x = position.x - size / 2;
+        const y = position.y - size / 2;
+        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
         target.element.style.filter = 'brightness(80%)';
-        target.element.style.left = `${vector.x * newsize / 4}px`;
-        target.element.style.top = `${vector.y * newsize / 4}px`;
+        target.element.style.left = `${vector.x * size / 4}px`;
+        target.element.style.top = `${vector.y * size / 4}px`;
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
         xnew$1.emit(nexttype, { type: nexttype, vector });
     });
     unit.on('dragend', () => {
+        const size = unit.element.clientWidth;
         const vector = { x: 0, y: 0 };
         target.element.style.filter = '';
-        target.element.style.left = `${vector.x * newsize / 4}px`;
-        target.element.style.top = `${vector.y * newsize / 4}px`;
+        target.element.style.left = `${vector.x * size / 4}px`;
+        target.element.style.top = `${vector.y * size / 4}px`;
         xnew$1.emit('-up', { type: '-up', vector });
     });
 }
-function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 2, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
-    const outer = xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%;">`);
-    let newsize = Math.min(outer.clientWidth, outer.clientHeight);
-    const inner = xnew$1.nest(`<div style="position: absolute; width: ${newsize}px; height: ${newsize}px; margin: auto; inset: 0; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
-    xnew$1(outer).on('resize', () => {
-        newsize = Math.min(outer.clientWidth, outer.clientHeight);
-        inner.style.width = `${newsize}px`;
-        inner.style.height = `${newsize}px`;
-    });
+function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
+    xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
+    xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
     const polygons = [
-        '<polygon points="50 50 35 35 35  5 37  3 63  3 65  5 65 35">',
-        '<polygon points="50 50 35 65 35 95 37 97 63 97 65 95 65 65">',
-        '<polygon points="50 50 35 35  5 35  3 37  3 63  5 65 35 65">',
-        '<polygon points="50 50 65 35 95 35 97 37 97 63 95 65 65 65">'
+        '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
+        '<polygon points="32 32 23 41 23 60 24 61 40 61 41 60 41 41">',
+        '<polygon points="32 32 23 23  4 23  3 24  3 40  4 41 23 41">',
+        '<polygon points="32 32 41 23 60 23 61 24 61 40 60 41 41 41">'
     ];
     const targets = polygons.map((polygon) => {
         return xnew$1((unit) => {
@@ -1340,20 +1411,21 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
     xnew$1((unit) => {
         xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
-        xnew$1('<polyline points="35 35 35  5 37  3 63  3 65  5 65 35">');
-        xnew$1('<polyline points="35 65 35 95 37 97 63 97 65 95 65 65">');
-        xnew$1('<polyline points="35 35  5 35  3 37  3 63  5 65 35 65">');
-        xnew$1('<polyline points="65 35 95 35 97 37 97 63 95 65 65 65">');
-        xnew$1('<polygon points="50 11 42 20 58 20">');
-        xnew$1('<polygon points="50 89 42 80 58 80">');
-        xnew$1('<polygon points="11 50 20 42 20 58">');
-        xnew$1('<polygon points="89 50 80 42 80 58">');
+        xnew$1('<polyline points="23 23 23  4 24  3 40  3 41  4 41 23">');
+        xnew$1('<polyline points="23 41 23 60 24 61 40 61 41 60 41 41">');
+        xnew$1('<polyline points="23 23  4 23  3 24  3 40  4 41 23 41">');
+        xnew$1('<polyline points="41 23 60 23 61 24 61 40 60 41 41 41">');
+        xnew$1('<polygon points="32  7 27 13 37 13">');
+        xnew$1('<polygon points="32 57 27 51 37 51">');
+        xnew$1('<polygon points=" 7 32 13 27 13 37">');
+        xnew$1('<polygon points="57 32 51 27 51 37">');
     });
     unit.on('dragstart dragmove', ({ type, position }) => {
-        const x = position.x - newsize / 2;
-        const y = position.y - newsize / 2;
+        const size = unit.element.clientWidth;
+        const x = position.x - size / 2;
+        const y = position.y - size / 2;
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
-        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (newsize / 4));
+        const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
         if (diagonal === true) {
             vector.x = Math.abs(vector.x) > 0.5 ? Math.sign(vector.x) : 0;
@@ -1372,7 +1444,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
         targets[2].element.style.filter = (vector.x < 0) ? 'brightness(80%)' : '';
         targets[3].element.style.filter = (vector.x > 0) ? 'brightness(80%)' : '';
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
-        xnew$1.emit(nexttype, { type: nexttype, vector });
+        xnew$1.emit(nexttype, { vector });
     });
     unit.on('dragend', () => {
         const vector = { x: 0, y: 0 };
@@ -1380,8 +1452,126 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
         targets[1].element.style.filter = '';
         targets[2].element.style.filter = '';
         targets[3].element.style.filter = '';
-        xnew$1.emit('-up', { type: '-up', vector });
+        xnew$1.emit('-up', { vector });
     });
+}
+
+function GUIPanel(unit, { name, open = false, params } = {}) {
+    const object = params !== null && params !== void 0 ? params : {};
+    xnew$1.extend(Group, { name, open });
+    return {
+        group({ name, open, params }, inner) {
+            const group = xnew$1((unit) => {
+                xnew$1.extend(GUIPanel, { name, open, params: params !== null && params !== void 0 ? params : object });
+                inner(unit);
+            });
+            group.on('-eventcapture', ({ event, key, value }) => {
+                xnew$1.emit('-eventcapture', { event, key, value });
+            });
+            return group;
+        },
+        text(name) {
+            return xnew$1('<div style="margin: 0.125rem;">', name);
+        },
+        button(key) {
+            const button = xnew$1(Button, { key });
+            button.on('click', ({ event }) => {
+                xnew$1.emit('-eventcapture', { event, key });
+            });
+            return button;
+        },
+        select(key, { options = [] } = {}) {
+            var _a, _b;
+            object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
+            const select = xnew$1(Select, { key, value: object[key], options });
+            select.on('input', ({ event, value }) => {
+                xnew$1.emit('-eventcapture', { event, key, value });
+            });
+            return select;
+        },
+        slider(key, options = {}) {
+            var _a;
+            object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
+            const number = xnew$1(Slider, Object.assign({ key, value: object[key] }, options));
+            number.on('input', ({ event, value }) => {
+                object[key] = value;
+                xnew$1.emit('-eventcapture', { event, key, value });
+            });
+            return number;
+        },
+        checkbox(key) {
+            var _a;
+            object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : false;
+            const checkbox = xnew$1(Checkbox, { key, value: object[key] });
+            checkbox.on('input', ({ event, value }) => {
+                object[key] = value;
+                xnew$1.emit('-eventcapture', { event, key, value });
+            });
+            return checkbox;
+        },
+        separator() {
+            xnew$1(Separator);
+        }
+    };
+}
+function Group(group, { name, open = false } = {}) {
+    xnew$1.extend(OpenAndClose, { open });
+    if (name) {
+        xnew$1('<div style="display: flex; align-items: center; cursor: pointer;">', (unit) => {
+            unit.on('click', () => group.toggle());
+            xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
+                xnew$1('<path d="M6 2 10 6 6 10" />');
+                group.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
+            });
+            xnew$1('<div>', name);
+        });
+    }
+    xnew$1.extend(Accordion);
+}
+function Button(unit, { key = '' } = {}) {
+    xnew$1.nest('<button style="margin: 0.125rem; padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    unit.element.textContent = key;
+    unit.on('pointerover', () => {
+        unit.element.style.background = 'rgba(0, 0, 128, 0.1)';
+        unit.element.style.borderColor = 'blue';
+    });
+    unit.on('pointerout', () => {
+        unit.element.style.background = '';
+        unit.element.style.borderColor = '';
+    });
+    unit.on('pointerdown', () => {
+        unit.element.style.filter = 'brightness(0.5)';
+    });
+    unit.on('pointerup', () => {
+        unit.element.style.filter = '';
+    });
+}
+function Separator(unit) {
+    xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
+}
+function Slider(unit, { key = '', value, min = 0, max = 100, step = 1 } = {}) {
+    xnew$1.nest(`<div style="margin: 0.125rem;">`);
+    const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
+        xnew$1('<div style="flex: 1;">', key);
+        xnew$1('<div key="status" style="flex: none;">', value);
+    });
+    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="width: 100%; cursor: pointer;">`);
+    unit.on('input', ({ event }) => {
+        status.element.querySelector('[key="status"]').textContent = event.target.value;
+    });
+}
+function Checkbox(unit, { key = '', value } = {}) {
+    xnew$1.nest(`<label style="margin: 0.125rem; display: flex; align-items: center; cursor: pointer;">`);
+    xnew$1('<div style="flex: 1;">', key);
+    xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="margin-right: 0.25rem;">`);
+}
+function Select(unit, { key = '', value, options = [] } = {}) {
+    xnew$1.nest(`<div style="margin: 0.125rem; display: flex; align-items: center;">`);
+    xnew$1('<div style="flex: 1;">', key);
+    xnew$1.nest(`<select name="${key}" style="padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">`);
+    for (const option of options) {
+        xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''}>`, option);
+    }
 }
 
 const context = new window.AudioContext();
@@ -1613,6 +1803,9 @@ const basics = {
     OpenAndClose,
     AnalogStick,
     DPad,
+    GUIPanel,
+    Accordion,
+    Modal,
 };
 const audio = {
     load(path) {

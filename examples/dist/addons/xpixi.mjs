@@ -2,47 +2,49 @@ import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js';
 
 var xpixi = {
-    initialize({ renderer = null, canvas = null } = {}) {
-        xnew.extend(Root, { renderer, canvas });
+    initialize({ canvas = null } = {}) {
+        xnew(Root, { canvas });
     },
     nest(object) {
-        xnew.extend(Nest, { object });
+        xnew(Nest, { object });
         return object;
     },
     get renderer() {
         var _a;
-        return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.renderer;
+        return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.renderer;
     },
     get scene() {
         var _a;
-        return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.scene;
+        return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.scene;
     },
     get canvas() {
         var _a;
-        return (_a = xnew.context('xpixi.root')) === null || _a === void 0 ? void 0 : _a.canvas;
+        return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.canvas;
     },
 };
 function Root(unit, { canvas }) {
-    const root = {};
-    xnew.context('xpixi.root', root);
-    root.canvas = canvas;
-    root.renderer = null;
+    let renderer = null;
     xnew.promise(PIXI.autoDetectRenderer({
         width: canvas.width, height: canvas.height, view: canvas,
         antialias: true, backgroundAlpha: 0,
-    })).then((renderer) => root.renderer = renderer);
-    root.scene = new PIXI.Container();
-    xnew.context('xpixi.object', root.scene);
+    })).then((value) => renderer = value);
+    let scene = new PIXI.Container();
+    return {
+        get renderer() { return renderer; },
+        get scene() { return scene; },
+        get canvas() { return canvas; },
+    };
 }
 function Nest(unit, { object }) {
-    const parent = xnew.context('xpixi.object');
-    xnew.context('xpixi.object', object);
+    var _a, _b;
+    const root = xnew.context(Root);
+    const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.pixiObject) !== null && _b !== void 0 ? _b : root.scene;
     parent.addChild(object);
     unit.on('finalize', () => {
         parent.removeChild(object);
     });
     return {
-        pixiObject: object,
+        get pixiObject() { return object; },
     };
 }
 

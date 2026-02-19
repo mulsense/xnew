@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../../dist/xnew.js"></script>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+</head>
+
+<body class="m-0 p-0 w-full h-screen overflow-hidden">
+  <div id="main" class="relative w-full h-full"></div>
+
+  <script>
+    xnew(document.querySelector('#main'), Main);
+    
+    function Main(unit) {
+      xnew.nest('<div class="p-4 text-lg flex items-baseline gap-4">');
+      xnew(LocalEvent);
+      xnew(GlobalEvent);
+      xnew(ProtectedGlobalEvent);
+    }
+
+    function Base(unit, { text }) {
+      xnew.nest('<div class="p-2 border rounded-lg flex flex-col items-center gap-4">');
+      xnew('<p>', text);
+    }
+
+    function LocalEvent(unit) {
+      xnew.extend(Base, { text: 'local event' });
+
+      const div = xnew((unit) => {
+        xnew.nest('<div class="w-48 p-4 border rounded-lg flex flex-col items-center gap-2">');
+
+        xnew(Button, { text: '-myclick' }).on('click', ({ event }) => xnew.emit('-myclick'));
+      });
+
+      const p = xnew('<p>', '-myclick 0');
+      let count = 0;
+      div.on('-myclick', () => p.element.textContent = `-myclick ${++count}`);
+    }
+
+    function GlobalEvent(unit) {
+      xnew.extend(Base, { text: 'global event' });
+
+      xnew((unit) => {
+        xnew.nest('<div class="w-48 p-4 border rounded-lg flex flex-col items-center gap-2">');
+        xnew('<p class="font-bold">', 'not protected');
+        const p = xnew('<p>', '+myclick 0');
+
+        let count = 0;
+        unit.on('+myclick', () => p.element.textContent = `+myclick ${++count}`); 
+
+        xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+      });
+
+      xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+    }
+
+    function ProtectedGlobalEvent(unit) {
+      xnew.extend(Base, { text: 'global event' });
+
+      xnew((unit) => {
+        xnew.protect();
+        xnew.nest('<div class="w-48 p-4 border rounded-lg flex flex-col items-center gap-2 bg-gray-200">');
+        xnew('<p class="font-bold">', 'protected');
+        const p = xnew('<p>', '+myclick 0');
+
+        let count = 0;
+        unit.on('+myclick', () => p.element.textContent = `+myclick ${++count}`); 
+
+        xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+      });
+
+      xnew(Button, { text: '+myclick' }).on('click', ({ event }) => xnew.emit('+myclick'));
+    }
+
+    function Button(unit, { text = 'button' } = {}) {
+      xnew.nest('<button class="px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', text);
+    }
+
+  </script>
+</body>
+
+</html>

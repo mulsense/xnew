@@ -34,6 +34,8 @@ declare class Eventor {
     remove(type: string, listener: Function): void;
     private basic;
     private resize;
+    private change;
+    private input;
     private click;
     private click_outside;
     private pointer;
@@ -45,6 +47,7 @@ declare class Eventor {
     private gesture;
     private key;
     private key_arrow;
+    private key_wasd;
 }
 
 type UnitElement = HTMLElement | SVGElement;
@@ -73,7 +76,7 @@ declare class UnitTimer {
 }
 interface Context {
     stack: Context | null;
-    key?: string;
+    key?: any;
     value?: any;
 }
 interface Snapshot {
@@ -100,10 +103,7 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    extends: {
-        component: Function;
-        defines: Record<string, any>;
-    }[];
+    components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
         component: Function | null;
@@ -141,7 +141,7 @@ declare class Unit {
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
-    static context(unit: Unit, key: string, value?: any): any;
+    static context(unit: Unit, key: any, value?: any): any;
     static component2units: MapSet<Function, Unit>;
     static find(component: Function): Unit[];
     static type2units: MapSet<string, Unit>;
@@ -149,7 +149,7 @@ declare class Unit {
     off(type?: string, listener?: Function): void;
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static off(unit: Unit, type: string, listener?: Function): void;
-    static emit(type: string, ...args: any[]): void;
+    static emit(type: string, props?: object): void;
 }
 
 interface CreateUnit {
@@ -175,22 +175,23 @@ interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-declare function OpenAndClose(unit: Unit, { state: initialState }?: {
-    state?: number;
+declare function OpenAndClose(unit: Unit, { open }?: {
+    open?: boolean;
 }): {
     toggle(duration?: number, easing?: string): void;
     open(duration?: number, easing?: string): void;
     close(duration?: number, easing?: string): void;
 };
+declare function Accordion(unit: Unit): void;
+declare function Modal(unit: Unit, { background }?: {
+    background?: string;
+}): void;
 
-type ScreenFit = 'contain' | 'cover' | 'fill' | 'resize';
-declare function Screen(unit: Unit, { width, height, fit }?: {
-    width?: number;
-    height?: number;
+type ScreenFit = 'contain' | 'cover';
+declare function Screen(unit: Unit, { aspect, fit }?: {
+    aspect?: number;
     fit?: ScreenFit;
-}): {
-    readonly canvas: UnitElement;
-};
+}): void;
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;
@@ -210,6 +211,27 @@ declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth
     fill?: string;
     fillOpacity?: number;
 }): void;
+
+interface GUIPanelOptions {
+    name?: string;
+    open?: boolean;
+    params?: Record<string, any>;
+}
+declare function GUIPanel(unit: Unit, { name, open, params }?: GUIPanelOptions): {
+    group({ name, open, params }: GUIPanelOptions, inner: Function): Unit;
+    text(name: string): Unit;
+    button(key: string): Unit;
+    select(key: string, { options }?: {
+        options?: string[];
+    }): Unit;
+    slider(key: string, options?: {
+        min?: number;
+        max?: number;
+        step?: number;
+    }): Unit;
+    checkbox(key: string): Unit;
+    separator(): void;
+};
 
 type SynthesizerOptions = {
     oscillator: OscillatorOptions;
@@ -256,14 +278,11 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(tag: string, textContent?: string | number): HTMLElement | SVGElement;
+    nest(tag: string): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
-    internal(component: Function, props?: Object): {
-        [key: string]: any;
-    };
-    context(key: string, value?: any): any;
+    context(component: Function): any;
     promise(promise: Promise<any>): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
@@ -278,11 +297,12 @@ declare const xnew: CreateUnit & {
 } & {
     basics: {
         Screen: typeof Screen;
-        Modal: any;
-        Accordion: any;
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
         DPad: typeof DPad;
+        GUIPanel: typeof GUIPanel;
+        Accordion: typeof Accordion;
+        Modal: typeof Modal;
     };
     audio: {
         load(path: string): UnitPromise;

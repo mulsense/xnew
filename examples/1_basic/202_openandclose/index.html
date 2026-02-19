@@ -13,62 +13,50 @@
     xnew(document.querySelector('#main'), (unit) => {
       xnew.nest('<div class="p-2 flex items-baseline gap-x-2">')
       xnew(Accordion)
-
+      
       const button = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
       button.on('click', () => xnew(document.body, MyModal));
     });
 
     function Accordion(accordion) {
-      const system = xnew(xnew.basics.OpenAndClose, { state: 1.0 });
+      const system = xnew(xnew.basics.OpenAndClose, { open: true });
       xnew.nest('<div class="w-64 border rounded-lg">');
 
       xnew('<div class="flex items-center select-none cursor-pointer">', (unit) => {
-        unit.on('click', () => system.toggle());
-        xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
+        xnew('<svg viewBox="0 0 12 12" class="size-4" fill="none" stroke="currentColor">', (unit) => {
           xnew('<path d="M6 2 10 6 6 10" />');
           system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
         });
         xnew('<div class="my-2">', 'accordion (click me!)');
+        unit.on('click', () => system.toggle());
       });
 
       xnew((unit) => {
-        const outer = xnew.nest('<div class="overflow-hidden">');
-        const inner = xnew.nest('<div class="border-t flex flex-col box-border">');
-        system.on('-transition', ({ state }) => {
-          outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-          outer.style.opacity = state;
-        });
+        xnew.extend(xnew.basics.Accordion);
         xnew(Contents);
       });
     }
 
     function MyModal(modal) {
-      const system = xnew(xnew.basics.OpenAndClose, { state: 0.0 });
+      const system = xnew(xnew.basics.OpenAndClose, { open: false });
       system.open();
       system.on('-closed', () => modal.finalize());
 
-      xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-      modal.on('click', ({ event }) => system.close());
+      xnew((unit) => {
+        xnew.extend(xnew.basics.Modal);
+        xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
 
-      const outer = xnew.nest(`<div class="w-full h-full" style="background: rgba(0, 0, 0, 0.1); opacity: 0;">`);
-      const inner = xnew.nest('<div class="absolute inset-0 m-auto w-max h-max">');
-      modal.on('click', ({ event }) => event.stopPropagation());
-      system.on('-transition', ({ state }) => outer.style.opacity = state);
+        xnew('<div class="p-2 border-b flex justify-between">', () => {
+          xnew('<span>', 'Title');
+          xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
+        });
 
-      xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
-
-      // Title Bar
-      xnew('<div class="p-2 border-b flex justify-between">', () => {
-        xnew('<span>', 'Title');
-        xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
+        xnew(Contents);
       });
-
-      xnew(Contents);
     }
 
     function Contents(unit) {
-      xnew.nest('<div class="p-2">');
+      xnew.nest('<div class="border-t p-2">');
       xnew('<span>', 'Contents');
       xnew('<ul>', () => {
         xnew('<li class="ml-2">', '1st item');

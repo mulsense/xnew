@@ -2,20 +2,21 @@ import xnew from '@mulsense/xnew';
 import Matter from 'matter-js';
 
 export default {
-    initialize ({ engine = null }: any = {}) {
-        xnew.extend(Root, { engine });
+    initialize ({}: any = {}) {
+        xnew(Root, {});
     },
     get engine() {
-        return xnew.context('xmatter.root')?.engine;
+        return xnew.context(Root)?.engine;
     },
     get world() {
-        return xnew.context('xmatter.root')?.engine.world;
+        return xnew.context(Root)?.engine.world;
     },
 };
 
-function Root(unit: xnew.Unit, { engine }: any) {
-    const root: { [key: string]: any } = {};
-    xnew.context('xmatter.root', root);
+function Root(unit: xnew.Unit, {}: any) {
+    const engine = Matter.Engine.create();
 
-    root.engine = engine ?? Matter.Engine.create();
+    return {
+        get engine() { return engine; },
+    }
 }

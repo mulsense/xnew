@@ -100,7 +100,7 @@ export class UnitTimer {
     }
 }
 
-interface Context { stack: Context | null; key?: string; value?: any; }
+interface Context { stack: Context | null; key?: any; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
 
 interface Internal {
@@ -123,7 +123,7 @@ interface Internal {
     children: Unit[];
     promises: UnitPromise[];
     elements: UnitElement[];
-    extends: { component: Function, defines: Record<string, any> }[];
+    components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, { listener: Function, execute: Function }[]>;
@@ -162,6 +162,7 @@ export class Unit {
         
         this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
+        
         Unit.initialize(this, null);
     }
 
@@ -209,7 +210,7 @@ export class Unit {
             children: [],
             elements: [],
             promises: [],
-            extends: [],
+            components: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -234,11 +235,11 @@ export class Unit {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
 
-            unit._.children.forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.forEach(({ execute }) => execute());
+            [...unit._.children].reverse().forEach((child: Unit) => child.finalize());
+            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
 
             unit.off();
-            unit._.extends.forEach(({ component }) => Unit.component2units.delete(component, unit));
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
 
             if (unit._.elements.length > 0) {
                 unit._.baseElement.removeChild(unit._.elements[0]);
@@ -280,14 +281,16 @@ export class Unit {
     static currentComponent: Function = () => {};
    
     static extend(unit: Unit, component: Function, props?: Object): { [key: string]: any } {
-        const find = unit._.extends.find(({ component: c }) => c === component);
-        if (find !== undefined) {
+        if (unit._.components.includes(component) === true) {
             throw new Error(`The component is already extended.`);
         } else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = component;
             const defines = component(unit, props) ?? {};
             unit._.currentComponent = backupComponent;
+
+            Unit.component2units.add(component, unit);
+            unit._.components.push(component);
 
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
@@ -302,16 +305,12 @@ export class Unit {
                     if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
                 } else if (typeof descriptor?.value === 'function') {
                     wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
-                } else if (descriptor?.value !== undefined) {
-                    wrapper.get = () => defines[key];
-                    wrapper.set = (value: any) => defines[key] = value;
+                } else {
+                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
             });
-
-            Unit.component2units.add(component, unit);
-            unit._.extends.push({ component, defines });
 
             return defines;
         }
@@ -390,7 +389,7 @@ export class Unit {
         return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
 
-    static context(unit: Unit, key: string, value?: any): any {
+    static context(unit: Unit, key: any, value?: any): any {
         if (value !== undefined) {
             unit._.currentContext = { stack: unit._.currentContext, key, value };
         } else {
@@ -426,7 +425,9 @@ export class Unit {
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (...args: any[]) => Unit.scope(snapshot, listener, ...args);
+        const execute = (props: object) => {
+            Unit.scope(snapshot, listener, Object.assign({ type }, props));
+        }
         if (SYSTEM_EVENTS.includes(type)) {
             unit._.systems[type].push({ listener, execute });
         }
@@ -456,17 +457,17 @@ export class Unit {
         }
     }
 
-    static emit(type: string, ...args: any[]) {
+    static emit(type: string, props: object = {}): void {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
             Unit.type2units.get(type)?.forEach((unit) => {
                 const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
                 if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
-                    unit._.listeners.get(type)?.forEach((item) => item.execute(...args));
+                    unit._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });
         } else if (type[0] === '-') {
-            current._.listeners.get(type)?.forEach((item) => item.execute(...args));
+            current._.listeners.get(type)?.forEach((item) => item.execute(props));
         }
     }
 }

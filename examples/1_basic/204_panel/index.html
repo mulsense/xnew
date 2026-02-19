@@ -15,77 +15,34 @@
       xnew(MyPanel);
     });
 
-    function MyPanel(unit) {
+    function MyPanel(panel) {
+      const params = { data: 20, flag: true, color: 'red', };
+
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
-
-      xnew('<div">', 'My Panel');
-
-      xnew((unit) => {
-        xnew.extend(PanelGroup, { name: 'group 1', open: false });
-        xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 1');
-        xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 2');
-        xnew('<button class="m-0.5 border rounded-lg hover:bg-gray-200 cursor-pointer">', 'button 3');
-      });
-
-      xnew((unit) => {
-        xnew.extend(PanelGroup, { name: 'group 2', open: true });
-
-        xnew((unit) => {
-          xnew('<div class="text-sm flex justify-between">', (unit) => {
-              xnew('<div class="flex-1">', 'range 1');
-              xnew('<div key="status" class="flex-none">', '25');
-          });
-          const input = xnew('<input type="range" name="range 1" min="0" max="100" value="25" class="m-0 w-full">');
-          input.on('input', ({ event }) => {
-            unit.element.querySelector('[key="status"]').textContent = event.target.value;
-          });
-        });
-
-        xnew((unit) => {
-          xnew('<div class="flex justify-between">', (unit) => {
-              xnew('<div class="flex-1">', 'radio 1');
-          });
-          xnew('<label class="block">', () => {
-            xnew('<input type="radio" name="radio 1" value="radio A" checked>');
-            xnew('<span class="mx-2">', 'radio A');
-          });
-          xnew('<label class="block">', () => {
-            xnew('<input type="radio" name="radio 1" value="radio B">');
-            xnew('<span class="mx-2">', 'radio B');
-          });
-          xnew('<label class="block">', () => {
-            xnew('<input type="radio" name="radio 1" value="radio C">');
-            xnew('<span class="mx-2">', 'radio C');
-          });
-        })
-
-        xnew((unit) => {
-          xnew('<div class="flex justify-between">', (unit) => {
-              xnew('<div class="flex-1">', 'text 1');
-          });
-          xnew('<input type="text" name="text 1" value="text" class="px-2 w-full h-8 border rounded-lg">');
-        })
-      });
-    }
-
-    function PanelGroup(accordion, { name, open = false }) {
-      const system = xnew(xnew.basics.OpenAndClose, { state: open ? 1.0 : 0.0 });
+      xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
       
-      xnew('<div class="flex items-center cursor-pointer">', (unit) => {
-        unit.on('click', () => system.toggle());
-        xnew((unit) => {
-          xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
-          xnew('<path d="M6 2 10 6 6 10" />');
-          system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
-        });
-        xnew('<div>', name);
+      const text = xnew('<div class="m-0.5 p-1 rounded bg-gray-200">', 'Console');
+
+      panel.group({ name: 'group 1', open: true }, (group) => {
+        group.button('button1').on('click', () => text.element.textContent = 'button1 clicked');
+        group.button('button2').on('click', () => text.element.textContent = 'button2 clicked');
+        group.button('button3').on('click', () => text.element.textContent = 'button3 clicked');
+        group.separator();
       });
 
-      const outer = xnew.nest('<div class="overflow-hidden">');
-      const inner = xnew.nest('<div class="p-2 flex flex-col box-border">');
-      system.on('-transition', ({ state }) => {
-        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-        outer.style.opacity = state;
+      panel.slider('data', { min: 0, max: 60, step: 2 }).on('input', ({ value }) => text.element.textContent = `data changed to ${value}`);
+      panel.checkbox('flag').on('input', ({ value }) => text.element.textContent = `flag changed to ${value}`);
+      panel.select('color', { options: ['red', 'green', 'blue'] }).on('input', ({ value }) => text.element.textContent = `color changed to ${value}`);
+      panel.separator();
+
+      const show = panel.checkbox('show');
+      const group = panel.group({ open: false }, (group) => {
+        group.text('hellow');
+      });
+      show.on('input', ({ value }) => value ? group.open() : group.close());
+
+      panel.on('-eventcapture', ({ key, value }) => {
+        console.log(key, value);
       });
     }
   </script>

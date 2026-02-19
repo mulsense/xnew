@@ -71,8 +71,12 @@ function Event(unit) {
 }
 
 function ThreeMain(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 1200, height: 800, fit: 'cover' });
-  xthree.initialize({ canvas: unit.canvas });
+  const [width, height] = [1200, 800];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'cover' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+
+  xthree.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });

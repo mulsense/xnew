@@ -439,9 +439,9 @@ timer.on('-message', (data) => {
 });
 ```
 
-## Custom Properties and Methods
+## Custom Methods
 
-You can extend your components with custom properties and methods by returning an object from your component function. This creates a public API for your component.
+You can extend your components with custom methods by returning an object from your component function. This creates a public API for your component.
 
 ### Basic Custom Methods
 
@@ -449,7 +449,7 @@ You can extend your components with custom properties and methods by returning a
 function Counter(unit) {
   let count = 0;
   
-  // Return public API
+  // Return public API (methods, getter, setter)
   return {
     increment() {
       count++;

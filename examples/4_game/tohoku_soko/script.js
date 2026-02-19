@@ -10,12 +10,27 @@ import { Background, BlockBUtton, GrowText, TextStream } from './util.js';
 
 xnew(document.querySelector('#main'), Main);
 
-function Main(unit) {
-  xnew.context('global', { GRID: 10, levels: null });
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 450 });
+function GameData(unit) {
+  let GRID = 10;
+  let levels = null;
 
-  // three
-  const size = xnew.context('global').GRID / 2;
+  return {
+    get GRID() { return GRID; },
+    get levels() { return levels; },
+    set levels(value) { levels = value; },
+  }
+}
+
+function Main(unit) {
+  xnew(GameData);
+
+  const [width, height] = [800, 450];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+
+  // three setup
+  const size = xnew.context(GameData).GRID / 2;
   const camera = new THREE.OrthographicCamera(-size, +size, +size, -size, 0, 100);
   xthree.initialize({ canvas: new OffscreenCanvas(480, 480), camera });
   xthree.renderer.shadowMap.enabled = true;
@@ -27,19 +42,19 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
   });
 
   xnew.promise(fetch('./levels.json')).then(response => response.json()).then((levels) => {
-    xnew.context('global').levels = levels;
+    xnew.context(GameData).levels = levels;
     let scene = xnew(TitleScene);
     // let scene = xnew(StoryScene, { id: 0, });
     // let scene = xnew(GameScene, { id: 0 });
 
-    unit.on('+main', (NextScene, props) => {
+    unit.on('+main', ({ NextScene, props }) => {
       xnew(Fade, { fadeout: 300, fadein: 300 }).on('-fadeout', () => {
         scene.finalize();
         scene = xnew(NextScene, props);
@@ -100,18 +115,24 @@ function StoryScene(unit, { id, next = false }) {
         stream.finalize();
         action();
       } else if (next === false) {
-        xnew.emit('+main', GameScene, { id });
+        xnew.emit('+main', { NextScene: GameScene, props: { id } });
       } else {
-        xnew.emit('+main', StoryScene, { id: id + 1 } );
+        xnew.emit('+main', { NextScene: StoryScene, props: { id: id + 1 } });
       }
     });
   }
 }
+function MapState(unit) {
+  const map = [];
+
+  return {
+    get map() { return map; },
+  }
+}
 
 function GameScene(unit, { id }) {
-  const global = xnew.context('global');
-  const state = { map: [] };
-  xnew.context('state', state);
+  const global = xnew.context(GameData);
+  const state = xnew(MapState);
 
   xnew(DirectionalLight, { x: 2, y: -5, z: 10 });
   xnew(AmbientLight);
@@ -157,9 +178,9 @@ function GameScene(unit, { id }) {
       unit.on('pointerdown', next);
       function next(){
         if (id + 1 < global.levels.length) {
-            xnew.emit('+main', StoryScene, { id, next: true });
+            xnew.emit('+main', { NextScene: StoryScene, props: { id, next: true } });
         } else {
-            xnew.emit('+main', TitleScene);
+            xnew.emit('+main', { NextScene: TitleScene, props: {} });
         }
       }
     }, 1000);
@@ -208,19 +229,19 @@ function TitleText(unit) {
 }
 
 function StageSelect(unit) {
-  const global = xnew.context('global');
+  const global = xnew.context(GameData);
   const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[3cqw]" style="opacity: 0">');
   xnew.timeout(() => {}, 1).transition((p) => {
     div.style.opacity = p;
   }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
     const button = xnew(BlockBUtton, { text: `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}` });
-    button.on('click', () => xnew.emit('+main', StoryScene, { id: i }));
+    button.on('click', () => xnew.emit('+main', { NextScene: StoryScene, props: { id: i } }));
   }
 }
 
 function Floor(unit) {
-  const global = xnew.context('global');
+  const global = xnew.context(GameData);
   const object = xthree.nest(new THREE.Group());
 
   for (let y = 0; y < global.GRID; y++) {
@@ -466,10 +487,13 @@ function RightBlock(unit, { id }) {
   xnew.nest('<div class="absolute right-0 top-0 w-[20cqw] h-full select-none">');
 
   xnew('<div class="absolute bottom-[6cqh] size-[20cqw]">', (screen) => {
-    xnew.extend(xnew.basics.Screen, { width: 300, height: 300 });
+    const [width, height] = [300, 300];
+    xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+    const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
     const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0, 100);
-    xthree.initialize({ canvas: screen.canvas, camera });
+    xthree.initialize({ canvas: canvas.element, camera });
     xthree.renderer.shadowMap.enabled = true;
     xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     xthree.camera.position.set(0, 0, +10);
@@ -536,18 +560,20 @@ function Model(unit, { id = 0, scale }) {
     count += 0.6;
   });
 
-  return { object }
+  return {
+    get obejct() { return object; },
+  }
 }
 
 // helpers
 function convert3d(gridX, gridY, z = 0) {
-  const global = xnew.context('global');
+  const global = xnew.context(GameData);
   return { x: (gridX + 0.5) - global.GRID / 2, y: -((gridY + 0.5) - global.GRID / 2), z: z };
 }
 
 function canMove(x, y) {
-  const global = xnew.context('global');
-  const state = xnew.context('state');
+  const global = xnew.context(GameData);
+  const state = xnew.context(MapState);
   if (x < 0 || x >= global.GRID || y < 0 || y >= global.GRID) return false;
   if (state.map[y][x] === '#') return false;
   return true;

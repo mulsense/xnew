@@ -1,11 +1,9 @@
 import * as THREE from 'three';
 
 declare const _default: {
-    initialize({ renderer, canvas, camera, update }?: {
-        renderer?: any;
+    initialize({ canvas, camera }?: {
         canvas?: HTMLCanvasElement | null;
         camera?: THREE.Camera | null;
-        update?: boolean;
     }): void;
     nest(object: any): any;
     readonly renderer: any;

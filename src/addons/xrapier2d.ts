@@ -3,18 +3,20 @@ import RAPIER from '@dimforge/rapier2d-compat';
 
 export default {
     initialize ({ gravity = { x: 0.0, y: -9.81 } }: any = {}) {
-        xnew.extend(Root, { gravity });
+        xnew(Root, { gravity });
     },
     get world() {
-        return xnew.context('xrapier2d.root')?.world;
+        return xnew.context(Root)?.world;
     },
 };
 
 function Root(unit: xnew.Unit, { gravity }: any) {
-    const root: { [key: string]: any } = {};
-    xnew.context('xrapier2d.root', root);
-
+    let world: RAPIER.World | null = null;
+    
     xnew.promise(RAPIER.init()).then(() => {
-        root.world = new RAPIER.World(gravity);
+        world = new RAPIER.World(gravity);
     });
+    return {
+        get world() { return world; },
+    };
 }

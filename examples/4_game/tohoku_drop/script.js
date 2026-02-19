@@ -12,10 +12,13 @@ import xmatter from '@mulsense/xnew/addons/xmatter';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // setup three 
-  xthree.initialize({ canvas: new OffscreenCanvas(unit.canvas.width, unit.canvas.height) });
+  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.renderer.shadowMap.enabled = true;
   xthree.camera.position.set(0, 0, +10);
   unit.on('render', () => {
@@ -23,7 +26,7 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: unit.canvas });
+  xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
     xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
@@ -33,14 +36,27 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew.context('gamedata', { scores: [0, 0, 0, 0, 0, 0, 0, 0] });
+  xnew(GameData);
 
   let scene = xnew(TitleScene);
   // let scene = xnew(ResultScene, { image: null });
-  unit.on('+scenechange', (NextScene, props) => {
+  unit.on('+scenechange', ({ NextScene, props }) => {
     scene.finalize();
     scene = xnew(NextScene, props);
   });
+}
+
+function GameData(unit) {
+  let scores = [0, 0, 0, 0, 0, 0, 0, 0];
+
+  return {
+    get scores() {
+      return scores;
+    },
+    reset() {
+      scores = [0, 0, 0, 0, 0, 0, 0, 0];
+    },
+  }
 }
 
 function TitleScene(unit) {
@@ -55,7 +71,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(CanvasTransfer);
-  unit.on('pointerdown', () => xnew.emit('+scenechange', GameScene));
+  unit.on('pointerdown', () => xnew.emit('+scenechange', { NextScene: GameScene }));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -67,8 +83,8 @@ function GameScene(unit) {
   unit.on('update', () => {
     Matter.Engine.update(xmatter.engine);
   });
-  xnew.context('gamedata').scores = [0, 0, 0, 0, 0, 0, 0, 0];
-
+  xnew.context(GameData).reset();
+  
   xnew(Background);
   xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 5, z: 10 });
@@ -84,9 +100,9 @@ function GameScene(unit) {
     xnew(Controller);
     xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
-  unit.on('+append', (Component, props) => xnew(Component, props));
+  unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
 
-  // xnew.timeout(() => xnew.emit('+gameover'), 100);
+  // xnew.timeout(() => xnew.emit('+gameover'), 1100);
 
   unit.on('+gameover', () => {
     unit.off('+gameover');
@@ -97,7 +113,7 @@ function GameScene(unit) {
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
       xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
-      .timeout(() => xnew.emit('+scenechange', ResultScene, { image }));
+      .timeout(() => xnew.emit('+scenechange', { NextScene: ResultScene, props: { image } }));
     }, 2000);
   });
 }
@@ -153,9 +169,9 @@ function ScoreText(unit) {
   xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600 font-bold">');
   const text = xnew(StrokeText, { text: 'score 0' });
   let sum = 0;
-  unit.on('+scoreup', (i) => {
-    text.element.textContent = `score ${sum += Math.pow(2, i)}`;
-    xnew.context('gamedata').scores[i]++;
+  unit.on('+scoreup', ({ score }) => {
+    text.element.textContent = `score ${sum += Math.pow(2, score)}`;
+    xnew.context(GameData).scores[score]++;
   });
 }
 
@@ -206,7 +222,7 @@ function ResultDetail(unit) {
   const characters = ['ずんだもん', '中国うさぎ', '東北きりたん', '四国めたん', '東北ずん子', '九州そら', '東北イタコ', '大ずんだもん'];
   let sum = 0;
   for (let i = 0; i < 8; i++) {
-    const score = xnew.context('gamedata').scores[i];
+    const score = xnew.context(GameData).scores[i];
     sum += score * Math.pow(2, i);
     xnew('<div class="text-[3cqw] text-green-600 text-center">', `${characters[i]}: ${Math.pow(2, i)}点 x ${score}`);
   }
@@ -240,7 +256,7 @@ function ResultFooter(unit) {
       xnew(Frame);
       xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, ArrowUturnLeft);
     });
-    button.on('click', () => xnew.emit('+scenechange', TitleScene));
+    button.on('click', () => xnew.emit('+scenechange', { NextScene: TitleScene }));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {
@@ -293,7 +309,7 @@ function Bowl(unit) {
 
 function Queue(unit) {
   const balls = [...Array(4)].map(() => Math.floor(Math.random() * 3));
-  xnew.emit('+relode:done', 0);
+  xnew.emit('+relode:done', { id: 0 });
 
   const position = convert3d(10 + 70, 70);
   const rotation = { x: 30 / 180 * Math.PI, y: 60 / 180 * Math.PI, z: 0 };
@@ -309,7 +325,7 @@ function Queue(unit) {
     xnew.transition((p) => {
       const position = convert3d(10 + p * 70, 70);
       model.threeObject.position.set(position.x, position.y, position.z);
-    }, 500).timeout(() => xnew.emit('+relode:done', balls.shift()));
+    }, 500).timeout(() => xnew.emit('+relode:done', { id: balls.shift() }));
   });
 }
 
@@ -361,7 +377,10 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
       count++;
     });
   });
-  return { id };
+  return { 
+    get id() { return id; },
+    get threeObject() { return object }
+  };
 }
 
 function Cursor(unit) {
@@ -376,13 +395,13 @@ function Cursor(unit) {
 
   const offset = 50;
   let model = null
-  unit.on('+relode:done', (id) => {
+  unit.on('+relode:done', ({ id }) => {
     const position = convert3d(object.x, object.y + offset);
     model = xnew(Model, { position, id, scale: 0.5 });
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      xnew.emit('+append', ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      xnew.emit('+sceneappend', { Component: ModelBall, props: { x: object.x, y: object.y + offset, id: model.id } });
       model.finalize();
       model = null;
       xnew.emit('+reload');
@@ -409,9 +428,9 @@ function ModelBall(ball, { x, y, id = 0 }) {
   }
 
   const model = xnew(Model, { id, scale });
-  xnew.emit('+scoreup', id);
+  xnew.emit('+scoreup', { score: id });
 
-  xnew.emit('+append', StarParticles, { x, y });
+  xnew.emit('+sceneappend', { Component: StarParticles, props: { x, y } });
   
   ball.on('update', () => {
     const position = convert3d(ball.pixiObject.x, ball.pixiObject.y);
@@ -429,14 +448,17 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
-        xnew.emit('+append', ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
+        xnew.emit('+sceneappend', { Component: ModelBall, props: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 } });
         ball.finalize();
         target.finalize();
         break;
       }
     }
   });
-  return { radius, id };
+  return {
+    get radius() { return radius; },
+    get id() { return id; },
+  }
 }
 
 function StarParticles(unit, { x, y }) {
@@ -483,6 +505,9 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
+  return {
+    get pixiObject() { return object; }
+  }
 }
 
 // helpers
