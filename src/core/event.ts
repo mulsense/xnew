@@ -89,7 +89,7 @@ export class Eventor {
             let value: any = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
-            } else if (event.target.type === 'number') {
+            } else if (event.target.type === 'range' || event.target.type === 'number') {
                 value = parseFloat(event.target.value);
             } else {
                 value = event.target.value;
@@ -107,7 +107,7 @@ export class Eventor {
             let value: any = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
-            } else if (event.target.type === 'number') {
+            } else if (event.target.type === 'range' || event.target.type === 'number') {
                 value = parseFloat(event.target.value);
             } else {
                 value = event.target.value;

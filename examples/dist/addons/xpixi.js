@@ -65,6 +65,9 @@
         unit.on('finalize', () => {
             parent.removeChild(object);
         });
+        return {
+            get pixiObject() { return object; },
+        };
     }
 
     return xpixi;

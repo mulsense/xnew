@@ -18,9 +18,9 @@ export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOpt
                 xnew.extend(GUIPanel, { name, open, params: params ?? object });
                 inner(unit);
             });
-            group.on('-change', ({ event, key }: { event: PointerEvent, key: string }) => {
-                xnew.emit('-change.' + key, { event, key });
-                xnew.emit('-change', { event, key });
+            group.on('-eventcapture', ({ event, key, value }: { event: PointerEvent, key: string, value: any }) => {
+                xnew.emit('-eventcapture.' + key, { event, key, value });
+                xnew.emit('-eventcapture', { event, key, value });
             });
             return group;
         },
@@ -29,22 +29,29 @@ export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOpt
         },
         button(key: string) {
             const button = xnew(Button, { key });
+            button.on('click', ({ event }: { event: Event }) => {
+                xnew.emit('-eventcapture.' + key, { event, key });
+                xnew.emit('-eventcapture', { event, key });
+            });
             return button;
         },
         select(key: string, { options = [] }: { options?: string[] } = {}) {
             object[key] = object[key] ?? options[0] ?? '';
-          
             const select = xnew(Select, { key, value: object[key], options });
+            select.on('input', ({ event, value }: { event: Event, value: string }) => {
+                xnew.emit('-eventcapture.' + key, { event, key, value });
+                xnew.emit('-eventcapture', { event, key, value });
+            });
             return select;
         },
         number(key: string, options: { min?: number, max?: number, step?: number } = {}) {
             object[key] = object[key] ?? 0;
 
             const number = xnew(Number, { key, value: object[key], ...options });
-            number.on('input', ({ event }: { event: Event }) => {
-                object[key] = parseFloat((event.target as HTMLInputElement).value);
-                xnew.emit('-change.' + key, { event, key });
-                xnew.emit('-change', { event, key });
+            number.on('input', ({ event, value }: { event: Event, value: number }) => {
+                object[key] = value;
+                xnew.emit('-eventcapture.' + key, { event, key, value });
+                xnew.emit('-eventcapture', { event, key, value });
             });
             return number;
         },
@@ -52,10 +59,10 @@ export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOpt
             object[key] = object[key] ?? false;
 
             const checkbox = xnew(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ event }: { event: Event }) => {
-                object[key] = (event.target as HTMLInputElement).checked;
-                xnew.emit('-change.' + key, { event, key });
-                xnew.emit('-change', { event, key });
+            checkbox.on('input', ({ event, value }: { event: Event, value: boolean }) => {
+                object[key] = value;
+                xnew.emit('-eventcapture.' + key, { event, key, value });
+                xnew.emit('-eventcapture', { event, key, value });
             });
             return checkbox;
         },

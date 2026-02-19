@@ -144,20 +144,17 @@ function Model(unit, { gltf }) {
 
 function Panel(panel) {
   const state = xnew.context(Model);
-  const params = {
-    speed: 1.0,
-    action: 'idle',
-  };
+  const params = { action: 'idle', speed: 1.0, };
   xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
 
   const baseActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
-  const additiveActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
-  panel.select('action', { options: baseActions }).on('change', ({ value }) => {
+  panel.select('action', { options: baseActions }).on('input', ({ value }) => {
     state.crossfade(value);
   });
 
   panel.text('weights');
+  const additiveActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
   for (const name of additiveActions) {
     params[name] = state.settings[name].weight;
     panel.number(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
@@ -167,44 +164,5 @@ function Panel(panel) {
   }
   panel.number('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
     state.speed = value;
-  });
-  return;
-
-
-  xnew((unit) => {
-    xnew.extend(Accordion, { name: 'options', open: true });
-    xnew((unit) => {
-      xnew('<div class="text-sm flex justify-between">', (unit) => {
-        xnew('<div class="flex-auto">', 'speed');
-        xnew('<div key="status" class="flex-none">', '1.0');
-      });
-
-      const input = xnew('<input type="range" name="speed" min="0.01" max="2.00" value="1.00" step="0.01" class="w-full">');
-      input.on('input', ({ event }) => {
-        unit.element.querySelector('div[key="status"]').textContent = event.target.value;
-        state.speed = parseFloat(event.target.value);
-      });
-    });
-  });
-}
-
-function Accordion(accordion, { name, open = false }) {
-  const system = xnew(xnew.basics.OpenAndClose, { state: open ? 1.0 : 0.0 });
-  
-  xnew('<div class="flex items-center cursor-pointer">', (unit) => {
-    unit.on('click', () => system.toggle());
-    xnew((unit) => {
-      xnew.nest('<svg viewBox="0 0 12 12" class="mr-1 size-4" fill="none" stroke="currentColor">');
-      xnew('<path d="M6 2 10 6 6 10" />');
-      system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
-    });
-    xnew('<div>', name);
-  });
-
-  const outer = xnew.nest('<div class="overflow-hidden">');
-  const inner = xnew.nest('<div class="p-1 flex flex-col box-border">');
-  system.on('-transition', ({ state }) => {
-    outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-    outer.style.opacity = state;
   });
 }

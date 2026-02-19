@@ -46,6 +46,9 @@ function Nest(unit, { object }) {
     unit.on('finalize', () => {
         parent.remove(object);
     });
+    return {
+        get threeObject() { return object; },
+    };
 }
 
 export { xthree as default };

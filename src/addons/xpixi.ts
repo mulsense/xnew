@@ -1,4 +1,5 @@
 import xnew from '@mulsense/xnew';
+import { get } from 'http';
 import * as PIXI from 'pixi.js'
 import { createCanvasElement } from 'three';
 
@@ -48,4 +49,8 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     unit.on('finalize', () => {
         parent.removeChild(object);
     });
+
+    return {
+        get pixiObject() { return object; },
+    }
 }

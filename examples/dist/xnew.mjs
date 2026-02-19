@@ -298,7 +298,7 @@ class Eventor {
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
             }
-            else if (event.target.type === 'number') {
+            else if (event.target.type === 'range' || event.target.type === 'number') {
                 value = parseFloat(event.target.value);
             }
             else {
@@ -317,7 +317,7 @@ class Eventor {
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
             }
-            else if (event.target.type === 'number') {
+            else if (event.target.type === 'range' || event.target.type === 'number') {
                 value = parseFloat(event.target.value);
             }
             else {
@@ -1465,9 +1465,9 @@ function GUIPanel(unit, { name, open = false, params } = {}) {
                 xnew$1.extend(GUIPanel, { name, open, params: params !== null && params !== void 0 ? params : object });
                 inner(unit);
             });
-            group.on('-change', ({ event, key }) => {
-                xnew$1.emit('-change.' + key, { event, key });
-                xnew$1.emit('-change', { event, key });
+            group.on('-eventcapture', ({ event, key, value }) => {
+                xnew$1.emit('-eventcapture.' + key, { event, key, value });
+                xnew$1.emit('-eventcapture', { event, key, value });
             });
             return group;
         },
@@ -1476,22 +1476,30 @@ function GUIPanel(unit, { name, open = false, params } = {}) {
         },
         button(key) {
             const button = xnew$1(Button, { key });
+            button.on('click', ({ event }) => {
+                xnew$1.emit('-eventcapture.' + key, { event, key });
+                xnew$1.emit('-eventcapture', { event, key });
+            });
             return button;
         },
         select(key, { options = [] } = {}) {
             var _a, _b;
             object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
             const select = xnew$1(Select, { key, value: object[key], options });
+            select.on('input', ({ event, value }) => {
+                xnew$1.emit('-eventcapture.' + key, { event, key, value });
+                xnew$1.emit('-eventcapture', { event, key, value });
+            });
             return select;
         },
         number(key, options = {}) {
             var _a;
             object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
             const number = xnew$1(Number, Object.assign({ key, value: object[key] }, options));
-            number.on('input', ({ event }) => {
-                object[key] = parseFloat(event.target.value);
-                xnew$1.emit('-change.' + key, { event, key });
-                xnew$1.emit('-change', { event, key });
+            number.on('input', ({ event, value }) => {
+                object[key] = value;
+                xnew$1.emit('-eventcapture.' + key, { event, key, value });
+                xnew$1.emit('-eventcapture', { event, key, value });
             });
             return number;
         },
@@ -1499,10 +1507,10 @@ function GUIPanel(unit, { name, open = false, params } = {}) {
             var _a;
             object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : false;
             const checkbox = xnew$1(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ event }) => {
-                object[key] = event.target.checked;
-                xnew$1.emit('-change.' + key, { event, key });
-                xnew$1.emit('-change', { event, key });
+            checkbox.on('input', ({ event, value }) => {
+                object[key] = value;
+                xnew$1.emit('-eventcapture.' + key, { event, key, value });
+                xnew$1.emit('-eventcapture', { event, key, value });
             });
             return checkbox;
         },
