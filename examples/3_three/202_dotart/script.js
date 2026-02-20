@@ -17,8 +17,7 @@ function Main(unit) {
   const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
   
   // three setup
-  const camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 10);
-  xthree.initialize({ canvas: canvas.element, camera });
+  xthree.initialize({ canvas: canvas.element, camera: new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 10) });
   xthree.camera.position.set(0, 2 * Math.tan(Math.PI / 6), +2);
   xthree.scene.background = new THREE.Color(0x151729);
   xthree.renderer.shadowMap.enabled = true;
@@ -67,7 +66,7 @@ function SpotLight(unit, { color = 0xffffff, intensity = 1.0, position }) {
 
 function Box(unit, { size, position, rotation }) {
   const geometry = new THREE.BoxGeometry(size, size, size);
-  const material = new THREE.MeshPhongMaterial( { map: chessboard(3, 3) } );
+  const material = new THREE.MeshPhongMaterial({ map: chessboard(3, 3) });
   const object = xthree.nest(new THREE.Mesh(geometry, material));
 
   object.castShadow = true;
@@ -177,11 +176,12 @@ function Renderer(unit) {
 }
 
 function GUIPanel(panel) {
-  const renderer = xnew.context(Renderer);
-  const rpp = renderer.renderPixelatedPass;
+  const rpp = xnew.context(Renderer).renderPixelatedPass;
   const params = { pixelSize: rpp.pixelSize, normalEdgeStrength: rpp.normalEdgeStrength, depthEdgeStrength: rpp.depthEdgeStrength, };
 
-  xnew.nest('<div class="absolute text-sm right-2 top-2 w-48 p-1 border rounded-lg shadow-lg bg-white">');
+  xnew.nest('<div class="absolute inset-0 p-2 pointer-events-none">')
+  xnew.nest('<div class="relative max-w-max h-max max-h-full border rounded-lg shadow-lg bg-white overflow-none pointer-events-auto">');
+  xnew.nest('<div class="relative text-sm h-max w-48 p-2 bg-white overflow-auto">');
   xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
 
   panel.range('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
@@ -193,4 +193,7 @@ function GUIPanel(panel) {
   panel.range('depthEdgeStrength', { min: 0, max: 1, step: 0.1 }).on('input', ({ value }) => {
     rpp.depthEdgeStrength = value;
   });
+
+  xnew('<div class="h-128">')
+
 }
