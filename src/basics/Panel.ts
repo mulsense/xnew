@@ -63,7 +63,7 @@ export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) 
 function Group(group: Unit, { name, open = false }: { name?: string, open?: boolean }) {
     xnew.extend(OpenAndClose, { open });
     if (name) {
-        xnew('<div style="display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
+        xnew('<div style="height: 2rem; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
             unit.on('click', () => group.toggle());
             xnew('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit: Unit) => {
                 xnew('<path d="M6 2 10 6 6 10" />');
@@ -96,7 +96,7 @@ function Button(unit: Unit, { key = '' }: { key?: string }) {
 }
 
 function Separator(unit: Unit) {
-    xnew.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
+    xnew.nest('<div style="margin: 0.5rem 0; border-top: 1px solid color-mix(in srgb, currentColor 40%, transparent);">');
 }
 
 function Range(unit: Unit,
@@ -129,17 +129,33 @@ function Range(unit: Unit,
 }
 
 function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boolean } = {}) {
-    xnew.nest(`<label style="height: 2rem; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
-    
+    xnew.nest(`<div style="position: relative; height: 2rem; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+
     xnew('<div style="flex: 1;">', key);
-    xnew.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="margin-right: 0.25rem;">`);
+
+    const box = xnew('<div style="width: 1.25rem; height: 1.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">', () => {
+        xnew('<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="color-mix(in srgb, currentColor 80%, transparent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">', () => {
+            xnew('<path d="M2 6 5 9 10 3" />');
+        });
+    });
+    const check = box.element.querySelector('svg') as SVGElement;
+
+    const update = (checked: boolean) => {
+        box.element.style.background = checked ? 'color-mix(in srgb, currentColor 5%, transparent)' : '';
+        check.style.opacity = checked ? '1' : '0';
+    };
+    update(!!value);
+    xnew.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
+    unit.on('input', ({ event, value }: { event: Event, value: boolean }) => {
+        update(value);
+    });
 }
 
 function Select(unit: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
     xnew.nest(`<div style="height: 2rem; padding: 0 0.25rem; display: flex; align-items: center;">`);
 
     xnew('<div style="flex: 1;">', key);
-    xnew.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer; user-select: none;">`);
+    xnew.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; cursor: pointer; user-select: none;">`);
     for (const option of options) {
         xnew(`<option value="${option}" ${option === value ? 'selected' : ''}>`, option);
     }
