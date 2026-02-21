@@ -1451,45 +1451,31 @@ function Panel(unit, { name, open = false, params }) {
                 xnew$1.extend(Panel, { name, open, params: params !== null && params !== void 0 ? params : object });
                 inner(unit);
             });
-            group.on('-eventcapture', ({ event, key, value }) => {
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
             return group;
         },
         button(key) {
             const button = xnew$1(Button, { key });
-            button.on('click', ({ event }) => {
-                xnew$1.emit('-eventcapture', { event, key });
-            });
             return button;
         },
         select(key, { options = [] } = {}) {
             var _a, _b;
             object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
             const select = xnew$1(Select, { key, value: object[key], options });
-            select.on('input', ({ event, value }) => {
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
+            select.on('input', ({ value }) => object[key] = value);
             return select;
         },
         range(key, options = {}) {
-            var _a;
-            object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
+            var _a, _b;
+            object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options.min) !== null && _b !== void 0 ? _b : 0;
             const number = xnew$1(Range, Object.assign({ key, value: object[key] }, options));
-            number.on('input', ({ event, value }) => {
-                object[key] = value;
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
+            number.on('input', ({ value }) => object[key] = value);
             return number;
         },
         checkbox(key) {
             var _a;
             object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : false;
             const checkbox = xnew$1(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ event, value }) => {
-                object[key] = value;
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
+            checkbox.on('input', ({ value }) => object[key] = value);
             return checkbox;
         },
         separator() {
@@ -1500,7 +1486,7 @@ function Panel(unit, { name, open = false, params }) {
 function Group(group, { name, open = false }) {
     xnew$1.extend(OpenAndClose, { open });
     if (name) {
-        xnew$1('<div style="height: 2rem; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
+        xnew$1('<div style="height: 2rem; margin: 0.125rem 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
             unit.on('click', () => group.toggle());
             xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
                 xnew$1('<path d="M6 2 10 6 6 10" />');
@@ -1512,7 +1498,7 @@ function Group(group, { name, open = false }) {
     xnew$1.extend(Accordion);
 }
 function Button(unit, { key = '' }) {
-    xnew$1.nest('<button style="margin: 0.125rem; height: 1.75rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew$1.nest('<button style="margin: 0.125rem; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
         unit.element.style.background = 'color-mix(in srgb, currentColor 5%, transparent)';
@@ -1534,7 +1520,7 @@ function Separator(unit) {
 }
 function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     value = value !== null && value !== void 0 ? value : min;
-    xnew$1.nest(`<div style="position: relative; height: 2rem; cursor: pointer; user-select: none;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; cursor: pointer; user-select: none;">`);
     // fill bar
     const ratio = (value - min) / (max - min);
     const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: color-mix(in srgb, currentColor 5%, transparent); border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; transition: width 0.05s;">`);
@@ -1553,7 +1539,7 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     });
 }
 function Checkbox(unit, { key = '', value } = {}) {
-    xnew$1.nest(`<div style="position: relative; height: 2rem; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
     const box = xnew$1('<div style="width: 1.25rem; height: 1.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">', () => {
         xnew$1('<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="color-mix(in srgb, currentColor 80%, transparent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">', () => {
@@ -1572,7 +1558,7 @@ function Checkbox(unit, { key = '', value } = {}) {
     });
 }
 function Select(unit, { key = '', value, options = [] } = {}) {
-    xnew$1.nest(`<div style="height: 2rem; padding: 0 0.25rem; display: flex; align-items: center;">`);
+    xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
     xnew$1.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; cursor: pointer; user-select: none;">`);
     for (const option of options) {

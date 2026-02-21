@@ -14,44 +14,31 @@ export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) 
                 xnew.extend(Panel, { name, open, params: params ?? object });
                 inner(unit);
             });
-            group.on('-eventcapture', ({ event, key, value }: { event: Event, key: string, value: any }) => {
-                xnew.emit('-eventcapture', { event, key, value });
-            });
             return group;
         },
         button(key: string) {
             const button = xnew(Button, { key });
-            button.on('click', ({ event }: { event: Event }) => {
-                xnew.emit('-eventcapture', { event, key });
-            });
             return button;
         },
         select(key: string, { options = [] }: { options?: string[] } = {}) {
             object[key] = object[key] ?? options[0] ?? '';
+
             const select = xnew(Select, { key, value: object[key], options });
-            select.on('input', ({ event, value }: { event: Event, value: string }) => {
-                xnew.emit('-eventcapture', { event, key, value });
-            });
+            select.on('input', ({ value }: {value: string }) => object[key] = value);
             return select;
         },
         range(key: string, options: { min?: number, max?: number, step?: number } = {}) {
-            object[key] = object[key] ?? 0;
+            object[key] = object[key] ?? options.min ?? 0;
 
             const number = xnew(Range, { key, value: object[key], ...options });
-            number.on('input', ({ event, value }: { event: Event, value: number }) => {
-                object[key] = value;
-                xnew.emit('-eventcapture', { event, key, value });
-            });
+            number.on('input', ({ value }: { value: number }) => object[key] = value);
             return number;
         },
         checkbox(key: string) {
             object[key] = object[key] ?? false;
 
             const checkbox = xnew(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ event, value }: { event: Event, value: boolean }) => {
-                object[key] = value;
-                xnew.emit('-eventcapture', { event, key, value });
-            });
+            checkbox.on('input', ({ value }: { value: boolean }) => object[key] = value);
             return checkbox;
         },
         separator() {
@@ -63,7 +50,7 @@ export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) 
 function Group(group: Unit, { name, open = false }: { name?: string, open?: boolean }) {
     xnew.extend(OpenAndClose, { open });
     if (name) {
-        xnew('<div style="height: 2rem; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
+        xnew('<div style="height: 2rem; margin: 0.125rem 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
             unit.on('click', () => group.toggle());
             xnew('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit: Unit) => {
                 xnew('<path d="M6 2 10 6 6 10" />');
@@ -76,7 +63,7 @@ function Group(group: Unit, { name, open = false }: { name?: string, open?: bool
 }
 
 function Button(unit: Unit, { key = '' }: { key?: string }) {
-    xnew.nest('<button style="margin: 0.125rem; height: 1.75rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew.nest('<button style="margin: 0.125rem; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     
     unit.element.textContent = key;
     unit.on('pointerover', () => {
@@ -105,7 +92,7 @@ function Range(unit: Unit,
 ) {
     value = value ?? min;
 
-    xnew.nest(`<div style="position: relative; height: 2rem; cursor: pointer; user-select: none;">`);
+    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; cursor: pointer; user-select: none;">`);
 
     // fill bar
     const ratio = (value - min) / (max - min);
@@ -129,7 +116,7 @@ function Range(unit: Unit,
 }
 
 function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boolean } = {}) {
-    xnew.nest(`<div style="position: relative; height: 2rem; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
 
     xnew('<div style="flex: 1;">', key);
 
@@ -152,7 +139,7 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
 }
 
 function Select(unit: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
-    xnew.nest(`<div style="height: 2rem; padding: 0 0.25rem; display: flex; align-items: center;">`);
+    xnew.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center;">`);
 
     xnew('<div style="flex: 1;">', key);
     xnew.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; cursor: pointer; user-select: none;">`);

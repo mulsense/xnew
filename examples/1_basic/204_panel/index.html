@@ -11,28 +11,30 @@
   <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew(document.querySelector('#main'), (unit) => {
-      xnew.nest('<div class="p-2">');
+      xnew.nest('<div class="p-2 flex gap-2 items-baseline justify-between">');
+        
+      const textunit = xnew('<div class="m-0.5 p-1 rounded bg-gray-200">', 'Console');
+      textunit.on('+console', ({ text }) => textunit.element.textContent = text);
+      
       xnew(MyPanel);
     });
 
     function MyPanel(panel) {
       const params = { data: 20, flag: true, color: 'red', };
 
-      xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
+      xnew.nest('<div class="absolute top-2 right-2 w-64 p-1 border rounded-lg shadow-lg bg-white">');
       xnew.extend(xnew.basics.Panel, { name: 'My Panel', open: true, params });
       
-      const text = xnew('<div class="m-0.5 p-1 rounded bg-gray-200">', 'Console');
-
       panel.group({ name: 'group 1', open: true }, (group) => {
-        group.button('button1').on('click', () => text.element.textContent = 'button1 clicked');
-        group.button('button2').on('click', () => text.element.textContent = 'button2 clicked');
-        group.button('button3').on('click', () => text.element.textContent = 'button3 clicked');
+        group.button('button1').on('click', () => xnew.emit('+console', { text: 'button1 clicked' }));
+        group.button('button2').on('click', () => xnew.emit('+console', { text: 'button2 clicked' }));
+        group.button('button3').on('click', () => xnew.emit('+console', { text: 'button3 clicked' }));
         group.separator();
       });
 
-      panel.range('data', { min: 0, max: 60, step: 2 }).on('input', ({ value }) => text.element.textContent = `data changed to ${value}`);
-      panel.checkbox('flag').on('input', ({ value }) => text.element.textContent = `flag changed to ${value}`);
-      panel.select('color', { options: ['red', 'green', 'blue'] }).on('input', ({ value }) => text.element.textContent = `color changed to ${value}`);
+      panel.range('data', { min: 0, max: 60, step: 2 }).on('input', ({ value }) => xnew.emit('+console', { text: `data changed to ${value}` }));
+      panel.checkbox('flag').on('input', ({ value }) => xnew.emit('+console', { text: `flag changed to ${value}` }));
+      panel.select('color', { options: ['red', 'green', 'blue'] }).on('input', ({ value }) => xnew.emit('+console', { text: `color changed to ${value}` }));
       panel.separator();
 
       const show = panel.checkbox('show');
