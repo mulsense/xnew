@@ -175,7 +175,7 @@ interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-declare function OpenAndClose(unit: Unit, { open }?: {
+declare function OpenAndClose(unit: Unit, { open }: {
     open?: boolean;
 }): {
     toggle(duration?: number, easing?: string): void;
@@ -183,9 +183,7 @@ declare function OpenAndClose(unit: Unit, { open }?: {
     close(duration?: number, easing?: string): void;
 };
 declare function Accordion(unit: Unit): void;
-declare function Modal(unit: Unit, { background }?: {
-    background?: string;
-}): void;
+declare function Modal(unit: Unit): void;
 
 type ScreenFit = 'contain' | 'cover';
 declare function Screen(unit: Unit, { aspect, fit }?: {
@@ -212,13 +210,13 @@ declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth
     fillOpacity?: number;
 }): void;
 
-interface GUIPanelOptions {
+interface PanelOptions {
     name?: string;
     open?: boolean;
     params?: Record<string, any>;
 }
-declare function GUIPanel(unit: Unit, { name, open, params }: GUIPanelOptions): {
-    group({ name, open, params }: GUIPanelOptions, inner: Function): Unit;
+declare function Panel(unit: Unit, { name, open, params }: PanelOptions): {
+    group({ name, open, params }: PanelOptions, inner: Function): Unit;
     button(key: string): Unit;
     select(key: string, { options }?: {
         options?: string[];
@@ -299,7 +297,7 @@ declare const xnew: CreateUnit & {
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
         DPad: typeof DPad;
-        GUIPanel: typeof GUIPanel;
+        Panel: typeof Panel;
         Accordion: typeof Accordion;
         Modal: typeof Modal;
     };

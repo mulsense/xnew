@@ -4,14 +4,14 @@ import { Unit, UnitTimer } from './core/unit';
 import { OpenAndClose, Accordion, Modal } from './basics/Transition';
 import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
-import { GUIPanel} from './basics/GUIPanel';
+import { Panel} from './basics/Panel';
 
 const basics = {
     Screen,
     OpenAndClose,
     AnalogStick,
     DPad,
-    GUIPanel,
+    Panel,
     Accordion,
     Modal,
 };

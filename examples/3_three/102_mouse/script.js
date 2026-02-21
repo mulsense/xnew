@@ -15,6 +15,7 @@ function Main(unit) {
   xthree.camera.position.set(0, 0, +20);
   xthree.scene.rotation.x = -60 / 180 * Math.PI
   xthree.renderer.shadowMap.enabled = true;
+  
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });

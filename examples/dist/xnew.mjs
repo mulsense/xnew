@@ -1267,48 +1267,33 @@ const xnew$1 = Object.assign(function (...args) {
     },
 });
 
-function OpenAndClose(unit, { open = false } = {}) {
+function OpenAndClose(unit, { open = false }) {
     let state = open ? 1.0 : 0.0;
-    let direction = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
+    let sign = open ? +1 : -1;
     let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
     return {
         toggle(duration = 200, easing = 'ease') {
-            if (direction === null || direction < 0) {
-                unit.open(duration, easing);
-            }
-            else {
-                unit.close(duration, easing);
-            }
+            sign < 0 ? unit.open(duration, easing) : unit.close(duration, easing);
         },
         open(duration = 200, easing = 'ease') {
-            if (direction === null || direction < 0) {
-                direction = +1;
-                const d = 1 - state;
-                timer === null || timer === void 0 ? void 0 : timer.clear();
-                timer = xnew$1.transition((x) => {
-                    const y = x < 1.0 ? (1 - x) * d : 0.0;
-                    state = 1.0 - y;
-                    xnew$1.emit('-transition', { state });
-                }, duration * d, easing)
-                    .timeout(() => {
-                    xnew$1.emit('-opened', { state });
-                });
-            }
+            sign = +1;
+            const d = 1 - state;
+            timer === null || timer === void 0 ? void 0 : timer.clear();
+            timer = xnew$1.transition((x) => {
+                state = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
+                xnew$1.emit('-transition', { state });
+            }, duration * d, easing)
+                .timeout(() => xnew$1.emit('-opened', { state }));
         },
         close(duration = 200, easing = 'ease') {
-            if (direction === null || direction > 0) {
-                direction = -1;
-                const d = state;
-                timer === null || timer === void 0 ? void 0 : timer.clear();
-                timer = xnew$1.transition((x) => {
-                    const y = x < 1.0 ? (1 - x) * d : 0.0;
-                    state = y;
-                    xnew$1.emit('-transition', { state });
-                }, duration * d, easing)
-                    .timeout(() => {
-                    xnew$1.emit('-closed', { state });
-                });
-            }
+            sign = -1;
+            const d = state;
+            timer === null || timer === void 0 ? void 0 : timer.clear();
+            timer = xnew$1.transition((x) => {
+                state = x < 1.0 ? (1 - x) * d : 0.0;
+                xnew$1.emit('-transition', { state });
+            }, duration * d, easing)
+                .timeout(() => xnew$1.emit('-closed', { state }));
         },
     };
 }
@@ -1321,17 +1306,18 @@ function Accordion(unit) {
         outer.style.opacity = state.toString();
     });
 }
-function Modal(unit, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+function Modal(unit) {
     const system = xnew$1.context(OpenAndClose);
+    system.open();
     system.on('-closed', () => unit.finalize());
-    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-    unit.on('click', ({ event }) => system.close());
-    const outer = xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0;"">`);
-    xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-    unit.on('click', ({ event }) => event.stopPropagation());
-    outer.style.background = background;
+    xnew$1.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
+    unit.on('click', ({ event }) => {
+        if (event.target === unit.element) {
+            system.close();
+        }
+    });
     system.on('-transition', ({ state }) => {
-        outer.style.opacity = state.toString();
+        unit.element.style.opacity = state.toString();
     });
 }
 
@@ -1456,54 +1442,40 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
 }
 
-function GUIPanel(unit, { name, open = false, params }) {
+function Panel(unit, { name, open = false, params }) {
     const object = params !== null && params !== void 0 ? params : {};
     xnew$1.extend(Group, { name, open });
     return {
         group({ name, open, params }, inner) {
             const group = xnew$1((unit) => {
-                xnew$1.extend(GUIPanel, { name, open, params: params !== null && params !== void 0 ? params : object });
+                xnew$1.extend(Panel, { name, open, params: params !== null && params !== void 0 ? params : object });
                 inner(unit);
-            });
-            group.on('-eventcapture', ({ event, key, value }) => {
-                xnew$1.emit('-eventcapture', { event, key, value });
             });
             return group;
         },
         button(key) {
             const button = xnew$1(Button, { key });
-            button.on('click', ({ event }) => {
-                xnew$1.emit('-eventcapture', { event, key });
-            });
             return button;
         },
         select(key, { options = [] } = {}) {
             var _a, _b;
             object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
             const select = xnew$1(Select, { key, value: object[key], options });
-            select.on('input', ({ event, value }) => {
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
+            select.on('input', ({ value }) => object[key] = value);
             return select;
         },
         range(key, options = {}) {
-            var _a;
-            object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : 0;
+            var _a, _b;
+            object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options.min) !== null && _b !== void 0 ? _b : 0;
             const number = xnew$1(Range, Object.assign({ key, value: object[key] }, options));
-            number.on('input', ({ event, value }) => {
-                object[key] = value;
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
+            number.on('input', ({ value }) => object[key] = value);
             return number;
         },
         checkbox(key) {
             var _a;
             object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : false;
             const checkbox = xnew$1(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ event, value }) => {
-                object[key] = value;
-                xnew$1.emit('-eventcapture', { event, key, value });
-            });
+            checkbox.on('input', ({ value }) => object[key] = value);
             return checkbox;
         },
         separator() {
@@ -1514,7 +1486,7 @@ function GUIPanel(unit, { name, open = false, params }) {
 function Group(group, { name, open = false }) {
     xnew$1.extend(OpenAndClose, { open });
     if (name) {
-        xnew$1('<div style="display: flex; align-items: center; cursor: pointer;">', (unit) => {
+        xnew$1('<div style="height: 2rem; margin: 0.125rem 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
             unit.on('click', () => group.toggle());
             xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
                 xnew$1('<path d="M6 2 10 6 6 10" />');
@@ -1526,11 +1498,11 @@ function Group(group, { name, open = false }) {
     xnew$1.extend(Accordion);
 }
 function Button(unit, { key = '' }) {
-    xnew$1.nest('<button style="margin: 0.125rem; padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew$1.nest('<button style="margin: 0.125rem; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        unit.element.style.background = 'rgba(0, 0, 128, 0.1)';
-        unit.element.style.borderColor = 'blue';
+        unit.element.style.background = 'color-mix(in srgb, currentColor 5%, transparent)';
+        unit.element.style.borderColor = 'color-mix(in srgb, currentColor 40%, transparent)';
     });
     unit.on('pointerout', () => {
         unit.element.style.background = '';
@@ -1544,28 +1516,51 @@ function Button(unit, { key = '' }) {
     });
 }
 function Separator(unit) {
-    xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
+    xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid color-mix(in srgb, currentColor 40%, transparent);">');
 }
 function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
-    xnew$1.nest(`<div style="margin: 0.125rem;">`);
-    const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
-        xnew$1('<div style="flex: 1;">', key);
-        xnew$1('<div key="status" style="flex: none;">', value);
+    value = value !== null && value !== void 0 ? value : min;
+    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; cursor: pointer; user-select: none;">`);
+    // fill bar
+    const ratio = (value - min) / (max - min);
+    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: color-mix(in srgb, currentColor 5%, transparent); border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; transition: width 0.05s;">`);
+    // overlay labels
+    const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.25rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
+        xnew$1('<div>', key);
+        xnew$1('<div key="status">', value);
     });
-    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="width: 100%; cursor: pointer;">`);
+    // hidden native input for interaction
+    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
     unit.on('input', ({ event }) => {
-        status.element.querySelector('[key="status"]').textContent = event.target.value;
+        const v = Number(event.target.value);
+        const r = (v - min) / (max - min);
+        fill.element.style.width = `${r * 100}%`;
+        status.element.querySelector('[key="status"]').textContent = String(v);
     });
 }
 function Checkbox(unit, { key = '', value } = {}) {
-    xnew$1.nest(`<label style="margin: 0.125rem; display: flex; align-items: center; cursor: pointer;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
-    xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="margin-right: 0.25rem;">`);
+    const box = xnew$1('<div style="width: 1.25rem; height: 1.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">', () => {
+        xnew$1('<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="color-mix(in srgb, currentColor 80%, transparent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">', () => {
+            xnew$1('<path d="M2 6 5 9 10 3" />');
+        });
+    });
+    const check = box.element.querySelector('svg');
+    const update = (checked) => {
+        box.element.style.background = checked ? 'color-mix(in srgb, currentColor 5%, transparent)' : '';
+        check.style.opacity = checked ? '1' : '0';
+    };
+    update(!!value);
+    xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
+    unit.on('input', ({ event, value }) => {
+        update(value);
+    });
 }
 function Select(unit, { key = '', value, options = [] } = {}) {
-    xnew$1.nest(`<div style="margin: 0.125rem; display: flex; align-items: center;">`);
+    xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
-    xnew$1.nest(`<select name="${key}" style="padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">`);
+    xnew$1.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; cursor: pointer; user-select: none;">`);
     for (const option of options) {
         xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''}>`, option);
     }
@@ -1800,7 +1795,7 @@ const basics = {
     OpenAndClose,
     AnalogStick,
     DPad,
-    GUIPanel,
+    Panel,
     Accordion,
     Modal,
 };
