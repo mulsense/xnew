@@ -1500,7 +1500,7 @@ function Panel(unit, { name, open = false, params }) {
 function Group(group, { name, open = false }) {
     xnew$1.extend(OpenAndClose, { open });
     if (name) {
-        xnew$1('<div style="display: flex; align-items: center; cursor: pointer;">', (unit) => {
+        xnew$1('<div style="display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
             unit.on('click', () => group.toggle());
             xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
                 xnew$1('<path d="M6 2 10 6 6 10" />');
@@ -1512,11 +1512,11 @@ function Group(group, { name, open = false }) {
     xnew$1.extend(Accordion);
 }
 function Button(unit, { key = '' }) {
-    xnew$1.nest('<button style="margin: 0.125rem; padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew$1.nest('<button style="margin: 0.125rem; height: 1.75rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        unit.element.style.background = 'rgba(0, 0, 128, 0.1)';
-        unit.element.style.borderColor = 'blue';
+        unit.element.style.background = 'color-mix(in srgb, currentColor 5%, transparent)';
+        unit.element.style.borderColor = 'color-mix(in srgb, currentColor 40%, transparent)';
     });
     unit.on('pointerout', () => {
         unit.element.style.background = '';
@@ -1533,25 +1533,34 @@ function Separator(unit) {
     xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid;">');
 }
 function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
-    xnew$1.nest(`<div style="margin: 0.125rem;">`);
-    const status = xnew$1('<div style="display: flex; justify-content: space-between;">', (unit) => {
-        xnew$1('<div style="flex: 1;">', key);
-        xnew$1('<div key="status" style="flex: none;">', value);
+    value = value !== null && value !== void 0 ? value : min;
+    xnew$1.nest(`<div style="position: relative; height: 2rem; cursor: pointer; user-select: none;">`);
+    // fill bar
+    const ratio = (value - min) / (max - min);
+    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: color-mix(in srgb, currentColor 5%, transparent); border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; transition: width 0.05s;">`);
+    // overlay labels
+    const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.25rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
+        xnew$1('<div>', key);
+        xnew$1('<div key="status">', value);
     });
-    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="width: 100%; cursor: pointer;">`);
+    // hidden native input for interaction
+    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
     unit.on('input', ({ event }) => {
-        status.element.querySelector('[key="status"]').textContent = event.target.value;
+        const v = Number(event.target.value);
+        const r = (v - min) / (max - min);
+        fill.element.style.width = `${r * 100}%`;
+        status.element.querySelector('[key="status"]').textContent = String(v);
     });
 }
 function Checkbox(unit, { key = '', value } = {}) {
-    xnew$1.nest(`<label style="margin: 0.125rem; display: flex; align-items: center; cursor: pointer;">`);
+    xnew$1.nest(`<label style="height: 2rem; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
     xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="margin-right: 0.25rem;">`);
 }
 function Select(unit, { key = '', value, options = [] } = {}) {
-    xnew$1.nest(`<div style="margin: 0.125rem; display: flex; align-items: center;">`);
+    xnew$1.nest(`<div style="height: 2rem; padding: 0 0.25rem; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
-    xnew$1.nest(`<select name="${key}" style="padding: 0.125rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">`);
+    xnew$1.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer; user-select: none;">`);
     for (const option of options) {
         xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''}>`, option);
     }

@@ -95,7 +95,7 @@
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
       const params = { activate: false, type: 'lowpass', cutoff: 1000 };
-      xnew.extend(xnew.basics.GUIPanel, { open: true, params });
+      xnew.extend(xnew.basics.Panel, { open: true, params });
       xnew('<p>', 'filter');
 
       const activate = unit.checkbox('activate');
@@ -138,7 +138,7 @@
 
       const reverb = xnew((unit) => {
         const params = { time: 1000, mix: 0.5 };
-        xnew.extend(xnew.basics.GUIPanel, { name: 'reverb', open: true, params });
+        xnew.extend(xnew.basics.Panel, { name: 'reverb', open: true, params });
 
         const activate = unit.checkbox('activate');
         const group = unit.group({ open: false }, (group) => {
@@ -163,7 +163,7 @@
     }
 
     function Waveform(unit, { value = 0 }) {
-      xnew.extend(xnew.basics.GUIPanel, { name: 'type', open: true });
+      xnew.extend(xnew.basics.Panel, { name: 'type', open: true });
       xnew.nest('<div class="m-1 flex">');
       const name = 'waveform' + xnew.find(Waveform).length;
       const labels = ['sine', 'triangle', 'square', 'sawtooth'];
@@ -197,7 +197,7 @@
     }
     function Envelope(unit, { value, min, max, step, checkable = false }) {
       const params = { activate: !checkable, amount: value, attack: 200, decay: 200, sustain: 0.2, release: 200 };
-      xnew.extend(xnew.basics.GUIPanel, { name: 'envelope', open: true, params });
+      xnew.extend(xnew.basics.Panel, { name: 'envelope', open: true, params });
 
       let activate = null;
       if (checkable) activate = unit.checkbox('activate');
@@ -226,7 +226,7 @@
 
     function LFO(unit, { value, min, max, step }) {
       const params = { amount: value, rate: 8 };
-      xnew.extend(xnew.basics.GUIPanel, { name: 'LFO', open: true, params });
+      xnew.extend(xnew.basics.Panel, { name: 'LFO', open: true, params });
 
       const activate = unit.checkbox('activate');
       let waveform = null;

@@ -1,24 +1,30 @@
 import xnew from '@mulsense/xnew';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
+import voxelkit from 'voxelkit';
+
 document.body.style.backgroundColor = '#000';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const [width, height] = [800, 600];
+  // const [width, height] = [800, 600];
+  const [width, height] = [1024, 1024];
   const aspect = width / height;
   xnew.extend(xnew.basics.Screen, { aspect, fit: 'contain' });
 
   const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
   
   // three setup
-  xthree.initialize({ canvas: canvas.element, camera: new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 10) });
-  xthree.camera.position.set(0, 2 * Math.tan(Math.PI / 6), +2);
+  xthree.initialize({ canvas: canvas.element, camera: new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.0, 10) });
+  xthree.camera.position.set(0, 4 * Math.tan(Math.PI / 6), +4);
   xthree.scene.background = new THREE.Color(0x151729);
   xthree.renderer.shadowMap.enabled = true;
 
@@ -43,8 +49,22 @@ function Contents(unit) {
   // objects
   xnew(Box, { size: 0.4, position: { x: 0.0, y:  0.2, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 } });
   xnew(Box, { size: 0.5, position: { x: -0.5, y: 0.3, z: -0.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 } });
-  xnew(Plane, { size: 2, position: { x: 0.0, y: 0.0, z: 0.0 }, rotation: { x: -Math.PI / 2, y: 0.0, z: 0.0 } });
+  xnew(Plane, { size: 6, position: { x: 0.0, y: 0.0, z: 0.0 }, rotation: { x: -Math.PI / 2, y: 0.0, z: 0.0 } });
   xnew(Crystal, { radius: 0.2, position: { x: 0.0, y: 0.7, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 } });
+
+  // xnew(Model,{
+  //   mogPath: '../../assets/rei.mog', vrmaPath: '../../assets/VRMA_07.vrma', 
+  //   position: { x: 1.0, y: 0.0, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 }
+  // });
+  // xnew(Model,{
+  //   mogPath: '../../assets/miku.mog', vrmaPath: '../../assets/VRMA_03.vrma', 
+  //   position: { x: -0.4, y: 0.0, z: 0.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 }
+  // });
+  xnew(Model,{
+    mogPath: '../../assets/teto.mog', vrmaPath: '../../assets/VRMA_06.vrma', 
+    position: { x: -1.0, y: 0.0, z: 1.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 }
+  });
+
 }
 
 function AmbientLight(unit, { color = 0xffffff, intensity = 1.0 }) {
@@ -55,6 +75,8 @@ function DirectionaLight(unit, { color = 0xffffff, intensity = 1.0, position }) 
   const object = xthree.nest(new THREE.DirectionalLight(color, intensity));
   object.position.set(position.x, position.y, position.z);
   object.castShadow = true;
+  object.shadow.mapSize.width = 2048;
+  object.shadow.mapSize.height = 2048;
 }
 
 function SpotLight(unit, { color = 0xffffff, intensity = 1.0, position }) {
@@ -77,7 +99,7 @@ function Box(unit, { size, position, rotation }) {
 
 function Plane(unit, { size, position, rotation }) {
   const geometry = new THREE.PlaneGeometry(size, size);
-  const material = new THREE.MeshPhongMaterial( { map: chessboard(6, 6) } );
+  const material = new THREE.MeshPhongMaterial( { map: chessboard(15, 15) } );
   const object = xthree.nest(new THREE.Mesh(geometry, material));
 
   object.castShadow = true;
@@ -104,6 +126,64 @@ function Crystal(unit, { radius, position, rotation }) {
     object.material.emissiveIntensity = Math.sin(t * 2) * 0.5 + 0.5;
     object.position.y = position.y + Math.sin(t * 2) * 0.05;
     object.rotation.y += (Math.sin(t * 2) + 1.0) * 0.05;
+  });
+}
+
+function Model(unit, { mogPath, vrmaPath, position, rotation }) {
+  const object = xthree.nest(new THREE.Object3D());
+  object.rotation.set(rotation.x, rotation.y, rotation.z);
+  object.position.set(position.x, position.y, position.z);
+  object.scale.set(2, 2, 2);
+
+  xnew.promise(voxelkit.load(mogPath))
+  .then((composits) => {
+    return voxelkit.convertVRM(composits[0]);
+  })
+  .then((arrayBuffer) => {
+    // const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+    // const url = URL.createObjectURL(blob);
+    // const a = document.createElement('a');
+    // a.href = url;
+    // a.download = 'model.vrm';
+    // a.click();
+    // URL.revokeObjectURL(url);
+
+    // return new Promise((resolve) => {
+    //   const loader = new GLTFLoader();
+    //   loader.register((parser) => new VRMLoaderPlugin(parser));
+    //   loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf.userData.vrm), (error) => {
+    //     console.error('Failed to load VRM:', error);
+    //   });
+    // });
+  });
+
+  xnew.promise(new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
+    loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
+  }));
+
+  xnew.then(([vrm, vrma]) => {
+    vrm.scene.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      }
+    });
+    object.add(vrm.scene);
+
+    const mixer = new THREE.AnimationMixer(vrm.scene);
+    const clip = createVRMAnimationClip(vrma, vrm);
+    const action = mixer.clipAction(clip);
+    action.setLoop(THREE.LoopRepeat);
+    action.play();
+
+    let clock = new THREE.Clock();
+    unit.on('render', () => {
+        const delta = clock.getDelta();
+        mixer.update(delta);
+        vrm.update(delta);
+    });
   });
 }
 
@@ -137,7 +217,7 @@ function chessboard(gridX, gridY) {
 
 function Renderer(unit) {
   const composer = new EffectComposer(xthree.renderer);
-  const rpp = new RenderPixelatedPass(6, xthree.scene, xthree.camera);
+  const rpp = new RenderPixelatedPass(4, xthree.scene, xthree.camera);
   composer.addPass(rpp);
   composer.addPass(new OutputPass());
 

@@ -1,0 +1,147 @@
+import xnew from '@mulsense/xnew';
+import xthree from '@mulsense/xnew/addons/xthree';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
+import voxelkit from 'voxelkit';
+
+xnew(document.querySelector('#main'), Main);
+
+function Main(unit, { mogPath = '../../assets/rei.mog', vrmaPath = '../../assets/VRMA_07.vrma', size = 1024 }) {
+  xnew.protect();
+  xnew.extend(xnew.basics.Screen, { aspect: 1.0, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${size}" height="${size}" class="size-full align-bottom">`);
+  
+  // three setup
+  const camera = new THREE.OrthographicCamera(-0.5, +0.5, +0.5, -0.5, 0.1, 10);
+  xthree.initialize({ canvas: canvas.element, camera });
+  xthree.camera.position.set(0, 0.2, +2);
+  xthree.renderer.shadowMap.enabled = true;
+  xthree.scene.rotation.x = -60 / 180 * Math.PI
+  xthree.scene.rotation.z = -20 / 180 * Math.PI
+
+  const composer = new EffectComposer(xthree.renderer);
+  composer.addPass(new RenderPass(xthree.scene, xthree.camera));
+  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
+  // OrthographicCamera 用: シェーダーのデフォルトは PERSPECTIVE_CAMERA=1 のため明示的に上書き
+  ssaoPass.ssaoMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
+  ssaoPass.ssaoMaterial.needsUpdate = true;
+  ssaoPass.depthRenderMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
+  ssaoPass.depthRenderMaterial.needsUpdate = true;
+  ssaoPass.kernelRadius = 0.05;     // サンプリング半径
+  ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
+  ssaoPass.maxDistance = 0.02;    // 最大距離
+  // ssaoPass.output = SSAOPass.OUTPUT.Depth;  // 診断用
+  composer.addPass(ssaoPass);
+  composer.addPass(new OutputPass());
+
+  unit.on('render', () => {
+    composer.render();
+  });
+
+  xnew(DirectionaLight, { x: 1, y: -1, z: 2 });
+  xnew(AmbientLight);
+  xnew(Ground);
+
+  xnew(Model, { mogPath, vrmaPath, position: { x: 0, y: 0, z: 0 } }); // placeholder
+
+  unit.on('touchstart contextmenu wheel', ({ event }) => event.preventDefault());
+  unit.on('dragmove', ({ event, delta }) => {
+    if (event.buttons & 1 || !event.buttons) {
+      xnew.emit('+rotate', { move: { x: +delta.x, y: +delta.y } });
+    }
+    if (event.buttons & 2) {
+      xnew.emit('+translate', { move: { x: -delta.x, y: +delta.y } });
+    }
+  });
+  unit.on('wheel', ({ delta }) => xnew.emit('+scale', { scale: 1 + 0.001 * delta.y }));
+
+  unit.on('+scale', ({ scale }) => {
+    xthree.camera.position.z /= scale;
+  });
+  unit.on('+translate', ({ move }) => {
+    xthree.camera.position.x += move.x * xthree.camera.position.z * 0.001;
+    xthree.camera.position.y += move.y * xthree.camera.position.z * 0.001;
+  });
+  unit.on('+rotate', ({ move }) => {
+    xthree.scene.rotation.x += move.y * 0.01;
+    xthree.scene.rotation.z += move.x * 0.01;
+  });
+}
+
+function DirectionaLight(unit, { x, y, z }) {
+  const object = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.4));
+  object.position.set(x, y, z);
+  object.castShadow = true;
+  object.shadow.mapSize.width = 2048;
+  object.shadow.mapSize.height = 2048;
+}
+
+function AmbientLight(unit) {
+  const object = xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.8));
+}
+
+function Ground(unit) {
+  const geometry = new THREE.PlaneGeometry(100, 100);
+  const material = new THREE.ShadowMaterial({ opacity: 0.20 });
+  const plane = xthree.nest(new THREE.Mesh(geometry, material));
+  plane.receiveShadow = true;
+}
+
+function Model(unit, { mogPath, vrmaPath, position }) {
+  const object = xthree.nest(new THREE.Object3D());
+  object.rotation.x = Math.PI / 2;
+  object.position.set(position.x, position.y, position.z);
+
+  xnew.promise(voxelkit.load(mogPath))
+  .then((composits) => {
+    return voxelkit.convertVRM(composits[0]);
+  })
+  .then((arrayBuffer) => {
+    return new Promise((resolve) => {
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf.userData.vrm), (error) => {
+        console.error('Failed to load VRM:', error);
+      });
+    });
+  });
+
+  xnew.promise(new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
+    loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
+  }));
+
+  xnew.then(([vrm, vrma]) => {
+    vrm.scene.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      }
+    });
+    object.add(vrm.scene);
+
+    const mixer = new THREE.AnimationMixer(vrm.scene);
+    const clip = createVRMAnimationClip(vrma, vrm);
+    const action = mixer.clipAction(clip);
+    action.setLoop(THREE.LoopRepeat);
+    action.play();
+
+    let clock = new THREE.Clock();
+    unit.on('render', () => {
+        const delta = clock.getDelta();
+        mixer.update(delta);
+        vrm.update(delta);
+    });
+  });
+
+}
+
