@@ -37,7 +37,7 @@ function Contents(unit) {
     new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
   })).then((gltf) => {
     xnew(Model, { gltf });
-    xnew(document.body, GUIPanel);
+    xnew(document.body, Panel);
   });
 }
 
@@ -147,12 +147,12 @@ function Model(unit, { gltf }) {
   }
 }
 
-function GUIPanel(panel) {
+function Panel(panel) {
   const state = xnew.context(Model);
   const params = { action: 'idle', speed: 1.0, };
   
   xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
-  xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
+  xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true, params });
 
   const baseActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
   panel.select('action', { options: baseActions }).on('input', ({ value }) => {

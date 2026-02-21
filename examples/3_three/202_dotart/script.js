@@ -179,10 +179,9 @@ function GUIPanel(panel) {
   const rpp = xnew.context(Renderer).renderPixelatedPass;
   const params = { pixelSize: rpp.pixelSize, normalEdgeStrength: rpp.normalEdgeStrength, depthEdgeStrength: rpp.depthEdgeStrength, };
 
-  xnew.nest('<div class="absolute inset-0 p-2 pointer-events-none">')
-  xnew.nest('<div class="relative max-w-max h-max max-h-full border rounded-lg shadow-lg bg-white overflow-none pointer-events-auto">');
-  xnew.nest('<div class="relative text-sm h-max w-48 p-2 bg-white overflow-auto">');
-  xnew.extend(xnew.basics.GUIPanel, { name: 'GUI', open: true, params });
+  xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
+
+  xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true, params });
 
   panel.range('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
     rpp.setPixelSize(value);
@@ -193,7 +192,4 @@ function GUIPanel(panel) {
   panel.range('depthEdgeStrength', { min: 0, max: 1, step: 0.1 }).on('input', ({ value }) => {
     rpp.depthEdgeStrength = value;
   });
-
-  xnew('<div class="h-128">')
-
 }

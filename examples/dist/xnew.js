@@ -1273,48 +1273,33 @@
         },
     });
 
-    function OpenAndClose(unit, { open = false } = {}) {
+    function OpenAndClose(unit, { open = false }) {
         let state = open ? 1.0 : 0.0;
-        let direction = state === 1.0 ? +1 : (state === 0.0 ? -1 : null);
+        let sign = open ? +1 : -1;
         let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
         return {
             toggle(duration = 200, easing = 'ease') {
-                if (direction === null || direction < 0) {
-                    unit.open(duration, easing);
-                }
-                else {
-                    unit.close(duration, easing);
-                }
+                sign < 0 ? unit.open(duration, easing) : unit.close(duration, easing);
             },
             open(duration = 200, easing = 'ease') {
-                if (direction === null || direction < 0) {
-                    direction = +1;
-                    const d = 1 - state;
-                    timer === null || timer === void 0 ? void 0 : timer.clear();
-                    timer = xnew$1.transition((x) => {
-                        const y = x < 1.0 ? (1 - x) * d : 0.0;
-                        state = 1.0 - y;
-                        xnew$1.emit('-transition', { state });
-                    }, duration * d, easing)
-                        .timeout(() => {
-                        xnew$1.emit('-opened', { state });
-                    });
-                }
+                sign = +1;
+                const d = 1 - state;
+                timer === null || timer === void 0 ? void 0 : timer.clear();
+                timer = xnew$1.transition((x) => {
+                    state = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
+                    xnew$1.emit('-transition', { state });
+                }, duration * d, easing)
+                    .timeout(() => xnew$1.emit('-opened', { state }));
             },
             close(duration = 200, easing = 'ease') {
-                if (direction === null || direction > 0) {
-                    direction = -1;
-                    const d = state;
-                    timer === null || timer === void 0 ? void 0 : timer.clear();
-                    timer = xnew$1.transition((x) => {
-                        const y = x < 1.0 ? (1 - x) * d : 0.0;
-                        state = y;
-                        xnew$1.emit('-transition', { state });
-                    }, duration * d, easing)
-                        .timeout(() => {
-                        xnew$1.emit('-closed', { state });
-                    });
-                }
+                sign = -1;
+                const d = state;
+                timer === null || timer === void 0 ? void 0 : timer.clear();
+                timer = xnew$1.transition((x) => {
+                    state = x < 1.0 ? (1 - x) * d : 0.0;
+                    xnew$1.emit('-transition', { state });
+                }, duration * d, easing)
+                    .timeout(() => xnew$1.emit('-closed', { state }));
             },
         };
     }
@@ -1462,13 +1447,13 @@
         });
     }
 
-    function GUIPanel(unit, { name, open = false, params }) {
+    function Panel(unit, { name, open = false, params }) {
         const object = params !== null && params !== void 0 ? params : {};
         xnew$1.extend(Group, { name, open });
         return {
             group({ name, open, params }, inner) {
                 const group = xnew$1((unit) => {
-                    xnew$1.extend(GUIPanel, { name, open, params: params !== null && params !== void 0 ? params : object });
+                    xnew$1.extend(Panel, { name, open, params: params !== null && params !== void 0 ? params : object });
                     inner(unit);
                 });
                 group.on('-eventcapture', ({ event, key, value }) => {
@@ -1806,7 +1791,7 @@
         OpenAndClose,
         AnalogStick,
         DPad,
-        GUIPanel,
+        Panel,
         Accordion,
         Modal,
     };

@@ -1,17 +1,17 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { OpenAndClose, Accordion } from '../basics/Transition';
+import { OpenAndClose, Accordion } from './Transition';
 
-interface GUIPanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
+interface PanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
 
-export function GUIPanel(unit: Unit, { name, open = false, params }: GUIPanelOptions) {
+export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) {
     const object = params ?? {} as Record<string, any>;
     xnew.extend(Group, { name, open });
     
     return {
-        group({ name, open, params }: GUIPanelOptions, inner: Function) {
+        group({ name, open, params }: PanelOptions, inner: Function) {
             const group = xnew((unit: Unit) => {
-                xnew.extend(GUIPanel, { name, open, params: params ?? object });
+                xnew.extend(Panel, { name, open, params: params ?? object });
                 inner(unit);
             });
             group.on('-eventcapture', ({ event, key, value }: { event: Event, key: string, value: any }) => {

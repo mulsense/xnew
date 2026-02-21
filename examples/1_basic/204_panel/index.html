@@ -19,7 +19,7 @@
       const params = { data: 20, flag: true, color: 'red', };
 
       xnew.nest('<div class="w-64 p-1 border rounded-lg shadow-lg bg-white">');
-      xnew.extend(xnew.basics.GUIPanel, { name: 'My Panel', open: true, params });
+      xnew.extend(xnew.basics.Panel, { name: 'My Panel', open: true, params });
       
       const text = xnew('<div class="m-0.5 p-1 rounded bg-gray-200">', 'Console');
 
@@ -30,14 +30,14 @@
         group.separator();
       });
 
-      panel.slider('data', { min: 0, max: 60, step: 2 }).on('input', ({ value }) => text.element.textContent = `data changed to ${value}`);
+      panel.range('data', { min: 0, max: 60, step: 2 }).on('input', ({ value }) => text.element.textContent = `data changed to ${value}`);
       panel.checkbox('flag').on('input', ({ value }) => text.element.textContent = `flag changed to ${value}`);
       panel.select('color', { options: ['red', 'green', 'blue'] }).on('input', ({ value }) => text.element.textContent = `color changed to ${value}`);
       panel.separator();
 
       const show = panel.checkbox('show');
       const group = panel.group({ open: false }, (group) => {
-        group.text('hellow');
+        xnew('<p>', 'hellow');
       });
       show.on('input', ({ value }) => value ? group.open() : group.close());
 
