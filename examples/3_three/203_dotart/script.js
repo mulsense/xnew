@@ -16,7 +16,7 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   // const [width, height] = [800, 600];
-  const [width, height] = [1024, 1024];
+  const [width, height] = [1600, 800];
   const aspect = width / height;
   xnew.extend(xnew.basics.Screen, { aspect, fit: 'contain' });
 
@@ -52,14 +52,14 @@ function Contents(unit) {
   xnew(Plane, { size: 6, position: { x: 0.0, y: 0.0, z: 0.0 }, rotation: { x: -Math.PI / 2, y: 0.0, z: 0.0 } });
   xnew(Crystal, { radius: 0.2, position: { x: 0.0, y: 0.7, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 } });
 
-  // xnew(Model,{
-  //   mogPath: '../../assets/rei.mog', vrmaPath: '../../assets/VRMA_07.vrma', 
-  //   position: { x: 1.0, y: 0.0, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 }
-  // });
-  // xnew(Model,{
-  //   mogPath: '../../assets/miku.mog', vrmaPath: '../../assets/VRMA_03.vrma', 
-  //   position: { x: -0.4, y: 0.0, z: 0.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 }
-  // });
+  xnew(Model,{
+    mogPath: '../../assets/rei.mog', vrmaPath: '../../assets/VRMA_07.vrma', 
+    position: { x: 1.0, y: 0.0, z: 0.0 }, rotation: { x: 0.0, y: 0.0, z: 0.0 }
+  });
+  xnew(Model,{
+    mogPath: '../../assets/miku.mog', vrmaPath: '../../assets/VRMA_03.vrma', 
+    position: { x: -0.4, y: 0.0, z: 0.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 }
+  });
   xnew(Model,{
     mogPath: '../../assets/teto.mog', vrmaPath: '../../assets/VRMA_06.vrma', 
     position: { x: -1.0, y: 0.0, z: 1.5 }, rotation: { x: 0.0, y: Math.PI / 4, z: 0.0 }
@@ -148,13 +148,13 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
     // a.click();
     // URL.revokeObjectURL(url);
 
-    // return new Promise((resolve) => {
-    //   const loader = new GLTFLoader();
-    //   loader.register((parser) => new VRMLoaderPlugin(parser));
-    //   loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf.userData.vrm), (error) => {
-    //     console.error('Failed to load VRM:', error);
-    //   });
-    // });
+    return new Promise((resolve) => {
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf.userData.vrm), (error) => {
+        console.error('Failed to load VRM:', error);
+      });
+    });
   });
 
   xnew.promise(new Promise((resolve) => {
