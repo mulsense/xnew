@@ -1306,17 +1306,18 @@ function Accordion(unit) {
         outer.style.opacity = state.toString();
     });
 }
-function Modal(unit, { background = 'rgba(0, 0, 0, 0.1)' } = {}) {
+function Modal(unit) {
     const system = xnew$1.context(OpenAndClose);
+    system.open();
     system.on('-closed', () => unit.finalize());
-    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-    unit.on('click', ({ event }) => system.close());
-    const outer = xnew$1.nest(`<div style="width: 100%; height: 100%; opacity: 0;"">`);
-    xnew$1.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">');
-    unit.on('click', ({ event }) => event.stopPropagation());
-    outer.style.background = background;
+    xnew$1.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
+    unit.on('click', ({ event }) => {
+        if (event.target === unit.element) {
+            system.close();
+        }
+    });
     system.on('-transition', ({ state }) => {
-        outer.style.opacity = state.toString();
+        unit.element.style.opacity = state.toString();
     });
 }
 

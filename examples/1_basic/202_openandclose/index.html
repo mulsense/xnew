@@ -18,7 +18,7 @@
       button.on('click', () => xnew(document.body, MyModal));
     });
 
-    function Accordion(accordion) {
+    function Accordion(unit) {
       const system = xnew(xnew.basics.OpenAndClose, { open: true });
       xnew.nest('<div class="w-64 border rounded-lg">');
 
@@ -31,28 +31,25 @@
         unit.on('click', () => system.toggle());
       });
 
-      xnew((unit) => {
-        xnew.extend(xnew.basics.Accordion);
-        xnew(Contents);
-      });
+      xnew.extend(xnew.basics.Accordion);
+      xnew(Contents);
     }
 
-    function MyModal(modal) {
+    function MyModal(unit) {
       const system = xnew(xnew.basics.OpenAndClose, { open: false });
-      system.open();
-      system.on('-closed', () => modal.finalize());
 
-      xnew((unit) => {
-        xnew.extend(xnew.basics.Modal);
-        xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
+      xnew.extend(xnew.basics.Modal);
+      unit.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
-        xnew('<div class="p-2 border-b flex justify-between">', () => {
-          xnew('<span>', 'Title');
-          xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
-        });
+      xnew.nest('<div class="absolute inset-0 m-auto w-max h-max">');
+      xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
 
-        xnew(Contents);
+      xnew('<div class="p-2 border-b flex justify-between">', () => {
+        xnew('<span>', 'Title');
+        xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
       });
+
+      xnew(Contents);
     }
 
     function Contents(unit) {

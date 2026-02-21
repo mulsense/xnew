@@ -48,20 +48,19 @@ export function Accordion(unit: Unit) {
     });
 }
 
-export function Modal(unit: Unit, { background = 'rgba(0, 0, 0, 0.1)' }: { background?: string } = {}) {
+export function Modal(unit: Unit) {
     const system = xnew.context(OpenAndClose);
-
+    system.open();
     system.on('-closed', () => unit.finalize());
 
-    xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000;">');
-    unit.on('click', ({ event }: { event: PointerEvent }) => system.close());
+    xnew.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
+    unit.on('click', ({ event }: { event: PointerEvent }) => {
+        if (event.target === unit.element) {
+            system.close();
+        }
+    });
 
-    const outer = xnew.nest(`<div style="width: 100%; height: 100%; opacity: 0;"">`) as HTMLElement;
-    const inner = xnew.nest('<div style="position: absolute; inset: 0; margin: auto; width: max-content; height: max-content;">') as HTMLElement;
-    unit.on('click', ({ event }: { event: PointerEvent }) => event.stopPropagation());
-
-    outer.style.background = background;
     system.on('-transition', ({ state }: { state: number }) => {
-        outer.style.opacity = state.toString();
+        unit.element.style.opacity = state.toString();
     });
 }

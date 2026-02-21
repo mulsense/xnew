@@ -183,9 +183,7 @@ declare function OpenAndClose(unit: Unit, { open }: {
     close(duration?: number, easing?: string): void;
 };
 declare function Accordion(unit: Unit): void;
-declare function Modal(unit: Unit, { background }?: {
-    background?: string;
-}): void;
+declare function Modal(unit: Unit): void;
 
 type ScreenFit = 'contain' | 'cover';
 declare function Screen(unit: Unit, { aspect, fit }?: {
