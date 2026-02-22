@@ -27,7 +27,7 @@ export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) 
             object[key] = object[key] ?? options[0] ?? '';
 
             const select = xnew(Select, { key, value: object[key], options });
-            select.on('input', ({ value }: {value: string }) => object[key] = value);
+            select.on('input', ({ value }: { value: string }) => object[key] = value);
             return select;
         },
         range(key: string, options: { min?: number, max?: number, step?: number } = {}) {
@@ -66,7 +66,7 @@ function Group(group: Unit, { name, open = false }: { name?: string, open?: bool
 }
 
 function Button(unit: Unit, { key = '' }: { key?: string }) {
-    xnew.nest('<button style="margin: 0.125rem; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew.nest('<button style="margin: 0.125rem 0; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     
     unit.element.textContent = key;
     unit.on('pointerover', () => {
@@ -102,7 +102,7 @@ function Range(unit: Unit,
     const fill = xnew(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25rem; transition: width 0.05s;">`);
 
     // overlay labels
-    const status = xnew('<div style="position: absolute; inset: 0; padding: 0 0.25rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit: Unit) => {
+    const status = xnew('<div style="position: absolute; inset: 0; padding: 0 0.5rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit: Unit) => {
         xnew('<div>', key);
         xnew('<div key="status">', value);
     });
@@ -119,7 +119,7 @@ function Range(unit: Unit,
 }
 
 function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boolean } = {}) {
-    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
 
     xnew('<div style="flex: 1;">', key);
 
@@ -142,11 +142,17 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
 }
 
 function Select(unit: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
-    xnew.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center;">`);
+    xnew.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
 
     xnew('<div style="flex: 1;">', key);
-    xnew.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`);
-    for (const option of options) {
-        xnew(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
-    }
+    xnew(`<div style="position: relative; display: inline-flex; align-items: center;">`, () => {
+        xnew(`<select name="${key}" style="height: 2rem; padding: 0 1.5rem 0 0.5rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`, () => {
+            for (const option of options) {
+                xnew(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
+            }
+        });
+        xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+            xnew('<path d="M2 4 6 8 10 4" />');
+        });
+    });
 }

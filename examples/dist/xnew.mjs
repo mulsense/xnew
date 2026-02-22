@@ -1505,7 +1505,7 @@ function Group(group, { name, open = false }) {
     xnew$1.extend(Accordion);
 }
 function Button(unit, { key = '' }) {
-    xnew$1.nest('<button style="margin: 0.125rem; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew$1.nest('<button style="margin: 0.125rem 0; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
         unit.element.style.background = currentColorB;
@@ -1532,7 +1532,7 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     const ratio = (value - min) / (max - min);
     const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25rem; transition: width 0.05s;">`);
     // overlay labels
-    const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.25rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
+    const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
         xnew$1('<div>', key);
         xnew$1('<div key="status">', value);
     });
@@ -1546,7 +1546,7 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     });
 }
 function Checkbox(unit, { key = '', value } = {}) {
-    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
     const box = xnew$1(`<div style="width: 1.25rem; height: 1.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
         xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
@@ -1565,12 +1565,18 @@ function Checkbox(unit, { key = '', value } = {}) {
     });
 }
 function Select(unit, { key = '', value, options = [] } = {}) {
-    xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center;">`);
+    xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
-    xnew$1.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`);
-    for (const option of options) {
-        xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
-    }
+    xnew$1(`<div style="position: relative; display: inline-flex; align-items: center;">`, () => {
+        xnew$1(`<select name="${key}" style="height: 2rem; padding: 0 1.5rem 0 0.5rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`, () => {
+            for (const option of options) {
+                xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
+            }
+        });
+        xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+            xnew$1('<path d="M2 4 6 8 10 4" />');
+        });
+    });
 }
 
 const context = new window.AudioContext();
