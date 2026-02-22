@@ -17,7 +17,7 @@
       const modalButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
       modalButton.on('click', () => xnew(MyModal));
 
-      const menuButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open popup!');
+      const menuButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open menu!');
       menuButton.on('click', () => xnew(MyMenu, { anchor: menuButton.element }));
     });
 
@@ -32,7 +32,7 @@
       });
 
       xnew.extend(xnew.basics.Accordion);
-      xnew(Contents);
+      xnew('<div class="p-2 border-t">', Contents);
     }
 
     function MyModal(unit) {
@@ -40,39 +40,40 @@
       const system = xnew(xnew.basics.OpenAndClose, { open: false });
       system.open();
 
+      // background
       xnew.extend(xnew.basics.Popup);
       unit.element.style.background = 'rgba(0, 0, 0, 0.1)';
+      unit.on('click', ({ event }) => event.target === unit.element && system.close());
 
       xnew.nest('<div class="absolute inset-0 m-auto w-max h-max">');
       xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
 
-      xnew('<div class="p-2 border-b flex justify-between">', () => {
+      xnew('<div class="p-2 flex justify-between">', () => {
         xnew('<span>', 'Title');
         xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
       });
 
-      xnew(Contents);
+      xnew('<div class="p-2 border-t">', Contents);
     }
 
-    function MyPopup(unit, { anchor }) {
+    function MyMenu(unit, { anchor }) {
       const system = xnew(xnew.basics.OpenAndClose, { open: false });
       system.open();
 
+      // background
       xnew.extend(xnew.basics.Popup);
-      // unit.element.style.background = 'rgba(0, 0, 0, 0.1)';
+      unit.on('click', ({ event }) => event.target === unit.element && system.close());
 
-      xnew.nest('<div class="m-auto w-[300px] border rounded-lg bg-white">');
-
-      xnew('<div class="p-2 border-b flex justify-between">', () => {
-        xnew('<span>', 'Title');
-        xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
-      });
-
-      xnew(Contents);
+      const absolute = xnew.nest('<div class="absolute">');
+      const rect = anchor.getBoundingClientRect();
+      absolute.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+      absolute.style.left = (rect.left + window.scrollX) + 'px';
+      
+      xnew.nest('<div class="w-[300px] border rounded-lg bg-white">');
+      xnew('<div class="p-2">', Contents);
     }
 
     function Contents(unit) {
-      xnew.nest('<div class="border-t p-2">');
       xnew('<span>', 'Contents');
       xnew('<ul>', () => {
         xnew('<li class="ml-2">', '1st item');

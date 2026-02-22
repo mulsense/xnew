@@ -1327,11 +1327,6 @@
         const system = xnew$1.context(OpenAndClose);
         system.on('-closed', () => unit.finalize());
         xnew$1.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
-        unit.on('click', ({ event }) => {
-            if (event.target === unit.element) {
-                system.close();
-            }
-        });
         system.on('-transition', ({ state }) => {
             unit.element.style.opacity = state.toString();
         });

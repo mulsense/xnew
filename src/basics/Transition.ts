@@ -53,12 +53,6 @@ export function Popup(unit: Unit) {
     system.on('-closed', () => unit.finalize());
 
     xnew.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
-    unit.on('click', ({ event }: { event: PointerEvent }) => {
-        if (event.target === unit.element) {
-            system.close();
-        }
-    });
-
     system.on('-transition', ({ state }: { state: number }) => {
         unit.element.style.opacity = state.toString();
     });
