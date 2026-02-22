@@ -13,20 +13,20 @@
     xnew(document.querySelector('#main'), (unit) => {
       xnew.nest('<div class="p-2 flex items-baseline gap-x-2">')
       xnew(Accordion)
-      
-      const button = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
-      button.on('click', () => xnew(document.body, MyModal));
+
+      const modalButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
+      modalButton.on('click', () => xnew(MyModal));
+
+      const menuButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open popup!');
+      menuButton.on('click', () => xnew(MyMenu, { anchor: menuButton.element }));
     });
 
     function Accordion(unit) {
       const system = xnew(xnew.basics.OpenAndClose, { open: true });
       xnew.nest('<div class="w-64 border rounded-lg">');
-
+        
       xnew('<div class="flex items-center select-none cursor-pointer">', (unit) => {
-        xnew('<svg viewBox="0 0 12 12" class="size-4" fill="none" stroke="currentColor">', (unit) => {
-          xnew('<path d="M6 2 10 6 6 10" />');
-          system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
-        });
+        xnew(Chevron);
         xnew('<div class="my-2">', 'accordion (click me!)');
         unit.on('click', () => system.toggle());
       });
@@ -36,13 +36,32 @@
     }
 
     function MyModal(unit) {
+      xnew.nest(document.body);
       const system = xnew(xnew.basics.OpenAndClose, { open: false });
+      system.open();
 
-      xnew.extend(xnew.basics.Modal);
+      xnew.extend(xnew.basics.Popup);
       unit.element.style.background = 'rgba(0, 0, 0, 0.1)';
 
       xnew.nest('<div class="absolute inset-0 m-auto w-max h-max">');
       xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
+
+      xnew('<div class="p-2 border-b flex justify-between">', () => {
+        xnew('<span>', 'Title');
+        xnew('<button class="cursor-pointer hover:opacity-50">', 'Close').on('click', () => system.close());
+      });
+
+      xnew(Contents);
+    }
+
+    function MyPopup(unit, { anchor }) {
+      const system = xnew(xnew.basics.OpenAndClose, { open: false });
+      system.open();
+
+      xnew.extend(xnew.basics.Popup);
+      // unit.element.style.background = 'rgba(0, 0, 0, 0.1)';
+
+      xnew.nest('<div class="m-auto w-[300px] border rounded-lg bg-white">');
 
       xnew('<div class="p-2 border-b flex justify-between">', () => {
         xnew('<span>', 'Title');
@@ -59,6 +78,14 @@
         xnew('<li class="ml-2">', '1st item');
         xnew('<li class="ml-2">', '2nd item');
         xnew('<li class="ml-2">', '3rd item');
+      });
+    }
+
+    function Chevron(unit) {
+      const system = xnew.context(xnew.basics.OpenAndClose);
+      xnew('<svg viewBox="0 0 12 12" class="size-4" fill="none" stroke="currentColor">', (unit) => {
+        xnew('<path d="M6 2 10 6 6 10" />');
+        system.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);  
       });
     }
 </script>

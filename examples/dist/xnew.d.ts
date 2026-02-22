@@ -102,7 +102,10 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
-    elements: UnitElement[];
+    nestElements: {
+        element: UnitElement;
+        owned: boolean;
+    }[];
     components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
@@ -127,7 +130,7 @@ declare class Unit {
     reboot(): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement;
+    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
@@ -183,7 +186,7 @@ declare function OpenAndClose(unit: Unit, { open }: {
     close(duration?: number, easing?: string): void;
 };
 declare function Accordion(unit: Unit): void;
-declare function Modal(unit: Unit): void;
+declare function Popup(unit: Unit): void;
 
 type ScreenFit = 'contain' | 'cover';
 declare function Screen(unit: Unit, { aspect, fit }?: {
@@ -275,7 +278,7 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(tag: string): HTMLElement | SVGElement;
+    nest(target: UnitElement | string): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
@@ -299,7 +302,7 @@ declare const xnew: CreateUnit & {
         DPad: typeof DPad;
         Panel: typeof Panel;
         Accordion: typeof Accordion;
-        Modal: typeof Modal;
+        Popup: typeof Popup;
     };
     audio: {
         load(path: string): UnitPromise;

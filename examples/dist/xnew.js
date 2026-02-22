@@ -741,8 +741,10 @@
             }
         }
         reboot() {
-            var _a, _b;
-            const anchor = (_b = (_a = this._.elements[0]) === null || _a === void 0 ? void 0 : _a.nextElementSibling) !== null && _b !== void 0 ? _b : null;
+            let anchor = null;
+            if (this._.nestElements[0] && this._.nestElements[0].owned === true) {
+                anchor = this._.nestElements[0].element.nextElementSibling;
+            }
             Unit.stop(this);
             Unit.finalize(this);
             Unit.initialize(this, anchor);
@@ -760,7 +762,7 @@
                 protected: false,
                 ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
                 children: [],
-                elements: [],
+                nestElements: [],
                 promises: [],
                 components: [],
                 listeners: new MapMap(),
@@ -785,10 +787,12 @@
                 [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
                 unit.off();
                 unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
-                if (unit._.elements.length > 0) {
-                    unit._.baseElement.removeChild(unit._.elements[0]);
-                    unit._.currentElement = unit._.baseElement;
+                for (const { element, owned } of unit._.nestElements.reverse()) {
+                    if (owned === true) {
+                        element.remove();
+                    }
                 }
+                unit._.currentElement = unit._.baseElement;
                 // reset defines
                 Object.keys(unit._.defines).forEach((key) => {
                     delete unit[key];
@@ -797,28 +801,35 @@
                 unit._.state = 'finalized';
             }
         }
-        static nest(unit, tag, textContent) {
-            const match = tag.match(/<((\w+)[^>]*?)\/?>/);
-            if (match !== null) {
-                let element;
-                if (unit._.anchor !== null) {
-                    unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                    element = unit._.anchor.previousElementSibling;
-                    unit._.anchor = null;
-                }
-                else {
-                    unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                    element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
-                }
-                unit._.currentElement = element;
-                if (textContent !== undefined) {
-                    element.textContent = textContent.toString();
-                }
-                unit._.elements.push(element);
-                return element;
+        static nest(unit, target, textContent) {
+            if (target instanceof HTMLElement || target instanceof SVGElement) {
+                unit._.nestElements.push({ element: target, owned: false });
+                unit._.currentElement = target;
+                return target;
             }
             else {
-                throw new Error(`xnew.nest: invalid html string [${tag}]`);
+                const match = target.match(/<((\w+)[^>]*?)\/?>/);
+                if (match !== null) {
+                    let element;
+                    if (unit._.anchor !== null) {
+                        unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
+                        element = unit._.anchor.previousElementSibling;
+                        unit._.anchor = null;
+                    }
+                    else {
+                        unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                        element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
+                    }
+                    unit._.currentElement = element;
+                    if (textContent !== undefined) {
+                        element.textContent = textContent.toString();
+                    }
+                    unit._.nestElements.push({ element, owned: true });
+                    return element;
+                }
+                else {
+                    throw new Error(`xnew.nest: invalid html string [${target}]`);
+                }
             }
         }
         static extend(unit, component, props) {
@@ -1029,22 +1040,22 @@
     }, {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param tag - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
+         * @param target - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(tag) {
+        nest(target) {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 }
-                return Unit.nest(Unit.currentUnit, tag);
+                return Unit.nest(Unit.currentUnit, target);
             }
             catch (error) {
-                console.error('xnew.nest(tag: string): ', error);
+                console.error('xnew.nest(target: HTMLElement | SVGElement | string): ', error);
                 throw error;
             }
         },
@@ -1312,9 +1323,8 @@
             outer.style.opacity = state.toString();
         });
     }
-    function Modal(unit) {
+    function Popup(unit) {
         const system = xnew$1.context(OpenAndClose);
-        system.open();
         system.on('-closed', () => unit.finalize());
         xnew$1.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
         unit.on('click', ({ event }) => {
@@ -1375,7 +1385,7 @@
             target.element.style.left = `${vector.x * size / 4}px`;
             target.element.style.top = `${vector.y * size / 4}px`;
             const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
-            xnew$1.emit(nexttype, { type: nexttype, vector });
+            xnew$1.emit(nexttype, { vector });
         });
         unit.on('dragend', () => {
             const size = unit.element.clientWidth;
@@ -1383,7 +1393,7 @@
             target.element.style.filter = '';
             target.element.style.left = `${vector.x * size / 4}px`;
             target.element.style.top = `${vector.y * size / 4}px`;
-            xnew$1.emit('-up', { type: '-up', vector });
+            xnew$1.emit('-up', { vector });
         });
     }
     function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
@@ -1448,6 +1458,8 @@
         });
     }
 
+    const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
+    const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
     function Panel(unit, { name, open = false, params }) {
         const object = params !== null && params !== void 0 ? params : {};
         xnew$1.extend(Group, { name, open });
@@ -1507,8 +1519,8 @@
         xnew$1.nest('<button style="margin: 0.125rem; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
         unit.element.textContent = key;
         unit.on('pointerover', () => {
-            unit.element.style.background = 'color-mix(in srgb, currentColor 5%, transparent)';
-            unit.element.style.borderColor = 'color-mix(in srgb, currentColor 40%, transparent)';
+            unit.element.style.background = currentColorB;
+            unit.element.style.borderColor = currentColorA;
         });
         unit.on('pointerout', () => {
             unit.element.style.background = '';
@@ -1522,14 +1534,14 @@
         });
     }
     function Separator(unit) {
-        xnew$1.nest('<div style="margin: 0.5rem 0; border-top: 1px solid color-mix(in srgb, currentColor 40%, transparent);">');
+        xnew$1.nest(`<div style="margin: 0.5rem 0; border-top: 1px solid ${currentColorA};">`);
     }
     function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
         value = value !== null && value !== void 0 ? value : min;
         xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; cursor: pointer; user-select: none;">`);
         // fill bar
         const ratio = (value - min) / (max - min);
-        const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: color-mix(in srgb, currentColor 5%, transparent); border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; transition: width 0.05s;">`);
+        const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25rem; transition: width 0.05s;">`);
         // overlay labels
         const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.25rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
             xnew$1('<div>', key);
@@ -1547,14 +1559,14 @@
     function Checkbox(unit, { key = '', value } = {}) {
         xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
         xnew$1('<div style="flex: 1;">', key);
-        const box = xnew$1('<div style="width: 1.25rem; height: 1.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">', () => {
-            xnew$1('<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="color-mix(in srgb, currentColor 80%, transparent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">', () => {
+        const box = xnew$1(`<div style="width: 1.25rem; height: 1.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
+            xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
                 xnew$1('<path d="M2 6 5 9 10 3" />');
             });
         });
         const check = box.element.querySelector('svg');
         const update = (checked) => {
-            box.element.style.background = checked ? 'color-mix(in srgb, currentColor 5%, transparent)' : '';
+            box.element.style.background = checked ? currentColorB : '';
             check.style.opacity = checked ? '1' : '0';
         };
         update(!!value);
@@ -1566,9 +1578,9 @@
     function Select(unit, { key = '', value, options = [] } = {}) {
         xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.25rem; display: flex; align-items: center;">`);
         xnew$1('<div style="flex: 1;">', key);
-        xnew$1.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 0.25rem; cursor: pointer; user-select: none;">`);
+        xnew$1.nest(`<select name="${key}" style="height: 2rem; padding: 0.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`);
         for (const option of options) {
-            xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''}>`, option);
+            xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
         }
     }
 
@@ -1803,7 +1815,7 @@
         DPad,
         Panel,
         Accordion,
-        Modal,
+        Popup,
     };
     const audio = {
         load(path) {

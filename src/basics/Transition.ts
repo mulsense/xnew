@@ -48,9 +48,8 @@ export function Accordion(unit: Unit) {
     });
 }
 
-export function Modal(unit: Unit) {
+export function Popup(unit: Unit) {
     const system = xnew.context(OpenAndClose);
-    system.open();
     system.on('-closed', () => unit.finalize());
 
     xnew.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
