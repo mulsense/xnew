@@ -159,16 +159,15 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
         xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
             xnew('<path d="M2 4 6 8 10 4" />');
         });
+        
         button.on('click', () => {
-            console.log('clicked');
             const rect = button.element.getBoundingClientRect();
             xnew((list: Unit) => {
                 xnew.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 9999;">`);
-                const el = list.element as HTMLElement;
-                el.style.left = rect.left + 'px';
-                el.style.top = (rect.bottom + 2) + 'px';
-                el.style.minWidth = rect.width + 'px';
-                el.style.background = getEffectiveBg(button.element);
+                list.element.style.left = rect.left + 'px';
+                list.element.style.top = (rect.bottom + 2) + 'px';
+                list.element.style.minWidth = rect.width + 'px';
+                list.element.style.background = getEffectiveBg(button.element);
 
                 for (const option of options) {
                     const item = xnew(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
@@ -181,9 +180,9 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
                         list.finalize();
                     });
                 }
-                    list.on('click.outside', () => {
-                        list.finalize();
-                    });
+                list.on('click.outside', () => {
+                    list.finalize();
+                });
             });
  
         });

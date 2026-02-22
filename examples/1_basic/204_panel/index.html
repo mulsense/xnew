@@ -35,7 +35,7 @@
 
       panel.range('data', { min: 0, max: 60, step: 2 }).on('input', ({ value }) => xnew.emit('+console', { text: `data changed to ${value}` }));
       panel.checkbox('flag').on('input', ({ value }) => xnew.emit('+console', { text: `flag changed to ${value}` }));
-      panel.select('color', { options: ['red', 'green', 'blue'] }).on('input', ({ value }) => xnew.emit('+console', { text: `color changed to ${value}` }));
+      panel.select('color', { options: ['red', 'greｓｓｓｓen', 'blue'] }).on('input', ({ value }) => xnew.emit('+console', { text: `color changed to ${value}` }));
       panel.separator();
 
       const show = panel.checkbox('show');

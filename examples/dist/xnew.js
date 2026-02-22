@@ -1486,15 +1486,13 @@
                 xnew$1('<path d="M2 4 6 8 10 4" />');
             });
             button.on('click', () => {
-                console.log('clicked');
                 const rect = button.element.getBoundingClientRect();
                 xnew$1((list) => {
                     xnew$1.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 9999;">`);
-                    const el = list.element;
-                    el.style.left = rect.left + 'px';
-                    el.style.top = (rect.bottom + 2) + 'px';
-                    el.style.minWidth = rect.width + 'px';
-                    el.style.background = getEffectiveBg(button.element);
+                    list.element.style.left = rect.left + 'px';
+                    list.element.style.top = (rect.bottom + 2) + 'px';
+                    list.element.style.minWidth = rect.width + 'px';
+                    list.element.style.background = getEffectiveBg(button.element);
                     for (const option of options) {
                         const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
                         item.on('pointerover', () => item.element.style.background = currentColorB);
