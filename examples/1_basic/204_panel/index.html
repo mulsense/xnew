@@ -22,7 +22,8 @@
     function MyPanel(panel) {
       const params = { data: 20, flag: true, color: 'red', };
 
-      xnew.nest('<div class="absolute top-2 right-2 w-64 p-1 border rounded-lg shadow-lg bg-gray-800 text-green-400">');
+      xnew.nest('<div class="absolute top-2 right-2 w-64">');
+      xnew.nest('<div class="max-h-[calc(100vh-1rem)] overflow-y-auto p-1 border rounded-lg shadow-lg bg-gray-100 text-green-900">');
       xnew.extend(xnew.basics.Panel, { name: 'My Panel', open: true, params });
       
       panel.group({ name: 'group 1', open: true }, (group) => {

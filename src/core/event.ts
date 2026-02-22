@@ -1,3 +1,4 @@
+import { create } from 'domain';
 import { MapSet, MapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------
@@ -9,6 +10,27 @@ interface EventProps {
     type: string;
     listener: Function;
     options?: boolean | AddEventListenerOptions
+}
+
+function createBasicEvent(
+    target: Window | Document | HTMLElement | SVGElement, 
+    type: string, 
+    execute: EventListenerOrEventListenerObject, 
+    options?: boolean | AddEventListenerOptions
+): Function {
+    let initalized = false;
+    const id = setTimeout(() => {
+        initalized = true;
+        target.addEventListener(type, execute, options);
+    }, 0);
+
+    return () => {
+        if (initalized === false) {
+            clearTimeout(id);
+        } else {
+            target.removeEventListener(type, execute);
+        }
+    };
 }
 
 export class Eventor {
@@ -40,8 +62,6 @@ export class Eventor {
             finalize = this.touch(props);
         } else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
             finalize = this.drag(props);
-        } else if (['gesturestart', 'gesturemove', 'gestureend'].includes(props.type)) {
-            finalize = this.gesture(props);
         } else if (['keydown', 'keyup'].includes(props.type)) {
             finalize = this.key(props);
         } else if (['keydown.arrow', 'keyup.arrow'].includes(props.type)) {
@@ -49,7 +69,7 @@ export class Eventor {
         } else if (['keydown.wasd', 'keyup.wasd'].includes(props.type)) {
             finalize = this.key_wasd(props);
         } else {
-            finalize = this.basic(props);
+            finalize = createBasicEvent(props.element, props.type, (event: Event) => props.listener({ event }), props.options);
         }
         this.map.set(props.type, props.listener, finalize);
     }
@@ -60,16 +80,6 @@ export class Eventor {
             finalize();
             this.map.delete(type, listener)
         }
-    }
-
-    private basic(props: EventProps): Function {
-        const execute = (event: Event) => {
-            props.listener({ event });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
     }
 
     private resize(props: EventProps) {
@@ -85,7 +95,7 @@ export class Eventor {
     }
 
     private change(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             let value: any = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -95,15 +105,11 @@ export class Eventor {
                 value = event.target.value;
             }
             props.listener({ event, value });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private input(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             let value: any = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -113,85 +119,53 @@ export class Eventor {
                 value = event.target.value;
             }
             props.listener({ event, value });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private click(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private click_outside(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(document, props.type.split('.')[0], (event: any) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
-        };
-        document.addEventListener(props.type.split('.')[0], execute, props.options);
-        return () => {
-            document.removeEventListener(props.type.split('.')[0], execute);
-        };
+        }, props.options);
     }
 
     private pointer(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private mouse(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private touch(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private pointer_outside(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(document, props.type.split('.')[0], (event: any) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
-        };
-        document.addEventListener(props.type.split('.')[0], execute, props.options);
-        return () => {
-            document.removeEventListener(props.type.split('.')[0], execute);
-        };
+        }, props.options);
     }
 
     private wheel(props: EventProps): Function {
-        const execute = (event: any) => {
+        return createBasicEvent(props.element, props.type, (event: any) => {
             props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
-        };
-        props.element.addEventListener(props.type, execute, props.options);
-        return () => {
-            props.element.removeEventListener(props.type, execute);
-        };
+        }, props.options);
     }
 
     private drag(props: EventProps): Function {
@@ -259,89 +233,12 @@ export class Eventor {
         };
     }
 
-    private gesture(props: EventProps): Function {
-        let isActive = false;
-        const map = new Map();
-
-        const element = props.element;
-        const options = props.options;
-
-        const dragstart = ({ event, position }: any) => {
-            map.set(event.pointerId, position);
-
-            isActive = map.size === 2 ? true : false;
-            if (isActive === true && props.type === 'gesturestart') {
-                props.listener({ event });
-            }
-        };
-
-        const dragmove = ({ event, position, delta }: any) => {
-            if (map.size >= 2 && isActive === true) {
-                const a = map.get(event.pointerId);
-                const b = getOthers(event.pointerId)[0];
-
-                let scale = 0.0;
-                {
-                    const v = { x: a.x - b.x, y: a.y - b.y };
-                    const s = v.x * v.x + v.y * v.y;
-                    scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-                }
-                // let rotate = 0.0;
-                // {
-                //     const c = { x: a.x + delta.x, y: a.y + delta.y };
-                //     const v1 = { x: a.x - b.x, y: a.y - b.y };
-                //     const v2 = { x: c.x - b.x, y: c.y - b.y };
-                //     const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-                //     const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-
-                //     if (l1 > 0.0 && l2 > 0.0) {
-                //         const angle = Math.acos((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
-                //         const sign = v1.x * v2.y - v1.y * v2.x;
-                //         rotate = sign > 0.0 ? +angle : -angle;
-                //     }
-                // }
-                if (props.type === 'gesturemove') {
-                    props.listener({ event, scale });
-                }
-            }
-            map.set(event.pointerId, position);
-        };
-
-        const dragend = ({ event }: any) => {
-            map.delete(event.pointerId);
-            if (isActive === true && props.type === 'gestureend') {
-                props.listener({ event, scale: 1.0 });
-            }
-            isActive = false;
-        };
-        this.add(element, 'dragstart', dragstart, options);
-        this.add(element, 'dragmove', dragmove, options);
-        this.add(element, 'dragend', dragend, options);
-
-        function getOthers(id: number) {
-            const backup = map.get(id);
-            map.delete(id);
-            const others = [...map.values()];
-            map.set(id, backup);
-            return others;
-        }
-
-        return () => {
-            this.remove('dragstart', dragstart);
-            this.remove('dragmove', dragmove);
-            this.remove('dragend', dragend);
-        };
-    }
-
     private key(props: EventProps) {
         const execute = (event: any) => {
             if (props.type === 'keydown' && event.repeat) return;
             props.listener({ event, code: event.code } );
         };
-        window.addEventListener(props.type, execute, props.options);
-        return () => {
-            window.removeEventListener(props.type, execute);
-        };
+        return createBasicEvent(window, props.type, execute, props.options);
     }
 
     private key_arrow(props: EventProps) {

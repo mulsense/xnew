@@ -213,6 +213,21 @@
         }
     }
 
+    function createBasicEvent(target, type, execute, options) {
+        let initalized = false;
+        const id = setTimeout(() => {
+            initalized = true;
+            target.addEventListener(type, execute, options);
+        }, 0);
+        return () => {
+            if (initalized === false) {
+                clearTimeout(id);
+            }
+            else {
+                target.removeEventListener(type, execute);
+            }
+        };
+    }
     class Eventor {
         constructor() {
             this.map = new MapMap();
@@ -253,9 +268,6 @@
             else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
                 finalize = this.drag(props);
             }
-            else if (['gesturestart', 'gesturemove', 'gestureend'].includes(props.type)) {
-                finalize = this.gesture(props);
-            }
             else if (['keydown', 'keyup'].includes(props.type)) {
                 finalize = this.key(props);
             }
@@ -266,7 +278,7 @@
                 finalize = this.key_wasd(props);
             }
             else {
-                finalize = this.basic(props);
+                finalize = createBasicEvent(props.element, props.type, (event) => props.listener({ event }), props.options);
             }
             this.map.set(props.type, props.listener, finalize);
         }
@@ -276,15 +288,6 @@
                 finalize();
                 this.map.delete(type, listener);
             }
-        }
-        basic(props) {
-            const execute = (event) => {
-                props.listener({ event });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
         }
         resize(props) {
             const observer = new ResizeObserver((entries) => {
@@ -299,7 +302,7 @@
             };
         }
         change(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 let value = null;
                 if (event.target.type === 'checkbox') {
                     value = event.target.checked;
@@ -311,14 +314,10 @@
                     value = event.target.value;
                 }
                 props.listener({ event, value });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         input(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 let value = null;
                 if (event.target.type === 'checkbox') {
                     value = event.target.checked;
@@ -330,78 +329,46 @@
                     value = event.target.value;
                 }
                 props.listener({ event, value });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         click(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         click_outside(props) {
-            const execute = (event) => {
+            return createBasicEvent(document, props.type.split('.')[0], (event) => {
                 if (props.element.contains(event.target) === false) {
                     props.listener({ event, position: pointer(props.element, event).position });
                 }
-            };
-            document.addEventListener(props.type.split('.')[0], execute, props.options);
-            return () => {
-                document.removeEventListener(props.type.split('.')[0], execute);
-            };
+            }, props.options);
         }
         pointer(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         mouse(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         touch(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         pointer_outside(props) {
-            const execute = (event) => {
+            return createBasicEvent(document, props.type.split('.')[0], (event) => {
                 if (props.element.contains(event.target) === false) {
                     props.listener({ event, position: pointer(props.element, event).position });
                 }
-            };
-            document.addEventListener(props.type.split('.')[0], execute, props.options);
-            return () => {
-                document.removeEventListener(props.type.split('.')[0], execute);
-            };
+            }, props.options);
         }
         wheel(props) {
-            const execute = (event) => {
+            return createBasicEvent(props.element, props.type, (event) => {
                 props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
-            };
-            props.element.addEventListener(props.type, execute, props.options);
-            return () => {
-                props.element.removeEventListener(props.type, execute);
-            };
+            }, props.options);
         }
         drag(props) {
             let pointermove = null;
@@ -463,80 +430,13 @@
                 remove();
             };
         }
-        gesture(props) {
-            let isActive = false;
-            const map = new Map();
-            const element = props.element;
-            const options = props.options;
-            const dragstart = ({ event, position }) => {
-                map.set(event.pointerId, position);
-                isActive = map.size === 2 ? true : false;
-                if (isActive === true && props.type === 'gesturestart') {
-                    props.listener({ event });
-                }
-            };
-            const dragmove = ({ event, position, delta }) => {
-                if (map.size >= 2 && isActive === true) {
-                    const a = map.get(event.pointerId);
-                    const b = getOthers(event.pointerId)[0];
-                    let scale = 0.0;
-                    {
-                        const v = { x: a.x - b.x, y: a.y - b.y };
-                        const s = v.x * v.x + v.y * v.y;
-                        scale = 1 + (s > 0.0 ? (v.x * delta.x + v.y * delta.y) / s : 0);
-                    }
-                    // let rotate = 0.0;
-                    // {
-                    //     const c = { x: a.x + delta.x, y: a.y + delta.y };
-                    //     const v1 = { x: a.x - b.x, y: a.y - b.y };
-                    //     const v2 = { x: c.x - b.x, y: c.y - b.y };
-                    //     const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-                    //     const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-                    //     if (l1 > 0.0 && l2 > 0.0) {
-                    //         const angle = Math.acos((v1.x * v2.x + v1.y * v2.y) / (l1 * l2));
-                    //         const sign = v1.x * v2.y - v1.y * v2.x;
-                    //         rotate = sign > 0.0 ? +angle : -angle;
-                    //     }
-                    // }
-                    if (props.type === 'gesturemove') {
-                        props.listener({ event, scale });
-                    }
-                }
-                map.set(event.pointerId, position);
-            };
-            const dragend = ({ event }) => {
-                map.delete(event.pointerId);
-                if (isActive === true && props.type === 'gestureend') {
-                    props.listener({ event, scale: 1.0 });
-                }
-                isActive = false;
-            };
-            this.add(element, 'dragstart', dragstart, options);
-            this.add(element, 'dragmove', dragmove, options);
-            this.add(element, 'dragend', dragend, options);
-            function getOthers(id) {
-                const backup = map.get(id);
-                map.delete(id);
-                const others = [...map.values()];
-                map.set(id, backup);
-                return others;
-            }
-            return () => {
-                this.remove('dragstart', dragstart);
-                this.remove('dragmove', dragmove);
-                this.remove('dragend', dragend);
-            };
-        }
         key(props) {
             const execute = (event) => {
                 if (props.type === 'keydown' && event.repeat)
                     return;
                 props.listener({ event, code: event.code });
             };
-            window.addEventListener(props.type, execute, props.options);
-            return () => {
-                window.removeEventListener(props.type, execute);
-            };
+            return createBasicEvent(window, props.type, execute, props.options);
         }
         key_arrow(props) {
             const keymap = {};
@@ -1570,19 +1470,58 @@
             update(value);
         });
     }
-    function Select(unit, { key = '', value, options = [] } = {}) {
+    function Select(_, { key = '', value, options = [] } = {}) {
+        var _a;
+        const initial = (_a = value !== null && value !== void 0 ? value : options[0]) !== null && _a !== void 0 ? _a : '';
         xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
         xnew$1('<div style="flex: 1;">', key);
-        xnew$1(`<div style="position: relative; display: inline-flex; align-items: center;">`, () => {
-            xnew$1(`<select name="${key}" style="height: 2rem; padding: 0 1.5rem 0 0.5rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`, () => {
+        xnew$1(`<div style="position: relative; display: inline-flex; align-items: center;">`, (unit) => {
+            const native = xnew$1(`<select name="${key}" style="display: none;">`, () => {
                 for (const option of options) {
-                    xnew$1(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
+                    xnew$1(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
                 }
             });
+            const button = xnew$1(`<div style="height: 2rem; padding: 0 1.5rem 0 0.5rem; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25rem; cursor: pointer; user-select: none; min-width: 3rem; white-space: nowrap;">`, initial);
             xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
                 xnew$1('<path d="M2 4 6 8 10 4" />');
             });
+            button.on('click', () => {
+                console.log('clicked');
+                const rect = button.element.getBoundingClientRect();
+                xnew$1((list) => {
+                    xnew$1.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 9999;">`);
+                    const el = list.element;
+                    el.style.left = rect.left + 'px';
+                    el.style.top = (rect.bottom + 2) + 'px';
+                    el.style.minWidth = rect.width + 'px';
+                    el.style.background = getEffectiveBg(button.element);
+                    for (const option of options) {
+                        const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
+                        item.on('pointerover', () => item.element.style.background = currentColorB);
+                        item.on('pointerout', () => item.element.style.background = '');
+                        item.on('click', () => {
+                            button.element.textContent = option;
+                            native.element.value = option;
+                            native.element.dispatchEvent(new Event('input', { bubbles: true }));
+                            list.finalize();
+                        });
+                    }
+                    list.on('click.outside', () => {
+                        list.finalize();
+                    });
+                });
+            });
         });
+    }
+    function getEffectiveBg(el) {
+        let current = el.parentElement;
+        while (current) {
+            const bg = getComputedStyle(current).backgroundColor;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
+                return bg;
+            current = current.parentElement;
+        }
+        return 'Canvas';
     }
 
     const context = new window.AudioContext();

@@ -141,18 +141,61 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
     });
 }
 
-function Select(unit: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
+function Select(_: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
+    const initial = value ?? options[0] ?? '';
+
     xnew.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
 
     xnew('<div style="flex: 1;">', key);
-    xnew(`<div style="position: relative; display: inline-flex; align-items: center;">`, () => {
-        xnew(`<select name="${key}" style="height: 2rem; padding: 0 1.5rem 0 0.5rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; color: currentColor; appearance: none; outline: none; cursor: pointer; user-select: none;">`, () => {
+    xnew(`<div style="position: relative; display: inline-flex; align-items: center;">`, (unit: Unit) => {
+        const native = xnew(`<select name="${key}" style="display: none;">`, () => {
             for (const option of options) {
-                xnew(`<option value="${option}" ${option === value ? 'selected' : ''} style="color: currentColor;">`, option);
+                xnew(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
             }
         });
+
+        const button = xnew(`<div style="height: 2rem; padding: 0 1.5rem 0 0.5rem; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25rem; cursor: pointer; user-select: none; min-width: 3rem; white-space: nowrap;">`, initial);
+
         xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
             xnew('<path d="M2 4 6 8 10 4" />');
         });
+        button.on('click', () => {
+            console.log('clicked');
+            const rect = button.element.getBoundingClientRect();
+            xnew((list: Unit) => {
+                xnew.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 9999;">`);
+                const el = list.element as HTMLElement;
+                el.style.left = rect.left + 'px';
+                el.style.top = (rect.bottom + 2) + 'px';
+                el.style.minWidth = rect.width + 'px';
+                el.style.background = getEffectiveBg(button.element);
+
+                for (const option of options) {
+                    const item = xnew(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
+                    item.on('pointerover', () => item.element.style.background = currentColorB);
+                    item.on('pointerout', () => item.element.style.background = '');
+                    item.on('click', () => {
+                        button.element.textContent = option;
+                        (native.element as HTMLSelectElement).value = option;
+                        native.element.dispatchEvent(new Event('input', { bubbles: true }));
+                        list.finalize();
+                    });
+                }
+                    list.on('click.outside', () => {
+                        list.finalize();
+                    });
+            });
+ 
+        });
     });
+}
+
+function getEffectiveBg(el: Element): string {
+    let current: Element | null = el.parentElement;
+    while (current) {
+        const bg = getComputedStyle(current).backgroundColor;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+        current = current.parentElement;
+    }
+    return 'Canvas';
 }

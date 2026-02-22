@@ -32,7 +32,6 @@ declare class Eventor {
     private map;
     add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
-    private basic;
     private resize;
     private change;
     private input;
@@ -44,7 +43,6 @@ declare class Eventor {
     private pointer_outside;
     private wheel;
     private drag;
-    private gesture;
     private key;
     private key_arrow;
     private key_wasd;
