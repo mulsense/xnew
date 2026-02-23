@@ -213,7 +213,7 @@
         }
     }
 
-    function createBasicEvent(target, type, execute, options) {
+    function addEvent(target, type, execute, options) {
         let initalized = false;
         const id = setTimeout(() => {
             initalized = true;
@@ -302,7 +302,7 @@
             }
         }
         element_basic(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 props.listener({ event });
             }, props.options);
         }
@@ -319,7 +319,7 @@
             };
         }
         element_change(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 let value = null;
                 if (event.target.type === 'checkbox') {
                     value = event.target.checked;
@@ -334,7 +334,7 @@
             }, props.options);
         }
         element_input(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 let value = null;
                 if (event.target.type === 'checkbox') {
                     value = event.target.checked;
@@ -349,41 +349,41 @@
             }, props.options);
         }
         element_click(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
             }, props.options);
         }
         element_click_outside(props) {
-            return createBasicEvent(document, props.type.split('.')[0], (event) => {
+            return addEvent(document, props.type.split('.')[0], (event) => {
                 if (props.element.contains(event.target) === false) {
                     props.listener({ event, position: pointer(props.element, event).position });
                 }
             }, props.options);
         }
         element_pointer(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
             }, props.options);
         }
         element_mouse(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
             }, props.options);
         }
         element_touch(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 props.listener({ event, position: pointer(props.element, event).position });
             }, props.options);
         }
         element_pointer_outside(props) {
-            return createBasicEvent(document, props.type.split('.')[0], (event) => {
+            return addEvent(document, props.type.split('.')[0], (event) => {
                 if (props.element.contains(event.target) === false) {
                     props.listener({ event, position: pointer(props.element, event).position });
                 }
             }, props.options);
         }
         element_wheel(props) {
-            return createBasicEvent(props.element, props.type, (event) => {
+            return addEvent(props.element, props.type, (event) => {
                 props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
             }, props.options);
         }
@@ -391,11 +391,11 @@
             let pointermove = null;
             let pointerup = null;
             let pointercancel = null;
-            const pointerdown = createBasicEvent(props.element, 'pointerdown', (event) => {
+            const pointerdown = addEvent(props.element, 'pointerdown', (event) => {
                 const id = event.pointerId;
                 const position = pointer(props.element, event).position;
                 let previous = position;
-                pointermove = createBasicEvent(window, 'pointermove', (event) => {
+                pointermove = addEvent(window, 'pointermove', (event) => {
                     if (event.pointerId === id) {
                         const position = pointer(props.element, event).position;
                         const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -405,7 +405,7 @@
                         previous = position;
                     }
                 }, props.options);
-                pointerup = createBasicEvent(window, 'pointerup', (event) => {
+                pointerup = addEvent(window, 'pointerup', (event) => {
                     if (event.pointerId === id) {
                         const position = pointer(props.element, event).position;
                         if (props.type === 'dragend') {
@@ -414,7 +414,7 @@
                         remove();
                     }
                 }, props.options);
-                pointercancel = createBasicEvent(window, 'pointercancel', (event) => {
+                pointercancel = addEvent(window, 'pointercancel', (event) => {
                     if (event.pointerId === id) {
                         const position = pointer(props.element, event).position;
                         if (props.type === 'dragend') {
@@ -442,13 +442,13 @@
         }
         window_basic(props) {
             const type = props.type.substring('window.'.length);
-            return createBasicEvent(window, type, (event) => {
+            return addEvent(window, type, (event) => {
                 props.listener({ event });
             }, props.options);
         }
         window_key(props) {
             const type = props.type.substring(props.type.indexOf('.') + 1);
-            return createBasicEvent(window, type, (event) => {
+            return addEvent(window, type, (event) => {
                 if (event.repeat)
                     return;
                 props.listener({ event, code: event.code });
@@ -456,7 +456,7 @@
         }
         window_key_arrow(props) {
             const keymap = {};
-            const keydown = createBasicEvent(window, 'keydown', (event) => {
+            const keydown = addEvent(window, 'keydown', (event) => {
                 if (event.repeat)
                     return;
                 keymap[event.code] = 1;
@@ -468,7 +468,7 @@
                     props.listener({ event, code: event.code, vector });
                 }
             }, props.options);
-            const keyup = createBasicEvent(window, 'keyup', (event) => {
+            const keyup = addEvent(window, 'keyup', (event) => {
                 keymap[event.code] = 0;
                 if (props.type === 'window.keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                     const vector = {
@@ -485,7 +485,7 @@
         }
         window_key_wasd(props) {
             const keymap = {};
-            const finalize1 = createBasicEvent(window, 'keydown', (event) => {
+            const finalize1 = addEvent(window, 'keydown', (event) => {
                 if (event.repeat)
                     return;
                 keymap[event.code] = 1;
@@ -497,7 +497,7 @@
                     props.listener({ event, code: event.code, vector });
                 }
             }, props.options);
-            const finalize2 = createBasicEvent(window, 'keyup', (event) => {
+            const finalize2 = addEvent(window, 'keyup', (event) => {
                 keymap[event.code] = 0;
                 if (props.type === 'window.keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                     const vector = {
@@ -514,7 +514,7 @@
         }
         document_basic(props) {
             const type = props.type.substring('document.'.length);
-            return createBasicEvent(document, type, (event) => {
+            return addEvent(document, type, (event) => {
                 props.listener({ event });
             }, props.options);
         }
