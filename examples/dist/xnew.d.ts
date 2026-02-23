@@ -32,20 +32,23 @@ declare class Eventor {
     private map;
     add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
-    private resize;
-    private change;
-    private input;
-    private click;
-    private click_outside;
-    private pointer;
-    private mouse;
-    private touch;
-    private pointer_outside;
-    private wheel;
-    private drag;
-    private key;
-    private key_arrow;
-    private key_wasd;
+    private element_basic;
+    private element_resize;
+    private element_change;
+    private element_input;
+    private element_click;
+    private element_click_outside;
+    private element_pointer;
+    private element_mouse;
+    private element_touch;
+    private element_pointer_outside;
+    private element_wheel;
+    private element_drag;
+    private window_basic;
+    private window_key;
+    private window_key_arrow;
+    private window_key_wasd;
+    private document_basic;
 }
 
 type UnitElement = HTMLElement | SVGElement;

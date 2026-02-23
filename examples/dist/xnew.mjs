@@ -229,50 +229,62 @@ class Eventor {
     add(element, type, listener, options) {
         const props = { element, type, listener, options };
         let finalize;
-        if (props.type === 'resize') {
-            finalize = this.resize(props);
+        if (props.type.indexOf('window.') === 0) {
+            if (['window.keydown', 'window.keyup'].includes(props.type)) {
+                finalize = this.window_key(props);
+            }
+            else if (['window.keydown.arrow', 'window.keyup.arrow'].includes(props.type)) {
+                finalize = this.window_key_arrow(props);
+            }
+            else if (['window.keydown.wasd', 'window.keyup.wasd'].includes(props.type)) {
+                finalize = this.window_key_wasd(props);
+            }
+            else {
+                finalize = this.window_basic(props);
+            }
         }
-        else if (props.type === 'change') {
-            finalize = this.change(props);
-        }
-        else if (props.type === 'input') {
-            finalize = this.input(props);
-        }
-        else if (props.type === 'wheel') {
-            finalize = this.wheel(props);
-        }
-        else if (props.type === 'click') {
-            finalize = this.click(props);
-        }
-        else if (props.type === 'click.outside') {
-            finalize = this.click_outside(props);
-        }
-        else if (['pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'].includes(props.type)) {
-            finalize = this.pointer(props);
-        }
-        else if (['pointerdown.outside', 'pointermove.outside', 'pointerup.outside'].includes(props.type)) {
-            finalize = this.pointer_outside(props);
-        }
-        else if (['mousedown', 'mousemove', 'mouseup', 'mouseover', 'mouseout'].includes(props.type)) {
-            finalize = this.mouse(props);
-        }
-        else if (['touchstart', 'touchmove', 'touchend', 'touchcancel'].includes(props.type)) {
-            finalize = this.touch(props);
-        }
-        else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
-            finalize = this.drag(props);
-        }
-        else if (['keydown', 'keyup'].includes(props.type)) {
-            finalize = this.key(props);
-        }
-        else if (['keydown.arrow', 'keyup.arrow'].includes(props.type)) {
-            finalize = this.key_arrow(props);
-        }
-        else if (['keydown.wasd', 'keyup.wasd'].includes(props.type)) {
-            finalize = this.key_wasd(props);
+        else if (props.type.indexOf('document.') === 0) {
+            {
+                finalize = this.document_basic(props);
+            }
         }
         else {
-            finalize = createBasicEvent(props.element, props.type, (event) => props.listener({ event }), props.options);
+            if (props.type === 'resize') {
+                finalize = this.element_resize(props);
+            }
+            else if (props.type === 'change') {
+                finalize = this.element_change(props);
+            }
+            else if (props.type === 'input') {
+                finalize = this.element_input(props);
+            }
+            else if (props.type === 'wheel') {
+                finalize = this.element_wheel(props);
+            }
+            else if (props.type === 'click') {
+                finalize = this.element_click(props);
+            }
+            else if (props.type === 'click.outside') {
+                finalize = this.element_click_outside(props);
+            }
+            else if (['pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'].includes(props.type)) {
+                finalize = this.element_pointer(props);
+            }
+            else if (['pointerdown.outside', 'pointermove.outside', 'pointerup.outside'].includes(props.type)) {
+                finalize = this.element_pointer_outside(props);
+            }
+            else if (['mousedown', 'mousemove', 'mouseup', 'mouseover', 'mouseout'].includes(props.type)) {
+                finalize = this.element_mouse(props);
+            }
+            else if (['touchstart', 'touchmove', 'touchend', 'touchcancel'].includes(props.type)) {
+                finalize = this.element_touch(props);
+            }
+            else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
+                finalize = this.element_drag(props);
+            }
+            else {
+                finalize = this.element_basic(props);
+            }
         }
         this.map.set(props.type, props.listener, finalize);
     }
@@ -283,7 +295,12 @@ class Eventor {
             this.map.delete(type, listener);
         }
     }
-    resize(props) {
+    element_basic(props) {
+        return createBasicEvent(props.element, props.type, (event) => {
+            props.listener({ event });
+        }, props.options);
+    }
+    element_resize(props) {
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 props.listener({});
@@ -295,7 +312,7 @@ class Eventor {
             observer.unobserve(props.element);
         };
     }
-    change(props) {
+    element_change(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             let value = null;
             if (event.target.type === 'checkbox') {
@@ -310,7 +327,7 @@ class Eventor {
             props.listener({ event, value });
         }, props.options);
     }
-    input(props) {
+    element_input(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             let value = null;
             if (event.target.type === 'checkbox') {
@@ -325,54 +342,54 @@ class Eventor {
             props.listener({ event, value });
         }, props.options);
     }
-    click(props) {
+    element_click(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
-    click_outside(props) {
+    element_click_outside(props) {
         return createBasicEvent(document, props.type.split('.')[0], (event) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
         }, props.options);
     }
-    pointer(props) {
+    element_pointer(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
-    mouse(props) {
+    element_mouse(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
-    touch(props) {
+    element_touch(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
-    pointer_outside(props) {
+    element_pointer_outside(props) {
         return createBasicEvent(document, props.type.split('.')[0], (event) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
         }, props.options);
     }
-    wheel(props) {
+    element_wheel(props) {
         return createBasicEvent(props.element, props.type, (event) => {
             props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         }, props.options);
     }
-    drag(props) {
+    element_drag(props) {
         let pointermove = null;
         let pointerup = null;
         let pointercancel = null;
-        const pointerdown = (event) => {
+        const pointerdown = createBasicEvent(props.element, 'pointerdown', (event) => {
             const id = event.pointerId;
             const position = pointer(props.element, event).position;
             let previous = position;
-            pointermove = (event) => {
+            pointermove = createBasicEvent(window, 'pointermove', (event) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -381,8 +398,8 @@ class Eventor {
                     }
                     previous = position;
                 }
-            };
-            pointerup = (event) => {
+            }, props.options);
+            pointerup = createBasicEvent(window, 'pointerup', (event) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
@@ -390,8 +407,8 @@ class Eventor {
                     }
                     remove();
                 }
-            };
-            pointercancel = (event) => {
+            }, props.options);
+            pointercancel = createBasicEvent(window, 'pointercancel', (event) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
@@ -399,100 +416,101 @@ class Eventor {
                     }
                     remove();
                 }
-            };
-            window.addEventListener('pointermove', pointermove);
-            window.addEventListener('pointerup', pointerup);
-            window.addEventListener('pointercancel', pointercancel);
+            }, props.options);
             if (props.type === 'dragstart') {
                 props.listener({ event, position, delta: { x: 0, y: 0 } });
             }
-        };
+        }, props.options);
         function remove() {
-            if (pointermove)
-                window.removeEventListener('pointermove', pointermove);
-            if (pointerup)
-                window.removeEventListener('pointerup', pointerup);
-            if (pointercancel)
-                window.removeEventListener('pointercancel', pointercancel);
+            pointermove === null || pointermove === void 0 ? void 0 : pointermove();
             pointermove = null;
+            pointerup === null || pointerup === void 0 ? void 0 : pointerup();
             pointerup = null;
+            pointercancel === null || pointercancel === void 0 ? void 0 : pointercancel();
             pointercancel = null;
         }
-        props.element.addEventListener('pointerdown', pointerdown, props.options);
         return () => {
-            props.element.removeEventListener('pointerdown', pointerdown);
+            pointerdown();
             remove();
         };
     }
-    key(props) {
-        const execute = (event) => {
-            if (props.type === 'keydown' && event.repeat)
+    window_basic(props) {
+        const type = props.type.substring('window.'.length);
+        return createBasicEvent(window, type, (event) => {
+            props.listener({ event });
+        }, props.options);
+    }
+    window_key(props) {
+        const type = props.type.substring(props.type.indexOf('.') + 1);
+        return createBasicEvent(window, type, (event) => {
+            if (event.repeat)
                 return;
             props.listener({ event, code: event.code });
-        };
-        return createBasicEvent(window, props.type, execute, props.options);
+        }, props.options);
     }
-    key_arrow(props) {
+    window_key_arrow(props) {
         const keymap = {};
-        const keydown = (event) => {
+        const keydown = createBasicEvent(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
-            if (props.type === 'keydown.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+            if (props.type === 'window.keydown.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                 const vector = {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
                 props.listener({ event, code: event.code, vector });
             }
-        };
-        const keyup = (event) => {
+        }, props.options);
+        const keyup = createBasicEvent(window, 'keyup', (event) => {
             keymap[event.code] = 0;
-            if (props.type === 'keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
+            if (props.type === 'window.keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                 const vector = {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
                 props.listener({ event, code: event.code, vector });
             }
-        };
-        window.addEventListener('keydown', keydown, props.options);
-        window.addEventListener('keyup', keyup, props.options);
+        }, props.options);
         return () => {
-            window.removeEventListener('keydown', keydown);
-            window.removeEventListener('keyup', keyup);
+            keydown();
+            keyup();
         };
     }
-    key_wasd(props) {
+    window_key_wasd(props) {
         const keymap = {};
-        const keydown = (event) => {
+        const finalize1 = createBasicEvent(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
-            if (props.type === 'keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+            if (props.type === 'window.keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 const vector = {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
                 props.listener({ event, code: event.code, vector });
             }
-        };
-        const keyup = (event) => {
+        }, props.options);
+        const finalize2 = createBasicEvent(window, 'keyup', (event) => {
             keymap[event.code] = 0;
-            if (props.type === 'keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+            if (props.type === 'window.keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 const vector = {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
                 props.listener({ event, code: event.code, vector });
             }
-        };
-        window.addEventListener('keydown', keydown, props.options);
-        window.addEventListener('keyup', keyup, props.options);
+        }, props.options);
         return () => {
-            window.removeEventListener('keydown', keydown);
-            window.removeEventListener('keyup', keyup);
+            finalize1();
+            finalize2();
         };
+    }
+    document_basic(props) {
+        const type = props.type.substring('document.'.length);
+        return createBasicEvent(document, type, (event) => {
+            props.listener({ event });
+        }, props.options);
     }
 }
 function pointer(element, event) {
@@ -1467,53 +1485,52 @@ function Checkbox(unit, { key = '', value } = {}) {
 function Select(_, { key = '', value, options = [] } = {}) {
     var _a;
     const initial = (_a = value !== null && value !== void 0 ? value : options[0]) !== null && _a !== void 0 ? _a : '';
-    xnew$1.nest(`<div style="height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
-    xnew$1(`<div style="position: relative; display: inline-flex; align-items: center;">`, (unit) => {
-        const native = xnew$1(`<select name="${key}" style="display: none;">`, () => {
-            for (const option of options) {
-                xnew$1(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
-            }
-        });
-        const button = xnew$1(`<div style="height: 2rem; padding: 0 1.5rem 0 0.5rem; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25rem; cursor: pointer; user-select: none; min-width: 3rem; white-space: nowrap;">`, initial);
-        xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
-            xnew$1('<path d="M2 4 6 8 10 4" />');
-        });
-        button.on('click', () => {
+    const native = xnew$1(`<select name="${key}" style="display: none;">`, () => {
+        for (const option of options) {
+            xnew$1(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
+        }
+    });
+    const button = xnew$1(`<div style="height: 2rem; padding: 0 1.5rem 0 0.5rem; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25rem; cursor: pointer; user-select: none; min-width: 3rem; white-space: nowrap;">`, initial);
+    xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0rem; width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+        xnew$1('<path d="M2 4 6 8 10 4" />');
+    });
+    button.on('click', () => {
+        xnew$1(document.body, (list) => {
+            xnew$1.nest(`<div style="position: absolute; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 1000; transform: translateX(-100%);">`);
             const rect = button.element.getBoundingClientRect();
-            xnew$1((list) => {
-                xnew$1.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 9999;">`);
-                list.element.style.left = rect.left + 'px';
-                list.element.style.top = (rect.bottom + 2) + 'px';
-                list.element.style.minWidth = rect.width + 'px';
-                list.element.style.background = getEffectiveBg(button.element);
-                for (const option of options) {
-                    const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
-                    item.on('pointerover', () => item.element.style.background = currentColorB);
-                    item.on('pointerout', () => item.element.style.background = '');
-                    item.on('click', () => {
-                        button.element.textContent = option;
-                        native.element.value = option;
-                        native.element.dispatchEvent(new Event('input', { bubbles: true }));
-                        list.finalize();
-                    });
-                }
-                list.on('click.outside', () => {
+            list.element.style.left = (rect.right + window.scrollX) + 'px';
+            list.element.style.top = (rect.bottom + window.scrollY) + 'px';
+            list.element.style.minWidth = rect.width + 'px';
+            list.element.style.background = getEffectiveBg(button.element);
+            for (const option of options) {
+                const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
+                item.on('pointerover', () => item.element.style.background = currentColorB);
+                item.on('pointerout', () => item.element.style.background = '');
+                item.on('click', () => {
+                    button.element.textContent = option;
+                    native.element.value = option;
+                    native.element.dispatchEvent(new Event('input', { bubbles: false }));
                     list.finalize();
                 });
+            }
+            list.on('click.outside', () => {
+                list.finalize();
             });
         });
     });
-}
-function getEffectiveBg(el) {
-    let current = el.parentElement;
-    while (current) {
-        const bg = getComputedStyle(current).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
-            return bg;
-        current = current.parentElement;
+    xnew$1.nest(native.element);
+    function getEffectiveBg(el) {
+        let current = el.parentElement;
+        while (current) {
+            const bg = getComputedStyle(current).backgroundColor;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
+                return bg;
+            current = current.parentElement;
+        }
+        return 'Canvas';
     }
-    return 'Canvas';
 }
 
 const context = new window.AudioContext();
