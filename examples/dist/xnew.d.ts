@@ -32,22 +32,23 @@ declare class Eventor {
     private map;
     add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
-    private basic;
-    private resize;
-    private change;
-    private input;
-    private click;
-    private click_outside;
-    private pointer;
-    private mouse;
-    private touch;
-    private pointer_outside;
-    private wheel;
-    private drag;
-    private gesture;
-    private key;
-    private key_arrow;
-    private key_wasd;
+    private element_basic;
+    private element_resize;
+    private element_change;
+    private element_input;
+    private element_click;
+    private element_click_outside;
+    private element_pointer;
+    private element_mouse;
+    private element_touch;
+    private element_pointer_outside;
+    private element_wheel;
+    private element_drag;
+    private window_basic;
+    private window_key;
+    private window_key_arrow;
+    private window_key_wasd;
+    private document_basic;
 }
 
 type UnitElement = HTMLElement | SVGElement;
@@ -102,7 +103,10 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
-    elements: UnitElement[];
+    nestElements: {
+        element: UnitElement;
+        owned: boolean;
+    }[];
     components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
@@ -127,7 +131,7 @@ declare class Unit {
     reboot(): void;
     static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement;
+    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
     static extend(unit: Unit, component: Function, props?: Object): {
         [key: string]: any;
@@ -175,15 +179,20 @@ interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-declare function OpenAndClose(unit: Unit, { open }: {
+interface TransitionOptions {
+    duration?: number;
+    easing?: string;
+}
+declare function OpenAndClose(unit: Unit, { open, transition }: {
     open?: boolean;
+    transition?: TransitionOptions;
 }): {
-    toggle(duration?: number, easing?: string): void;
-    open(duration?: number, easing?: string): void;
-    close(duration?: number, easing?: string): void;
+    toggle(): void;
+    open(): void;
+    close(): void;
 };
 declare function Accordion(unit: Unit): void;
-declare function Modal(unit: Unit): void;
+declare function Popup(unit: Unit): void;
 
 type ScreenFit = 'contain' | 'cover';
 declare function Screen(unit: Unit, { aspect, fit }?: {
@@ -275,7 +284,7 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(tag: string): HTMLElement | SVGElement;
+    nest(target: UnitElement | string): HTMLElement | SVGElement;
     extend(component: Function, props?: Object): {
         [key: string]: any;
     };
@@ -299,7 +308,7 @@ declare const xnew: CreateUnit & {
         DPad: typeof DPad;
         Panel: typeof Panel;
         Accordion: typeof Accordion;
-        Modal: typeof Modal;
+        Popup: typeof Popup;
     };
     audio: {
         load(path: string): UnitPromise;

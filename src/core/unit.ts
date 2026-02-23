@@ -122,7 +122,7 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
-    elements: UnitElement[];
+    nestElements: { element: UnitElement, owned: boolean }[];
     components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
     defines: Record<string, any>;
@@ -160,7 +160,7 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { stack: null };
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props: props ?? {} } as Internal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
         
         Unit.initialize(this, null);
@@ -188,7 +188,10 @@ export class Unit {
     }
 
     public reboot(): void {
-        const anchor = (this._.elements[0]?.nextElementSibling as UnitElement) ?? null;
+        let anchor: UnitElement | null = null;
+        if (this._.nestElements[0] && this._.nestElements[0].owned === true) {
+            anchor = this._.nestElements[0].element.nextElementSibling as UnitElement
+        }
         Unit.stop(this);
         Unit.finalize(this);
         Unit.initialize(this, anchor);
@@ -208,7 +211,7 @@ export class Unit {
             protected: false,
             ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
             children: [],
-            elements: [],
+            nestElements: [],
             promises: [],
             components: [],
             listeners: new MapMap(),
@@ -241,10 +244,12 @@ export class Unit {
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
 
-            if (unit._.elements.length > 0) {
-                unit._.baseElement.removeChild(unit._.elements[0]);
-                unit._.currentElement = unit._.baseElement;
+            for (const { element, owned } of unit._.nestElements.reverse()) {
+                if (owned === true) {
+                    element.remove();
+                }
             }
+            unit._.currentElement = unit._.baseElement;
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
@@ -255,26 +260,32 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement {
-        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
-        if (match !== null) {
-            let element: UnitElement;
-            if (unit._.anchor !== null) {
-                unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                element = unit._.anchor.previousElementSibling as UnitElement;
-                unit._.anchor = null;
-            } else {
-                unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
-            }
-            unit._.currentElement = element;
-            if (textContent !== undefined) {
-                element.textContent = textContent.toString();
-            }
-            unit._.elements.push(element);
-            return element;
+    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement {
+        if (target instanceof HTMLElement || target instanceof SVGElement) {
+            unit._.nestElements.push({ element: target, owned: false });
+            unit._.currentElement = target;
+            return target;
         } else {
-            throw new Error(`xnew.nest: invalid html string [${tag}]`);
+            const match = target.match(/<((\w+)[^>]*?)\/?>/);
+            if (match !== null) {
+                let element: UnitElement;
+                if (unit._.anchor !== null) {
+                    unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
+                    element = unit._.anchor.previousElementSibling as UnitElement;
+                    unit._.anchor = null;
+                } else {
+                    unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                    element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
+                }
+                unit._.currentElement = element;
+                if (textContent !== undefined) {
+                    element.textContent = textContent.toString();
+                }
+                unit._.nestElements.push({ element, owned: true });
+                return element;
+            } else {
+                throw new Error(`xnew.nest: invalid html string [${target}]`);
+            }
         }
     }
 
@@ -286,7 +297,7 @@ export class Unit {
         } else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = component;
-            const defines = component(unit, props) ?? {};
+            const defines = component(unit, props ?? {}) ?? {};
             unit._.currentComponent = backupComponent;
 
             Unit.component2units.add(component, unit);

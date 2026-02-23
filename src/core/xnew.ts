@@ -49,21 +49,21 @@ export const xnew = Object.assign(
     {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param tag - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
+         * @param target - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
          * @returns The created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(tag: string): HTMLElement | SVGElement {
+        nest(target: UnitElement | string): HTMLElement | SVGElement {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 } 
-                return Unit.nest(Unit.currentUnit, tag);
+                return Unit.nest(Unit.currentUnit, target);
             } catch (error: unknown) {
-                console.error('xnew.nest(tag: string): ', error);
+                console.error('xnew.nest(target: HTMLElement | SVGElement | string): ', error);
                 throw error;
             }
         },
@@ -84,7 +84,8 @@ export const xnew = Object.assign(
                 } 
                 const defines = Unit.extend(Unit.currentUnit, component, props);
                 if (typeof component === 'function') {
-                    return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                    Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                    Unit.context(Unit.currentUnit._.parent as Unit, component, Unit.currentUnit);
                 }
                 return defines;
             } catch (error: unknown) {

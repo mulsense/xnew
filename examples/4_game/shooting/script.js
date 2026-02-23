@@ -107,8 +107,8 @@ function Controller(unit) {
       xnew.emit('+shot')
   });
 
-  unit.on('keydown.arrow keyup.arrow keydown.wasd keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
-  unit.on('keydown', ({ code }) => {
+  unit.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
+  unit.on('window.keydown', ({ code }) => {
     if (code === 'Space') {
       xnew.emit('+shot')
     }

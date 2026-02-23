@@ -49,7 +49,7 @@ export function AnalogStick(unit: Unit,
         target.element.style.left = `${vector.x * size / 4}px`;
         target.element.style.top = `${vector.y * size / 4}px`;
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type] as string;
-        xnew.emit(nexttype, { type: nexttype, vector });
+        xnew.emit(nexttype, { vector });
     });
 
     unit.on('dragend', () => {
@@ -58,7 +58,7 @@ export function AnalogStick(unit: Unit,
         target.element.style.filter = '';
         target.element.style.left = `${vector.x * size / 4}px`;
         target.element.style.top = `${vector.y * size / 4}px`;
-        xnew.emit('-up', { type: '-up', vector });
+        xnew.emit('-up', { vector });
     });
 }
 

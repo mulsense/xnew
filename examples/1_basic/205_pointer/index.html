@@ -43,7 +43,7 @@
         unit.on('pointerover pointerout', ({ type, position }) => {
           text1.element.textContent = `${type} {x:${position.x}, y:${position.y}}`;
         });
-        unit.on('pointerdown pointermove pointerup', ({ type, position }) => {
+        unit.on('pointerdown pointermove pointerup', ({ type, position, delta }) => {
           text2.element.textContent = `${type} {x:${Math.floor(position.x)}, y:${Math.floor(position.y)}}`;
         });
         unit.on('dragstart dragmove dragend', ({ type, position, delta }) => {
