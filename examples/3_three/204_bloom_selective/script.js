@@ -28,12 +28,12 @@ function Main(unit) {
   xthree.scene.background = new THREE.Color(0x151729);
   xthree.renderer.toneMapping = THREE.NeutralToneMapping;
 
-  const pmremGenerator = new THREE.PMREMGenerator(xthree.renderer);
-  xthree.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+  const pmrem = new THREE.PMREMGenerator(xthree.renderer);
+  xthree.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
   const renderer = xnew(Renderer);
   xnew(Controller);
-  xnew(document.body, Panel);
+  xnew(Panel);
   xnew(Contents);
 
   unit.on('render', () => {
@@ -48,67 +48,56 @@ function Contents() {
 }
 
 function Sphere(unit) {
-  const geometry = new THREE.IcosahedronGeometry(1, 15);
   const color = new THREE.Color();
   color.setHSL(Math.random(), 0.7, Math.random() * 0.2 + 0.05);
 
+  const geometry = new THREE.IcosahedronGeometry(1, 15);
   const material = new THREE.MeshStandardMaterial({ color: color, roughness: 1, metalness: 1 });
   const sphere = xthree.nest(new THREE.Mesh(geometry, material));
-  sphere.position.x = Math.random() * 10 - 5;
-  sphere.position.y = Math.random() * 10 - 5;
-  sphere.position.z = Math.random() * 10 - 5;
+  sphere.position.set(Math.random() * 10 - 5, Math.random() * 10 - 5, Math.random() * 10 - 5);
   sphere.position.normalize().multiplyScalar(Math.random() * 4.0 + 2.0);
   sphere.scale.setScalar(Math.random() * Math.random() + 0.5);
-  xthree.scene.add(sphere);
 
   if (Math.random() < 0.25) sphere.layers.enable(BLOOM_SCENE);
 }
 
 function Renderer(unit) {
-  const params = {
-    threshold: 0,
-    strength: 1,
-    radius: 0.5,
-    exposure: 1
-  };
-
-  // const composer = new EffectComposer(xthree.renderer);
   const renderScene = new RenderPass(xthree.scene, xthree.camera);
 
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(xthree.canvas.width, xthree.canvas.height), 1.5, 0.4, 0.85);
-  bloomPass.threshold = params.threshold;
-  bloomPass.strength = params.strength;
-  bloomPass.radius = params.radius;
+  bloomPass.threshold = 0;
+  bloomPass.strength = 1;
+  bloomPass.radius = 0.5;
 
   const bloomRenderTarget = new THREE.WebGLRenderTarget(xthree.canvas.width, xthree.canvas.height, { type: THREE.HalfFloatType });
   const bloomComposer = new EffectComposer(xthree.renderer, bloomRenderTarget);
   bloomComposer.renderToScreen = false;
   bloomComposer.addPass(renderScene);
   bloomComposer.addPass(bloomPass);
-const vertexShader = `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
+  const vertexShader = `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
 
-const fragmentShader = `
-  uniform sampler2D baseTexture;
-  uniform sampler2D bloomTexture;
-  uniform float bloomStrength;
-  varying vec2 vUv;
-  void main() {
-    gl_FragColor = ( texture2D( baseTexture, vUv ) + texture2D( bloomTexture, vUv ) * bloomStrength );
-  }
-`
+  const fragmentShader = `
+    uniform sampler2D baseTexture;
+    uniform sampler2D bloomTexture;
+    uniform float bloomStrength;
+    varying vec2 vUv;
+    void main() {
+      gl_FragColor = ( texture2D( baseTexture, vUv ) + texture2D( bloomTexture, vUv ) * bloomStrength );
+    }
+  `;
 
   const mixPass = new ShaderPass(
     new THREE.ShaderMaterial({
       uniforms: {
         baseTexture: { value: null },
         bloomTexture: { value: bloomComposer.renderTarget2.texture },
-        bloomStrength: { value: params.strength }
+        bloomStrength: { value: bloomPass.strength }
       },
       vertexShader,
       fragmentShader,
@@ -161,8 +150,8 @@ function Controller(unit) {
 
   const raycaster = new THREE.Raycaster();
 
-  const mouse = new THREE.Vector2();
   unit.on('pointerdown', ({ position }) => {
+    const mouse = new THREE.Vector2();
     mouse.x = (position.x / unit.element.clientWidth) * 2 - 1;
     mouse.y = - (position.y / unit.element.clientHeight) * 2 + 1;
 
@@ -176,26 +165,27 @@ function Controller(unit) {
 }
 
 function Panel(panel) {
+  xnew.nest(document.body);
+  const render = xnew.context(Renderer);
   const params = {
-    threshold: 0,
-    strength: 1,
-    radius: 0.5,
-    exposure: 1
+    threshold: render.bloom.threshold,
+    strength: render.bloom.strength,
+    radius: render.bloom.radius,
+    exposure: xthree.renderer.toneMappingExposure
   };
-  const renderx = xnew.context(Renderer);
   xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
 
   xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true, params });
 
   panel.range('threshold', { min: 0, max: 1, step: 0.01 }).on('input', ({ value }) => {
-    renderx.bloom.threshold = value;
+    render.bloom.threshold = value;
   });
   panel.range('strength', { min: 0, max: 3, step: 0.01 }).on('input', ({ value }) => {
-    renderx.bloom.strength = value;
-    renderx.mix.material.uniforms.bloomStrength.value = renderx.bloom.strength;
+    render.bloom.strength = value;
+    render.mix.material.uniforms.bloomStrength.value = render.bloom.strength;
   });
   panel.range('radius', { min: 0, max: 1, step: 0.01 }).on('input', ({ value }) => {
-    renderx.bloom.radius = value;
+    render.bloom.radius = value;
   });
   panel.range('exposure', { min: 0.1, max: 2, step: 0.1 }).on('input', ({ value }) => {
     xthree.renderer.toneMappingExposure = Math.pow(value, 4.0);

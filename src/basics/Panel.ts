@@ -1,6 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { OpenAndClose, Accordion } from './Transition';
+import { OpenAndClose, Accordion, Popup } from './Transition';
 
 interface PanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
 
@@ -161,18 +161,19 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
     
     button.on('click', () => {
         xnew((list: Unit) => {
+            const system = xnew(OpenAndClose, { open: false });
+
+            // background
+            xnew.extend(Popup);
             
-            xnew.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 1000;">`);
-            const updatePosition = () => {
-                const rect = button.element.getBoundingClientRect();
-                list.element.style.right = (window.innerWidth - rect.right) + 'px';
-                list.element.style.top = rect.bottom + 'px';
-                list.element.style.minWidth = rect.width + 'px';
-            };
-            updatePosition();
+            xnew.nest('<div class="absolute py-2">');
+            const rect = button.element.getBoundingClientRect();
+            list.element.style.right = (window.innerWidth - rect.right) + 'px';
+            list.element.style.top = rect.bottom + 'px';
             list.element.style.background = getEffectiveBg(button.element);
-            window.addEventListener('scroll', updatePosition, true);
-            list.on('finalize', () => window.removeEventListener('scroll', updatePosition, true));
+
+            xnew.extend(Accordion);
+            xnew.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden;">`);
 
             for (const option of options) {
                 const item = xnew(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
@@ -192,14 +193,14 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
     });
 
     xnew.nest(native.element);
-}
 
-function getEffectiveBg(el: Element): string {
-    let current: Element | null = el.parentElement;
-    while (current) {
-        const bg = getComputedStyle(current).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
-        current = current.parentElement;
+    function getEffectiveBg(el: Element): string {
+        let current: Element | null = el.parentElement;
+        while (current) {
+            const bg = getComputedStyle(current).backgroundColor;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+            current = current.parentElement;
+        }
+        return 'Canvas';
     }
-    return 'Canvas';
 }

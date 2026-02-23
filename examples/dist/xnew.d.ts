@@ -179,12 +179,17 @@ interface CreateUnit {
     (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
-declare function OpenAndClose(unit: Unit, { open }: {
+interface TransitionOptions {
+    duration?: number;
+    easing?: string;
+}
+declare function OpenAndClose(unit: Unit, { open, transition }: {
     open?: boolean;
+    transition?: TransitionOptions;
 }): {
-    toggle(duration?: number, easing?: string): void;
-    open(duration?: number, easing?: string): void;
-    close(duration?: number, easing?: string): void;
+    toggle(): void;
+    open(): void;
+    close(): void;
 };
 declare function Accordion(unit: Unit): void;
 declare function Popup(unit: Unit): void;

@@ -631,7 +631,7 @@ class Unit {
             baseComponent = (unit) => { };
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props: props !== null && props !== void 0 ? props : {} };
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props };
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         Unit.initialize(this, null);
     }
@@ -752,7 +752,7 @@ class Unit {
         else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = component;
-            const defines = (_a = component(unit, props)) !== null && _a !== void 0 ? _a : {};
+            const defines = (_a = component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
             unit._.currentComponent = backupComponent;
             Unit.component2units.add(component, unit);
             unit._.components.push(component);
@@ -987,7 +987,8 @@ const xnew$1 = Object.assign(function (...args) {
             }
             const defines = Unit.extend(Unit.currentUnit, component, props);
             if (typeof component === 'function') {
-                return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                Unit.context(Unit.currentUnit._.parent, component, Unit.currentUnit);
             }
             return defines;
         }
@@ -1196,32 +1197,38 @@ const xnew$1 = Object.assign(function (...args) {
     },
 });
 
-function OpenAndClose(unit, { open = false }) {
+function OpenAndClose(unit, { open = true, transition = { duration: 200, easing: 'ease' } }) {
     let state = open ? 1.0 : 0.0;
     let sign = open ? +1 : -1;
     let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
     return {
-        toggle(duration = 200, easing = 'ease') {
-            sign < 0 ? unit.open(duration, easing) : unit.close(duration, easing);
+        toggle() {
+            sign < 0 ? unit.open() : unit.close();
         },
-        open(duration = 200, easing = 'ease') {
+        open() {
+            var _a, _b;
             sign = +1;
             const d = 1 - state;
+            const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
+            const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
             timer === null || timer === void 0 ? void 0 : timer.clear();
             timer = xnew$1.transition((x) => {
                 state = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
                 xnew$1.emit('-transition', { state });
-            }, duration * d, easing)
+            }, duration, easing)
                 .timeout(() => xnew$1.emit('-opened', { state }));
         },
-        close(duration = 200, easing = 'ease') {
+        close() {
+            var _a, _b;
             sign = -1;
             const d = state;
+            const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
+            const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
             timer === null || timer === void 0 ? void 0 : timer.clear();
             timer = xnew$1.transition((x) => {
                 state = x < 1.0 ? (1 - x) * d : 0.0;
                 xnew$1.emit('-transition', { state });
-            }, duration * d, easing)
+            }, duration, easing)
                 .timeout(() => xnew$1.emit('-closed', { state }));
         },
     };
@@ -1238,7 +1245,9 @@ function Accordion(unit) {
 function Popup(unit) {
     const system = xnew$1.context(OpenAndClose);
     system.on('-closed', () => unit.finalize());
-    xnew$1.nest('<div style="position: absolute; inset: 0; z-index: 1000; opacity: 0;">');
+    system.open();
+    xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000; opacity: 0;">');
+    unit.on('click', ({ event }) => event.target === unit.element && system.close());
     system.on('-transition', ({ state }) => {
         unit.element.style.opacity = state.toString();
     });
@@ -1498,17 +1507,16 @@ function Select(_, { key = '', value, options = [] } = {}) {
     });
     button.on('click', () => {
         xnew$1((list) => {
-            xnew$1.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 1000;">`);
-            const updatePosition = () => {
-                const rect = button.element.getBoundingClientRect();
-                list.element.style.right = (window.innerWidth - rect.right) + 'px';
-                list.element.style.top = rect.bottom + 'px';
-                list.element.style.minWidth = rect.width + 'px';
-            };
-            updatePosition();
+            xnew$1(OpenAndClose, { open: false });
+            // background
+            xnew$1.extend(Popup);
+            xnew$1.nest('<div class="absolute py-2">');
+            const rect = button.element.getBoundingClientRect();
+            list.element.style.right = (window.innerWidth - rect.right) + 'px';
+            list.element.style.top = rect.bottom + 'px';
             list.element.style.background = getEffectiveBg(button.element);
-            window.addEventListener('scroll', updatePosition, true);
-            list.on('finalize', () => window.removeEventListener('scroll', updatePosition, true));
+            xnew$1.extend(Accordion);
+            xnew$1.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden;">`);
             for (const option of options) {
                 const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
                 item.on('pointerover', () => item.element.style.background = currentColorB);
@@ -1526,16 +1534,16 @@ function Select(_, { key = '', value, options = [] } = {}) {
         });
     });
     xnew$1.nest(native.element);
-}
-function getEffectiveBg(el) {
-    let current = el.parentElement;
-    while (current) {
-        const bg = getComputedStyle(current).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
-            return bg;
-        current = current.parentElement;
+    function getEffectiveBg(el) {
+        let current = el.parentElement;
+        while (current) {
+            const bg = getComputedStyle(current).backgroundColor;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
+                return bg;
+            current = current.parentElement;
+        }
+        return 'Canvas';
     }
-    return 'Canvas';
 }
 
 const context = new window.AudioContext();

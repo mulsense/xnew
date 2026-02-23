@@ -84,7 +84,8 @@ export const xnew = Object.assign(
                 } 
                 const defines = Unit.extend(Unit.currentUnit, component, props);
                 if (typeof component === 'function') {
-                    return Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                    Unit.context(Unit.currentUnit, component, Unit.currentUnit);
+                    Unit.context(Unit.currentUnit._.parent as Unit, component, Unit.currentUnit);
                 }
                 return defines;
             } catch (error: unknown) {

@@ -160,7 +160,7 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { stack: null };
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props: props ?? {} } as Internal;
+        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
         
         Unit.initialize(this, null);
@@ -297,7 +297,7 @@ export class Unit {
         } else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = component;
-            const defines = component(unit, props) ?? {};
+            const defines = component(unit, props ?? {}) ?? {};
             unit._.currentComponent = backupComponent;
 
             Unit.component2units.add(component, unit);

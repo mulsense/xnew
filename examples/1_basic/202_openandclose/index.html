@@ -12,16 +12,16 @@
   <script>
     xnew(document.querySelector('#main'), (unit) => {
       xnew.nest('<div class="p-2 flex items-baseline gap-x-2">')
-      xnew(Accordion)
+      xnew(MyAccordion)
 
-      const modalButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
-      modalButton.on('click', () => xnew(MyModal));
+      const button1 = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open modal!');
+      button1.on('click', () => xnew(MyModal));
 
-      const menuButton = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open menu!');
-      menuButton.on('click', () => xnew(MyMenu, { anchor: menuButton.element }));
+      const button2 = xnew('<button class="h-8 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'open menu!');
+      button2.on('click', () => xnew(MyMenu, { relative: button2.element }));
     });
 
-    function Accordion(unit) {
+    function MyAccordion(unit) {
       const system = xnew(xnew.basics.OpenAndClose, { open: true });
       xnew.nest('<div class="w-64 border rounded-lg">');
         
@@ -36,14 +36,11 @@
     }
 
     function MyModal(unit) {
-      xnew.nest(document.body);
-      const system = xnew(xnew.basics.OpenAndClose, { open: false });
-      system.open();
+      const system = xnew(xnew.basics.OpenAndClose, { open: false, transition: { duration: 300, easing: 'ease' } });
 
       // background
       xnew.extend(xnew.basics.Popup);
       unit.element.style.background = 'rgba(0, 0, 0, 0.1)';
-      unit.on('click', ({ event }) => event.target === unit.element && system.close());
 
       xnew.nest('<div class="absolute inset-0 m-auto w-max h-max">');
       xnew.nest('<div class="m-auto w-[300px] max-w-[80%] border rounded-lg bg-white">');
@@ -56,20 +53,20 @@
       xnew('<div class="p-2 border-t">', Contents);
     }
 
-    function MyMenu(unit, { anchor }) {
+    function MyMenu(unit, { relative }) {
       const system = xnew(xnew.basics.OpenAndClose, { open: false });
-      system.open();
 
       // background
       xnew.extend(xnew.basics.Popup);
-      unit.on('click', ({ event }) => event.target === unit.element && system.close());
-
-      const absolute = xnew.nest('<div class="absolute">');
-      const rect = anchor.getBoundingClientRect();
-      absolute.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-      absolute.style.left = (rect.left + window.scrollX) + 'px';
       
-      xnew.nest('<div class="w-[300px] border rounded-lg bg-white">');
+      xnew.nest('<div class="absolute py-2">');
+      const rect = relative.getBoundingClientRect();
+      unit.element.style.right = (window.innerWidth - rect.right) + 'px';
+      unit.element.style.top = rect.bottom + 'px';
+      
+      xnew.extend(xnew.basics.Accordion);
+
+      xnew.nest('<div class="relative w-[300px] border rounded-lg bg-white">');
       xnew('<div class="p-2">', Contents);
     }
 
