@@ -1503,13 +1503,18 @@
             xnew$1('<path d="M2 4 6 8 10 4" />');
         });
         button.on('click', () => {
-            xnew$1(document.body, (list) => {
-                xnew$1.nest(`<div style="position: absolute; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 1000; transform: translateX(-100%);">`);
-                const rect = button.element.getBoundingClientRect();
-                list.element.style.left = (rect.right + window.scrollX) + 'px';
-                list.element.style.top = (rect.bottom + window.scrollY) + 'px';
-                list.element.style.minWidth = rect.width + 'px';
+            xnew$1((list) => {
+                xnew$1.nest(`<div style="position: fixed; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden; z-index: 1000;">`);
+                const updatePosition = () => {
+                    const rect = button.element.getBoundingClientRect();
+                    list.element.style.right = (window.innerWidth - rect.right) + 'px';
+                    list.element.style.top = rect.bottom + 'px';
+                    list.element.style.minWidth = rect.width + 'px';
+                };
+                updatePosition();
                 list.element.style.background = getEffectiveBg(button.element);
+                window.addEventListener('scroll', updatePosition, true);
+                list.on('finalize', () => window.removeEventListener('scroll', updatePosition, true));
                 for (const option of options) {
                     const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
                     item.on('pointerover', () => item.element.style.background = currentColorB);
@@ -1527,16 +1532,16 @@
             });
         });
         xnew$1.nest(native.element);
-        function getEffectiveBg(el) {
-            let current = el.parentElement;
-            while (current) {
-                const bg = getComputedStyle(current).backgroundColor;
-                if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
-                    return bg;
-                current = current.parentElement;
-            }
-            return 'Canvas';
+    }
+    function getEffectiveBg(el) {
+        let current = el.parentElement;
+        while (current) {
+            const bg = getComputedStyle(current).backgroundColor;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
+                return bg;
+            current = current.parentElement;
         }
+        return 'Canvas';
     }
 
     const context = new window.AudioContext();
