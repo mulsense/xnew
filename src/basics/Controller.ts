@@ -11,7 +11,7 @@ function SVGTemplate(self: Unit,
 ) {
     xnew.nest(`<svg
         viewBox="0 0 64 64"
-        style="position: absolute; width: 100%; height: 100%; select: none;
+        style="position: absolute; width: 100%; height: 100%; user-select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
@@ -22,7 +22,7 @@ export function AnalogStick(unit: Unit,
     { stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, diagonal?: boolean,fill?: string, fillOpacity?: number } = {}
 ) {
     xnew.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-    xnew.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+    xnew.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
     
     xnew((unit: Unit) => {
         xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
@@ -67,7 +67,7 @@ export function DPad(unit: Unit,
     { diagonal?: boolean, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, fill?: string, fillOpacity?: number } = {}
 ) {
     xnew.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-    xnew.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+    xnew.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
 
     const polygons = [
         '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',

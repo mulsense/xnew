@@ -451,7 +451,7 @@
             return addEvent(window, type, (event) => {
                 if (event.repeat)
                     return;
-                props.listener({ event, code: event.code });
+                props.listener({ event });
             }, props.options);
         }
         window_key_arrow(props) {
@@ -465,7 +465,7 @@
                         x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                         y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                     };
-                    props.listener({ event, code: event.code, vector });
+                    props.listener({ event, vector });
                 }
             }, props.options);
             const keyup = addEvent(window, 'keyup', (event) => {
@@ -475,7 +475,7 @@
                         x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                         y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                     };
-                    props.listener({ event, code: event.code, vector });
+                    props.listener({ event, vector });
                 }
             }, props.options);
             return () => {
@@ -494,7 +494,7 @@
                         x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                         y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                     };
-                    props.listener({ event, code: event.code, vector });
+                    props.listener({ event, vector });
                 }
             }, props.options);
             const finalize2 = addEvent(window, 'keyup', (event) => {
@@ -504,7 +504,7 @@
                         x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                         y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                     };
-                    props.listener({ event, code: event.code, vector });
+                    props.listener({ event, vector });
                 }
             }, props.options);
             return () => {
@@ -1277,14 +1277,14 @@
     function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
         xnew$1.nest(`<svg
         viewBox="0 0 64 64"
-        style="position: absolute; width: 100%; height: 100%; select: none;
+        style="position: absolute; width: 100%; height: 100%; user-select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
     }
     function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
         xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
         xnew$1((unit) => {
             xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew$1('<polygon points="32  7 27 13 37 13">');
@@ -1320,7 +1320,7 @@
     }
     function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
         xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; pointer-select: none; pointer-events: auto; overflow: hidden;">`);
+        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
         const polygons = [
             '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
             '<polygon points="32 32 23 41 23 60 24 61 40 61 41 60 41 41">',
@@ -1514,13 +1514,14 @@
         button.on('click', () => {
             xnew$1((list) => {
                 xnew$1(OpenAndClose, { open: false });
-                // background
                 xnew$1.extend(Popup);
-                xnew$1.nest('<div class="absolute py-2">');
-                const rect = button.element.getBoundingClientRect();
-                list.element.style.right = (window.innerWidth - rect.right) + 'px';
-                list.element.style.top = rect.bottom + 'px';
-                list.element.style.background = getEffectiveBg(button.element);
+                xnew$1.nest('<div style="position: absolute; padding: 0.25rem 0;">');
+                list.on('render', () => {
+                    const rect = button.element.getBoundingClientRect();
+                    list.element.style.right = (window.innerWidth - rect.right) + 'px';
+                    list.element.style.top = rect.bottom + 'px';
+                    list.element.style.background = getEffectiveBg(button.element);
+                });
                 xnew$1.extend(Accordion);
                 xnew$1.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden;">`);
                 for (const option of options) {

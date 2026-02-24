@@ -151,7 +151,7 @@ function Panel(panel) {
   const state = xnew.context(Model);
   const params = { action: 'idle', speed: 1.0, };
   
-  xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
+  xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true, params });
 
   const baseActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
