@@ -161,16 +161,16 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
     
     button.on('click', () => {
         xnew((list: Unit) => {
-            const system = xnew(OpenAndClose, { open: false });
-
-            // background
+            xnew(OpenAndClose, { open: false });
             xnew.extend(Popup);
             
-            xnew.nest('<div class="absolute py-2">');
-            const rect = button.element.getBoundingClientRect();
-            list.element.style.right = (window.innerWidth - rect.right) + 'px';
-            list.element.style.top = rect.bottom + 'px';
-            list.element.style.background = getEffectiveBg(button.element);
+            xnew.nest('<div style="position: absolute; padding: 0.25rem 0;">');
+            list.on('render', () => { 
+                const rect = button.element.getBoundingClientRect();
+                list.element.style.right = (window.innerWidth - rect.right) + 'px';
+                list.element.style.top = rect.bottom + 'px';
+                list.element.style.background = getEffectiveBg(button.element);
+            });
 
             xnew.extend(Accordion);
             xnew.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden;">`);
@@ -204,3 +204,4 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
         return 'Canvas';
     }
 }
+

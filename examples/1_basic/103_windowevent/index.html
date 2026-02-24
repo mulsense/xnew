@@ -14,15 +14,15 @@
     xnew(document.querySelector('#main'), Main);
     
     function Main(unit) {
-      xnew.nest('<div class="p-4">');
+      xnew.nest('<div class="p-4 select-none">');
 
       xnew(Console, { title: 'window.*', key: '+window' });
       xnew(Console, { title: 'window.keydown or window.keyup', key: '+key' });
       xnew(Console, { title: 'window.keydown.arrow or window.keyup.arrow', key: '+arrow' });
       xnew(Console, { title: 'window.keydown.wasd or window.keyup.wasd', key: '+wasd' });
 
-      unit.on('window.keydown window.keyup', ({ event, type, code }) => {
-        xnew.emit('+key', { text: `${type}: ${code}` });
+      unit.on('window.keydown window.keyup', ({ event, type }) => {
+        xnew.emit('+key', { text: `${type}: ${event.code}` });
       });
       unit.on('window.keydown.arrow window.keyup.arrow', ({ event, type, vector }) => {
         xnew.emit('+arrow', { text: `${type}: [${vector.x}, ${vector.y}]` });

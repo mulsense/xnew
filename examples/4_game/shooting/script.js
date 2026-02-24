@@ -108,8 +108,8 @@ function Controller(unit) {
   });
 
   unit.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
-  unit.on('window.keydown', ({ code }) => {
-    if (code === 'Space') {
+  unit.on('window.keydown', ({ event }) => {
+    if (event.code === 'Space') {
       xnew.emit('+shot')
     }
   });

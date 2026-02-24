@@ -252,7 +252,7 @@ export class Eventor {
         const type = props.type.substring(props.type.indexOf('.') + 1);
         return addEvent(window, type, (event: any) => {
             if (event.repeat) return;
-            props.listener({ event, code: event.code } );
+            props.listener({ event } );
         }, props.options);
     }
 
@@ -267,7 +267,7 @@ export class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, code: event.code, vector } );
+                props.listener({ event, vector } );
             }
         }, props.options);
         const keyup = addEvent(window, 'keyup', (event: any) => {
@@ -277,7 +277,7 @@ export class Eventor {
                     x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
                     y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
                 };
-                props.listener({ event, code: event.code, vector } );
+                props.listener({ event, vector } );
             }
         }, props.options);
         return () => {
@@ -297,7 +297,7 @@ export class Eventor {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
-                props.listener({ event, code: event.code, vector } );
+                props.listener({ event, vector } );
             }
         }, props.options);
 
@@ -308,7 +308,7 @@ export class Eventor {
                     x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
                     y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
                 };
-                props.listener({ event, code: event.code, vector } );
+                props.listener({ event, vector } );
             }
         }, props.options);
 
