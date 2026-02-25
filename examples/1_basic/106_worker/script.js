@@ -23,15 +23,20 @@ function WorkerDemo(unit) {
     controls.setEnabled(false);
     status.element.textContent = `fib(${n}) を計算中...`;
     result.element.textContent = '';
-    worker.postMessage(n);
-  });
 
-  // Worker からの結果を受信して表示
-  worker.onmessage = (e) => {
-    controls.setEnabled(true);
-    status.element.textContent = `fib(${e.data.n}) の結果:`;
-    result.element.textContent = e.data.result.toLocaleString();
-  };
+    // Worker の完了を Promise でラップ
+    const promise = new Promise((resolve) => {
+      worker.onmessage = (e) => resolve(e.data);
+    });
+    worker.postMessage(n);
+
+    // xnew のライフサイクルで管理される Promise（ユニット破棄後は無視される）
+    xnew.promise(promise).then(({ n, result: res }) => {
+      controls.setEnabled(true);
+      status.element.textContent = `fib(${n}) の結果:`;
+      result.element.textContent = res.toLocaleString();
+    });
+  });
 
   // ユニット破棄時に Worker を終了
   unit.on('finalize', () => worker.terminate());
