@@ -43,18 +43,22 @@ function Baking(unit) {
   xnew(Cubes);
 
   // baking
-  const textures = [];
-  for (let frame = 0; frame < 60; frame++) {
-    xnew.emit('+update');
+  let textures = [];
+  unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
     const bitmap = xthree.canvas.transferToImageBitmap();
     textures.push(PIXI.Texture.from(bitmap));
-  }
-  xnew.promise(new Promise((resolve) => {
-    resolve(textures);
-  }));
+    if (textures.length === 60) {
+      xnew.emit('-resolve');
+    }
+  });
 
-  unit.finalize();
+  xnew.promise(new Promise((resolve) => {
+    unit.on('-resolve', () => {
+      resolve(textures);
+      unit.finalize();
+    })
+  }));
 }
 
 function Cubes(unit) {
@@ -67,7 +71,7 @@ function Cubes(unit) {
       }
     }
   }
-  unit.on('update +update', () => {
+  unit.on('update', () => {
     object.rotation.y += 0.01;
     object.rotation.z += 0.01;
   });
@@ -79,7 +83,7 @@ function Cube(unit, { x, y, z, size }) {
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
 
-  unit.on('update +update', () => {
+  unit.on('update', () => {
     object.rotation.x += 0.01;
     object.rotation.y += 0.01;
   });

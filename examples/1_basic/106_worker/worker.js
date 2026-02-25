@@ -1,6 +1,7 @@
 // メインスレッドからのメッセージを受信して計算する
 self.onmessage = function(e) {
   const n = e.data;
+  console.log(`Worker: Received ${n}, calculating...`);
   const result = fibonacci(n);
   self.postMessage({ n, result });
 };

@@ -226,7 +226,8 @@ export class Unit {
         Unit.extend(unit, unit._.baseComponent, unit._.props); 
 
         // whether the unit promise was resolved
-        Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
+        // Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
+        unit._.state = 'initialized';
 
         Unit.currentUnit = backup;
     }
