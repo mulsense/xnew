@@ -96,7 +96,19 @@ class MapMap extends Map {
 }
 
 //----------------------------------------------------------------------------------------------------
-// ticker
+// visibility change
+//----------------------------------------------------------------------------------------------------
+class Visibility {
+    constructor(callback) {
+        this.listener = () => callback === null || callback === void 0 ? void 0 : callback(document.hidden === false);
+        document.addEventListener('visibilitychange', this.listener);
+    }
+    clear() {
+        document.removeEventListener('visibilitychange', this.listener);
+    }
+}
+//----------------------------------------------------------------------------------------------------
+// animation ticker
 //----------------------------------------------------------------------------------------------------
 class AnimationTicker {
     constructor(callback, fps = 60) {
@@ -122,92 +134,74 @@ class AnimationTicker {
 }
 class Timer {
     constructor(options) {
+        var _a, _b;
         this.options = options;
-        this.startid = null;
-        this.endid = null;
-        this.time = 0.0;
-        this.counter = 0;
-        this.offset = 0.0;
-        this.status = 0;
-        this.ticker = new AnimationTicker((time) => {
-            var _a, _b;
-            let p = Math.min(this.elapsed() / this.options.duration, 1.0);
-            if (this.options.easing === 'ease-out') {
-                p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
-            }
-            else if (this.options.easing === 'ease-in') {
-                p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-            }
-            else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
-                // p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
-                const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-                const s = Math.pow(p, bias);
-                p = s * s * (3 - 2 * s);
-            }
-            (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
-        });
-        this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-        document.addEventListener('visibilitychange', this.visibilitychange);
-        this.startid = setTimeout(() => {
-            var _a, _b;
-            (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
-        }, 0);
+        this.id = null;
+        this.time = { start: 0.0, processed: 0.0 };
+        this.request = true;
+        this.ticker = new AnimationTicker(() => this.animation());
+        this.visibility = new Visibility((visible) => visible ? this._start() : this._stop());
+        (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
         this.start();
     }
+    animation() {
+        var _a, _b;
+        let p = Math.min(this.elapsed() / this.options.duration, 1.0);
+        if (this.options.easing === 'ease-out') {
+            p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
+        }
+        else if (this.options.easing === 'ease-in') {
+            p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
+        }
+        else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
+            const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
+            const s = p ** bias;
+            p = s * s * (3 - 2 * s);
+        }
+        (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
+    }
     clear() {
-        if (this.startid !== null) {
-            clearTimeout(this.startid);
-            this.startid = null;
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
         }
-        if (this.endid !== null) {
-            clearTimeout(this.endid);
-            this.endid = null;
-        }
-        document.removeEventListener('visibilitychange', this.visibilitychange);
+        this.visibility.clear();
         this.ticker.clear();
     }
     elapsed() {
-        return this.offset + (this.endid !== null ? (Date.now() - this.time) : 0);
+        return this.time.processed + (this.id !== null ? (Date.now() - this.time.start) : 0);
     }
     start() {
-        this.status = 1;
+        this.request = true;
         this._start();
     }
     stop() {
         this._stop();
-        this.status = 0;
+        this.request = false;
     }
     _start() {
-        if (this.status === 1 && this.endid === null) {
-            this.endid = setTimeout(() => {
+        if (this.request === true && this.id === null) {
+            this.id = setTimeout(() => {
                 var _a, _b, _c, _d;
+                this.id = null;
+                this.time = { start: 0.0, processed: 0.0 };
                 (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 1.0);
-                (_d = (_c = this.options).timeout) === null || _d === void 0 ? void 0 : _d.call(_c);
-                this.endid = null;
-                this.time = 0.0;
-                this.offset = 0.0;
-                this.counter++;
-                if (this.options.iterations === 0 || this.counter < this.options.iterations) {
-                    this.start();
-                }
-                else {
-                    this.clear();
-                }
-            }, this.options.duration - this.offset);
-            this.time = Date.now();
+                (_d = (_c = this.options).callback) === null || _d === void 0 ? void 0 : _d.call(_c);
+                this.clear();
+            }, this.options.duration - this.time.processed);
+            this.time.start = Date.now();
         }
     }
     _stop() {
-        if (this.status === 1 && this.endid !== null) {
-            this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.endid);
-            this.endid = null;
-            this.time = 0.0;
+        if (this.request === true && this.id !== null) {
+            this.time.processed = this.time.processed + Date.now() - this.time.start;
+            clearTimeout(this.id);
+            this.id = null;
         }
     }
 }
 
-function addEvent(target, type, execute, options) {
+function addEventListener(target, type, execute, options) {
     let initalized = false;
     const id = setTimeout(() => {
         initalized = true;
@@ -296,7 +290,7 @@ class Eventor {
         }
     }
     element_basic(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             props.listener({ event });
         }, props.options);
     }
@@ -313,7 +307,7 @@ class Eventor {
         };
     }
     element_change(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             let value = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -328,7 +322,7 @@ class Eventor {
         }, props.options);
     }
     element_input(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             let value = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -343,41 +337,41 @@ class Eventor {
         }, props.options);
     }
     element_click(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
     element_click_outside(props) {
-        return addEvent(document, props.type.split('.')[0], (event) => {
+        return addEventListener(document, props.type.split('.')[0], (event) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
         }, props.options);
     }
     element_pointer(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
     element_mouse(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
     element_touch(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
     element_pointer_outside(props) {
-        return addEvent(document, props.type.split('.')[0], (event) => {
+        return addEventListener(document, props.type.split('.')[0], (event) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
         }, props.options);
     }
     element_wheel(props) {
-        return addEvent(props.element, props.type, (event) => {
+        return addEventListener(props.element, props.type, (event) => {
             props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         }, props.options);
     }
@@ -385,11 +379,11 @@ class Eventor {
         let pointermove = null;
         let pointerup = null;
         let pointercancel = null;
-        const pointerdown = addEvent(props.element, 'pointerdown', (event) => {
+        const pointerdown = addEventListener(props.element, 'pointerdown', (event) => {
             const id = event.pointerId;
             const position = pointer(props.element, event).position;
             let previous = position;
-            pointermove = addEvent(window, 'pointermove', (event) => {
+            pointermove = addEventListener(window, 'pointermove', (event) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -399,7 +393,7 @@ class Eventor {
                     previous = position;
                 }
             }, props.options);
-            pointerup = addEvent(window, 'pointerup', (event) => {
+            pointerup = addEventListener(window, 'pointerup', (event) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
@@ -408,7 +402,7 @@ class Eventor {
                     remove();
                 }
             }, props.options);
-            pointercancel = addEvent(window, 'pointercancel', (event) => {
+            pointercancel = addEventListener(window, 'pointercancel', (event) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
@@ -436,13 +430,13 @@ class Eventor {
     }
     window_basic(props) {
         const type = props.type.substring('window.'.length);
-        return addEvent(window, type, (event) => {
+        return addEventListener(window, type, (event) => {
             props.listener({ event });
         }, props.options);
     }
     window_key(props) {
         const type = props.type.substring(props.type.indexOf('.') + 1);
-        return addEvent(window, type, (event) => {
+        return addEventListener(window, type, (event) => {
             if (event.repeat)
                 return;
             props.listener({ event });
@@ -450,7 +444,7 @@ class Eventor {
     }
     window_key_arrow(props) {
         const keymap = {};
-        const keydown = addEvent(window, 'keydown', (event) => {
+        const keydown = addEventListener(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
@@ -462,7 +456,7 @@ class Eventor {
                 props.listener({ event, vector });
             }
         }, props.options);
-        const keyup = addEvent(window, 'keyup', (event) => {
+        const keyup = addEventListener(window, 'keyup', (event) => {
             keymap[event.code] = 0;
             if (props.type === 'window.keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                 const vector = {
@@ -479,7 +473,7 @@ class Eventor {
     }
     window_key_wasd(props) {
         const keymap = {};
-        const finalize1 = addEvent(window, 'keydown', (event) => {
+        const finalize1 = addEventListener(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
@@ -491,7 +485,7 @@ class Eventor {
                 props.listener({ event, vector });
             }
         }, props.options);
-        const finalize2 = addEvent(window, 'keyup', (event) => {
+        const finalize2 = addEventListener(window, 'keyup', (event) => {
             keymap[event.code] = 0;
             if (props.type === 'window.keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 const vector = {
@@ -508,7 +502,7 @@ class Eventor {
     }
     document_basic(props) {
         const type = props.type.substring('document.'.length);
-        return addEvent(document, type, (event) => {
+        return addEventListener(document, type, (event) => {
             props.listener({ event });
         }, props.options);
     }
@@ -524,58 +518,52 @@ function pointer(element, event) {
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
 class UnitPromise {
-    constructor(promise, component) {
+    constructor(promise, Component) {
         this.promise = promise;
-        this.component = component;
+        this.Component = Component;
     }
-    then(callback) {
+    then(callback) { return this.wrap('then', callback); }
+    catch(callback) { return this.wrap('catch', callback); }
+    finally(callback) { return this.wrap('finally', callback); }
+    wrap(key, callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.then((...args) => Unit.scope(snapshot, callback, ...args));
-        return this;
-    }
-    catch(callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.catch((...args) => Unit.scope(snapshot, callback, ...args));
-        return this;
-    }
-    finally(callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.finally(() => Unit.scope(snapshot, callback));
+        this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
 }
 class UnitTimer {
-    constructor(options) {
+    constructor() {
+        this.unit = null;
         this.stack = [];
-        this.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { options, snapshot: Unit.snapshot(Unit.currentUnit) });
     }
     clear() {
+        var _a;
         this.stack = [];
-        this.unit.finalize();
+        (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
+        this.unit = null;
     }
-    timeout(timeout, duration = 0) {
-        UnitTimer.execute(this, { timeout, duration, iterations: 1 });
-        return this;
+    timeout(callback, duration = 0) {
+        return UnitTimer.execute(this, { callback, duration }, 1);
     }
-    iteration(timeout, duration = 0, iterations = -1) {
-        UnitTimer.execute(this, { timeout, duration, iterations });
-        return this;
+    interval(callback, duration = 0, iterations = 0) {
+        return UnitTimer.execute(this, { callback, duration }, iterations);
     }
     transition(transition, duration = 0, easing) {
-        UnitTimer.execute(this, { transition, duration, iterations: 1, easing });
-        return this;
+        return UnitTimer.execute(this, { transition, duration, easing }, 1);
     }
-    static execute(timer, options) {
-        if (timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, { options, snapshot: Unit.snapshot(Unit.currentUnit) });
+    static execute(timer, options, iterations) {
+        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
+        if (timer.unit === null || timer.unit._.state === 'finalized') {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
         }
         else if (timer.stack.length === 0) {
-            timer.stack.push({ options, snapshot: Unit.snapshot(Unit.currentUnit) });
+            timer.stack.push(props);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
         else {
-            timer.stack.push({ options, snapshot: Unit.snapshot(Unit.currentUnit) });
+            timer.stack.push(props);
         }
+        return timer;
     }
     static next(timer) {
         if (timer.stack.length > 0) {
@@ -583,25 +571,30 @@ class UnitTimer {
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
-    static Component(unit, { options, snapshot }) {
+    static Component(unit, { options, iterations, snapshot }) {
         let counter = 0;
-        const timer = new Timer({
-            transition: (p) => {
-                if (options.transition)
-                    Unit.scope(snapshot, options.transition, p);
-            },
-            timeout: () => {
-                if (options.transition)
-                    Unit.scope(snapshot, options.transition, 1.0);
-                if (options.timeout)
-                    Unit.scope(snapshot, options.timeout);
-                if (options.iterations && counter >= options.iterations - 1) {
-                    unit.finalize();
-                }
-                counter++;
-            }, duration: options.duration, iterations: options.iterations, easing: options.easing
-        });
+        let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+        function callback() {
+            if (options.callback)
+                Unit.scope(snapshot, options.callback);
+            if (iterations <= 0 || counter < iterations - 1) {
+                timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+            }
+            else {
+                unit.finalize();
+            }
+            counter++;
+        }
+        function transition(value) {
+            if (options.transition)
+                Unit.scope(snapshot, options.transition, { value });
+        }
         unit.on('finalize', () => timer.clear());
+    }
+}
+function DefaultComponent(unit, { text }) {
+    if (text !== undefined) {
+        unit.element.textContent = text;
     }
 }
 //----------------------------------------------------------------------------------------------------
@@ -618,17 +611,18 @@ class Unit {
             baseElement = parent._.currentElement;
         }
         else {
-            baseElement = document.body;
+            baseElement = (document === null || document === void 0 ? void 0 : document.body) ? document.body : null;
         }
         let baseComponent;
         if (typeof component === 'function') {
             baseComponent = component;
         }
-        else if (component !== undefined) {
-            baseComponent = (unit) => { unit.element.textContent = component.toString(); };
+        else if (typeof component === 'string' || typeof component === 'number') {
+            baseComponent = DefaultComponent;
+            props = { text: component.toString() };
         }
         else {
-            baseComponent = (unit) => { };
+            baseComponent = DefaultComponent;
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
         this._ = { parent, target, baseElement, baseContext, baseComponent, props };
@@ -744,18 +738,27 @@ class Unit {
             }
         }
     }
-    static extend(unit, component, props) {
+    static extend(unit, Component, props) {
         var _a;
-        if (unit._.components.includes(component) === true) {
+        if (unit._.components.includes(Component) === true) {
             throw new Error(`The component is already extended.`);
         }
         else {
             const backupComponent = unit._.currentComponent;
-            unit._.currentComponent = component;
-            const defines = (_a = component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
+            unit._.currentComponent = Component;
+            const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
+            if (unit._.parent && Component !== DefaultComponent) {
+                if (Component === unit._.baseComponent) {
+                    Unit.context(unit._.parent, Component, unit);
+                }
+                else {
+                    Unit.context(unit, Component, unit);
+                    Unit.context(unit._.parent, Component, unit);
+                }
+            }
             unit._.currentComponent = backupComponent;
-            Unit.component2units.add(component, unit);
-            unit._.components.push(component);
+            Unit.component2units.add(Component, unit);
+            unit._.components.push(Component);
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
@@ -860,9 +863,9 @@ class Unit {
             }
         }
     }
-    static find(component) {
+    static find(Component) {
         var _a;
-        return [...((_a = Unit.component2units.get(component)) !== null && _a !== void 0 ? _a : [])];
+        return [...((_a = Unit.component2units.get(Component)) !== null && _a !== void 0 ? _a : [])];
     }
     on(type, listener, options) {
         const types = type.trim().split(/\s+/);
@@ -942,13 +945,9 @@ const xnew$1 = Object.assign(function (...args) {
     else {
         target = null;
     }
-    const component = args.shift();
+    const Component = args.shift();
     const props = args.shift();
-    const unit = new Unit(Unit.currentUnit, target, component, props);
-    if (typeof component === 'function') {
-        Unit.context(Unit.currentUnit, component, unit);
-    }
-    return unit;
+    return new Unit(Unit.currentUnit, target, Component, props);
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
@@ -973,24 +972,19 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Extends the current component with another component's functionality
-     * @param component - Component function to extend with
-     * @param props - Optional properties to pass to the extended component
+     * @param Component - component function to extend with
+     * @param props - optional properties to pass to the extended component
      * @returns defines returned by the extended component
      * @throws Error if called after component initialization
      * @example
      * const api = xnew.extend(BaseComponent, { data: {} })
      */
-    extend(component, props) {
+    extend(Component, props) {
         try {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.extend can not be called after initialized.');
             }
-            const defines = Unit.extend(Unit.currentUnit, component, props);
-            if (typeof component === 'function') {
-                Unit.context(Unit.currentUnit, component, Unit.currentUnit);
-                Unit.context(Unit.currentUnit._.parent, component, Unit.currentUnit);
-            }
-            return defines;
+            return Unit.extend(Unit.currentUnit, Component, props);
         }
         catch (error) {
             console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -1028,8 +1022,15 @@ const xnew$1 = Object.assign(function (...args) {
     promise(promise) {
         try {
             const component = Unit.currentUnit._.currentComponent;
-            Unit.currentUnit._.promises.push(new UnitPromise(promise, component));
-            return Unit.currentUnit._.promises[Unit.currentUnit._.promises.length - 1];
+            let unitPromise;
+            if (promise instanceof Unit) {
+                unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), component);
+            }
+            else {
+                unitPromise = new UnitPromise(promise, component);
+            }
+            Unit.currentUnit._.promises.push(unitPromise);
+            return unitPromise;
         }
         catch (error) {
             console.error('xnew.promise(promise: Promise<any>): ', error);
@@ -1045,11 +1046,11 @@ const xnew$1 = Object.assign(function (...args) {
      */
     then(callback) {
         try {
-            const component = Unit.currentUnit._.currentComponent;
+            const Component = Unit.currentUnit._.currentComponent;
             const promises = Unit.currentUnit._.promises;
             return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results) => {
-                callback(results.filter((_result, index) => promises[index].component !== null && promises[index].component === component));
+                callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
             });
         }
         catch (error) {
@@ -1144,27 +1145,27 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Executes a callback once after a delay, managed by component lifecycle
-     * @param timeout - Function to execute after Duration
+     * @param callback - Function to execute after Duration
      * @param duration - Duration in milliseconds
      * @returns Object with clear() method to cancel the timeout
      * @example
      * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
      * // Cancel if needed: timer.clear()
      */
-    timeout(timeout, duration = 0) {
-        return new UnitTimer({ timeout, duration, iterations: 1 });
+    timeout(callback, duration = 0) {
+        return new UnitTimer().timeout(callback, duration);
     },
     /**
      * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-     * @param timeout - Function to execute at each duration
+     * @param callback - Function to execute at each duration
      * @param duration - Duration in milliseconds
      * @returns Object with clear() method to stop the interval
      * @example
      * const timer = xnew.interval(() => console.log('Tick'), 1000)
      * // Stop when needed: timer.clear()
      */
-    interval(timeout, duration, iterations = 0) {
-        return new UnitTimer({ timeout, duration, iterations });
+    interval(callback, duration, iterations = 0) {
+        return new UnitTimer().interval(callback, duration, iterations);
     },
     /**
      * Creates a transition animation with easing, executing callback with progress values
@@ -1180,7 +1181,7 @@ const xnew$1 = Object.assign(function (...args) {
      * }, 300)
      */
     transition(transition, duration = 0, easing = 'linear') {
-        return new UnitTimer({ transition, duration, easing, iterations: 1 });
+        return new UnitTimer().transition(transition, duration, easing);
     },
     /**
      * Call this method within a component function to enable protection.
@@ -1198,9 +1199,9 @@ const xnew$1 = Object.assign(function (...args) {
 });
 
 function OpenAndClose(unit, { open = true, transition = { duration: 200, easing: 'ease' } }) {
-    let state = open ? 1.0 : 0.0;
+    let value = open ? 1.0 : 0.0;
     let sign = open ? +1 : -1;
-    let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { state }));
+    let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { value }));
     return {
         toggle() {
             sign < 0 ? unit.open() : unit.close();
@@ -1208,28 +1209,28 @@ function OpenAndClose(unit, { open = true, transition = { duration: 200, easing:
         open() {
             var _a, _b;
             sign = +1;
-            const d = 1 - state;
+            const d = 1 - value;
             const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
             const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
             timer === null || timer === void 0 ? void 0 : timer.clear();
-            timer = xnew$1.transition((x) => {
-                state = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
-                xnew$1.emit('-transition', { state });
+            timer = xnew$1.transition(({ value: x }) => {
+                value = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
+                xnew$1.emit('-transition', { value });
             }, duration, easing)
-                .timeout(() => xnew$1.emit('-opened', { state }));
+                .timeout(() => xnew$1.emit('-opened'));
         },
         close() {
             var _a, _b;
             sign = -1;
-            const d = state;
+            const d = value;
             const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
             const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
             timer === null || timer === void 0 ? void 0 : timer.clear();
-            timer = xnew$1.transition((x) => {
-                state = x < 1.0 ? (1 - x) * d : 0.0;
-                xnew$1.emit('-transition', { state });
+            timer = xnew$1.transition(({ value: x }) => {
+                value = x < 1.0 ? (1 - x) * d : 0.0;
+                xnew$1.emit('-transition', { value });
             }, duration, easing)
-                .timeout(() => xnew$1.emit('-closed', { state }));
+                .timeout(() => xnew$1.emit('-closed'));
         },
     };
 }
@@ -1237,9 +1238,9 @@ function Accordion(unit) {
     const system = xnew$1.context(OpenAndClose);
     const outer = xnew$1.nest('<div style="overflow: hidden;">');
     const inner = xnew$1.nest('<div style="display: flex; flex-direction: column; box-sizing: border-box;">');
-    system.on('-transition', ({ state }) => {
-        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-        outer.style.opacity = state.toString();
+    system.on('-transition', ({ value }) => {
+        outer.style.height = value < 1.0 ? inner.offsetHeight * value + 'px' : 'auto';
+        outer.style.opacity = value.toString();
     });
 }
 function Popup(unit) {
@@ -1248,8 +1249,8 @@ function Popup(unit) {
     system.open();
     xnew$1.nest('<div style="position: fixed; inset: 0; z-index: 1000; opacity: 0;">');
     unit.on('click', ({ event }) => event.target === unit.element && system.close());
-    system.on('-transition', ({ state }) => {
-        unit.element.style.opacity = state.toString();
+    system.on('-transition', ({ value }) => {
+        unit.element.style.opacity = value.toString();
     });
 }
 
@@ -1420,9 +1421,9 @@ function Panel(unit, { name, open = false, params }) {
 function Group(group, { name, open = false }) {
     xnew$1.extend(OpenAndClose, { open });
     if (name) {
-        xnew$1('<div style="height: 2rem; margin: 0.125rem 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
+        xnew$1('<div style="height: 2em; margin: 0.125em 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
             unit.on('click', () => group.toggle());
-            xnew$1('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit) => {
+            xnew$1('<svg viewBox="0 0 12 12" style="width: 1em; height: 1em; margin-right: 0.25em;" fill="none" stroke="currentColor">', (unit) => {
                 xnew$1('<path d="M6 2 10 6 6 10" />');
                 group.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
             });
@@ -1432,7 +1433,7 @@ function Group(group, { name, open = false }) {
     xnew$1.extend(Accordion);
 }
 function Button(unit, { key = '' }) {
-    xnew$1.nest('<button style="margin: 0.125rem 0; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew$1.nest('<button style="margin: 0.125em 0; height: 2em; border: 1px solid; border-radius: 0.25em; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
         unit.element.style.background = currentColorB;
@@ -1450,16 +1451,16 @@ function Button(unit, { key = '' }) {
     });
 }
 function Separator(unit) {
-    xnew$1.nest(`<div style="margin: 0.5rem 0; border-top: 1px solid ${currentColorA};">`);
+    xnew$1.nest(`<div style="margin: 0.5em 0; border-top: 1px solid ${currentColorA};">`);
 }
 function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     value = value !== null && value !== void 0 ? value : min;
-    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; cursor: pointer; user-select: none;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none;">`);
     // fill bar
     const ratio = (value - min) / (max - min);
-    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25rem; transition: width 0.05s;">`);
+    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25em; transition: width 0.05s;">`);
     // overlay labels
-    const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
+    const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
         xnew$1('<div>', key);
         xnew$1('<div key="status">', value);
     });
@@ -1473,10 +1474,10 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     });
 }
 function Checkbox(unit, { key = '', value } = {}) {
-    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
-    const box = xnew$1(`<div style="width: 1.25rem; height: 1.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
-        xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const box = xnew$1(`<div style="width: 1.25em; height: 1.25em; border: 1px solid ${currentColorA}; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
+        xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
             xnew$1('<path d="M2 6 5 9 10 3" />');
         });
     });
@@ -1494,22 +1495,22 @@ function Checkbox(unit, { key = '', value } = {}) {
 function Select(_, { key = '', value, options = [] } = {}) {
     var _a;
     const initial = (_a = value !== null && value !== void 0 ? value : options[0]) !== null && _a !== void 0 ? _a : '';
-    xnew$1.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
+    xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
     const native = xnew$1(`<select name="${key}" style="display: none;">`, () => {
         for (const option of options) {
             xnew$1(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
         }
     });
-    const button = xnew$1(`<div style="height: 2rem; padding: 0 1.5rem 0 0.5rem; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25rem; cursor: pointer; user-select: none; min-width: 3rem; white-space: nowrap;">`, initial);
-    xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0rem; width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const button = xnew$1(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
+    xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
         xnew$1('<path d="M2 4 6 8 10 4" />');
     });
     button.on('click', () => {
         xnew$1((list) => {
             xnew$1(OpenAndClose, { open: false });
             xnew$1.extend(Popup);
-            xnew$1.nest('<div style="position: absolute; padding: 0.25rem 0;">');
+            xnew$1.nest('<div style="position: absolute; padding: 0.25em 0;">');
             list.on('render', () => {
                 const rect = button.element.getBoundingClientRect();
                 list.element.style.right = (window.innerWidth - rect.right) + 'px';
@@ -1517,9 +1518,9 @@ function Select(_, { key = '', value, options = [] } = {}) {
                 list.element.style.background = getEffectiveBg(button.element);
             });
             xnew$1.extend(Accordion);
-            xnew$1.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden;">`);
+            xnew$1.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25em; overflow: hidden;">`);
             for (const option of options) {
-                const item = xnew$1(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
+                const item = xnew$1(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
                 item.on('pointerover', () => item.element.style.background = currentColorB);
                 item.on('pointerout', () => item.element.style.background = '');
                 item.on('click', () => {

@@ -9,7 +9,7 @@ const wrappedPromise = xnew.promise(promise);
 ```
 
 **Parameters:**
-- `promise`: A standard Promise object
+- `promise`: A standard Promise object or unit
 
 **Returns:**
 - A wrapped Promise that executes handlers within the current `xnew` scope

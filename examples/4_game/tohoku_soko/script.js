@@ -75,10 +75,10 @@ function Fade(unit, { fadein, fadeout }) {
 
     let timer;
     if (fadeout) {
-      timer = xnew.transition((p) => cover.element.style.opacity = p, fadeout, 'ease').timeout((() => xnew.emit('-fadeout')));
+      timer = xnew.transition(({ value }) => cover.element.style.opacity = value, fadeout, 'ease').timeout((() => xnew.emit('-fadeout')));
     }
     if (fadein) {
-      timer = (timer ?? xnew).transition((p) => cover.element.style.opacity = 1 - p, fadein, 'ease');
+      timer = (timer ?? xnew).transition(({ value }) => cover.element.style.opacity = 1 - value, fadein, 'ease');
     }
     timer.timeout(() => {
       xnew.emit('-fadein')
@@ -219,9 +219,9 @@ function TitleText(unit) {
         let offset = { x: Math.random() * 40 - 20, y: Math.random() * 40 - 20, a: Math.random() * 4 - 2, s: Math.random() * 1 - 0.5 };
         unit.element.style.transform = `translate(${offset.x}cqw, ${offset.y}cqw)`;
 
-        xnew.transition((p) => {
-          unit.element.style.opacity = p;
-          unit.element.style.transform = `translate(${offset.x * (1 - p)}cqw, ${offset.y * (1 - p)}cqw) rotate(${offset.a * (1 - p)}rad) scale(${1 + offset.s * (1 - p)})`;
+        xnew.transition(({ value }) => {
+          unit.element.style.opacity = value;
+          unit.element.style.transform = `translate(${offset.x * (1 - value)}cqw, ${offset.y * (1 - value)}cqw) rotate(${offset.a * (1 - value)}rad) scale(${1 + offset.s * (1 - value)})`;
         }, 4000, 'ease');
       });
       chars.push(unit);
@@ -231,8 +231,8 @@ function TitleText(unit) {
 function StageSelect(unit) {
   const global = xnew.context(GameData);
   const div = xnew.nest('<div class="absolute top-[34cqw] w-full flex justify-center gap-[3cqw]" style="opacity: 0">');
-  xnew.timeout(() => {}, 1).transition((p) => {
-    div.style.opacity = p;
+  xnew.timeout(() => {}, 1).transition(({ value }) => {
+    div.style.opacity = value;
   }, 1000);
   for (let i = 0; i < global.levels.length; i++) {
     const button = xnew(BlockBUtton, { text: `${['壱', '弐', '参', '肆', '伍', '陸', '漆'][i]}` });
@@ -377,9 +377,9 @@ function Player(player, { id, x, y }) {
       } else {
         object.rotation.z = Math.atan2(dy, -dx) - Math.PI / 2;
       }
-      xnew.transition((p) => {
-        offset.x = (1 - p) * dx;
-        offset.y = (1 - p) * dy;
+      xnew.transition(({ value }) => {
+        offset.x = (1 - value) * dx;
+        offset.y = (1 - value) * dy;
       }, 250, 'ease');
     }
   };
@@ -428,9 +428,9 @@ function Box(box, { x, y }) {
       x += dx;
       y += dy;
       random = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
-      xnew.transition((p) => {
-        offset.x = (1 - p) * dx;
-        offset.y = (1 - p) * dy;
+      xnew.transition(({ value }) => {
+        offset.x = (1 - value) * dx;
+        offset.y = (1 - value) * dy;
       }, 250, 'ease');
       return true;
     }
@@ -441,9 +441,9 @@ function GameClearText(unit) {
   xnew.nest('<div class="absolute w-full text-center text-[14cqw] text-green-600">');
   
   unit.element.textContent = '生還!';
-  xnew.transition((x) => {
-    unit.element.style.opacity = x;
-    unit.element.style.top = `${16 + x * 10}cqh`;
+  xnew.transition(({ value }) => {
+    unit.element.style.opacity = value;
+    unit.element.style.top = `${16 + value * 10}cqh`;
   }, 1000, 'ease');
 }
 

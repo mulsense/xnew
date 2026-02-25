@@ -3,15 +3,13 @@
         "moduleResolution": "bundler",
         "module": "ESNext",
         "rootDir": "./src",
-        "target": "ES6",
+        "target": "ES2017",
         "strict": true,
-        "esModuleInterop": true,
         "skipLibCheck": true,
         "declaration": false,
         "pretty": true,
         "newLine": "lf",
-        "outDir": "./dist",
-        "lib": ["ES6", "DOM"]
+        "lib": ["ES2017", "DOM"]
     },
     "include": ["./src/**/*.ts"]
 }

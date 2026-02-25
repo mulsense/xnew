@@ -112,7 +112,7 @@ function GameScene(unit) {
 
     xnew.timeout(() => {
       const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
-      xnew.transition((p) => cover.element.style.opacity = p, 300, 'ease')
+      xnew.transition(({ value }) => cover.element.style.opacity = value, 300, 'ease')
       .timeout(() => xnew.emit('+scenechange', { NextScene: ResultScene, props: { image } }));
     }, 2000);
   });
@@ -125,8 +125,8 @@ function ResultScene(unit, { image }) {
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
-  xnew.transition((x) => {
-    Object.assign(unit.element.style, { opacity: x, transform: `scale(${0.8 + x * 0.2})` });
+  xnew.transition(({ value }) => {
+    Object.assign(unit.element.style, { opacity: value, transform: `scale(${0.8 + value * 0.2})` });
   }, 500, 'ease');
 
   xnew(ResultBackground);
@@ -178,8 +178,8 @@ function ScoreText(unit) {
 function GameOverText(unit) {
   xnew.nest('<div class="absolute w-full text-center text-[12cqw] text-red-400 font-bold">');
   xnew(StrokeText, { text: 'Game Over' });
-  xnew.transition((p) => {
-    Object.assign(unit.element.style, { opacity: p, top: `${10 + p * 15}cqw` });
+  xnew.transition(({ value }) => {
+    Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
   }, 1000, 'ease');
 }
 
@@ -322,8 +322,8 @@ function Queue(unit) {
     model = xnew(Model, { position, rotation, id: balls[1], scale: 0.6 });
 
     balls.push(Math.floor(Math.random() * 3));
-    xnew.transition((p) => {
-      const position = convert3d(10 + p * 70, 70);
+    xnew.transition(({ value }) => {
+      const position = convert3d(10 + value * 70, 70);
       model.threeObject.position.set(position.x, position.y, position.z);
     }, 500).timeout(() => xnew.emit('+relode:done', { id: balls.shift() }));
   });
@@ -480,12 +480,12 @@ function StarParticles(unit, { x, y }) {
     graphics.x = Math.cos(angle) * distance;
     graphics.y = Math.sin(angle) * distance;
 
-    xnew.transition((p) => {
+    xnew.transition(({ value }) => {
       vy += 0.2; // gravity
       graphics.x += vx;
       graphics.y += vy;
       graphics.rotation += va;
-      graphics.alpha = 1 - p;
+      graphics.alpha = 1 - value;
     }, 1600);
   }
   xnew.timeout(() => unit.finalize(), 1200);
@@ -525,7 +525,7 @@ function screenShot() {
   const element = xnew.find(Main)[0].element;
   xnew(element, (unit) => {
     const cover = xnew.nest('<div class="absolute inset-0 size-full z-10 bg-white">');
-    xnew.transition((p) => cover.style.opacity = 1 - p, 1000)
+    xnew.transition(({ value }) => cover.style.opacity = 1 - value, 1000)
     .timeout(() => {
       html2canvas(element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
         const dst = document.createElement('canvas');

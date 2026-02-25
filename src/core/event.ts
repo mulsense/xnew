@@ -1,4 +1,3 @@
-import { create } from 'domain';
 import { MapSet, MapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------
@@ -12,7 +11,7 @@ interface EventProps {
     options?: boolean | AddEventListenerOptions
 }
 
-function addEvent(
+function addEventListener(
     target: Window | Document | HTMLElement | SVGElement, 
     type: string, 
     execute: EventListenerOrEventListenerObject, 
@@ -94,7 +93,7 @@ export class Eventor {
     }
 
     private element_basic(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: Event) => {
+        return addEventListener(props.element, props.type, (event: Event) => {
             props.listener({ event });
         }, props.options);
     }
@@ -112,7 +111,7 @@ export class Eventor {
     }
 
     private element_change(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             let value: any = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -126,7 +125,7 @@ export class Eventor {
     }
 
     private element_input(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             let value: any = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -140,13 +139,13 @@ export class Eventor {
     }
 
     private element_click(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
 
     private element_click_outside(props: EventProps): Function {
-        return addEvent(document, props.type.split('.')[0], (event: any) => {
+        return addEventListener(document, props.type.split('.')[0], (event: any) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
@@ -154,25 +153,25 @@ export class Eventor {
     }
 
     private element_pointer(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
 
     private element_mouse(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
 
     private element_touch(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             props.listener({ event, position: pointer(props.element, event).position });
         }, props.options);
     }
 
     private element_pointer_outside(props: EventProps): Function {
-        return addEvent(document, props.type.split('.')[0], (event: any) => {
+        return addEventListener(document, props.type.split('.')[0], (event: any) => {
             if (props.element.contains(event.target) === false) {
                 props.listener({ event, position: pointer(props.element, event).position });
             }
@@ -180,7 +179,7 @@ export class Eventor {
     }
 
     private element_wheel(props: EventProps): Function {
-        return addEvent(props.element, props.type, (event: any) => {
+        return addEventListener(props.element, props.type, (event: any) => {
             props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         }, props.options);
     }
@@ -190,12 +189,12 @@ export class Eventor {
         let pointerup: any = null;
         let pointercancel: any = null;
         
-        const pointerdown = addEvent(props.element, 'pointerdown', (event: any) => {
+        const pointerdown = addEventListener(props.element, 'pointerdown', (event: any) => {
             const id = event.pointerId;
             const position = pointer(props.element, event).position;
             let previous = position;
     
-            pointermove = addEvent(window, 'pointermove', (event: any) => {
+            pointermove = addEventListener(window, 'pointermove', (event: any) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
@@ -205,7 +204,7 @@ export class Eventor {
                     previous = position;
                 }
             }, props.options);
-            pointerup = addEvent(window, 'pointerup', (event: any) => {
+            pointerup = addEventListener(window, 'pointerup', (event: any) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
@@ -214,7 +213,7 @@ export class Eventor {
                     remove();
                 }
             }, props.options);
-            pointercancel = addEvent(window, 'pointercancel', (event: any) => {
+            pointercancel = addEventListener(window, 'pointercancel', (event: any) => {
                 if (event.pointerId === id) {
                     const position = pointer(props.element, event).position;
                     if (props.type === 'dragend') {
@@ -243,14 +242,14 @@ export class Eventor {
 
     private window_basic(props: EventProps): Function {
         const type = props.type.substring('window.'.length);
-        return addEvent(window, type, (event: Event) => {
+        return addEventListener(window, type, (event: Event) => {
             props.listener({ event });
         }, props.options);
     }
 
     private window_key(props: EventProps) {
         const type = props.type.substring(props.type.indexOf('.') + 1);
-        return addEvent(window, type, (event: any) => {
+        return addEventListener(window, type, (event: any) => {
             if (event.repeat) return;
             props.listener({ event } );
         }, props.options);
@@ -259,7 +258,7 @@ export class Eventor {
     private window_key_arrow(props: EventProps) {
         const keymap: any = {};
 
-        const keydown = addEvent(window, 'keydown', (event: any) => {
+        const keydown = addEventListener(window, 'keydown', (event: any) => {
             if (event.repeat) return;
             keymap[event.code] = 1;
             if (props.type === 'window.keydown.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
@@ -270,7 +269,7 @@ export class Eventor {
                 props.listener({ event, vector } );
             }
         }, props.options);
-        const keyup = addEvent(window, 'keyup', (event: any) => {
+        const keyup = addEventListener(window, 'keyup', (event: any) => {
             keymap[event.code] = 0;
             if (props.type === 'window.keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                 const vector = {
@@ -289,7 +288,7 @@ export class Eventor {
     private window_key_wasd(props: EventProps) {
         const keymap: any = {};
 
-        const finalize1 = addEvent(window, 'keydown', (event: any) => {
+        const finalize1 = addEventListener(window, 'keydown', (event: any) => {
             if (event.repeat) return;
             keymap[event.code] = 1;
             if (props.type === 'window.keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
@@ -301,7 +300,7 @@ export class Eventor {
             }
         }, props.options);
 
-        const finalize2 = addEvent(window, 'keyup', (event: any) => {
+        const finalize2 = addEventListener(window, 'keyup', (event: any) => {
             keymap[event.code] = 0;
             if (props.type === 'window.keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 const vector = {
@@ -320,7 +319,7 @@ export class Eventor {
 
     private document_basic(props: EventProps): Function {
         const type = props.type.substring('document.'.length);
-        return addEvent(document, type, (event: Event) => {
+        return addEventListener(document, type, (event: Event) => {
             props.listener({ event });
         }, props.options);
     }

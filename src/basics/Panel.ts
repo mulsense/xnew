@@ -53,9 +53,9 @@ export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) 
 function Group(group: Unit, { name, open = false }: { name?: string, open?: boolean }) {
     xnew.extend(OpenAndClose, { open });
     if (name) {
-        xnew('<div style="height: 2rem; margin: 0.125rem 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
+        xnew('<div style="height: 2em; margin: 0.125em 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
             unit.on('click', () => group.toggle());
-            xnew('<svg viewBox="0 0 12 12" style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" stroke="currentColor">', (unit: Unit) => {
+            xnew('<svg viewBox="0 0 12 12" style="width: 1em; height: 1em; margin-right: 0.25em;" fill="none" stroke="currentColor">', (unit: Unit) => {
                 xnew('<path d="M6 2 10 6 6 10" />');
                 group.on('-transition', ({ state }: { state: number }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
             });
@@ -66,7 +66,7 @@ function Group(group: Unit, { name, open = false }: { name?: string, open?: bool
 }
 
 function Button(unit: Unit, { key = '' }: { key?: string }) {
-    xnew.nest('<button style="margin: 0.125rem 0; height: 2rem; border: 1px solid; border-radius: 0.25rem; cursor: pointer;">');
+    xnew.nest('<button style="margin: 0.125em 0; height: 2em; border: 1px solid; border-radius: 0.25em; cursor: pointer;">');
     
     unit.element.textContent = key;
     unit.on('pointerover', () => {
@@ -86,7 +86,7 @@ function Button(unit: Unit, { key = '' }: { key?: string }) {
 }
 
 function Separator(unit: Unit) {
-    xnew.nest(`<div style="margin: 0.5rem 0; border-top: 1px solid ${currentColorA};">`);
+    xnew.nest(`<div style="margin: 0.5em 0; border-top: 1px solid ${currentColorA};">`);
 }
 
 function Range(unit: Unit,
@@ -95,14 +95,14 @@ function Range(unit: Unit,
 ) {
     value = value ?? min;
 
-    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; cursor: pointer; user-select: none;">`);
+    xnew.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none;">`);
 
     // fill bar
     const ratio = (value - min) / (max - min);
-    const fill = xnew(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25rem; transition: width 0.05s;">`);
+    const fill = xnew(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25em; transition: width 0.05s;">`);
 
     // overlay labels
-    const status = xnew('<div style="position: absolute; inset: 0; padding: 0 0.5rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit: Unit) => {
+    const status = xnew('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit: Unit) => {
         xnew('<div>', key);
         xnew('<div key="status">', value);
     });
@@ -119,12 +119,12 @@ function Range(unit: Unit,
 }
 
 function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boolean } = {}) {
-    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
+    xnew.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
 
     xnew('<div style="flex: 1;">', key);
 
-    const box = xnew(`<div style="width: 1.25rem; height: 1.25rem; border: 1px solid ${currentColorA}; border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
-        xnew(`<svg viewBox="0 0 12 12" style="width: 1.25rem; height: 1.25rem; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const box = xnew(`<div style="width: 1.25em; height: 1.25em; border: 1px solid ${currentColorA}; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
+        xnew(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
             xnew('<path d="M2 6 5 9 10 3" />');
         });
     });
@@ -144,7 +144,7 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
 function Select(_: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
     const initial = value ?? options[0] ?? '';
 
-    xnew.nest(`<div style="position: relative; height: 2rem; margin: 0.125rem 0; padding: 0 0.5rem; display: flex; align-items: center;">`);
+    xnew.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center;">`);
     xnew('<div style="flex: 1;">', key);
 
     const native = xnew(`<select name="${key}" style="display: none;">`, () => {
@@ -153,9 +153,9 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
         }
     });
 
-    const button = xnew(`<div style="height: 2rem; padding: 0 1.5rem 0 0.5rem; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25rem; cursor: pointer; user-select: none; min-width: 3rem; white-space: nowrap;">`, initial);
+    const button = xnew(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
 
-    xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0rem; width: 0.75rem; height: 0.75rem; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
         xnew('<path d="M2 4 6 8 10 4" />');
     });
     
@@ -164,7 +164,7 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
             xnew(OpenAndClose, { open: false });
             xnew.extend(Popup);
             
-            xnew.nest('<div style="position: absolute; padding: 0.25rem 0;">');
+            xnew.nest('<div style="position: absolute; padding: 0.25em 0;">');
             list.on('render', () => { 
                 const rect = button.element.getBoundingClientRect();
                 list.element.style.right = (window.innerWidth - rect.right) + 'px';
@@ -173,10 +173,10 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
             });
 
             xnew.extend(Accordion);
-            xnew.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25rem; overflow: hidden;">`);
+            xnew.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25em; overflow: hidden;">`);
 
             for (const option of options) {
-                const item = xnew(`<div style="height: 2rem; padding: 0 0.5rem; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
+                const item = xnew(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
                 item.on('pointerover', () => item.element.style.background = currentColorB);
                 item.on('pointerout', () => item.element.style.background = '');
                 item.on('click', () => {
