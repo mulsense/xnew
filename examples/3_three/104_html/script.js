@@ -27,8 +27,8 @@ function HtmlMain(unit) {
 function Plane(unit, id) {
   let opacity = id === state.id ? 0.80 : 0.20;
   unit.on('+planefade', () => {
-    xnew.transition((progress) => {
-      opacity = id === state.id ? Math.max(opacity, 0.20 + progress * 0.60) : Math.min(opacity, 0.80 - progress * 0.60);
+    xnew.transition(({ value }) => {
+      opacity = id === state.id ? Math.max(opacity, 0.20 + value * 0.60) : Math.min(opacity, 0.80 - value * 0.60);
     }, 700);
   });
 
@@ -53,11 +53,11 @@ function Event(unit) {
         state.id = (state.id + direction + 4) % 4;
         state.moving = true;
         const backup = { ...transform };
-        xnew.transition((progress) => {
-          const p = (1.0 - Math.cos(progress * Math.PI)) * 0.5;
+        xnew.transition(({ value }) => {
+          const p = (1.0 - Math.cos(value * Math.PI)) * 0.5;
           transform.ry = backup.ry - direction * 90 * p;
           transform.ty = backup.ty * (1.0 - p);
-          if (progress === 1.0) state.moving = false;
+          if (value === 1.0) state.moving = false;
         }, 700);
         xnew.emit('+planefade');
       }

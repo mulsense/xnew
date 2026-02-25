@@ -26,18 +26,18 @@ function Contents(unit) {
 
     const duration = 500;
     const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
-    xnew.transition((x) => {
+    xnew.transition(({ value }) => {
       // fadeout
-      cover.element.style.opacity = x;
+      cover.element.style.opacity = value;
     }, duration)
     .timeout((() => {
       // scene change
       scene.finalize();
       scene = xnew(NextScene, props);
-    }), 500)
-    .transition((x) => {
+    }))
+    .transition(({ value }) => {
       // fadein
-      cover.element.style.opacity = 1 - x;
+      cover.element.style.opacity = 1 - value;
     }, duration)
     .timeout(() => {
       // remove cover

@@ -9,7 +9,7 @@ const transition = xnew.transition(callback, interval, easing);
 ```
 
 **Parameters:**
-- `callback(progress)`: Function called on each frame with progress value (0.0 to 1.0)
+- `callback({ value })`: Function called on each frame with progress value (0.0 to 1.0)
 - `duration`: Animation duration interval in milliseconds (default: 0)
 - `easing`: Easing function name (default: 'linear')
 
@@ -36,8 +36,8 @@ xnew('<div>', (unit) => {
   unit.element.textContent = 'Fading in...';
   unit.element.style.opacity = '0';
 
-  xnew.transition((progress) => {
-    unit.element.style.opacity = progress;
+  xnew.transition(({ value }) => {
+    unit.element.style.opacity = value;
   }, 2000, 'ease-in');
 });
 ```
@@ -47,8 +47,8 @@ xnew('<div>', (unit) => {
 xnew('<div>', (unit) => {
   unit.element.textContent = 'Click to stop animation';
 
-  const transition = xnew.transition((progress) => {
-    unit.element.style.opacity = 1 - progress;
+  const transition = xnew.transition(({ value }) => {
+    unit.element.style.opacity = 1 - value;
   }, 5000, 'linear');
 
   unit.on('click', () => {
@@ -64,8 +64,8 @@ When a unit is finalized, all its transitions are automatically cleared:
 
 ```js
 const unit = xnew((unit) => {
-  xnew.transition((progress) => {
-    console.log('Progress:', progress);
+  xnew.transition(({ value }) => {
+    console.log('Progress:', value);
   }, 5000, 'linear');
 });
 

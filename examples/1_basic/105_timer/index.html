@@ -21,8 +21,8 @@
       box.style.top = (Math.random() * 256 - 15) + 'px';
 
       // fade in -> fade out -> finalize
-      xnew.transition((p) => box.style.opacity = p, 1000)
-      .transition((p) => box.style.opacity = 1.0 - p, 1000)
+      xnew.transition(({ value }) => box.style.opacity = value, 1000)
+      .transition(({ value }) => box.style.opacity = 1.0 - value, 1000)
       .timeout(() => unit.finalize());
 
       let count = 0;

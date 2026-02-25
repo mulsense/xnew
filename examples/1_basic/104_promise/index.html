@@ -15,6 +15,16 @@
     xnew(document.querySelector('#main'), (unit) => {
       xnew('<p>', 'Please wait.');
       
+      const myComponent = xnew(MyComponent);
+
+      const promise = xnew.promise(myComponent);
+
+      promise.then((result) => {
+        console.log(result);
+      });
+    });
+
+    function MyComponent(unit) {
       xnew.promise(new Promise((resolve) => {
         xnew.timeout(() => resolve('First Promise Resolved.'), 2000);
       }));
@@ -29,8 +39,9 @@
         results.forEach((result) => {
           const p = xnew('<p>', result);
         });
+        return 'All Promises Resolved.';
       });
-    });
+    }
 
 
   </script>

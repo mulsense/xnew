@@ -20,14 +20,6 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
-interface TimerOptions {
-    transition?: Function;
-    timeout?: Function;
-    duration: number;
-    iterations: number;
-    easing?: string;
-}
-
 declare class Eventor {
     private map;
     add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
@@ -54,26 +46,23 @@ declare class Eventor {
 type UnitElement = HTMLElement | SVGElement;
 declare class UnitPromise {
     promise: Promise<any>;
-    component: Function | null;
-    constructor(promise: Promise<any>, component: Function | null);
+    Component: Function | null;
+    constructor(promise: Promise<any>, Component: Function | null);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
+    private wrap;
 }
 declare class UnitTimer {
     private unit;
     private stack;
-    constructor(options: TimerOptions);
     clear(): void;
-    timeout(timeout: Function, duration?: number): this;
-    iteration(timeout: Function, duration?: number, iterations?: number): this;
-    transition(transition: Function, duration?: number, easing?: string): this;
-    static execute(timer: UnitTimer, options: TimerOptions): void;
-    static next(timer: UnitTimer): void;
-    static Component(unit: Unit, { options, snapshot }: {
-        options: TimerOptions;
-        snapshot: Snapshot;
-    }): void;
+    timeout(callback: Function, duration?: number): UnitTimer;
+    interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
+    transition(transition: Function, duration?: number, easing?: string): UnitTimer;
+    private static execute;
+    private static next;
+    private static Component;
 }
 interface Context {
     stack: Context | null;
@@ -133,7 +122,7 @@ declare class Unit {
     static finalize(unit: Unit): void;
     static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
-    static extend(unit: Unit, component: Function, props?: Object): {
+    static extend(unit: Unit, Component: Function, props?: Object): {
         [key: string]: any;
     };
     static start(unit: Unit): void;
@@ -147,7 +136,7 @@ declare class Unit {
     static snapshot(unit: Unit): Snapshot;
     static context(unit: Unit, key: any, value?: any): any;
     static component2units: MapSet<Function, Unit>;
-    static find(component: Function): Unit[];
+    static find(Component: Function): Unit[];
     static type2units: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
@@ -158,20 +147,20 @@ declare class Unit {
 
 interface CreateUnit {
     /**
-     * Creates a new Unit component
+     * creates a new Unit component
      * @param Component - component function
      * @param props - properties for component function
-     * @returns A new Unit instance
+     * @returns a new Unit instance
      * @example
      * const unit = xnew(MyComponent, { data: 0 })
      */
     (Component?: Function | string, props?: Object): Unit;
     /**
-     * Creates a new Unit component
+     * creates a new Unit component
      * @param target - HTMLElement | SVGElement, or HTML tag for new element
      * @param Component - component function
      * @param props - properties for component function
-     * @returns A new Unit instance
+     * @returns a new Unit instance
      * @example
      * const unit = xnew(element, MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
@@ -285,11 +274,11 @@ declare namespace xnew {
 }
 declare const xnew: CreateUnit & {
     nest(target: UnitElement | string): HTMLElement | SVGElement;
-    extend(component: Function, props?: Object): {
+    extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
     context(component: Function): any;
-    promise(promise: Promise<any>): UnitPromise;
+    promise(promise: Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
@@ -297,7 +286,7 @@ declare const xnew: CreateUnit & {
     find(component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
     timeout(timeout: Function, duration?: number): UnitTimer;
-    interval(timeout: Function, duration: number, iterations?: number): UnitTimer;
+    interval(interval: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
 } & {

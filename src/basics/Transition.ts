@@ -7,9 +7,9 @@ export function OpenAndClose(unit: Unit,
     { open = true, transition = { duration: 200, easing: 'ease' } }:
     { open?: boolean, transition?: TransitionOptions }
 ) {
-    let state = open ? 1.0 : 0.0;
+    let value = open ? 1.0 : 0.0;
     let sign: number = open ? +1 : -1;
-    let timer = xnew.timeout(() => xnew.emit('-transition', { state }));
+    let timer = xnew.timeout(() => xnew.emit('-transition', { value }));
 
     return {
         toggle() {
@@ -17,27 +17,27 @@ export function OpenAndClose(unit: Unit,
         },
         open() {
             sign = +1;
-            const d = 1 - state;
+            const d = 1 - value;
             const duration = (transition?.duration ?? 200) * d;
             const easing = transition?.easing ?? 'ease';
             timer?.clear();
-            timer = xnew.transition((x: number) => {
-                state = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
-                xnew.emit('-transition', { state });
+            timer = xnew.transition(({ value: x }: { value: number }) => {
+                value = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
+                xnew.emit('-transition', { value });
             }, duration, easing)
-            .timeout(() => xnew.emit('-opened', { state }));
+            .timeout(() => xnew.emit('-opened'));
         },
         close() {
             sign = -1;
-            const d = state;
+            const d = value;
             const duration = (transition?.duration ?? 200) * d;
             const easing = transition?.easing ?? 'ease';
             timer?.clear();
-            timer = xnew.transition((x: number) => {
-                state = x < 1.0 ? (1 - x) * d : 0.0;
-                xnew.emit('-transition', { state });
+            timer = xnew.transition(({ value: x }: { value: number }) => {
+                value = x < 1.0 ? (1 - x) * d : 0.0;
+                xnew.emit('-transition', { value });
             }, duration, easing)
-            .timeout(() => xnew.emit('-closed', { state }));
+            .timeout(() => xnew.emit('-closed'));
         },
     }
 }
@@ -48,9 +48,9 @@ export function Accordion(unit: Unit) {
     const outer = xnew.nest('<div style="overflow: hidden;">') as HTMLElement;
     const inner = xnew.nest('<div style="display: flex; flex-direction: column; box-sizing: border-box;">') as HTMLElement;
     
-    system.on('-transition', ({ state }: { state: number }) => {
-        outer.style.height = state < 1.0 ? inner.offsetHeight * state + 'px' : 'auto';
-        outer.style.opacity = state.toString();
+    system.on('-transition', ({ value }: { value: number }) => {
+        outer.style.height = value < 1.0 ? inner.offsetHeight * value + 'px' : 'auto';
+        outer.style.opacity = value.toString();
     });
 }
 
@@ -63,7 +63,7 @@ export function Popup(unit: Unit) {
     xnew.nest('<div style="position: fixed; inset: 0; z-index: 1000; opacity: 0;">');
     unit.on('click', ({ event }: { event: PointerEvent }) => event.target === unit.element && system.close());
 
-    system.on('-transition', ({ state }: { state: number }) => {
-        unit.element.style.opacity = state.toString();
+    system.on('-transition', ({ value }: { value: number }) => {
+        unit.element.style.opacity = value.toString();
     });
 }

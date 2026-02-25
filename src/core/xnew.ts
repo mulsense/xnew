@@ -2,21 +2,21 @@ import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
 
 export interface CreateUnit {
     /**
-     * Creates a new Unit component
+     * creates a new Unit component
      * @param Component - component function
      * @param props - properties for component function
-     * @returns A new Unit instance
+     * @returns a new Unit instance
      * @example
      * const unit = xnew(MyComponent, { data: 0 })
      */
     (Component?: Function | string, props?: Object): Unit;
 
     /**
-     * Creates a new Unit component
+     * creates a new Unit component
      * @param target - HTMLElement | SVGElement, or HTML tag for new element
      * @param Component - component function
      * @param props - properties for component function
-     * @returns A new Unit instance
+     * @returns a new Unit instance
      * @example
      * const unit = xnew(element, MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
@@ -37,14 +37,10 @@ export const xnew = Object.assign(
             target = null;
         }
 
-        const component: Function | string | undefined = args.shift();
+        const Component: Function | string | undefined = args.shift();
         const props: Object | undefined = args.shift();
         
-        const unit = new Unit(Unit.currentUnit, target, component, props);
-        if (typeof component === 'function') {
-            Unit.context(Unit.currentUnit, component, unit);
-        }
-        return unit;
+        return new Unit(Unit.currentUnit, target, Component, props);
     } as CreateUnit,
     {
         /**
@@ -70,24 +66,19 @@ export const xnew = Object.assign(
 
         /**
          * Extends the current component with another component's functionality
-         * @param component - Component function to extend with
-         * @param props - Optional properties to pass to the extended component
+         * @param Component - component function to extend with
+         * @param props - optional properties to pass to the extended component
          * @returns defines returned by the extended component
          * @throws Error if called after component initialization
          * @example
          * const api = xnew.extend(BaseComponent, { data: {} })
          */
-        extend(component: Function, props?: Object): { [key: string]: any } {
+        extend(Component: Function, props?: Object): { [key: string]: any } {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
-                const defines = Unit.extend(Unit.currentUnit, component, props);
-                if (typeof component === 'function') {
-                    Unit.context(Unit.currentUnit, component, Unit.currentUnit);
-                    Unit.context(Unit.currentUnit._.parent as Unit, component, Unit.currentUnit);
-                }
-                return defines;
+                return Unit.extend(Unit.currentUnit, Component, props);
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
                 throw error;
@@ -122,11 +113,17 @@ export const xnew = Object.assign(
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
          */
-        promise(promise: Promise<any>): UnitPromise {
+        promise(promise: Promise<any> | Unit): UnitPromise {
             try {
                 const component = Unit.currentUnit._.currentComponent;
-                Unit.currentUnit._.promises.push(new UnitPromise(promise, component));
-                return Unit.currentUnit._.promises[Unit.currentUnit._.promises.length - 1];
+                let unitPromise: UnitPromise;
+                if (promise instanceof Unit) {
+                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), component)
+                } else {
+                    unitPromise = new UnitPromise(promise, component)
+                }
+                Unit.currentUnit._.promises.push(unitPromise);
+                return unitPromise;
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
                 throw error;
@@ -142,11 +139,11 @@ export const xnew = Object.assign(
          */
         then(callback: Function): UnitPromise {
             try {
-                const component = Unit.currentUnit._.currentComponent;
+                const Component = Unit.currentUnit._.currentComponent;
                 const promises = Unit.currentUnit._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results: any[]) => {
-                    callback(results.filter((_result, index) => promises[index].component !== null && promises[index].component === component));
+                    callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
                 });
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -242,28 +239,28 @@ export const xnew = Object.assign(
 
         /**
          * Executes a callback once after a delay, managed by component lifecycle
-         * @param timeout - Function to execute after Duration
+         * @param callback - Function to execute after Duration
          * @param duration - Duration in milliseconds
          * @returns Object with clear() method to cancel the timeout
          * @example
          * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
          * // Cancel if needed: timer.clear()
          */
-        timeout(timeout: Function, duration: number = 0): UnitTimer {
-            return new UnitTimer({ timeout, duration, iterations: 1 });
+        timeout(callback: Function, duration: number = 0): UnitTimer {
+            return new UnitTimer().timeout(callback, duration);
         },
 
         /**
          * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-         * @param timeout - Function to execute at each duration
+         * @param callback - Function to execute at each duration
          * @param duration - Duration in milliseconds
          * @returns Object with clear() method to stop the interval
          * @example
          * const timer = xnew.interval(() => console.log('Tick'), 1000)
          * // Stop when needed: timer.clear()
          */
-        interval(timeout: Function, duration: number, iterations: number = 0): UnitTimer {
-            return new UnitTimer({ timeout, duration, iterations });
+        interval(callback: Function, duration: number, iterations: number = 0): UnitTimer {
+            return new UnitTimer().interval(callback, duration, iterations);
         },
 
         /**
@@ -280,7 +277,7 @@ export const xnew = Object.assign(
          * }, 300)
          */
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): UnitTimer {
-            return new UnitTimer({ transition, duration, easing, iterations: 1 });
+            return new UnitTimer().transition(transition, duration, easing);
         },
 
         /**

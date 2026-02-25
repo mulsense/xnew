@@ -1,5 +1,22 @@
 //----------------------------------------------------------------------------------------------------
-// ticker
+// visibility change
+//----------------------------------------------------------------------------------------------------
+
+class Visibility {
+    private listener: ((this: Document, event: Event) => any);
+
+    constructor(callback?: Function) {
+        this.listener = () => callback?.(document.hidden === false);
+        document.addEventListener('visibilitychange', this.listener);
+    }
+
+    clear(): void {
+        document.removeEventListener('visibilitychange', this.listener);
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// animation ticker
 //----------------------------------------------------------------------------------------------------
 
 export class AnimationTicker {
@@ -34,118 +51,94 @@ export class AnimationTicker {
 //----------------------------------------------------------------------------------------------------
 
 export interface TimerOptions {
+    callback?: Function,
     transition?: Function,
-    timeout?: Function,
     duration: number, 
-    iterations: number,
     easing?: string
 }
 
 export class Timer {
     private options: TimerOptions;
 
-    private startid: NodeJS.Timeout | null;
-    private endid: NodeJS.Timeout | null;
+    private id: number | null;
 
-    private time: number;
-    private counter: number;
-    private offset: number;
-    private status: 0 | 1;
-    private visibilitychange: ((this: Document, event: Event) => any);
+    private time: { start: number, processed: number };
+    private request: boolean;
+    private visibility: Visibility;
     private ticker: AnimationTicker;
 
     constructor(options: TimerOptions) {
         this.options = options;
 
-        this.startid = null;
-        this.endid = null;
-        this.time = 0.0;
-        this.counter = 0;
-        this.offset = 0.0;
+        this.id = null;
+        this.time = { start: 0.0, processed: 0.0 };
 
-        this.status = 0;
-        this.ticker = new AnimationTicker((time: number) => {
-            let p = Math.min(this.elapsed() / this.options.duration, 1.0);
-            if (this.options.easing === 'ease-out') {
-                p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
-
-            } else if (this.options.easing === 'ease-in') {
-                p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-
-            } else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
-                // p = (1.0 - Math.cos(p * Math.PI)) / 2.0;
-
-                const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-                const s = p ** bias;
-                p = s * s * (3 - 2 * s);
-            }
-            this.options.transition?.(p);
-        });
+        this.request = true;
+        this.ticker = new AnimationTicker(() => this.animation());
   
-        this.visibilitychange = () => document.hidden === false ? this._start() : this._stop();
-        document.addEventListener('visibilitychange', this.visibilitychange);
+        this.visibility = new Visibility((visible: boolean) => visible ? this._start() : this._stop());
 
-        this.startid = setTimeout(() => {
-            this.options.transition?.(0.0);
-        }, 0);
+        this.options.transition?.(0.0);
         this.start();
+    }
+    
+    private animation(): void {
+        let p = Math.min(this.elapsed() / this.options.duration, 1.0);
+        if (this.options.easing === 'ease-out') {
+            p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
+        } else if (this.options.easing === 'ease-in') {
+            p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
+        } else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
+            const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
+            const s = p ** bias;
+            p = s * s * (3 - 2 * s);
+        }
+        this.options.transition?.(p);
     }
 
     public clear(): void {
-        if (this.startid !== null) {
-            clearTimeout(this.startid);
-            this.startid = null;
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
         }
-        if (this.endid !== null) {
-            clearTimeout(this.endid);
-            this.endid = null;
-        }
-        document.removeEventListener('visibilitychange', this.visibilitychange);
+        this.visibility.clear();
         this.ticker.clear();
     }
 
     public elapsed(): number {
-        return this.offset + (this.endid !== null ? (Date.now() - this.time) : 0);
+        return this.time.processed + (this.id !== null ? (Date.now() - this.time.start) : 0);
     }
 
     public start(): void {
-        this.status = 1;
+        this.request = true;
         this._start();
     }
 
     public stop(): void {
         this._stop();
-        this.status = 0;
+        this.request = false;
     }
 
     private _start(): void {
-        if (this.status === 1 && this.endid === null) {
-            this.endid = setTimeout(() => {
+        if (this.request === true && this.id === null) {
+            this.id = setTimeout(() => {
+                this.id = null;
+                this.time = { start: 0.0, processed: 0.0 };
+
                 this.options.transition?.(1.0);
-                this.options.timeout?.();
+                this.options.callback?.();
 
-                this.endid = null;
-                this.time = 0.0;
-                this.offset = 0.0;
-                this.counter++;
-
-                if (this.options.iterations === 0 || this.counter < this.options.iterations) {
-                    this.start();
-                } else {
-                    this.clear();
-                }
-            }, this.options.duration - this.offset);
-            this.time = Date.now();
+                this.clear();
+            }, this.options.duration - this.time.processed) as unknown as number; 
+            this.time.start = Date.now();
         }
     }
 
     private _stop(): void {
-        if (this.status === 1 && this.endid !== null) {
-            this.offset = this.offset + Date.now() - this.time;
-            clearTimeout(this.endid);
-
-            this.endid = null;
-            this.time = 0.0;
+        if (this.request === true && this.id !== null) {
+            this.time.processed = this.time.processed + Date.now() - this.time.start;
+            clearTimeout(this.id);
+            this.id = null;
         }
     }
 }
