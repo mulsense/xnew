@@ -15,64 +15,22 @@
     xnew(document.querySelector('#main'), Main);
 
     function Main(unit) {
-      xnew('<div class="w-full flex items-center justify-center bg-slate-50 p-4 border-b border-gray-200">', FlowDiagram);
-      xnew('<div class="flex-1 p-4 overflow-y-auto">', Contents);
+      xnew.nest('<div class="h-full flex flex-col">');
+      xnew(FlowDiagram);
+      xnew(Console);
+      xnew(PromiseTest);
     }
 
-    function FlowDiagram(unit) {
-      xnew.nest('<svg viewBox="0 0 420 380" font-family="monospace" style="height:220px;width:auto">');
-
-      xnew('<defs>', () => {
-        xnew('<marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">', () => {
-          xnew('<path d="M0,0 L0,6 L8,3 z" fill="#64748b">');
-        });
-      });
-
-      // Main
-      xnew('<rect x="10" y="10" width="400" height="360" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2">');
-      xnew('<text x="24" y="36" fill="#1e40af" font-weight="bold" font-size="15">', 'Main');
-
-      // Assets
-      xnew('<rect x="30" y="52" width="360" height="218" rx="6" fill="#f0fdf4" stroke="#22c55e" stroke-width="2">');
-      xnew('<text x="44" y="74" fill="#15803d" font-weight="bold" font-size="13">', 'Assets');
-
-      // Promise 1
-      xnew('<rect x="50" y="88" width="140" height="62" rx="5" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5">');
-      xnew('<text x="120" y="114" text-anchor="middle" fill="#854d0e" font-weight="bold">', 'Promise 1');
-      xnew('<text x="120" y="136" text-anchor="middle" fill="#92400e" font-size="11">', 'timeout: 2000ms');
-
-      // Promise 2
-      xnew('<rect x="230" y="88" width="140" height="62" rx="5" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5">');
-      xnew('<text x="300" y="114" text-anchor="middle" fill="#854d0e" font-weight="bold">', 'Promise 2');
-      xnew('<text x="300" y="136" text-anchor="middle" fill="#92400e" font-size="11">', 'timeout: 1000ms');
-
-      // P1 & P2 converge
-      xnew('<line x1="120" y1="150" x2="120" y2="182" stroke="#64748b" stroke-width="1.5">');
-      xnew('<line x1="300" y1="150" x2="300" y2="182" stroke="#64748b" stroke-width="1.5">');
-      xnew('<line x1="120" y1="182" x2="300" y2="182" stroke="#64748b" stroke-width="1.5">');
-      xnew('<line x1="210" y1="182" x2="210" y2="198" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)">');
-
-      // xnew.then
-      xnew('<rect x="100" y="198" width="220" height="58" rx="5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5">');
-      xnew('<text x="210" y="222" text-anchor="middle" fill="#334155" font-size="12" font-weight="bold">', 'xnew.then()');
-      xnew('<text x="210" y="244" text-anchor="middle" fill="#475569" font-size="11">', 'xnew.resolve(results)');
-
-      // Arrow crosses Assets border
-      xnew('<line x1="210" y1="256" x2="210" y2="286" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)">');
-
-      // Results (in Main)
-      xnew('<rect x="100" y="286" width="220" height="58" rx="5" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5">');
-      xnew('<text x="210" y="310" text-anchor="middle" fill="#4c1d95" font-size="12" font-weight="bold">', 'xnew.promise(assets)');
-      xnew('<text x="210" y="330" text-anchor="middle" fill="#5b21b6" font-size="11">', '.then() → show results');
+    function Console(unit) {
+      xnew.nest('<div class="flex-none w-full h-24 p-2 text-sm bg-gray-100">');
+      unit.on('+console', ({ text }) => xnew('<p>', text));
     }
 
-    function Contents(unit) {
-      xnew('<p>', 'Please wait.');
-
+    function PromiseTest(unit) {
       const assets = xnew(Assets);
 
-      xnew.promise(assets).then((result) => {
-        xnew('<p>', `Results: ${JSON.stringify(result)}`);
+      xnew.promise(assets).then((results) => {
+        xnew.emit('+console', { text: `Results: ${JSON.stringify(results)}` });
       });
     }
 
@@ -81,23 +39,67 @@
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
-        xnew('<p>', text);
-        results.first = text;
+        xnew.emit('+console', { text });
+        results.data1 = 1;
       });
 
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
-        xnew('<p>', text);
-        results.second = text;
+        xnew.emit('+console', { text });
+        results.data2 = 2;
       });
 
       xnew.then(() => {
-        xnew('<p>', 'Assets Component Resolved.');
+        xnew.emit('+console', { text: 'Assets Component Resolved.' });
         xnew.resolve(results);
       });
     }
 
+    function FlowDiagram(unit) {
+      xnew.nest('<div class="flex-auto w-full">');
+      xnew.extend(xnew.basics.Screen, { aspect: 420/380, fit: 'contain' });
+      xnew.nest('<svg viewBox="0 0 420 380" font-family="monospace" class="size-full">');
+
+      xnew('<defs>', () => {
+        xnew('<marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">', () => {
+          xnew('<path d="M0,0 L0,6 L8,3 z" fill="#64748b">');
+        });
+      });
+
+      function Container(unit, { x, y, w, h, rx, fill, stroke, sw = 2, label, color, size = 13 }) {
+        xnew(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}">`);
+        xnew(`<text x="${x + 14}" y="${y + size + 10}" fill="${color}" font-weight="bold" font-size="${size}">`, label);
+      }
+
+      function Node(unit, { x, y, w, h, fill, stroke, label, color, sub }) {
+        const cx = x + w / 2;
+        xnew(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="1.5">`);
+        xnew(`<text x="${cx}" y="${Math.round(y + h * (sub ? 0.42 : 0.55))}" text-anchor="middle" fill="${color}" font-weight="bold" font-size="12">`, label);
+        xnew(`<text x="${cx}" y="${Math.round(y + h * 0.77)}" text-anchor="middle" fill="${color}" font-size="11">`, sub);
+      }
+
+      function Line(unit, { x1, y1, x2, y2, arrow = false }) {
+        xnew(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.5"${arrow ? ' marker-end="url(#arr)"' : ''}>`);
+      }
+
+      xnew(Container, { x: 10, y: 10, w: 400, h: 360, rx: 8, fill: '#eff6ff', stroke: '#3b82f6', label: 'PromiseTest', color: '#1e40af', size: 15 });
+      xnew(Container, { x: 30, y: 52, w: 360, h: 218, rx: 6, fill: '#f0fdf4', stroke: '#22c55e', label: 'Assets', color: '#15803d' });
+
+      xnew(Node, { x:  50, y: 88, w: 140, h: 62, fill: '#fefce8', stroke: '#ca8a04', label: 'Promise 1', color: '#854d0e', sub: 'timeout: 2000ms' });
+      xnew(Node, { x: 230, y: 88, w: 140, h: 62, fill: '#fefce8', stroke: '#ca8a04', label: 'Promise 2', color: '#854d0e', sub: 'timeout: 1000ms' });
+
+      xnew(Line, { x1: 120, y1: 150, x2: 120, y2: 182 });
+      xnew(Line, { x1: 300, y1: 150, x2: 300, y2: 182 });
+      xnew(Line, { x1: 120, y1: 182, x2: 300, y2: 182 });
+      xnew(Line, { x1: 210, y1: 182, x2: 210, y2: 198, arrow: true });
+
+      xnew(Node, { x: 100, y: 198, w: 220, h: 58, fill: '#f1f5f9', stroke: '#94a3b8', label: 'xnew.then()', color: '#334155', sub: 'xnew.resolve(results)' });
+
+      xnew(Line, { x1: 210, y1: 256, x2: 210, y2: 286, arrow: true });
+
+      xnew(Node, { x: 100, y: 286, w: 220, h: 58, fill: '#ede9fe', stroke: '#7c3aed', label: 'xnew.promise(assets)', color: '#4c1d95', sub: '.then() → show results' });
+    }
 
   </script>
 </body>
