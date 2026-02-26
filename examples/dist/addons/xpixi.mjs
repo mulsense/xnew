@@ -27,7 +27,10 @@ function Root(unit, { canvas }) {
     xnew.promise(PIXI.autoDetectRenderer({
         width: canvas.width, height: canvas.height, view: canvas,
         antialias: true, backgroundAlpha: 0,
-    })).then((value) => renderer = value);
+    })).then((value) => {
+        renderer = value;
+        xnew.resolve();
+    });
     let scene = new PIXI.Container();
     return {
         get renderer() { return renderer; },

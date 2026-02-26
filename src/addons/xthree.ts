@@ -6,7 +6,7 @@ export default {
         { canvas = null, camera = null }:
         { canvas?: HTMLCanvasElement | null, camera?: THREE.Camera | null } = {}
     ) {
-        xnew(Root, { canvas, camera });
+        xnew.promise(xnew(Root, { canvas, camera }));
     },
     nest (object: any) {
         xnew(Nest, { object });
@@ -32,6 +32,8 @@ function Root(unit: xnew.Unit, { canvas, camera }: any) {
     
     camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
     const scene = new THREE.Scene();
+
+    xnew.resolve();
 
     return {
         get canvas() { return canvas; },

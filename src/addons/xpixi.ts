@@ -8,7 +8,7 @@ export default {
         { canvas = null }:
         { canvas?: HTMLCanvasElement | null } = {}
     ) {
-        xnew(Root, { canvas });
+        xnew.promise(xnew(Root, { canvas }));
     },
     nest(object: any) {
         xnew(Nest, { object });
@@ -30,7 +30,10 @@ function Root(unit: xnew.Unit, { canvas }: { canvas: HTMLCanvasElement }) {
     xnew.promise(PIXI.autoDetectRenderer({
         width: canvas.width, height: canvas.height, view: canvas,
         antialias: true, backgroundAlpha: 0,
-    })).then((value: any) => renderer = value);
+    })).then((value: any) => {
+        renderer = value;
+        xnew.resolve();
+    });
 
     let scene = new PIXI.Container();
 

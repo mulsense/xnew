@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
 
 export interface CreateUnit {
@@ -118,7 +119,7 @@ export const xnew = Object.assign(
                 const component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), component)
+                    unitPromise = new UnitPromise(promise._.done.promise, component)
                 } else {
                     unitPromise = new UnitPromise(promise, component)
                 }
@@ -165,6 +166,40 @@ export const xnew = Object.assign(
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Resolves the current unit's promise with the given value
+         * @param value - Value to resolve the promise with
+         * @returns void
+         * @example
+         * xnew.resolve('data');
+         */
+        resolve(value?: any): void {
+            try {
+                const done = Unit.currentUnit._.done;
+                done.resolve(value);
+            } catch (error: unknown) {
+                console.error('xnew.resolve(value?: any): ', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Rejects the current unit's promise with the given reason
+         * @param reason - Reason to reject the promise
+         * @returns void
+         * @example
+         * xnew.reject(new Error('Something went wrong'));
+         */
+        reject(reason?: any): void {
+            try {
+                const done = Unit.currentUnit._.done;
+                done.reject(reason);
+            } catch (error: unknown) {
+                console.error('xnew.reject(reason?: any): ', error);
                 throw error;
             }
         },

@@ -92,6 +92,11 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
+    done: {
+        promise: Promise<any>;
+        resolve: Function;
+        reject: Function;
+    };
     nestElements: {
         element: UnitElement;
         owned: boolean;
@@ -281,12 +286,14 @@ declare const xnew: CreateUnit & {
     promise(promise: Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
+    resolve(value?: any): void;
+    reject(reason?: any): void;
     finally(callback: Function): UnitPromise;
     scope(callback: any): any;
     find(component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
-    timeout(timeout: Function, duration?: number): UnitTimer;
-    interval(interval: Function, duration: number, iterations?: number): UnitTimer;
+    timeout(callback: Function, duration?: number): UnitTimer;
+    interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
 } & {

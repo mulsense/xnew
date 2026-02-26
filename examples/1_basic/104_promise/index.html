@@ -17,28 +17,30 @@
       
       const myComponent = xnew(MyComponent);
 
-      const promise = xnew.promise(myComponent);
-
-      promise.then((result) => {
-        console.log(result);
+      xnew.promise(myComponent).then((result) => {
+        xnew('<p>', `Results: ${JSON.stringify(result)}`);
       });
     });
 
     function MyComponent(unit) {
+      const results = {};
       xnew.promise(new Promise((resolve) => {
         xnew.timeout(() => resolve('First Promise Resolved.'), 2000);
-      }));
+      })).then((text) => {
+        results.first = text;
+      });
 
       xnew.promise(new Promise((resolve) => {
         xnew.timeout(() => resolve('Second Promise Resolved.'), 1000);
       })).then((text) => {
-        return text + ' then.';
+        results.second = text;
       });
 
-      xnew.then((results) => {
-        results.forEach((result) => {
+      xnew.then(() => {
+        Object.values(results).forEach((result) => {
           const p = xnew('<p>', result);
         });
+        xnew.resolve(results);
         return 'All Promises Resolved.';
       });
     }

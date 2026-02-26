@@ -3,7 +3,7 @@ import Matter from 'matter-js';
 
 export default {
     initialize ({}: any = {}) {
-        xnew(Root, {});
+       xnew.promise(xnew(Root, {}));
     },
     get engine() {
         return xnew.context(Root)?.engine;

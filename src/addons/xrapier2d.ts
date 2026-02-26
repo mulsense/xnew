@@ -3,7 +3,7 @@ import RAPIER from '@dimforge/rapier2d-compat';
 
 export default {
     initialize ({ gravity = { x: 0.0, y: -9.81 } }: any = {}) {
-        xnew(Root, { gravity });
+        xnew.promise(xnew(Root, { gravity }));
     },
     get world() {
         return xnew.context(Root)?.world;
