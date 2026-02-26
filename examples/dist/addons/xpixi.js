@@ -25,7 +25,7 @@
 
     var xpixi = {
         initialize({ canvas = null } = {}) {
-            xnew(Root, { canvas });
+            xnew.promise(xnew(Root, { canvas }));
         },
         nest(object) {
             xnew(Nest, { object });

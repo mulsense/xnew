@@ -155,7 +155,7 @@ class Timer {
         }
         else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
             const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = Math.pow(p, bias);
+            const s = p ** bias;
             p = s * s * (3 - 2 * s);
         }
         (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);

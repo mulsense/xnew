@@ -1,4 +1,3 @@
-import { resolve } from 'path';
 import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
 
 export interface CreateUnit {
