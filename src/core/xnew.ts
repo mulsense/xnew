@@ -113,14 +113,16 @@ export const xnew = Object.assign(
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
          */
-        promise(promise: Promise<any> | Unit): UnitPromise {
+        promise(promise: Function | Promise<any> | Unit): UnitPromise {
             try {
                 const component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
                     unitPromise = new UnitPromise(promise._.done.promise, component)
-                } else {
+                } else if (promise instanceof Promise) {
                     unitPromise = new UnitPromise(promise, component)
+                } else {
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), component)
                 }
                 Unit.currentUnit._.promises.push(unitPromise);
                 return unitPromise;

@@ -33,13 +33,26 @@ function Contents(unit) {
   // objects
   xnew(Ground);
  
-  xnew.promise(new Promise((resolve) => {
-    new GLTFLoader().load('./Xbot.glb', (gltf) => resolve(gltf));
-  })).then((gltf) => {
-    xnew(Model, { gltf });
-    xnew(document.body, Panel);
+  xnew.promise(xnew(Assets)).then(() => {
+    xnew(Model, { key: 'xbot' });
+    xnew(Panel);
   });
 }
+
+function Assets(unit) {
+  const models = {};
+  xnew.promise((resolve) => {
+    new GLTFLoader().load('./Xbot.glb', (value) => resolve(value));
+  }).then((gltf) => {
+    models.xbot = gltf;
+  });
+
+  xnew.then(() => xnew.resolve());
+  return {
+    get models() { return models; },
+  }
+}
+
 
 function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
   const object = xthree.nest(new THREE.DirectionalLight(color, intensity));
@@ -61,8 +74,9 @@ function Controller(unit) {
   controls.update();
 }
 
-function Model(unit, { gltf }) {
+function Model(unit, { key }) {
   const object = xthree.nest(new THREE.Object3D());
+  const gltf = xnew.context(Assets).models[key];
   const model = gltf.scene;
   const skeleton = new THREE.SkeletonHelper(model);
  
@@ -144,10 +158,11 @@ function Model(unit, { gltf }) {
       }
       select = name;
     },
-  }
+  };
 }
 
 function Panel(panel) {
+  xnew.nest(document.body);
   const state = xnew.context(Model);
   const params = { action: 'idle', speed: 1.0, };
   

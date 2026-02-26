@@ -18,14 +18,14 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
-  xnew(DataManager);
+  xnew(Assets);
   xnew(Contents);
 }
 
 function Contents(unit) {
-  const manager = xnew.context(DataManager);
-  xnew.promise(manager).then(() => {
-    const sprite = xpixi.nest(new PIXI.AnimatedSprite(manager.textures));
+  const assets = xnew.context(Assets);
+  xnew.promise(assets).then(() => {
+    const sprite = xpixi.nest(new PIXI.AnimatedSprite(assets.textures));
     sprite.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2); // center
     sprite.anchor.set(0.5);
     sprite.animationSpeed = 1;
@@ -33,7 +33,7 @@ function Contents(unit) {
   });
 }
 
-function DataManager(unit) {
+function Assets(unit) {
   let textures = null;
   xnew.promise(xnew(Baking)).then((value) => {
     textures = value;

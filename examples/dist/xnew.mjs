@@ -1034,8 +1034,11 @@ const xnew$1 = Object.assign(function (...args) {
             if (promise instanceof Unit) {
                 unitPromise = new UnitPromise(promise._.done.promise, component);
             }
-            else {
+            else if (promise instanceof Promise) {
                 unitPromise = new UnitPromise(promise, component);
+            }
+            else {
+                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), component);
             }
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
