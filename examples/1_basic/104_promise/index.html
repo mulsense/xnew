@@ -12,36 +12,37 @@
   
   <script>
 
-    xnew(document.querySelector('#main'), (unit) => {
+    xnew(document.querySelector('#main'), Main);
+
+    function Main(unit) {
       xnew('<p>', 'Please wait.');
       
-      const myComponent = xnew(MyComponent);
+      const assets = xnew(Assets);
 
-      xnew.promise(myComponent).then((result) => {
+      xnew.promise(assets).then((result) => {
         xnew('<p>', `Results: ${JSON.stringify(result)}`);
       });
-    });
+    }
 
-    function MyComponent(unit) {
+    function Assets(unit) {
       const results = {};
-      xnew.promise(new Promise((resolve) => {
-        xnew.timeout(() => resolve('First Promise Resolved.'), 2000);
-      })).then((text) => {
+      xnew.promise((resolve) => {
+        xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
+      }).then((text) => {
+        xnew('<p>', text);
         results.first = text;
       });
 
-      xnew.promise(new Promise((resolve) => {
-        xnew.timeout(() => resolve('Second Promise Resolved.'), 1000);
-      })).then((text) => {
+      xnew.promise((resolve) => {
+        xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
+      }).then((text) => {
+        xnew('<p>', text);
         results.second = text;
       });
 
       xnew.then(() => {
-        Object.values(results).forEach((result) => {
-          const p = xnew('<p>', result);
-        });
+        xnew('<p>', 'Assets Component Resolved.');
         xnew.resolve(results);
-        return 'All Promises Resolved.';
       });
     }
 

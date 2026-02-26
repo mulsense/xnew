@@ -1437,23 +1437,23 @@ function Panel(unit, { name, open = false, params }) {
             const button = xnew$1(Button, { key });
             return button;
         },
-        select(key, { options = [] } = {}) {
+        select(key, { value, items = [] } = {}) {
             var _a, _b;
-            object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options[0]) !== null && _b !== void 0 ? _b : '';
-            const select = xnew$1(Select, { key, value: object[key], options });
+            object[key] = (_b = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : items[0]) !== null && _b !== void 0 ? _b : '';
+            const select = xnew$1(Select, { key, value: object[key], items });
             select.on('input', ({ value }) => object[key] = value);
             return select;
         },
-        range(key, options = {}) {
-            var _a, _b;
-            object[key] = (_b = (_a = object[key]) !== null && _a !== void 0 ? _a : options.min) !== null && _b !== void 0 ? _b : 0;
-            const number = xnew$1(Range, Object.assign({ key, value: object[key] }, options));
+        range(key, { value, min = 0, max = 100, step = 1 } = {}) {
+            var _a;
+            object[key] = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : min;
+            const number = xnew$1(Range, { key, value: object[key], min, max, step });
             number.on('input', ({ value }) => object[key] = value);
             return number;
         },
-        checkbox(key) {
+        checkbox(key, { value } = {}) {
             var _a;
-            object[key] = (_a = object[key]) !== null && _a !== void 0 ? _a : false;
+            object[key] = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : false;
             const checkbox = xnew$1(Checkbox, { key, value: object[key] });
             checkbox.on('input', ({ value }) => object[key] = value);
             return checkbox;
@@ -1537,14 +1537,14 @@ function Checkbox(unit, { key = '', value } = {}) {
         update(value);
     });
 }
-function Select(_, { key = '', value, options = [] } = {}) {
+function Select(_, { key = '', value, items = [] } = {}) {
     var _a;
-    const initial = (_a = value !== null && value !== void 0 ? value : options[0]) !== null && _a !== void 0 ? _a : '';
+    const initial = (_a = value !== null && value !== void 0 ? value : items[0]) !== null && _a !== void 0 ? _a : '';
     xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center;">`);
     xnew$1('<div style="flex: 1;">', key);
     const native = xnew$1(`<select name="${key}" style="display: none;">`, () => {
-        for (const option of options) {
-            xnew$1(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
+        for (const item of items) {
+            xnew$1(`<option value="${item}" ${item === initial ? 'selected' : ''}>`, item);
         }
     });
     const button = xnew$1(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
@@ -1564,13 +1564,13 @@ function Select(_, { key = '', value, options = [] } = {}) {
             });
             xnew$1.extend(Accordion);
             xnew$1.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25em; overflow: hidden;">`);
-            for (const option of options) {
-                const item = xnew$1(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
-                item.on('pointerover', () => item.element.style.background = currentColorB);
-                item.on('pointerout', () => item.element.style.background = '');
-                item.on('click', () => {
-                    button.element.textContent = option;
-                    native.element.value = option;
+            for (const item of items) {
+                const div = xnew$1(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, item);
+                div.on('pointerover', () => div.element.style.background = currentColorB);
+                div.on('pointerout', () => div.element.style.background = '');
+                div.on('click', () => {
+                    button.element.textContent = item;
+                    native.element.value = item;
                     native.element.dispatchEvent(new Event('input', { bubbles: false }));
                     list.finalize();
                 });
