@@ -221,15 +221,19 @@ interface PanelOptions {
 declare function Panel(unit: Unit, { name, open, params }: PanelOptions): {
     group({ name, open, params }: PanelOptions, inner: Function): Unit;
     button(key: string): Unit;
-    select(key: string, { options }?: {
-        options?: string[];
+    select(key: string, { value, items }?: {
+        value?: string;
+        items?: string[];
     }): Unit;
-    range(key: string, options?: {
+    range(key: string, { value, min, max, step }?: {
+        value?: number;
         min?: number;
         max?: number;
         step?: number;
     }): Unit;
-    checkbox(key: string): Unit;
+    checkbox(key: string, { value }?: {
+        value?: boolean;
+    }): Unit;
     separator(): void;
 };
 
@@ -283,7 +287,7 @@ declare const xnew: CreateUnit & {
         [key: string]: any;
     };
     context(component: Function): any;
-    promise(promise: Promise<any> | Unit): UnitPromise;
+    promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     resolve(value?: any): void;

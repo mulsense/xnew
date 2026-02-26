@@ -15,7 +15,7 @@ function Main(unit) {
   // three setup
   xthree.initialize({ canvas: canvas.element });
   xthree.renderer.shadowMap.enabled = true;
-  xthree.camera.position.set(- 1, 2, 3);
+  xthree.camera.position.set(1, 2, 3);
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
   });
@@ -52,7 +52,6 @@ function Assets(unit) {
     get models() { return models; },
   }
 }
-
 
 function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
   const object = xthree.nest(new THREE.DirectionalLight(color, intensity));
@@ -163,27 +162,26 @@ function Model(unit, { key }) {
 
 function Panel(panel) {
   xnew.nest(document.body);
-  const state = xnew.context(Model);
-  const params = { action: 'idle', speed: 1.0, };
+  const model = xnew.context(Model);
   
   xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
-  xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true, params });
+  xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true });
 
-  const baseActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'base');
-  panel.select('action', { options: baseActions }).on('input', ({ value }) => {
-    state.crossfade(value);
+  const baseActions = Object.keys(model.settings).filter(key => model.settings[key].type === 'base');
+  panel.select('action', { value: 'idle', items: baseActions }).on('input', ({ value }) => {
+    model.crossfade(value);
   });
 
   xnew('<p>', 'weights');
-  const additiveActions = Object.keys(state.settings).filter(key => state.settings[key].type === 'additive');
+  const additiveActions = Object.keys(model.settings).filter(key => model.settings[key].type === 'additive');
   for (const name of additiveActions) {
-    params[name] = state.settings[name].weight;
-    panel.range(name, { min: 0, max: 1, step: 0.01 }).on('input', ({ event }) => {
-      state.settings[name].weight = parseFloat(event.target.value);
-      state.activate(state.settings[name].action, parseFloat(event.target.value));
+    panel.range(name, { value: model.settings[name].weight, min: 0, max: 1, step: 0.01 })
+    .on('input', ({ event }) => {
+      model.settings[name].weight = parseFloat(event.target.value);
+      model.activate(model.settings[name].action, parseFloat(event.target.value));
     });
   }
-  panel.range('speed', { min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
-    state.speed = value;
+  panel.range('speed', { value: 1.0, min: 0.01, max: 2.00, step: 0.01 }).on('input', ({ event, value }) => {
+    model.speed = value;
   });
 }

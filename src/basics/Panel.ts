@@ -23,22 +23,22 @@ export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) 
             const button = xnew(Button, { key });
             return button;
         },
-        select(key: string, { options = [] }: { options?: string[] } = {}) {
-            object[key] = object[key] ?? options[0] ?? '';
+        select(key: string, { value, items = [] }: { value?: string, items?: string[] } = {}) {
+            object[key] = value ?? object[key] ?? items[0] ?? '';
 
-            const select = xnew(Select, { key, value: object[key], options });
+            const select = xnew(Select, { key, value: object[key], items });
             select.on('input', ({ value }: { value: string }) => object[key] = value);
             return select;
         },
-        range(key: string, options: { min?: number, max?: number, step?: number } = {}) {
-            object[key] = object[key] ?? options.min ?? 0;
+        range(key: string, { value, min = 0, max = 100, step = 1 }: { value?: number, min?: number, max?: number, step?: number } = {}) {
+            object[key] = value ?? object[key] ?? min;
 
-            const number = xnew(Range, { key, value: object[key], ...options });
+            const number = xnew(Range, { key, value: object[key], min, max, step });
             number.on('input', ({ value }: { value: number }) => object[key] = value);
             return number;
         },
-        checkbox(key: string) {
-            object[key] = object[key] ?? false;
+        checkbox(key: string, { value }: { value?: boolean } = {}) {
+            object[key] = value ?? object[key] ?? false;
 
             const checkbox = xnew(Checkbox, { key, value: object[key] });
             checkbox.on('input', ({ value }: { value: boolean }) => object[key] = value);
@@ -141,15 +141,15 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
     });
 }
 
-function Select(_: Unit, { key = '', value, options = [] }: { key?: string, value?: string, options?: string[] } = {}) {
-    const initial = value ?? options[0] ?? '';
+function Select(_: Unit, { key = '', value, items = [] }: { key?: string, value?: string, items?: string[] } = {}) {
+    const initial = value ?? items[0] ?? '';
 
     xnew.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center;">`);
     xnew('<div style="flex: 1;">', key);
 
     const native = xnew(`<select name="${key}" style="display: none;">`, () => {
-        for (const option of options) {
-            xnew(`<option value="${option}" ${option === initial ? 'selected' : ''}>`, option);
+        for (const item of items) {
+            xnew(`<option value="${item}" ${item === initial ? 'selected' : ''}>`, item);
         }
     });
 
@@ -175,13 +175,13 @@ function Select(_: Unit, { key = '', value, options = [] }: { key?: string, valu
             xnew.extend(Accordion);
             xnew.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25em; overflow: hidden;">`);
 
-            for (const option of options) {
-                const item = xnew(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, option);
-                item.on('pointerover', () => item.element.style.background = currentColorB);
-                item.on('pointerout', () => item.element.style.background = '');
-                item.on('click', () => {
-                    button.element.textContent = option;
-                    (native.element as HTMLSelectElement).value = option;
+            for (const item of items) {
+                const div = xnew(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, item);
+                div.on('pointerover', () => div.element.style.background = currentColorB);
+                div.on('pointerout', () => div.element.style.background = '');
+                div.on('click', () => {
+                    button.element.textContent = item;
+                    (native.element as HTMLSelectElement).value = item;
                     native.element.dispatchEvent(new Event('input', { bubbles: false }));
                     list.finalize();
                 });
