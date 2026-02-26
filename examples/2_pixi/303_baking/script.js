@@ -15,22 +15,34 @@ function Main(unit) {
   // pixi setup
   xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
-    xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(DataManager);
   xnew(Contents);
 }
 
 function Contents(unit) {
-  xnew.promise(xnew(Baking)).then(([textures]) => {
-
-    const sprite = xpixi.nest(new PIXI.AnimatedSprite(textures));
+  const manager = xnew.context(DataManager);
+  xnew.promise(manager).then(() => {
+    const sprite = xpixi.nest(new PIXI.AnimatedSprite(manager.textures));
     sprite.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2); // center
     sprite.anchor.set(0.5);
     sprite.animationSpeed = 1;
     sprite.play();
   });
+}
+
+function DataManager(unit) {
+  let textures = null;
+  xnew.promise(xnew(Baking)).then((value) => {
+    textures = value;
+    xnew.resolve();
+  });
+
+  return {
+    get textures() { return textures; }
+  }
 }
 
 function Baking(unit) {
@@ -42,23 +54,16 @@ function Baking(unit) {
 
   xnew(Cubes);
 
-  // baking
   let textures = [];
   unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
     const bitmap = xthree.canvas.transferToImageBitmap();
     textures.push(PIXI.Texture.from(bitmap));
     if (textures.length === 60) {
-      xnew.emit('-resolve');
+      xnew.resolve(textures);
+      unit.finalize();
     }
   });
-
-  xnew.promise(new Promise((resolve) => {
-    unit.on('-resolve', () => {
-      resolve(textures);
-      unit.finalize();
-    })
-  }));
 }
 
 function Cubes(unit) {
