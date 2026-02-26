@@ -658,6 +658,12 @@ class Unit {
     static initialize(unit, anchor) {
         const backup = Unit.currentUnit;
         Unit.currentUnit = unit;
+        const done = {
+            promise: null,
+            resolve: null,
+            reject: null
+        };
+        done.promise = new Promise((resolve, reject) => { done.resolve = resolve; done.reject = reject; });
         unit._ = Object.assign(unit._, {
             currentElement: unit._.baseElement,
             currentContext: unit._.baseContext,
@@ -670,6 +676,7 @@ class Unit {
             children: [],
             nestElements: [],
             promises: [],
+            done,
             components: [],
             listeners: new MapMap(),
             defines: {},
@@ -683,7 +690,8 @@ class Unit {
         // setup component
         Unit.extend(unit, unit._.baseComponent, unit._.props);
         // whether the unit promise was resolved
-        Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
+        // Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
+        unit._.state = 'initialized';
         Unit.currentUnit = backup;
     }
     static finalize(unit) {
@@ -1024,10 +1032,13 @@ const xnew$1 = Object.assign(function (...args) {
             const component = Unit.currentUnit._.currentComponent;
             let unitPromise;
             if (promise instanceof Unit) {
-                unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), component);
+                unitPromise = new UnitPromise(promise._.done.promise, component);
+            }
+            else if (promise instanceof Promise) {
+                unitPromise = new UnitPromise(promise, component);
             }
             else {
-                unitPromise = new UnitPromise(promise, component);
+                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), component);
             }
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
@@ -1073,6 +1084,40 @@ const xnew$1 = Object.assign(function (...args) {
         }
         catch (error) {
             console.error('xnew.catch(callback: Function): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Resolves the current unit's promise with the given value
+     * @param value - Value to resolve the promise with
+     * @returns void
+     * @example
+     * xnew.resolve('data');
+     */
+    resolve(value) {
+        try {
+            const done = Unit.currentUnit._.done;
+            done.resolve(value);
+        }
+        catch (error) {
+            console.error('xnew.resolve(value?: any): ', error);
+            throw error;
+        }
+    },
+    /**
+     * Rejects the current unit's promise with the given reason
+     * @param reason - Reason to reject the promise
+     * @returns void
+     * @example
+     * xnew.reject(new Error('Something went wrong'));
+     */
+    reject(reason) {
+        try {
+            const done = Unit.currentUnit._.done;
+            done.reject(reason);
+        }
+        catch (error) {
+            console.error('xnew.reject(reason?: any): ', error);
             throw error;
         }
     },

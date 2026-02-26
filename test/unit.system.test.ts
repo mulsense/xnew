@@ -14,8 +14,12 @@ describe('unit system', () => {
           
             xnew((unit: Unit) => {
                 xnew.promise(new Promise<void>((resolve, reject) => {
-                    setTimeout(() => resolve(), 500);
+                    setTimeout(() => {
+                        resolve();
+                        unit.start();
+                    }, 500);
                 }));
+                unit.stop();
                 unit.on('start', () => {
                     const d = Date.now() - start;
                     expect(d).toBeGreaterThan(500 - margin);

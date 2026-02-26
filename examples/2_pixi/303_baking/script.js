@@ -15,22 +15,34 @@ function Main(unit) {
   // pixi setup
   xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => {
-    xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);
   });
 
+  xnew(Assets);
   xnew(Contents);
 }
 
 function Contents(unit) {
-  xnew.promise(xnew(Baking)).then(([textures]) => {
-
-    const sprite = xpixi.nest(new PIXI.AnimatedSprite(textures));
+  const assets = xnew.context(Assets);
+  xnew.promise(assets).then(() => {
+    const sprite = xpixi.nest(new PIXI.AnimatedSprite(assets.textures));
     sprite.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2); // center
     sprite.anchor.set(0.5);
     sprite.animationSpeed = 1;
     sprite.play();
   });
+}
+
+function Assets(unit) {
+  let textures = null;
+  xnew.promise(xnew(Baking)).then((value) => {
+    textures = value;
+    xnew.resolve();
+  });
+
+  return {
+    get textures() { return textures; }
+  }
 }
 
 function Baking(unit) {
@@ -42,19 +54,16 @@ function Baking(unit) {
 
   xnew(Cubes);
 
-  // baking
-  const textures = [];
-  for (let frame = 0; frame < 60; frame++) {
-    xnew.emit('+update');
+  let textures = [];
+  unit.on('render', () => {
     xthree.renderer.render(xthree.scene, xthree.camera);
     const bitmap = xthree.canvas.transferToImageBitmap();
     textures.push(PIXI.Texture.from(bitmap));
-  }
-  xnew.promise(new Promise((resolve) => {
-    resolve(textures);
-  }));
-
-  unit.finalize();
+    if (textures.length === 60) {
+      xnew.resolve(textures);
+      unit.finalize();
+    }
+  });
 }
 
 function Cubes(unit) {
@@ -67,7 +76,7 @@ function Cubes(unit) {
       }
     }
   }
-  unit.on('update +update', () => {
+  unit.on('update', () => {
     object.rotation.y += 0.01;
     object.rotation.z += 0.01;
   });
@@ -79,7 +88,7 @@ function Cube(unit, { x, y, z, size }) {
   const object = xthree.nest(new THREE.Mesh(geometry, material));
   object.position.set(x, y, z);
 
-  unit.on('update +update', () => {
+  unit.on('update', () => {
     object.rotation.x += 0.01;
     object.rotation.y += 0.01;
   });

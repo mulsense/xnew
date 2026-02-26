@@ -111,6 +111,7 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
+    done: { promise: Promise<any>, resolve: Function, reject: Function };
     nestElements: { element: UnitElement, owned: boolean }[];
     components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
@@ -198,6 +199,13 @@ export class Unit {
         const backup = Unit.currentUnit;
         Unit.currentUnit = unit;
 
+        const done = {
+            promise: null as unknown as Promise<any>,
+            resolve: null as unknown as Function,
+            reject: null as unknown as Function
+        };
+        done.promise = new Promise((resolve, reject) => { done.resolve = resolve; done.reject = reject; });
+
         unit._ = Object.assign(unit._, {
             currentElement: unit._.baseElement,
             currentContext: unit._.baseContext,
@@ -210,6 +218,7 @@ export class Unit {
             children: [],
             nestElements: [],
             promises: [],
+            done,
             components: [],
             listeners: new MapMap(),
             defines: {},
@@ -226,7 +235,8 @@ export class Unit {
         Unit.extend(unit, unit._.baseComponent, unit._.props); 
 
         // whether the unit promise was resolved
-        Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
+        // Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
+        unit._.state = 'initialized';
 
         Unit.currentUnit = backup;
     }

@@ -25,7 +25,7 @@
 
     var xpixi = {
         initialize({ canvas = null } = {}) {
-            xnew(Root, { canvas });
+            xnew.promise(xnew(Root, { canvas }));
         },
         nest(object) {
             xnew(Nest, { object });
@@ -49,7 +49,10 @@
         xnew.promise(PIXI__namespace.autoDetectRenderer({
             width: canvas.width, height: canvas.height, view: canvas,
             antialias: true, backgroundAlpha: 0,
-        })).then((value) => renderer = value);
+        })).then((value) => {
+            renderer = value;
+            xnew.resolve();
+        });
         let scene = new PIXI__namespace.Container();
         return {
             get renderer() { return renderer; },

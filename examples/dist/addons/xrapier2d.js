@@ -6,7 +6,7 @@
 
     var xrapier2d = {
         initialize({ gravity = { x: 0.0, y: -9.81 } } = {}) {
-            xnew(Root, { gravity });
+            xnew.promise(xnew(Root, { gravity }));
         },
         get world() {
             var _a;
