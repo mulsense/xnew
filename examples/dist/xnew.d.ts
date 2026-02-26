@@ -55,7 +55,7 @@ declare class UnitPromise {
 }
 declare class UnitTimer {
     private unit;
-    private stack;
+    private queue;
     clear(): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
@@ -65,9 +65,9 @@ declare class UnitTimer {
     private static Component;
 }
 interface Context {
-    stack: Context | null;
-    key?: any;
-    value?: any;
+    prev: Context | null;
+    Component?: any;
+    unit?: any;
 }
 interface Snapshot {
     unit: Unit;
@@ -139,6 +139,10 @@ declare class Unit {
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
+    static unit2Contexts: MapSet<Unit, Context>;
+    static addContext(unit: Unit, Component: any): void;
+    static getContext(unit: Unit, Component: any): void;
+    static removeContext(unit: Unit): void;
     static context(unit: Unit, key: any, value?: any): any;
     static component2units: MapSet<Function, Unit>;
     static find(Component: Function): Unit[];

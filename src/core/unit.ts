@@ -30,10 +30,10 @@ export class UnitPromise {
 
 export class UnitTimer {
     private unit: Unit | null = null;
-    private stack: Object[] = [];
+    private queue: Object[] = [];
 
     public clear() {
-        this.stack = [];
+        this.queue = [];
         this.unit?.finalize();
         this.unit = null;
     }
@@ -52,18 +52,18 @@ export class UnitTimer {
         const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
         if (timer.unit === null || timer.unit._.state === 'finalized') {
             timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
-        } else if (timer.stack.length === 0) {
-            timer.stack.push(props);
+        } else if (timer.queue.length === 0) {
+            timer.queue.push(props);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         } else {
-            timer.stack.push(props);  
+            timer.queue.push(props);  
         }
         return timer;
     }
 
     private static next(timer: UnitTimer) {
-        if (timer.stack.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
+        if (timer.queue.length > 0) {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
@@ -89,7 +89,7 @@ export class UnitTimer {
     }
 }
 
-interface Context { stack: Context | null; key?: any; value?: any; }
+interface Context { prev: Context | null; Component?: any; unit?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
 
 interface Internal {
@@ -155,7 +155,7 @@ export class Unit {
             baseComponent = DefaultComponent;
         }
 
-        const baseContext = parent?._.currentContext ?? { stack: null };
+        const baseContext = parent?._.currentContext ?? { prev: null };
         
         this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
         parent?._.children.push(this);
@@ -250,6 +250,7 @@ export class Unit {
 
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            Unit.removeContext(unit);
 
             for (const { element, owned } of unit._.nestElements.reverse()) {
                 if (owned === true) {
@@ -308,10 +309,10 @@ export class Unit {
             const defines = Component(unit, props ?? {}) ?? {};
             if (unit._.parent && Component !== DefaultComponent) {
                 if (Component === unit._.baseComponent) {
-                    Unit.context(unit._.parent as Unit, Component, unit);
+                    Unit.addContext(unit._.parent as Unit, Component);
                 } else {
-                    Unit.context(unit, Component, unit);
-                    Unit.context(unit._.parent as Unit, Component, unit);
+                    Unit.addContext(unit, Component);
+                    Unit.addContext(unit._.parent as Unit, Component);
                 }
             }
 
@@ -417,11 +418,35 @@ export class Unit {
         return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
 
+    static unit2Contexts: MapSet<Unit, Context> = new MapSet();
+
+    static addContext(unit: Unit, Component: any): void {
+        const prev = unit._.currentContext;
+        unit._.currentContext = { prev, Component, unit };
+        Unit.unit2Contexts.add(prev.unit, unit._.currentContext);
+    }
+
+    static getContext(unit: Unit, Component: any): void {
+        for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
+            if (context.Component === Component) return context.unit;
+        }
+    }
+
+    static removeContext(unit: Unit): void {
+        Unit.unit2Contexts.get(unit)?.forEach((context: Context) => {
+            const prev = context.prev;
+            if (prev) {
+                context.prev = prev.prev;
+            }
+        });
+        Unit.unit2Contexts.delete(unit);
+    }
+
     static context(unit: Unit, key: any, value?: any): any {
         if (value !== undefined) {
-            unit._.currentContext = { stack: unit._.currentContext, key, value };
+            unit._.currentContext = { prev: unit._.currentContext, key, value };
         } else {
-            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
+            for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
                 if (context.key === key) return context.value;
             }
         }

@@ -99,7 +99,7 @@ export const xnew = Object.assign(
          */
         context(component: Function): any {
             try {
-                return Unit.context(Unit.currentUnit, component);
+                return Unit.getContext(Unit.currentUnit, component);
             } catch (error: unknown) {
                 console.error('xnew.context(component: Function): ', error);
                 throw error;

@@ -30,7 +30,6 @@
       unit.on('window.keydown.wasd window.keyup.wasd', ({ event, type, vector }) => {
         xnew.emit('+wasd', { text: `${type}: [${vector.x}, ${vector.y}]` });
       });
-
       unit.on('window.scroll window.resize', ({ event, type }) => {
         xnew.emit('+window', { text: `${type}` });
       });

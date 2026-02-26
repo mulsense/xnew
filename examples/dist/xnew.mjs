@@ -534,11 +534,11 @@ class UnitPromise {
 class UnitTimer {
     constructor() {
         this.unit = null;
-        this.stack = [];
+        this.queue = [];
     }
     clear() {
         var _a;
-        this.stack = [];
+        this.queue = [];
         (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
         this.unit = null;
     }
@@ -556,18 +556,18 @@ class UnitTimer {
         if (timer.unit === null || timer.unit._.state === 'finalized') {
             timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
         }
-        else if (timer.stack.length === 0) {
-            timer.stack.push(props);
+        else if (timer.queue.length === 0) {
+            timer.queue.push(props);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
         else {
-            timer.stack.push(props);
+            timer.queue.push(props);
         }
         return timer;
     }
     static next(timer) {
-        if (timer.stack.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
+        if (timer.queue.length > 0) {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
@@ -624,7 +624,7 @@ class Unit {
         else {
             baseComponent = DefaultComponent;
         }
-        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
+        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { prev: null };
         this._ = { parent, target, baseElement, baseContext, baseComponent, props };
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         Unit.initialize(this, null);
@@ -701,6 +701,7 @@ class Unit {
             [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
             unit.off();
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            Unit.removeContext(unit);
             for (const { element, owned } of unit._.nestElements.reverse()) {
                 if (owned === true) {
                     element.remove();
@@ -757,11 +758,11 @@ class Unit {
             const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
             if (unit._.parent && Component !== DefaultComponent) {
                 if (Component === unit._.baseComponent) {
-                    Unit.context(unit._.parent, Component, unit);
+                    Unit.addContext(unit._.parent, Component);
                 }
                 else {
-                    Unit.context(unit, Component, unit);
-                    Unit.context(unit._.parent, Component, unit);
+                    Unit.addContext(unit, Component);
+                    Unit.addContext(unit._.parent, Component);
                 }
             }
             unit._.currentComponent = backupComponent;
@@ -860,12 +861,33 @@ class Unit {
     static snapshot(unit) {
         return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
+    static addContext(unit, Component) {
+        const prev = unit._.currentContext;
+        unit._.currentContext = { prev, Component, unit };
+        Unit.unit2Contexts.add(prev.unit, unit._.currentContext);
+    }
+    static getContext(unit, Component) {
+        for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
+            if (context.Component === Component)
+                return context.unit;
+        }
+    }
+    static removeContext(unit) {
+        var _a;
+        (_a = Unit.unit2Contexts.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((context) => {
+            const prev = context.prev;
+            if (prev) {
+                context.prev = prev.prev;
+            }
+        });
+        Unit.unit2Contexts.delete(unit);
+    }
     static context(unit, key, value) {
         if (value !== undefined) {
-            unit._.currentContext = { stack: unit._.currentContext, key, value };
+            unit._.currentContext = { prev: unit._.currentContext, key, value };
         }
         else {
-            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
+            for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
                 if (context.key === key)
                     return context.value;
             }
@@ -934,6 +956,7 @@ class Unit {
     }
 }
 Unit.currentComponent = () => { };
+Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
@@ -1013,7 +1036,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     context(component) {
         try {
-            return Unit.context(Unit.currentUnit, component);
+            return Unit.getContext(Unit.currentUnit, component);
         }
         catch (error) {
             console.error('xnew.context(component: Function): ', error);
