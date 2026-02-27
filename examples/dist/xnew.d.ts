@@ -140,10 +140,9 @@ declare class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static unit2Contexts: MapSet<Unit, Context>;
-    static addContext(unit: Unit, Component: any): void;
+    static addContext(unit: Unit, Component: any, target: Unit): void;
     static getContext(unit: Unit, Component: any): void;
     static removeContext(unit: Unit): void;
-    static context(unit: Unit, key: any, value?: any): any;
     static component2units: MapSet<Function, Unit>;
     static find(Component: Function): Unit[];
     static type2units: MapSet<string, Unit>;

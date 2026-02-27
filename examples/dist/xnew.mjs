@@ -155,7 +155,7 @@ class Timer {
         }
         else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
             const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = p ** bias;
+            const s = Math.pow(p, bias);
             p = s * s * (3 - 2 * s);
         }
         (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
@@ -758,11 +758,11 @@ class Unit {
             const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
             if (unit._.parent && Component !== DefaultComponent) {
                 if (Component === unit._.baseComponent) {
-                    Unit.addContext(unit._.parent, Component);
+                    Unit.addContext(unit._.parent, Component, unit);
                 }
                 else {
-                    Unit.addContext(unit, Component);
-                    Unit.addContext(unit._.parent, Component);
+                    Unit.addContext(unit, Component, unit);
+                    Unit.addContext(unit._.parent, Component, unit);
                 }
             }
             unit._.currentComponent = backupComponent;
@@ -861,9 +861,9 @@ class Unit {
     static snapshot(unit) {
         return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
-    static addContext(unit, Component) {
+    static addContext(unit, Component, target) {
         const prev = unit._.currentContext;
-        unit._.currentContext = { prev, Component, unit };
+        unit._.currentContext = { prev, Component, unit: target };
         Unit.unit2Contexts.add(prev.unit, unit._.currentContext);
     }
     static getContext(unit, Component) {
@@ -881,17 +881,6 @@ class Unit {
             }
         });
         Unit.unit2Contexts.delete(unit);
-    }
-    static context(unit, key, value) {
-        if (value !== undefined) {
-            unit._.currentContext = { prev: unit._.currentContext, key, value };
-        }
-        else {
-            for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
-                if (context.key === key)
-                    return context.value;
-            }
-        }
     }
     static find(Component) {
         var _a;
@@ -957,6 +946,18 @@ class Unit {
 }
 Unit.currentComponent = () => { };
 Unit.unit2Contexts = new MapSet();
+// step1
+// main.baseContext = 1{ prev: null }
+// main.currentContext = 1{ prev: null } -> 2{ prev: 1, unit: sub1 } -> 3{ prev: 2, unit: sub2 }
+// sub1.baseContext = 1{ prev: null }
+// sub1.currentContext = 1{ prev: null }
+// sub2.baseContext = 2{ prev: 1, unit: sub2 }
+// sub2.currentContext = 2{ prev: 1, unit: sub2 }
+// step2 (after sub1 is finalized)
+// main.baseContext = 1{ prev: null }
+// main.currentContext = 1{ prev: null } -> 3{ prev: 2, unit: sub1 } 
+// sub2.baseContext = 2{ prev: 1, unit: sub2 }
+// sub2.currentContext = 2{ prev: 1, unit: sub2 }
 Unit.component2units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event

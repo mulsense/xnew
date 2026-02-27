@@ -309,10 +309,10 @@ export class Unit {
             const defines = Component(unit, props ?? {}) ?? {};
             if (unit._.parent && Component !== DefaultComponent) {
                 if (Component === unit._.baseComponent) {
-                    Unit.addContext(unit._.parent as Unit, Component);
+                    Unit.addContext(unit._.parent as Unit, Component, unit);
                 } else {
-                    Unit.addContext(unit, Component);
-                    Unit.addContext(unit._.parent as Unit, Component);
+                    Unit.addContext(unit, Component, unit);
+                    Unit.addContext(unit._.parent as Unit, Component, unit);
                 }
             }
 
@@ -420,9 +420,9 @@ export class Unit {
 
     static unit2Contexts: MapSet<Unit, Context> = new MapSet();
 
-    static addContext(unit: Unit, Component: any): void {
+    static addContext(unit: Unit, Component: any, target: Unit): void {
         const prev = unit._.currentContext;
-        unit._.currentContext = { prev, Component, unit };
+        unit._.currentContext = { prev, Component, unit: target };
         Unit.unit2Contexts.add(prev.unit, unit._.currentContext);
     }
 
@@ -442,15 +442,19 @@ export class Unit {
         Unit.unit2Contexts.delete(unit);
     }
 
-    static context(unit: Unit, key: any, value?: any): any {
-        if (value !== undefined) {
-            unit._.currentContext = { prev: unit._.currentContext, key, value };
-        } else {
-            for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
-                if (context.key === key) return context.value;
-            }
-        }
-    }
+    // step1
+    // main.baseContext = 1{ prev: null }
+    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, unit: sub1 } -> 3{ prev: 2, unit: sub2 }
+    // sub1.baseContext = 1{ prev: null }
+    // sub1.currentContext = 1{ prev: null }
+    // sub2.baseContext = 2{ prev: 1, unit: sub2 }
+    // sub2.currentContext = 2{ prev: 1, unit: sub2 }
+
+    // step2 (after sub1 is finalized)
+    // main.baseContext = 1{ prev: null }
+    // main.currentContext = 1{ prev: null } -> 3{ prev: 2, unit: sub1 } 
+    // sub2.baseContext = 2{ prev: 1, unit: sub2 }
+    // sub2.currentContext = 2{ prev: 1, unit: sub2 }
 
     static component2units: MapSet<Function, Unit> = new MapSet();
 
