@@ -40,7 +40,9 @@ export const xnew = Object.assign(
         const Component: Function | string | undefined = args.shift();
         const props: Object | undefined = args.shift();
         
-        return new Unit(Unit.currentUnit, target, Component, props);
+        const unit = new Unit(Unit.currentUnit, target, Component, props);
+        Unit.addContext(Unit.currentUnit, unit, Component, unit);
+        return unit;
     } as CreateUnit,
     {
         /**
@@ -78,7 +80,10 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
-                return Unit.extend(Unit.currentUnit, Component, props);
+                const defines = Unit.extend(Unit.currentUnit, Component, props);
+                Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
+
+                return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
                 throw error;
@@ -87,7 +92,7 @@ export const xnew = Object.assign(
 
         /**
          * Gets a context value that can be accessed in follow context
-         * @param component - component function
+         * @param key - component function
          * @returns The context value
          * @example
          * // Create unit
@@ -97,11 +102,11 @@ export const xnew = Object.assign(
          * // Get context in child
          * const a = xnew.context(A)
          */
-        context(component: Function): any {
+        context(key: any): any {
             try {
-                return Unit.getContext(Unit.currentUnit, component);
+                return Unit.getContext(Unit.currentUnit, key);
             } catch (error: unknown) {
-                console.error('xnew.context(component: Function): ', error);
+                console.error('xnew.context(key: any): ', error);
                 throw error;
             }
         },

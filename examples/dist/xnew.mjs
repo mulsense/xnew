@@ -155,7 +155,7 @@ class Timer {
         }
         else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
             const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = Math.pow(p, bias);
+            const s = p ** bias;
             p = s * s * (3 - 2 * s);
         }
         (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
@@ -517,91 +517,11 @@ function pointer(element, event) {
 // utils
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
-class UnitPromise {
-    constructor(promise, Component) {
-        this.promise = promise;
-        this.Component = Component;
-    }
-    then(callback) { return this.wrap('then', callback); }
-    catch(callback) { return this.wrap('catch', callback); }
-    finally(callback) { return this.wrap('finally', callback); }
-    wrap(key, callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
-        return this;
-    }
-}
-class UnitTimer {
-    constructor() {
-        this.unit = null;
-        this.queue = [];
-    }
-    clear() {
-        var _a;
-        this.queue = [];
-        (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
-        this.unit = null;
-    }
-    timeout(callback, duration = 0) {
-        return UnitTimer.execute(this, { callback, duration }, 1);
-    }
-    interval(callback, duration = 0, iterations = 0) {
-        return UnitTimer.execute(this, { callback, duration }, iterations);
-    }
-    transition(transition, duration = 0, easing) {
-        return UnitTimer.execute(this, { transition, duration, easing }, 1);
-    }
-    static execute(timer, options, iterations) {
-        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
-        if (timer.unit === null || timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
-        }
-        else if (timer.queue.length === 0) {
-            timer.queue.push(props);
-            timer.unit.on('finalize', () => UnitTimer.next(timer));
-        }
-        else {
-            timer.queue.push(props);
-        }
-        return timer;
-    }
-    static next(timer) {
-        if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
-            timer.unit.on('finalize', () => UnitTimer.next(timer));
-        }
-    }
-    static Component(unit, { options, iterations, snapshot }) {
-        let counter = 0;
-        let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
-        function callback() {
-            if (options.callback)
-                Unit.scope(snapshot, options.callback);
-            if (iterations <= 0 || counter < iterations - 1) {
-                timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
-            }
-            else {
-                unit.finalize();
-            }
-            counter++;
-        }
-        function transition(value) {
-            if (options.transition)
-                Unit.scope(snapshot, options.transition, { value });
-        }
-        unit.on('finalize', () => timer.clear());
-    }
-}
-function DefaultComponent(unit, { text }) {
-    if (text !== undefined) {
-        unit.element.textContent = text;
-    }
-}
 //----------------------------------------------------------------------------------------------------
 // unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
-    constructor(parent, target, component, props) {
+    constructor(parent, target, Component, props) {
         var _a;
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
@@ -614,17 +534,16 @@ class Unit {
             baseElement = (document === null || document === void 0 ? void 0 : document.body) ? document.body : null;
         }
         let baseComponent;
-        if (typeof component === 'function') {
-            baseComponent = component;
+        if (typeof Component === 'function') {
+            baseComponent = Component;
         }
-        else if (typeof component === 'string' || typeof component === 'number') {
-            baseComponent = DefaultComponent;
-            props = { text: component.toString() };
+        else if (typeof Component === 'string' || typeof Component === 'number') {
+            baseComponent = (unit) => { unit.element.textContent = Component.toString(); };
         }
         else {
-            baseComponent = DefaultComponent;
+            baseComponent = (unit) => { };
         }
-        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { prev: null };
+        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { prev: null, unit: this };
         this._ = { parent, target, baseElement, baseContext, baseComponent, props };
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         Unit.initialize(this, null);
@@ -756,15 +675,6 @@ class Unit {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = Component;
             const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
-            if (unit._.parent && Component !== DefaultComponent) {
-                if (Component === unit._.baseComponent) {
-                    Unit.addContext(unit._.parent, Component, unit);
-                }
-                else {
-                    Unit.addContext(unit, Component, unit);
-                    Unit.addContext(unit._.parent, Component, unit);
-                }
-            }
             unit._.currentComponent = backupComponent;
             Unit.component2units.add(Component, unit);
             unit._.components.push(Component);
@@ -861,15 +771,15 @@ class Unit {
     static snapshot(unit) {
         return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
     }
-    static addContext(unit, Component, target) {
+    static addContext(unit, orner, key, value) {
         const prev = unit._.currentContext;
-        unit._.currentContext = { prev, Component, unit: target };
+        unit._.currentContext = { prev, unit: orner, key, value };
         Unit.unit2Contexts.add(prev.unit, unit._.currentContext);
     }
-    static getContext(unit, Component) {
+    static getContext(unit, key) {
         for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
-            if (context.Component === Component)
-                return context.unit;
+            if (context.key === key)
+                return context.value;
         }
     }
     static removeContext(unit) {
@@ -963,6 +873,84 @@ Unit.component2units = new MapSet();
 // event
 //----------------------------------------------------------------------------------------------------
 Unit.type2units = new MapSet();
+//----------------------------------------------------------------------------------------------------
+// extensions
+//----------------------------------------------------------------------------------------------------
+class UnitPromise {
+    constructor(promise, Component) {
+        this.promise = promise;
+        this.Component = Component;
+    }
+    then(callback) { return this.wrap('then', callback); }
+    catch(callback) { return this.wrap('catch', callback); }
+    finally(callback) { return this.wrap('finally', callback); }
+    wrap(key, callback) {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
+        return this;
+    }
+}
+class UnitTimer {
+    constructor() {
+        this.unit = null;
+        this.queue = [];
+    }
+    clear() {
+        var _a;
+        this.queue = [];
+        (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
+        this.unit = null;
+    }
+    timeout(callback, duration = 0) {
+        return UnitTimer.execute(this, { callback, duration }, 1);
+    }
+    interval(callback, duration = 0, iterations = 0) {
+        return UnitTimer.execute(this, { callback, duration }, iterations);
+    }
+    transition(transition, duration = 0, easing) {
+        return UnitTimer.execute(this, { transition, duration, easing }, 1);
+    }
+    static execute(timer, options, iterations) {
+        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
+        if (timer.unit === null || timer.unit._.state === 'finalized') {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
+        }
+        else if (timer.queue.length === 0) {
+            timer.queue.push(props);
+            timer.unit.on('finalize', () => UnitTimer.next(timer));
+        }
+        else {
+            timer.queue.push(props);
+        }
+        return timer;
+    }
+    static next(timer) {
+        if (timer.queue.length > 0) {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
+            timer.unit.on('finalize', () => UnitTimer.next(timer));
+        }
+    }
+    static Component(unit, { options, iterations, snapshot }) {
+        let counter = 0;
+        let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+        function callback() {
+            if (options.callback)
+                Unit.scope(snapshot, options.callback);
+            if (iterations <= 0 || counter < iterations - 1) {
+                timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+            }
+            else {
+                unit.finalize();
+            }
+            counter++;
+        }
+        function transition(value) {
+            if (options.transition)
+                Unit.scope(snapshot, options.transition, { value });
+        }
+        unit.on('finalize', () => timer.clear());
+    }
+}
 
 const xnew$1 = Object.assign(function (...args) {
     if (Unit.rootUnit === undefined)
@@ -979,7 +967,9 @@ const xnew$1 = Object.assign(function (...args) {
     }
     const Component = args.shift();
     const props = args.shift();
-    return new Unit(Unit.currentUnit, target, Component, props);
+    const unit = new Unit(Unit.currentUnit, target, Component, props);
+    Unit.addContext(Unit.currentUnit, unit, Component, unit);
+    return unit;
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
@@ -1016,7 +1006,9 @@ const xnew$1 = Object.assign(function (...args) {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.extend can not be called after initialized.');
             }
-            return Unit.extend(Unit.currentUnit, Component, props);
+            const defines = Unit.extend(Unit.currentUnit, Component, props);
+            Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
+            return defines;
         }
         catch (error) {
             console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -1025,7 +1017,7 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Gets a context value that can be accessed in follow context
-     * @param component - component function
+     * @param key - component function
      * @returns The context value
      * @example
      * // Create unit
@@ -1035,12 +1027,12 @@ const xnew$1 = Object.assign(function (...args) {
      * // Get context in child
      * const a = xnew.context(A)
      */
-    context(component) {
+    context(key) {
         try {
-            return Unit.getContext(Unit.currentUnit, component);
+            return Unit.getContext(Unit.currentUnit, key);
         }
         catch (error) {
-            console.error('xnew.context(component: Function): ', error);
+            console.error('xnew.context(key: any): ', error);
             throw error;
         }
     },

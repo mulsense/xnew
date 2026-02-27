@@ -44,30 +44,11 @@ declare class Eventor {
 }
 
 type UnitElement = HTMLElement | SVGElement;
-declare class UnitPromise {
-    promise: Promise<any>;
-    Component: Function | null;
-    constructor(promise: Promise<any>, Component: Function | null);
-    then(callback: Function): UnitPromise;
-    catch(callback: Function): UnitPromise;
-    finally(callback: Function): UnitPromise;
-    private wrap;
-}
-declare class UnitTimer {
-    private unit;
-    private queue;
-    clear(): void;
-    timeout(callback: Function, duration?: number): UnitTimer;
-    interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
-    transition(transition: Function, duration?: number, easing?: string): UnitTimer;
-    private static execute;
-    private static next;
-    private static Component;
-}
 interface Context {
     prev: Context | null;
-    Component?: any;
-    unit?: any;
+    orner: Unit;
+    key?: any;
+    value?: any;
 }
 interface Snapshot {
     unit: Unit;
@@ -117,7 +98,7 @@ interface Internal {
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string | number, props?: Object);
+    constructor(parent: Unit | null, target: UnitElement | string | null, Component?: Function | string | number, props?: Object);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -140,8 +121,8 @@ declare class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static unit2Contexts: MapSet<Unit, Context>;
-    static addContext(unit: Unit, Component: any, target: Unit): void;
-    static getContext(unit: Unit, Component: any): void;
+    static addContext(unit: Unit, orner: Unit, key: any, value: Unit): void;
+    static getContext(unit: Unit, key: any): any;
     static removeContext(unit: Unit): void;
     static component2units: MapSet<Function, Unit>;
     static find(Component: Function): Unit[];
@@ -151,6 +132,26 @@ declare class Unit {
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static off(unit: Unit, type: string, listener?: Function): void;
     static emit(type: string, props?: object): void;
+}
+declare class UnitPromise {
+    promise: Promise<any>;
+    Component: Function | null;
+    constructor(promise: Promise<any>, Component: Function | null);
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+    private wrap;
+}
+declare class UnitTimer {
+    private unit;
+    private queue;
+    clear(): void;
+    timeout(callback: Function, duration?: number): UnitTimer;
+    interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
+    transition(transition: Function, duration?: number, easing?: string): UnitTimer;
+    private static execute;
+    private static next;
+    private static Component;
 }
 
 interface CreateUnit {
