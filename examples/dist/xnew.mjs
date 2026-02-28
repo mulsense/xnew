@@ -517,92 +517,15 @@ function pointer(element, event) {
 // utils
 //----------------------------------------------------------------------------------------------------
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
-class UnitPromise {
-    constructor(promise, Component) {
-        this.promise = promise;
-        this.Component = Component;
-    }
-    then(callback) { return this.wrap('then', callback); }
-    catch(callback) { return this.wrap('catch', callback); }
-    finally(callback) { return this.wrap('finally', callback); }
-    wrap(key, callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
-        return this;
-    }
-}
-class UnitTimer {
-    constructor() {
-        this.unit = null;
-        this.stack = [];
-    }
-    clear() {
-        var _a;
-        this.stack = [];
-        (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
-        this.unit = null;
-    }
-    timeout(callback, duration = 0) {
-        return UnitTimer.execute(this, { callback, duration }, 1);
-    }
-    interval(callback, duration = 0, iterations = 0) {
-        return UnitTimer.execute(this, { callback, duration }, iterations);
-    }
-    transition(transition, duration = 0, easing) {
-        return UnitTimer.execute(this, { transition, duration, easing }, 1);
-    }
-    static execute(timer, options, iterations) {
-        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
-        if (timer.unit === null || timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
-        }
-        else if (timer.stack.length === 0) {
-            timer.stack.push(props);
-            timer.unit.on('finalize', () => UnitTimer.next(timer));
-        }
-        else {
-            timer.stack.push(props);
-        }
-        return timer;
-    }
-    static next(timer) {
-        if (timer.stack.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.stack.shift());
-            timer.unit.on('finalize', () => UnitTimer.next(timer));
-        }
-    }
-    static Component(unit, { options, iterations, snapshot }) {
-        let counter = 0;
-        let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
-        function callback() {
-            if (options.callback)
-                Unit.scope(snapshot, options.callback);
-            if (iterations <= 0 || counter < iterations - 1) {
-                timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
-            }
-            else {
-                unit.finalize();
-            }
-            counter++;
-        }
-        function transition(value) {
-            if (options.transition)
-                Unit.scope(snapshot, options.transition, { value });
-        }
-        unit.on('finalize', () => timer.clear());
-    }
-}
-function DefaultComponent(unit, { text }) {
-    if (text !== undefined) {
-        unit.element.textContent = text;
-    }
-}
 //----------------------------------------------------------------------------------------------------
 // unit
 //----------------------------------------------------------------------------------------------------
 class Unit {
-    constructor(parent, target, component, props) {
+    constructor(parent, target, Component, props) {
         var _a;
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = this;
+        parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -614,20 +537,51 @@ class Unit {
             baseElement = (document === null || document === void 0 ? void 0 : document.body) ? document.body : null;
         }
         let baseComponent;
-        if (typeof component === 'function') {
-            baseComponent = component;
+        if (typeof Component === 'function') {
+            baseComponent = Component;
         }
-        else if (typeof component === 'string' || typeof component === 'number') {
-            baseComponent = DefaultComponent;
-            props = { text: component.toString() };
+        else if (typeof Component === 'string' || typeof Component === 'number') {
+            baseComponent = (unit) => { unit.element.textContent = Component.toString(); };
         }
         else {
-            baseComponent = DefaultComponent;
+            baseComponent = (unit) => { };
         }
-        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { stack: null };
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props };
-        parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
-        Unit.initialize(this, null);
+        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
+        const task = {
+            promise: null,
+            resolve: null,
+            reject: null
+        };
+        task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
+        this._ = {
+            parent,
+            state: 'invoked',
+            tostart: true,
+            protected: false,
+            currentElement: baseElement,
+            currentContext: baseContext,
+            currentComponent: null,
+            ancestors: parent ? [parent, ...parent._.ancestors] : [],
+            children: [],
+            nestElements: [],
+            promises: [],
+            task,
+            Components: [],
+            listeners: new MapMap(),
+            defines: {},
+            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
+            eventor: new Eventor(),
+        };
+        // nest html element
+        if (typeof target === 'string') {
+            Unit.nest(this, target);
+        }
+        // setup Component
+        Unit.extend(this, baseComponent, props);
+        if (this._.state === 'invoked') {
+            this._.state = 'initialized';
+        }
+        Unit.currentUnit = backup;
     }
     get element() {
         return this._.currentElement;
@@ -642,77 +596,41 @@ class Unit {
     finalize() {
         Unit.stop(this);
         Unit.finalize(this);
-        if (this._.parent) {
-            this._.parent._.children = this._.parent._.children.filter((unit) => unit !== this);
-        }
-    }
-    reboot() {
-        let anchor = null;
-        if (this._.nestElements[0] && this._.nestElements[0].owned === true) {
-            anchor = this._.nestElements[0].element.nextElementSibling;
-        }
-        Unit.stop(this);
-        Unit.finalize(this);
-        Unit.initialize(this, anchor);
-    }
-    static initialize(unit, anchor) {
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = unit;
-        const done = {
-            promise: null,
-            resolve: null,
-            reject: null
-        };
-        done.promise = new Promise((resolve, reject) => { done.resolve = resolve; done.reject = reject; });
-        unit._ = Object.assign(unit._, {
-            currentElement: unit._.baseElement,
-            currentContext: unit._.baseContext,
-            currentComponent: null,
-            anchor,
-            state: 'invoked',
-            tostart: true,
-            protected: false,
-            ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
-            children: [],
-            nestElements: [],
-            promises: [],
-            done,
-            components: [],
-            listeners: new MapMap(),
-            defines: {},
-            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
-            eventor: new Eventor(),
-        });
-        // nest html element
-        if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target);
-        }
-        // setup component
-        Unit.extend(unit, unit._.baseComponent, unit._.props);
-        // whether the unit promise was resolved
-        // Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
-        unit._.state = 'initialized';
-        Unit.currentUnit = backup;
     }
     static finalize(unit) {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
-            [...unit._.children].reverse().forEach((child) => child.finalize());
-            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
+            unit._.children.reverse().forEach((child) => child.finalize());
+            unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
             unit.off();
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
-            for (const { element, owned } of unit._.nestElements.reverse()) {
-                if (owned === true) {
-                    element.remove();
+            unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
+            unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
+            // remove contexts
+            const contexts = Unit.unit2Contexts.get(unit);
+            contexts === null || contexts === void 0 ? void 0 : contexts.forEach((context) => {
+                let temp = context.previous;
+                while (temp !== null) {
+                    console.log('check', contexts.has(temp), temp.key);
+                    if (contexts.has(temp) === false && temp.key !== undefined) {
+                        context.previous = temp;
+                        context.key = undefined;
+                        context.value = undefined;
+                        break;
+                    }
+                    temp = temp.previous;
                 }
-            }
-            unit._.currentElement = unit._.baseElement;
+            });
+            Unit.unit2Contexts.delete(unit);
+            unit._.currentContext = { previous: null };
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
                 delete unit[key];
             });
             unit._.defines = {};
             unit._.state = 'finalized';
+            if (unit._.parent) {
+                unit._.parent._.children = unit._.parent._.children.filter((u) => u !== unit);
+            }
         }
     }
     static nest(unit, target, textContent) {
@@ -724,16 +642,8 @@ class Unit {
         else {
             const match = target.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
-                let element;
-                if (unit._.anchor !== null) {
-                    unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                    element = unit._.anchor.previousElementSibling;
-                    unit._.anchor = null;
-                }
-                else {
-                    unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                    element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
-                }
+                unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
                 unit._.currentElement = element;
                 if (textContent !== undefined) {
                     element.textContent = textContent.toString();
@@ -748,25 +658,16 @@ class Unit {
     }
     static extend(unit, Component, props) {
         var _a;
-        if (unit._.components.includes(Component) === true) {
-            throw new Error(`The component is already extended.`);
+        if (unit._.Components.includes(Component) === true) {
+            throw new Error(`The Component is already extended.`);
         }
         else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = Component;
             const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
-            if (unit._.parent && Component !== DefaultComponent) {
-                if (Component === unit._.baseComponent) {
-                    Unit.context(unit._.parent, Component, unit);
-                }
-                else {
-                    Unit.context(unit, Component, unit);
-                    Unit.context(unit._.parent, Component, unit);
-                }
-            }
             unit._.currentComponent = backupComponent;
             Unit.component2units.add(Component, unit);
-            unit._.components.push(Component);
+            unit._.Components.push(Component);
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
@@ -784,7 +685,7 @@ class Unit {
                     wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                 }
                 else {
-                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
+                    throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
@@ -844,7 +745,7 @@ class Unit {
             Unit.currentUnit = snapshot.unit;
             snapshot.unit._.currentContext = snapshot.context;
             snapshot.unit._.currentElement = snapshot.element;
-            snapshot.unit._.currentComponent = snapshot.component;
+            snapshot.unit._.currentComponent = snapshot.Component;
             return func(...args);
         }
         catch (error) {
@@ -854,21 +755,20 @@ class Unit {
             Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
             snapshot.unit._.currentElement = backup.element;
-            snapshot.unit._.currentComponent = backup.component;
+            snapshot.unit._.currentComponent = backup.Component;
         }
     }
     static snapshot(unit) {
-        return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
+        return { unit, context: unit._.currentContext, element: unit._.currentElement, Component: unit._.currentComponent };
     }
-    static context(unit, key, value) {
-        if (value !== undefined) {
-            unit._.currentContext = { stack: unit._.currentContext, key, value };
-        }
-        else {
-            for (let context = unit._.currentContext; context.stack !== null; context = context.stack) {
-                if (context.key === key)
-                    return context.value;
-            }
+    static addContext(unit, orner, key, value) {
+        unit._.currentContext = { previous: unit._.currentContext, key, value };
+        Unit.unit2Contexts.add(orner, unit._.currentContext);
+    }
+    static getContext(unit, key) {
+        for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
+            if (context.key === key)
+                return context.value;
         }
     }
     static find(Component) {
@@ -892,7 +792,7 @@ class Unit {
             unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
-            unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
+            unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {
                 unit._.eventor.add(unit.element, type, execute, options);
@@ -934,11 +834,90 @@ class Unit {
     }
 }
 Unit.currentComponent = () => { };
+Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
 //----------------------------------------------------------------------------------------------------
 Unit.type2units = new MapSet();
+//----------------------------------------------------------------------------------------------------
+// extensions
+//----------------------------------------------------------------------------------------------------
+class UnitPromise {
+    constructor(promise, Component) {
+        this.promise = promise;
+        this.Component = Component;
+    }
+    then(callback) { return this.wrap('then', callback); }
+    catch(callback) { return this.wrap('catch', callback); }
+    finally(callback) { return this.wrap('finally', callback); }
+    wrap(key, callback) {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
+        return this;
+    }
+}
+class UnitTimer {
+    constructor() {
+        this.unit = null;
+        this.queue = [];
+    }
+    clear() {
+        var _a;
+        this.queue = [];
+        (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
+        this.unit = null;
+    }
+    timeout(callback, duration = 0) {
+        return UnitTimer.execute(this, { callback, duration }, 1);
+    }
+    interval(callback, duration = 0, iterations = 0) {
+        return UnitTimer.execute(this, { callback, duration }, iterations);
+    }
+    transition(transition, duration = 0, easing) {
+        return UnitTimer.execute(this, { transition, duration, easing }, 1);
+    }
+    static execute(timer, options, iterations) {
+        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
+        if (timer.unit === null || timer.unit._.state === 'finalized') {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
+        }
+        else if (timer.queue.length === 0) {
+            timer.queue.push(props);
+            timer.unit.on('finalize', () => UnitTimer.next(timer));
+        }
+        else {
+            timer.queue.push(props);
+        }
+        return timer;
+    }
+    static next(timer) {
+        if (timer.queue.length > 0) {
+            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
+            timer.unit.on('finalize', () => UnitTimer.next(timer));
+        }
+    }
+    static Component(unit, { options, iterations, snapshot }) {
+        let counter = 0;
+        let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+        function callback() {
+            if (options.callback)
+                Unit.scope(snapshot, options.callback);
+            if (iterations <= 0 || counter < iterations - 1) {
+                timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+            }
+            else {
+                unit.finalize();
+            }
+            counter++;
+        }
+        function transition(value) {
+            if (options.transition)
+                Unit.scope(snapshot, options.transition, { value });
+        }
+        unit.on('finalize', () => timer.clear());
+    }
+}
 
 const xnew$1 = Object.assign(function (...args) {
     if (Unit.rootUnit === undefined)
@@ -955,7 +934,9 @@ const xnew$1 = Object.assign(function (...args) {
     }
     const Component = args.shift();
     const props = args.shift();
-    return new Unit(Unit.currentUnit, target, Component, props);
+    const unit = new Unit(Unit.currentUnit, target, Component, props);
+    Unit.addContext(Unit.currentUnit, unit, Component, unit);
+    return unit;
 }, {
     /**
      * Creates a nested HTML/SVG element within the current component
@@ -992,7 +973,9 @@ const xnew$1 = Object.assign(function (...args) {
             if (Unit.currentUnit._.state !== 'invoked') {
                 throw new Error('xnew.extend can not be called after initialized.');
             }
-            return Unit.extend(Unit.currentUnit, Component, props);
+            const defines = Unit.extend(Unit.currentUnit, Component, props);
+            Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
+            return defines;
         }
         catch (error) {
             console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -1001,7 +984,7 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Gets a context value that can be accessed in follow context
-     * @param component - component function
+     * @param key - component function
      * @returns The context value
      * @example
      * // Create unit
@@ -1011,12 +994,12 @@ const xnew$1 = Object.assign(function (...args) {
      * // Get context in child
      * const a = xnew.context(A)
      */
-    context(component) {
+    context(key) {
         try {
-            return Unit.context(Unit.currentUnit, component);
+            return Unit.getContext(Unit.currentUnit, key);
         }
         catch (error) {
-            console.error('xnew.context(component: Function): ', error);
+            console.error('xnew.context(key: any): ', error);
             throw error;
         }
     },
@@ -1029,16 +1012,16 @@ const xnew$1 = Object.assign(function (...args) {
      */
     promise(promise) {
         try {
-            const component = Unit.currentUnit._.currentComponent;
+            const Component = Unit.currentUnit._.currentComponent;
             let unitPromise;
             if (promise instanceof Unit) {
-                unitPromise = new UnitPromise(promise._.done.promise, component);
+                unitPromise = new UnitPromise(promise._.task.promise, Component);
             }
             else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise, component);
+                unitPromise = new UnitPromise(promise, Component);
             }
             else {
-                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), component);
+                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), Component);
             }
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
@@ -1096,8 +1079,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     resolve(value) {
         try {
-            const done = Unit.currentUnit._.done;
-            done.resolve(value);
+            Unit.currentUnit._.task.resolve(value);
         }
         catch (error) {
             console.error('xnew.resolve(value?: any): ', error);
@@ -1113,8 +1095,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     reject(reason) {
         try {
-            const done = Unit.currentUnit._.done;
-            done.reject(reason);
+            Unit.currentUnit._.task.reject(reason);
         }
         catch (error) {
             console.error('xnew.reject(reason?: any): ', error);
@@ -1154,19 +1135,19 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Finds all instances of a component in the component tree
-     * @param component - Component function to search for
+     * @param Component - Component function to search for
      * @returns Array of Unit instances matching the component
      * @throws Error if component parameter is invalid
      * @example
      * const buttons = xnew.find(ButtonComponent)
      * buttons.forEach(btn => btn.finalize())
      */
-    find(component) {
+    find(Component) {
         try {
-            return Unit.find(component);
+            return Unit.find(Component);
         }
         catch (error) {
-            console.error('xnew.find(component: Function): ', error);
+            console.error('xnew.find(Component: Function): ', error);
             throw error;
         }
     },

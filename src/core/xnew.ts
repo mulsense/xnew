@@ -40,7 +40,9 @@ export const xnew = Object.assign(
         const Component: Function | string | undefined = args.shift();
         const props: Object | undefined = args.shift();
         
-        return new Unit(Unit.currentUnit, target, Component, props);
+        const unit = new Unit(Unit.currentUnit, target, Component, props);
+        Unit.addContext(Unit.currentUnit, unit, Component, unit);
+        return unit;
     } as CreateUnit,
     {
         /**
@@ -78,7 +80,10 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
-                return Unit.extend(Unit.currentUnit, Component, props);
+                const defines = Unit.extend(Unit.currentUnit, Component, props);
+                Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
+
+                return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
                 throw error;
@@ -87,7 +92,7 @@ export const xnew = Object.assign(
 
         /**
          * Gets a context value that can be accessed in follow context
-         * @param component - component function
+         * @param key - component function
          * @returns The context value
          * @example
          * // Create unit
@@ -97,11 +102,11 @@ export const xnew = Object.assign(
          * // Get context in child
          * const a = xnew.context(A)
          */
-        context(component: Function): any {
+        context(key: any): any {
             try {
-                return Unit.context(Unit.currentUnit, component);
+                return Unit.getContext(Unit.currentUnit, key);
             } catch (error: unknown) {
-                console.error('xnew.context(component: Function): ', error);
+                console.error('xnew.context(key: any): ', error);
                 throw error;
             }
         },
@@ -115,14 +120,14 @@ export const xnew = Object.assign(
          */
         promise(promise: Function | Promise<any> | Unit): UnitPromise {
             try {
-                const component = Unit.currentUnit._.currentComponent;
+                const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(promise._.done.promise, component)
+                    unitPromise = new UnitPromise(promise._.task.promise, Component)
                 } else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise, component)
+                    unitPromise = new UnitPromise(promise, Component)
                 } else {
-                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), component)
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), Component)
                 }
                 Unit.currentUnit._.promises.push(unitPromise);
                 return unitPromise;
@@ -180,8 +185,7 @@ export const xnew = Object.assign(
          */
         resolve(value?: any): void {
             try {
-                const done = Unit.currentUnit._.done;
-                done.resolve(value);
+                Unit.currentUnit._.task.resolve(value);
             } catch (error: unknown) {
                 console.error('xnew.resolve(value?: any): ', error);
                 throw error;
@@ -197,8 +201,7 @@ export const xnew = Object.assign(
          */
         reject(reason?: any): void {
             try {
-                const done = Unit.currentUnit._.done;
-                done.reject(reason);
+                Unit.currentUnit._.task.reject(reason);
             } catch (error: unknown) {
                 console.error('xnew.reject(reason?: any): ', error);
                 throw error;
@@ -239,18 +242,18 @@ export const xnew = Object.assign(
 
         /**
          * Finds all instances of a component in the component tree
-         * @param component - Component function to search for
+         * @param Component - Component function to search for
          * @returns Array of Unit instances matching the component
          * @throws Error if component parameter is invalid
          * @example
          * const buttons = xnew.find(ButtonComponent)
          * buttons.forEach(btn => btn.finalize())
          */
-        find(component: Function): Unit[] {
+        find(Component: Function): Unit[] {
             try {
-                return Unit.find(component);
+                return Unit.find(Component);
             } catch (error: unknown) {
-                console.error('xnew.find(component: Function): ', error);
+                console.error('xnew.find(Component: Function): ', error);
                 throw error;
             }
         },

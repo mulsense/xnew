@@ -286,9 +286,6 @@ unit.on('click', () => {
 });
 ```
 
-### `unit.reboot()`
-Restarts the component, re-running its component function.
-
 ```js
 function RandomColor(unit) {
   const colors = ['red', 'blue', 'green', 'yellow'];
@@ -504,7 +501,7 @@ box.randomize();           // Custom method
 ### Reserved Property Names
 
 Avoid these reserved names when creating custom properties:
-- `start`, `stop`, `finalize`, `reboot`
+- `start`, `stop`, `finalize`
 - `element`, `on`, `off`,
 - `_` (internal use)
 

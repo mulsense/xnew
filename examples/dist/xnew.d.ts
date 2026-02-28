@@ -44,28 +44,8 @@ declare class Eventor {
 }
 
 type UnitElement = HTMLElement | SVGElement;
-declare class UnitPromise {
-    promise: Promise<any>;
-    Component: Function | null;
-    constructor(promise: Promise<any>, Component: Function | null);
-    then(callback: Function): UnitPromise;
-    catch(callback: Function): UnitPromise;
-    finally(callback: Function): UnitPromise;
-    private wrap;
-}
-declare class UnitTimer {
-    private unit;
-    private stack;
-    clear(): void;
-    timeout(callback: Function, duration?: number): UnitTimer;
-    interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
-    transition(transition: Function, duration?: number, easing?: string): UnitTimer;
-    private static execute;
-    private static next;
-    private static Component;
-}
 interface Context {
-    stack: Context | null;
+    previous: Context | null;
     key?: any;
     value?: any;
 }
@@ -73,26 +53,20 @@ interface Snapshot {
     unit: Unit;
     context: Context;
     element: UnitElement;
-    component: Function | null;
+    Component: Function | null;
 }
 interface Internal {
     parent: Unit | null;
-    target: Object | null;
-    props?: Object;
-    baseElement: UnitElement;
-    baseContext: Context;
-    baseComponent: Function;
-    currentElement: UnitElement;
-    currentContext: Context;
-    currentComponent: Function | null;
-    anchor: UnitElement | null;
     state: string;
     tostart: boolean;
     protected: boolean;
+    currentElement: UnitElement;
+    currentContext: Context;
+    currentComponent: Function | null;
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
-    done: {
+    task: {
         promise: Promise<any>;
         resolve: Function;
         reject: Function;
@@ -101,10 +75,10 @@ interface Internal {
         element: UnitElement;
         owned: boolean;
     }[];
-    components: Function[];
+    Components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
-        component: Function | null;
+        Component: Function | null;
         execute: Function;
     }>;
     defines: Record<string, any>;
@@ -117,13 +91,11 @@ interface Internal {
 declare class Unit {
     [key: string]: any;
     _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, component?: Function | string | number, props?: Object);
+    constructor(parent: Unit | null, target: UnitElement | string | null, Component?: Function | string | number, props?: Object);
     get element(): UnitElement;
     start(): void;
     stop(): void;
     finalize(): void;
-    reboot(): void;
-    static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
@@ -139,7 +111,9 @@ declare class Unit {
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
-    static context(unit: Unit, key: any, value?: any): any;
+    static unit2Contexts: MapSet<Unit, Context>;
+    static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void;
+    static getContext(unit: Unit, key: any): any;
     static component2units: MapSet<Function, Unit>;
     static find(Component: Function): Unit[];
     static type2units: MapSet<string, Unit>;
@@ -148,6 +122,26 @@ declare class Unit {
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static off(unit: Unit, type: string, listener?: Function): void;
     static emit(type: string, props?: object): void;
+}
+declare class UnitPromise {
+    promise: Promise<any>;
+    Component: Function | null;
+    constructor(promise: Promise<any>, Component: Function | null);
+    then(callback: Function): UnitPromise;
+    catch(callback: Function): UnitPromise;
+    finally(callback: Function): UnitPromise;
+    private wrap;
+}
+declare class UnitTimer {
+    private unit;
+    private queue;
+    clear(): void;
+    timeout(callback: Function, duration?: number): UnitTimer;
+    interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
+    transition(transition: Function, duration?: number, easing?: string): UnitTimer;
+    private static execute;
+    private static next;
+    private static Component;
 }
 
 interface CreateUnit {
@@ -286,7 +280,7 @@ declare const xnew: CreateUnit & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(component: Function): any;
+    context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
@@ -294,7 +288,7 @@ declare const xnew: CreateUnit & {
     reject(reason?: any): void;
     finally(callback: Function): UnitPromise;
     scope(callback: any): any;
-    find(component: Function): Unit[];
+    find(Component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
