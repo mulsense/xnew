@@ -120,16 +120,16 @@ export const xnew = Object.assign(
          */
         promise(promise: Function | Promise<any> | Unit): UnitPromise {
             try {
-                const component = Unit.currentUnit._.currentComponent;
+                const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(promise._.selfPromise.promise, component)
+                    unitPromise = new UnitPromise(promise._.task.promise, Component)
                 } else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise, component)
+                    unitPromise = new UnitPromise(promise, Component)
                 } else {
-                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), component)
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), Component)
                 }
-                Unit.currentUnit._.localPromises.push(unitPromise);
+                Unit.currentUnit._.promises.push(unitPromise);
                 return unitPromise;
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
@@ -147,10 +147,10 @@ export const xnew = Object.assign(
         then(callback: Function): UnitPromise {
             try {
                 const Component = Unit.currentUnit._.currentComponent;
-                const localPromises = Unit.currentUnit._.localPromises;
-                return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
+                const promises = Unit.currentUnit._.promises;
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results: any[]) => {
-                    callback(results.filter((_, index) => localPromises[index].Component !== null && localPromises[index].Component === Component));
+                    callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
                 });
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -167,8 +167,8 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                const localPromises = Unit.currentUnit._.localPromises;
-                return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
+                const promises = Unit.currentUnit._.promises;
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
@@ -185,8 +185,7 @@ export const xnew = Object.assign(
          */
         resolve(value?: any): void {
             try {
-                const selfPromise = Unit.currentUnit._.selfPromise;
-                selfPromise.resolve(value);
+                Unit.currentUnit._.task.resolve(value);
             } catch (error: unknown) {
                 console.error('xnew.resolve(value?: any): ', error);
                 throw error;
@@ -202,8 +201,7 @@ export const xnew = Object.assign(
          */
         reject(reason?: any): void {
             try {
-                const selfPromise = Unit.currentUnit._.selfPromise;
-                selfPromise.reject(reason);
+                Unit.currentUnit._.task.reject(reason);
             } catch (error: unknown) {
                 console.error('xnew.reject(reason?: any): ', error);
                 throw error;
@@ -219,8 +217,8 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                const localPromises = Unit.currentUnit._.localPromises;
-                return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
+                const promises = Unit.currentUnit._.promises;
+                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);
@@ -244,18 +242,18 @@ export const xnew = Object.assign(
 
         /**
          * Finds all instances of a component in the component tree
-         * @param component - Component function to search for
+         * @param Component - Component function to search for
          * @returns Array of Unit instances matching the component
          * @throws Error if component parameter is invalid
          * @example
          * const buttons = xnew.find(ButtonComponent)
          * buttons.forEach(btn => btn.finalize())
          */
-        find(component: Function): Unit[] {
+        find(Component: Function): Unit[] {
             try {
-                return Unit.find(component);
+                return Unit.find(Component);
             } catch (error: unknown) {
-                console.error('xnew.find(component: Function): ', error);
+                console.error('xnew.find(Component: Function): ', error);
                 throw error;
             }
         },

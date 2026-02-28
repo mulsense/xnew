@@ -53,7 +53,7 @@ interface Snapshot {
     unit: Unit;
     context: Context;
     element: UnitElement;
-    component: Function | null;
+    Component: Function | null;
 }
 interface Internal {
     parent: Unit | null;
@@ -65,8 +65,8 @@ interface Internal {
     currentComponent: Function | null;
     ancestors: Unit[];
     children: Unit[];
-    localPromises: UnitPromise[];
-    selfPromise: {
+    promises: UnitPromise[];
+    task: {
         promise: Promise<any>;
         resolve: Function;
         reject: Function;
@@ -75,10 +75,10 @@ interface Internal {
         element: UnitElement;
         owned: boolean;
     }[];
-    components: Function[];
+    Components: Function[];
     listeners: MapMap<string, Function, {
         element: UnitElement;
-        component: Function | null;
+        Component: Function | null;
         execute: Function;
     }>;
     defines: Record<string, any>;
@@ -280,7 +280,7 @@ declare const xnew: CreateUnit & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(component: Function): any;
+    context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
@@ -288,7 +288,7 @@ declare const xnew: CreateUnit & {
     reject(reason?: any): void;
     finally(callback: Function): UnitPromise;
     scope(callback: any): any;
-    find(component: Function): Unit[];
+    find(Component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;

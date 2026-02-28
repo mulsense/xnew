@@ -547,12 +547,12 @@ class Unit {
             baseComponent = (unit) => { };
         }
         const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
-        const selfPromise = {
+        const task = {
             promise: null,
             resolve: null,
             reject: null
         };
-        selfPromise.promise = new Promise((resolve, reject) => { selfPromise.resolve = resolve; selfPromise.reject = reject; });
+        task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
         this._ = {
             parent,
             state: 'invoked',
@@ -564,9 +564,9 @@ class Unit {
             ancestors: parent ? [parent, ...parent._.ancestors] : [],
             children: [],
             nestElements: [],
-            localPromises: [],
-            selfPromise,
-            components: [],
+            promises: [],
+            task,
+            Components: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -576,9 +576,11 @@ class Unit {
         if (typeof target === 'string') {
             Unit.nest(this, target);
         }
-        // setup component
+        // setup Component
         Unit.extend(this, baseComponent, props);
-        this._.state = 'initialized';
+        if (this._.state === 'invoked') {
+            this._.state = 'initialized';
+        }
         Unit.currentUnit = backup;
     }
     get element() {
@@ -602,7 +604,7 @@ class Unit {
             unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
             unit.off();
             unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
             // remove contexts
             const contexts = Unit.unit2Contexts.get(unit);
             contexts === null || contexts === void 0 ? void 0 : contexts.forEach((context) => {
@@ -656,8 +658,8 @@ class Unit {
     }
     static extend(unit, Component, props) {
         var _a;
-        if (unit._.components.includes(Component) === true) {
-            throw new Error(`The component is already extended.`);
+        if (unit._.Components.includes(Component) === true) {
+            throw new Error(`The Component is already extended.`);
         }
         else {
             const backupComponent = unit._.currentComponent;
@@ -665,7 +667,7 @@ class Unit {
             const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
             unit._.currentComponent = backupComponent;
             Unit.component2units.add(Component, unit);
-            unit._.components.push(Component);
+            unit._.Components.push(Component);
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                     throw new Error(`The property "${key}" already exists.`);
@@ -683,7 +685,7 @@ class Unit {
                     wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
                 }
                 else {
-                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
+                    throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
@@ -743,7 +745,7 @@ class Unit {
             Unit.currentUnit = snapshot.unit;
             snapshot.unit._.currentContext = snapshot.context;
             snapshot.unit._.currentElement = snapshot.element;
-            snapshot.unit._.currentComponent = snapshot.component;
+            snapshot.unit._.currentComponent = snapshot.Component;
             return func(...args);
         }
         catch (error) {
@@ -753,11 +755,11 @@ class Unit {
             Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
             snapshot.unit._.currentElement = backup.element;
-            snapshot.unit._.currentComponent = backup.component;
+            snapshot.unit._.currentComponent = backup.Component;
         }
     }
     static snapshot(unit) {
-        return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
+        return { unit, context: unit._.currentContext, element: unit._.currentElement, Component: unit._.currentComponent };
     }
     static addContext(unit, orner, key, value) {
         unit._.currentContext = { previous: unit._.currentContext, key, value };
@@ -790,7 +792,7 @@ class Unit {
             unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
-            unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
+            unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {
                 unit._.eventor.add(unit.element, type, execute, options);
@@ -1010,18 +1012,18 @@ const xnew$1 = Object.assign(function (...args) {
      */
     promise(promise) {
         try {
-            const component = Unit.currentUnit._.currentComponent;
+            const Component = Unit.currentUnit._.currentComponent;
             let unitPromise;
             if (promise instanceof Unit) {
-                unitPromise = new UnitPromise(promise._.selfPromise.promise, component);
+                unitPromise = new UnitPromise(promise._.task.promise, Component);
             }
             else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise, component);
+                unitPromise = new UnitPromise(promise, Component);
             }
             else {
-                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), component);
+                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), Component);
             }
-            Unit.currentUnit._.localPromises.push(unitPromise);
+            Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
         }
         catch (error) {
@@ -1039,10 +1041,10 @@ const xnew$1 = Object.assign(function (...args) {
     then(callback) {
         try {
             const Component = Unit.currentUnit._.currentComponent;
-            const localPromises = Unit.currentUnit._.localPromises;
-            return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
+            const promises = Unit.currentUnit._.promises;
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .then((results) => {
-                callback(results.filter((_, index) => localPromises[index].Component !== null && localPromises[index].Component === Component));
+                callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
             });
         }
         catch (error) {
@@ -1059,8 +1061,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     catch(callback) {
         try {
-            const localPromises = Unit.currentUnit._.localPromises;
-            return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
+            const promises = Unit.currentUnit._.promises;
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .catch(callback);
         }
         catch (error) {
@@ -1077,8 +1079,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     resolve(value) {
         try {
-            const selfPromise = Unit.currentUnit._.selfPromise;
-            selfPromise.resolve(value);
+            Unit.currentUnit._.task.resolve(value);
         }
         catch (error) {
             console.error('xnew.resolve(value?: any): ', error);
@@ -1094,8 +1095,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     reject(reason) {
         try {
-            const selfPromise = Unit.currentUnit._.selfPromise;
-            selfPromise.reject(reason);
+            Unit.currentUnit._.task.reject(reason);
         }
         catch (error) {
             console.error('xnew.reject(reason?: any): ', error);
@@ -1111,8 +1111,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     finally(callback) {
         try {
-            const localPromises = Unit.currentUnit._.localPromises;
-            return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
+            const promises = Unit.currentUnit._.promises;
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
                 .finally(callback);
         }
         catch (error) {
@@ -1135,19 +1135,19 @@ const xnew$1 = Object.assign(function (...args) {
     },
     /**
      * Finds all instances of a component in the component tree
-     * @param component - Component function to search for
+     * @param Component - Component function to search for
      * @returns Array of Unit instances matching the component
      * @throws Error if component parameter is invalid
      * @example
      * const buttons = xnew.find(ButtonComponent)
      * buttons.forEach(btn => btn.finalize())
      */
-    find(component) {
+    find(Component) {
         try {
-            return Unit.find(component);
+            return Unit.find(Component);
         }
         catch (error) {
-            console.error('xnew.find(component: Function): ', error);
+            console.error('xnew.find(Component: Function): ', error);
             throw error;
         }
     },

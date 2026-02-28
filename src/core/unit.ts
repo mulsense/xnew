@@ -11,7 +11,7 @@ export const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'fi
 export type UnitElement = HTMLElement | SVGElement;
 
 interface Context { previous: Context | null; key?: any; value?: any; }
-interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
+interface Snapshot { unit: Unit; context: Context; element: UnitElement; Component: Function | null; }
 
 interface Internal {
     parent: Unit | null;
@@ -25,11 +25,11 @@ interface Internal {
 
     ancestors: Unit[];
     children: Unit[];
-    localPromises: UnitPromise[];
-    selfPromise: { promise: Promise<any>, resolve: Function, reject: Function };
+    promises: UnitPromise[];
+    task: { promise: Promise<any>, resolve: Function, reject: Function };
     nestElements: { element: UnitElement, owned: boolean }[];
-    components: Function[];
-    listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
+    Components: Function[];
+    listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
     defines: Record<string, any>;
     systems: Record<string, { listener: Function, execute: Function }[]>;
 
@@ -69,12 +69,12 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { previous: null };
         
-        const selfPromise = {
+        const task = {
             promise: null as unknown as Promise<any>,
             resolve: null as unknown as Function,
             reject: null as unknown as Function
         };
-        selfPromise.promise = new Promise((resolve, reject) => { selfPromise.resolve = resolve; selfPromise.reject = reject; });
+        task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
 
         this._ = {
             parent,
@@ -87,9 +87,9 @@ export class Unit {
             ancestors: parent ? [parent, ...parent._.ancestors] : [],
             children: [],
             nestElements: [],
-            localPromises: [],
-            selfPromise,
-            components: [],
+            promises: [],
+            task,
+            Components: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
@@ -101,10 +101,12 @@ export class Unit {
             Unit.nest(this, target); 
         }
 
-        // setup component
+        // setup Component
         Unit.extend(this, baseComponent, props); 
 
-        this._.state = 'initialized';
+        if (this._.state === 'invoked') {
+            this._.state = 'initialized';
+        }
 
         Unit.currentUnit = backup;
     }
@@ -136,7 +138,7 @@ export class Unit {
             unit.off();
 
             unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
             
             // remove contexts
             const contexts = Unit.unit2Contexts.get(unit);
@@ -194,8 +196,8 @@ export class Unit {
     static currentComponent: Function = () => {};
    
     static extend(unit: Unit, Component: Function, props?: Object): { [key: string]: any } {
-        if (unit._.components.includes(Component) === true) {
-            throw new Error(`The component is already extended.`);
+        if (unit._.Components.includes(Component) === true) {
+            throw new Error(`The Component is already extended.`);
         } else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = Component;
@@ -205,7 +207,7 @@ export class Unit {
             unit._.currentComponent = backupComponent;
 
             Unit.component2units.add(Component, unit);
-            unit._.components.push(Component);
+            unit._.Components.push(Component);
 
             Object.keys(defines).forEach((key) => {
                 if (unit[key] !== undefined && unit._.defines[key] === undefined) {
@@ -221,7 +223,7 @@ export class Unit {
                 } else if (typeof descriptor?.value === 'function') {
                     wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
                 } else {
-                    throw new Error(`Only function properties can be defined as component defines. [${key}]`);
+                    throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
                 }
                 Object.defineProperty(unit._.defines, key, wrapper);
                 Object.defineProperty(unit, key, wrapper);
@@ -288,7 +290,7 @@ export class Unit {
             Unit.currentUnit = snapshot.unit;
             snapshot.unit._.currentContext = snapshot.context;
             snapshot.unit._.currentElement = snapshot.element;
-            snapshot.unit._.currentComponent = snapshot.component;
+            snapshot.unit._.currentComponent = snapshot.Component;
             return func(...args);
         } catch (error) {
             throw error;
@@ -296,12 +298,12 @@ export class Unit {
             Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
             snapshot.unit._.currentElement = backup.element;
-            snapshot.unit._.currentComponent = backup.component;
+            snapshot.unit._.currentComponent = backup.Component;
         }
     }
 
     static snapshot(unit: Unit): Snapshot {
-        return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
+        return { unit, context: unit._.currentContext, element: unit._.currentElement, Component: unit._.currentComponent };
     }
 
     static unit2Contexts: MapSet<Unit, Context> = new MapSet();
@@ -350,7 +352,7 @@ export class Unit {
             unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
-            unit._.listeners.set(type, listener, { element: unit.element, component: unit._.currentComponent, execute });
+            unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
             if (/^[A-Za-z]/.test(type)) {
                 unit._.eventor.add(unit.element, type, execute, options);

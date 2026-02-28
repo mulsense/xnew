@@ -88,7 +88,7 @@ function GameScene(scene) {
 
 function Controller(unit) {
   // prevent default event
-  unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+  unit.on('touchstart contextmenu wheel window.keydown', (event) => event.preventDefault());
   
   // left bottom
   xnew(() => {
