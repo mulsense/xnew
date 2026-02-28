@@ -131,31 +131,30 @@ export class Unit {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
 
-            unit.off();
-
             unit._.children.reverse().forEach((child: Unit) => child.finalize());
             unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
+            unit.off();
+
             unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             
             // remove contexts
-            console.log('remove contexts');
-            // const contexts = Unit.unit2Contexts.get(unit);
-            // contexts?.forEach((context: Context) => {
-            //     let temp = context.previous;
-            //     while(temp !== null) {
-            //         console.log('check', contexts.has(temp), temp.key);
-            //         if (contexts.has(temp) === false && temp.key !== undefined) {
-            //             context.previous = temp;
-            //             context.key = undefined;
-            //             context.value = undefined;
-            //             break;
-            //         }
-            //         temp = temp.previous;
-            //     }
-            // });
-            // Unit.unit2Contexts.delete(unit);
-            //unit._.currentContext = { previous: null };
+            const contexts = Unit.unit2Contexts.get(unit);
+            contexts?.forEach((context: Context) => {
+                let temp = context.previous;
+                while(temp !== null) {
+                    console.log('check', contexts.has(temp), temp.key);
+                    if (contexts.has(temp) === false && temp.key !== undefined) {
+                        context.previous = temp;
+                        context.key = undefined;
+                        context.value = undefined;
+                        break;
+                    }
+                    temp = temp.previous;
+                }
+            });
+            Unit.unit2Contexts.delete(unit);
+            unit._.currentContext = { previous: null };
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
