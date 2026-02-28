@@ -161,7 +161,7 @@
             }
             else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
                 const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-                const s = Math.pow(p, bias);
+                const s = p ** bias;
                 p = s * s * (3 - 2 * s);
             }
             (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
@@ -552,7 +552,7 @@
             else {
                 baseComponent = (unit) => { };
             }
-            const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { prev: null, orner: this };
+            const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
             const selfPromise = {
                 promise: null,
                 resolve: null,
@@ -609,7 +609,24 @@
                 unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
                 unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
                 unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
-                Unit.removeContext(unit);
+                // remove contexts
+                console.log('remove contexts');
+                // const contexts = Unit.unit2Contexts.get(unit);
+                // contexts?.forEach((context: Context) => {
+                //     let temp = context.previous;
+                //     while(temp !== null) {
+                //         console.log('check', contexts.has(temp), temp.key);
+                //         if (contexts.has(temp) === false && temp.key !== undefined) {
+                //             context.previous = temp;
+                //             context.key = undefined;
+                //             context.value = undefined;
+                //             break;
+                //         }
+                //         temp = temp.previous;
+                //     }
+                // });
+                // Unit.unit2Contexts.delete(unit);
+                //unit._.currentContext = { previous: null };
                 // reset defines
                 Object.keys(unit._.defines).forEach((key) => {
                     delete unit[key];
@@ -750,25 +767,14 @@
             return { unit, context: unit._.currentContext, element: unit._.currentElement, component: unit._.currentComponent };
         }
         static addContext(unit, orner, key, value) {
-            const prev = unit._.currentContext;
-            unit._.currentContext = { prev, orner, key, value };
-            Unit.unit2Contexts.add(prev.orner, unit._.currentContext);
+            unit._.currentContext = { previous: unit._.currentContext, key, value };
+            Unit.unit2Contexts.add(orner, unit._.currentContext);
         }
         static getContext(unit, key) {
-            for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
+            for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
                 if (context.key === key)
                     return context.value;
             }
-        }
-        static removeContext(unit) {
-            var _a;
-            (_a = Unit.unit2Contexts.get(unit)) === null || _a === void 0 ? void 0 : _a.forEach((context) => {
-                const prev = context.prev;
-                if (prev) {
-                    context.prev = prev.prev;
-                }
-            });
-            Unit.unit2Contexts.delete(unit);
         }
         static find(Component) {
             var _a;
@@ -834,15 +840,6 @@
     }
     Unit.currentComponent = () => { };
     Unit.unit2Contexts = new MapSet();
-    // step1
-    // main.baseContext = 1{ prev: null }
-    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 3{ prev: 2, orner: sub2 } -> 4{ prev: 3, orner: sub3 }
-    // sub1.baseContext = 1{ prev: null }
-    // sub1.currentContext = 1{ prev: null }
-    // sub2.baseContext = 2{ prev: 1, orner: sub1 }
-    // sub2.currentContext = 2{ prev: 1, orner: sub1 }
-    // sub3.baseContext = 3{ prev: 2, orner: sub2 }
-    // sub3.currentContext = 3{ prev: 2, orner: sub2 }
     Unit.component2units = new MapSet();
     //----------------------------------------------------------------------------------------------------
     // event

@@ -10,7 +10,7 @@ export const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'fi
 
 export type UnitElement = HTMLElement | SVGElement;
 
-interface Context { prev: Context | null; orner: Unit, key?: any; value?: any; }
+interface Context { previous: Context | null; key?: any; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; component: Function | null; }
 
 interface Internal {
@@ -67,7 +67,7 @@ export class Unit {
             baseComponent = (unit: Unit) => {};
         }
 
-        const baseContext = parent?._.currentContext ?? { prev: null, orner: this };
+        const baseContext = parent?._.currentContext ?? { previous: null };
         
         const selfPromise = {
             promise: null as unknown as Promise<any>,
@@ -138,7 +138,24 @@ export class Unit {
             unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             
-            Unit.removeContext(unit);
+            // remove contexts
+            console.log('remove contexts');
+            // const contexts = Unit.unit2Contexts.get(unit);
+            // contexts?.forEach((context: Context) => {
+            //     let temp = context.previous;
+            //     while(temp !== null) {
+            //         console.log('check', contexts.has(temp), temp.key);
+            //         if (contexts.has(temp) === false && temp.key !== undefined) {
+            //             context.previous = temp;
+            //             context.key = undefined;
+            //             context.value = undefined;
+            //             break;
+            //         }
+            //         temp = temp.previous;
+            //     }
+            // });
+            // Unit.unit2Contexts.delete(unit);
+            //unit._.currentContext = { previous: null };
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
@@ -290,44 +307,16 @@ export class Unit {
 
     static unit2Contexts: MapSet<Unit, Context> = new MapSet();
 
-    static addContext(unit: Unit, orner: Unit, key: any, value: Unit): void {
-        const prev = unit._.currentContext;
-        unit._.currentContext = { prev, orner, key, value };
-        Unit.unit2Contexts.add(prev.orner, unit._.currentContext);
+    static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void {
+        unit._.currentContext = { previous: unit._.currentContext, key, value };
+        Unit.unit2Contexts.add(orner, unit._.currentContext);
     }
 
     static getContext(unit: Unit, key: any): any {
-        for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
+        for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
             if (context.key === key) return context.value;
         }
     }
-
-    static removeContext(unit: Unit): void {
-        Unit.unit2Contexts.get(unit)?.forEach((context: Context) => {
-            const prev = context.prev;
-            if (prev) {
-                context.prev = prev.prev;
-            }
-        });
-        Unit.unit2Contexts.delete(unit);
-    }
-
-    // step1
-    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 3{ prev: 2, orner: sub2 } -> 4{ prev: 3, orner: sub3 }
-    // sub1.currentContext = 1{ prev: null }
-    // sub2.currentContext = 2{ prev: 1, orner: sub1 }
-    // sub3.currentContext = 3{ prev: 2, orner: sub2 }
-
-    // step2-a after sum2.finalize()
-    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 4'{ prev: 2, orner: sub2 }
-    // sub1.currentContext = 1{ prev: null }
-    // sub3.currentContext = 2{ prev: 1, orner: sub1 }
-
-    // step2-a after sum2.finalize()
-    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 3{ prev: 2, orner: sub2 }
-    // sub1.currentContext = 1{ prev: null }
-    // sub2.currentContext = 2{ prev: 1, orner: sub1 }
-    
 
     static component2units: MapSet<Function, Unit> = new MapSet();
 

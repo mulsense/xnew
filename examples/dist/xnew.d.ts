@@ -45,8 +45,7 @@ declare class Eventor {
 
 type UnitElement = HTMLElement | SVGElement;
 interface Context {
-    prev: Context | null;
-    orner: Unit;
+    previous: Context | null;
     key?: any;
     value?: any;
 }
@@ -113,9 +112,8 @@ declare class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static unit2Contexts: MapSet<Unit, Context>;
-    static addContext(unit: Unit, orner: Unit, key: any, value: Unit): void;
+    static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void;
     static getContext(unit: Unit, key: any): any;
-    static removeContext(unit: Unit): void;
     static component2units: MapSet<Function, Unit>;
     static find(Component: Function): Unit[];
     static type2units: MapSet<string, Unit>;
@@ -282,7 +280,7 @@ declare const xnew: CreateUnit & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(key: any): any;
+    context(component: Function): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;

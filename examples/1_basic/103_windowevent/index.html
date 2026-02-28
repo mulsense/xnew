@@ -14,31 +14,29 @@
     xnew(document.querySelector('#main'), Main);
     
     function Main(unit) {
-      xnew.nest('<div class="p-4 select-none">');
-
-      xnew(Console, { title: 'window.*', key: '+window' });
-      xnew(Console, { title: 'window.keydown or window.keyup', key: '+key' });
-      xnew(Console, { title: 'window.keydown.arrow or window.keyup.arrow', key: '+arrow' });
-      xnew(Console, { title: 'window.keydown.wasd or window.keyup.wasd', key: '+wasd' });
-
-      unit.on('window.keydown window.keyup', ({ event, type }) => {
-        xnew.emit('+key', { text: `${type}: ${event.code}` });
-      });
-      unit.on('window.keydown.arrow window.keyup.arrow', ({ event, type, vector }) => {
-        xnew.emit('+arrow', { text: `${type}: [${vector.x}, ${vector.y}]` });
-      });
-      unit.on('window.keydown.wasd window.keyup.wasd', ({ event, type, vector }) => {
-        xnew.emit('+wasd', { text: `${type}: [${vector.x}, ${vector.y}]` });
-      });
-      unit.on('window.scroll window.resize', ({ event, type }) => {
-        xnew.emit('+window', { text: `${type}` });
-      });
+      const t1 = xnew(Test);
+      const t2 = xnew(Test);
+      const t3 = xnew(Test);
+      const t4 = xnew(Test);
+      const t5 = xnew(Test);
+      t1.finalize();
+      t2.finalize();
+      t3.finalize();
+      t4.finalize();
+    
+      count(unit);
     }
 
-    function Console(unit, { title, key }) {
-      xnew('<p>', title);
-      const div = xnew('<div class="m-0.5 p-1 rounded bg-gray-200">', 'Console')
-      div.on(key, ({ text }) => div.element.textContent = text);
+    function count(unit) {
+      let count = 0;
+      let context = unit._.currentContext;
+      while (context) {
+        count++;
+        context = context.previous;
+      }
+      console.log('count:', count);
+    }
+    function Test(unit) {
     }
   </script>
 </body>
