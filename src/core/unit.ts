@@ -15,24 +15,18 @@ interface Snapshot { unit: Unit; context: Context; element: UnitElement; compone
 
 interface Internal {
     parent: Unit | null;
-    target: Object | null;
-    props?: Object;
 
-    baseElement: UnitElement;
-    baseContext: Context;
-    baseComponent: Function;
-    currentElement: UnitElement;
-    currentContext: Context;
-    currentComponent: Function | null;
-    anchor: UnitElement | null;
     state: string;
     tostart: boolean;
     protected: boolean;
+    currentElement: UnitElement;
+    currentContext: Context;
+    currentComponent: Function | null;
 
     ancestors: Unit[];
     children: Unit[];
-    promises: UnitPromise[];
-    done: { promise: Promise<any>, resolve: Function, reject: Function };
+    localPromises: UnitPromise[];
+    selfPromise: { promise: Promise<any>, resolve: Function, reject: Function };
     nestElements: { element: UnitElement, owned: boolean }[];
     components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, component: Function | null, execute: Function }>;
@@ -51,6 +45,10 @@ export class Unit {
     public _: Internal;
 
     constructor(parent: Unit | null, target: UnitElement | string | null, Component?: Function | string | number, props?: Object) {
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = this;
+        parent?._.children.push(this);
+
         let baseElement: UnitElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -69,13 +67,46 @@ export class Unit {
             baseComponent = (unit: Unit) => {};
         }
 
-        const baseContext = parent?._.currentContext ?? { prev: null, unit: this };
+        const baseContext = parent?._.currentContext ?? { prev: null, orner: this };
         
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props } as Internal;
-        parent?._.children.push(this);
-        
-        Unit.initialize(this, null);
+        const selfPromise = {
+            promise: null as unknown as Promise<any>,
+            resolve: null as unknown as Function,
+            reject: null as unknown as Function
+        };
+        selfPromise.promise = new Promise((resolve, reject) => { selfPromise.resolve = resolve; selfPromise.reject = reject; });
 
+        this._ = {
+            parent,
+            state: 'invoked',
+            tostart: true,
+            protected: false,
+            currentElement: baseElement,
+            currentContext: baseContext,
+            currentComponent: null,
+            ancestors: parent ? [parent, ...parent._.ancestors] : [],
+            children: [],
+            nestElements: [],
+            localPromises: [],
+            selfPromise,
+            components: [],
+            listeners: new MapMap(),
+            defines: {},
+            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
+            eventor: new Eventor(),
+        };
+
+        // nest html element
+        if (typeof target === 'string') {
+            Unit.nest(this, target); 
+        }
+
+        // setup component
+        Unit.extend(this, baseComponent, props); 
+
+        this._.state = 'initialized';
+
+        Unit.currentUnit = backup;
     }
 
     public get element(): UnitElement {
@@ -94,84 +125,20 @@ export class Unit {
     public finalize(): void {
         Unit.stop(this);
         Unit.finalize(this);
-        if (this._.parent) {
-            this._.parent._.children = this._.parent._.children.filter((unit: Unit) => unit !== this);
-        }
-    }
-
-    public reboot(): void {
-        let anchor: UnitElement | null = null;
-        if (this._.nestElements[0] && this._.nestElements[0].owned === true) {
-            anchor = this._.nestElements[0].element.nextElementSibling as UnitElement
-        }
-        Unit.stop(this);
-        Unit.finalize(this);
-        Unit.initialize(this, anchor);
-    }
-
-    static initialize(unit: Unit, anchor: UnitElement | null): void {
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = unit;
-
-        const done = {
-            promise: null as unknown as Promise<any>,
-            resolve: null as unknown as Function,
-            reject: null as unknown as Function
-        };
-        done.promise = new Promise((resolve, reject) => { done.resolve = resolve; done.reject = reject; });
-
-        unit._ = Object.assign(unit._, {
-            currentElement: unit._.baseElement,
-            currentContext: unit._.baseContext,
-            currentComponent: null,
-            anchor,
-            state: 'invoked',
-            tostart: true,
-            protected: false,
-            ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
-            children: [],
-            nestElements: [],
-            promises: [],
-            done,
-            components: [],
-            listeners: new MapMap(),
-            defines: {},
-            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
-            eventor: new Eventor(),
-        });
-
-        // nest html element
-        if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target); 
-        }
-
-        // setup component
-        Unit.extend(unit, unit._.baseComponent, unit._.props); 
-
-        // whether the unit promise was resolved
-        // Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
-        unit._.state = 'initialized';
-
-        Unit.currentUnit = backup;
     }
 
     static finalize(unit: Unit): void {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
 
-            [...unit._.children].reverse().forEach((child: Unit) => child.finalize());
-            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
-
             unit.off();
-            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
-            Unit.removeContext(unit);
 
-            for (const { element, owned } of unit._.nestElements.reverse()) {
-                if (owned === true) {
-                    element.remove();
-                }
-            }
-            unit._.currentElement = unit._.baseElement;
+            unit._.children.reverse().forEach((child: Unit) => child.finalize());
+            unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
+            unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
+            unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
+            
+            Unit.removeContext(unit);
 
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
@@ -179,6 +146,10 @@ export class Unit {
             });
             unit._.defines = {};
             unit._.state = 'finalized';
+
+            if (unit._.parent) {
+                unit._.parent._.children = unit._.parent._.children.filter((u: Unit) => u !== unit);
+            }
         }
     }
 
@@ -190,15 +161,8 @@ export class Unit {
         } else {
             const match = target.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
-                let element: UnitElement;
-                if (unit._.anchor !== null) {
-                    unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                    element = unit._.anchor.previousElementSibling as UnitElement;
-                    unit._.anchor = null;
-                } else {
-                    unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                    element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
-                }
+                unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
                 unit._.currentElement = element;
                 if (textContent !== undefined) {
                     element.textContent = textContent.toString();

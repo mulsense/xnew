@@ -123,13 +123,13 @@ export const xnew = Object.assign(
                 const component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(promise._.done.promise, component)
+                    unitPromise = new UnitPromise(promise._.selfPromise.promise, component)
                 } else if (promise instanceof Promise) {
                     unitPromise = new UnitPromise(promise, component)
                 } else {
                     unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), component)
                 }
-                Unit.currentUnit._.promises.push(unitPromise);
+                Unit.currentUnit._.localPromises.push(unitPromise);
                 return unitPromise;
             } catch (error: unknown) {
                 console.error('xnew.promise(promise: Promise<any>): ', error);
@@ -147,10 +147,10 @@ export const xnew = Object.assign(
         then(callback: Function): UnitPromise {
             try {
                 const Component = Unit.currentUnit._.currentComponent;
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                const localPromises = Unit.currentUnit._.localPromises;
+                return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
                 .then((results: any[]) => {
-                    callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
+                    callback(results.filter((_, index) => localPromises[index].Component !== null && localPromises[index].Component === Component));
                 });
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -167,8 +167,8 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                const localPromises = Unit.currentUnit._.localPromises;
+                return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
@@ -185,8 +185,8 @@ export const xnew = Object.assign(
          */
         resolve(value?: any): void {
             try {
-                const done = Unit.currentUnit._.done;
-                done.resolve(value);
+                const selfPromise = Unit.currentUnit._.selfPromise;
+                selfPromise.resolve(value);
             } catch (error: unknown) {
                 console.error('xnew.resolve(value?: any): ', error);
                 throw error;
@@ -202,8 +202,8 @@ export const xnew = Object.assign(
          */
         reject(reason?: any): void {
             try {
-                const done = Unit.currentUnit._.done;
-                done.reject(reason);
+                const selfPromise = Unit.currentUnit._.selfPromise;
+                selfPromise.reject(reason);
             } catch (error: unknown) {
                 console.error('xnew.reject(reason?: any): ', error);
                 throw error;
@@ -219,8 +219,8 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                const localPromises = Unit.currentUnit._.localPromises;
+                return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
                 .finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);

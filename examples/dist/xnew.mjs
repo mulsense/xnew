@@ -155,7 +155,7 @@ class Timer {
         }
         else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
             const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = p ** bias;
+            const s = Math.pow(p, bias);
             p = s * s * (3 - 2 * s);
         }
         (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
@@ -523,6 +523,9 @@ const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
 class Unit {
     constructor(parent, target, Component, props) {
         var _a;
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = this;
+        parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         let baseElement;
         if (target instanceof HTMLElement || target instanceof SVGElement) {
             baseElement = target;
@@ -543,10 +546,40 @@ class Unit {
         else {
             baseComponent = (unit) => { };
         }
-        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { prev: null, unit: this };
-        this._ = { parent, target, baseElement, baseContext, baseComponent, props };
-        parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
-        Unit.initialize(this, null);
+        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { prev: null, orner: this };
+        const selfPromise = {
+            promise: null,
+            resolve: null,
+            reject: null
+        };
+        selfPromise.promise = new Promise((resolve, reject) => { selfPromise.resolve = resolve; selfPromise.reject = reject; });
+        this._ = {
+            parent,
+            state: 'invoked',
+            tostart: true,
+            protected: false,
+            currentElement: baseElement,
+            currentContext: baseContext,
+            currentComponent: null,
+            ancestors: parent ? [parent, ...parent._.ancestors] : [],
+            children: [],
+            nestElements: [],
+            localPromises: [],
+            selfPromise,
+            components: [],
+            listeners: new MapMap(),
+            defines: {},
+            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
+            eventor: new Eventor(),
+        };
+        // nest html element
+        if (typeof target === 'string') {
+            Unit.nest(this, target);
+        }
+        // setup component
+        Unit.extend(this, baseComponent, props);
+        this._.state = 'initialized';
+        Unit.currentUnit = backup;
     }
     get element() {
         return this._.currentElement;
@@ -561,78 +594,25 @@ class Unit {
     finalize() {
         Unit.stop(this);
         Unit.finalize(this);
-        if (this._.parent) {
-            this._.parent._.children = this._.parent._.children.filter((unit) => unit !== this);
-        }
-    }
-    reboot() {
-        let anchor = null;
-        if (this._.nestElements[0] && this._.nestElements[0].owned === true) {
-            anchor = this._.nestElements[0].element.nextElementSibling;
-        }
-        Unit.stop(this);
-        Unit.finalize(this);
-        Unit.initialize(this, anchor);
-    }
-    static initialize(unit, anchor) {
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = unit;
-        const done = {
-            promise: null,
-            resolve: null,
-            reject: null
-        };
-        done.promise = new Promise((resolve, reject) => { done.resolve = resolve; done.reject = reject; });
-        unit._ = Object.assign(unit._, {
-            currentElement: unit._.baseElement,
-            currentContext: unit._.baseContext,
-            currentComponent: null,
-            anchor,
-            state: 'invoked',
-            tostart: true,
-            protected: false,
-            ancestors: unit._.parent ? [unit._.parent, ...unit._.parent._.ancestors] : [],
-            children: [],
-            nestElements: [],
-            promises: [],
-            done,
-            components: [],
-            listeners: new MapMap(),
-            defines: {},
-            systems: { start: [], update: [], render: [], stop: [], finalize: [] },
-            eventor: new Eventor(),
-        });
-        // nest html element
-        if (typeof unit._.target === 'string') {
-            Unit.nest(unit, unit._.target);
-        }
-        // setup component
-        Unit.extend(unit, unit._.baseComponent, unit._.props);
-        // whether the unit promise was resolved
-        // Promise.all(unit._.promises.map(p => p.promise)).then(() => unit._.state = 'initialized');
-        unit._.state = 'initialized';
-        Unit.currentUnit = backup;
     }
     static finalize(unit) {
         if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
             unit._.state = 'finalizing';
-            [...unit._.children].reverse().forEach((child) => child.finalize());
-            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
             unit.off();
+            unit._.children.reverse().forEach((child) => child.finalize());
+            unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
+            unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
             unit._.components.forEach((component) => Unit.component2units.delete(component, unit));
             Unit.removeContext(unit);
-            for (const { element, owned } of unit._.nestElements.reverse()) {
-                if (owned === true) {
-                    element.remove();
-                }
-            }
-            unit._.currentElement = unit._.baseElement;
             // reset defines
             Object.keys(unit._.defines).forEach((key) => {
                 delete unit[key];
             });
             unit._.defines = {};
             unit._.state = 'finalized';
+            if (unit._.parent) {
+                unit._.parent._.children = unit._.parent._.children.filter((u) => u !== unit);
+            }
         }
     }
     static nest(unit, target, textContent) {
@@ -644,16 +624,8 @@ class Unit {
         else {
             const match = target.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
-                let element;
-                if (unit._.anchor !== null) {
-                    unit._.anchor.insertAdjacentHTML('beforebegin', `<${match[1]}></${match[2]}>`);
-                    element = unit._.anchor.previousElementSibling;
-                    unit._.anchor = null;
-                }
-                else {
-                    unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                    element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
-                }
+                unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1];
                 unit._.currentElement = element;
                 if (textContent !== undefined) {
                     element.textContent = textContent.toString();
@@ -773,8 +745,8 @@ class Unit {
     }
     static addContext(unit, orner, key, value) {
         const prev = unit._.currentContext;
-        unit._.currentContext = { prev, unit: orner, key, value };
-        Unit.unit2Contexts.add(prev.unit, unit._.currentContext);
+        unit._.currentContext = { prev, orner, key, value };
+        Unit.unit2Contexts.add(prev.orner, unit._.currentContext);
     }
     static getContext(unit, key) {
         for (let context = unit._.currentContext; context.prev !== null; context = context.prev) {
@@ -858,16 +830,13 @@ Unit.currentComponent = () => { };
 Unit.unit2Contexts = new MapSet();
 // step1
 // main.baseContext = 1{ prev: null }
-// main.currentContext = 1{ prev: null } -> 2{ prev: 1, unit: sub1 } -> 3{ prev: 2, unit: sub2 }
+// main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 3{ prev: 2, orner: sub2 } -> 4{ prev: 3, orner: sub3 }
 // sub1.baseContext = 1{ prev: null }
 // sub1.currentContext = 1{ prev: null }
-// sub2.baseContext = 2{ prev: 1, unit: sub2 }
-// sub2.currentContext = 2{ prev: 1, unit: sub2 }
-// step2 (after sub1 is finalized)
-// main.baseContext = 1{ prev: null }
-// main.currentContext = 1{ prev: null } -> 3{ prev: 2, unit: sub1 } 
-// sub2.baseContext = 2{ prev: 1, unit: sub2 }
-// sub2.currentContext = 2{ prev: 1, unit: sub2 }
+// sub2.baseContext = 2{ prev: 1, orner: sub1 }
+// sub2.currentContext = 2{ prev: 1, orner: sub1 }
+// sub3.baseContext = 3{ prev: 2, orner: sub2 }
+// sub3.currentContext = 3{ prev: 2, orner: sub2 }
 Unit.component2units = new MapSet();
 //----------------------------------------------------------------------------------------------------
 // event
@@ -1048,7 +1017,7 @@ const xnew$1 = Object.assign(function (...args) {
             const component = Unit.currentUnit._.currentComponent;
             let unitPromise;
             if (promise instanceof Unit) {
-                unitPromise = new UnitPromise(promise._.done.promise, component);
+                unitPromise = new UnitPromise(promise._.selfPromise.promise, component);
             }
             else if (promise instanceof Promise) {
                 unitPromise = new UnitPromise(promise, component);
@@ -1056,7 +1025,7 @@ const xnew$1 = Object.assign(function (...args) {
             else {
                 unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), component);
             }
-            Unit.currentUnit._.promises.push(unitPromise);
+            Unit.currentUnit._.localPromises.push(unitPromise);
             return unitPromise;
         }
         catch (error) {
@@ -1074,10 +1043,10 @@ const xnew$1 = Object.assign(function (...args) {
     then(callback) {
         try {
             const Component = Unit.currentUnit._.currentComponent;
-            const promises = Unit.currentUnit._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+            const localPromises = Unit.currentUnit._.localPromises;
+            return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
                 .then((results) => {
-                callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
+                callback(results.filter((_, index) => localPromises[index].Component !== null && localPromises[index].Component === Component));
             });
         }
         catch (error) {
@@ -1094,8 +1063,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     catch(callback) {
         try {
-            const promises = Unit.currentUnit._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+            const localPromises = Unit.currentUnit._.localPromises;
+            return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
                 .catch(callback);
         }
         catch (error) {
@@ -1112,8 +1081,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     resolve(value) {
         try {
-            const done = Unit.currentUnit._.done;
-            done.resolve(value);
+            const selfPromise = Unit.currentUnit._.selfPromise;
+            selfPromise.resolve(value);
         }
         catch (error) {
             console.error('xnew.resolve(value?: any): ', error);
@@ -1129,8 +1098,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     reject(reason) {
         try {
-            const done = Unit.currentUnit._.done;
-            done.reject(reason);
+            const selfPromise = Unit.currentUnit._.selfPromise;
+            selfPromise.reject(reason);
         }
         catch (error) {
             console.error('xnew.reject(reason?: any): ', error);
@@ -1146,8 +1115,8 @@ const xnew$1 = Object.assign(function (...args) {
      */
     finally(callback) {
         try {
-            const promises = Unit.currentUnit._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+            const localPromises = Unit.currentUnit._.localPromises;
+            return new UnitPromise(Promise.all(localPromises.map(p => p.promise)), null)
                 .finally(callback);
         }
         catch (error) {

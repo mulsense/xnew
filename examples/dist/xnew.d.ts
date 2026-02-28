@@ -58,22 +58,16 @@ interface Snapshot {
 }
 interface Internal {
     parent: Unit | null;
-    target: Object | null;
-    props?: Object;
-    baseElement: UnitElement;
-    baseContext: Context;
-    baseComponent: Function;
-    currentElement: UnitElement;
-    currentContext: Context;
-    currentComponent: Function | null;
-    anchor: UnitElement | null;
     state: string;
     tostart: boolean;
     protected: boolean;
+    currentElement: UnitElement;
+    currentContext: Context;
+    currentComponent: Function | null;
     ancestors: Unit[];
     children: Unit[];
-    promises: UnitPromise[];
-    done: {
+    localPromises: UnitPromise[];
+    selfPromise: {
         promise: Promise<any>;
         resolve: Function;
         reject: Function;
@@ -103,8 +97,6 @@ declare class Unit {
     start(): void;
     stop(): void;
     finalize(): void;
-    reboot(): void;
-    static initialize(unit: Unit, anchor: UnitElement | null): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
     static currentComponent: Function;
@@ -290,7 +282,7 @@ declare const xnew: CreateUnit & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(component: Function): any;
+    context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
