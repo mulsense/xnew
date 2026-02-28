@@ -313,15 +313,21 @@ export class Unit {
     }
 
     // step1
-    // main.baseContext = 1{ prev: null }
     // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 3{ prev: 2, orner: sub2 } -> 4{ prev: 3, orner: sub3 }
-    // sub1.baseContext = 1{ prev: null }
     // sub1.currentContext = 1{ prev: null }
-    // sub2.baseContext = 2{ prev: 1, orner: sub1 }
     // sub2.currentContext = 2{ prev: 1, orner: sub1 }
-    // sub3.baseContext = 3{ prev: 2, orner: sub2 }
     // sub3.currentContext = 3{ prev: 2, orner: sub2 }
 
+    // step2-a after sum2.finalize()
+    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 4'{ prev: 2, orner: sub2 }
+    // sub1.currentContext = 1{ prev: null }
+    // sub3.currentContext = 2{ prev: 1, orner: sub1 }
+
+    // step2-a after sum2.finalize()
+    // main.currentContext = 1{ prev: null } -> 2{ prev: 1, orner: sub1 } -> 3{ prev: 2, orner: sub2 }
+    // sub1.currentContext = 1{ prev: null }
+    // sub2.currentContext = 2{ prev: 1, orner: sub1 }
+    
 
     static component2units: MapSet<Function, Unit> = new MapSet();
 
