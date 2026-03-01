@@ -66,11 +66,7 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
-    task: {
-        promise: Promise<any>;
-        resolve: Function;
-        reject: Function;
-    };
+    results: Record<string, any>;
     nestElements: {
         element: UnitElement;
         owned: boolean;

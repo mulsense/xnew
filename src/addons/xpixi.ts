@@ -32,7 +32,6 @@ function Root(unit: xnew.Unit, { canvas }: { canvas: HTMLCanvasElement }) {
         antialias: true, backgroundAlpha: 0,
     })).then((value: any) => {
         renderer = value;
-        xnew.resolve();
     });
 
     let scene = new PIXI.Container();

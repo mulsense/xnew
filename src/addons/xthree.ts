@@ -33,8 +33,6 @@ function Root(unit: xnew.Unit, { canvas, camera }: any) {
     camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
     const scene = new THREE.Scene();
 
-    xnew.resolve();
-
     return {
         get canvas() { return canvas; },
         get camera() { return camera; },

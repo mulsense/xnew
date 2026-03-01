@@ -553,12 +553,6 @@
                 baseComponent = (unit) => { };
             }
             const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
-            const task = {
-                promise: null,
-                resolve: null,
-                reject: null
-            };
-            task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
             this._ = {
                 parent,
                 state: 'invoked',
@@ -571,7 +565,7 @@
                 children: [],
                 nestElements: [],
                 promises: [],
-                task,
+                results: {},
                 Components: [],
                 listeners: new MapMap(),
                 defines: {},
@@ -1020,7 +1014,9 @@
                 const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(promise._.task.promise, Component);
+                    const unit = promise;
+                    unitPromise = new UnitPromise(Promise.all(unit._.promises.map(p => p.promise)), Component)
+                        .then(() => unit._.results);
                 }
                 else if (promise instanceof Promise) {
                     unitPromise = new UnitPromise(promise, Component);
@@ -1045,11 +1041,12 @@
          */
         then(callback) {
             try {
+                const currentUnit = Unit.currentUnit;
                 const Component = Unit.currentUnit._.currentComponent;
                 const promises = Unit.currentUnit._.promises;
                 return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
-                    .then((results) => {
-                    callback(results.filter((_, index) => promises[index].Component !== null && promises[index].Component === Component));
+                    .then(() => {
+                    callback(currentUnit._.results);
                 });
             }
             catch (error) {
@@ -1076,34 +1073,18 @@
             }
         },
         /**
-         * Resolves the current unit's promise with the given value
-         * @param value - Value to resolve the promise with
+         * Assigns a value to the current unit's promise
+         * @param object - object to assign to the promise
          * @returns void
          * @example
-         * xnew.resolve('data');
+         * xnew.assign({ data: 123});
          */
-        resolve(value) {
+        assign(object) {
             try {
-                Unit.currentUnit._.task.resolve(value);
+                Object.assign(Unit.currentUnit._.results, object);
             }
             catch (error) {
-                console.error('xnew.resolve(value?: any): ', error);
-                throw error;
-            }
-        },
-        /**
-         * Rejects the current unit's promise with the given reason
-         * @param reason - Reason to reject the promise
-         * @returns void
-         * @example
-         * xnew.reject(new Error('Something went wrong'));
-         */
-        reject(reason) {
-            try {
-                Unit.currentUnit._.task.reject(reason);
-            }
-            catch (error) {
-                console.error('xnew.reject(reason?: any): ', error);
+                console.error('xnew.assign(object?: Record<string, any>): ', error);
                 throw error;
             }
         },

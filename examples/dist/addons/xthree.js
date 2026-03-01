@@ -53,7 +53,6 @@
         renderer.setClearColor(0x000000, 0);
         camera = camera !== null && camera !== void 0 ? camera : new THREE__namespace.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
         const scene = new THREE__namespace.Scene();
-        xnew.resolve();
         return {
             get canvas() { return canvas; },
             get camera() { return camera; },

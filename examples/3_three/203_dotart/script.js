@@ -154,16 +154,20 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
       loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf.userData.vrm), (error) => {
         console.error('Failed to load VRM:', error);
       });
-    });
+    })
+  }).then((vrm) => {
+    xnew.assign({ vrm });
   });
 
   xnew.promise(new Promise((resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
     loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
-  }));
+  })).then((vrma) => {
+    xnew.assign({ vrma });
+  });
 
-  xnew.then(([vrm, vrma]) => {
+  xnew.then(({ vrm, vrma }) => {
     vrm.scene.traverse((obj) => {
       if (obj.isMesh) {
         obj.castShadow = true;
