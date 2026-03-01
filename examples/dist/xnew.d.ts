@@ -280,7 +280,7 @@ declare const xnew: CreateUnit & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(key: any): any;
+    context(component: Function): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
@@ -288,7 +288,7 @@ declare const xnew: CreateUnit & {
     reject(reason?: any): void;
     finally(callback: Function): UnitPromise;
     scope(callback: any): any;
-    find(Component: Function): Unit[];
+    find(component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;

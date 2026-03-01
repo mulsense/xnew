@@ -8,7 +8,6 @@ import xthree from '@mulsense/xnew/addons/xthree';
 
 const CHARACTER_FILES = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
 const BAKE_FRAMES = 30;
-const BAKE_SIZE = 128;
 
 xnew(document.querySelector('#main'), Main);
 
@@ -36,8 +35,6 @@ function Contents(unit) {
   });
 }
 
-// ---- Baking ----
-
 function BakedCharacters(_unit) {
   let texturesList = null;
   xnew.promise(xnew(Baking)).then((value) => { texturesList = value; });
@@ -46,12 +43,9 @@ function BakedCharacters(_unit) {
 }
 
 function Baking(unit) {
-  xthree.initialize({ canvas: new OffscreenCanvas(BAKE_SIZE, BAKE_SIZE) });
-  xthree.camera.position.set(0, 0.2, 2.5);
-  if (xthree.camera.isPerspectiveCamera) {
-    xthree.camera.fov = 40;
-    xthree.camera.updateProjectionMatrix();
-  }
+  const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
+  xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
+  xthree.camera.position.set(0, -0.1, 2.5);
 
   xnew(() => {
     xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
@@ -81,8 +75,9 @@ function Baking(unit) {
     loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.load(`../../assets/${CHARACTER_FILES[currentChar]}`, (gltf) => {
       const vrm = gltf.userData.vrm;
-      vrm.scene.scale.set(1, 1, 1);
+      vrm.scene.scale.set(0.8, 0.8, 0.8);
       vrm.scene.position.y = -1;
+      vrm.scene.rotation.x = +Math.PI * 20 / 180;
       vrmGroup.add(vrm.scene); // Three.jsのGroup.add（xnewコンテキスト不要）
       currentVRM = vrm;
       frameIndex = 0;
@@ -117,9 +112,9 @@ function Baking(unit) {
 
 function bakingAnimateVRM(vrm, t) {
   const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
-  g('neck').rotation.x          = Math.sin(t * 6)  *  0.1;
-  g('chest').rotation.x         = Math.sin(t * 12) *  0.1;
-  g('hips').position.z          = Math.sin(t * 12) *  0.1;
+  g('neck').rotation.x          = Math.sin(t * 8)  *  0.05;
+  g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+  g('hips').position.z          = Math.sin(t * 12) *  0.05;
   g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
   g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
   g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
@@ -142,9 +137,7 @@ function LoadingScene(unit) {
 
 function TitleScene(unit) {
   // ★テスト表示（後で消す）
-  const names = ['zundamon', 'usagi', 'kiritan', 'metan', 'zunko', 'sora', 'itako'];
   const tl = xnew.context(BakedCharacters).texturesList;
-  console.log(tl)
   // 黒背景
   xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x111111));
 
@@ -159,14 +152,6 @@ function TitleScene(unit) {
       sprite.animationSpeed = 0.2;
       sprite.scale.set(1.2);
       sprite.play();
-    });
-
-    // キャラ名ラベル
-    xnew((unit) => {
-      const label = xpixi.nest(new PIXI.Text({ text: names[i], style: { fontSize: 11, fill: 0xFFFFFF } }));
-      label.position.set(x, 348);
-      label.anchor.set(0.5);
-
     });
   }
 
