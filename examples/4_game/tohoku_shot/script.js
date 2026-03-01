@@ -53,14 +53,16 @@ function Baking(unit) {
     xthree.camera.updateProjectionMatrix();
   }
 
-  // xthree.nest() を使う（xnewコンテキスト内なので安全）
-  xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
-  const dirLight = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
-  dirLight.position.set(2, 5, 10);
+  xnew(() => {
+    xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
+    const dirLight = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
+    dirLight.position.set(2, 5, 10);
+  });
 
   // VRMシーンを入れるGroupをnestで作成 → 非同期コールバックからはGroup.add/removeで操作
-  const vrmGroup = xthree.nest(new THREE.Group());
-
+  const vrmGroup = new THREE.Group();
+  xthree.scene.add(vrmGroup);
+  
   const allTexturesList = [];
   let currentChar = -1;
   let currentVRM = null;
@@ -142,7 +144,7 @@ function TitleScene(unit) {
   // ★テスト表示（後で消す）
   const names = ['zundamon', 'usagi', 'kiritan', 'metan', 'zunko', 'sora', 'itako'];
   const tl = xnew.context(BakedCharacters).texturesList;
-
+  console.log(tl)
   // 黒背景
   xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x111111));
 
@@ -150,17 +152,22 @@ function TitleScene(unit) {
     const x = 55 + i * 100;
 
     // アニメーションスプライト
-    const sprite = xpixi.nest(new PIXI.AnimatedSprite(tl[i]));
-    sprite.position.set(x, 280);
-    sprite.anchor.set(0.5);
-    sprite.animationSpeed = 0.2;
-    sprite.scale.set(1.2);
-    sprite.play();
+    xnew((unit) => {
+      const sprite = xpixi.nest(new PIXI.AnimatedSprite(tl[i]));
+      sprite.position.set(x, 280);
+      sprite.anchor.set(0.5);
+      sprite.animationSpeed = 0.2;
+      sprite.scale.set(1.2);
+      sprite.play();
+    });
 
     // キャラ名ラベル
-    const label = xpixi.nest(new PIXI.Text({ text: names[i], style: { fontSize: 11, fill: 0xFFFFFF } }));
-    label.position.set(x, 348);
-    label.anchor.set(0.5);
+    xnew((unit) => {
+      const label = xpixi.nest(new PIXI.Text({ text: names[i], style: { fontSize: 11, fill: 0xFFFFFF } }));
+      label.position.set(x, 348);
+      label.anchor.set(0.5);
+
+    });
   }
 
   xnew(TitleText);
