@@ -145,7 +145,6 @@ export class Unit {
             contexts?.forEach((context: Context) => {
                 let temp = context.previous;
                 while(temp !== null) {
-                    console.log('check', contexts.has(temp), temp.key);
                     if (contexts.has(temp) === false && temp.key !== undefined) {
                         context.previous = temp;
                         context.key = undefined;

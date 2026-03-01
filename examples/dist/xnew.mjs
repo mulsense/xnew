@@ -610,7 +610,6 @@ class Unit {
             contexts === null || contexts === void 0 ? void 0 : contexts.forEach((context) => {
                 let temp = context.previous;
                 while (temp !== null) {
-                    console.log('check', contexts.has(temp), temp.key);
                     if (contexts.has(temp) === false && temp.key !== undefined) {
                         context.previous = temp;
                         context.key = undefined;

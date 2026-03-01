@@ -37,9 +37,9 @@ function Assets(unit) {
   let textures = null;
   xnew.promise(xnew(Baking)).then((value) => {
     textures = value;
-    xnew.resolve();
   });
 
+  xnew.then(() => xnew.resolve());
   return {
     get textures() { return textures; }
   }

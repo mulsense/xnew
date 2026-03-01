@@ -129,6 +129,10 @@ function Model(unit, { key }) {
       action.setEffectiveWeight(weight);
     },
 
+    actions(type) {
+      return Object.keys(settings).filter(key => settings[key].type === type);
+    },
+
     crossfade(name) {
       if (name === select) return;
       const [current, next] = [settings[select].action, settings[name].action];
@@ -167,14 +171,12 @@ function Panel(panel) {
   xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true });
 
-  const baseActions = Object.keys(model.settings).filter(key => model.settings[key].type === 'base');
-  panel.select('action', { value: 'idle', items: baseActions }).on('input', ({ value }) => {
+  panel.select('action', { value: 'idle', items: model.actions('base') }).on('input', ({ value }) => {
     model.crossfade(value);
   });
 
   xnew('<p>', 'weights');
-  const additiveActions = Object.keys(model.settings).filter(key => model.settings[key].type === 'additive');
-  for (const name of additiveActions) {
+  for (const name of model.actions('additive')) {
     panel.range(name, { value: model.settings[name].weight, min: 0, max: 1, step: 0.01 })
     .on('input', ({ event }) => {
       model.settings[name].weight = parseFloat(event.target.value);

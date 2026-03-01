@@ -12,8 +12,8 @@ function Main(unit) {
 
   // three setup
   xthree.initialize({ canvas: canvas.element });
-  xthree.camera.position.set(0, 0, +20);
-  xthree.scene.rotation.x = -60 / 180 * Math.PI
+  xthree.camera.position.set(0, -20, +20);
+  xthree.camera.lookAt(0, 0, 0);
   xthree.renderer.shadowMap.enabled = true;
   
   unit.on('render', () => {
@@ -69,13 +69,22 @@ function Cube(unit, { x, y, z, size, color }) {
 }
 
 function Controller(unit) {
+  const object = xthree.nest(new THREE.Object3D());
+  const pivot1 = new THREE.Object3D();
+  const pivot2 = new THREE.Object3D();
+  object.add(pivot1);
+  pivot1.add(pivot2);
+  pivot2.add(xthree.camera);
+  pivot1.position.set(0, 0, 0);
+  pivot2.position.set(0, 0, 0);
+  
   unit.on('touchstart contextmenu wheel', ({ event }) => event.preventDefault());
 
   unit.on('dragmove', ({ event, delta }) => {
     if (event.buttons & 1 || !event.buttons) {
       // rotate
-      xthree.scene.rotation.x += delta.y * 0.01;
-      xthree.scene.rotation.z += delta.x * 0.01;
+      pivot2.rotation.x -= delta.y * 0.01;
+      pivot1.rotation.z -= delta.x * 0.01;
     } else if (event.buttons & 2) {
       // translate
       xthree.camera.position.x += -delta.x * xthree.camera.position.z * 0.001;
