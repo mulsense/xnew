@@ -35,24 +35,22 @@
     }
 
     function Assets(unit) {
-      const results = {};
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
         xnew.emit('+console', { text });
-        results.data1 = 1;
+        xnew.assign({ data1: 1 });
       });
 
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
         xnew.emit('+console', { text });
-        results.data2 = 2;
+        xnew.assign({ data2: 2 });
       });
 
-      xnew.then(() => {
+      xnew.then((results) => {
         xnew.emit('+console', { text: 'Assets Component Resolved.' });
-        xnew.resolve(results);
       });
     }
 

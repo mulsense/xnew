@@ -31,7 +31,6 @@ function Root(unit, { canvas, camera }) {
     renderer.setClearColor(0x000000, 0);
     camera = camera !== null && camera !== void 0 ? camera : new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
     const scene = new THREE.Scene();
-    xnew.resolve();
     return {
         get canvas() { return canvas; },
         get camera() { return camera; },

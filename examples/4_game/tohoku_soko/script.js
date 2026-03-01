@@ -289,7 +289,7 @@ function Wall(unit, { x, y }) {
   const object = xthree.nest(new THREE.Object3D());
 
   xnew.promise(new Promise((resolve) => {
-    new PLYLoader().load('../assets/soko_block_fixed.ply', (geometry) => resolve(geometry));
+    new PLYLoader().load('../../assets/soko_block_fixed.ply', (geometry) => resolve(geometry));
   })).then((geometry) => {
     geometry.computeVertexNormals();
     const material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff });
@@ -390,7 +390,7 @@ function Box(box, { x, y }) {
   const object = xthree.nest(new THREE.Object3D());
   let material = null;
   xnew.promise(new Promise((resolve) => {
-    new PLYLoader().load('../assets/soko_block.ply', (geometry) => resolve(geometry));
+    new PLYLoader().load('../../assets/soko_block.ply', (geometry) => resolve(geometry));
   })).then((geometry) => {
     geometry.computeVertexNormals();
     material = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xEEEEEE });
@@ -514,7 +514,7 @@ function Model(unit, { id = 0, scale }) {
   const object = xthree.nest(new THREE.Object3D());
 
   const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
-  const path = '../assets/' + (id < 7 ? list[id] : list[0]);
+  const path = '../../assets/' + (id < 7 ? list[id] : list[0]);
 
   let vrm = null;
   xnew.promise(new Promise((resolve) => {

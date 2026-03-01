@@ -98,7 +98,7 @@ function GameScene(unit) {
 
   const playing = xnew((unit) => {
     xnew(Controller);
-    xnew.audio.load('../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
+    xnew.audio.load('../../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
   unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
 
@@ -119,7 +119,7 @@ function GameScene(unit) {
 }
 
 function ResultScene(unit, { image }) {
-  xnew.audio.load('../assets/st005.mp3').then((music) => {
+  xnew.audio.load('../../assets/st005.mp3').then((music) => {
     music.play({ fade: 1, loop: true });
   });
 
@@ -335,7 +335,7 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
   if (rotation) object.rotation.set(rotation.x, rotation.y, rotation.z);
 
   const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
-  const path = '../assets/' + (id < 7 ? list[id] : list[0]);
+  const path = '../../assets/' + (id < 7 ? list[id] : list[0]);
 
   xnew.promise(new Promise((resolve) => {
     const loader = new GLTFLoader();

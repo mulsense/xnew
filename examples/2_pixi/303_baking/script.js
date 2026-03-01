@@ -23,9 +23,8 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  const assets = xnew.context(Assets);
-  xnew.promise(assets).then(() => {
-    const sprite = xpixi.nest(new PIXI.AnimatedSprite(assets.textures));
+  xnew.promise(xnew.context(Assets)).then((results) => {
+    const sprite = xpixi.nest(new PIXI.AnimatedSprite(results.textures));
     sprite.position.set(xpixi.canvas.width / 2, xpixi.canvas.height / 2); // center
     sprite.anchor.set(0.5);
     sprite.animationSpeed = 1;
@@ -34,35 +33,32 @@ function Contents(unit) {
 }
 
 function Assets(unit) {
-  let textures = null;
-  xnew.promise(xnew(Baking)).then((value) => {
-    textures = value;
-    xnew.resolve();
+  xnew.promise(xnew(Baking)).then((results) => {
+    xnew.assign({ textures: results.textures });
   });
-
-  return {
-    get textures() { return textures; }
-  }
 }
 
 function Baking(unit) {
-  const [width, height] = [256, 256];
+  xnew.promise((resolve) => {
+    const [width, height] = [256, 256];
 
-  // three setup
-  xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
-  xthree.camera.position.set(0, 0, +100);
+    // three setup
+    xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
+    xthree.camera.position.set(0, 0, +100);
 
-  xnew(Cubes);
-
-  let textures = [];
-  unit.on('render', () => {
-    xthree.renderer.render(xthree.scene, xthree.camera);
-    const bitmap = xthree.canvas.transferToImageBitmap();
-    textures.push(PIXI.Texture.from(bitmap));
-    if (textures.length === 60) {
-      xnew.resolve(textures);
-      unit.finalize();
-    }
+    let textures = [];
+    xnew(Cubes);
+    unit.on('render', () => {
+      xthree.renderer.render(xthree.scene, xthree.camera);
+      const bitmap = xthree.canvas.transferToImageBitmap();
+      textures.push(PIXI.Texture.from(bitmap));
+      if (textures.length === 60) {
+        resolve(textures);
+      }
+    });
+  }).then((textures) => {
+    xnew.assign({ textures });
+    unit.finalize();
   });
 }
 

@@ -51,7 +51,6 @@
             antialias: true, backgroundAlpha: 0,
         })).then((value) => {
             renderer = value;
-            xnew.resolve();
         });
         let scene = new PIXI__namespace.Container();
         return {

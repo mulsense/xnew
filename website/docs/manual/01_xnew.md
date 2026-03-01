@@ -16,7 +16,7 @@
 `xnew` accepts the following arguments:
 
 ```js
-const unit = xnew(target, Component, props);
+const unit = xnew(target, Component, props); // or xnew(Component, props)
 
 function Component(unit, props) {
   // Define component behavior here

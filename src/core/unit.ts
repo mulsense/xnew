@@ -26,7 +26,7 @@ interface Internal {
     ancestors: Unit[];
     children: Unit[];
     promises: UnitPromise[];
-    task: { promise: Promise<any>, resolve: Function, reject: Function };
+    results: Record<string, any>;
     nestElements: { element: UnitElement, owned: boolean }[];
     Components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
@@ -68,13 +68,6 @@ export class Unit {
         }
 
         const baseContext = parent?._.currentContext ?? { previous: null };
-        
-        const task = {
-            promise: null as unknown as Promise<any>,
-            resolve: null as unknown as Function,
-            reject: null as unknown as Function
-        };
-        task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
 
         this._ = {
             parent,
@@ -88,7 +81,7 @@ export class Unit {
             children: [],
             nestElements: [],
             promises: [],
-            task,
+            results: {},
             Components: [],
             listeners: new MapMap(),
             defines: {},
@@ -145,7 +138,6 @@ export class Unit {
             contexts?.forEach((context: Context) => {
                 let temp = context.previous;
                 while(temp !== null) {
-                    console.log('check', contexts.has(temp), temp.key);
                     if (contexts.has(temp) === false && temp.key !== undefined) {
                         context.previous = temp;
                         context.key = undefined;
