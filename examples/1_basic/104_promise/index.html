@@ -38,14 +38,14 @@
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
         xnew.emit('+console', { text });
-        xnew.assign({ data1: 1 });
+        xnew.commit({ data1: 1 });
       });
 
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
         xnew.emit('+console', { text });
-        xnew.assign({ data2: 2 });
+        xnew.commit({ data2: 2 });
       });
 
       xnew.then((results) => {

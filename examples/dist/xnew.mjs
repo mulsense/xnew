@@ -615,7 +615,6 @@ class Unit {
             });
             Unit.unit2Contexts.delete(unit);
             unit._.currentContext = { previous: null };
-            // reset defines
             Object.keys(unit._.defines).forEach((key) => {
                 delete unit[key];
             });
@@ -1008,9 +1007,8 @@ const xnew$1 = Object.assign(function (...args) {
             const Component = Unit.currentUnit._.currentComponent;
             let unitPromise;
             if (promise instanceof Unit) {
-                const unit = promise;
-                unitPromise = new UnitPromise(Promise.all(unit._.promises.map(p => p.promise)), Component)
-                    .then(() => unit._.results);
+                unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
+                    .then(() => promise._.results);
             }
             else if (promise instanceof Promise) {
                 unitPromise = new UnitPromise(promise, Component);
@@ -1036,12 +1034,8 @@ const xnew$1 = Object.assign(function (...args) {
     then(callback) {
         try {
             const currentUnit = Unit.currentUnit;
-            const Component = Unit.currentUnit._.currentComponent;
-            const promises = Unit.currentUnit._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
-                .then(() => {
-                callback(currentUnit._.results);
-            });
+            return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                .then(() => callback(currentUnit._.results));
         }
         catch (error) {
             console.error('xnew.then(callback: Function): ', error);
@@ -1057,8 +1051,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     catch(callback) {
         try {
-            const promises = Unit.currentUnit._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+            return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                 .catch(callback);
         }
         catch (error) {
@@ -1067,18 +1060,18 @@ const xnew$1 = Object.assign(function (...args) {
         }
     },
     /**
-     * Assigns a value to the current unit's promise
-     * @param object - object to assign to the promise
+     * Commits a value to the current unit's promise results
+     * @param object - object to commit to the promise
      * @returns void
      * @example
-     * xnew.assign({ data: 123});
+     * xnew.commit({ data: 123});
      */
-    assign(object) {
+    commit(object) {
         try {
             Object.assign(Unit.currentUnit._.results, object);
         }
         catch (error) {
-            console.error('xnew.assign(object?: Record<string, any>): ', error);
+            console.error('xnew.commit(object?: Record<string, any>): ', error);
             throw error;
         }
     },
@@ -1091,8 +1084,7 @@ const xnew$1 = Object.assign(function (...args) {
      */
     finally(callback) {
         try {
-            const promises = Unit.currentUnit._.promises;
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+            return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                 .finally(callback);
         }
         catch (error) {

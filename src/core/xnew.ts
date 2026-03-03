@@ -174,17 +174,17 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Assigns a value to the current unit's promise
-         * @param object - object to assign to the promise
+         * Commits a value to the current unit's promise results
+         * @param object - object to commit to the promise
          * @returns void
          * @example
-         * xnew.assign({ data: 123});
+         * xnew.commit({ data: 123});
          */
-        assign(object?: Record<string, any>): void {
+        commit(object?: Record<string, any>): void {
             try {
                 Object.assign(Unit.currentUnit._.results, object);
             } catch (error: unknown) {
-                console.error('xnew.assign(object?: Record<string, any>): ', error);
+                console.error('xnew.commit(object?: Record<string, any>): ', error);
                 throw error;
             }
         },

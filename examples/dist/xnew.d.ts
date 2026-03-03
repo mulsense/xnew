@@ -57,16 +57,21 @@ interface Snapshot {
 }
 interface Internal {
     parent: Unit | null;
+    ancestors: Unit[];
+    children: Unit[];
     state: string;
     tostart: boolean;
     protected: boolean;
+    promises: UnitPromise[];
+    results: Record<string, any>;
+    defines: Record<string, any>;
+    systems: Record<string, {
+        listener: Function;
+        execute: Function;
+    }[]>;
     currentElement: UnitElement;
     currentContext: Context;
     currentComponent: Function | null;
-    ancestors: Unit[];
-    children: Unit[];
-    promises: UnitPromise[];
-    results: Record<string, any>;
     nestElements: {
         element: UnitElement;
         owned: boolean;
@@ -77,11 +82,6 @@ interface Internal {
         Component: Function | null;
         execute: Function;
     }>;
-    defines: Record<string, any>;
-    systems: Record<string, {
-        listener: Function;
-        execute: Function;
-    }[]>;
     eventor: Eventor;
 }
 declare class Unit {
@@ -276,15 +276,14 @@ declare const xnew: CreateUnit & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    context(component: Function): any;
+    context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
-    resolve(value?: any): void;
-    reject(reason?: any): void;
+    commit(object?: Record<string, any>): void;
     finally(callback: Function): UnitPromise;
     scope(callback: any): any;
-    find(component: Function): Unit[];
+    find(Component: Function): Unit[];
     emit(type: string, ...args: any[]): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
