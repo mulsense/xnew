@@ -245,7 +245,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
       xnew(Frame);
-      xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, Camera);
+      xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', Camera);
     });
     button.on('click', () => screenShot());
     xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
@@ -254,21 +254,21 @@ function ResultFooter(unit) {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
       xnew(Frame);
-      xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, ArrowUturnLeft);
+      xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', ArrowUturnLeft);
     });
     button.on('click', () => xnew.emit('+scenechange', { NextScene: TitleScene }));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {
     xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-        xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
-        if (frame === 'circle') {
-            xnew('<circle cx="12" cy="12" r="11">');
-        } else if (frame === 'square') {
-            xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
-        } else if (frame === 'rounded-square') {
-            xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
-        }
+      xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
+      if (frame === 'circle') {
+        xnew('<circle cx="12" cy="12" r="11">');
+      } else if (frame === 'square') {
+        xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
+      } else if (frame === 'rounded-square') {
+        xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
+      }
     });
   }
 }
