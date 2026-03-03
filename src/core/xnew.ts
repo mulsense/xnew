@@ -123,9 +123,8 @@ export const xnew = Object.assign(
                 const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    const unit = promise;
-                    unitPromise = new UnitPromise(Promise.all(unit._.promises.map(p => p.promise)), Component)
-                    .then(() => unit._.results);
+                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
+                    .then(() => promise._.results);
                 } else if (promise instanceof Promise) {
                     unitPromise = new UnitPromise(promise, Component)
                 } else {
@@ -149,12 +148,8 @@ export const xnew = Object.assign(
         then(callback: Function): UnitPromise {
             try {
                 const currentUnit = Unit.currentUnit;
-                const Component = Unit.currentUnit._.currentComponent;
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
-                .then(() => {
-                    callback(currentUnit._.results);
-                });
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                .then(() => callback(currentUnit._.results));
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
                 throw error;
@@ -170,8 +165,7 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
@@ -204,8 +198,7 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                 .finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);
