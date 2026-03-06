@@ -47,7 +47,6 @@ function Assets(unit) {
     models.xbot = gltf;
   });
 
-  xnew.then(() => xnew.resolve());
   return {
     get models() { return models; },
   }
