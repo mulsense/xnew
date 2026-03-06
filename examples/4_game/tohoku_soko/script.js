@@ -139,7 +139,7 @@ function GameScene(unit, { id }) {
   xnew(AmbientLight);
   xnew(Background);
   xnew(Floor);
-  xnew(Texture, { texture: PIXI.Texture.from(xthree.canvas), position: { x: 320 / 2, y: -10 } });
+  xnew(ThreeTexture, { position: { x: 320 / 2, y: -10 } });
 
   xnew(LeftBlock, { id });
   xnew(RightBlock, { id });
@@ -188,7 +188,8 @@ function GameScene(unit, { id }) {
   });
 }
 
-function Texture(unit, { texture, position = { x: 0, y: 0} }) {
+function ThreeTexture(unit, { position = { x: 0, y: 0} }) {
+  const texture = PIXI.Texture.from(xthree.canvas)
   const object = xpixi.nest(new PIXI.Sprite(texture));
   object.position.set(position.x, position.y);
 }
