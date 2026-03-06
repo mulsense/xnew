@@ -30,7 +30,7 @@ function Root(unit, { canvas }) {
     })).then((value) => {
         renderer = value;
     });
-    let scene = new PIXI.Container();
+    const scene = new PIXI.Container();
     return {
         get renderer() { return renderer; },
         get scene() { return scene; },
