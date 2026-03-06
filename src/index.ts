@@ -4,7 +4,8 @@ import { Unit, UnitTimer } from './core/unit';
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
-import { Panel} from './basics/Panel';
+import { Panel } from './basics/Panel';
+import { Flow } from './basics/Flow';
 
 const basics = {
     Screen,
@@ -14,6 +15,7 @@ const basics = {
     Panel,
     Accordion,
     Popup,
+    Flow,
 };
 
 import { master, AudioFile, Synthesizer, SynthesizerOptions } from './audio/audio';

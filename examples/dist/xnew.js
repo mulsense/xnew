@@ -621,7 +621,6 @@
                 });
                 Unit.unit2Contexts.delete(unit);
                 unit._.currentContext = { previous: null };
-                // reset defines
                 Object.keys(unit._.defines).forEach((key) => {
                     delete unit[key];
                 });
@@ -663,6 +662,10 @@
             else {
                 const backupComponent = unit._.currentComponent;
                 unit._.currentComponent = Component;
+                if (unit._.parent !== null) {
+                    Unit.addContext(unit._.parent, unit, Component, unit);
+                }
+                Unit.addContext(unit, unit, Component, unit);
                 const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
                 unit._.currentComponent = backupComponent;
                 Unit.component2units.add(Component, unit);
@@ -766,6 +769,8 @@
         }
         static getContext(unit, key) {
             for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
+                if (context.value === Unit.currentUnit && key === Unit.currentUnit._.currentComponent)
+                    continue;
                 if (context.key === key)
                     return context.value;
             }
@@ -934,7 +939,6 @@
         const Component = args.shift();
         const props = args.shift();
         const unit = new Unit(Unit.currentUnit, target, Component, props);
-        Unit.addContext(Unit.currentUnit, unit, Component, unit);
         return unit;
     }, {
         /**
@@ -973,7 +977,6 @@
                     throw new Error('xnew.extend can not be called after initialized.');
                 }
                 const defines = Unit.extend(Unit.currentUnit, Component, props);
-                Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
                 return defines;
             }
             catch (error) {
@@ -1014,9 +1017,8 @@
                 const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise;
                 if (promise instanceof Unit) {
-                    const unit = promise;
-                    unitPromise = new UnitPromise(Promise.all(unit._.promises.map(p => p.promise)), Component)
-                        .then(() => unit._.results);
+                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
+                        .then(() => promise._.results);
                 }
                 else if (promise instanceof Promise) {
                     unitPromise = new UnitPromise(promise, Component);
@@ -1042,12 +1044,8 @@
         then(callback) {
             try {
                 const currentUnit = Unit.currentUnit;
-                const Component = Unit.currentUnit._.currentComponent;
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
-                    .then(() => {
-                    callback(currentUnit._.results);
-                });
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                    .then(() => callback(currentUnit._.results));
             }
             catch (error) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -1063,8 +1061,7 @@
          */
         catch(callback) {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                     .catch(callback);
             }
             catch (error) {
@@ -1073,18 +1070,18 @@
             }
         },
         /**
-         * Assigns a value to the current unit's promise
-         * @param object - object to assign to the promise
+         * Commits a value to the current unit's promise results
+         * @param object - object to commit to the promise
          * @returns void
          * @example
-         * xnew.assign({ data: 123});
+         * xnew.commit({ data: 123});
          */
-        assign(object) {
+        commit(object) {
             try {
                 Object.assign(Unit.currentUnit._.results, object);
             }
             catch (error) {
-                console.error('xnew.assign(object?: Record<string, any>): ', error);
+                console.error('xnew.commit(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -1097,8 +1094,7 @@
          */
         finally(callback) {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                     .finally(callback);
             }
             catch (error) {
@@ -1389,13 +1385,13 @@
 
     const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
     const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
-    function Panel(unit, { name, open = false, params }) {
+    function Panel(unit, { params }) {
         const object = params !== null && params !== void 0 ? params : {};
-        xnew$1.extend(Group, { name, open });
         return {
             group({ name, open, params }, inner) {
                 const group = xnew$1((unit) => {
-                    xnew$1.extend(Panel, { name, open, params: params !== null && params !== void 0 ? params : object });
+                    xnew$1.extend(Group, { name, open });
+                    xnew$1.extend(Panel, { params: params !== null && params !== void 0 ? params : object });
                     inner(unit);
                 });
                 return group;
@@ -1437,7 +1433,7 @@
                 unit.on('click', () => group.toggle());
                 xnew$1('<svg viewBox="0 0 12 12" style="width: 1em; height: 1em; margin-right: 0.25em;" fill="none" stroke="currentColor">', (unit) => {
                     xnew$1('<path d="M6 2 10 6 6 10" />');
-                    group.on('-transition', ({ state }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
+                    group.on('-transition', ({ value }) => unit.element.style.transform = `rotate(${value * 90}deg)`);
                 });
                 xnew$1('<div>', name);
             });
@@ -1558,6 +1554,24 @@
             }
             return 'Canvas';
         }
+    }
+
+    function Flow(unit) {
+        let scene = null;
+        return {
+            set scene(value) {
+                scene = value;
+            },
+            get scene() {
+                return scene;
+            },
+            next(Component, props) {
+                var _a;
+                // scene change
+                (_a = unit.scene) === null || _a === void 0 ? void 0 : _a.finalize();
+                unit.scene = xnew$1(Component, props);
+            }
+        };
     }
 
     const context = new window.AudioContext();
@@ -1792,6 +1806,7 @@
         Panel,
         Accordion,
         Popup,
+        Flow,
     };
     const audio = {
         load(path) {

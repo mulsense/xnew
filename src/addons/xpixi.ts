@@ -1,7 +1,5 @@
 import xnew from '@mulsense/xnew';
-import { get } from 'http';
 import * as PIXI from 'pixi.js'
-import { createCanvasElement } from 'three';
 
 export default {
     initialize(

@@ -38,14 +38,27 @@ function Main(unit) {
 function Contents(unit) {
   xnew(GameData);
 
-  let scene = xnew(TitleScene);
-  // let scene = xnew(ResultScene, { image: null });
-  unit.on('+scenechange', ({ NextScene, props }) => {
-    scene.finalize();
-    scene = xnew(NextScene, props);
-  });
+  xnew(MyFlow).next(TitleScene);
 }
 
+function MyFlow(unit) {
+  const defines = xnew.extend(xnew.basics.Flow);
+  return {
+
+    next(Component, props, fadeout = null) {
+      if (fadeout) {
+        const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
+        xnew.transition(({ value }) => cover.element.style.opacity = value, fadeout.duration, fadeout.easing)
+        .timeout(() => {
+          defines.next(Component, props);
+          cover.finalize();
+        })
+      } else {
+        defines.next(Component, props);
+      }
+    }
+  }
+}
 function GameData(unit) {
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -71,7 +84,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(CanvasTransfer);
-  unit.on('pointerdown', () => xnew.emit('+scenechange', { NextScene: GameScene }));
+  unit.on('pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -111,9 +124,7 @@ function GameScene(unit) {
     xnew(GameOverText);
 
     xnew.timeout(() => {
-      const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
-      xnew.transition(({ value }) => cover.element.style.opacity = value, 300, 'ease')
-      .timeout(() => xnew.emit('+scenechange', { NextScene: ResultScene, props: { image } }));
+      xnew.context(xnew.basics.Flow).next(ResultScene, { image }, { duration: 300, easing: 'ease' });
     }, 2000);
   });
 }
@@ -245,7 +256,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
       xnew(Frame);
-      xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, Camera);
+      xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', Camera);
     });
     button.on('click', () => screenShot());
     xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
@@ -254,21 +265,21 @@ function ResultFooter(unit) {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
       xnew(Frame);
-      xnew(`<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">`, ArrowUturnLeft);
+      xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', ArrowUturnLeft);
     });
-    button.on('click', () => xnew.emit('+scenechange', { NextScene: TitleScene }));
+    button.on('click', () => xnew.context(xnew.basics.Flow).next(TitleScene));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {
     xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-        xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
-        if (frame === 'circle') {
-            xnew('<circle cx="12" cy="12" r="11">');
-        } else if (frame === 'square') {
-            xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
-        } else if (frame === 'rounded-square') {
-            xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
-        }
+      xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
+      if (frame === 'circle') {
+        xnew('<circle cx="12" cy="12" r="11">');
+      } else if (frame === 'square') {
+        xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
+      } else if (frame === 'rounded-square') {
+        xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
+      }
     });
   }
 }

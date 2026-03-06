@@ -41,7 +41,6 @@ export const xnew = Object.assign(
         const props: Object | undefined = args.shift();
         
         const unit = new Unit(Unit.currentUnit, target, Component, props);
-        Unit.addContext(Unit.currentUnit, unit, Component, unit);
         return unit;
     } as CreateUnit,
     {
@@ -81,8 +80,6 @@ export const xnew = Object.assign(
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
                 const defines = Unit.extend(Unit.currentUnit, Component, props);
-                Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
-
                 return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
@@ -123,9 +120,8 @@ export const xnew = Object.assign(
                 const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    const unit = promise;
-                    unitPromise = new UnitPromise(Promise.all(unit._.promises.map(p => p.promise)), Component)
-                    .then(() => unit._.results);
+                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
+                    .then(() => promise._.results);
                 } else if (promise instanceof Promise) {
                     unitPromise = new UnitPromise(promise, Component)
                 } else {
@@ -149,12 +145,8 @@ export const xnew = Object.assign(
         then(callback: Function): UnitPromise {
             try {
                 const currentUnit = Unit.currentUnit;
-                const Component = Unit.currentUnit._.currentComponent;
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
-                .then(() => {
-                    callback(currentUnit._.results);
-                });
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                .then(() => callback(currentUnit._.results));
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
                 throw error;
@@ -170,8 +162,7 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
@@ -180,17 +171,17 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Assigns a value to the current unit's promise
-         * @param object - object to assign to the promise
+         * Commits a value to the current unit's promise results
+         * @param object - object to commit to the promise
          * @returns void
          * @example
-         * xnew.assign({ data: 123});
+         * xnew.commit({ data: 123});
          */
-        assign(object?: Record<string, any>): void {
+        commit(object?: Record<string, any>): void {
             try {
                 Object.assign(Unit.currentUnit._.results, object);
             } catch (error: unknown) {
-                console.error('xnew.assign(object?: Record<string, any>): ', error);
+                console.error('xnew.commit(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -204,8 +195,7 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                const promises = Unit.currentUnit._.promises;
-                return new UnitPromise(Promise.all(promises.map(p => p.promise)), null)
+                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
                 .finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);

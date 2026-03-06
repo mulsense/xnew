@@ -15,24 +15,24 @@ interface Snapshot { unit: Unit; context: Context; element: UnitElement; Compone
 
 interface Internal {
     parent: Unit | null;
+    ancestors: Unit[];
+    children: Unit[];
 
     state: string;
     tostart: boolean;
     protected: boolean;
+    promises: UnitPromise[];
+    results: Record<string, any>;
+    defines: Record<string, any>;
+    systems: Record<string, { listener: Function, execute: Function }[]>;
+
     currentElement: UnitElement;
     currentContext: Context;
     currentComponent: Function | null;
 
-    ancestors: Unit[];
-    children: Unit[];
-    promises: UnitPromise[];
-    results: Record<string, any>;
     nestElements: { element: UnitElement, owned: boolean }[];
     Components: Function[];
     listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
-    defines: Record<string, any>;
-    systems: Record<string, { listener: Function, execute: Function }[]>;
-
     eventor: Eventor;
 }
 
@@ -47,6 +47,7 @@ export class Unit {
     constructor(parent: Unit | null, target: UnitElement | string | null, Component?: Function | string | number, props?: Object) {
         const backup = Unit.currentUnit;
         Unit.currentUnit = this;
+
         parent?._.children.push(this);
 
         let baseElement: UnitElement;
@@ -150,7 +151,6 @@ export class Unit {
             Unit.unit2Contexts.delete(unit);
             unit._.currentContext = { previous: null };
 
-            // reset defines
             Object.keys(unit._.defines).forEach((key) => {
                 delete unit[key as keyof Unit];
             });
@@ -193,6 +193,11 @@ export class Unit {
         } else {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = Component;
+
+            if (unit._.parent !== null) {
+                Unit.addContext(unit._.parent, unit, Component, unit);
+            }
+            Unit.addContext(unit, unit, Component, unit);
 
             const defines = Component(unit, props ?? {}) ?? {};
 
@@ -307,6 +312,7 @@ export class Unit {
 
     static getContext(unit: Unit, key: any): any {
         for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
+            if (context.value === Unit.currentUnit && key === Unit.currentUnit._.currentComponent) continue;
             if (context.key === key) return context.value;
         }
     }

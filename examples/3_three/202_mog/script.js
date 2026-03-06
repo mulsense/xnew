@@ -105,22 +105,26 @@ function Model(unit, { mogPath, vrmaPath, position }) {
     return voxelkit.convertVRM(composits[0]);
   })
   .then((arrayBuffer) => {
-    return new Promise((resolve) => {
+    return xnew.promise((resolve) => {
       const loader = new GLTFLoader();
       loader.register((parser) => new VRMLoaderPlugin(parser));
       loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf.userData.vrm), (error) => {
         console.error('Failed to load VRM:', error);
       });
     });
+  }).then((vrm) => {
+    xnew.commit({ vrm });
   });
 
   xnew.promise(new Promise((resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
     loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
-  }));
+  })).then((vrma) => {
+    xnew.commit({ vrma });
+  });
 
-  xnew.then(([vrm, vrma]) => {
+  xnew.then(({ vrm, vrma }) => {
     vrm.scene.traverse((obj) => {
       if (obj.isMesh) {
         obj.castShadow = true;

@@ -7,14 +7,14 @@ interface PanelOptions { name?: string; open?: boolean; params?: Record<string, 
 const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
 const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
 
-export function Panel(unit: Unit, { name, open = false, params }: PanelOptions) {
+export function Panel(unit: Unit, { params }: PanelOptions) {
     const object = params ?? {} as Record<string, any>;
-    xnew.extend(Group, { name, open });
     
     return {
         group({ name, open, params }: PanelOptions, inner: Function) {
             const group = xnew((unit: Unit) => {
-                xnew.extend(Panel, { name, open, params: params ?? object });
+                xnew.extend(Group, { name, open });
+                xnew.extend(Panel, { params: params ?? object });
                 inner(unit);
             });
             return group;
@@ -57,7 +57,7 @@ function Group(group: Unit, { name, open = false }: { name?: string, open?: bool
             unit.on('click', () => group.toggle());
             xnew('<svg viewBox="0 0 12 12" style="width: 1em; height: 1em; margin-right: 0.25em;" fill="none" stroke="currentColor">', (unit: Unit) => {
                 xnew('<path d="M6 2 10 6 6 10" />');
-                group.on('-transition', ({ state }: { state: number }) => unit.element.style.transform = `rotate(${state * 90}deg)`);
+                group.on('-transition', ({ value }: { value: number }) => unit.element.style.transform = `rotate(${value * 90}deg)`);
             });
             xnew('<div>', name);
         });

@@ -19,28 +19,31 @@
       xnew(MyPanel);
     });
 
-    function MyPanel(panel) {
+    function MyPanel(unit) {
       xnew.nest('<div class="absolute top-2 right-2 w-48 text-sm">');
       xnew.nest('<div class="max-h-[calc(100vh-1rem)] overflow-y-auto p-1 border rounded-lg shadow-lg bg-gray-100 text-green-900">');
-      xnew.extend(xnew.basics.Panel, { name: 'My Panel', open: true });
+      const panel = xnew(xnew.basics.Panel);
       
-      panel.group({ name: 'group 1', open: true }, (group) => {
-        group.button('button1').on('click', () => xnew.emit('+console', { text: 'button1 clicked' }));
-        group.button('button2').on('click', () => xnew.emit('+console', { text: 'button2 clicked' }));
-        group.button('button3').on('click', () => xnew.emit('+console', { text: 'button3 clicked' }));
+      panel.group({ name: 'My Panel', open: true }, (group) => {
+        group.group({ name: 'group 1', open: true }, (subgroup) => {
+          subgroup.button('button1').on('click', () => xnew.emit('+console', { text: 'button1 clicked' }));
+          subgroup.button('button2').on('click', () => xnew.emit('+console', { text: 'button2 clicked' }));
+          subgroup.button('button3').on('click', () => xnew.emit('+console', { text: 'button3 clicked' }));
+          subgroup.separator();
+        });
+
+        group.range('data', { value: 20, min: 0, max: 60, step: 2 }).on('input', ({ value }) => xnew.emit('+console', { text: `data changed to ${value}` }));
+        group.checkbox('flag').on('input', ({ value }) => xnew.emit('+console', { text: `flag changed to ${value}` }));
+        group.select('color', { items: ['red', 'green', 'blue'] }).on('input', ({ value }) => xnew.emit('+console', { text: `color changed to ${value}` }));
         group.separator();
-      });
 
-      panel.range('data', { value: 20, min: 0, max: 60, step: 2 }).on('input', ({ value }) => xnew.emit('+console', { text: `data changed to ${value}` }));
-      panel.checkbox('flag').on('input', ({ value }) => xnew.emit('+console', { text: `flag changed to ${value}` }));
-      panel.select('color', { items: ['red', 'green', 'blue'] }).on('input', ({ value }) => xnew.emit('+console', { text: `color changed to ${value}` }));
-      panel.separator();
-
-      const show = panel.checkbox('show');
-      const group = panel.group({ open: false }, (group) => {
-        xnew('<p class="m-1">', 'hellow');
+        const show = group.checkbox('show');
+        const subgroup = panel.group({ open: false }, (subgroup) => {
+          xnew('<p class="m-1">', 'hellow');
+        });
+        show.on('input', ({ value }) => value ? subgroup.open() : subgroup.close());
       });
-      show.on('input', ({ value }) => value ? group.open() : group.close());
+      
     }
   </script>
 </body>

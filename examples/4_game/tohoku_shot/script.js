@@ -7,7 +7,6 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 
 const CHARACTER_FILES = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
-const BAKE_FRAMES = 30;
 
 xnew(document.querySelector('#main'), Main);
 
@@ -15,6 +14,7 @@ function Main(unit) {
   const [width, height] = [800, 600];
   xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
   const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+
   xpixi.initialize({ canvas: canvas.element });
   unit.on('render', () => xpixi.renderer.render(xpixi.scene));
   xnew(Contents);
@@ -38,7 +38,6 @@ function Contents(unit) {
 function BakedCharacters(_unit) {
   let texturesList = null;
   xnew.promise(xnew(Baking)).then((value) => { texturesList = value; });
-  xnew.then(() => xnew.resolve());
   return { get texturesList() { return texturesList; } };
 }
 
@@ -64,50 +63,55 @@ function Baking(unit) {
   let currentTextures = [];
   let animCount = 0;
 
-  function loadNext() {
-    currentChar++;
-    if (currentChar >= CHARACTER_FILES.length) {
-      xnew.resolve(allTexturesList);
-      unit.finalize();
-      return;
+  xnew.promise((resolve) => {
+    function loadNext() {
+      currentChar++;
+      if (currentChar >= CHARACTER_FILES.length) {
+        xnew.commit(allTexturesList);
+        resolve();
+        unit.finalize();
+        return;
+      }
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      loader.load(`../../assets/${CHARACTER_FILES[currentChar]}`, (gltf) => {
+        const vrm = gltf.userData.vrm;
+        vrm.scene.scale.set(0.8, 0.8, 0.8);
+        vrm.scene.position.y = -1;
+        vrm.scene.rotation.x = +Math.PI * 20 / 180;
+        vrmGroup.add(vrm.scene); // Three.jsのGroup.add（xnewコンテキスト不要）
+        currentVRM = vrm;
+        frameIndex = 0;
+        currentTextures = [];
+        animCount = 0;
+      });
     }
-    const loader = new GLTFLoader();
-    loader.register((parser) => new VRMLoaderPlugin(parser));
-    loader.load(`../../assets/${CHARACTER_FILES[currentChar]}`, (gltf) => {
-      const vrm = gltf.userData.vrm;
-      vrm.scene.scale.set(0.8, 0.8, 0.8);
-      vrm.scene.position.y = -1;
-      vrm.scene.rotation.x = +Math.PI * 20 / 180;
-      vrmGroup.add(vrm.scene); // Three.jsのGroup.add（xnewコンテキスト不要）
-      currentVRM = vrm;
-      frameIndex = 0;
-      currentTextures = [];
-      animCount = 0;
+
+    loadNext();
+    const BAKE_FRAMES = 30;
+
+    unit.on('render', () => {
+      if (!currentVRM) return;
+
+      // t = 0 ~ π で1ループ（全周波数6,8,12がちょうど整数サイクル完結）
+      const t = animCount * (Math.PI / BAKE_FRAMES);
+      bakingAnimateVRM(currentVRM, t);
+      animCount++;
+
+      xthree.renderer.render(xthree.scene, xthree.camera);
+      const bitmap = xthree.canvas.transferToImageBitmap();
+      currentTextures.push(PIXI.Texture.from(bitmap));
+      frameIndex++;
+
+      if (frameIndex >= BAKE_FRAMES) {
+        allTexturesList.push([...currentTextures]);
+        vrmGroup.remove(currentVRM.scene); // Group.remove（xnewコンテキスト不要）
+        currentVRM = null;
+        loadNext();
+      }
     });
-  }
-
-  loadNext();
-
-  unit.on('render', () => {
-    if (!currentVRM) return;
-
-    // t = 0 ~ π で1ループ（全周波数6,8,12がちょうど整数サイクル完結）
-    const t = animCount * (Math.PI / BAKE_FRAMES);
-    bakingAnimateVRM(currentVRM, t);
-    animCount++;
-
-    xthree.renderer.render(xthree.scene, xthree.camera);
-    const bitmap = xthree.canvas.transferToImageBitmap();
-    currentTextures.push(PIXI.Texture.from(bitmap));
-    frameIndex++;
-
-    if (frameIndex >= BAKE_FRAMES) {
-      allTexturesList.push([...currentTextures]);
-      vrmGroup.remove(currentVRM.scene); // Group.remove（xnewコンテキスト不要）
-      currentVRM = null;
-      loadNext();
-    }
-  });
+  })
+  
 }
 
 function bakingAnimateVRM(vrm, t) {

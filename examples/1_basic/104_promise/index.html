@@ -11,7 +11,6 @@
   <div id="main" class="relative w-full h-full flex flex-col overflow-hidden"></div>
 
   <script>
-
     xnew(document.querySelector('#main'), Main);
 
     function Main(unit) {
@@ -39,14 +38,14 @@
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
         xnew.emit('+console', { text });
-        xnew.assign({ data1: 1 });
+        xnew.commit({ data1: 1 });
       });
 
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
         xnew.emit('+console', { text });
-        xnew.assign({ data2: 2 });
+        xnew.commit({ data2: 2 });
       });
 
       xnew.then((results) => {
@@ -65,9 +64,9 @@
         });
       });
 
-      function Container(unit, { x, y, w, h, rx, fill, stroke, sw = 2, label, color, size = 13 }) {
-        xnew(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}">`);
-        xnew(`<text x="${x + 14}" y="${y + size + 10}" fill="${color}" font-weight="bold" font-size="${size}">`, label);
+      function Container(unit, { x, y, w, h, fill, stroke, sw = 2, label, color, size = 13 }) {
+        xnew(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${sw}">`);
+        xnew(`<text x="${x + 14}" y="${y + size + 5}" fill="${color}" font-weight="bold" font-size="${size}">`, label);
       }
 
       function Node(unit, { x, y, w, h, fill, stroke, label, color, sub }) {
@@ -81,22 +80,22 @@
         xnew(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.5"${arrow ? ' marker-end="url(#arr)"' : ''}>`);
       }
 
-      xnew(Container, { x: 10, y: 10, w: 400, h: 360, rx: 8, fill: '#eff6ff', stroke: '#3b82f6', label: 'PromiseTest', color: '#1e40af', size: 15 });
-      xnew(Container, { x: 30, y: 52, w: 360, h: 218, rx: 6, fill: '#f0fdf4', stroke: '#22c55e', label: 'Assets', color: '#15803d' });
+      xnew(Container, { x: 10, y: 10, w: 400, h: 360, fill: '#eff6ff', stroke: '#3b82f6', label: 'PromiseTest', color: '#1e40af', size: 15 });
+      xnew(Container, { x: 30, y: 52, w: 360, h: 218, fill: '#f0fdf4', stroke: '#22c55e', label: 'Assets', color: '#15803d' });
 
-      xnew(Node, { x:  50, y: 88, w: 140, h: 62, fill: '#fefce8', stroke: '#ca8a04', label: 'Promise 1', color: '#854d0e', sub: 'timeout: 2000ms' });
-      xnew(Node, { x: 230, y: 88, w: 140, h: 62, fill: '#fefce8', stroke: '#ca8a04', label: 'Promise 2', color: '#854d0e', sub: 'timeout: 1000ms' });
+      xnew(Node, { x:  50, y: 80, w: 140, h: 60, fill: '#fefce8', stroke: '#ca8a04', label: 'Promise 1', color: '#854d0e', sub: 'timeout: 2000ms' });
+      xnew(Node, { x: 230, y: 80, w: 140, h: 60, fill: '#fefce8', stroke: '#ca8a04', label: 'Promise 2', color: '#854d0e', sub: 'timeout: 1000ms' });
 
-      xnew(Line, { x1: 120, y1: 150, x2: 120, y2: 182 });
-      xnew(Line, { x1: 300, y1: 150, x2: 300, y2: 182 });
-      xnew(Line, { x1: 120, y1: 182, x2: 300, y2: 182 });
-      xnew(Line, { x1: 210, y1: 182, x2: 210, y2: 198, arrow: true });
+      xnew(Line, { x1: 120, y1: 140, x2: 120, y2: 155 });
+      xnew(Line, { x1: 300, y1: 140, x2: 300, y2: 155 });
+      xnew(Line, { x1: 120, y1: 155, x2: 300, y2: 155 });
+      xnew(Line, { x1: 210, y1: 155, x2: 210, y2: 175 });
+      xnew(Line, { x1: 120, y1: 175, x2: 300, y2: 175 });
+      xnew(Line, { x1: 300, y1: 175, x2: 300, y2: 195, arrow: true });
+      xnew(Line, { x1: 120, y1: 175, x2: 120, y2: 286, arrow: true });
 
-      xnew(Node, { x: 100, y: 198, w: 220, h: 58, fill: '#f1f5f9', stroke: '#94a3b8', label: 'xnew.then()', color: '#334155', sub: 'xnew.resolve(results)' });
-
-      xnew(Line, { x1: 210, y1: 256, x2: 210, y2: 286, arrow: true });
-
-      xnew(Node, { x: 100, y: 286, w: 220, h: 58, fill: '#ede9fe', stroke: '#7c3aed', label: 'xnew.promise(assets)', color: '#4c1d95', sub: '.then() → show results' });
+      xnew(Node, { x: 230, y: 195, w: 140, h: 60, fill: '#f1f5f9', stroke: '#94a3b8', label: 'xnew.then()', color: '#334155', sub: '' });
+      xnew(Node, { x: 50, y: 286, w: 140, h: 60, fill: '#ede9fe', stroke: '#7c3aed', label: 'xnew.promise(assets)', color: '#4c1d95', sub: '.then() → show results' });
     }
 
   </script>

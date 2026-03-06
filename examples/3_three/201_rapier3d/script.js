@@ -7,10 +7,13 @@ import RAPIER from '@dimforge/rapier3d-compat';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  xnew.extend(xnew.basics.Screen, { width: 800, height: 400 });
+  const [width, height] = [800, 600];
+  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+
+  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
 
   // three setup
-  xthree.initialize({ canvas: unit.canvas });
+  xthree.initialize({ canvas: canvas.element });
   xthree.renderer.shadowMap.enabled = true;
   xthree.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   xthree.camera.position.set(0, 50, 100);
@@ -24,15 +27,14 @@ function Main(unit) {
 
 function Contents(unit) {
   xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81, z: 0.0 } });
-  unit.on('render', () => {
-    xrapier3d.world.timestep = 3 / 60;
-    xrapier3d.world.step();
-  });
-
-  xnew(DirectionalLight, { x: 50, y: 50, z: 50 });
-
   xnew.then(() => {
-    xrapier3d.world.timestep = 3 / 60;
+    unit.on('render', () => {
+      xrapier3d.world.timestep = 3 / 60;
+      xrapier3d.world.step();
+    });
+
+    xnew(DirectionalLight, { x: 50, y: 50, z: 50 });
+
     xnew(CameraController);
     xnew(Player, { x: 0, y: 30, z: 0 });
     xnew(Ground, { x: 0, y: 0, z: 0, width: 100, height: 2, depth: 100 });
@@ -119,7 +121,7 @@ function Player(unit, { x, y, z }) {
   unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
 
   const direct = xnew(xnew.basics.DirectEvent);
-  direct.on('keydown.arrow keyup.arrow', ({ vector }) => {
+  direct.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ vector }) => {
     // move
     velocity.x = vector.x * speed;
     velocity.z = vector.y * speed;

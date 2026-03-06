@@ -22,11 +22,7 @@ function Main(unit) {
 function Contents(unit) {
   xnew(Background);
   
-  let scene = xnew(TitleScene);
-  unit.on('+scenechange', ({ NextScene, props }) => {
-    scene.finalize();
-    scene = xnew(NextScene, props);
-  });
+  xnew(xnew.basics.Flow).next(TitleScene);
 }
 
 function Background(unit) {
@@ -54,9 +50,7 @@ function Dot(unit) {
 
 function TitleScene(unit) {
   xnew(TitleText);
-  unit.on('keydown pointerdown', () => {
-    xnew.emit('+scenechange', { NextScene: GameScene });
-  });
+  unit.on('keydown pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
 }
 
 function TitleText(unit) {
@@ -79,9 +73,7 @@ function GameScene(scene) {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      scene.on('keydown pointerdown', () =>{
-        xnew.emit('+scenechange', { NextScene: TitleScene });
-      });
+      scene.on('keydown pointerdown', () => xnew.context(xnew.basics.Flow).next(TitleScene));
     }, 1000);
   });
 }
