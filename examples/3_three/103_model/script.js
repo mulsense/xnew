@@ -33,8 +33,8 @@ function Contents(unit) {
   // objects
   xnew(Ground);
  
-  xnew.promise(xnew(Assets)).then(() => {
-    xnew(Model, { key: 'xbot' });
+  xnew.promise(xnew(Assets)).then(({ models }) => {
+    xnew(Model, { gltf: models.xbot });
     xnew(Panel);
   });
 }
@@ -47,9 +47,7 @@ function Assets(unit) {
     models.xbot = gltf;
   });
 
-  return {
-    get models() { return models; },
-  }
+  xnew.then(() => xnew.commit({ models }));
 }
 
 function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
@@ -72,9 +70,8 @@ function Controller(unit) {
   controls.update();
 }
 
-function Model(unit, { key }) {
+function Model(unit, { gltf }) {
   const object = xthree.nest(new THREE.Object3D());
-  const gltf = xnew.context(Assets).models[key];
   const model = gltf.scene;
   const skeleton = new THREE.SkeletonHelper(model);
  
