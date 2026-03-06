@@ -94,17 +94,20 @@
 
     function Filter(unit) {
       xnew.nest('<div class="w-40 p-1 border rounded-lg">');
-      const params = { activate: false, type: 'lowpass', cutoff: 1000 };
-      xnew.extend(xnew.basics.Panel, { open: true, params });
       xnew('<p>', 'filter');
+      const params = { activate: false, type: 'lowpass', cutoff: 1000 };
+      const panel = xnew(xnew.basics.Panel, { params });
 
-      const activate = unit.checkbox('activate');
       let type = null;
-      const group = unit.group({ open: false }, (group) => {
-        type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
-        group.range('cutoff', { min: 100, max: 4000, step: 10 });
-      });
-      activate.on('change', ({ value }) => value ? group.open() : group.close());
+      panel.group({ open: true }, (group) => {
+
+        const activate = group.checkbox('activate');
+        const subgroup = group.group({ open: false }, (subgroup) => {
+          type = xnew(Radio, { name: 'type', labels: ['lowpass', 'highpass', 'bandpass'] });
+          subgroup.range('cutoff', { min: 100, max: 4000, step: 10 });
+        });
+        activate.on('change', ({ value }) => value ? subgroup.open() : subgroup.close());
+      })
 
       return {
         get value() {
@@ -138,14 +141,15 @@
 
       const reverb = xnew((unit) => {
         const params = { time: 1000, mix: 0.5 };
-        xnew.extend(xnew.basics.Panel, { name: 'reverb', open: true, params });
-
-        const activate = unit.checkbox('activate');
-        const group = unit.group({ open: false }, (group) => {
-          group.range('time', { min: 0.0, max: 2000, step: 100 });
-          group.range('mix', { min: 0.0, max: 1.0, step: 0.1 });
+        const panel = xnew(xnew.basics.Panel, { params });
+        panel.group({ name: 'reverb', open: true, }, (group) => {
+          const activate = group.checkbox('activate');
+          const subgroup = group.group({ open: false }, (subgroup) => {
+            subgroup.range('time', { min: 0.0, max: 2000, step: 100 });
+            subgroup.range('mix', { min: 0.0, max: 1.0, step: 0.1 });
+          });
+          activate.on('change', ({ value }) => value ? subgroup.open() : subgroup.close());
         });
-        activate.on('change', ({ value }) => value ? group.open() : group.close());
         return {
           get value() { return params.activate ? { reverb: { time: params.time, mix: params.mix }} : {}; },
           get json() { return params.activate ? `reverb: { time: ${params.time}, mix: ${params.mix}, }, ` : ''; }
@@ -163,32 +167,34 @@
     }
 
     function Waveform(unit, { value = 0 }) {
-      xnew.extend(xnew.basics.Panel, { name: 'type', open: true });
-      xnew.nest('<div class="m-1 flex">');
-      const name = 'waveform' + xnew.find(Waveform).length;
       const labels = ['sine', 'triangle', 'square', 'sawtooth'];
-      labels.forEach((label, i) => {
-        xnew(`<label class="inline-block">`, (unit) => {
-          xnew.nest('<div class="flex flex-col items-center">');
-          const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
-          const svg = xnew(`<svg class="block w-6 h-5 m-1" viewBox="0 0 20 20">`);
-          let points = null;
-          if (label === 'sine') {
-            points = '0 10 2 3 5 0 8 3 10 10 12 17 15 20 18 17 20 10';
-          } else if(label === 'triangle') {
-            points = '0 10 5 0 10 10 15 20 20 10';
-          } else if(label === 'square') {
-            points = '0 10 0 0 10 0 10 20 20 20 20 10';
-          } else if(label === 'sawtooth') {
-            points = '0 20 0 0 20 20';
-          }
-          svg.element.innerHTML = `<polyline stroke="#000" fill="none" stroke-width="2" points="${points}" />`;
-          input.on('change', () => {
-            if (input.element.checked) value = i;
+      const panel = xnew(xnew.basics.Panel, { name: 'type', open: true });
+      panel.group({ name: 'type', open: true }, (group) => {
+        xnew.nest('<div class="m-1 flex">');
+        const name = 'waveform' + xnew.find(Waveform).length;
+        labels.forEach((label, i) => {
+          xnew(`<label class="inline-block">`, (unit) => {
+            xnew.nest('<div class="flex flex-col items-center">');
+            const input = xnew(`<input name="${name}" type="radio" value="${i}">`);
+            const svg = xnew(`<svg class="block w-6 h-5 m-1" viewBox="0 0 20 20">`);
+            let points = null;
+            if (label === 'sine') {
+              points = '0 10 2 3 5 0 8 3 10 10 12 17 15 20 18 17 20 10';
+            } else if(label === 'triangle') {
+              points = '0 10 5 0 10 10 15 20 20 10';
+            } else if(label === 'square') {
+              points = '0 10 0 0 10 0 10 20 20 20 20 10';
+            } else if(label === 'sawtooth') {
+              points = '0 20 0 0 20 20';
+            }
+            svg.element.innerHTML = `<polyline stroke="#000" fill="none" stroke-width="2" points="${points}" />`;
+            input.on('change', () => {
+              if (input.element.checked) value = i;
+            });
+            if (i === value) {
+              input.element.checked = true;
+            }
           });
-          if (i === value) {
-            input.element.checked = true;
-          }
         });
       });
       return {
@@ -197,27 +203,30 @@
     }
     function Envelope(unit, { value, min, max, step, checkable = false }) {
       const params = { activate: !checkable, amount: value, attack: 200, decay: 200, sustain: 0.2, release: 200 };
-      xnew.extend(xnew.basics.Panel, { name: 'envelope', open: true, params });
+      const panel = xnew.extend(xnew.basics.Panel, { params });
 
-      let activate = null;
-      if (checkable) activate = unit.checkbox('activate');
+      panel.group({ name: 'envelope', open: true, }, (group) => {
+        let activate = null;
+        if (checkable) activate = group.checkbox('activate');
 
-      let svg = null;
-      const group = unit.group({ open: checkable ? false : true }, (group) => {
-        svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
-        group.range('amount', { min, max, step });
-        group.range('attack', { min: 0, max: 500, step: 20 });
-        group.range('decay', { min: 0, max: 500, step: 20 });
-        group.range('sustain', { min: 0.0, max: 1.0, step: 0.1 });
-        group.range('release', { min: 0, max: 500, step: 20 }); 
+        let svg = null;
+        const subgroup = group.group({ open: checkable ? false : true }, (subgroup) => {
+          svg = xnew('<svg class="w-28 h-14 bg-black m-auto" viewBox="0 0 300 150">');
+          subgroup.range('amount', { min, max, step });
+          subgroup.range('attack', { min: 0, max: 500, step: 20 });
+          subgroup.range('decay', { min: 0, max: 500, step: 20 });
+          subgroup.range('sustain', { min: 0.0, max: 1.0, step: 0.1 });
+          subgroup.range('release', { min: 0, max: 500, step: 20 }); 
+        });
+        activate?.on('change', ({ value }) => value ? subgroup.open() : subgroup.close());
+
+        group.on('render', () => {
+          const [A, D, S, R] = [params.attack, params.decay, params.sustain, params.release];
+          const points = `0 150 ${0.1 * A} ${10} ${0.1 * (A + D)} ${150 - 140 * S} ${0.1 * (A + D + 500)} ${150 - 140 * S} ${0.1 * (A + D + 500 + R)} 150`;
+          svg.element.innerHTML = `<polyline stroke="#2B2" stroke-width="4" points="${points}" />`;
+        });
       });
-      activate?.on('change', ({ value }) => value ? group.open() : group.close());
-
-      unit.on('render', () => {
-        const [A, D, S, R] = [params.attack, params.decay, params.sustain, params.release];
-        const points = `0 150 ${0.1 * A} ${10} ${0.1 * (A + D)} ${150 - 140 * S} ${0.1 * (A + D + 500)} ${150 - 140 * S} ${0.1 * (A + D + 500 + R)} 150`;
-        svg.element.innerHTML = `<polyline stroke="#2B2" stroke-width="4" points="${points}" />`;
-      });
+      
       return {
         get value() { return params.activate ? { envelope: { amount: params.amount, ADSR: [params.attack, params.decay, params.sustain, params.release] }} : {}; },
         get json() { return params.activate ? `envelope: { amount: ${params.amount}, ADSR: [${params.attack}, ${params.decay}, ${params.sustain}, ${params.release}], }, ` : ''; }
@@ -226,16 +235,18 @@
 
     function LFO(unit, { value, min, max, step }) {
       const params = { amount: value, rate: 8 };
-      xnew.extend(xnew.basics.Panel, { name: 'LFO', open: true, params });
+      const panel = xnew(xnew.basics.Panel, { params });
 
-      const activate = unit.checkbox('activate');
       let waveform = null;
-      const group = unit.group({ open: false }, (group) => {
-        waveform = xnew(Waveform, { value: 2 });
-        group.range('amount', { min, max, step });
-        group.range('rate', { min: 2, max: 36, step: 1 });
+      panel.group({ name: 'LFO', open: true, }, (group) => {
+        const activate = group.checkbox('activate');
+        const subgroup = group.group({ open: false }, (subgroup) => {
+          waveform = xnew(Waveform, { value: 2 });
+          subgroup.range('amount', { min, max, step });
+          subgroup.range('rate', { min: 2, max: 36, step: 1 });
+        });
+        activate.on('change', ({ value }) => value ? subgroup.open() : subgroup.close());
       });
-      activate.on('change', ({ value }) => value ? group.open() : group.close());
 
       return {
         get value() {

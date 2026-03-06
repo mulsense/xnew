@@ -208,7 +208,7 @@ interface PanelOptions {
     open?: boolean;
     params?: Record<string, any>;
 }
-declare function Panel(unit: Unit, { name, open, params }: PanelOptions): {
+declare function Panel(unit: Unit, { params }: PanelOptions): {
     group({ name, open, params }: PanelOptions, inner: Function): Unit;
     button(key: string): Unit;
     select(key: string, { value, items }?: {
@@ -225,6 +225,12 @@ declare function Panel(unit: Unit, { name, open, params }: PanelOptions): {
         value?: boolean;
     }): Unit;
     separator(): void;
+};
+
+declare function Flow(unit: Unit): {
+    get scene(): Unit | null;
+    set scene(value: Unit);
+    next(Component: Function, props?: any): void;
 };
 
 type SynthesizerOptions = {
@@ -298,6 +304,7 @@ declare const xnew: CreateUnit & {
         Panel: typeof Panel;
         Accordion: typeof Accordion;
         Popup: typeof Popup;
+        Flow: typeof Flow;
     };
     audio: {
         load(path: string): UnitPromise;

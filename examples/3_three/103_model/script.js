@@ -164,12 +164,12 @@ function Model(unit, { key }) {
   };
 }
 
-function Panel(panel) {
+function Panel(unit) {
   xnew.nest(document.body);
   const model = xnew.context(Model);
   
   xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
-  xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true });
+  const panel = xnew(xnew.basics.Panel, { name: 'GUI', open: true });
 
   panel.select('action', { value: 'idle', items: model.actions('base') }).on('input', ({ value }) => {
     model.crossfade(value);

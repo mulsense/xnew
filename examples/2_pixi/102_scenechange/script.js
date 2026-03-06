@@ -20,44 +20,36 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  let scene = xnew(Scene1);
+  xnew(MyFlow).next(Scene1);
+}
 
-  unit.on('+scenechange', ({ NextScene, props }) => {
+function MyFlow(unit) {
+  const defines = xnew.extend(xnew.basics.Flow);
 
-    const duration = 500;
-    const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
-    xnew.transition(({ value }) => {
-      // fadeout
-      cover.element.style.opacity = value;
-    }, duration)
-    .timeout((() => {
-      // scene change
-      scene.finalize();
-      scene = xnew(NextScene, props);
-    }))
-    .transition(({ value }) => {
-      // fadein
-      cover.element.style.opacity = 1 - value;
-    }, duration)
-    .timeout(() => {
-      // remove cover
-      cover.finalize();
-    });
-  });
+  return {
+    next(Component, props) {
+      const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
+      
+      xnew.transition(({ value }) => cover.element.style.opacity = value, 500) // fadeout
+      .timeout(() => defines.next(Component, props)) // change scene
+      .transition(({ value }) => cover.element.style.opacity = 1 - value, 500) // fadein
+      .timeout(() => cover.finalize()); // remove cover
+    }
+  }
 }
 
 function Scene1(unit) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', { NextScene: Scene2, props: {} }));
+  unit.on('pointerdown', ({ event }) => xnew.context(xnew.basics.Flow).next(Scene2));
 }
 
 function Scene2(unit) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  unit.on('pointerdown', ({ event }) => xnew.emit('+scenechange', { NextScene: Scene1, props: {} }));
+  unit.on('pointerdown', ({ event }) => xnew.context(xnew.basics.Flow).next(Scene1));
 }
 
 function Text(unit, { text }) {

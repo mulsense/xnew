@@ -156,7 +156,7 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
       });
     })
   }).then((vrm) => {
-    xnew.assign({ vrm });
+    xnew.commit({ vrm });
   });
 
   xnew.promise(new Promise((resolve) => {
@@ -164,7 +164,7 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
     loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
   })).then((vrma) => {
-    xnew.assign({ vrma });
+    xnew.commit({ vrma });
   });
 
   xnew.then(({ vrm, vrma }) => {
@@ -259,13 +259,13 @@ function Renderer(unit) {
   }
 }
 
-function GUIPanel(panel) {
+function GUIPanel(unit) {
   const rpp = xnew.context(Renderer).renderPixelatedPass;
   const params = { pixelSize: rpp.pixelSize, normalEdgeStrength: rpp.normalEdgeStrength, depthEdgeStrength: rpp.depthEdgeStrength, };
 
   xnew.nest('<div class="absolute text-sm w-48 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
 
-  xnew.extend(xnew.basics.Panel, { name: 'GUI', open: true, params });
+  const panel = xnew(xnew.basics.Panel, { name: 'GUI', open: true, params });
 
   panel.range('pixelSize', { min: 1, max: 16, step: 1 }).on('input', ({ value }) => {
     rpp.setPixelSize(value);

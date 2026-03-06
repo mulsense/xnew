@@ -38,14 +38,27 @@ function Main(unit) {
 function Contents(unit) {
   xnew(GameData);
 
-  let scene = xnew(TitleScene);
-  // let scene = xnew(ResultScene, { image: null });
-  unit.on('+scenechange', ({ NextScene, props }) => {
-    scene.finalize();
-    scene = xnew(NextScene, props);
-  });
+  xnew(MyFlow).next(TitleScene);
 }
 
+function MyFlow(unit) {
+  const defines = xnew.extend(xnew.basics.Flow);
+  return {
+
+    next(Component, props, fadeout = null) {
+      if (fadeout) {
+        const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
+        xnew.transition(({ value }) => cover.element.style.opacity = value, fadeout.duration, fadeout.easing)
+        .timeout(() => {
+          defines.next(Component, props);
+          cover.finalize();
+        })
+      } else {
+        defines.next(Component, props);
+      }
+    }
+  }
+}
 function GameData(unit) {
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -71,7 +84,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(CanvasTransfer);
-  unit.on('pointerdown', () => xnew.emit('+scenechange', { NextScene: GameScene }));
+  unit.on('pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -111,9 +124,7 @@ function GameScene(unit) {
     xnew(GameOverText);
 
     xnew.timeout(() => {
-      const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
-      xnew.transition(({ value }) => cover.element.style.opacity = value, 300, 'ease')
-      .timeout(() => xnew.emit('+scenechange', { NextScene: ResultScene, props: { image } }));
+      xnew.context(xnew.basics.Flow).next(ResultScene, { image }, { duration: 300, easing: 'ease' });
     }, 2000);
   });
 }
@@ -256,7 +267,7 @@ function ResultFooter(unit) {
       xnew(Frame);
       xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', ArrowUturnLeft);
     });
-    button.on('click', () => xnew.emit('+scenechange', { NextScene: TitleScene }));
+    button.on('click', () => xnew.context(xnew.basics.Flow).next(TitleScene));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {

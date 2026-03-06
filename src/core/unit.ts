@@ -194,6 +194,11 @@ export class Unit {
             const backupComponent = unit._.currentComponent;
             unit._.currentComponent = Component;
 
+            if (unit._.parent !== null) {
+                Unit.addContext(unit._.parent, unit, Component, unit);
+            }
+            Unit.addContext(unit, unit, Component, unit);
+
             const defines = Component(unit, props ?? {}) ?? {};
 
             unit._.currentComponent = backupComponent;
@@ -307,6 +312,7 @@ export class Unit {
 
     static getContext(unit: Unit, key: any): any {
         for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
+            if (context.value === Unit.currentUnit && key === Unit.currentUnit._.currentComponent) continue;
             if (context.key === key) return context.value;
         }
     }

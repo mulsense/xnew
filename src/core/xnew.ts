@@ -41,7 +41,6 @@ export const xnew = Object.assign(
         const props: Object | undefined = args.shift();
         
         const unit = new Unit(Unit.currentUnit, target, Component, props);
-        Unit.addContext(Unit.currentUnit, unit, Component, unit);
         return unit;
     } as CreateUnit,
     {
@@ -81,8 +80,6 @@ export const xnew = Object.assign(
                     throw new Error('xnew.extend can not be called after initialized.');
                 } 
                 const defines = Unit.extend(Unit.currentUnit, Component, props);
-                Unit.addContext(Unit.currentUnit, Unit.currentUnit, Component, Unit.currentUnit);
-
                 return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
