@@ -35,11 +35,12 @@ function Contents(unit) {
   xnew(Cubes);
 
   // pixi.js (screen canvas)
-  xnew(Texture, { texture: PIXI.Texture.from(xthree.canvas) }); // render three.js canvas as pixi texture
+  xnew(ThreeTexture); // render three.js canvas as pixi texture
   xnew(Boxes);
 }
 
-function Texture(unit, { texture }) {
+function ThreeTexture(unit) {
+  const texture = PIXI.Texture.from(xthree.canvas)
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 

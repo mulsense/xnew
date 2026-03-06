@@ -43,8 +43,9 @@ function Main(unit) {
 
   // pixi setup
   xpixi.initialize({ canvas: canvas.element });
+  const texture = PIXI.Texture.from(xthree.canvas);
   unit.on('render', () => {
-    xnew.emit('+prerender');
+    texture.source.update();
     xpixi.renderer.render(xpixi.scene);
   });
 
@@ -138,7 +139,7 @@ function GameScene(unit, { id }) {
   xnew(AmbientLight);
   xnew(Background);
   xnew(Floor);
-  xnew(CanvasTransfer, { position: { x: 320 / 2, y: -10 } });
+  xnew(ThreeTexture, { position: { x: 320 / 2, y: -10 } });
 
   xnew(LeftBlock, { id });
   xnew(RightBlock, { id });
@@ -187,14 +188,10 @@ function GameScene(unit, { id }) {
   });
 }
 
-function CanvasTransfer(unit, { position = { x: 0, y: 0} }) {
-  const texture = PIXI.Texture.from(xthree.canvas);
+function ThreeTexture(unit, { position = { x: 0, y: 0} }) {
+  const texture = PIXI.Texture.from(xthree.canvas)
   const object = xpixi.nest(new PIXI.Sprite(texture));
   object.position.set(position.x, position.y);
-
-  unit.on('+prerender', () => {
-    texture.source.update();
-  });
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -405,15 +402,17 @@ function Box(box, { x, y }) {
     mesh.scale.set(scale, scale, scale);
     object.add(mesh);
   });
-
   let random = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
-  box.on('update', () => {
-    const position = convert3d(x - offset.x, y - offset.y, boxSize / 2);
-    object.position.set(position.x + random.x, position.y + random.y, position.z);
+  xnew.then(() => {
+    box.on('update', () => {
+      const position = convert3d(x - offset.x, y - offset.y, boxSize / 2);
+      object.position.set(position.x + random.x, position.y + random.y, position.z);
 
-    const isOnGoal = xnew.find(Goal).some(g => g.x === x && g.y === y);
-    material.color.setHex(isOnGoal ? 0xFFFFFF : 0xCCCCCC);
+      const isOnGoal = xnew.find(Goal).some(g => g.x === x && g.y === y);
+      material.color.setHex(isOnGoal ? 0xFFFFFF : 0xCCCCCC);
+    });
+
   });
 
   return {
@@ -534,31 +533,33 @@ function Model(unit, { id = 0, scale }) {
   });
 
   const offset = Math.random() * 10;
-
-  let count = 0;
-  unit.on('update', () => {
-    const neck = vrm.humanoid.getNormalizedBoneNode('neck');
-    const chest = vrm.humanoid.getNormalizedBoneNode('chest');
-    const hips = vrm.humanoid.getNormalizedBoneNode('hips');
-    const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-    const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-    const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
-    const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
-    const t = (count + offset) * 0.025;
-    // neck.rotation.x = Math.sin(t * 6) * +0.1;
-    chest.rotation.x = Math.sin(t * 12) * +0.1;
-    hips.position.z = Math.sin(t * 12) * 0.1;
-    leftUpperArm.rotation.z =  -0.7;//Math.sin(t * 12 + offset) * +0.7;
-    // leftUpperArm.rotation.x =Math.sin(t * 6 + offset) * +0.8;
-    rightUpperArm.rotation.z = 0.7;//Math.sin(t * 12) * -0.7;
-    // rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
-    leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
-    leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.2;
-    rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
-    rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.2;
-    vrm.update(t);
-    count += 0.6;
+  xnew.then(() => {
+    let count = 0;
+    unit.on('update', () => {
+      const neck = vrm.humanoid.getNormalizedBoneNode('neck');
+      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+      const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+      const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+      const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+      const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
+      const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
+      const t = (count + offset) * 0.025;
+      // neck.rotation.x = Math.sin(t * 6) * +0.1;
+      chest.rotation.x = Math.sin(t * 12) * +0.1;
+      hips.position.z = Math.sin(t * 12) * 0.1;
+      leftUpperArm.rotation.z =  -0.7;//Math.sin(t * 12 + offset) * +0.7;
+      // leftUpperArm.rotation.x =Math.sin(t * 6 + offset) * +0.8;
+      rightUpperArm.rotation.z = 0.7;//Math.sin(t * 12) * -0.7;
+      // rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
+      leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
+      leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.2;
+      rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
+      rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.2;
+      vrm.update(t);
+      count += 0.6;
+    });
   });
+
 
   return {
     get obejct() { return object; },

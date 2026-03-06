@@ -18,23 +18,23 @@ function Main(unit) {
     xpixi.renderer.render(xpixi.scene);
   });
 
-  xnew(Contents);
+  xnew(xnew.basics.Flow).next(Contents);
 }
 
 function Contents(unit) {
   xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 } });
-  unit.on('render', () => {
-    xrapier2d.world.timestep = 3 / 60;
-    xrapier2d.world.step();
-  });
 
   xnew.then(() => {
+    unit.on('render', () => {
+      xrapier2d.world.timestep = 3 / 60;
+      xrapier2d.world.step();
+    });
     xnew(Rectangle, { x: 400, y: 200, w: 80, h: 80, color: 0x00FF00 });
     xnew(Rectangle, { x: 400, y: 400, w: 380, h: 40, color: 0xFFFF00 , dynamic: false });
   });
 
   const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => scene.reboot());
+  button.on('click', () => xnew.context(xnew.basics.Flow).next(Contents));
 }
 
 function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options = {} }) {
@@ -51,7 +51,6 @@ function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options
   // Create a cuboid collider attached to the dynamic rigidBody
   const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2);
   const collider = xrapier2d.world.createCollider(colliderDesc, rigidBody);
-  console.log(rigidBody, collider);
   self.on('finalize', () => {
     xrapier2d.world.removeCollider(collider);
     xrapier2d.world.removeRigidBody(rigidBody);
