@@ -21,8 +21,9 @@ function Main(unit) {
 
   // pixi setup
   xpixi.initialize({ canvas: canvas.element });
+  const texture = PIXI.Texture.from(xthree.canvas);
   unit.on('render', () => {
-    xnew.emit('+prerender');
+    texture.source.update();
     xpixi.renderer.render(xpixi.scene);
   });
 
@@ -34,17 +35,12 @@ function Contents(unit) {
   xnew(Cubes);
 
   // pixi.js (screen canvas)
-  xnew(CanvasTransfer); // three.js -> pixi.js
+  xnew(Texture, { texture: PIXI.Texture.from(xthree.canvas) }); // render three.js canvas as pixi texture
   xnew(Boxes);
 }
 
-function CanvasTransfer(unit) {
-  const texture = PIXI.Texture.from(xthree.canvas);
+function Texture(unit, { texture }) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
-
-  unit.on('+prerender', () => {
-    texture.source.update();
-  });
 }
 
 function Boxes(unit) {

@@ -32,7 +32,7 @@ function Root(unit: xnew.Unit, { canvas }: { canvas: HTMLCanvasElement }) {
         renderer = value;
     });
 
-    let scene = new PIXI.Container();
+    const scene = new PIXI.Container();
 
     return {
         get renderer() { return renderer; },

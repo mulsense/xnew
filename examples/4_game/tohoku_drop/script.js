@@ -27,8 +27,9 @@ function Main(unit) {
 
   // pixi setup
   xpixi.initialize({ canvas: canvas.element });
+  const texture = PIXI.Texture.from(xthree.canvas);
   unit.on('render', () => {
-    xnew.emit('+prerender');
+    texture.source.update();
     xpixi.renderer.render(xpixi.scene);
   });
 
@@ -83,7 +84,7 @@ function TitleScene(unit) {
     const rotation = { x: 10 / 180 * Math.PI, y: (-10 - 3 * id) / 180 * Math.PI, z: 0 };
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
-  xnew(CanvasTransfer);
+  xnew(Texture, { texture: PIXI.Texture.from(xthree.canvas) }); // three.js -> pixi.js
   unit.on('pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
 
   xnew(TitleText);
@@ -105,7 +106,7 @@ function GameScene(unit) {
   xnew(Bowl);
   xnew(Cursor);
   xnew(Queue);
-  xnew(CanvasTransfer);
+  xnew(Texture, { texture: PIXI.Texture.from(xthree.canvas) }); // three.js -> pixi.js
   xnew(ScoreText);
   xnew(VolumeController);
 
@@ -155,13 +156,8 @@ function Background(unit) {
   });
 }
 
-function CanvasTransfer(unit) {
-  const texture = PIXI.Texture.from(xthree.canvas);
+function Texture(unit, { texture }) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
-
-  unit.on('+prerender', () => {
-    texture.source.update();
-  });
 }
 
 function TitleText(unit) {

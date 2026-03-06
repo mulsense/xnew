@@ -52,7 +52,7 @@
         })).then((value) => {
             renderer = value;
         });
-        let scene = new PIXI__namespace.Container();
+        const scene = new PIXI__namespace.Container();
         return {
             get renderer() { return renderer; },
             get scene() { return scene; },
