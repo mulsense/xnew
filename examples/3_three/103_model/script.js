@@ -165,9 +165,9 @@ function Model(unit, { key }) {
 }
 
 function Panel(unit) {
-  xnew.nest(document.body);
   const model = xnew.context(Model);
   
+  xnew.nest(document.body);
   xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   const panel = xnew(xnew.basics.Panel, { name: 'GUI', open: true });
 
