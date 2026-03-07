@@ -10,7 +10,7 @@ function Main(unit) {
   const [width, height] = [800, 600];
   xnew.extend(xnew.basics.Screen, { width, height });
 
-    // three setup
+  // three setup
   xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.camera.position.set(0, 0, +100);
   unit.on('render', () => {

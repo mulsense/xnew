@@ -7,8 +7,7 @@ import Matter from 'matter-js';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { width, height });
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
