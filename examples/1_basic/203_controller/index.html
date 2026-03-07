@@ -17,7 +17,7 @@
 
     function Controller(unit) {
       // prevent default event
-      unit.on('touchstart contextmenu wheel', (event) => event.preventDefault());
+      unit.on('touchstart document.contextmenu wheel', ({ event }) => event.preventDefault());
 
       xnew.nest('<div class="absolute left-0 right-0 bottom-0 w-full h-[30%]" style="container-type: size;">');
 
