@@ -8,12 +8,10 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width, height });
 
   // pixi setup
-  xpixi.initialize({ canvas: canvas.element });
+  xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });
@@ -34,7 +32,7 @@ function Contents(unit) {
 
 function Assets(unit) {
   xnew.promise(xnew(Baking)).then((results) => {
-    xnew.assign({ textures: results.textures });
+    xnew.commit({ textures: results.textures });
   });
 }
 
@@ -57,8 +55,7 @@ function Baking(unit) {
       }
     });
   }).then((textures) => {
-    xnew.assign({ textures });
-    unit.finalize();
+    xnew.commit({ textures });
   });
 }
 

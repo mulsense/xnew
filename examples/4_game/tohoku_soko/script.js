@@ -25,9 +25,7 @@ function Main(unit) {
   xnew(GameData);
 
   const [width, height] = [800, 450];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width, height });
 
   // three setup
   const size = xnew.context(GameData).GRID / 2;
@@ -42,7 +40,7 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: canvas.element });
+  xpixi.initialize({ canvas: unit.canvas });
   const texture = PIXI.Texture.from(xthree.canvas);
   unit.on('render', () => {
     texture.source.update();

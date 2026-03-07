@@ -15,13 +15,11 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit, { mogPath = '../../assets/rei.mog', vrmaPath = '../../assets/VRMA_07.vrma', size = 1024 }) {
   xnew.protect();
-  xnew.extend(xnew.basics.Screen, { aspect: 1.0, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${size}" height="${size}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width: size, height: size });
   
   // three setup
   const camera = new THREE.OrthographicCamera(-0.5, +0.5, +0.5, -0.5, 0.1, 10);
-  xthree.initialize({ canvas: canvas.element, camera });
+  xthree.initialize({ canvas: unit.canvas, camera });
   xthree.camera.position.set(0, 0.2, +2);
   xthree.renderer.shadowMap.enabled = true;
   xthree.scene.rotation.x = -60 / 180 * Math.PI

@@ -35,18 +35,16 @@
 
       xnew('<div>', (unit) => {
         xnew.extend(Template, { text: 'contain' });
-        xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+        xnew.extend(xnew.basics.Screen, { width, height, fit: 'contain' });
       
-        const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
-        draw(canvas.element)
+        draw(unit.canvas)
       });
       
       xnew('<div>', (unit) => {
         xnew.extend(Template, { text: 'cover' });
-        xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'cover' });
+        xnew.extend(xnew.basics.Screen, { width, height, fit: 'cover' });
       
-        const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
-        draw(canvas.element)
+        draw(unit.canvas)
       });
 
       function draw(canvas) {

@@ -13,9 +13,7 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width, height });
 
   // setup three 
   xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
@@ -26,7 +24,7 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: canvas.element });
+  xpixi.initialize({ canvas: unit.canvas });
   const texture = PIXI.Texture.from(xthree.canvas);
   unit.on('render', () => {
     texture.source.update();

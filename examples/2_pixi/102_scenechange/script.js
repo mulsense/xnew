@@ -6,12 +6,10 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
+  xnew.extend(xnew.basics.Screen, { width, height });
 
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
- 
   // pixi setup
-  xpixi.initialize({ canvas: canvas.element });
+  xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });

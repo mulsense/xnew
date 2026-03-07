@@ -15,15 +15,12 @@ document.body.style.backgroundColor = '#000';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  // const [width, height] = [800, 600];
   const [width, height] = [1600, 800];
+  xnew.extend(xnew.basics.Screen, { width, height });
   const aspect = width / height;
-  xnew.extend(xnew.basics.Screen, { aspect, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
   
   // three setup
-  xthree.initialize({ canvas: canvas.element, camera: new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.0, 10) });
+  xthree.initialize({ canvas: unit.canvas, camera: new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.0, 10) });
   xthree.camera.position.set(0, 4 * Math.tan(Math.PI / 6), +4);
   xthree.scene.background = new THREE.Color(0x151729);
   xthree.renderer.shadowMap.enabled = true;
