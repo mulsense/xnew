@@ -22,14 +22,19 @@
 
     function Console(unit) {
       xnew.nest('<div class="flex-none w-full h-24 p-2 text-sm bg-gray-100">');
-      unit.on('+console', ({ text }) => xnew('<p>', text));
+
+      return {
+        print(text) {
+          xnew('<p>', text);
+        }
+      }
     }
 
     function PromiseTest(unit) {
       const assets = xnew(Assets);
 
       xnew.promise(assets).then((results) => {
-        xnew.emit('+console', { text: `Results: ${JSON.stringify(results)}` });
+        xnew.context(Console).print(`Results: ${JSON.stringify(results)}`);
       });
     }
 
@@ -37,19 +42,19 @@
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
-        xnew.emit('+console', { text });
+        xnew.context(Console).print(text);
         xnew.commit({ data1: 1 });
       });
 
       xnew.promise((resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
-        xnew.emit('+console', { text });
+        xnew.context(Console).print(text);
         xnew.commit({ data2: 2 });
       });
 
       xnew.then((results) => {
-        xnew.emit('+console', { text: 'Assets Component Resolved.' });
+        xnew.context(Console).print('Assets Component Resolved.');
       });
     }
 
