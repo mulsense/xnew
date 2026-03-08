@@ -22,6 +22,12 @@ function HomepageHeader() {
             to="/docs/getstart">
             get start - 10min ⏱️
           </Link>
+          <Link
+            className="button button--secondary button--lg"
+            style={{marginLeft: '12px'}}
+            to="/docs/ai-prompt">
+            AI Prompt
+          </Link>
         </div>
       </div>
     </header>

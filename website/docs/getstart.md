@@ -231,5 +231,6 @@ Now that you understand the basics:
 1. **Explore the examples** - Check out more complex examples in the sidebar
 2. **Read the manual** - Learn about advanced features like timers, contexts, and addons
 3. **Try the addons** - Integrate with popular libraries like PixiJS and Three.js
+4. **Use with AI** - Copy the [AI Prompt](./ai-prompt) to get coding assistance from any AI assistant
 
 Happy coding with xnew! 🚀
