@@ -179,10 +179,13 @@ declare function Accordion(unit: Unit): void;
 declare function Popup(unit: Unit): void;
 
 type ScreenFit = 'contain' | 'cover';
-declare function Screen(unit: Unit, { aspect, fit }?: {
-    aspect?: number;
+declare function Screen(unit: Unit, { width, height, fit }?: {
+    width?: number;
+    height?: number;
     fit?: ScreenFit;
-}): void;
+}): {
+    readonly canvas: UnitElement;
+};
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
     stroke?: string;

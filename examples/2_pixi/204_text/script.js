@@ -10,9 +10,7 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width, height });
 
   // three setup
   const camera = new THREE.OrthographicCamera(-10, +10, +10, -10, 0, 100);
@@ -23,7 +21,7 @@ function Main(unit) {
   });
 
   // pixi setup
-  xpixi.initialize({ canvas: canvas.element });
+  xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
     xnew.emit('+prerender');
     xpixi.renderer.render(xpixi.scene);

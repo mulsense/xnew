@@ -17,12 +17,10 @@ xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
   const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width, height });
 
   // three setup
-  xthree.initialize({ canvas: canvas.element });
+  xthree.initialize({ canvas: unit.canvas });
   xthree.camera.position.set(0, 0, 20);
   xthree.camera.lookAt(0, 0, 0);
   xthree.scene.background = new THREE.Color(0x151729);

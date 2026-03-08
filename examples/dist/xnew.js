@@ -1262,7 +1262,8 @@
         });
     }
 
-    function Screen(unit, { aspect, fit = 'contain' } = {}) {
+    function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
+        const aspect = width / height;
         xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size; overflow: hidden;">');
         xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size; overflow: hidden;">`);
         if (fit === 'contain') {
@@ -1272,6 +1273,10 @@
             unit.element.style.flexShrink = '0';
             unit.element.style.width = `max(100cqw, calc(100cqh * ${aspect}))`;
         }
+        const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom;">`);
+        return {
+            get canvas() { return canvas.element; }
+        };
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -1280,14 +1285,14 @@
     function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
         xnew$1.nest(`<svg
         viewBox="0 0 64 64"
-        style="position: absolute; width: 100%; height: 100%; user-select: none;
+        style="position: absolute; width: 100%; height: 100%; user-select: none; -webkit-user-select: none;
         stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
         ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
     ">`);
     }
     function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
         xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
+        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto; overflow: hidden;">`);
         xnew$1((unit) => {
             xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
             xnew$1('<polygon points="32  7 27 13 37 13">');
@@ -1323,7 +1328,7 @@
     }
     function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
         xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; pointer-events: auto; overflow: hidden;">`);
+        xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto; overflow: hidden;">`);
         const polygons = [
             '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
             '<polygon points="32 32 23 41 23 60 24 61 40 61 41 60 41 41">',
