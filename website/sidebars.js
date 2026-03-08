@@ -33,6 +33,7 @@ const sidebars = {
       },
       items: [
         'getstart',
+        'ai-prompt',
         {
           type: 'category',
           label: 'manual',
