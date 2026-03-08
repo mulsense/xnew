@@ -7,13 +7,10 @@ import RAPIER from '@dimforge/rapier2d-compat';
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
-  const [width, height] = [800, 600];
-  xnew.extend(xnew.basics.Screen, { aspect: width / height, fit: 'contain' });
-
-  const canvas = xnew(`<canvas width="${width}" height="${height}" class="size-full align-bottom">`);
+  xnew.extend(xnew.basics.Screen, { width: 800, height: 600 });
 
   // pixi setup
-  xpixi.initialize({ canvas: canvas.element });
+  xpixi.initialize({ canvas: unit.canvas });
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });
