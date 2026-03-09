@@ -161,8 +161,6 @@ function GameScene(unit, { id }) {
     }
   }
 
-  unit.on('+restart', () => unit.reboot());
-
   unit.on('+moved', () => {
     const boxes = xnew.find(Box);
     const goals = xnew.find(Goal);
