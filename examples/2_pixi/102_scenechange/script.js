@@ -22,15 +22,13 @@ function Contents(unit) {
 
 function MyFlow(unit) {
   const defines = xnew.extend(xnew.basics.Flow);
+  const screen = xnew.context(xnew.basics.Screen);
 
   return {
     next(Component, props) {
-      const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white" style="opacity: 0">');
-      
-      xnew.transition(({ value }) => cover.element.style.opacity = value, 500) // fadeout
+      xnew.transition(({ value }) => screen.element.style.opacity = 1 - value, 500) // fadeout
       .timeout(() => defines.next(Component, props)) // change scene
-      .transition(({ value }) => cover.element.style.opacity = 1 - value, 500) // fadein
-      .timeout(() => cover.finalize()); // remove cover
+      .transition(({ value }) => screen.element.style.opacity = value, 500); // fadein
     }
   }
 }
