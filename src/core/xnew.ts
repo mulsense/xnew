@@ -53,14 +53,14 @@ export const xnew = Object.assign(
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(target: UnitElement | string): HTMLElement | SVGElement {
+        nest(tag: string): HTMLElement | SVGElement {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 } 
-                return Unit.nest(Unit.currentUnit, target);
+                return Unit.nest(Unit.currentUnit, tag);
             } catch (error: unknown) {
-                console.error('xnew.nest(target: HTMLElement | SVGElement | string): ', error);
+                console.error('xnew.nest(tag: string): ', error);
                 throw error;
             }
         },
@@ -88,16 +88,15 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Gets a context value that can be accessed in follow context
-         * @param key - component function
-         * @returns The context value
+         * Gets the Unit instance associated with the given component in the ancestor context chain
+         * @param key - component function used as context key
+         * @returns The Unit instance registered with the given component, or undefined if not found
          * @example
-         * // Create unit
-         * const a = xnew(A);
-         * ------------------------------
-         * 
-         * // Get context in child
-         * const a = xnew.context(A)
+         * // Create parent unit with component A
+         * const parent = xnew(A);
+         *
+         * // Inside a child component, get the parent unit
+         * const parentUnit = xnew.context(A)
          */
         context(key: any): any {
             try {
@@ -110,7 +109,7 @@ export const xnew = Object.assign(
             
         /**
          * Registers a promise with the current component for lifecycle management
-         * @param promise - Promise to register
+         * @param promise - A Promise, async function, or Unit to register
          * @returns UnitPromise wrapper for chaining
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
@@ -238,7 +237,7 @@ export const xnew = Object.assign(
         /**
          * Emits a custom event to components
          * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
-         * @param args - Additional arguments to pass to event listeners
+         * @param props - Event properties object to pass to listeners
          * @returns void
          * @example
          * xnew.emit('+globalevent', { data: 123 }); // Global event
@@ -255,7 +254,7 @@ export const xnew = Object.assign(
 
         /**
          * Executes a callback once after a delay, managed by component lifecycle
-         * @param callback - Function to execute after Duration
+         * @param callback - Function to execute after duration
          * @param duration - Duration in milliseconds
          * @returns Object with clear() method to cancel the timeout
          * @example
