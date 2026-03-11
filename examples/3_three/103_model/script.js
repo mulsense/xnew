@@ -161,7 +161,7 @@ function Model(unit, { gltf }) {
 function Panel(unit) {
   const model = xnew.context(Model);
   
-  xnew.nest(document.body);
+  xnew.nest('<div class="fixed inset-0">');
   xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   const panel = xnew(xnew.basics.Panel, { name: 'GUI', open: true });
 

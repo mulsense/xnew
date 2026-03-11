@@ -1,6 +1,8 @@
 # xnew.context
 
-`xnew.context` provides a way to share data across nested units through a hierarchical context system. Child units can access context values from their ancestors, and can override them locally without affecting parent values.
+`xnew.context` lets descendant components read shared data from an ancestor without passing it through every layer. It's the xnew answer to prop-drilling.
+
+Set up a "provider" component that holds state, create it once near the root, and any descendant can retrieve it by name — even deeply nested ones.
 
 ## Usage
 
@@ -79,8 +81,11 @@ function Child2(unit) {
 
 `xnew.context` is particularly useful for:
 
-- **Data**: Data share
+- **Theme / config** — a single `Theme` component at the root, consumed anywhere below
+- **Game state** — score, level, or player data shared across the scene tree
+- **Scene management** — passing a `Flow` controller down to child scenes without explicit props
+- **Dependency injection** — services like audio or input that many components need
 
 :::tip
-Use `xnew.context` to avoid prop drilling - passing data through many layers of components. Context values are automatically available to all descendant units.
+`xnew.context` looks up the unit hierarchy until it finds a matching provider. A child can create its own provider with the same component to shadow the parent's value locally, without affecting any other branch.
 :::

@@ -1,6 +1,8 @@
 # xnew.transition
 
-`xnew.transition` creates smooth animations by executing a callback function repeatedly over a specified duration. The callback receives a progress value that transitions from 0 to 1, which can be used to animate properties smoothly.
+`xnew.transition` drives a value from `0` to `1` over a set duration, calling your callback every frame. Feed that value into any property — opacity, position, scale, color — and you get smooth animation with one function call.
+
+It's also chainable: you can sequence timeouts and transitions without nesting callbacks.
 
 ## Usage
 

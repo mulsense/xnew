@@ -1,6 +1,6 @@
 # xnew.nest
 
-`xnew.nest` creates a new HTML element as a child of the current element and shifts the context to that new element. After calling `xnew.nest`, subsequent operations work on the newly created element instead of the original parent.
+`xnew.nest` creates a child element and shifts `unit.element` to point to it. Any elements created after the call are placed inside the new element automatically — no manual parent references needed.
 
 ## Usage
 
@@ -19,12 +19,12 @@ const element = xnew.nest(htmlString);
 
 ## How It Works
 
-`xnew.nest` serves two purposes:
+`xnew.nest` does two things at once:
 
-1. **Creates a new element** as a child of the current element
-2. **Changes the context** so `unit.element` points to the new element
+1. Creates the new element as a child of the current element.
+2. Shifts `unit.element` so the next `xnew()` calls land inside it.
 
-This allows you to build nested structures naturally by working "inside" elements as you create them.
+Wrapping a block in a nested `xnew(() => { ... })` call limits the context shift to that scope, so the parent level is restored when the inner function returns. This is how you build multi-level layouts cleanly.
 
 ## Example
 
@@ -85,10 +85,10 @@ xnew(Card, {
 
 ## Key Concepts
 
-- **Context shift**: `xnew.nest` changes `unit.element` to point to the newly created element
-- **Nesting scope**: Use nested `xnew()` calls to control which element is the parent
-- **Return value**: `xnew.nest` returns the created element for immediate access
-- **Automatic cleanup**: Nested elements are automatically removed when the parent unit is finalized
+- **Context shift** — `xnew.nest` changes `unit.element` to the newly created element.
+- **Scoped nesting** — wrap blocks in a nested `xnew()` call to contain the context shift; the parent level is restored when the inner function returns.
+- **Return value** — `xnew.nest` returns the raw `HTMLElement` for cases where you need direct access.
+- **Automatic cleanup** — nested elements are removed when the parent unit is finalized.
 
 :::tip
 Use nested `xnew()` calls to maintain proper element hierarchy. After a nested `xnew()` completes, the context returns to the parent level.

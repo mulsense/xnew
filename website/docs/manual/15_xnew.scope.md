@@ -1,6 +1,8 @@
 # xnew.scope
 
-`xnew.scope` preserves the current component scope for use within asynchronous operations and event handlers.
+`xnew.scope` captures the current component context and returns a wrapper that restores it when called. Use this when you need to call xnew APIs inside a raw `setTimeout`, `setInterval`, or a native `addEventListener` — places where the xnew scope would otherwise be lost.
+
+In most cases you won't need this: `xnew.timeout`, `xnew.interval`, and `unit.on` all preserve scope automatically. `xnew.scope` is the escape hatch for when you're using browser APIs directly.
 
 ## Basic Usage
 
@@ -24,7 +26,7 @@ In asynchronous operations like `setTimeout` or event listeners, the xnew compon
 
 ```js
 function Timer(unit) {
-  xnew.nest('<div>Timer Component</div>');
+  xnew.nest('<div>', 'Timer Component');
 
   setTimeout(xnew.scope(() => {
     // The Timer component scope is preserved in this callback
@@ -37,7 +39,7 @@ function Timer(unit) {
 
 ```js
 function Button(unit) {
-  const el = xnew.nest('<button>Click me</button>');
+  const el = xnew.nest('<button>', 'Click me');
 
   el.addEventListener('click', xnew.scope(() => {
     // The Button component scope is preserved on click

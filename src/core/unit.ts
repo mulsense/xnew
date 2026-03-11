@@ -163,25 +163,20 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement {
-        if (target instanceof HTMLElement || target instanceof SVGElement) {
-            unit._.nestElements.push({ element: target, owned: false });
-            unit._.currentElement = target;
-            return target;
-        } else {
-            const match = target.match(/<((\w+)[^>]*?)\/?>/);
-            if (match !== null) {
-                unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
-                unit._.currentElement = element;
-                if (textContent !== undefined) {
-                    element.textContent = textContent.toString();
-                }
-                unit._.nestElements.push({ element, owned: true });
-                return element;
-            } else {
-                throw new Error(`xnew.nest: invalid html string [${target}]`);
+    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement {
+        
+        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
+        if (match !== null) {
+            unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+            const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
+            unit._.currentElement = element;
+            if (textContent !== undefined) {
+                element.textContent = textContent.toString();
             }
+            unit._.nestElements.push({ element, owned: true });
+            return element;
+        } else {
+            throw new Error(`xnew.nest: invalid tag string [${tag}]`);
         }
     }
 
@@ -422,11 +417,11 @@ export class UnitTimer {
         this.unit = null;
     }
 
-    public timeout(callback: Function, duration: number = 0) {
-        return UnitTimer.execute(this, { callback, duration }, 1)
+    public timeout(timeout: Function, duration: number = 0) {
+        return UnitTimer.execute(this, { timeout, duration }, 1)
     }
-    public interval(callback: Function, duration: number = 0, iterations: number = 0) {
-        return UnitTimer.execute(this, { callback, duration }, iterations)
+    public interval(timeout: Function, duration: number = 0, iterations: number = 0) {
+        return UnitTimer.execute(this, { timeout, duration }, iterations)
     }
     public transition(transition: Function, duration: number = 0, easing?: string) {
         return UnitTimer.execute(this, { transition, duration, easing }, 1)
@@ -454,12 +449,12 @@ export class UnitTimer {
 
     private static Component(unit: Unit, { options, iterations, snapshot }: { options: TimerOptions, iterations: number,snapshot: Snapshot }) {
         let counter = 0;
-        let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+        let timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
         
-        function callback() {
-            if (options.callback) Unit.scope(snapshot, options.callback);
+        function timeout() {
+            if (options.timeout) Unit.scope(snapshot, options.timeout);
             if (iterations <= 0 || counter < iterations - 1) {
-                timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+                timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
             } else {
                 unit.finalize();
             }

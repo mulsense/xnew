@@ -1,6 +1,6 @@
 # xnew.interval
 
-`xnew.interval` creates a repeating timer that executes a callback function at regular intervals. Unlike regular `setInterval`, callbacks execute within the current `xnew` scope, providing automatic cleanup and context preservation.
+`xnew.interval` is `setInterval` with automatic cleanup. The interval stops on its own when the owning unit is finalized — no need to stash the ID and call `clearInterval` manually.
 
 ## Usage
 

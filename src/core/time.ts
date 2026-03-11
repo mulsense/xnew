@@ -51,7 +51,7 @@ export class AnimationTicker {
 //----------------------------------------------------------------------------------------------------
 
 export interface TimerOptions {
-    callback?: Function,
+    timeout?: Function,
     transition?: Function,
     duration: number, 
     easing?: string
@@ -126,7 +126,7 @@ export class Timer {
                 this.time = { start: 0.0, processed: 0.0 };
 
                 this.options.transition?.(1.0);
-                this.options.callback?.();
+                this.options.timeout?.();
 
                 this.clear();
             }, this.options.duration - this.time.processed) as unknown as number; 
