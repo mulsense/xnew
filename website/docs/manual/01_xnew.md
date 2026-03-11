@@ -1,19 +1,21 @@
 # xnew
 
-`xnew` is the core function of the library that creates interactive components and manages their lifecycle. This comprehensive guide covers all aspects of using `xnew` effectively.
+`xnew` is the core function of the library. It creates a **unit** — a self-contained component instance that owns its DOM element, its event listeners, and its lifecycle.
+
+The key insight: when a unit is destroyed, everything inside it — timers, listeners, child elements — is cleaned up automatically. You never have to write teardown code by hand.
 
 ## Overview
 
-`xnew` simplifies component-oriented programming by providing a flexible and intuitive API. It allows you to:
+`xnew` gives you:
 
-- Create reusable components with custom behavior
-- Manage HTML elements and their lifecycle
-- Handle events and animations
-- Build complex applications from simple building blocks
+- **Reusable components** — plain functions; no class syntax needed
+- **Automatic DOM management** — create or attach elements declaratively
+- **A built-in event system** — DOM events, lifecycle events, and custom events in one unified API
+- **Composable building blocks** — nest components inside each other to build any structure
 
 ## Usage
 
-`xnew` accepts the following arguments:
+All arguments are optional, so `xnew` scales from a single throwaway element to a full component tree.
 
 ```js
 const unit = xnew(target, Component, props); // or xnew(Component, props)
@@ -22,21 +24,13 @@ function Component(unit, props) {
   // Define component behavior here
 }
 ```
-All arguments are optional.
-
-- `target` (optional)  
-Specifies the base HTML element for the generated unit.
-- `Component` (optional)  
-A function that defines the behavior of the unit.
-- `props` (optional)  
-An object containing properties to be passed to the Component function. 
+- `target` *(optional)* — the HTML element to attach to. Pass a DOM element, an HTML string like `'<div class="box">'`, or omit to inherit from the parent context.
+- `Component` *(optional)* — a function that defines what this unit does.
+- `props` *(optional)* — data passed as the second argument to the component function.
 
 ## Components
 
-Components are functions that define the behavior of your units. They receive two parameters:
-
-- `unit`: The unit instance (provides access to element, events, lifecycle methods)
-- `props`: Optional data passed to the component
+A component is just a function. It receives the unit it belongs to and any props passed in from the caller. There's nothing special to inherit or extend.
 
 ### Simple Component Example
 ```js
@@ -62,7 +56,7 @@ const unit = xnew((unit, props) => {
 
 ## Targeting
 
-The `target` parameter specifies which HTML element your component will be attached to. You can access this element via `unit.element` in your component.
+The `target` parameter determines which element the component is attached to. Access it anywhere inside the component via `unit.element`.
 
 ### Targeting Existing Elements
 
@@ -131,11 +125,9 @@ xnew('<p>', (unit) => {
 
 ## Event System
 
-The xnew event system allows you to handle DOM events, lifecycle events, and custom events. You can add and remove event listeners using `unit.on` and `unit.off`.
+xnew uses a single unified API — `unit.on` / `unit.off` — for DOM events, lifecycle events, and custom events. There's nothing extra to learn for each category.
 
 ### Adding Event Listeners
-
-Use `unit.on()` or `unit.on()` to add event listeners:
 
 ```js
 function MyComponent(unit) {
@@ -178,7 +170,7 @@ unit.off('click', myClickHandler);
 
 ## Lifecycle Events
 
-xnew provides built-in lifecycle events that help you manage your component's behavior throughout its existence.
+These five events cover the entire life of a component. You only need to listen to the ones you care about.
 
 ### Available Lifecycle Events
 
@@ -244,7 +236,7 @@ const counter = xnew('<div>', AnimatedCounter, { maxCount: 50 });
 
 ## Lifecycle Control Methods
 
-You can control your component's lifecycle using these methods:
+Three methods give you full control over a unit's life:  `start` it, `stop` it, or `finalize` it for good.
 
 ### `unit.start()`
 Starts the update loop. Components start automatically by default.
@@ -303,7 +295,7 @@ xnew.interval(() => {
 
 ### Lifecycle Execution Order
 
-Important: Child components execute their lifecycle events **before** their parent components.
+Child events always fire **before** parent events. This means children finish their setup before the parent's `start` runs, and finish tearing down before the parent's `stop` runs.
 
 ```js
 function Parent(unit) {
@@ -355,7 +347,7 @@ Parent stop
 
 ## DOM Events
 
-xnew automatically handles standard DOM events like click, mouseover, keydown, etc.
+Standard DOM event names work out of the box through `unit.on`. The callback receives `{ event }` — the native DOM Event object.
 
 ```js
 function InteractiveButton(unit) {
@@ -378,11 +370,11 @@ const button = xnew('<button>Hover and click me</button>', InteractiveButton);
 
 ## Custom Events
 
-xnew provides a powerful custom event system for communication between components.
+Components need to talk to each other without tight coupling. xnew solves this with a prefix-based event system.
 
 ### Global Events (+ prefix)
 
-Global events can be heard by any component in your application:
+A `+` prefix makes the event visible to every active component in the app — useful for things like score updates, game-over signals, or theme changes:
 
 ```js
 function Sender(unit) {
@@ -414,7 +406,7 @@ xnew(Receiver);
 
 ### Internal Events (- prefix)
 
-Internal events are scoped to the component and its parent:
+A `-` prefix scopes the event to the component and its direct parent only — perfect for a child reporting back to its owner without leaking into the rest of the app:
 
 ```js
 function Timer(unit) {
@@ -438,7 +430,7 @@ timer.on('-message', (data) => {
 
 ## Custom Methods
 
-You can extend your components with custom methods by returning an object from your component function. This creates a public API for your component.
+Return an object from your component function and those properties become part of the unit's public API. This is the cleanest way to expose behavior to callers without breaking encapsulation.
 
 ### Basic Custom Methods
 
@@ -506,5 +498,5 @@ Avoid these reserved names when creating custom properties:
 - `_` (internal use)
 
 
-Next, explore `xnew.nest` for advanced component composition and organization!
+Next, check out [`xnew.nest`](./xnew-nest) to see how to build nested element structures cleanly.
 

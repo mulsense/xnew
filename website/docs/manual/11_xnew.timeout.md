@@ -1,6 +1,6 @@
 # xnew.timeout
 
-`xnew.timeout` creates a delayed execution timer that runs a callback function after a specified delay. Unlike regular `setTimeout`, callbacks execute within the current `xnew` scope, providing automatic cleanup and context preservation.
+`xnew.timeout` is `setTimeout` with two improvements: the callback runs in the correct xnew scope, and it's automatically cancelled when the owning unit is finalized. You can also chain timeouts and transitions to build multi-step sequences without nesting callbacks.
 
 ## Usage
 

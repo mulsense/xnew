@@ -4,12 +4,20 @@ sidebar_position: 1
 
 # Get Started
 
-**Learn how to use `xnew` in less than 10 minutes.**
+**Your first component will be running in under 10 minutes.**
 
 ## What is xnew?
 
-`xnew` is a JavaScript / TypeScript library for component-oriented programming,
-providing a flexible architecture well-suited for applications with dynamic scenes and games.
+`xnew` is a JavaScript / TypeScript library for component-oriented programming.
+
+The core idea is simple: a component is just a function. Call `xnew(MyComponent)` and xnew takes care of the DOM, the lifecycle, and the event wiring for you. No classes, no boilerplate — just functions that describe what your component does.
+
+What makes xnew particularly useful:
+
+- **Automatic cleanup** — timers, event listeners, and DOM elements created inside a component are all torn down together when the component is destroyed. No more hunting for memory leaks.
+- **A built-in animation loop** — the `update` event fires every frame (~60fps), so animations are trivial to write.
+- **Flexible event system** — components can talk to each other through global (`+event`) or internal (`-event`) custom events without tight coupling.
+- **Game-ready addons** — first-party PixiJS and Three.js integrations let you build complex interactive apps with the same component model.
 
 ## Setup
 
@@ -50,9 +58,11 @@ import xnew from '@mulsense/xnew';
 ```
 
 ## Tutorial
-### Units and Components
-- **unit**: When you call `xnew()`, it creates a "unit" - a building block of your application
-- **Component**: A function that defines what a unit does and how it behaves
+
+Two concepts to know, and then you're off:
+
+- **unit** — the object returned by `xnew()`. It holds the DOM element, lifecycle controls, and event listeners for one component instance.
+- **component** — a plain function that receives `(unit, props)` and defines what that unit does.
 
 ### Basic Syntax
 There are two main ways to use `xnew`:
@@ -75,7 +85,7 @@ unit.element; // Access the created DOM element
 
 ### Example 1: Your First Component
 
-Let's start with a simple example. This creates a basic component that displays some text:
+The smallest possible xnew program — one component, one element, five lines:
 
 ```html
 <!DOCTYPE html>
@@ -108,7 +118,7 @@ This will generate:
 
 ### Example 2: Creating Multiple Elements
 
-Now let's create multiple elements and organize them using `xnew.nest`:
+`xnew.nest()` shifts the nesting context so subsequent elements are placed inside a container. This is how you build structured layouts without writing a wall of HTML:
 
 <iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/element.html" ></iframe>
 
@@ -166,7 +176,7 @@ This generates:
 
 ### Example 3: Adding Interactivity
 
-Now let's add events and animations! This example creates an interactive rotating box:
+Here's where xnew really shines. Click the box below to start and stop a CSS rotation animation. Notice how the `start`, `update`, and `stop` lifecycle events handle everything — no manual `requestAnimationFrame` bookkeeping needed:
 
 <iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/box.html" ></iframe>
 
@@ -226,11 +236,9 @@ Now let's add events and animations! This example creates an interactive rotatin
 
 ## Next Steps
 
-Now that you understand the basics:
+You now know everything to start building with xnew. Here's where to go next:
 
-1. **Explore the examples** - Check out more complex examples in the sidebar
-2. **Read the manual** - Learn about advanced features like timers, contexts, and addons
-3. **Try the addons** - Integrate with popular libraries like PixiJS and Three.js
-4. **Use with AI** - Copy the [AI Prompt](./ai-prompt) to get coding assistance from any AI assistant
-
-Happy coding with xnew! 🚀
+1. **[Manual — xnew](./manual/xnew)** — full API reference: events, lifecycle, custom methods, and more
+2. **[Manual — xnew.timeout / interval / transition](./manual/xnew-timeout)** — timers with automatic cleanup and chainable transitions
+3. **[Addons — xpixi / xthree](./addons/xpixi)** — drop-in PixiJS and Three.js integration
+4. **[AI Prompt](./ai-prompt)** — paste this into any AI assistant to get xnew-aware coding help instantly

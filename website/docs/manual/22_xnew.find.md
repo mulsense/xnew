@@ -1,6 +1,6 @@
 # xnew.find
 
-`xnew.find` retrieves all active units that were created with a specific component function. This is useful for managing, updating, or coordinating multiple instances of the same component type.
+`xnew.find` returns every currently active unit created with a given component function. It's the quickest way to broadcast to all enemies, sync all counters, or run collision detection against every moving object — without maintaining manual arrays.
 
 ## Usage
 
