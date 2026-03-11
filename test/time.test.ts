@@ -6,7 +6,7 @@ describe('timer', () => {
             let count = 0;
             let start = Date.now();
             const margin = 100;
-            const timer = new Timer({ callback: () => {
+            const timer = new Timer({ timeout: () => {
                 count++;
                 const d = Date.now() - start;
                 expect(d).toBeGreaterThan(500 - margin);
