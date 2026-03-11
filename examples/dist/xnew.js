@@ -192,7 +192,7 @@
                     this.id = null;
                     this.time = { start: 0.0, processed: 0.0 };
                     (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 1.0);
-                    (_d = (_c = this.options).callback) === null || _d === void 0 ? void 0 : _d.call(_c);
+                    (_d = (_c = this.options).timeout) === null || _d === void 0 ? void 0 : _d.call(_c);
                     this.clear();
                 }, this.options.duration - this.time.processed);
                 this.time.start = Date.now();
@@ -650,7 +650,7 @@
                     return element;
                 }
                 else {
-                    throw new Error(`xnew.nest: invalid html string [${target}]`);
+                    throw new Error(`xnew.nest: invalid tag string [${target}]`);
                 }
             }
         }
@@ -872,11 +872,11 @@
             (_a = this.unit) === null || _a === void 0 ? void 0 : _a.finalize();
             this.unit = null;
         }
-        timeout(callback, duration = 0) {
-            return UnitTimer.execute(this, { callback, duration }, 1);
+        timeout(timeout, duration = 0) {
+            return UnitTimer.execute(this, { timeout, duration }, 1);
         }
-        interval(callback, duration = 0, iterations = 0) {
-            return UnitTimer.execute(this, { callback, duration }, iterations);
+        interval(timeout, duration = 0, iterations = 0) {
+            return UnitTimer.execute(this, { timeout, duration }, iterations);
         }
         transition(transition, duration = 0, easing) {
             return UnitTimer.execute(this, { transition, duration, easing }, 1);
@@ -903,12 +903,12 @@
         }
         static Component(unit, { options, iterations, snapshot }) {
             let counter = 0;
-            let timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
-            function callback() {
-                if (options.callback)
-                    Unit.scope(snapshot, options.callback);
+            let timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
+            function timeout() {
+                if (options.timeout)
+                    Unit.scope(snapshot, options.timeout);
                 if (iterations <= 0 || counter < iterations - 1) {
-                    timer = new Timer({ callback, transition, duration: options.duration, easing: options.easing });
+                    timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
                 }
                 else {
                     unit.finalize();
@@ -943,8 +943,8 @@
     }, {
         /**
          * Creates a nested HTML/SVG element within the current component
-         * @param target - HTML or SVG tag string (e.g., '<div class="my-class">', '<span style="color:red">', '<svg viewBox="0 0 24 24">')
-         * @returns The created HTML/SVG element
+         * @param target - HTML/SVG Element or tag string
+         * @returns The Element or the created HTML/SVG element
          * @throws Error if called after component initialization
          * @example
          * const div = xnew.nest('<div>')
@@ -958,7 +958,7 @@
                 return Unit.nest(Unit.currentUnit, target);
             }
             catch (error) {
-                console.error('xnew.nest(target: HTMLElement | SVGElement | string): ', error);
+                console.error('xnew.nest(target: UnitElement | string): ', error);
                 throw error;
             }
         },
@@ -985,16 +985,15 @@
             }
         },
         /**
-         * Gets a context value that can be accessed in follow context
-         * @param key - component function
-         * @returns The context value
+         * Gets the Unit instance associated with the given component in the ancestor context chain
+         * @param key - component function used as context key
+         * @returns The Unit instance registered with the given component, or undefined if not found
          * @example
-         * // Create unit
-         * const a = xnew(A);
-         * ------------------------------
+         * // Create parent unit with component A
+         * const parent = xnew(A);
          *
-         * // Get context in child
-         * const a = xnew.context(A)
+         * // Inside a child component, get the parent unit
+         * const parentUnit = xnew.context(A)
          */
         context(key) {
             try {
@@ -1007,7 +1006,7 @@
         },
         /**
          * Registers a promise with the current component for lifecycle management
-         * @param promise - Promise to register
+         * @param promise - A Promise, async function, or Unit to register
          * @returns UnitPromise wrapper for chaining
          * @example
          * xnew.promise(fetchData()).then(data => console.log(data))
@@ -1136,7 +1135,7 @@
         /**
          * Emits a custom event to components
          * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
-         * @param args - Additional arguments to pass to event listeners
+         * @param props - Event properties object to pass to listeners
          * @returns void
          * @example
          * xnew.emit('+globalevent', { data: 123 }); // Global event
@@ -1153,7 +1152,7 @@
         },
         /**
          * Executes a callback once after a delay, managed by component lifecycle
-         * @param callback - Function to execute after Duration
+         * @param callback - Function to execute after duration
          * @param duration - Duration in milliseconds
          * @returns Object with clear() method to cancel the timeout
          * @example

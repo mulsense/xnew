@@ -31,21 +31,19 @@ function Contents(unit) {
   // objects
   xnew(Ground);
  
-  xnew.promise(xnew(Assets)).then(({ models }) => {
-    xnew(Model, { gltf: models.xbot });
-    xnew(Panel);
+  xnew.promise(xnew(Assets)).then(({ buffers }) => {
+    const model = xnew(Model, { buffer: buffers.xbot });
+    xnew.promise(model).then(() => {
+      xnew(Panel);
+    });
   });
 }
 
-function Assets(unit) {
-  const models = {};
-  xnew.promise((resolve) => {
-    new GLTFLoader().load('./Xbot.glb', (value) => resolve(value));
-  }).then((gltf) => {
-    models.xbot = gltf;
-  });
+function Assets() {
+  const buffers = {};
+  xnew.promise(fetch('./Xbot.glb')).then((res) => res.arrayBuffer()).then((buffer) => buffers.xbot = buffer);
 
-  xnew.then(() => xnew.commit({ models }));
+  xnew.then(() => xnew.commit({ buffers }));
 }
 
 function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
@@ -68,49 +66,68 @@ function Controller(unit) {
   controls.update();
 }
 
-function Model(unit, { gltf }) {
+function Model(unit, { buffer }) {
   const object = xthree.nest(new THREE.Object3D());
-  const model = gltf.scene;
-  const skeleton = new THREE.SkeletonHelper(model);
- 
-  object.add(model);
-  object.add(skeleton);
-
-  model.traverse((object) => {
-    if (object.isMesh) object.castShadow = true;
-  });
-
   let select = 'idle';
   const baseActions = ['idle', 'walk', 'run'];
   const settings = { none: { type: 'base', action: null, weight: 0 } };
 
-  const mixer = new THREE.AnimationMixer(gltf.scene);
-  for (const animation of gltf.animations) {
-    let setting = null;
-    if (baseActions.includes(animation.name)) {
-      setting = { type: 'base', action: mixer.clipAction(animation), weight: animation.name === 'idle' ? 1 : 0 };
-    } else {
-      setting = { type: 'additive', action: null, weight: 0 };
+  let mixer = null;
 
-      // Make the clip additive and remove the reference frame
-      THREE.AnimationUtils.makeClipAdditive(animation);
-      if (animation.name.endsWith('_pose')) {
-        setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
+  xnew.promise((resolve) => {
+    new GLTFLoader().parse(buffer, '', resolve);
+  }).then((gltf) => {
+    const model = gltf.scene;
+    const skeleton = new THREE.SkeletonHelper(model);
+
+    object.add(model);
+    object.add(skeleton);
+
+    model.traverse((obj) => {
+      if (obj.isMesh) obj.castShadow = true;
+    });
+
+    mixer = new THREE.AnimationMixer(gltf.scene);
+    for (const animation of gltf.animations) {
+      let setting = null;
+      if (baseActions.includes(animation.name)) {
+        setting = { type: 'base', action: mixer.clipAction(animation), weight: animation.name === 'idle' ? 1 : 0 };
       } else {
-        setting.action = mixer.clipAction(animation);
+        setting = { type: 'additive', action: null, weight: 0 };
+
+        // Make the clip additive and remove the reference frame
+        THREE.AnimationUtils.makeClipAdditive(animation);
+        if (animation.name.endsWith('_pose')) {
+          setting.action = mixer.clipAction(THREE.AnimationUtils.subclip(animation, animation.name, 2, 3, 30));
+        } else {
+          setting.action = mixer.clipAction(animation);
+        }
       }
+
+      setting.action.enabled = true;
+      setting.action.setEffectiveTimeScale(1);
+      setting.action.setEffectiveWeight(setting.weight);
+      setting.action.play();
+      settings[animation.name] = setting;
     }
-    
-    setting.action.enabled = true;
-    setting.action.setEffectiveTimeScale(1);
-    setting.action.setEffectiveWeight(setting.weight);
-    setting.action.play();
-    settings[animation.name] = setting;
-  }
+
+    unit.on('finalize', () => {
+      gltf.scene.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+    });
+  });
 
   const clock = new THREE.Clock();
   unit.on('update', () => {
-    mixer.update(clock.getDelta());
+    mixer?.update(clock.getDelta());
   });
 
   return {
@@ -160,7 +177,7 @@ function Model(unit, { gltf }) {
 
 function Panel(unit) {
   const model = xnew.context(Model);
-  
+
   xnew.nest('<div class="fixed inset-0">');
   xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
   const panel = xnew(xnew.basics.Panel, { name: 'GUI', open: true });

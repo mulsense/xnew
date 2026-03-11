@@ -132,8 +132,8 @@ declare class UnitTimer {
     private unit;
     private queue;
     clear(): void;
-    timeout(callback: Function, duration?: number): UnitTimer;
-    interval(callback: Function, duration?: number, iterations?: number): UnitTimer;
+    timeout(timeout: Function, duration?: number): UnitTimer;
+    interval(timeout: Function, duration?: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     private static execute;
     private static next;
@@ -281,7 +281,7 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(target: UnitElement | string): HTMLElement | SVGElement;
+    nest(tag: string): HTMLElement | SVGElement;
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
