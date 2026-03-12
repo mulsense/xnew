@@ -31,8 +31,8 @@ function Contents(unit) {
   // objects
   xnew(Ground);
  
-  xnew.promise(xnew(Assets)).then(({ buffers }) => {
-    const model = xnew(Model, { buffer: buffers.xbot });
+  xnew.promise(xnew(Assets)).then((results) => {
+    const model = xnew(Model, { blob: results.xbot });
     xnew.promise(model).then(() => {
       xnew(Panel);
     });
@@ -40,10 +40,11 @@ function Contents(unit) {
 }
 
 function Assets() {
-  const buffers = {};
-  xnew.promise(fetch('./Xbot.glb')).then((res) => res.arrayBuffer()).then((buffer) => buffers.xbot = buffer);
-
-  xnew.then(() => xnew.commit({ buffers }));
+  xnew.promise(fetch('./Xbot.glb'))
+  .then((res) => {
+    return res.blob();
+  })
+  .then((blob) => xnew.commit({ xbot: blob }));
 }
 
 function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
@@ -66,7 +67,7 @@ function Controller(unit) {
   controls.update();
 }
 
-function Model(unit, { buffer }) {
+function Model(unit, { blob }) {
   const object = xthree.nest(new THREE.Object3D());
   let select = 'idle';
   const baseActions = ['idle', 'walk', 'run'];
@@ -75,7 +76,7 @@ function Model(unit, { buffer }) {
   let mixer = null;
 
   xnew.promise((resolve) => {
-    new GLTFLoader().parse(buffer, '', resolve);
+    new GLTFLoader().load(URL.createObjectURL(blob), resolve);
   }).then((gltf) => {
     const model = gltf.scene;
     const skeleton = new THREE.SkeletonHelper(model);

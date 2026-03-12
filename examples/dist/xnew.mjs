@@ -936,10 +936,11 @@ const xnew$1 = Object.assign(function (...args) {
     return unit;
 }, {
     /**
-     * Creates a nested HTML/SVG element within the current component
-     * @param target - HTML/SVG Element or tag string
-     * @returns The Element or the created HTML/SVG element
-     * @throws Error if called after component initialization
+     * Creates a child HTML/SVG element inside the current component's element.
+     * Must be called during component initialization (before setup completes).
+     * @param target - An existing HTML/SVG element, or a tag string like `'<div>'`
+     * @returns The provided element, or the newly created element
+     * @throws Error if called after the component has finished initializing
      * @example
      * const div = xnew.nest('<div>')
      * div.textContent = 'Hello'
