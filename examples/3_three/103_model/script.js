@@ -31,20 +31,11 @@ function Contents(unit) {
   // objects
   xnew(Ground);
  
-  xnew.promise(xnew(Assets)).then((results) => {
-    const model = xnew(Model, { blob: results.xbot });
-    xnew.promise(model).then(() => {
-      xnew(Panel);
-    });
-  });
-}
+  xnew.promise(xnew(Model, { url: './Xbot.glb' }));
 
-function Assets() {
-  xnew.promise(fetch('./Xbot.glb'))
-  .then((res) => {
-    return res.blob();
-  })
-  .then((blob) => xnew.commit({ xbot: blob }));
+  xnew.then(() => {
+    xnew(Panel);
+  });
 }
 
 function DirectionalLight(unit, { color = 0xffffff, intensity = 3, position }) {
@@ -67,7 +58,7 @@ function Controller(unit) {
   controls.update();
 }
 
-function Model(unit, { blob }) {
+function Model(unit, { url }) {
   const object = xthree.nest(new THREE.Object3D());
   let select = 'idle';
   const baseActions = ['idle', 'walk', 'run'];
@@ -76,7 +67,7 @@ function Model(unit, { blob }) {
   let mixer = null;
 
   xnew.promise((resolve) => {
-    new GLTFLoader().load(URL.createObjectURL(blob), resolve);
+    new GLTFLoader().load(url, resolve);
   }).then((gltf) => {
     const model = gltf.scene;
     const skeleton = new THREE.SkeletonHelper(model);
@@ -179,8 +170,8 @@ function Model(unit, { blob }) {
 function Panel(unit) {
   const model = xnew.context(Model);
 
-  xnew.nest('<div class="fixed inset-0">');
-  xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg">');
+  xnew.nest('<div class="fixed inset-0 pointer-events-none">');
+  xnew.nest('<div class="absolute text-sm w-36 top-2 right-2 p-1 bg-white border rounded shadow-lg pointer-events-auto">');
   const panel = xnew(xnew.basics.Panel, { name: 'GUI', open: true });
 
   panel.select('action', { value: 'idle', items: model.actions('base') }).on('input', ({ value }) => {
