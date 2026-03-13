@@ -114,7 +114,7 @@ function GameScene(unit) {
   })
   unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
 
-  // xnew.timeout(() => xnew.emit('+gameover'), 1100);
+  xnew.timeout(() => xnew.emit('+gameover'), 1100);
 
   unit.on('+gameover', () => {
     unit.off('+gameover');
@@ -253,7 +253,7 @@ function ResultFooter(unit) {
       xnew(Frame);
       xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', Camera);
     });
-    button.on('click', () => screenShot());
+    button.on('click', () => xnew(ScreenShot));
     xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
   });
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
@@ -527,26 +527,17 @@ function convert3d(x, y, z = 0) {
   return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }
 
-function screenShot() {
-  const element = xnew.find(Main)[0].element;
-  xnew(element, (unit) => {
-    const cover = xnew.nest('<div class="absolute inset-0 size-full z-10 bg-white">');
-    xnew.transition(({ value }) => cover.style.opacity = 1 - value, 1000)
-    .timeout(() => {
-      html2canvas(element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
-        const dst = document.createElement('canvas');
-        dst.width = canvas.width;
-        dst.height = Math.floor(canvas.height * 0.87);
-        dst.getContext('2d').drawImage(canvas, 0, 0, dst.width, dst.height, 0, 0, dst.width, dst.height);
-
-        const link = document.createElement('a');
-        link.download = 'image.png';
-        link.href = dst.toDataURL('image/png');
-        link.click();
-      });
-
-      unit.finalize();
+function ScreenShot(unit) {
+  xnew.nest(xnew.context(Main).element);
+  const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white">');
+  xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
+  .timeout(() => {
+    html2canvas(unit.element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
+      const image = xnew.image(canvas).clip(0, 0, canvas.width, Math.floor(canvas.height * 0.87));
+      image.download('image.png');
     });
+
+    unit.finalize();
   });
 }
 

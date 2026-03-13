@@ -281,7 +281,7 @@ declare namespace xnew {
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 declare const xnew: CreateUnit & {
-    nest(tag: string): HTMLElement | SVGElement;
+    nest(target: UnitElement | string): HTMLElement | SVGElement;
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };

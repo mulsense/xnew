@@ -102,19 +102,6 @@ function Model(unit, { url }) {
       setting.action.play();
       settings[animation.name] = setting;
     }
-
-    unit.on('finalize', () => {
-      gltf.scene.traverse((obj) => {
-        if (obj.isMesh) {
-          obj.geometry.dispose();
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((m) => m.dispose());
-          } else {
-            obj.material.dispose();
-          }
-        }
-      });
-    });
   });
 
   const clock = new THREE.Clock();

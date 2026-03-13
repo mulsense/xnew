@@ -1,4 +1,5 @@
 import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
+import { CraftImage, CraftImageArgs } from './image';
 
 export interface CreateUnit {
     /**
@@ -310,6 +311,9 @@ export const xnew = Object.assign(
             Unit.currentUnit._.protected = true;
         },
 
+        image(...args: CraftImageArgs) {
+            return CraftImage.from(...args as [any, any]);
+        },
     }
 );
 
