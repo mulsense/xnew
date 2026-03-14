@@ -1863,8 +1863,8 @@ const audio = {
     }
 };
 const image = {
-    from(...args) {
-        return new XImage(...args);
+    from(canvas) {
+        return new XImage(canvas);
     }
 };
 const xnew = Object.assign(xnew$1, { basics, audio, image });

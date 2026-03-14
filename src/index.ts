@@ -52,8 +52,8 @@ const audio = {
 
 const image = {
 
-    from(...args: XImageArgs) {
-        return new XImage(...args as [any, any]);
+    from(canvas: HTMLCanvasElement): XImage {
+        return new XImage(canvas);
     }
 }
 

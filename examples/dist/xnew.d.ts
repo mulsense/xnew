@@ -236,7 +236,6 @@ declare function Flow(unit: Unit): {
     next(Component: Function, props?: any): void;
 };
 
-type XImageArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
 declare class XImage {
     canvas: HTMLCanvasElement;
     constructor(canvas: HTMLCanvasElement);
@@ -324,7 +323,7 @@ declare const xnew: CreateUnit & {
         volume: number;
     };
     image: {
-        from(...args: XImageArgs): XImage;
+        from(canvas: HTMLCanvasElement): XImage;
     };
 };
 

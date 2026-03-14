@@ -8,8 +8,13 @@ export default {
     ) {
         xnew.promise(xnew(Root, { canvas, camera }));
     },
-    nest (object: any) {
+    nest(object: any) {
         xnew(Nest, { object });
+        xnew.extend(() => {
+            return {
+                get threeObject() { return object; }
+            }
+        });
         return object;
     },
     get renderer() {

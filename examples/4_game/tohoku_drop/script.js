@@ -114,7 +114,7 @@ function GameScene(unit) {
   })
   unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
 
-  xnew.timeout(() => xnew.emit('+gameover'), 1100);
+  // xnew.timeout(() => xnew.emit('+gameover'), 1100);
 
   unit.on('+gameover', () => {
     unit.off('+gameover');
@@ -385,7 +385,6 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
   });
   return { 
     get id() { return id; },
-    get threeObject() { return object }
   };
 }
 
@@ -511,9 +510,6 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
     object.rotation = pyshics.angle;
     object.position.set(pyshics.position.x, pyshics.position.y);
   });
-  return {
-    get pixiObject() { return object; }
-  }
 }
 
 // helpers
@@ -533,8 +529,7 @@ function ScreenShot(unit) {
   xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
   .timeout(() => {
     html2canvas(unit.element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
-      const image = xnew.image(canvas).clip(0, 0, canvas.width, Math.floor(canvas.height * 0.87));
-      image.download('image.png');
+      xnew.image.from(canvas).clip(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
     });
 
     unit.finalize();
