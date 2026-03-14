@@ -923,37 +923,6 @@
         }
     }
 
-    class CraftImage {
-        constructor(canvas) {
-            this.canvas = canvas;
-        }
-        static from(...args) {
-            if (args[0] instanceof HTMLCanvasElement) {
-                return new CraftImage(args[0]);
-            }
-            else {
-                const canvas = document.createElement('canvas');
-                canvas.width = args[0];
-                canvas.height = args[1];
-                return new CraftImage(canvas);
-            }
-        }
-        clip(x, y, width, height) {
-            var _a;
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-            return new CraftImage(canvas);
-        }
-        download(filename) {
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = this.canvas.toDataURL('image/png');
-            link.click();
-        }
-    }
-
     const xnew$1 = Object.assign(function (...args) {
         if (Unit.rootUnit === undefined)
             Unit.reset();
@@ -1234,9 +1203,6 @@
          */
         protect() {
             Unit.currentUnit._.protected = true;
-        },
-        image(...args) {
-            return CraftImage.from(...args);
         },
     });
 
@@ -1613,6 +1579,34 @@
         };
     }
 
+    class XImage {
+        constructor(...args) {
+            if (args[0] instanceof HTMLCanvasElement) {
+                this.canvas = args[0];
+            }
+            else {
+                const canvas = document.createElement('canvas');
+                canvas.width = args[0];
+                canvas.height = args[1];
+                this.canvas = canvas;
+            }
+        }
+        clip(x, y, width, height) {
+            var _a;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
+            return new XImage(canvas);
+        }
+        download(filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = this.canvas.toDataURL('image/png');
+            link.click();
+        }
+    }
+
     const context = new window.AudioContext();
     const master = context.createGain();
     //----------------------------------------------------------------------------------------------------
@@ -1874,7 +1868,12 @@
             master.gain.value = value;
         }
     };
-    const xnew = Object.assign(xnew$1, { basics, audio });
+    const image = {
+        from(...args) {
+            return new XImage(...args);
+        }
+    };
+    const xnew = Object.assign(xnew$1, { basics, audio, image });
 
     return xnew;
 

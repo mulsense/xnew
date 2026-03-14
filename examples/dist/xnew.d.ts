@@ -236,6 +236,15 @@ declare function Flow(unit: Unit): {
     next(Component: Function, props?: any): void;
 };
 
+type XImageArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
+declare class XImage {
+    canvas: HTMLCanvasElement;
+    constructor(canvas: HTMLCanvasElement);
+    constructor(width: number, height: number);
+    clip(x: number, y: number, width: number, height: number): XImage;
+    download(filename: string): void;
+}
+
 type SynthesizerOptions = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
@@ -313,6 +322,9 @@ declare const xnew: CreateUnit & {
         load(path: string): UnitPromise;
         synthesizer(props: SynthesizerOptions): Synthesizer;
         volume: number;
+    };
+    image: {
+        from(...args: XImageArgs): XImage;
     };
 };
 

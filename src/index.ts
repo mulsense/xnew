@@ -7,6 +7,9 @@ import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
 import { Flow } from './basics/Flow';
 
+import { XImage, XImageArgs } from './utils/image';
+import { master, AudioFile, Synthesizer, SynthesizerOptions } from './utils/audio';
+
 const basics = {
     Screen,
     OpenAndClose,
@@ -17,8 +20,6 @@ const basics = {
     Popup,
     Flow,
 };
-
-import { master, AudioFile, Synthesizer, SynthesizerOptions } from './audio/audio';
 
 const audio = {
     load(path: string) {
@@ -37,6 +38,7 @@ const audio = {
         }
         return xnew.promise(music.promise).then(() => object);
     },
+    
     synthesizer(props: SynthesizerOptions) {
         return new Synthesizer(props);
     },
@@ -48,11 +50,18 @@ const audio = {
     }
 }
 
+const image = {
+
+    from(...args: XImageArgs) {
+        return new XImage(...args as [any, any]);
+    }
+}
+
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
     export type UnitTimer = InstanceType<typeof UnitTimer>;
 }
 
-const xnew = Object.assign(base, { basics, audio });
+const xnew = Object.assign(base, { basics, audio, image });
 
 export default xnew;
