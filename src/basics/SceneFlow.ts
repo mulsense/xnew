@@ -3,6 +3,8 @@ import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 
 export function Scene(unit: Unit) {
+}
+function SceneAppend(unit: Unit) {
     return {
         append(Component: Function, props?: any) {
             xnew(Component, props);
@@ -25,6 +27,7 @@ export function Flow(unit: Unit) {
             unit.scene = xnew((unit: Unit) => {
                 xnew.extend(Scene);
                 xnew.extend(Component, props);
+                xnew.extend(SceneAppend);
             });
         }
     }

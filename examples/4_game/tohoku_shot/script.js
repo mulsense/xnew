@@ -5,6 +5,10 @@ import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const CHARACTER_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
 
@@ -23,7 +27,7 @@ function Contents(unit) {
   const assets = xnew(BakedCharacters);
 
   xnew.promise(assets).then(() => {
-    xnew(xnew.basics.Flow).next(TitleScene);
+    xnew(xnew.basics.Flow).next(GameScene);
   });
 }
 
@@ -32,13 +36,14 @@ function BakedCharacters(_unit) {
   let doneCount = 0;
   const { resolve } = xnew.resolvers();
 
-  CHARACTER_FILES.forEach((name, i) => {
+  for (let i = 0; i < CHARACTER_FILES.length; i++) {
+    const name = CHARACTER_FILES[i];
     xnew.promise(xnew(Baking, { url: `../../assets/${name}` })).then((value) => {
       texturesList[i] = value.textures;
       doneCount++;
       if (doneCount === CHARACTER_FILES.length) resolve();
     });
-  });
+  }
 
   return { get texturesList() { return texturesList; } };
 }
@@ -48,6 +53,21 @@ function Baking(unit, { url }) {
   xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
+  const composer = new EffectComposer(xthree.renderer);
+  composer.addPass(new RenderPass(xthree.scene, xthree.camera));
+  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
+  // OrthographicCamera 用: シェーダーのデフォルトは PERSPECTIVE_CAMERA=1 のため明示的に上書き
+  ssaoPass.ssaoMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
+  ssaoPass.ssaoMaterial.needsUpdate = true;
+  ssaoPass.depthRenderMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
+  ssaoPass.depthRenderMaterial.needsUpdate = true;
+  ssaoPass.kernelRadius = 0.15;     // サンプリング半径
+  ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
+  ssaoPass.maxDistance = 0.02;    // 最大距離
+  // ssaoPass.output = SSAOPass.OUTPUT.Depth;  // 診断用
+  composer.addPass(ssaoPass);
+  composer.addPass(new OutputPass());
+  
   xnew(() => {
     xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
   });
@@ -85,7 +105,8 @@ function Baking(unit, { url }) {
       g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
       model.vrm.update(t);
 
-      xthree.renderer.render(xthree.scene, xthree.camera);
+      // xthree.renderer.render(xthree.scene, xthree.camera);
+      composer.render();
       textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
     }
     frameIndex += batch;
@@ -116,15 +137,6 @@ function Model(_unit, { url }) {
   return { get vrm() { return vrm; } };
 }
 
-// ---- Scenes ----
-
-function LoadingScene(unit) {
-  xnew.nest('<div class="absolute w-full top-[40cqw] text-[6cqw] text-center text-blue-400 font-bold">');
-  unit.element.textContent = 'Loading...';
-  let count = 0;
-  unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
-}
-
 function TitleScene(unit) {
   const tl = xnew.context(BakedCharacters).texturesList;
 
@@ -152,7 +164,7 @@ function TitleScene(unit) {
 function GameScene(unit) {
   xnew(Background);
   xnew(Controller);
-  xnew(ScoreText);
+  xnew(ScoreManager);
   xnew(Player);
 
   // 敵スポーン（時間経過でより強い敵が登場）
@@ -178,20 +190,80 @@ function GameScene(unit) {
 // ---- Game Components ----
 
 function Background(_unit) {
+  // 暗い赤紫の背景（体内感）
   xnew(() => {
-    xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x000000));
+    xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x120308));
   });
-  for (let i = 0; i < 100; i++) xnew(Dot);
+  xnew(BloodVessels);
+  for (let i = 0; i < 25; i++) xnew(BloodCell);
+  for (let i = 0; i < 60; i++) xnew(BodyParticle);
+  xnew(PulseOverlay);
 }
 
-function Dot(unit) {
+function BloodVessels(_unit) {
+  const g = xpixi.nest(new PIXI.Graphics());
+  const vessels = [
+    [0, 120, 200, 60, 600, 180, 800, 100],
+    [0, 420, 250, 490, 550, 370, 800, 460],
+    [90, 0, 130, 180, 60, 420, 50, 600],
+    [700, 0, 730, 200, 670, 380, 720, 600],
+  ];
+  for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
+    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0x5A0818, width: 20, alpha: 0.55 });
+  }
+  for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
+    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0xA02040, width: 7, alpha: 0.3 });
+  }
+}
+
+function BloodCell(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * 800, Math.random() * 600);
-  object.addChild(new PIXI.Graphics().circle(0, 0, 1).fill(0xFFFFFF));
-  const velocity = Math.random() + 0.1;
+  const rx = 9 + Math.random() * 5;
+  const ry = rx * 0.55;
+  const g = new PIXI.Graphics();
+  g.ellipse(0, 0, rx, ry).fill({ color: 0xCC2035, alpha: 0.75 });
+  g.ellipse(0, 0, rx * 0.5, ry * 0.5).fill({ color: 0x880A1A, alpha: 0.6 });
+  object.addChild(g);
+  const speed = 0.25 + Math.random() * 0.45;
+  const angle = Math.random() * Math.PI * 2;
+  const vx = Math.cos(angle) * speed;
+  const vy = Math.sin(angle) * speed * 0.5 + 0.12;
   unit.on('update', () => {
-    object.y += velocity;
-    if (object.y > 600) object.position.set(Math.random() * 800, 0);
+    object.x += vx;
+    object.y += vy;
+    object.rotation += 0.003;
+    if (object.x < -20) object.x = 820;
+    if (object.x > 820) object.x = -20;
+    if (object.y > 620) object.position.set(Math.random() * 800, -20);
+  });
+}
+
+function BodyParticle(unit) {
+  const object = xpixi.nest(new PIXI.Container());
+  object.position.set(Math.random() * 800, Math.random() * 600);
+  const size = 1.5 + Math.random() * 2.5;
+  const colors = [0xFF6688, 0xFF8855, 0xDD3355, 0xFF99AA, 0xCC2244];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  object.addChild(new PIXI.Graphics().circle(0, 0, size).fill({ color, alpha: 0.5 }));
+  const speed = 0.2 + Math.random() * 0.7;
+  const vx = (Math.random() - 0.5) * speed * 0.5;
+  const vy = speed * 0.6;
+  unit.on('update', () => {
+    object.x += vx;
+    object.y += vy;
+    if (object.y > 610) object.position.set(Math.random() * 800, -10);
+    if (object.x < -10) object.x = 810;
+    if (object.x > 810) object.x = -10;
+  });
+}
+
+function PulseOverlay(unit) {
+  const g = xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0xFF1133));
+  let tick = 0;
+  unit.on('update', () => {
+    tick++;
+    g.alpha = (Math.max(0, Math.sin(tick * 0.06)) ** 6) * 0.1;
   });
 }
 
@@ -211,12 +283,16 @@ function Controller(unit) {
   unit.on('window.keydown', ({ event }) => { if (event.code === 'Space') xnew.emit('+shot'); });
 }
 
-function ScoreText(unit) {
-  const object = xpixi.nest(new PIXI.Text({ text: 'score 0', style: { fontSize: 28, fill: 0xFFFFFF } }));
-  object.position.set(790, 10);
-  object.anchor.set(1.0, 0.0);
+function ScoreManager(unit) {
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-red-600 font-bold">');
+  const text = xnew(StrokeText, { text: 'score 0' });
   let sum = 0;
-  unit.on('+scoreup', ({ score }) => object.text = `score ${sum += score}`);
+  return {
+    add(score) {
+      sum += score;
+      text.element.textContent = `score ${sum += score}`;
+    }
+  }
 }
 
 function GameOverText(_unit) {
@@ -271,16 +347,13 @@ function Shot(unit, { x, y }) {
 
 // ---- Enemy system ----
 
-// id: 0=zundamon 1=usagi 2=kiritan 3=metan 4=zunko 5=sora 6=itako
+// id: 0=zundamon 1=kiritan 2=zunko 3=itako
 // splitTo: 被弾時に分裂するキャラのid（nullなら分裂しない）
 const ENEMY_DATA = [
   { score: 1,  splitTo: null },
   { score: 2,  splitTo: 0   },
   { score: 4,  splitTo: 1   },
   { score: 8,  splitTo: 2   },
-  { score: 16, splitTo: 3   },
-  { score: 32, splitTo: 4   },
-  { score: 64, splitTo: 5   },
 ];
 
 function Enemy(unit, { id, x, y, invincible = false }) {
@@ -291,8 +364,9 @@ function Enemy(unit, { id, x, y, invincible = false }) {
   const tl = xnew.context(BakedCharacters).texturesList;
   const sprite = new PIXI.AnimatedSprite(tl[id]);
   sprite.anchor.set(0.5);
-  sprite.scale.set(0.55 + id * 0.1);
+  sprite.scale.set(0.55 + id * 0.2);
   sprite.play();
+  sprite.currentFrame = Math.floor(Math.random() * tl[id].length);
   object.addChild(sprite);
 
   // 無敵時間（分裂直後は半透明）
@@ -308,6 +382,8 @@ function Enemy(unit, { id, x, y, invincible = false }) {
   const vel = { x: Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1), y: Math.sin(angle) * speed };
 
   unit.on('update', () => {
+    sprite.scale.set(0.4 + id * 0.2 + object.y * 0.0008); // y座標に応じて少し大きく（遠近感）
+
     if (object.x < 15)  vel.x =  Math.abs(vel.x);
     if (object.x > 785) vel.x = -Math.abs(vel.x);
     if (object.y < 15)  vel.y =  Math.abs(vel.y);
@@ -336,11 +412,11 @@ function Enemy(unit, { id, x, y, invincible = false }) {
         }
       }
       // 星（チェーンショット）
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 2; i++) {
         xnew.context(xnew.basics.Scene).append(Star, { x: object.x, y: object.y, score });
       }
       xnew.context(xnew.basics.Scene).append(ScorePopup, { x: object.x, y: object.y, score });
-      xnew.emit('+scoreup', { score });
+      xnew.context(ScoreManager).add(score);
       unit.finalize();
     },
   };
@@ -372,7 +448,7 @@ function Star(unit, { x, y, score }) {
     // 別の敵に当たると得点倍増
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.isVulnerable && enemy.distance(object) < 28) {
-        enemy.clash(score * 2, true);
+        enemy.clash(score + 2, true);
         unit.finalize();
         return;
       }

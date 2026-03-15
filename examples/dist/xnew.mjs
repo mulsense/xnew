@@ -1585,6 +1585,8 @@ function Select(_, { key = '', value, items = [] } = {}) {
 }
 
 function Scene(unit) {
+}
+function SceneAppend(unit) {
     return {
         append(Component, props) {
             xnew$1(Component, props);
@@ -1607,6 +1609,7 @@ function Flow(unit) {
             unit.scene = xnew$1((unit) => {
                 xnew$1.extend(Scene);
                 xnew$1.extend(Component, props);
+                xnew$1.extend(SceneAppend);
             });
         }
     };

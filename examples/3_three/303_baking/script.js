@@ -5,6 +5,11 @@ import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 
 const CHARACTER_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
 
@@ -39,13 +44,63 @@ function Baking(unit, { url }) {
   xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
+
+  const composer = new EffectComposer(xthree.renderer);
+  //composer.addPass(new RenderPass(xthree.scene, xthree.camera));
+  const rpp = new RenderPixelatedPass(2, xthree.scene, xthree.camera);
+  composer.addPass(rpp);
+  rpp.normalEdgeStrength = 0.0;
+  rpp.depthEdgeStrength = 1.0;
+
+  // 2. 内部の FullScreenQuad に適用されているマテリアルを取得
+const passMaterial = rpp.pixelatedMaterial;
+
+// 3. 好きな色を Uniforms（シェーダーへの変数）として追加（例として赤色：0xff0000）
+passMaterial.uniforms.customEdgeColor = {
+    value: new THREE.Color( 0xff0000 )
+};
+
+// 4. フラグメントシェーダーをテキストとして取得
+let shader = passMaterial.fragmentShader;
+
+// 2. 変数 customEdgeColor をシェーダーの冒頭に定義（まだ無い場合のみ追加）
+if (!shader.includes('uniform vec3 customEdgeColor;')) {
+    shader = shader.replace(
+        'void main()',
+        'uniform vec3 customEdgeColor;\nvoid main()'
+    );
+}
+
+// 3. 掛け算で明るさを変えている部分を、指定色（customEdgeColor）で上塗りする処理に書き換える
+shader = shader.replace(
+    /float Strength = dei > 0\.0 \? \(1\.0 - depthEdgeStrength \* dei\) : \(1\.0 \+ normalEdgeStrength \* nei\);\s*gl_FragColor = texel \* Strength;/g,
+    `float edgeAmount = dei > 0.0 ? (depthEdgeStrength * dei) : (normalEdgeStrength * nei);
+    gl_FragColor = vec4( mix( texel.rgb, customEdgeColor, clamp(edgeAmount, 0.0, 1.0) ), texel.a );`
+);
+// 書き換えたシェーダーをマテリアルに適用
+passMaterial.fragmentShader = shader;
+passMaterial.needsUpdate = true;
+
+  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
+  // OrthographicCamera 用: シェーダーのデフォルトは PERSPECTIVE_CAMERA=1 のため明示的に上書き
+  ssaoPass.ssaoMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
+  ssaoPass.ssaoMaterial.needsUpdate = true;
+  ssaoPass.depthRenderMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
+  ssaoPass.depthRenderMaterial.needsUpdate = true;
+  ssaoPass.kernelRadius = 0.15;     // サンプリング半径
+  ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
+  ssaoPass.maxDistance = 0.02;    // 最大距離
+  // ssaoPass.output = SSAOPass.OUTPUT.Depth;  // 診断用
+  composer.addPass(ssaoPass);
+  composer.addPass(new OutputPass());
+
   xnew(() => {
     xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
   });
-  xnew(() => {
-    const dirLight = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
-    dirLight.position.set(2, 5, 10);
-  });
+  // xnew(() => {
+  //   const dirLight = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
+  //   dirLight.position.set(2, 5, 10);
+  // });
 
   const model = xnew(Model, { url });
   const textures = [];
@@ -64,20 +119,22 @@ function Baking(unit, { url }) {
       model.threeObject.rotation.y = t * 4 / 3;
       model.threeObject.rotation.z = t * 2 / 3;
       const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
-      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
-      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-      g('hips').position.z          = Math.sin(t * 12) *  0.05;
-      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+      // g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+      // g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+      // g('hips').position.z          = Math.sin(t * 12) *  0.05;
+      // g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+      // g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+      // g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+      // g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+      // g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+      // g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+      // g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+      // g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
       model.vrm.update(t);
 
-      xthree.renderer.render(xthree.scene, xthree.camera);
+      composer.render();
+
+      //xthree.renderer.render(xthree.scene, xthree.camera);
       textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
     }
     frameIndex += batch;
