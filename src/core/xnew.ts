@@ -117,15 +117,13 @@ export const xnew = Object.assign(
          */
         promise(promise: Function | Promise<any> | Unit): UnitPromise {
             try {
-                const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
-                    .then(() => promise._.results);
+                    unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
                 } else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise, Component)
+                    unitPromise = new UnitPromise(promise)
                 } else {
-                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), Component)
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)))
                 }
                 Unit.currentUnit._.promises.push(unitPromise);
                 return unitPromise;
@@ -145,8 +143,7 @@ export const xnew = Object.assign(
         then(callback: Function): UnitPromise {
             try {
                 const currentUnit = Unit.currentUnit;
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
-                .then(() => callback(currentUnit._.results));
+                return UnitPromise.all(Unit.currentUnit._.promises).then(() => callback(currentUnit._.results));
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
                 throw error;
@@ -162,26 +159,10 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                return UnitPromise.all(Unit.currentUnit._.promises)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
-                throw error;
-            }
-        },
-
-        /**
-         * Commits a value to the current unit's promise results
-         * @param object - object to commit to the promise
-         * @returns void
-         * @example
-         * xnew.commit({ data: 123});
-         */
-        commit(object?: Record<string, any>): void {
-            try {
-                Object.assign(Unit.currentUnit._.results, object);
-            } catch (error: unknown) {
-                console.error('xnew.commit(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -195,10 +176,59 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
-                .finally(callback);
+                return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);
+                throw error;
+            }
+        },
+
+        resolvers() {
+            let state: 'pending' | 'resolved' | 'rejected' | null = null;
+            let resolve: Function | null = null;
+            let reject: Function | null = null;
+
+            const unitPromise = new UnitPromise(new Promise((res, rej) => {
+                if (state === 'resolved') {
+                    res(null);
+                } else if (state === 'rejected') {
+                    rej();
+                } else {
+                    resolve = res;
+                    reject = rej;
+                    state = 'pending';
+                }
+            }))
+            Unit.currentUnit._.promises.push(unitPromise);
+
+            return {
+                resolve() {
+                    if (state === 'pending') {
+                        resolve?.(null);
+                    } 
+                    state = 'resolved';
+                },
+                reject() {
+                    if (state === 'pending') {
+                        reject?.();
+                    }
+                    state = 'rejected';
+                }
+            };
+        },
+
+        /**
+         * Outputs a value to the current unit's promise results
+         * @param object - object to output for the promise
+         * @returns void
+         * @example
+         * xnew.output({ data: 123});
+         */
+        output(object?: Record<string, any>): void {
+            try {
+                Object.assign(Unit.currentUnit._.results, object);
+            } catch (error: unknown) {
+                console.error('xnew.output(object?: Record<string, any>): ', error);
                 throw error;
             }
         },

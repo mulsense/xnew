@@ -120,12 +120,12 @@ declare class Unit {
     static emit(type: string, props?: object): void;
 }
 declare class UnitPromise {
-    promise: Promise<any>;
-    Component: Function | null;
-    constructor(promise: Promise<any>, Component: Function | null);
+    private promise;
+    constructor(promise: Promise<any>);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
+    static all(promises: UnitPromise[]): UnitPromise;
     private wrap;
 }
 declare class UnitTimer {
@@ -297,8 +297,12 @@ declare const xnew: CreateUnit & {
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
-    commit(object?: Record<string, any>): void;
     finally(callback: Function): UnitPromise;
+    resolvers(): {
+        resolve(): void;
+        reject(): void;
+    };
+    output(object?: Record<string, any>): void;
     scope(callback: any): any;
     find(Component: Function): Unit[];
     emit(type: string, ...args: any[]): void;

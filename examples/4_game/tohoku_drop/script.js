@@ -360,25 +360,19 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
 
     let count = 0;
     unit.on('update', () => {
-      const neck = vrm.humanoid.getNormalizedBoneNode('neck');
-      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
-      const hips = vrm.humanoid.getNormalizedBoneNode('hips');
-      const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-      const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-      const leftUpperLeg = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
-      const rightUpperLeg = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
       const t = (count + random) * 0.03;
-      neck.rotation.x = Math.sin(t * 6) * +0.1;
-      chest.rotation.x = Math.sin(t * 12) * +0.1;
-      hips.position.z = Math.sin(t * 12) * 0.1;
-      leftUpperArm.rotation.z = Math.sin(t * 12 + random) * +0.7;
-      leftUpperArm.rotation.x = Math.sin(t * 6 + random) * +0.8;
-      rightUpperArm.rotation.z = Math.sin(t * 12) * -0.7;
-      rightUpperArm.rotation.x = Math.sin(t * 6) * +0.8;
-      leftUpperLeg.rotation.z = Math.sin(t * 8) * +0.2;
-      leftUpperLeg.rotation.x = Math.sin(t * 12) * +0.7;
-      rightUpperLeg.rotation.z = Math.sin(t * 8) * -0.2;
-      rightUpperLeg.rotation.x = Math.sin(t * 12) * -0.7;
+      const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
+      g('neck').rotation.x = Math.sin(t * 6) * +0.1;
+      g('chest').rotation.x = Math.sin(t * 12) * +0.1;
+      g('hips').position.z = Math.sin(t * 12) * 0.1;
+      g('leftUpperArm').rotation.z = Math.sin(t * 12 + random) * +0.7;
+      g('leftUpperArm').rotation.x = Math.sin(t * 6 + random) * +0.8;
+      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+      g('rightUpperArm').rotation.x = Math.sin(t * 6) * +0.8;
+      g('leftUpperLeg').rotation.z = Math.sin(t * 8) * +0.2;
+      g('leftUpperLeg').rotation.x = Math.sin(t * 12) * +0.7;
+      g('rightUpperLeg').rotation.z = Math.sin(t * 8) * -0.2;
+      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
       vrm.update(t);
       count++;
     });

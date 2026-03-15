@@ -395,16 +395,17 @@ export class Unit {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitPromise {
-    public promise: Promise<any>;
-    public Component: Function | null;
-    constructor(promise: Promise<any>, Component: Function | null) {
-        this.promise = promise;
-        this.Component = Component;
-    }
+    private promise: Promise<any>;
+    constructor(promise: Promise<any>) { this.promise = promise; }
+
     public then(callback: Function): UnitPromise { return this.wrap('then', callback); }
     public catch(callback: Function): UnitPromise { return this.wrap('catch', callback); }
     public finally(callback: Function): UnitPromise { return this.wrap('finally', callback); }
     
+    public static all(promises: UnitPromise[]): UnitPromise {
+        return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+    }
+
     private wrap(key: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
         this.promise = (this.promise[key] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));

@@ -7,6 +7,11 @@ var xpixi = {
     },
     nest(object) {
         xnew(Nest, { object });
+        xnew.extend(() => {
+            return {
+                get pixiObject() { return object; }
+            };
+        });
         return object;
     },
     get renderer() {

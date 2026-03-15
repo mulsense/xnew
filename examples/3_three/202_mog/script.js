@@ -111,7 +111,7 @@ function Model(unit, { mogPath, vrmaPath, position }) {
       });
     });
   }).then((vrm) => {
-    xnew.commit({ vrm });
+    xnew.output({ vrm });
   });
 
   xnew.promise(new Promise((resolve) => {
@@ -119,7 +119,7 @@ function Model(unit, { mogPath, vrmaPath, position }) {
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
     loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
   })).then((vrma) => {
-    xnew.commit({ vrma });
+    xnew.output({ vrma });
   });
 
   xnew.then(({ vrm, vrma }) => {

@@ -1,12 +1,12 @@
+import xnew from '@mulsense/xnew';
+import xpixi from '@mulsense/xnew/addons/xpixi';
+import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
-import xthree from '@mulsense/xnew/addons/xthree';
 
-const CHARACTER_FILES = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
+const CHARACTER_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
 
 xnew(document.querySelector('#main'), Main);
 
@@ -21,112 +21,99 @@ function Main(unit) {
 
 function Contents(unit) {
   const assets = xnew(BakedCharacters);
-  let scene = xnew(LoadingScene);
 
   xnew.promise(assets).then(() => {
-    scene.finalize();
-    scene = xnew(TitleScene);
-  });
-
-  unit.on('+scenechange', ({ NextScene, props }) => {
-    scene.finalize();
-    scene = xnew(NextScene, props);
+    xnew(xnew.basics.Flow).next(TitleScene);
   });
 }
 
 function BakedCharacters(_unit) {
-  let texturesList = null;
-  xnew.promise(xnew(Baking)).then((value) => { texturesList = value; });
+  const texturesList = new Array(CHARACTER_FILES.length).fill(null);
+  let doneCount = 0;
+  const { resolve } = xnew.resolvers();
+
+  CHARACTER_FILES.forEach((name, i) => {
+    xnew.promise(xnew(Baking, { url: `../../assets/${name}` })).then((value) => {
+      texturesList[i] = value.textures;
+      doneCount++;
+      if (doneCount === CHARACTER_FILES.length) resolve();
+    });
+  });
+
   return { get texturesList() { return texturesList; } };
 }
 
-function Baking(unit) {
+function Baking(unit, { url }) {
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
   xnew(() => {
     xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
+  });
+  xnew(() => {
     const dirLight = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
     dirLight.position.set(2, 5, 10);
   });
 
-  // VRMシーンを入れるGroupをnestで作成 → 非同期コールバックからはGroup.add/removeで操作
-  const vrmGroup = new THREE.Group();
-  xthree.scene.add(vrmGroup);
-  
-  const allTexturesList = [];
-  let currentChar = -1;
-  let currentVRM = null;
+  const model = xnew(Model, { url });
+  const textures = [];
   let frameIndex = 0;
-  let currentTextures = [];
-  let animCount = 0;
+  const { resolve } = xnew.resolvers();
 
-  xnew.promise((resolve) => {
-    function loadNext() {
-      currentChar++;
-      if (currentChar >= CHARACTER_FILES.length) {
-        xnew.commit(allTexturesList);
-        resolve();
-        unit.finalize();
-        return;
-      }
-      const loader = new GLTFLoader();
-      loader.register((parser) => new VRMLoaderPlugin(parser));
-      loader.load(`../../assets/${CHARACTER_FILES[currentChar]}`, (gltf) => {
-        const vrm = gltf.userData.vrm;
-        vrm.scene.scale.set(0.8, 0.8, 0.8);
-        vrm.scene.position.y = -1;
-        vrm.scene.rotation.x = +Math.PI * 20 / 180;
-        vrmGroup.add(vrm.scene); // Three.jsのGroup.add（xnewコンテキスト不要）
-        currentVRM = vrm;
-        frameIndex = 0;
-        currentTextures = [];
-        animCount = 0;
-      });
-    }
+  unit.on('render', () => {
+    if (model.vrm === null) return;
 
-    loadNext();
-    const BAKE_FRAMES = 30;
+    const BAKE_FRAMES = 600;
+    const batch = 30; // Number of frames to bake per render
+    for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
+      const t = i * (Math.PI / BAKE_FRAMES * 3);
 
-    unit.on('render', () => {
-      if (!currentVRM) return;
-
-      // t = 0 ~ π で1ループ（全周波数6,8,12がちょうど整数サイクル完結）
-      const t = animCount * (Math.PI / BAKE_FRAMES);
-      bakingAnimateVRM(currentVRM, t);
-      animCount++;
+      model.threeObject.rotation.y = t * 4 / 3;
+      model.threeObject.rotation.z = t * 2 / 3;
+      const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
+      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+      g('hips').position.z          = Math.sin(t * 12) *  0.05;
+      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+      model.vrm.update(t);
 
       xthree.renderer.render(xthree.scene, xthree.camera);
-      const bitmap = xthree.canvas.transferToImageBitmap();
-      currentTextures.push(PIXI.Texture.from(bitmap));
-      frameIndex++;
+      textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
+    }
+    frameIndex += batch;
 
-      if (frameIndex >= BAKE_FRAMES) {
-        allTexturesList.push([...currentTextures]);
-        vrmGroup.remove(currentVRM.scene); // Group.remove（xnewコンテキスト不要）
-        currentVRM = null;
-        loadNext();
-      }
-    });
-  })
-  
+    if (frameIndex >= BAKE_FRAMES) {
+      xnew.output({ textures });
+      resolve();
+      unit.finalize();
+    }
+  });
 }
 
-function bakingAnimateVRM(vrm, t) {
-  const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
-  g('neck').rotation.x          = Math.sin(t * 8)  *  0.05;
-  g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-  g('hips').position.z          = Math.sin(t * 12) *  0.05;
-  g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-  g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-  g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-  g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-  g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-  g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-  g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-  g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
-  vrm.update(t);
+function Model(_unit, { url }) {
+  const object = xthree.nest(new THREE.Object3D());
+  const { resolve } = xnew.resolvers();
+
+  let vrm = null;
+  const loader = new GLTFLoader();
+  loader.register((parser) => new VRMLoaderPlugin(parser));
+  loader.load(url, (gltf) => {
+    vrm = gltf.userData.vrm;
+    vrm.scene.scale.set(0.8, 0.8, 0.8);
+    vrm.scene.position.y = -1;
+    vrm.scene.rotation.x = +Math.PI * 20 / 180;
+    object.add(vrm.scene);
+    resolve();
+  });
+  return { get vrm() { return vrm; } };
 }
 
 // ---- Scenes ----
@@ -139,20 +126,19 @@ function LoadingScene(unit) {
 }
 
 function TitleScene(unit) {
-  // ★テスト表示（後で消す）
   const tl = xnew.context(BakedCharacters).texturesList;
-  // 黒背景
-  xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x111111));
+
+  xnew(() => {
+    xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x111111));
+  });
 
   for (let i = 0; i < tl.length; i++) {
     const x = 55 + i * 100;
-
-    // アニメーションスプライト
-    xnew((unit) => {
+    xnew(() => {
       const sprite = xpixi.nest(new PIXI.AnimatedSprite(tl[i]));
       sprite.position.set(x, 280);
       sprite.anchor.set(0.5);
-      sprite.animationSpeed = 0.2;
+      sprite.animationSpeed = 1;
       sprite.scale.set(1.2);
       sprite.play();
     });
@@ -160,7 +146,7 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  unit.on('pointerdown', () => xnew.emit('+scenechange', { NextScene: GameScene }));
+  unit.on('pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
 }
 
 function GameScene(unit) {
@@ -188,7 +174,7 @@ function GameScene(unit) {
     spawn.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      unit.on('keydown pointerdown', () => xnew.emit('+scenechange', { NextScene: TitleScene }));
+      unit.on('keydown pointerdown', () => xnew.context(xnew.basics.Flow).next(TitleScene));
     }, 1000);
   });
 }
@@ -196,7 +182,9 @@ function GameScene(unit) {
 // ---- Game Components ----
 
 function Background(_unit) {
-  xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x000000));
+  xnew(() => {
+    xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x000000));
+  });
   for (let i = 0; i < 100; i++) xnew(Dot);
 }
 
@@ -244,9 +232,7 @@ function GameOverText(_unit) {
 function Player(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 500);
-
-  const ship = new PIXI.Graphics().poly([0, -20, -14, 14, 14, 14]).fill(0x00FFFF);
-  object.addChild(ship);
+  object.addChild(new PIXI.Graphics().poly([0, -20, -14, 14, 14, 14]).fill(0x00FFFF));
 
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
@@ -309,7 +295,6 @@ function Enemy(unit, { id, x, y, invincible = false }) {
   const tl = xnew.context(BakedCharacters).texturesList;
   const sprite = new PIXI.AnimatedSprite(tl[id]);
   sprite.anchor.set(0.5);
-  sprite.animationSpeed = 0.2;
   sprite.scale.set(0.55);
   sprite.play();
   object.addChild(sprite);
@@ -371,8 +356,7 @@ function Star(unit, { x, y, score }) {
 
   const size = 10 + Math.random() * 8;
   const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB][Math.floor(Math.random() * 6)];
-  const star = new PIXI.Graphics().star(0, 0, 5, size, size * 0.45).fill(color);
-  object.addChild(star);
+  object.addChild(new PIXI.Graphics().star(0, 0, 5, size, size * 0.45).fill(color));
 
   const angle = Math.random() * Math.PI * 2;
   const speed = 2 + Math.random() * 3;
@@ -417,7 +401,7 @@ function ScorePopup(unit, { x, y, score }) {
 
 // ---- UI Helpers ----
 
-function TitleText(unit) {
+function TitleText(_unit) {
   xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-blue-600 font-bold">');
   xnew(StrokeText, { text: 'とーほくショット' });
 }
