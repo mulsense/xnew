@@ -63,10 +63,6 @@ function GameScene(scene) {
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
 
-  scene.on('+sceneappend', ({ Component, props }) => {
-    xnew(Component, props);
-  });
-
   scene.on('+gameover', () => {
     interval.clear();
     xnew(GameOverText);
@@ -128,7 +124,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.emit('+sceneappend', { Component: Shot, props: { x: object.x, y: object.y } }));
+  unit.on('+shot', () => xnew.context(xnew.basics.Scene).append(Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('update', () => {
@@ -208,9 +204,9 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.emit('+sceneappend', { Component: Crash, props: { x: object.x, y: object.y, score } });
+        xnew.context(xnew.basics.Scene).append(Crash, { x: object.x, y: object.y, score });
       }
-      xnew.emit('+sceneappend', { Component: CrashText, props: { x: object.x, y: object.y, score } });
+      xnew.context(xnew.basics.Scene).append(CrashText, { x: object.x, y: object.y, score });
       xnew.emit('+scoreup', { score });
       unit.finalize();
     },

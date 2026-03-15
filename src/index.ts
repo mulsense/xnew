@@ -5,7 +5,7 @@ import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
-import { Flow } from './basics/Flow';
+import { Flow, Scene } from './basics/SceneFlow';
 
 import { XImage, XImageArgs } from './utils/image';
 import { master, AudioFile, Synthesizer, SynthesizerOptions } from './utils/audio';
@@ -19,6 +19,7 @@ const basics = {
     Accordion,
     Popup,
     Flow,
+    Scene,
 };
 
 const audio = {

@@ -155,20 +155,16 @@ function GameScene(unit) {
   xnew(ScoreText);
   xnew(Player);
 
-  unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
-
   // 敵スポーン（時間経過でより強い敵が登場）
   let tick = 0;
   const spawn = xnew.interval(() => {
     tick++;
-    xnew.emit('+sceneappend', { Component: Enemy, props: { id: 0 } });
-    if (tick % 4  === 0) xnew.emit('+sceneappend', { Component: Enemy, props: { id: 1 } });
-    if (tick % 10 === 0) xnew.emit('+sceneappend', { Component: Enemy, props: { id: 2 } });
-    if (tick % 20 === 0) xnew.emit('+sceneappend', { Component: Enemy, props: { id: 3 } });
-    if (tick % 35 === 0) xnew.emit('+sceneappend', { Component: Enemy, props: { id: 4 } });
-    if (tick % 60 === 0) xnew.emit('+sceneappend', { Component: Enemy, props: { id: 5 } });
-    if (tick % 90 === 0) xnew.emit('+sceneappend', { Component: Enemy, props: { id: 6 } });
-  }, 2000);
+    xnew(Enemy, { id: 0 }); // 常に一番弱い敵は出す
+    if (tick % 2  === 0) xnew(Enemy, { id: 0 });
+    if (tick % 4  === 0) xnew(Enemy, { id: 1 });
+    if (tick % 10 === 0) xnew(Enemy, { id: 2 });
+    if (tick % 20 === 0) xnew(Enemy, { id: 3 });
+  }, 200);
 
   unit.on('+gameover', () => {
     spawn.clear();
@@ -236,18 +232,18 @@ function Player(unit) {
 
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.emit('+sceneappend', { Component: Shot, props: { x: object.x, y: object.y } }));
+  unit.on('+shot', () => xnew.context(xnew.basics.Scene).append(Shot, { x: object.x, y: object.y }));
 
   unit.on('update', () => {
     object.x = Math.min(Math.max(object.x + velocity.x * 3, 10), 790);
     object.y = Math.min(Math.max(object.y + velocity.y * 3, 10), 590);
 
     for (const enemy of xnew.find(Enemy)) {
-      if (enemy.distance(object) < 30) {
-        xnew.emit('+gameover');
-        unit.finalize();
-        return;
-      }
+      // if (enemy.distance(object) < 30) {
+      //   xnew.emit('+gameover');
+      //   unit.finalize();
+      //   return;
+      // }
     }
   });
 }
@@ -295,7 +291,7 @@ function Enemy(unit, { id, x, y, invincible = false }) {
   const tl = xnew.context(BakedCharacters).texturesList;
   const sprite = new PIXI.AnimatedSprite(tl[id]);
   sprite.anchor.set(0.5);
-  sprite.scale.set(0.55);
+  sprite.scale.set(0.55 + id * 0.1);
   sprite.play();
   object.addChild(sprite);
 
@@ -336,14 +332,14 @@ function Enemy(unit, { id, x, y, invincible = false }) {
       // 分裂
       if (data.splitTo !== null) {
         for (let i = 0; i < 2; i++) {
-          xnew.emit('+sceneappend', { Component: Enemy, props: { id: data.splitTo, x: object.x, y: object.y, invincible: true } });
+          xnew.context(xnew.basics.Scene).append(Enemy, { id: data.splitTo, x: object.x, y: object.y, invincible: true });
         }
       }
       // 星（チェーンショット）
       for (let i = 0; i < 4; i++) {
-        xnew.emit('+sceneappend', { Component: Star, props: { x: object.x, y: object.y, score } });
+        xnew.context(xnew.basics.Scene).append(Star, { x: object.x, y: object.y, score });
       }
-      xnew.emit('+sceneappend', { Component: ScorePopup, props: { x: object.x, y: object.y, score } });
+      xnew.context(xnew.basics.Scene).append(ScorePopup, { x: object.x, y: object.y, score });
       xnew.emit('+scoreup', { score });
       unit.finalize();
     },
@@ -367,7 +363,6 @@ function Star(unit, { x, y, score }) {
 
   let count = 0;
   unit.on('update', () => {
-    vy += 0.15; // 重力
     object.x += vx;
     object.y += vy;
     object.rotation += 0.15;

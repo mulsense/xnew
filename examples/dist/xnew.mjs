@@ -763,7 +763,7 @@ class Unit {
     }
     static getContext(unit, key) {
         for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
-            if (context.value === Unit.currentUnit && key === Unit.currentUnit._.currentComponent)
+            if (context.value === Unit.currentUnit)
                 continue;
             if (context.key === key)
                 return context.value;
@@ -1584,6 +1584,13 @@ function Select(_, { key = '', value, items = [] } = {}) {
     }
 }
 
+function Scene(unit) {
+    return {
+        append(Component, props) {
+            xnew$1(Component, props);
+        }
+    };
+}
 function Flow(unit) {
     let scene = null;
     return {
@@ -1597,7 +1604,10 @@ function Flow(unit) {
             var _a;
             // scene change
             (_a = unit.scene) === null || _a === void 0 ? void 0 : _a.finalize();
-            unit.scene = xnew$1(Component, props);
+            unit.scene = xnew$1((unit) => {
+                xnew$1.extend(Scene);
+                xnew$1.extend(Component, props);
+            });
         }
     };
 }
@@ -1863,6 +1873,7 @@ const basics = {
     Accordion,
     Popup,
     Flow,
+    Scene,
 };
 const audio = {
     load(path) {

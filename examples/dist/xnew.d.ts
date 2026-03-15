@@ -230,6 +230,9 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
     separator(): void;
 };
 
+declare function Scene(unit: Unit): {
+    append(Component: Function, props?: any): void;
+};
 declare function Flow(unit: Unit): {
     get scene(): Unit | null;
     set scene(value: Unit);
@@ -320,6 +323,7 @@ declare const xnew: CreateUnit & {
         Accordion: typeof Accordion;
         Popup: typeof Popup;
         Flow: typeof Flow;
+        Scene: typeof Scene;
     };
     audio: {
         load(path: string): UnitPromise;
