@@ -11,7 +11,8 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 
-const CHARACTER_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
+// const CHARACTER_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
+const CHARACTER_FILES = ['zunko.vrm'];
 
 xnew(document.querySelector('#main'), Main);
 
@@ -35,51 +36,50 @@ function Contents(unit) {
 
 function BakedCharacters(unit) {
   for (const name of CHARACTER_FILES) {
-    xnew.promise(xnew(Baking, { url: `../../assets/${name}` })).then((value) => xnew.output({ [name]: value.textures }));
+    xnew.promise(xnew(PreRender, { url: `../../assets/${name}` })).then((value) => xnew.output({ [name]: value.textures }));
   }
 }
 
-function Baking(unit, { url }) {
+function PreRender(unit, { url }) {
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
-
   const composer = new EffectComposer(xthree.renderer);
   //composer.addPass(new RenderPass(xthree.scene, xthree.camera));
-  const rpp = new RenderPixelatedPass(2, xthree.scene, xthree.camera);
+  const rpp = new RenderPixelatedPass(1, xthree.scene, xthree.camera);
   composer.addPass(rpp);
   rpp.normalEdgeStrength = 0.0;
   rpp.depthEdgeStrength = 1.0;
 
   // 2. 内部の FullScreenQuad に適用されているマテリアルを取得
-const passMaterial = rpp.pixelatedMaterial;
+  const passMaterial = rpp.pixelatedMaterial;
 
-// 3. 好きな色を Uniforms（シェーダーへの変数）として追加（例として赤色：0xff0000）
-passMaterial.uniforms.customEdgeColor = {
-    value: new THREE.Color( 0xff0000 )
-};
+  // 3. 好きな色を Uniforms（シェーダーへの変数）として追加（例として赤色：0xff0000）
+  passMaterial.uniforms.customEdgeColor = {
+      value: new THREE.Color( 0xff0000 )
+  };
 
-// 4. フラグメントシェーダーをテキストとして取得
-let shader = passMaterial.fragmentShader;
+  // 4. フラグメントシェーダーをテキストとして取得
+  let shader = passMaterial.fragmentShader;
 
-// 2. 変数 customEdgeColor をシェーダーの冒頭に定義（まだ無い場合のみ追加）
-if (!shader.includes('uniform vec3 customEdgeColor;')) {
-    shader = shader.replace(
-        'void main()',
-        'uniform vec3 customEdgeColor;\nvoid main()'
-    );
-}
+  // 2. 変数 customEdgeColor をシェーダーの冒頭に定義（まだ無い場合のみ追加）
+  if (!shader.includes('uniform vec3 customEdgeColor;')) {
+      shader = shader.replace(
+          'void main()',
+          'uniform vec3 customEdgeColor;\nvoid main()'
+      );
+  }
 
-// 3. 掛け算で明るさを変えている部分を、指定色（customEdgeColor）で上塗りする処理に書き換える
-shader = shader.replace(
-    /float Strength = dei > 0\.0 \? \(1\.0 - depthEdgeStrength \* dei\) : \(1\.0 \+ normalEdgeStrength \* nei\);\s*gl_FragColor = texel \* Strength;/g,
-    `float edgeAmount = dei > 0.0 ? (depthEdgeStrength * dei) : (normalEdgeStrength * nei);
-    gl_FragColor = vec4( mix( texel.rgb, customEdgeColor, clamp(edgeAmount, 0.0, 1.0) ), texel.a );`
-);
-// 書き換えたシェーダーをマテリアルに適用
-passMaterial.fragmentShader = shader;
-passMaterial.needsUpdate = true;
+  // 3. 掛け算で明るさを変えている部分を、指定色（customEdgeColor）で上塗りする処理に書き換える
+  shader = shader.replace(
+      /float Strength = dei > 0\.0 \? \(1\.0 - depthEdgeStrength \* dei\) : \(1\.0 \+ normalEdgeStrength \* nei\);\s*gl_FragColor = texel \* Strength;/g,
+      `float edgeAmount = dei > 0.0 ? (depthEdgeStrength * dei) : (normalEdgeStrength * nei);
+      gl_FragColor = vec4( mix( texel.rgb, customEdgeColor, clamp(edgeAmount, 0.0, 1.0) ), texel.a );`
+  );
+  // 書き換えたシェーダーをマテリアルに適用
+  passMaterial.fragmentShader = shader;
+  passMaterial.needsUpdate = true;
 
   const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
   // OrthographicCamera 用: シェーダーのデフォルトは PERSPECTIVE_CAMERA=1 のため明示的に上書き
@@ -87,8 +87,8 @@ passMaterial.needsUpdate = true;
   ssaoPass.ssaoMaterial.needsUpdate = true;
   ssaoPass.depthRenderMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
   ssaoPass.depthRenderMaterial.needsUpdate = true;
-  ssaoPass.kernelRadius = 0.15;     // サンプリング半径
-  ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
+  ssaoPass.kernelRadius = 0.05;     // サンプリング半径
+  ssaoPass.minDistance = 0.0001;   // 最小距離（linearized depth 0〜1 スケール）
   ssaoPass.maxDistance = 0.02;    // 最大距離
   // ssaoPass.output = SSAOPass.OUTPUT.Depth;  // 診断用
   composer.addPass(ssaoPass);
@@ -111,10 +111,11 @@ passMaterial.needsUpdate = true;
   unit.on('render', () => {
     if (model.vrm === null) return;
 
-    const BAKE_FRAMES = 600;
+    const BAKE_FRAMES = 120;
     const batch = 30; // Number of frames to bake per render
     for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
-      const t = i * (Math.PI / BAKE_FRAMES * 3);
+      // const t = i * (Math.PI / BAKE_FRAMES * 3);
+      const t = 11 * (Math.PI / BAKE_FRAMES * 3);
 
       model.threeObject.rotation.y = t * 4 / 3;
       model.threeObject.rotation.z = t * 2 / 3;

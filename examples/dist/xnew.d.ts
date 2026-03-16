@@ -44,6 +44,7 @@ declare class Eventor {
 }
 
 type UnitElement = HTMLElement | SVGElement;
+type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
 interface Context {
     previous: Context | null;
     key?: any;
@@ -55,39 +56,38 @@ interface Snapshot {
     element: UnitElement;
     Component: Function | null;
 }
-interface Internal {
-    parent: Unit | null;
-    ancestors: Unit[];
-    children: Unit[];
-    state: string;
-    tostart: boolean;
-    protected: boolean;
-    promises: UnitPromise[];
-    results: Record<string, any>;
-    defines: Record<string, any>;
-    systems: Record<string, {
-        listener: Function;
-        execute: Function;
-    }[]>;
-    currentElement: UnitElement;
-    currentContext: Context;
-    currentComponent: Function | null;
-    nestElements: {
-        element: UnitElement;
-        owned: boolean;
-    }[];
-    Components: Function[];
-    listeners: MapMap<string, Function, {
-        element: UnitElement;
-        Component: Function | null;
-        execute: Function;
-    }>;
-    eventor: Eventor;
-}
 declare class Unit {
     [key: string]: any;
-    _: Internal;
-    constructor(parent: Unit | null, target: UnitElement | string | null, Component?: Function | string | number, props?: Object);
+    _: {
+        parent: Unit | null;
+        ancestors: Unit[];
+        children: Unit[];
+        state: string;
+        tostart: boolean;
+        protected: boolean;
+        promises: UnitPromise[];
+        results: Record<string, any>;
+        defines: Record<string, any>;
+        systems: Record<string, {
+            listener: Function;
+            execute: Function;
+        }[]>;
+        currentElement: UnitElement;
+        currentContext: Context;
+        currentComponent: Function | null;
+        nestElements: {
+            element: UnitElement;
+            owned: boolean;
+        }[];
+        Components: Function[];
+        listeners: MapMap<string, Function, {
+            element: UnitElement;
+            Component: Function | null;
+            execute: Function;
+        }>;
+        eventor: Eventor;
+    };
+    constructor(parent: Unit | null, ...args: UnitArgs);
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -138,29 +138,6 @@ declare class UnitTimer {
     private static execute;
     private static next;
     private static Component;
-}
-
-interface CreateUnit {
-    /**
-     * creates a new Unit component
-     * @param Component - component function
-     * @param props - properties for component function
-     * @returns a new Unit instance
-     * @example
-     * const unit = xnew(MyComponent, { data: 0 })
-     */
-    (Component?: Function | string, props?: Object): Unit;
-    /**
-     * creates a new Unit component
-     * @param target - HTMLElement | SVGElement, or HTML tag for new element
-     * @param Component - component function
-     * @param props - properties for component function
-     * @returns a new Unit instance
-     * @example
-     * const unit = xnew(element, MyComponent, { data: 0 })
-     * const unit = xnew('<div>', MyComponent, { data: 0 })
-     */
-    (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
 }
 
 interface TransitionOptions {
@@ -289,11 +266,12 @@ declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
-declare const xnew: CreateUnit & {
+declare const xnew: ((...args: UnitArgs) => Unit) & {
     nest(target: UnitElement | string): HTMLElement | SVGElement;
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
+    append(parent: Unit, ...args: UnitArgs): void;
     context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;

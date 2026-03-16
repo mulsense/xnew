@@ -308,7 +308,7 @@ function Player(unit) {
 
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.context(xnew.basics.Scene).append(Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.append(xnew.context(xnew.basics.Scene), Shot, { x: object.x, y: object.y }));
 
   unit.on('update', () => {
     object.x = Math.min(Math.max(object.x + velocity.x * 3, 10), 790);
@@ -408,14 +408,14 @@ function Enemy(unit, { id, x, y, invincible = false }) {
       // 分裂
       if (data.splitTo !== null) {
         for (let i = 0; i < 2; i++) {
-          xnew.context(xnew.basics.Scene).append(Enemy, { id: data.splitTo, x: object.x, y: object.y, invincible: true });
+          xnew.append(xnew.context(xnew.basics.Scene), Enemy, { id: data.splitTo, x: object.x, y: object.y, invincible: true });
         }
       }
       // 星（チェーンショット）
       for (let i = 0; i < 2; i++) {
-        xnew.context(xnew.basics.Scene).append(Star, { x: object.x, y: object.y, score });
+        xnew.append(xnew.context(xnew.basics.Scene), Star, { x: object.x, y: object.y, score });
       }
-      xnew.context(xnew.basics.Scene).append(ScorePopup, { x: object.x, y: object.y, score });
+      xnew.append(xnew.context(xnew.basics.Scene), ScorePopup, { x: object.x, y: object.y, score });
       xnew.context(ScoreManager).add(score);
       unit.finalize();
     },

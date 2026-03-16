@@ -1,48 +1,23 @@
-import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
+import { Unit, UnitArgs, UnitPromise, UnitTimer, UnitElement } from './unit';
 
-export interface CreateUnit {
+export const xnew = Object.assign(
     /**
      * creates a new Unit component
-     * @param Component - component function
-     * @param props - properties for component function
-     * @returns a new Unit instance
-     * @example
-     * const unit = xnew(MyComponent, { data: 0 })
-     */
-    (Component?: Function | string, props?: Object): Unit;
-
-    /**
-     * creates a new Unit component
+     * xnew(Component?: Function | string, props?: Object): Unit;
+     * xnew(target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
      * @param target - HTMLElement | SVGElement, or HTML tag for new element
      * @param Component - component function
      * @param props - properties for component function
      * @returns a new Unit instance
      * @example
+     * const unit = xnew(MyComponent, { data: 0 })
      * const unit = xnew(element, MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
-    (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
-}
-
-export const xnew = Object.assign(
-    function(...args: any[]): Unit {
+    function(...args: UnitArgs): Unit {
         if (Unit.rootUnit === undefined) Unit.reset();
-
-        let target: UnitElement | string | null;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-            target = args.shift();
-        } else {
-            target = null;
-        }
-
-        const Component: Function | string | undefined = args.shift();
-        const props: Object | undefined = args.shift();
-        
-        const unit = new Unit(Unit.currentUnit, target, Component, props);
-        return unit;
-    } as CreateUnit,
+        return new Unit(Unit.currentUnit, ...args);
+    },
     {
         /**
          * Creates a child HTML/SVG element inside the current component's element.
@@ -84,6 +59,15 @@ export const xnew = Object.assign(
                 return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+
+        append(parent: Unit, ...args: UnitArgs): void {
+            try {
+                new Unit(parent, ...args);
+            } catch (error: unknown) {
+                console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
                 throw error;
             }
         },

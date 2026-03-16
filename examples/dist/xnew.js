@@ -519,16 +519,26 @@
         return { position };
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // utils
-    //----------------------------------------------------------------------------------------------------
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     //----------------------------------------------------------------------------------------------------
     // unit
     //----------------------------------------------------------------------------------------------------
     class Unit {
-        constructor(parent, target, Component, props) {
+        constructor(parent, ...args) {
             var _a;
+            let target;
+            let Component;
+            let props;
+            if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement || typeof args[0] === 'string') {
+                target = args[0];
+                Component = args[1];
+                props = args[2];
+            }
+            else {
+                target = null;
+                Component = args[0];
+                props = args[1];
+            }
             const backup = Unit.currentUnit;
             Unit.currentUnit = this;
             parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
@@ -692,7 +702,7 @@
                     Object.defineProperty(unit._.defines, key, wrapper);
                     Object.defineProperty(unit, key, wrapper);
                 });
-                return defines;
+                return Object.assign({}, unit._.defines);
             }
         }
         static start(unit) {
@@ -729,7 +739,7 @@
         static reset() {
             var _a;
             (_a = Unit.rootUnit) === null || _a === void 0 ? void 0 : _a.finalize();
-            Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
+            Unit.currentUnit = Unit.rootUnit = new Unit(null);
             const ticker = new AnimationTicker(() => {
                 Unit.start(Unit.rootUnit);
                 Unit.update(Unit.rootUnit);
@@ -884,7 +894,7 @@
         static execute(timer, options, iterations) {
             const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
             if (timer.unit === null || timer.unit._.state === 'finalized') {
-                timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
+                timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
             }
             else if (timer.queue.length === 0) {
                 timer.queue.push(props);
@@ -897,7 +907,7 @@
         }
         static next(timer) {
             if (timer.queue.length > 0) {
-                timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
+                timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.queue.shift());
                 timer.unit.on('finalize', () => UnitTimer.next(timer));
             }
         }
@@ -923,23 +933,24 @@
         }
     }
 
-    const xnew$1 = Object.assign(function (...args) {
+    const xnew$1 = Object.assign(
+    /**
+     * creates a new Unit component
+     * xnew(Component?: Function | string, props?: Object): Unit;
+     * xnew(target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
+     * @param target - HTMLElement | SVGElement, or HTML tag for new element
+     * @param Component - component function
+     * @param props - properties for component function
+     * @returns a new Unit instance
+     * @example
+     * const unit = xnew(MyComponent, { data: 0 })
+     * const unit = xnew(element, MyComponent, { data: 0 })
+     * const unit = xnew('<div>', MyComponent, { data: 0 })
+     */
+    function (...args) {
         if (Unit.rootUnit === undefined)
             Unit.reset();
-        let target;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        }
-        else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-            target = args.shift();
-        }
-        else {
-            target = null;
-        }
-        const Component = args.shift();
-        const props = args.shift();
-        const unit = new Unit(Unit.currentUnit, target, Component, props);
-        return unit;
+        return new Unit(Unit.currentUnit, ...args);
     }, {
         /**
          * Creates a child HTML/SVG element inside the current component's element.
@@ -982,6 +993,15 @@
             }
             catch (error) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+        append(parent, ...args) {
+            try {
+                new Unit(parent, ...args);
+            }
+            catch (error) {
+                console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
                 throw error;
             }
         },
@@ -1592,13 +1612,6 @@
 
     function Scene(unit) {
     }
-    function SceneAppend(unit) {
-        return {
-            append(Component, props) {
-                xnew$1(Component, props);
-            }
-        };
-    }
     function Flow(unit) {
         let scene = null;
         return {
@@ -1615,7 +1628,6 @@
                 unit.scene = xnew$1((unit) => {
                     xnew$1.extend(Scene);
                     xnew$1.extend(Component, props);
-                    xnew$1.extend(SceneAppend);
                 });
             }
         };
