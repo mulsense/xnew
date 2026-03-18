@@ -3,38 +3,18 @@ import { AnimationTicker, Timer, TimerOptions } from './time';
 import { Eventor } from './event';
 
 //----------------------------------------------------------------------------------------------------
-// utils
+// definitions
 //----------------------------------------------------------------------------------------------------
-
-export const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
 
 export type UnitElement = HTMLElement | SVGElement;
 
+export type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
+
 interface Context { previous: Context | null; key?: any; value?: any; }
+
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; Component: Function | null; }
 
-interface Internal {
-    parent: Unit | null;
-    ancestors: Unit[];
-    children: Unit[];
-
-    state: string;
-    tostart: boolean;
-    protected: boolean;
-    promises: UnitPromise[];
-    results: Record<string, any>;
-    defines: Record<string, any>;
-    systems: Record<string, { listener: Function, execute: Function }[]>;
-
-    currentElement: UnitElement;
-    currentContext: Context;
-    currentComponent: Function | null;
-
-    nestElements: { element: UnitElement, owned: boolean }[];
-    Components: Function[];
-    listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
-    eventor: Eventor;
-}
+const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
 
 //----------------------------------------------------------------------------------------------------
 // unit
@@ -42,9 +22,45 @@ interface Internal {
 
 export class Unit {
     [key: string]: any;
-    public _: Internal;
 
-    constructor(parent: Unit | null, target: UnitElement | string | null, Component?: Function | string | number, props?: Object) {
+    public _: {
+        parent: Unit | null;
+        ancestors: Unit[];
+        children: Unit[];
+
+        state: string;
+        tostart: boolean;
+        protected: boolean;
+        promises: UnitPromise[];
+        results: Record<string, any>;
+        defines: Record<string, any>;
+        systems: Record<string, { listener: Function, execute: Function }[]>;
+
+        currentElement: UnitElement;
+        currentContext: Context;
+        currentComponent: Function | null;
+
+        nestElements: { element: UnitElement, owned: boolean }[];
+        Components: Function[];
+        listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
+        eventor: Eventor;
+    };
+
+    constructor(parent: Unit | null, ...args: UnitArgs) {
+        let target: UnitElement | string | null;
+        let Component: Function | string | number | undefined;
+        let props: Object | undefined;
+
+        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement || typeof args[0] === 'string') {
+            target = args[0] as UnitElement | string;
+            Component = args[1] as Function | string | number | undefined;
+            props = args[2] as Object | undefined;
+        } else {
+            target = null;
+            Component = args[0] as Function | string | number | undefined;
+            props = args[1] as Object | undefined;
+        }
+
         const backup = Unit.currentUnit;
         Unit.currentUnit = this;
 
@@ -226,7 +242,7 @@ export class Unit {
                 Object.defineProperty(unit, key, wrapper);
             });
 
-            return defines;
+            return Object.assign({}, unit._.defines);;
         }
     }
 
@@ -268,7 +284,7 @@ export class Unit {
 
     static reset(): void {
         Unit.rootUnit?.finalize();
-        Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
+        Unit.currentUnit = Unit.rootUnit = new Unit(null);
         const ticker = new AnimationTicker(() => {
             Unit.start(Unit.rootUnit);
             Unit.update(Unit.rootUnit);
@@ -312,7 +328,7 @@ export class Unit {
 
     static getContext(unit: Unit, key: any): any {
         for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
-            if (context.value === Unit.currentUnit && key === Unit.currentUnit._.currentComponent) continue;
+            if (context.value === Unit.currentUnit) continue;
             if (context.key === key) return context.value;
         }
     }
@@ -395,16 +411,17 @@ export class Unit {
 //----------------------------------------------------------------------------------------------------
 
 export class UnitPromise {
-    public promise: Promise<any>;
-    public Component: Function | null;
-    constructor(promise: Promise<any>, Component: Function | null) {
-        this.promise = promise;
-        this.Component = Component;
-    }
+    private promise: Promise<any>;
+    constructor(promise: Promise<any>) { this.promise = promise; }
+
     public then(callback: Function): UnitPromise { return this.wrap('then', callback); }
     public catch(callback: Function): UnitPromise { return this.wrap('catch', callback); }
     public finally(callback: Function): UnitPromise { return this.wrap('finally', callback); }
     
+    public static all(promises: UnitPromise[]): UnitPromise {
+        return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+    }
+
     private wrap(key: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
         this.promise = (this.promise[key] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
@@ -435,7 +452,7 @@ export class UnitTimer {
     private static execute(timer: UnitTimer, options: TimerOptions, iterations: number) {
         const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
         if (timer.unit === null || timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
+            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
         } else if (timer.queue.length === 0) {
             timer.queue.push(props);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
@@ -447,7 +464,7 @@ export class UnitTimer {
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
+            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }

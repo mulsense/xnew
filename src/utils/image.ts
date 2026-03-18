@@ -1,24 +1,19 @@
 
-export type CraftImageArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
+export type XImageArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
 
-export class CraftImage {
+export class XImage {
     public canvas: HTMLCanvasElement;
 
-    constructor(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
-    }
-
-    public static from(canvas: HTMLCanvasElement): CraftImage;
-    public static from(width: number, height: number): CraftImage;
-
-    public static from(...args: any[]): CraftImage {
+    constructor(canvas: HTMLCanvasElement);
+    constructor(width: number, height: number);
+    constructor(...args: XImageArgs) {
         if (args[0] instanceof HTMLCanvasElement) {
-            return new CraftImage(args[0]);
+            this.canvas = args[0];
         } else {
             const canvas = document.createElement('canvas') as HTMLCanvasElement;
             canvas.width = args[0];
-            canvas.height = args[1];
-            return new CraftImage(canvas);
+            canvas.height = args[1]!;
+            this.canvas = canvas;
         }
     }
 
@@ -27,7 +22,7 @@ export class CraftImage {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d')?.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-        return new CraftImage(canvas);
+        return new XImage(canvas);
     }
 
     public download(filename: string) {

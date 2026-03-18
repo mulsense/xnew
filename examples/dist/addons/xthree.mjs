@@ -7,6 +7,11 @@ var xthree = {
     },
     nest(object) {
         xnew(Nest, { object });
+        xnew.extend(() => {
+            return {
+                get threeObject() { return object; }
+            };
+        });
         return object;
     },
     get renderer() {

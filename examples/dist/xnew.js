@@ -519,16 +519,26 @@
         return { position };
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // utils
-    //----------------------------------------------------------------------------------------------------
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     //----------------------------------------------------------------------------------------------------
     // unit
     //----------------------------------------------------------------------------------------------------
     class Unit {
-        constructor(parent, target, Component, props) {
+        constructor(parent, ...args) {
             var _a;
+            let target;
+            let Component;
+            let props;
+            if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement || typeof args[0] === 'string') {
+                target = args[0];
+                Component = args[1];
+                props = args[2];
+            }
+            else {
+                target = null;
+                Component = args[0];
+                props = args[1];
+            }
             const backup = Unit.currentUnit;
             Unit.currentUnit = this;
             parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
@@ -692,7 +702,7 @@
                     Object.defineProperty(unit._.defines, key, wrapper);
                     Object.defineProperty(unit, key, wrapper);
                 });
-                return defines;
+                return Object.assign({}, unit._.defines);
             }
         }
         static start(unit) {
@@ -729,7 +739,7 @@
         static reset() {
             var _a;
             (_a = Unit.rootUnit) === null || _a === void 0 ? void 0 : _a.finalize();
-            Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
+            Unit.currentUnit = Unit.rootUnit = new Unit(null);
             const ticker = new AnimationTicker(() => {
                 Unit.start(Unit.rootUnit);
                 Unit.update(Unit.rootUnit);
@@ -769,7 +779,7 @@
         }
         static getContext(unit, key) {
             for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
-                if (context.value === Unit.currentUnit && key === Unit.currentUnit._.currentComponent)
+                if (context.value === Unit.currentUnit)
                     continue;
                 if (context.key === key)
                     return context.value;
@@ -848,13 +858,13 @@
     // extensions
     //----------------------------------------------------------------------------------------------------
     class UnitPromise {
-        constructor(promise, Component) {
-            this.promise = promise;
-            this.Component = Component;
-        }
+        constructor(promise) { this.promise = promise; }
         then(callback) { return this.wrap('then', callback); }
         catch(callback) { return this.wrap('catch', callback); }
         finally(callback) { return this.wrap('finally', callback); }
+        static all(promises) {
+            return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+        }
         wrap(key, callback) {
             const snapshot = Unit.snapshot(Unit.currentUnit);
             this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
@@ -884,7 +894,7 @@
         static execute(timer, options, iterations) {
             const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
             if (timer.unit === null || timer.unit._.state === 'finalized') {
-                timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, props);
+                timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
             }
             else if (timer.queue.length === 0) {
                 timer.queue.push(props);
@@ -897,7 +907,7 @@
         }
         static next(timer) {
             if (timer.queue.length > 0) {
-                timer.unit = new Unit(Unit.currentUnit, null, UnitTimer.Component, timer.queue.shift());
+                timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.queue.shift());
                 timer.unit.on('finalize', () => UnitTimer.next(timer));
             }
         }
@@ -923,54 +933,24 @@
         }
     }
 
-    class CraftImage {
-        constructor(canvas) {
-            this.canvas = canvas;
-        }
-        static from(...args) {
-            if (args[0] instanceof HTMLCanvasElement) {
-                return new CraftImage(args[0]);
-            }
-            else {
-                const canvas = document.createElement('canvas');
-                canvas.width = args[0];
-                canvas.height = args[1];
-                return new CraftImage(canvas);
-            }
-        }
-        clip(x, y, width, height) {
-            var _a;
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-            return new CraftImage(canvas);
-        }
-        download(filename) {
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = this.canvas.toDataURL('image/png');
-            link.click();
-        }
-    }
-
-    const xnew$1 = Object.assign(function (...args) {
+    const xnew$1 = Object.assign(
+    /**
+     * creates a new Unit component
+     * xnew(Component?: Function | string, props?: Object): Unit;
+     * xnew(target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
+     * @param target - HTMLElement | SVGElement, or HTML tag for new element
+     * @param Component - component function
+     * @param props - properties for component function
+     * @returns a new Unit instance
+     * @example
+     * const unit = xnew(MyComponent, { data: 0 })
+     * const unit = xnew(element, MyComponent, { data: 0 })
+     * const unit = xnew('<div>', MyComponent, { data: 0 })
+     */
+    function (...args) {
         if (Unit.rootUnit === undefined)
             Unit.reset();
-        let target;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        }
-        else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-            target = args.shift();
-        }
-        else {
-            target = null;
-        }
-        const Component = args.shift();
-        const props = args.shift();
-        const unit = new Unit(Unit.currentUnit, target, Component, props);
-        return unit;
+        return new Unit(Unit.currentUnit, ...args);
     }, {
         /**
          * Creates a child HTML/SVG element inside the current component's element.
@@ -1016,6 +996,15 @@
                 throw error;
             }
         },
+        append(parent, ...args) {
+            try {
+                new Unit(parent, ...args);
+            }
+            catch (error) {
+                console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
+                throw error;
+            }
+        },
         /**
          * Gets the Unit instance associated with the given component in the ancestor context chain
          * @param key - component function used as context key
@@ -1045,17 +1034,15 @@
          */
         promise(promise) {
             try {
-                const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
-                        .then(() => promise._.results);
+                    unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
                 }
                 else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise, Component);
+                    unitPromise = new UnitPromise(promise);
                 }
                 else {
-                    unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), Component);
+                    unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)));
                 }
                 Unit.currentUnit._.promises.push(unitPromise);
                 return unitPromise;
@@ -1075,8 +1062,7 @@
         then(callback) {
             try {
                 const currentUnit = Unit.currentUnit;
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
-                    .then(() => callback(currentUnit._.results));
+                return UnitPromise.all(Unit.currentUnit._.promises).then(() => callback(currentUnit._.results));
             }
             catch (error) {
                 console.error('xnew.then(callback: Function): ', error);
@@ -1092,27 +1078,11 @@
          */
         catch(callback) {
             try {
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                return UnitPromise.all(Unit.currentUnit._.promises)
                     .catch(callback);
             }
             catch (error) {
                 console.error('xnew.catch(callback: Function): ', error);
-                throw error;
-            }
-        },
-        /**
-         * Commits a value to the current unit's promise results
-         * @param object - object to commit to the promise
-         * @returns void
-         * @example
-         * xnew.commit({ data: 123});
-         */
-        commit(object) {
-            try {
-                Object.assign(Unit.currentUnit._.results, object);
-            }
-            catch (error) {
-                console.error('xnew.commit(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -1125,11 +1095,59 @@
          */
         finally(callback) {
             try {
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
-                    .finally(callback);
+                return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
             }
             catch (error) {
                 console.error('xnew.finally(callback: Function): ', error);
+                throw error;
+            }
+        },
+        resolvers() {
+            let state = null;
+            let resolve = null;
+            let reject = null;
+            const unitPromise = new UnitPromise(new Promise((res, rej) => {
+                if (state === 'resolved') {
+                    res(null);
+                }
+                else if (state === 'rejected') {
+                    rej();
+                }
+                else {
+                    resolve = res;
+                    reject = rej;
+                    state = 'pending';
+                }
+            }));
+            Unit.currentUnit._.promises.push(unitPromise);
+            return {
+                resolve() {
+                    if (state === 'pending') {
+                        resolve === null || resolve === void 0 ? void 0 : resolve(null);
+                    }
+                    state = 'resolved';
+                },
+                reject() {
+                    if (state === 'pending') {
+                        reject === null || reject === void 0 ? void 0 : reject();
+                    }
+                    state = 'rejected';
+                }
+            };
+        },
+        /**
+         * Outputs a value to the current unit's promise results
+         * @param object - object to output for the promise
+         * @returns void
+         * @example
+         * xnew.output({ data: 123});
+         */
+        output(object) {
+            try {
+                Object.assign(Unit.currentUnit._.results, object);
+            }
+            catch (error) {
+                console.error('xnew.output(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -1234,9 +1252,6 @@
          */
         protect() {
             Unit.currentUnit._.protected = true;
-        },
-        image(...args) {
-            return CraftImage.from(...args);
         },
     });
 
@@ -1595,6 +1610,8 @@
         }
     }
 
+    function Scene(unit) {
+    }
     function Flow(unit) {
         let scene = null;
         return {
@@ -1604,13 +1621,50 @@
             get scene() {
                 return scene;
             },
-            next(Component, props) {
-                var _a;
-                // scene change
-                (_a = unit.scene) === null || _a === void 0 ? void 0 : _a.finalize();
-                unit.scene = xnew$1(Component, props);
-            }
+            next(Component, props, callback) {
+                callback = callback !== null && callback !== void 0 ? callback : defaultCallback;
+                callback(scene, create);
+                function defaultCallback(current, create) {
+                    current === null || current === void 0 ? void 0 : current.finalize();
+                    create();
+                }
+                function create() {
+                    scene = xnew$1((unit) => {
+                        xnew$1.extend(Scene);
+                        xnew$1.extend(Component, props);
+                    });
+                    return scene;
+                }
+            },
         };
+    }
+
+    class XImage {
+        constructor(...args) {
+            if (args[0] instanceof HTMLCanvasElement) {
+                this.canvas = args[0];
+            }
+            else {
+                const canvas = document.createElement('canvas');
+                canvas.width = args[0];
+                canvas.height = args[1];
+                this.canvas = canvas;
+            }
+        }
+        clip(x, y, width, height) {
+            var _a;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
+            return new XImage(canvas);
+        }
+        download(filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = this.canvas.toDataURL('image/png');
+            link.click();
+        }
     }
 
     const context = new window.AudioContext();
@@ -1846,6 +1900,7 @@
         Accordion,
         Popup,
         Flow,
+        Scene,
     };
     const audio = {
         load(path) {
@@ -1874,7 +1929,12 @@
             master.gain.value = value;
         }
     };
-    const xnew = Object.assign(xnew$1, { basics, audio });
+    const image = {
+        from(canvas) {
+            return new XImage(canvas);
+        }
+    };
+    const xnew = Object.assign(xnew$1, { basics, audio, image });
 
     return xnew;
 

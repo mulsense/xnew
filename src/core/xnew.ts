@@ -1,49 +1,23 @@
-import { Unit, UnitPromise, UnitTimer, UnitElement } from './unit';
-import { CraftImage, CraftImageArgs } from './image';
+import { Unit, UnitArgs, UnitPromise, UnitTimer, UnitElement } from './unit';
 
-export interface CreateUnit {
+export const xnew = Object.assign(
     /**
      * creates a new Unit component
-     * @param Component - component function
-     * @param props - properties for component function
-     * @returns a new Unit instance
-     * @example
-     * const unit = xnew(MyComponent, { data: 0 })
-     */
-    (Component?: Function | string, props?: Object): Unit;
-
-    /**
-     * creates a new Unit component
+     * xnew(Component?: Function | string, props?: Object): Unit;
+     * xnew(target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
      * @param target - HTMLElement | SVGElement, or HTML tag for new element
      * @param Component - component function
      * @param props - properties for component function
      * @returns a new Unit instance
      * @example
+     * const unit = xnew(MyComponent, { data: 0 })
      * const unit = xnew(element, MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
-    (target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
-}
-
-export const xnew = Object.assign(
-    function(...args: any[]): Unit {
+    function(...args: UnitArgs): Unit {
         if (Unit.rootUnit === undefined) Unit.reset();
-
-        let target: UnitElement | string | null;
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement) {
-            target = args.shift(); // an existing html element
-        } else if (typeof args[0] === 'string' && args[0].match(/<((\w+)[^>]*?)\/?>/)) {
-            target = args.shift();
-        } else {
-            target = null;
-        }
-
-        const Component: Function | string | undefined = args.shift();
-        const props: Object | undefined = args.shift();
-        
-        const unit = new Unit(Unit.currentUnit, target, Component, props);
-        return unit;
-    } as CreateUnit,
+        return new Unit(Unit.currentUnit, ...args);
+    },
     {
         /**
          * Creates a child HTML/SVG element inside the current component's element.
@@ -89,6 +63,15 @@ export const xnew = Object.assign(
             }
         },
 
+        append(parent: Unit, ...args: UnitArgs): void {
+            try {
+                new Unit(parent, ...args);
+            } catch (error: unknown) {
+                console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
+                throw error;
+            }
+        },
+
         /**
          * Gets the Unit instance associated with the given component in the ancestor context chain
          * @param key - component function used as context key
@@ -118,15 +101,13 @@ export const xnew = Object.assign(
          */
         promise(promise: Function | Promise<any> | Unit): UnitPromise {
             try {
-                const Component = Unit.currentUnit._.currentComponent;
                 let unitPromise: UnitPromise;
                 if (promise instanceof Unit) {
-                    unitPromise = new UnitPromise(Promise.all(promise._.promises.map(p => p.promise)), Component)
-                    .then(() => promise._.results);
+                    unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
                 } else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise, Component)
+                    unitPromise = new UnitPromise(promise)
                 } else {
-                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), Component)
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)))
                 }
                 Unit.currentUnit._.promises.push(unitPromise);
                 return unitPromise;
@@ -146,8 +127,7 @@ export const xnew = Object.assign(
         then(callback: Function): UnitPromise {
             try {
                 const currentUnit = Unit.currentUnit;
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
-                .then(() => callback(currentUnit._.results));
+                return UnitPromise.all(Unit.currentUnit._.promises).then(() => callback(currentUnit._.results));
             } catch (error: unknown) {
                 console.error('xnew.then(callback: Function): ', error);
                 throw error;
@@ -163,26 +143,10 @@ export const xnew = Object.assign(
          */
         catch(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
+                return UnitPromise.all(Unit.currentUnit._.promises)
                 .catch(callback);
             } catch (error: unknown) {
                 console.error('xnew.catch(callback: Function): ', error);
-                throw error;
-            }
-        },
-
-        /**
-         * Commits a value to the current unit's promise results
-         * @param object - object to commit to the promise
-         * @returns void
-         * @example
-         * xnew.commit({ data: 123});
-         */
-        commit(object?: Record<string, any>): void {
-            try {
-                Object.assign(Unit.currentUnit._.results, object);
-            } catch (error: unknown) {
-                console.error('xnew.commit(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -196,10 +160,59 @@ export const xnew = Object.assign(
          */
         finally(callback: Function): UnitPromise {
             try {
-                return new UnitPromise(Promise.all(Unit.currentUnit._.promises.map(p => p.promise)), null)
-                .finally(callback);
+                return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
             } catch (error: unknown) {
                 console.error('xnew.finally(callback: Function): ', error);
+                throw error;
+            }
+        },
+
+        resolvers() {
+            let state: 'pending' | 'resolved' | 'rejected' | null = null;
+            let resolve: Function | null = null;
+            let reject: Function | null = null;
+
+            const unitPromise = new UnitPromise(new Promise((res, rej) => {
+                if (state === 'resolved') {
+                    res(null);
+                } else if (state === 'rejected') {
+                    rej();
+                } else {
+                    resolve = res;
+                    reject = rej;
+                    state = 'pending';
+                }
+            }))
+            Unit.currentUnit._.promises.push(unitPromise);
+
+            return {
+                resolve() {
+                    if (state === 'pending') {
+                        resolve?.(null);
+                    } 
+                    state = 'resolved';
+                },
+                reject() {
+                    if (state === 'pending') {
+                        reject?.();
+                    }
+                    state = 'rejected';
+                }
+            };
+        },
+
+        /**
+         * Outputs a value to the current unit's promise results
+         * @param object - object to output for the promise
+         * @returns void
+         * @example
+         * xnew.output({ data: 123});
+         */
+        output(object?: Record<string, any>): void {
+            try {
+                Object.assign(Unit.currentUnit._.results, object);
+            } catch (error: unknown) {
+                console.error('xnew.output(object?: Record<string, any>): ', error);
                 throw error;
             }
         },
@@ -311,9 +324,6 @@ export const xnew = Object.assign(
             Unit.currentUnit._.protected = true;
         },
 
-        image(...args: CraftImageArgs) {
-            return CraftImage.from(...args as [any, any]);
-        },
     }
 );
 
