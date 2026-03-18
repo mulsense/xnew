@@ -163,20 +163,25 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, tag: string, textContent?: string | number): UnitElement {
-        
-        const match = tag.match(/<((\w+)[^>]*?)\/?>/);
-        if (match !== null) {
-            unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-            const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
-            unit._.currentElement = element;
-            if (textContent !== undefined) {
-                element.textContent = textContent.toString();
-            }
-            unit._.nestElements.push({ element, owned: true });
-            return element;
+    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement {
+        if (target instanceof HTMLElement || target instanceof SVGElement) {
+            unit._.nestElements.push({ element: target, owned: false });
+            unit._.currentElement = target;
+            return target;
         } else {
-            throw new Error(`xnew.nest: invalid tag string [${tag}]`);
+            const match = target.match(/<((\w+)[^>]*?)\/?>/);
+            if (match !== null) {
+                unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
+                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
+                unit._.currentElement = element;
+                if (textContent !== undefined) {
+                    element.textContent = textContent.toString();
+                }
+                unit._.nestElements.push({ element, owned: true });
+                return element;
+            } else {
+                throw new Error(`xnew.nest: invalid tag string [${target}]`);
+            }
         }
     }
 

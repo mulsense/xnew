@@ -48,6 +48,17 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
     parent.add(object);
     unit.on('finalize', () => {
         parent.remove(object);
+
+        object.traverse((obj: any) => {
+            if (obj.isMesh) {
+                obj.geometry.dispose();
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach((mat: any) => mat.dispose());
+                } else {
+                    obj.material.dispose();
+                }
+            }
+        });
     });
 
     return {

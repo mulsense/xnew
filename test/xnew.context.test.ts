@@ -14,7 +14,9 @@ describe('xnew.context', () => {
         }
         xnew((unit: Unit) => {
             xnew.extend(A);
-            expect(xnew.context(A)?.value).toBe('A');
+            xnew((unit: Unit) => {
+                expect(xnew.context(A)?.value).toBe('A');
+            });
         });
     });
 });
