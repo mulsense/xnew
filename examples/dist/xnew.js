@@ -1629,7 +1629,7 @@
                     xnew$1.extend(Scene);
                     xnew$1.extend(Component, props);
                 });
-            }
+            },
         };
     }
 

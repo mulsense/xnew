@@ -21,6 +21,6 @@ export function Flow(unit: Unit) {
                 xnew.extend(Scene);
                 xnew.extend(Component, props);
             });
-        }
+        },
     }
 }

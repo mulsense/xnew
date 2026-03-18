@@ -1,4 +1,12 @@
-- xnew append
+flow.next(callback, Component, props);
+
+next Component and props
+
+xnew.scope(xnew.context(xnew.basics.Scene), () => {
+
+});
+
+xnew.context(xnew.basics.Flow).next(Component);
 
 - xnew context
 - xnew.defines
