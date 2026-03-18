@@ -34,7 +34,7 @@
     function VolumeController(unit) {
       unit.on('pointerdown', ({ event }) => event.stopPropagation());
       const button = xnew(() => {
-        xnew.nest('<div style="position: relative; flex: none; height: 100%; aspect-ratio: 1; cursor: pointer; pointer-events: auto;">');
+        xnew.nest('<div style="position: absolute; height: 100%; aspect-ratio: 1; cursor: pointer; pointer-events: auto;">');
         let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
         return {
             update() {
@@ -46,7 +46,7 @@
       const slider = xnew((unit) => {
         const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
         const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
-        xnew.nest(`<div style="position: relative; flex: 1 1 auto; height: 100%; cursor: pointer; user-select: none; pointer-events: auto;">`);
+        xnew.nest(`<div style="position: absolute; inset: 0;  height: 100%; cursor: pointer; user-select: none; pointer-events: auto;">`);
 
         // fill bar
         const ratio = xnew.audio.volume;
