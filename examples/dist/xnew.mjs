@@ -1615,14 +1615,20 @@ function Flow(unit) {
         get scene() {
             return scene;
         },
-        next(Component, props) {
-            var _a;
-            // scene change
-            (_a = unit.scene) === null || _a === void 0 ? void 0 : _a.finalize();
-            unit.scene = xnew$1((unit) => {
-                xnew$1.extend(Scene);
-                xnew$1.extend(Component, props);
-            });
+        next(Component, props, callback) {
+            callback = callback !== null && callback !== void 0 ? callback : defaultCallback;
+            callback(scene, create);
+            function defaultCallback(current, create) {
+                current === null || current === void 0 ? void 0 : current.finalize();
+                create();
+            }
+            function create() {
+                scene = xnew$1((unit) => {
+                    xnew$1.extend(Scene);
+                    xnew$1.extend(Component, props);
+                });
+                return scene;
+            }
         },
     };
 }

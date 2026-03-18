@@ -36,28 +36,9 @@ function Main(unit) {
 
 function Contents(unit) {
   xnew(GameData);
-
-  xnew(MyFlow).next(TitleScene);
+  xnew(xnew.basics.Flow).next(TitleScene);
 }
 
-function MyFlow(unit) {
-  const defines = xnew.extend(xnew.basics.Flow);
-  return {
-
-    next(Component, props, fadeout = null) {
-      if (fadeout) {
-        const cover = xnew('<div class="absolute inset-0 size-full bg-white">');
-        xnew.transition(({ value }) => cover.element.style.opacity = value, fadeout.duration, fadeout.easing)
-        .timeout(() => {
-          defines.next(Component, props);
-          cover.finalize();
-        })
-      } else {
-        defines.next(Component, props);
-      }
-    }
-  }
-}
 function GameData(unit) {
   let scores = [0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -123,7 +104,7 @@ function GameScene(unit) {
     xnew(GameOverText);
 
     xnew.timeout(() => {
-      xnew.context(xnew.basics.Flow).next(ResultScene, { image }, { duration: 300, easing: 'ease' });
+      xnew.context(xnew.basics.Flow).next(ResultScene, { image });
     }, 2000);
   });
 }

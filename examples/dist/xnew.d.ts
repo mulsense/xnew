@@ -211,7 +211,7 @@ declare function Scene(unit: Unit): void;
 declare function Flow(unit: Unit): {
     get scene(): Unit | null;
     set scene(value: Unit);
-    next(Component: Function, props?: any): void;
+    next(Component: Function, props?: any, callback?: Function): void;
 };
 
 declare class XImage {

@@ -7,6 +7,7 @@ export function Scene(unit: Unit) {
 
 export function Flow(unit: Unit) {
     let scene: Unit | null = null;
+
     return {
         set scene(value: Unit) {
             scene = value;
@@ -14,13 +15,23 @@ export function Flow(unit: Unit) {
         get scene(): Unit | null {
             return scene;
         },
-        next(Component: Function, props?: any) {
-            // scene change
-            unit.scene?.finalize();
-            unit.scene = xnew((unit: Unit) => {
-                xnew.extend(Scene);
-                xnew.extend(Component, props);
-            });
+
+        next(Component: Function, props?: any, callback?: Function) {
+            callback = callback ?? defaultCallback;
+            callback(scene, create);
+
+            function defaultCallback(current: Unit, create: Function) {
+                current?.finalize();
+                create();
+            }
+
+            function create() {
+                scene = xnew((unit: Unit) => {
+                    xnew.extend(Scene);
+                    xnew.extend(Component, props);
+                });
+                return scene;
+            }
         },
     }
 }
