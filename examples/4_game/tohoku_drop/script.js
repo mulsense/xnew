@@ -504,7 +504,7 @@ function ScreenShot(unit) {
   xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
   .timeout(() => {
     html2canvas(unit.element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
-      xnew.image.from(canvas).clip(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
+      xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
     });
 
     unit.finalize();

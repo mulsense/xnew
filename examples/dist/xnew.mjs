@@ -1645,7 +1645,7 @@ class XImage {
             this.canvas = canvas;
         }
     }
-    clip(x, y, width, height) {
+    crop(x, y, width, height) {
         var _a;
         const canvas = document.createElement('canvas');
         canvas.width = width;
