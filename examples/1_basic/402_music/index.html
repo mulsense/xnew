@@ -24,7 +24,7 @@
           unit.reboot();
         });
       });
-      xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[24cqw] h-[4cqw] text-stone-500 border">', VolumeController);
+      xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[12cqw] h-[4cqw] text-stone-500 border flex flex-row-reverse">', VolumeController);
     });
 
     function Button(unit, { name }) {
@@ -32,17 +32,21 @@
       unit.element.textContent = name;
     }
     function VolumeController(unit) {
-      xnew.nest(`<div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none; container-type: size;">`);
       unit.on('pointerdown', ({ event }) => event.stopPropagation());
-
-      // const slider = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}"
-      // style="display: none; width: calc(96cqw - 100cqh); margin: 0 2cqw; cursor: pointer; pointer-events: auto;"
-      // >`);
-
+      const button = xnew(() => {
+        xnew.nest('<div style="position: relative; flex: none; height: 100%; aspect-ratio: 1; cursor: pointer; pointer-events: auto;">');
+        let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
+        return {
+            update() {
+              icon?.finalize();
+              icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
+            }
+        };
+      });
       const slider = xnew((unit) => {
         const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
         const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
-        xnew.nest(`<div style="position: relative; width: calc(100cqw - 100cqh); height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none; pointer-events: auto; ">`);
+        xnew.nest(`<div style="position: relative; flex: 1 1 auto; height: 100%; cursor: pointer; user-select: none; pointer-events: auto;">`);
 
         // fill bar
         const ratio = xnew.audio.volume;
@@ -57,16 +61,7 @@
         });
       });
       unit.on('click.outside', () => slider.element.style.display = 'none');
-      const button = xnew(() => {
-        xnew.nest('<div style="position: relative; width: 100cqh; height: 100cqh; cursor: pointer; pointer-events: auto;">');
-        let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
-        return {
-            update() {
-              icon?.finalize();
-              icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
-            }
-        };
-      });
+      
 
       button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
       slider.on('input', ({ event }) => {
