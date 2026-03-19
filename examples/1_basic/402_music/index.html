@@ -11,10 +11,9 @@
   <div id="main" class="relative w-full h-full"></div>
   <script>
     xnew(document.querySelector('#main'), (unit) => {
-      xnew.nest('<div class="m-2 space-y-4">');
+      xnew.nest('<div class="m-2 flex gap-2">');
       xnew.audio.load('b096.mp3').then((music) => {
         // Play and Stop buttons
-        xnew.nest('<div class="space-x-2">');
         xnew(Button, { name: 'play' }).on('click', () => {
           music.play({ fade: 1000 });
         });
@@ -25,13 +24,64 @@
           unit.reboot();
         });
       });
+      xnew('<div class="absolute right-[2cqw] bottom-[2cqw] w-[12cqw] h-[4cqw] text-stone-500 border flex flex-row-reverse">', VolumeController);
     });
 
     function Button(unit, { name }) {
       xnew.nest('<button class="h-8 px-2 border rounded-lg cursor-pointer bg-blue-200 hover:opacity-50">');
       unit.element.textContent = name;
     }
+    function VolumeController(unit) {
+      unit.on('pointerdown', ({ event }) => event.stopPropagation());
+      const button = xnew(() => {
+        xnew.nest('<div style="position: absolute; height: 100%; aspect-ratio: 1; cursor: pointer; pointer-events: auto;">');
+        let icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
+        return {
+            update() {
+              icon?.finalize();
+              icon = xnew(xnew.audio.volume > 0 ? SpeakerWave : SpeakerXMark);
+            }
+        };
+      });
+      const slider = xnew((unit) => {
+        const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
+        const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
+        xnew.nest(`<div style="position: absolute; inset: 0;  height: 100%; cursor: pointer; user-select: none; pointer-events: auto;">`);
 
+        // fill bar
+        const ratio = xnew.audio.volume;
+        const fill = xnew(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25em; transition: width 0.05s;">`);
+
+        // hidden native input for interaction
+        const input = xnew(`<input type="range" min="0" max="100" value="${xnew.audio.volume * 100}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
+        input.on('input', ({ event }) => {
+            const v = Number((event.target).value);
+            const r = (v) / (100);
+            fill.element.style.width = `${r * 100}%`;
+        });
+      });
+      unit.on('click.outside', () => slider.element.style.display = 'none');
+      
+
+      button.on('click', () => slider.element.style.display = slider.element.style.display !== 'none' ? 'none' : 'flex');
+      slider.on('input', ({ event }) => {
+          xnew.audio.volume = parseFloat(event.target.value) / 100;
+          button.update();
+      });
+    }
+
+    function SVGTemplate(unit){
+      xnew.nest(`<svg viewBox="0 0 24 24" fill="none" style="stroke-width: 1.5; stroke: currentColor; stroke-linejoin: 'round'; stroke-linecap: 'round';">`);
+    }
+
+    function SpeakerWave(unit){
+      xnew.extend(SVGTemplate);
+      xnew('<path d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z" />');
+    }
+    function SpeakerXMark(unit){
+      xnew.extend(SVGTemplate);
+      xnew('<path d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z" />');
+    }
   </script>
 </body>
 </html>

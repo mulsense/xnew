@@ -218,7 +218,7 @@ declare class XImage {
     canvas: HTMLCanvasElement;
     constructor(canvas: HTMLCanvasElement);
     constructor(width: number, height: number);
-    clip(x: number, y: number, width: number, height: number): XImage;
+    crop(x: number, y: number, width: number, height: number): XImage;
     download(filename: string): void;
 }
 

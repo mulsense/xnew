@@ -17,7 +17,7 @@ export class XImage {
         }
     }
 
-    public clip(x: number, y: number, width: number, height: number) {
+    public crop(x: number, y: number, width: number, height: number) {
         const canvas = document.createElement('canvas') as HTMLCanvasElement;
         canvas.width = width;
         canvas.height = height;
