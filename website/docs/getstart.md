@@ -239,6 +239,6 @@ Here's where xnew really shines. Click the box below to start and stop a CSS rot
 You now know everything to start building with xnew. Here's where to go next:
 
 1. **[Manual — xnew](./manual/xnew)** — full API reference: events, lifecycle, custom methods, and more
-2. **[Manual — xnew.timeout / interval / transition](./manual/xnew-timeout)** — timers with automatic cleanup and chainable transitions
+2. **[Manual — xnew.timeout / interval / transition](./manual/xnew.timeout)** — timers with automatic cleanup and chainable transitions
 3. **[Addons — xpixi / xthree](./addons/xpixi)** — drop-in PixiJS and Three.js integration
 4. **[AI Prompt](./ai-prompt)** — paste this into any AI assistant to get xnew-aware coding help instantly
