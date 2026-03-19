@@ -498,5 +498,5 @@ Avoid these reserved names when creating custom properties:
 - `_` (internal use)
 
 
-Next, check out [`xnew.nest`](./xnew-nest) to see how to build nested element structures cleanly.
+Next, check out [`xnew.nest`](./xnew.nest) to see how to build nested element structures cleanly.
 
