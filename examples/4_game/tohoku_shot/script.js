@@ -27,7 +27,7 @@ function Contents(unit) {
   const assets = xnew(BakedCharacters);
 
   xnew.promise(assets).then(() => {
-    xnew(xnew.basics.Flow).next(GameScene);
+    xnew(GameScene);
   });
 }
 
@@ -138,6 +138,8 @@ function Model(_unit, { url }) {
 }
 
 function TitleScene(unit) {
+  xnew.extend(xnew.basics.Scene);
+
   const tl = xnew.context(BakedCharacters).texturesList;
 
   xnew(() => {
@@ -158,10 +160,12 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  unit.on('pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
+  unit.on('pointerdown', () => unit.moveTo(GameScene));
 }
 
 function GameScene(unit) {
+  xnew.extend(xnew.basics.Scene);
+
   xnew(Background);
   xnew(Controller);
   xnew(ScoreManager);
@@ -182,7 +186,7 @@ function GameScene(unit) {
     spawn.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      unit.on('keydown pointerdown', () => xnew.context(xnew.basics.Flow).next(TitleScene));
+      unit.on('keydown pointerdown', () => unit.moveTo(TitleScene));
     }, 1000);
   });
 }

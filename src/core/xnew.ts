@@ -72,6 +72,15 @@ export const xnew = Object.assign(
             }
         },
 
+        next(unit: Unit, ...args: UnitArgs): void {
+            try {
+                new Unit(unit._.parent, ...args);
+            } catch (error: unknown) {
+                console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
+                throw error;
+            }
+        },
+
         /**
          * Gets the Unit instance associated with the given component in the ancestor context chain
          * @param key - component function used as context key

@@ -207,11 +207,8 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
     separator(): void;
 };
 
-declare function Scene(unit: Unit): void;
-declare function Flow(unit: Unit): {
-    get scene(): Unit | null;
-    set scene(value: Unit);
-    next(Component: Function, props?: any, callback?: Function): void;
+declare function Scene(unit: Unit): {
+    moveTo(Component: Function, props?: any): void;
 };
 
 declare class XImage {
@@ -298,7 +295,6 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
         Panel: typeof Panel;
         Accordion: typeof Accordion;
         Popup: typeof Popup;
-        Flow: typeof Flow;
         Scene: typeof Scene;
     };
     audio: {
