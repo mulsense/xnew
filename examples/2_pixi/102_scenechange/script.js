@@ -17,34 +17,25 @@ function Main(unit) {
 }
 
 function Contents(unit) {
-  xnew(MyFlow).next(Scene1);
-}
-
-function MyFlow(unit) {
-  const defines = xnew.extend(xnew.basics.Flow);
-  const screen = xnew.context(xnew.basics.Screen);
-
-  return {
-    next(Component, props) {
-      xnew.transition(({ value }) => screen.element.style.opacity = 1 - value, 500) // fadeout
-      .timeout(() => defines.next(Component, props)) // change scene
-      .transition(({ value }) => screen.element.style.opacity = value, 500); // fadein
-    }
-  }
+  xnew(Scene1);
 }
 
 function Scene1(unit) {
+  xnew.extend(xnew.basics.Scene);
+  
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  unit.on('pointerdown', ({ event }) => xnew.context(xnew.basics.Flow).next(Scene2));
+  unit.on('pointerdown', ({ event }) => unit.moveTo(Scene2));
 }
 
 function Scene2(unit) {
+  xnew.extend(xnew.basics.Scene);
+  
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  unit.on('pointerdown', ({ event }) => xnew.context(xnew.basics.Flow).next(Scene1));
+  unit.on('pointerdown', ({ event }) => unit.moveTo(Scene1));
 }
 
 function Text(unit, { text }) {

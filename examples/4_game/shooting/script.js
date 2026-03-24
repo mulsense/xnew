@@ -20,7 +20,7 @@ function Main(unit) {
 function Contents(unit) {
   xnew(Background);
   
-  xnew(xnew.basics.Flow).next(TitleScene);
+  xnew(TitleScene);
 }
 
 function Background(unit) {
@@ -47,8 +47,10 @@ function Dot(unit) {
 }
 
 function TitleScene(unit) {
+  xnew.extend(xnew.basics.Scene);
+
   xnew(TitleText);
-  unit.on('keydown pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
+  unit.on('keydown pointerdown', () => unit.moveTo(GameScene));
 }
 
 function TitleText(unit) {
@@ -58,6 +60,8 @@ function TitleText(unit) {
 }
 
 function GameScene(scene) {
+  xnew.extend(xnew.basics.Scene);
+
   xnew(Controller);
   xnew(ScoreText);
   xnew(Player);
@@ -67,7 +71,7 @@ function GameScene(scene) {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      scene.on('keydown pointerdown', () => xnew.context(xnew.basics.Flow).next(TitleScene));
+      scene.on('keydown pointerdown', () => scene.moveTo(TitleScene));
     }, 1000);
   });
 }

@@ -36,7 +36,7 @@ function Main(unit) {
 
 function Contents(unit) {
   xnew(GameData);
-  xnew(xnew.basics.Flow).next(TitleScene);
+  xnew(TitleScene);
 }
 
 function GameData(unit) {
@@ -53,6 +53,8 @@ function GameData(unit) {
 }
 
 function TitleScene(unit) {
+  xnew.extend(xnew.basics.Scene);
+
   xnew(Background);
   xnew(ShadowPlane);
   xnew(DirectionalLight, { x: 2, y: 12, z: 20 });
@@ -64,7 +66,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(ThreeTexture); // render three.js canvas as pixi texture
-  unit.on('pointerdown', () => xnew.context(xnew.basics.Flow).next(GameScene));
+  unit.on('pointerdown', () => unit.moveTo(GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -72,6 +74,8 @@ function TitleScene(unit) {
 }
 
 function GameScene(unit) {
+  xnew.extend(xnew.basics.Scene);
+  
   xmatter.initialize();
   unit.on('update', () => {
     Matter.Engine.update(xmatter.engine);
@@ -104,12 +108,14 @@ function GameScene(unit) {
     xnew(GameOverText);
 
     xnew.timeout(() => {
-      xnew.context(xnew.basics.Flow).next(ResultScene, { image });
+      unit.moveTo(ResultScene, { image });
     }, 2000);
   });
 }
 
 function ResultScene(unit, { image }) {
+  xnew.extend(xnew.basics.Scene);
+  
   xnew.audio.load('../../assets/st005.mp3').then((music) => {
     music.play({ fade: 1, loop: true });
   });
@@ -243,7 +249,7 @@ function ResultFooter(unit) {
       xnew(Frame);
       xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', ArrowUturnLeft);
     });
-    button.on('click', () => xnew.context(xnew.basics.Flow).next(TitleScene));
+    button.on('click', () => xnew.context(xnew.basics.Scene).moveTo(TitleScene));
   });
 
   function Frame(unit, { frame = 'circle', Icon } = {}) {

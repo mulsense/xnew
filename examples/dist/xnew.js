@@ -1005,6 +1005,15 @@
                 throw error;
             }
         },
+        next(unit, ...args) {
+            try {
+                new Unit(unit._.parent, ...args);
+            }
+            catch (error) {
+                console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
+                throw error;
+            }
+        },
         /**
          * Gets the Unit instance associated with the given component in the ancestor context chain
          * @param key - component function used as context key
@@ -1611,30 +1620,10 @@
     }
 
     function Scene(unit) {
-    }
-    function Flow(unit) {
-        let scene = null;
         return {
-            set scene(value) {
-                scene = value;
-            },
-            get scene() {
-                return scene;
-            },
-            next(Component, props, callback) {
-                callback = callback !== null && callback !== void 0 ? callback : defaultCallback;
-                callback(scene, create);
-                function defaultCallback(current, create) {
-                    current === null || current === void 0 ? void 0 : current.finalize();
-                    create();
-                }
-                function create() {
-                    scene = xnew$1((unit) => {
-                        xnew$1.extend(Scene);
-                        xnew$1.extend(Component, props);
-                    });
-                    return scene;
-                }
+            moveTo(Component, props) {
+                xnew$1.next(unit, Component, props);
+                unit.finalize();
             },
         };
     }
@@ -1899,7 +1888,6 @@
         Panel,
         Accordion,
         Popup,
-        Flow,
         Scene,
     };
     const audio = {
