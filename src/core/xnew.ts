@@ -54,7 +54,10 @@ export const xnew = Object.assign(
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
-                } 
+                }
+                if (Unit.currentUnit._.Components.includes(Component) === true) {
+                    console.warn('Component is already extended in this unit:', Component);
+                }
                 const defines = Unit.extend(Unit.currentUnit, Component, props);
                 return defines;
             } catch (error: unknown) {

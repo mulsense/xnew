@@ -60,7 +60,6 @@ declare class Unit {
     [key: string]: any;
     _: {
         parent: Unit | null;
-        ancestors: Unit[];
         children: Unit[];
         state: string;
         tostart: boolean;

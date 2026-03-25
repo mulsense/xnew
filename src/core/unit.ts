@@ -25,7 +25,6 @@ export class Unit {
 
     public _: {
         parent: Unit | null;
-        ancestors: Unit[];
         children: Unit[];
 
         state: string;
@@ -97,7 +96,6 @@ export class Unit {
             currentContext: baseContext,
             currentComponent: null,
             afterSnapshot: null,
-            ancestors: parent ? [parent, ...parent._.ancestors] : [],
             children: [],
             nestElements: [],
             promises: [],
@@ -207,46 +205,44 @@ export class Unit {
     static currentComponent: Function = () => {};
    
     static extend(unit: Unit, Component: Function, props?: Object): { [key: string]: any } {
-        if (unit._.Components.includes(Component) === true) {
-            throw new Error(`The Component is already extended.`);
-        } else {
-            const backupComponent = unit._.currentComponent;
-            unit._.currentComponent = Component;
+        const backupComponent = unit._.currentComponent;
+        unit._.currentComponent = Component;
 
-            if (unit._.parent !== null) {
-                Unit.addContext(unit._.parent, unit, Component, unit);
-            }
-            Unit.addContext(unit, unit, Component, unit);
-
-            const defines = Component(unit, props ?? {}) ?? {};
-
-            unit._.currentComponent = backupComponent;
-
-            Unit.component2units.add(Component, unit);
-            unit._.Components.push(Component);
-
-            Object.keys(defines).forEach((key) => {
-                if (unit[key] !== undefined && unit._.defines[key] === undefined) {
-                    throw new Error(`The property "${key}" already exists.`);
-                }
-                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-                const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
-                const snapshot = Unit.snapshot(unit);
-
-                if (descriptor?.get || descriptor?.set) {
-                    if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
-                    if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
-                } else if (typeof descriptor?.value === 'function') {
-                    wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
-                } else {
-                    throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
-                }
-                Object.defineProperty(unit._.defines, key, wrapper);
-                Object.defineProperty(unit, key, wrapper);
-            });
-
-            return Object.assign({}, unit._.defines);;
+        if (unit._.parent !== null) {
+            Unit.addContext(unit._.parent, unit, Component, unit);
         }
+        Unit.addContext(unit, unit, Component, unit);
+
+        const defines = Component(unit, props ?? {}) ?? {};
+
+        unit._.currentComponent = backupComponent;
+
+        Unit.component2units.add(Component, unit);
+        unit._.Components.push(Component);
+
+        Object.keys(defines).forEach((key) => {
+            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+                throw new Error(`The property "${key}" already exists.`);
+            }
+            const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+            const wrapper: PropertyDescriptor = { configurable: true, enumerable: true };
+            const snapshot = Unit.snapshot(unit);
+
+            if (descriptor?.get || descriptor?.set) {
+                if (descriptor?.get) wrapper.get = (...args: any[]) => Unit.scope(snapshot, descriptor.get as Function, ...args);
+                if (descriptor?.set) wrapper.set = (...args: any[]) => Unit.scope(snapshot, descriptor.set as Function, ...args);
+            } else if (typeof descriptor?.value === 'function') {
+                wrapper.value = (...args: any[]) => Unit.scope(snapshot, descriptor.value, ...args);
+            } else {
+                throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
+            }
+            Object.defineProperty(unit._.defines, key, wrapper);
+            Object.defineProperty(unit, key, wrapper);
+        });
+
+        let clone = {};
+        Object.defineProperties(clone, Object.getOwnPropertyDescriptors(unit._.defines));
+        return clone;
     }
 
     static start(unit: Unit): void {
@@ -397,9 +393,14 @@ export class Unit {
     static emit(type: string, props: object = {}): void {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
+            const ancestors: Unit[] = [];
+            for (let u = current._.parent; u !== null; u = u._.parent) ancestors.push(u);
             Unit.type2units.get(type)?.forEach((unit) => {
-                const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
-                if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
+                let find: Unit | undefined = undefined;
+                for (let u: Unit | null = unit; u !== null && find === undefined; u = u._.parent) {
+                    if (u._.protected === true) find = u;
+                }
+                if (find === undefined || ancestors.includes(find) === true || current === find) {
                     unit._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });

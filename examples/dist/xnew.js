@@ -572,7 +572,6 @@
                 currentContext: baseContext,
                 currentComponent: null,
                 afterSnapshot: null,
-                ancestors: parent ? [parent, ...parent._.ancestors] : [],
                 children: [],
                 nestElements: [],
                 promises: [],
@@ -668,44 +667,41 @@
         }
         static extend(unit, Component, props) {
             var _a;
-            if (unit._.Components.includes(Component) === true) {
-                throw new Error(`The Component is already extended.`);
+            const backupComponent = unit._.currentComponent;
+            unit._.currentComponent = Component;
+            if (unit._.parent !== null) {
+                Unit.addContext(unit._.parent, unit, Component, unit);
             }
-            else {
-                const backupComponent = unit._.currentComponent;
-                unit._.currentComponent = Component;
-                if (unit._.parent !== null) {
-                    Unit.addContext(unit._.parent, unit, Component, unit);
+            Unit.addContext(unit, unit, Component, unit);
+            const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
+            unit._.currentComponent = backupComponent;
+            Unit.component2units.add(Component, unit);
+            unit._.Components.push(Component);
+            Object.keys(defines).forEach((key) => {
+                if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+                    throw new Error(`The property "${key}" already exists.`);
                 }
-                Unit.addContext(unit, unit, Component, unit);
-                const defines = (_a = Component(unit, props !== null && props !== void 0 ? props : {})) !== null && _a !== void 0 ? _a : {};
-                unit._.currentComponent = backupComponent;
-                Unit.component2units.add(Component, unit);
-                unit._.Components.push(Component);
-                Object.keys(defines).forEach((key) => {
-                    if (unit[key] !== undefined && unit._.defines[key] === undefined) {
-                        throw new Error(`The property "${key}" already exists.`);
-                    }
-                    const descriptor = Object.getOwnPropertyDescriptor(defines, key);
-                    const wrapper = { configurable: true, enumerable: true };
-                    const snapshot = Unit.snapshot(unit);
-                    if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) || (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)) {
-                        if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
-                            wrapper.get = (...args) => Unit.scope(snapshot, descriptor.get, ...args);
-                        if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
-                            wrapper.set = (...args) => Unit.scope(snapshot, descriptor.set, ...args);
-                    }
-                    else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
-                        wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
-                    }
-                    else {
-                        throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
-                    }
-                    Object.defineProperty(unit._.defines, key, wrapper);
-                    Object.defineProperty(unit, key, wrapper);
-                });
-                return Object.assign({}, unit._.defines);
-            }
+                const descriptor = Object.getOwnPropertyDescriptor(defines, key);
+                const wrapper = { configurable: true, enumerable: true };
+                const snapshot = Unit.snapshot(unit);
+                if ((descriptor === null || descriptor === void 0 ? void 0 : descriptor.get) || (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)) {
+                    if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.get)
+                        wrapper.get = (...args) => Unit.scope(snapshot, descriptor.get, ...args);
+                    if (descriptor === null || descriptor === void 0 ? void 0 : descriptor.set)
+                        wrapper.set = (...args) => Unit.scope(snapshot, descriptor.set, ...args);
+                }
+                else if (typeof (descriptor === null || descriptor === void 0 ? void 0 : descriptor.value) === 'function') {
+                    wrapper.value = (...args) => Unit.scope(snapshot, descriptor.value, ...args);
+                }
+                else {
+                    throw new Error(`Only function properties can be defined as Component defines. [${key}]`);
+                }
+                Object.defineProperty(unit._.defines, key, wrapper);
+                Object.defineProperty(unit, key, wrapper);
+            });
+            let clone = {};
+            Object.defineProperties(clone, Object.getOwnPropertyDescriptors(unit._.defines));
+            return clone;
         }
         static start(unit) {
             if (unit._.tostart === false)
@@ -836,10 +832,17 @@
             var _a, _b;
             const current = Unit.currentUnit;
             if (type[0] === '+') {
+                const ancestors = [];
+                for (let u = current._.parent; u !== null; u = u._.parent)
+                    ancestors.push(u);
                 (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                     var _a;
-                    const find = [unit, ...unit._.ancestors].find(u => u._.protected === true);
-                    if (find === undefined || current._.ancestors.includes(find) === true || current === find) {
+                    let find = undefined;
+                    for (let u = unit; u !== null && find === undefined; u = u._.parent) {
+                        if (u._.protected === true)
+                            find = u;
+                    }
+                    if (find === undefined || ancestors.includes(find) === true || current === find) {
                         (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
                     }
                 });
@@ -989,6 +992,9 @@
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.Components.includes(Component) === true) {
+                    console.warn('Component is already extended in this unit:', Component);
                 }
                 const defines = Unit.extend(Unit.currentUnit, Component, props);
                 return defines;
