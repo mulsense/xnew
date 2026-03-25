@@ -81,8 +81,8 @@ export const xnew = Object.assign(
                 const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
                 Unit.scope(snapshot, () => {
                     new Unit(parent, ...args);
-                }
-            } catch (error: unknown) {
+                });
+            } catch (error: unknown) {      
                 console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
                 throw error;
             }
