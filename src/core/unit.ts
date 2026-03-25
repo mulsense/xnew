@@ -331,8 +331,8 @@ export class Unit {
 
     static getContext(unit: Unit, key: any): any {
         for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
-            if (context.value === Unit.currentUnit) continue;
-            if (context.key === key) return context.value;
+            if (context.value === Unit.currentUnit && key === unit._.currentComponent) continue;
+            if (key === context.key) return context.value;
         }
     }
 

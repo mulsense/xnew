@@ -25,6 +25,7 @@
       const panel = xnew(xnew.basics.Panel);
       
       panel.group({ name: 'My Panel', open: true }, (group) => {
+
         group.group({ name: 'group 1', open: true }, (subgroup) => {
           subgroup.button('button1').on('click', () => xnew.emit('+console', { text: 'button1 clicked' }));
           subgroup.button('button2').on('click', () => xnew.emit('+console', { text: 'button2 clicked' }));

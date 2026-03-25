@@ -775,9 +775,9 @@ class Unit {
     }
     static getContext(unit, key) {
         for (let context = unit._.currentContext; context.previous !== null; context = context.previous) {
-            if (context.value === Unit.currentUnit)
+            if (context.value === Unit.currentUnit && key === unit._.currentComponent)
                 continue;
-            if (context.key === key)
+            if (key === context.key)
                 return context.value;
         }
     }

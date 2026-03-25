@@ -271,6 +271,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
         [key: string]: any;
     };
     append(parent: Unit, ...args: UnitArgs): void;
+    next(unit: Unit, ...args: UnitArgs): void;
     context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;

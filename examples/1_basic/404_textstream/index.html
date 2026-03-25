@@ -93,8 +93,10 @@
       let interval = null;
 
       let index = 0;
+   
       interval = xnew.interval(() => {
-        current = text.substring(0, Math.min(index++, text.length));
+        index++;
+        current = text.substring(0, index);
         if (index >= text.length) {
           completed = true;
           interval.clear();
