@@ -75,6 +75,7 @@ declare class Unit {
         currentElement: UnitElement;
         currentContext: Context;
         currentComponent: Function | null;
+        afterSnapshot: Snapshot | null;
         nestElements: {
             element: UnitElement;
             owned: boolean;
@@ -209,6 +210,7 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
 
 declare function Scene(unit: Unit): {
     moveTo(Component: Function, props?: any): void;
+    append(Component: Function, props?: any): void;
 };
 
 declare class XImage {

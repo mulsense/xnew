@@ -40,6 +40,8 @@ export class Unit {
         currentContext: Context;
         currentComponent: Function | null;
 
+        afterSnapshot: Snapshot | null;
+
         nestElements: { element: UnitElement, owned: boolean }[];
         Components: Function[];
         listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
@@ -94,6 +96,7 @@ export class Unit {
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
+            afterSnapshot: null,
             ancestors: parent ? [parent, ...parent._.ancestors] : [],
             children: [],
             nestElements: [],
@@ -117,7 +120,7 @@ export class Unit {
         if (this._.state === 'invoked') {
             this._.state = 'initialized';
         }
-
+        this._.afterSnapshot = Unit.snapshot(this);
         Unit.currentUnit = backup;
     }
 

@@ -128,7 +128,7 @@ function Player(unit) {
   // actions
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.append(xnew.context(xnew.basics.Scene), Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.context(xnew.basics.Scene).append(Shot, { x: object.x, y: object.y }));
   unit.on('+shot', () => unit.sound());
 
   unit.on('update', () => {
@@ -208,9 +208,9 @@ function Enemy(unit) {
     clash(score) {
       unit.sound(score);
       for (let i = 0; i < 4; i++) {
-        xnew.append(xnew.context(xnew.basics.Scene), Crash, { x: object.x, y: object.y, score });
+        xnew.context(xnew.basics.Scene).append(Crash, { x: object.x, y: object.y, score });
       }
-      xnew.append(xnew.context(xnew.basics.Scene), CrashText, { x: object.x, y: object.y, score });
+      xnew.context(xnew.basics.Scene).append(CrashText, { x: object.x, y: object.y, score });
       xnew.emit('+scoreup', { score });
       unit.finalize();
     },

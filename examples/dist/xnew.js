@@ -571,6 +571,7 @@
                 currentElement: baseElement,
                 currentContext: baseContext,
                 currentComponent: null,
+                afterSnapshot: null,
                 ancestors: parent ? [parent, ...parent._.ancestors] : [],
                 children: [],
                 nestElements: [],
@@ -591,6 +592,7 @@
             if (this._.state === 'invoked') {
                 this._.state = 'initialized';
             }
+            this._.afterSnapshot = Unit.snapshot(this);
             Unit.currentUnit = backup;
         }
         get element() {
@@ -997,8 +999,12 @@
             }
         },
         append(parent, ...args) {
+            var _a;
             try {
-                new Unit(parent, ...args);
+                const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
+                Unit.scope(snapshot, () => {
+                    new Unit(parent, ...args);
+                });
             }
             catch (error) {
                 console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
@@ -1006,8 +1012,13 @@
             }
         },
         next(unit, ...args) {
+            var _a;
             try {
-                new Unit(unit._.parent, ...args);
+                const parent = unit._.parent;
+                const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
+                Unit.scope(snapshot, () => {
+                    new Unit(parent, ...args);
+                });
             }
             catch (error) {
                 console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
@@ -1625,6 +1636,9 @@
                 xnew$1.next(unit, Component, props);
                 unit.finalize();
             },
+            append(Component, props) {
+                xnew$1.append(unit, Component, props);
+            }
         };
     }
 

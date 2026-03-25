@@ -65,7 +65,10 @@ export const xnew = Object.assign(
 
         append(parent: Unit, ...args: UnitArgs): void {
             try {
-                new Unit(parent, ...args);
+                const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
+                Unit.scope(snapshot, () => {
+                    new Unit(parent, ...args);
+                });
             } catch (error: unknown) {
                 console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
                 throw error;
@@ -74,7 +77,11 @@ export const xnew = Object.assign(
 
         next(unit: Unit, ...args: UnitArgs): void {
             try {
-                new Unit(unit._.parent, ...args);
+                const parent = unit._.parent as Unit;
+                const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
+                Unit.scope(snapshot, () => {
+                    new Unit(parent, ...args);
+                }
             } catch (error: unknown) {
                 console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
                 throw error;

@@ -19,7 +19,5 @@ export function Screen(unit: Unit, { width = 800, height = 600, fit = 'contain' 
 
     return {
         get canvas() { return canvas.element; },
-
-        
     }
 }
