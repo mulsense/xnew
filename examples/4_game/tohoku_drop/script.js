@@ -97,7 +97,6 @@ function GameScene(unit) {
     xnew(Controller);
     xnew.audio.load('../../assets/y015.mp3').then((music) => music.play({ fade: 1000, loop: true }));
   })
-  unit.on('+sceneappend', ({ Component, props }) => xnew(Component, props));
 
   // xnew.timeout(() => xnew.emit('+gameover'), 1100);
 
@@ -387,7 +386,7 @@ function Cursor(unit) {
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      xnew.emit('+sceneappend', { Component: ModelBall, props: { x: object.x, y: object.y + offset, id: model.id } });
+      xnew.context(xnew.basics.Scene).append(ModelBall, { x: object.x, y: object.y + offset, id: model.id });
       model.finalize();
       model = null;
       xnew.emit('+reload');
@@ -416,7 +415,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const model = xnew(Model, { id, scale });
   xnew.emit('+scoreup', { score: id });
 
-  xnew.emit('+sceneappend', { Component: StarParticles, props: { x, y } });
+  xnew.context(xnew.basics.Scene).append(StarParticles, { x, y });
   
   ball.on('update', () => {
     const position = convert3d(ball.pixiObject.x, ball.pixiObject.y);
@@ -434,7 +433,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
-        xnew.emit('+sceneappend', { Component: ModelBall, props: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 } });
+        xnew.context(xnew.basics.Scene).append(ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         ball.finalize();
         target.finalize();
         break;
