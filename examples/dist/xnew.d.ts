@@ -155,30 +155,40 @@ declare function OpenAndClose(unit: Unit, { open, transition }: {
 declare function Accordion(unit: Unit): void;
 declare function Popup(unit: Unit): void;
 
-type ScreenFit = 'contain' | 'cover';
+interface SVGInterface {
+    viewBox?: string;
+    className?: string;
+    style?: string;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeLinejoin?: string;
+    strokeLinecap?: string;
+    fill?: string;
+    fillOpacity?: number;
+}
+declare function SVG(unit: Unit, { viewBox, className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity }?: SVGInterface): void;
+
 declare function Screen(unit: Unit, { width, height, fit }?: {
     width?: number;
     height?: number;
-    fit?: ScreenFit;
+    fit?: 'contain' | 'cover';
 }): {
     readonly canvas: UnitElement;
 };
 
-declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
+declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }?: {
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
-    strokeLinejoin?: string;
-    diagonal?: boolean;
     fill?: string;
     fillOpacity?: number;
 }): void;
-declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, strokeLinejoin, fill, fillOpacity }?: {
+declare function DPad(unit: Unit, { diagonal, stroke, strokeOpacity, strokeWidth, fill, fillOpacity }?: {
     diagonal?: boolean;
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
-    strokeLinejoin?: string;
     fill?: string;
     fillOpacity?: number;
 }): void;
@@ -211,6 +221,10 @@ declare function Scene(unit: Unit): {
     moveTo(Component: Function, props?: any): void;
     append(Component: Function, props?: any): void;
 };
+
+declare function VolumeController(unit: Unit, { anchor }?: {
+    anchor?: string | undefined;
+}): void;
 
 declare class XImage {
     canvas: HTMLCanvasElement;
@@ -290,6 +304,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
     protect(): void;
 } & {
     basics: {
+        SVG: typeof SVG;
         Screen: typeof Screen;
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
@@ -298,6 +313,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
         Accordion: typeof Accordion;
         Popup: typeof Popup;
         Scene: typeof Scene;
+        VolumeController: typeof VolumeController;
     };
     audio: {
         load(path: string): UnitPromise;

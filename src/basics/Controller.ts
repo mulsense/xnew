@@ -1,31 +1,23 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
+import { SVG } from '../basics/SVG';
+import { Aspect } from '../basics/Aspect';
 
 //----------------------------------------------------------------------------------------------------
 // controller
 //----------------------------------------------------------------------------------------------------
 
-function SVGTemplate(self: Unit,
-    { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }:
-    { stroke?: string, strokeOpacity: number, strokeWidth: number, strokeLinejoin: string, fill: string | null, fillOpacity: number },
-) {
-    xnew.nest(`<svg
-        viewBox="0 0 64 64"
-        style="position: absolute; width: 100%; height: 100%; user-select: none; -webkit-user-select: none;
-        stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
-        ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
-    ">`);
-}
+const svgTemplate = { viewBox: '0 0 64 64', style: "position: absolute; width: 100%; height: 100%;" };
 
 export function AnalogStick(unit: Unit,
-    { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 }:
-    { stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, diagonal?: boolean,fill?: string, fillOpacity?: number } = {}
+    { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 }:
+    { stroke?: string, strokeOpacity?: number, strokeWidth?: number, fill?: string, fillOpacity?: number } = {}
 ) {
-    xnew.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-    xnew.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto; overflow: hidden;">`);
+    xnew.extend(Aspect, { aspect: 1.0, fit: 'contain' });
+    xnew.nest(`<div style="width: 100%; height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto;">`);
 
     xnew((unit: Unit) => {
-        xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew.extend(SVG, { ...svgTemplate, stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
         xnew('<polygon points="32  7 27 13 37 13">');
         xnew('<polygon points="32 57 27 51 37 51">');
         xnew('<polygon points=" 7 32 13 27 13 37">');
@@ -33,7 +25,7 @@ export function AnalogStick(unit: Unit,
     });
 
     const target = xnew((unit: Unit) => {
-        xnew.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew.extend(SVG, { ...svgTemplate, stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
         xnew('<circle cx="32" cy="32" r="14">');
     });
 
@@ -63,11 +55,11 @@ export function AnalogStick(unit: Unit,
 }
 
 export function DPad(unit: Unit,
-    { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 }:
-    { diagonal?: boolean, stroke?: string, strokeOpacity?: number, strokeWidth?: number, strokeLinejoin?: string, fill?: string, fillOpacity?: number } = {}
+    { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 }:
+    { diagonal?: boolean, stroke?: string, strokeOpacity?: number, strokeWidth?: number, fill?: string, fillOpacity?: number } = {}
 ) {
-    xnew.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-    xnew.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto; overflow: hidden;">`);
+    xnew.extend(Aspect, { aspect: 1.0, fit: 'contain' });
+    xnew.nest(`<div style="width: 100%; height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto;">`);
 
     const polygons = [
         '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
@@ -78,13 +70,13 @@ export function DPad(unit: Unit,
 
     const targets = polygons.map((polygon) => {
         return xnew((unit: Unit) => {
-            xnew.extend(SVGTemplate, { stroke: 'none', fill, fillOpacity });
+            xnew.extend(SVG, { ...svgTemplate, fill, fillOpacity });
             xnew(polygon);
         });
     });
 
     xnew((unit: Unit) => {
-        xnew.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew.extend(SVG, { ...svgTemplate, stroke, strokeOpacity, strokeWidth });
         xnew('<polyline points="23 23 23  4 24  3 40  3 41  4 41 23">');
         xnew('<polyline points="23 41 23 60 24 61 40 61 41 60 41 41">');
         xnew('<polyline points="23 23  4 23  3 24  3 40  4 41 23 41">');
@@ -130,4 +122,3 @@ export function DPad(unit: Unit,
         xnew.emit('-up', { vector });
     });
 }
-

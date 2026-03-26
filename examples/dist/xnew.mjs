@@ -1331,10 +1331,24 @@ function Popup(unit) {
     });
 }
 
-function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
-    const aspect = width / height;
-    xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size; overflow: hidden;">');
-    xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size; overflow: hidden;">`);
+function SVG(unit, { viewBox = '0 0 64 64', className = '', style = '', stroke = 'none', strokeOpacity = 1, strokeWidth = 1, strokeLinejoin = 'round', strokeLinecap = 'round', fill = 'none', fillOpacity = 1 } = {}) {
+    xnew$1.nest(`<svg
+        viewBox="${viewBox}"
+        class="${className}"
+        style="${style}"
+        stroke="${stroke}"
+        stroke-opacity="${strokeOpacity}"
+        stroke-width="${strokeWidth}"
+        stroke-linejoin="${strokeLinejoin}"
+        stroke-linecap="${strokeLinecap}"
+        fill="${fill}"
+        fill-opacity="${fillOpacity}"
+    ">`);
+}
+
+function Aspect(unit, { aspect = 1.0, fit = 'contain' } = {}) {
+    xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">');
+    xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size;">`);
     if (fit === 'contain') {
         unit.element.style.width = `min(100cqw, calc(100cqh * ${aspect}))`;
     }
@@ -1342,6 +1356,10 @@ function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
         unit.element.style.flexShrink = '0';
         unit.element.style.width = `max(100cqw, calc(100cqh * ${aspect}))`;
     }
+}
+
+function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
+    xnew$1.extend(Aspect, { aspect: width / height, fit });
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom;">`);
     return {
         get canvas() { return canvas.element; },
@@ -1351,26 +1369,19 @@ function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
 //----------------------------------------------------------------------------------------------------
 // controller
 //----------------------------------------------------------------------------------------------------
-function SVGTemplate(self, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = null, fillOpacity = 0.8 }) {
-    xnew$1.nest(`<svg
-        viewBox="0 0 64 64"
-        style="position: absolute; width: 100%; height: 100%; user-select: none; -webkit-user-select: none;
-        stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth}; stroke-linejoin: ${strokeLinejoin};
-        ${fill ? `fill: ${fill}; fill-opacity: ${fillOpacity};` : ''}
-    ">`);
-}
-function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
-    xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-    xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto; overflow: hidden;">`);
+const svgTemplate = { viewBox: '0 0 64 64', style: "position: absolute; width: 100%; height: 100%;" };
+function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 } = {}) {
+    xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
+    xnew$1.nest(`<div style="width: 100%; height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto;">`);
     xnew$1((unit) => {
-        xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }));
         xnew$1('<polygon points="32  7 27 13 37 13">');
         xnew$1('<polygon points="32 57 27 51 37 51">');
         xnew$1('<polygon points=" 7 32 13 27 13 37">');
         xnew$1('<polygon points="57 32 51 27 51 37">');
     });
     const target = xnew$1((unit) => {
-        xnew$1.extend(SVGTemplate, { fill, fillOpacity, stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }));
         xnew$1('<circle cx="32" cy="32" r="14">');
     });
     unit.on('dragstart dragmove', ({ type, position }) => {
@@ -1395,9 +1406,9 @@ function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strok
         xnew$1.emit('-up', { vector });
     });
 }
-function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, strokeLinejoin = 'round', fill = '#FFF', fillOpacity = 0.8 } = {}) {
-    xnew$1.nest(`<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">`);
-    xnew$1.nest(`<div style="width: min(100cqw, 100cqh); aspect-ratio: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto; overflow: hidden;">`);
+function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 } = {}) {
+    xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
+    xnew$1.nest(`<div style="width: 100%; height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto;">`);
     const polygons = [
         '<polygon points="32 32 23 23 23  4 24  3 40  3 41  4 41 23">',
         '<polygon points="32 32 23 41 23 60 24 61 40 61 41 60 41 41">',
@@ -1406,12 +1417,12 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     ];
     const targets = polygons.map((polygon) => {
         return xnew$1((unit) => {
-            xnew$1.extend(SVGTemplate, { stroke: 'none', fill, fillOpacity });
+            xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { fill, fillOpacity }));
             xnew$1(polygon);
         });
     });
     xnew$1((unit) => {
-        xnew$1.extend(SVGTemplate, { fill: 'none', stroke, strokeOpacity, strokeWidth, strokeLinejoin });
+        xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { stroke, strokeOpacity, strokeWidth }));
         xnew$1('<polyline points="23 23 23  4 24  3 40  3 41  4 41 23">');
         xnew$1('<polyline points="23 41 23 60 24 61 40 61 41 60 41 41">');
         xnew$1('<polyline points="23 23  4 23  3 24  3 40  4 41 23 41">');
@@ -1457,8 +1468,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
 }
 
-const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
-const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
+const paleColor$1 = 'color-mix(in srgb, currentColor 20%, transparent)';
 function Panel(unit, { params }) {
     const object = params !== null && params !== void 0 ? params : {};
     return {
@@ -1518,8 +1528,8 @@ function Button(unit, { key = '' }) {
     xnew$1.nest('<button style="margin: 0.125em 0; height: 2em; border: 1px solid; border-radius: 0.25em; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        unit.element.style.background = currentColorB;
-        unit.element.style.borderColor = currentColorA;
+        unit.element.style.background = paleColor$1;
+        unit.element.style.borderColor = 'currentColor';
     });
     unit.on('pointerout', () => {
         unit.element.style.background = '';
@@ -1533,14 +1543,14 @@ function Button(unit, { key = '' }) {
     });
 }
 function Separator(unit) {
-    xnew$1.nest(`<div style="margin: 0.5em 0; border-top: 1px solid ${currentColorA};">`);
+    xnew$1.nest(`<div style="margin: 0.5em 0; border-top: 1px solid currentColor;">`);
 }
 function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     value = value !== null && value !== void 0 ? value : min;
     xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none;">`);
     // fill bar
     const ratio = (value - min) / (max - min);
-    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25em; transition: width 0.05s;">`);
+    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor$1}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
     // overlay labels
     const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
         xnew$1('<div>', key);
@@ -1558,14 +1568,14 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
 function Checkbox(unit, { key = '', value } = {}) {
     xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
-    const box = xnew$1(`<div style="width: 1.25em; height: 1.25em; border: 1px solid ${currentColorA}; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
-        xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const box = xnew$1(`<div style="width: 1.25em; height: 1.25em; border: 1px solid currentColor; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
+        xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
             xnew$1('<path d="M2 6 5 9 10 3" />');
         });
     });
     const check = box.element.querySelector('svg');
     const update = (checked) => {
-        box.element.style.background = checked ? currentColorB : '';
+        box.element.style.background = checked ? paleColor$1 : '';
         check.style.opacity = checked ? '1' : '0';
     };
     update(!!value);
@@ -1584,8 +1594,8 @@ function Select(_, { key = '', value, items = [] } = {}) {
             xnew$1(`<option value="${item}" ${item === initial ? 'selected' : ''}>`, item);
         }
     });
-    const button = xnew$1(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
-    xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const button = xnew$1(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid currentColor; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
+    xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
         xnew$1('<path d="M2 4 6 8 10 4" />');
     });
     button.on('click', () => {
@@ -1600,10 +1610,10 @@ function Select(_, { key = '', value, items = [] } = {}) {
                 list.element.style.background = getEffectiveBg(button.element);
             });
             xnew$1.extend(Accordion);
-            xnew$1.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25em; overflow: hidden;">`);
+            xnew$1.nest(`<div style="position: relative; border: 1px solid currentColor; border-radius: 0.25em; overflow: hidden;">`);
             for (const item of items) {
                 const div = xnew$1(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, item);
-                div.on('pointerover', () => div.element.style.background = currentColorB);
+                div.on('pointerover', () => div.element.style.background = paleColor$1);
                 div.on('pointerout', () => div.element.style.background = '');
                 div.on('click', () => {
                     button.element.textContent = item;
@@ -1640,34 +1650,6 @@ function Scene(unit) {
             xnew$1.append(unit, Component, props);
         }
     };
-}
-
-class XImage {
-    constructor(...args) {
-        if (args[0] instanceof HTMLCanvasElement) {
-            this.canvas = args[0];
-        }
-        else {
-            const canvas = document.createElement('canvas');
-            canvas.width = args[0];
-            canvas.height = args[1];
-            this.canvas = canvas;
-        }
-    }
-    crop(x, y, width, height) {
-        var _a;
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-        return new XImage(canvas);
-    }
-    download(filename) {
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = this.canvas.toDataURL('image/png');
-        link.click();
-    }
 }
 
 const context = new window.AudioContext();
@@ -1894,7 +1876,87 @@ class Synthesizer {
     }
 }
 
+const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
+function SpeakerIcon(unit, { muted = false } = {}) {
+    xnew$1.extend(SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
+    const path = muted
+        ? 'M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z'
+        : 'M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z';
+    xnew$1(`<path d="${path}" />`);
+}
+function VolumeController(unit, { anchor = 'left' } = {}) {
+    xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
+    unit.on('pointerdown', ({ event }) => event.stopPropagation());
+    const system = xnew$1(OpenAndClose, { open: false, transition: { duration: 250, easing: 'ease' } });
+    const button = xnew$1((unit) => {
+        xnew$1.nest('<div style="width: 100%; height: 100%; cursor: pointer;">');
+        unit.on('click', () => system.toggle());
+        let icon = xnew$1(SpeakerIcon, { muted: master.gain.value === 0 });
+        return {
+            update() {
+                icon === null || icon === void 0 ? void 0 : icon.finalize();
+                icon = xnew$1(SpeakerIcon, { muted: master.gain.value === 0 });
+            }
+        };
+    });
+    xnew$1(() => {
+        const isHoriz = anchor === 'left' || anchor === 'right';
+        const unit = isHoriz ? 'cqw' : 'cqh';
+        const fillProp = isHoriz ? 'width' : 'height';
+        const pct = master.gain.value * 100;
+        const outerSize = isHoriz ? `top: 20%; bottom: 20%; width: 0${unit}` : `left: 20%; right: 20%; height: 0${unit}`;
+        const fillSize = isHoriz ? `top: 0; left: 0; bottom: 0; width: ${pct}%; height: 100%` : `bottom: 0; left: 0; right: 0; width: 100%; height: ${pct}%`;
+        const outer = xnew$1.nest(`<div style="position: absolute; ${outerSize};">`);
+        xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%; border: 1px solid currentColor; border-radius: 0.25em; box-sizing: border-box;">`);
+        const fill = xnew$1(`<div style="position: absolute; ${fillSize}; background: ${paleColor};">`);
+        const input = xnew$1(`<input type="range" min="0" max="100" value="${pct}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;${isHoriz ? '' : ' writing-mode: vertical-lr; direction: rtl;'}">`);
+        const css = (el) => el.style;
+        input.on('input', ({ event }) => {
+            const v = Number(event.target.value);
+            css(fill.element)[fillProp] = `${v}%`;
+            master.gain.value = v / 100;
+            button.update();
+        });
+        system.on('-transition', ({ value }) => {
+            css(outer)[anchor] = `-${value * 400 + 20}${unit}`;
+            css(outer)[fillProp] = `${value * 400}${unit}`;
+            outer.style.opacity = value.toString();
+            outer.style.pointerEvents = value < 0.9 ? 'none' : 'auto';
+        });
+    });
+    unit.on('click.outside', () => system.close());
+}
+
+class XImage {
+    constructor(...args) {
+        if (args[0] instanceof HTMLCanvasElement) {
+            this.canvas = args[0];
+        }
+        else {
+            const canvas = document.createElement('canvas');
+            canvas.width = args[0];
+            canvas.height = args[1];
+            this.canvas = canvas;
+        }
+    }
+    crop(x, y, width, height) {
+        var _a;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
+        return new XImage(canvas);
+    }
+    download(filename) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = this.canvas.toDataURL('image/png');
+        link.click();
+    }
+}
+
 const basics = {
+    SVG,
     Screen,
     OpenAndClose,
     AnalogStick,
@@ -1903,6 +1965,7 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    VolumeController,
 };
 const audio = {
     load(path) {

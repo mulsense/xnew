@@ -4,8 +4,7 @@ import { OpenAndClose, Accordion, Popup } from './Transition';
 
 interface PanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
 
-const currentColorA = 'color-mix(in srgb, currentColor 70%, transparent)';
-const currentColorB = 'color-mix(in srgb, currentColor 10%, transparent)';
+const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
 
 export function Panel(unit: Unit, { params }: PanelOptions) {
     const object = params ?? {} as Record<string, any>;
@@ -70,8 +69,8 @@ function Button(unit: Unit, { key = '' }: { key?: string }) {
     
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        unit.element.style.background = currentColorB;
-        unit.element.style.borderColor = currentColorA;
+        unit.element.style.background = paleColor;
+        unit.element.style.borderColor = 'currentColor';
     });
     unit.on('pointerout', () => {
         unit.element.style.background = '';
@@ -86,7 +85,7 @@ function Button(unit: Unit, { key = '' }: { key?: string }) {
 }
 
 function Separator(unit: Unit) {
-    xnew.nest(`<div style="margin: 0.5em 0; border-top: 1px solid ${currentColorA};">`);
+    xnew.nest(`<div style="margin: 0.5em 0; border-top: 1px solid currentColor;">`);
 }
 
 function Range(unit: Unit,
@@ -99,7 +98,7 @@ function Range(unit: Unit,
 
     // fill bar
     const ratio = (value - min) / (max - min);
-    const fill = xnew(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${currentColorB}; border: 1px solid ${currentColorA}; border-radius: 0.25em; transition: width 0.05s;">`);
+    const fill = xnew(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
 
     // overlay labels
     const status = xnew('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit: Unit) => {
@@ -123,15 +122,15 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
 
     xnew('<div style="flex: 1;">', key);
 
-    const box = xnew(`<div style="width: 1.25em; height: 1.25em; border: 1px solid ${currentColorA}; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
-        xnew(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const box = xnew(`<div style="width: 1.25em; height: 1.25em; border: 1px solid currentColor; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
+        xnew(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
             xnew('<path d="M2 6 5 9 10 3" />');
         });
     });
     const check = box.element.querySelector('svg') as SVGElement;
 
     const update = (checked: boolean) => {
-        box.element.style.background = checked ? currentColorB : '';
+        box.element.style.background = checked ? paleColor : '';
         check.style.opacity = checked ? '1' : '0';
     };
     update(!!value);
@@ -153,9 +152,9 @@ function Select(_: Unit, { key = '', value, items = [] }: { key?: string, value?
         }
     });
 
-    const button = xnew(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid ${currentColorA}; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
+    const button = xnew(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid currentColor; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
 
-    xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="${currentColorA}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
         xnew('<path d="M2 4 6 8 10 4" />');
     });
     
@@ -173,11 +172,11 @@ function Select(_: Unit, { key = '', value, items = [] }: { key?: string, value?
             });
 
             xnew.extend(Accordion);
-            xnew.nest(`<div style="position: relative; border: 1px solid ${currentColorA}; border-radius: 0.25em; overflow: hidden;">`);
+            xnew.nest(`<div style="position: relative; border: 1px solid currentColor; border-radius: 0.25em; overflow: hidden;">`);
 
             for (const item of items) {
                 const div = xnew(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, item);
-                div.on('pointerover', () => div.element.style.background = currentColorB);
+                div.on('pointerover', () => div.element.style.background = paleColor);
                 div.on('pointerout', () => div.element.style.background = '');
                 div.on('click', () => {
                     button.element.textContent = item;

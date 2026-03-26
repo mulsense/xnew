@@ -59,7 +59,7 @@ function TitleText(unit) {
   object.anchor.set(0.5);
 }
 
-function GameScene(scene) {
+function GameScene(unit) {
   xnew.extend(xnew.basics.Scene);
 
   xnew(Controller);
@@ -67,11 +67,11 @@ function GameScene(scene) {
   xnew(Player);
   const interval = xnew.interval(() => xnew(Enemy), 500);
 
-  scene.on('+gameover', () => {
+  unit.on('+gameover', () => {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      scene.on('keydown pointerdown', () => scene.moveTo(TitleScene));
+      unit.on('keydown pointerdown', () => unit.moveTo(TitleScene));
     }, 1000);
   });
 }
