@@ -237,34 +237,16 @@ function ResultDetail(unit) {
 function ResultFooter(unit) {
   xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
-      xnew(Frame);
-      xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', Camera);
-    });
+    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', Camera);
     button.on('click', () => xnew(ScreenShot));
     xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
   });
+  
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', () => {
-      xnew(Frame);
-      xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', ArrowUturnLeft);
-    });
+    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
     button.on('click', () => xnew.context(xnew.basics.Scene).moveTo(TitleScene));
   });
-
-  function Frame(unit, { frame = 'circle', Icon } = {}) {
-    xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-      xnew.nest('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.0" stroke="currentColor">');
-      if (frame === 'circle') {
-        xnew('<circle cx="12" cy="12" r="11">');
-      } else if (frame === 'square') {
-        xnew('<rect x="2" y="2" width="20" height="20" rx="0">');
-      } else if (frame === 'rounded-square') {
-        xnew('<rect x="2" y="2" width="20" height="20" rx="6">');
-      }
-    });
-  }
 }
 
 function DirectionalLight(unit, { x, y, z }) {
@@ -519,11 +501,24 @@ function ScreenShot(unit) {
 }
 
 function Camera(unit){
-  xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
-  xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
-  xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
+    xnew('<circle cx="12" cy="12" r="11">');
+  });
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
+    xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
+    xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
+  });
 }
+
 function ArrowUturnLeft(unit){
-  xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
-  xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
+    xnew('<circle cx="12" cy="12" r="11">');
+  });
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
+    xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
+  });
 }
