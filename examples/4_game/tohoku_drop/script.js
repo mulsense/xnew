@@ -241,7 +241,7 @@ function ResultFooter(unit) {
     button.on('click', () => xnew(ScreenShot));
     xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
   });
-  
+
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
@@ -495,7 +495,6 @@ function ScreenShot(unit) {
     html2canvas(unit.element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
       xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
     });
-
     unit.finalize();
   });
 }
