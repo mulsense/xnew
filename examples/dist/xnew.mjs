@@ -1391,19 +1391,13 @@ function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strok
         const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        target.element.style.filter = 'brightness(80%)';
-        target.element.style.left = `${vector.x * size / 4}px`;
-        target.element.style.top = `${vector.y * size / 4}px`;
+        Object.assign(target.element.style, { filter: 'brightness(80%)', left: `${vector.x * size / 4}px`, top: `${vector.y * size / 4}px` });
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type];
         xnew$1.emit(nexttype, { vector });
     });
     unit.on('dragend', () => {
-        const size = unit.element.clientWidth;
-        const vector = { x: 0, y: 0 };
-        target.element.style.filter = '';
-        target.element.style.left = `${vector.x * size / 4}px`;
-        target.element.style.top = `${vector.y * size / 4}px`;
-        xnew$1.emit('-up', { vector });
+        Object.assign(target.element.style, { filter: '', left: '0px', top: '0px' });
+        xnew$1.emit('-up', { vector: { x: 0, y: 0 } });
     });
 }
 function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 } = {}) {
@@ -1459,12 +1453,11 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
         xnew$1.emit(nexttype, { vector });
     });
     unit.on('dragend', () => {
-        const vector = { x: 0, y: 0 };
         targets[0].element.style.filter = '';
         targets[1].element.style.filter = '';
         targets[2].element.style.filter = '';
         targets[3].element.style.filter = '';
-        xnew$1.emit('-up', { vector });
+        xnew$1.emit('-up', { vector: { x: 0, y: 0 } });
     });
 }
 
@@ -1515,8 +1508,9 @@ function Group(group, { name, open = false }) {
     if (name) {
         xnew$1('<div style="height: 2em; margin: 0.125em 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
             unit.on('click', () => group.toggle());
-            xnew$1('<svg viewBox="0 0 12 12" style="width: 1em; height: 1em; margin-right: 0.25em;" fill="none" stroke="currentColor">', (unit) => {
-                xnew$1('<path d="M6 2 10 6 6 10" />');
+            xnew$1((unit) => {
+                xnew$1.extend(SVG, { viewBox: '0 0 12 12', stroke: 'currentColor', style: 'width: 1em; height: 1em; margin-right: 0.25em;' });
+                xnew$1('<path d="M6 2 10 6 6 10"/>');
                 group.on('-transition', ({ value }) => unit.element.style.transform = `rotate(${value * 90}deg)`);
             });
             xnew$1('<div>', name);
@@ -1528,12 +1522,10 @@ function Button(unit, { key = '' }) {
     xnew$1.nest('<button style="margin: 0.125em 0; height: 2em; border: 1px solid; border-radius: 0.25em; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        unit.element.style.background = paleColor$1;
-        unit.element.style.borderColor = 'currentColor';
+        Object.assign(unit.element.style, { background: paleColor$1, borderColor: 'currentColor' });
     });
     unit.on('pointerout', () => {
-        unit.element.style.background = '';
-        unit.element.style.borderColor = '';
+        Object.assign(unit.element.style, { background: '', borderColor: '' });
     });
     unit.on('pointerdown', () => {
         unit.element.style.filter = 'brightness(0.5)';
@@ -1568,8 +1560,9 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
 function Checkbox(unit, { key = '', value } = {}) {
     xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`);
     xnew$1('<div style="flex: 1;">', key);
-    const box = xnew$1(`<div style="width: 1.25em; height: 1.25em; border: 1px solid currentColor; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
-        xnew$1(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const box = xnew$1(`<div style="width: 1.25em; height: 1.25em; border: 1px solid currentColor; border-radius: 0.25em; display: flex; align-items: center; justify-content: center;">`, () => {
+        xnew$1((unit) => {
+            xnew$1.extend(SVG, { viewBox: '0 0 12 12', style: 'width: 1.25em; height: 1.25em; opacity: 0;', stroke: 'currentColor', strokeWidth: 2 });
             xnew$1('<path d="M2 6 5 9 10 3" />');
         });
     });
@@ -1595,7 +1588,8 @@ function Select(_, { key = '', value, items = [] } = {}) {
         }
     });
     const button = xnew$1(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid currentColor; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
-    xnew$1(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    xnew$1((unit) => {
+        xnew$1.extend(SVG, { viewBox: '0 0 12 12', stroke: 'currentColor', strokeWidth: 2, style: 'position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;' });
         xnew$1('<path d="M2 4 6 8 10 4" />');
     });
     button.on('click', () => {
@@ -1622,14 +1616,12 @@ function Select(_, { key = '', value, items = [] } = {}) {
                     list.finalize();
                 });
             }
-            list.on('click.outside', () => {
-                list.finalize();
-            });
+            list.on('click.outside', () => list.finalize());
         });
     });
     xnew$1.nest(native.element);
-    function getEffectiveBg(el) {
-        let current = el.parentElement;
+    function getEffectiveBg(element) {
+        let current = element.parentElement;
         while (current) {
             const bg = getComputedStyle(current).backgroundColor;
             if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')

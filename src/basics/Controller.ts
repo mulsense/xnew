@@ -37,20 +37,14 @@ export function AnalogStick(unit: Unit,
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
 
-        target.element.style.filter = 'brightness(80%)';
-        target.element.style.left = `${vector.x * size / 4}px`;
-        target.element.style.top = `${vector.y * size / 4}px`;
+        Object.assign(target.element.style, { filter: 'brightness(80%)', left: `${vector.x * size / 4}px`, top: `${vector.y * size / 4}px` });
         const nexttype = { dragstart: '-down', dragmove: '-move' }[type] as string;
         xnew.emit(nexttype, { vector });
     });
 
     unit.on('dragend', () => {
-        const size = unit.element.clientWidth;
-        const vector = { x: 0, y: 0 };
-        target.element.style.filter = '';
-        target.element.style.left = `${vector.x * size / 4}px`;
-        target.element.style.top = `${vector.y * size / 4}px`;
-        xnew.emit('-up', { vector });
+        Object.assign(target.element.style, { filter: '', left: '0px', top: '0px' });
+        xnew.emit('-up', { vector: { x: 0, y: 0 } });
     });
 }
 
@@ -114,11 +108,10 @@ export function DPad(unit: Unit,
     });
 
     unit.on('dragend', () => {
-        const vector = { x: 0, y: 0 };
         targets[0].element.style.filter = '';
         targets[1].element.style.filter = '';
         targets[2].element.style.filter = '';
         targets[3].element.style.filter = '';
-        xnew.emit('-up', { vector });
+        xnew.emit('-up', { vector: { x: 0, y: 0 } });
     });
 }

@@ -1,5 +1,6 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
+import { SVG } from './SVG';
 import { OpenAndClose, Accordion, Popup } from './Transition';
 
 interface PanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
@@ -54,8 +55,9 @@ function Group(group: Unit, { name, open = false }: { name?: string, open?: bool
     if (name) {
         xnew('<div style="height: 2em; margin: 0.125em 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
             unit.on('click', () => group.toggle());
-            xnew('<svg viewBox="0 0 12 12" style="width: 1em; height: 1em; margin-right: 0.25em;" fill="none" stroke="currentColor">', (unit: Unit) => {
-                xnew('<path d="M6 2 10 6 6 10" />');
+            xnew((unit: Unit) => {
+                xnew.extend(SVG, { viewBox: '0 0 12 12', stroke: 'currentColor', style: 'width: 1em; height: 1em; margin-right: 0.25em;' });
+                xnew('<path d="M6 2 10 6 6 10"/>');
                 group.on('-transition', ({ value }: { value: number }) => unit.element.style.transform = `rotate(${value * 90}deg)`);
             });
             xnew('<div>', name);
@@ -69,12 +71,10 @@ function Button(unit: Unit, { key = '' }: { key?: string }) {
     
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        unit.element.style.background = paleColor;
-        unit.element.style.borderColor = 'currentColor';
+        Object.assign(unit.element.style, { background: paleColor, borderColor: 'currentColor' });
     });
     unit.on('pointerout', () => {
-        unit.element.style.background = '';
-        unit.element.style.borderColor = '';
+        Object.assign(unit.element.style, { background: '', borderColor: '' });
     });
     unit.on('pointerdown', () => {
         unit.element.style.filter = 'brightness(0.5)';
@@ -122,8 +122,9 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
 
     xnew('<div style="flex: 1;">', key);
 
-    const box = xnew(`<div style="width: 1.25em; height: 1.25em; border: 1px solid currentColor; border-radius: 0.25em; display: flex; align-items: center; justify-content: center; transition: background 0.1s;">`, () => {
-        xnew(`<svg viewBox="0 0 12 12" style="width: 1.25em; height: 1.25em; opacity: 0; transition: opacity 0.1s;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    const box = xnew(`<div style="width: 1.25em; height: 1.25em; border: 1px solid currentColor; border-radius: 0.25em; display: flex; align-items: center; justify-content: center;">`, () => {
+        xnew((unit: Unit) => {
+            xnew.extend(SVG, { viewBox: '0 0 12 12', style: 'width: 1.25em; height: 1.25em; opacity: 0;', stroke: 'currentColor', strokeWidth: 2 });
             xnew('<path d="M2 6 5 9 10 3" />');
         });
     });
@@ -154,7 +155,8 @@ function Select(_: Unit, { key = '', value, items = [] }: { key?: string, value?
 
     const button = xnew(`<div style="height: 2em; padding: 0 1.5em 0 0.5em; display: flex; align-items: center; border: 1px solid currentColor; border-radius: 0.25em; cursor: pointer; user-select: none; min-width: 3em; white-space: nowrap;">`, initial);
 
-    xnew(`<svg viewBox="0 0 12 12" style="position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`, () => {
+    xnew((unit: Unit) => {
+        xnew.extend(SVG, { viewBox: '0 0 12 12', stroke: 'currentColor', strokeWidth: 2, style: 'position: absolute; right: 1.0em; width: 0.75em; height: 0.75em; pointer-events: none;' });
         xnew('<path d="M2 4 6 8 10 4" />');
     });
     
@@ -185,16 +187,14 @@ function Select(_: Unit, { key = '', value, items = [] }: { key?: string, value?
                     list.finalize();
                 });
             }
-            list.on('click.outside', () => {
-                list.finalize();
-            });
+            list.on('click.outside', () => list.finalize());
         });
     });
 
     xnew.nest(native.element);
 
-    function getEffectiveBg(el: Element): string {
-        let current: Element | null = el.parentElement;
+    function getEffectiveBg(element: Element): string {
+        let current: Element | null = element.parentElement;
         while (current) {
             const bg = getComputedStyle(current).backgroundColor;
             if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
