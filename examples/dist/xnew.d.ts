@@ -168,6 +168,24 @@ interface SVGInterface {
     fillOpacity?: number;
 }
 declare function SVG(unit: Unit, { viewBox, className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity }?: SVGInterface): void;
+interface SVGTextInterface {
+    text?: string;
+    fontSize?: number;
+    anchor?: {
+        x: number;
+        y: number;
+    };
+    className?: string;
+    style?: string;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeLinejoin?: string;
+    strokeLinecap?: string;
+    fill?: string;
+    fillOpacity?: number;
+}
+declare function SVGText(unit: Unit, { text, fontSize, anchor, className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity }?: SVGTextInterface): void;
 
 declare function Screen(unit: Unit, { width, height, fit }?: {
     width?: number;
@@ -219,6 +237,7 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
 
 declare function Scene(unit: Unit): {
     moveTo(Component: Function, props?: any): void;
+    nextScene(Component: Function, props?: any): void;
     append(Component: Function, props?: any): void;
 };
 
@@ -305,6 +324,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
 } & {
     basics: {
         SVG: typeof SVG;
+        SVGText: typeof SVGText;
         Screen: typeof Screen;
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;

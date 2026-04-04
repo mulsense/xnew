@@ -46,3 +46,52 @@ export function SVG(unit: Unit,
         fill-opacity="${fillOpacity}"
     ">`);
 }
+
+interface SVGTextInterface {
+    text?: string;
+    fontSize?: number;
+    anchor?: { x: number, y: number };
+    className?: string;
+    style?: string;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeLinejoin?: string;
+    strokeLinecap?: string;
+    fill?: string;
+    fillOpacity?: number;
+}
+
+
+export function SVGText(unit: Unit, {
+    text = '',
+    fontSize = 20,
+    anchor = { x: 0, y: 0 },
+    className = '',
+    style = '',
+    stroke = 'none',
+    strokeOpacity = 1,
+    strokeWidth = 1,
+    strokeLinejoin = 'round',
+    strokeLinecap = 'round',
+    fill = 'currentColor',
+    fillOpacity = 1
+}: SVGTextInterface = {}) {
+    xnew.extend(SVG, { className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity });
+    const svg = unit.element as SVGSVGElement;
+
+    xnew.nest(`<text x="0" y="0" font-size="${fontSize}">`);
+    unit.element.textContent = text;
+
+    const bbox = (unit.element as SVGGraphicsElement).getBBox();
+    const padding = 0;
+    svg.setAttribute('viewBox', `
+        ${bbox.x - padding}
+        ${bbox.y - padding}
+        ${bbox.width + padding * 2}
+        ${bbox.height + padding * 2}
+    `);
+
+    svg.style.width = (bbox.width + padding * 2) + 'px';
+    svg.style.overflow = 'visible';
+}

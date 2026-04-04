@@ -160,7 +160,7 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  unit.on('pointerdown', () => unit.moveTo(GameScene));
+  unit.on('pointerdown', () => unit.nextScene(GameScene));
 }
 
 function GameScene(unit) {
@@ -186,7 +186,7 @@ function GameScene(unit) {
     spawn.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      unit.on('keydown pointerdown', () => unit.moveTo(TitleScene));
+      unit.on('keydown pointerdown', () => unit.nextScene(TitleScene));
     }, 1000);
   });
 }
@@ -213,10 +213,10 @@ function BloodVessels(_unit) {
     [700, 0, 730, 200, 670, 380, 720, 600],
   ];
   for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
-    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0x5A0818, width: 20, alpha: 0.55 });
+    g.nextScene(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0x5A0818, width: 20, alpha: 0.55 });
   }
   for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
-    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0xA02040, width: 7, alpha: 0.3 });
+    g.nextScene(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0xA02040, width: 7, alpha: 0.3 });
   }
 }
 

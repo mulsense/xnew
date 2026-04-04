@@ -1345,6 +1345,22 @@ function SVG(unit, { viewBox = '0 0 64 64', className = '', style = '', stroke =
         fill-opacity="${fillOpacity}"
     ">`);
 }
+function SVGText(unit, { text = '', fontSize = 20, anchor = { x: 0, y: 0 }, className = '', style = '', stroke = 'none', strokeOpacity = 1, strokeWidth = 1, strokeLinejoin = 'round', strokeLinecap = 'round', fill = 'currentColor', fillOpacity = 1 } = {}) {
+    xnew$1.extend(SVG, { className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity });
+    const svg = unit.element;
+    xnew$1.nest(`<text x="0" y="0" font-size="${fontSize}">`);
+    unit.element.textContent = text;
+    const bbox = unit.element.getBBox();
+    const padding = 0;
+    svg.setAttribute('viewBox', `
+        ${bbox.x - padding}
+        ${bbox.y - padding}
+        ${bbox.width + padding * 2}
+        ${bbox.height + padding * 2}
+    `);
+    svg.style.width = (bbox.width + padding * 2) + 'px';
+    svg.style.overflow = 'visible';
+}
 
 function Aspect(unit, { aspect = 1.0, fit = 'contain' } = {}) {
     xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">');
@@ -1635,6 +1651,10 @@ function Select(_, { key = '', value, items = [] } = {}) {
 function Scene(unit) {
     return {
         moveTo(Component, props) {
+            xnew$1.next(unit, Component, props);
+            unit.finalize();
+        },
+        nextScene(Component, props) {
             xnew$1.next(unit, Component, props);
             unit.finalize();
         },
@@ -1949,6 +1969,7 @@ class XImage {
 
 const basics = {
     SVG,
+    SVGText,
     Screen,
     OpenAndClose,
     AnalogStick,

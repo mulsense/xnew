@@ -66,7 +66,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(ThreeTexture); // render three.js canvas as pixi texture
-  unit.on('pointerdown', () => unit.moveTo(GameScene));
+  unit.on('pointerdown', () => unit.nextScene(GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -109,7 +109,7 @@ function GameScene(unit) {
     xnew(GameOverText);
 
     xnew.timeout(() => {
-      unit.moveTo(ResultScene, { image });
+      unit.nextScene(ResultScene, { image });
     }, 2000);
   });
 }
@@ -245,7 +245,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
-    button.on('click', () => xnew.context(xnew.basics.Scene).moveTo(TitleScene));
+    button.on('click', () => xnew.context(xnew.basics.Scene).nextScene(TitleScene));
   });
 }
 

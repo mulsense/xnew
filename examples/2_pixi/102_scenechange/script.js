@@ -26,7 +26,7 @@ function Scene1(unit) {
   xnew(Text, { text: 'Scene1' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0xff2266 });
 
-  unit.on('pointerdown', ({ event }) => unit.moveTo(Scene2));
+  unit.on('pointerdown', ({ event }) => unit.nextScene(Scene2));
 }
 
 function Scene2(unit) {
@@ -35,7 +35,7 @@ function Scene2(unit) {
   xnew(Text, { text: 'Scene2' });
   xnew(Box, { x: xpixi.canvas.width / 2, y: xpixi.canvas.height / 2, size: 160, color: 0x6622ff });
 
-  unit.on('pointerdown', ({ event }) => unit.moveTo(Scene1));
+  unit.on('pointerdown', ({ event }) => unit.nextScene(Scene1));
 }
 
 function Text(unit, { text }) {

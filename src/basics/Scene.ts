@@ -9,6 +9,10 @@ export function Scene(unit: Unit) {
             xnew.next(unit, Component, props);
             unit.finalize();
         },
+        nextScene(Component: Function, props?: any) {
+            xnew.next(unit, Component, props);
+            unit.finalize();
+        },
         append(Component: Function, props?: any) {
             xnew.append(unit, Component, props);
         }

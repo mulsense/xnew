@@ -33,6 +33,8 @@ function Main(unit) {
 function Contents(unit) {
   xnew(HtmlText);
 
+  xnew(SVGText);
+
   // three.js (offscreen canvas)
   xnew(ThreeText);
 
@@ -55,10 +57,20 @@ function HtmlText(unit) {
   unit.element.textContent = 'This text is rendered by HTML/CSS';
 }
 
+function SVGText(unit) {
+  xnew.nest('<div class="absolute left-0 top-12">');
+  xnew(xnew.basics.SVGText, {
+    text: 'This text is rendered by SVG',
+    stroke: '#00FF00',
+    fontSize: 32
+  });
+
+}
+
 function PixiText(unit) {
   const object = xpixi.nest(new PIXI.Text('This text is rendered by PixiJS', { fontFamily: 'Arial', fontSize: 32, }));
   object.anchor.set(0.0, 0.5);
-  object.position.set(0.0, xpixi.canvas.height * 2 / 10);
+  object.position.set(0.0, xpixi.canvas.height * 3 / 10);
 }
 
 function ThreeText(unit) {
@@ -77,7 +89,7 @@ function ThreeText(unit) {
     });
     const material = new THREE.MeshNormalMaterial();
     const text = new THREE.Mesh(geometry, material);
-    text.position.set(-17, 3, 0);
+    text.position.set(-17, 0, 0);
     object.add(text);
     object.rotation.set(0.2, 0.2, 0);
     object.scale.set(0.6, 1, 1);
