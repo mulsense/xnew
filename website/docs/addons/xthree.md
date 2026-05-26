@@ -19,15 +19,15 @@ sidebar_position: 502
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/xnew@0.7.x/dist/xnew.mjs",
-    "@mulsense/xnew/addons/xthree": "https://unpkg.com/xnew@0.7.x/dist/addons/xthree.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.mjs",
+    "@mulsense/xnew/addons/xthree": "https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xthree.mjs"
   }
 }
 </script>
 
 <script type="module">
-import xnew from 'xnew'
-import xthree from 'xnew/addons/xthree'
+import xnew from '@mulsense/xnew'
+import xthree from '@mulsense/xnew/addons/xthree'
 
 // ...
 </script>
@@ -35,11 +35,11 @@ import xthree from 'xnew/addons/xthree'
 
 ### Via npm
 ```bash
-npm install xnew@0.7.x
+npm install @mulsense/xnew@0.7.x
 ```
 ```js
-import xnew from 'xnew'
-import xthree from 'xnew/addons/xthree'
+import xnew from '@mulsense/xnew'
+import xthree from '@mulsense/xnew/addons/xthree'
 ```
 
 ## Core API
@@ -83,5 +83,3 @@ function Box(unit) {
   unit.on('update', () => object.rotation.y += 0.01);
 }
 ```
-
-For more complete examples including async model loading, multiple cameras, and combining with xpixi, see the [AI Prompt](../ai-prompt) page.

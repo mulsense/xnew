@@ -77,5 +77,3 @@ function Enemy(unit) {
   });
 }
 ```
-
-For more complete examples including scene management and collision detection, see the [AI Prompt](../ai-prompt) page.
