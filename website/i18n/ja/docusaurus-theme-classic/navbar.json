@@ -12,7 +12,7 @@
     "description": "Navbar item with label manual"
   },
   "item.label.examples": {
-    "message": "sample",
+    "message": "examples",
     "description": "Navbar item with label examples"
   },
   "item.label.GitHub": {

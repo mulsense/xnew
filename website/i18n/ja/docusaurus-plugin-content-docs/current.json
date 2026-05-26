@@ -32,11 +32,11 @@
     "description": "The generated-index page title for category 'addons' in sidebar 'tutorialSidebar'"
   },
   "sidebar.examplesSidebar.category.examples": {
-    "message": "sample",
+    "message": "examples",
     "description": "The label for category 'examples' in sidebar 'examplesSidebar'"
   },
   "sidebar.examplesSidebar.category.examples.link.generated-index.title": {
-    "message": "sample",
+    "message": "examples",
     "description": "The generated-index page title for category 'examples' in sidebar 'examplesSidebar'"
   },
   "sidebar.examplesSidebar.category.examples.link.generated-index.description": {

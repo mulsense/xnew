@@ -12,7 +12,7 @@
     "description": "The label of footer link with label=manual linking to /docs/getstart"
   },
   "link.item.label.examples": {
-    "message": "sample",
+    "message": "examples",
     "description": "The label of footer link with label=examples linking to /docs/examples/basic/element"
   },
   "link.item.label.GitHub": {
