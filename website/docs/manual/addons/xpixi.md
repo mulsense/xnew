@@ -4,7 +4,7 @@ sidebar_position: 501
 
 # xpixi
 
-`xpixi` は xnew のコンポーネントライフサイクルと PixiJS のシーングラフを橋渡しします。PixiJS の高性能な 2D レンダラーの上に、xnew の自動クリーンアップとイベントシステムを利用できます。コンポーネントが破棄される際に、`addChild` / `removeChild` を手動で管理する必要はありません。
+`xpixi` は xnew のライフサイクルを PixiJS のシーングラフに統合するアドオンです。PixiJS の 2D レンダラーに、xnew の自動クリーンアップとイベントシステムを組み合わせて利用できます。コンポーネントの破棄時に `addChild` / `removeChild` の手動管理は不要です。
 
 ## セットアップ
 ### CDN を使う
@@ -45,7 +45,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 
 ### `xpixi.initialize({ canvas })`
 
-ルートコンポーネントで一度だけ呼び出して、PixiJS のレンダラーを生成します。呼び出した後は、以下にアクセスできます。
+ルートコンポーネントで一度だけ呼び出し、PixiJS のレンダラーを生成します。呼び出し後は次のプロパティにアクセスできます。
 - `xpixi.renderer` — PixiJS のレンダラー
 - `xpixi.scene` — ルートの `PIXI.Container`
 - `xpixi.canvas` — `<canvas>` 要素
@@ -61,7 +61,7 @@ function Main(unit) {
 
 ### `xpixi.nest(pixiObject)`
 
-`xnew.nest` の PixiJS オブジェクト版です。`pixiObject` を現在の親コンテナに追加し、そのオブジェクトを返します。unit が finalize されると、オブジェクトはシーンから自動的に削除されます。
+`xnew.nest` の PixiJS オブジェクト版で、`pixiObject` を現在の親コンテナに追加してそのまま返します。unit が finalize されると、対象オブジェクトはシーンから自動的に削除されます。
 
 ```js
 function Enemy(unit) {

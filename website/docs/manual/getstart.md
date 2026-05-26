@@ -4,32 +4,32 @@ sidebar_position: 1
 
 # Get Started
 
-**10分以内に、あなたの最初のコンポーネントが動き出します。**
+**10分で、最初のコンポーネントが動きます。**
 
 ## xnew とは?
 
-`xnew` は、コンポーネント指向プログラミングのための JavaScript / TypeScript ライブラリです。
+`xnew` は、コンポーネント指向プログラミング向けの JavaScript / TypeScript ライブラリです。
 
-考え方はシンプルです。コンポーネントはただの関数です。`xnew(MyComponent)` と呼び出せば、xnew が DOM、ライフサイクル、イベントの配線をすべて面倒見てくれます。クラスもボイラープレートもなく、コンポーネントの振る舞いを記述する関数があるだけです。
+考え方はシンプルで、コンポーネントはただの関数です。`xnew(MyComponent)` を呼び出せば、DOM・ライフサイクル・イベントを xnew が自動で扱います。クラスもボイラープレートも不要、振る舞いを書く関数があるだけです。
 
-xnew が特に便利なポイント:
+xnew の特長:
 
-- **自動クリーンアップ** — コンポーネント内で作成したタイマー、イベントリスナー、DOM 要素は、コンポーネントが破棄されるときにまとめて片付けられます。メモリリークを追いかける必要はもうありません。
-- **組み込みのアニメーションループ** — `update` イベントが毎フレーム (約60fps) 発火するので、アニメーションは簡単に書けます。
-- **柔軟なイベントシステム** — コンポーネント同士は、グローバル (`+event`) または内部 (`-event`) のカスタムイベントを通じて、密結合にならずにやり取りできます。
-- **ゲーム開発向けアドオン** — 公式の PixiJS / Three.js 連携により、同じコンポーネントモデルで複雑なインタラクティブアプリを構築できます。
+- **自動クリーンアップ** — コンポーネント内のタイマー、イベントリスナー、DOM 要素は破棄時にまとめて解放されます。メモリリークの心配は不要です。
+- **組み込みアニメーションループ** — `update` イベントが毎フレーム (約60fps) 発火し、アニメーションを簡単に書けます。
+- **柔軟なイベントシステム** — グローバル (`+event`) と内部 (`-event`) のカスタムイベントで、コンポーネント間を疎結合にやり取りできます。
+- **ゲーム開発向けアドオン** — PixiJS / Three.js 連携により、同じモデルで複雑なインタラクティブアプリを構築できます。
 
 ## セットアップ
 
-xnew をプロジェクトに組み込む方法は、以下から選んでください:
+導入方法は以下から選べます:
 
-### CDN 経由 (初心者におすすめ)
-HTML ファイルに以下のスクリプトを記述します:
+### CDN 経由 (初心者向け)
+HTML に次のスクリプトを記述します:
 ```html
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.js"></script>
 ```
 ### CDN 経由 (ESM)
-`import map` を使って ES モジュール版を読み込みます:
+`import map` で ES モジュール版を読み込みます:
 ```html
 <script type="importmap">
 {
@@ -47,25 +47,25 @@ import xnew from '@mulsense/xnew';
 ```
 
 ### npm 経由
-npm で `xnew` をインストールします:
+npm でインストールします:
 ```bash
 npm install @mulsense/xnew@0.7.x
 ```
 
-JavaScript ファイルでインポートして使います:
+JavaScript からインポートして使います:
 ```js
 import xnew from '@mulsense/xnew';
 ```
 
 ## チュートリアル
 
-覚えるべき概念は2つだけです。それさえ押さえれば、あとは進むだけです:
+押さえる概念は2つだけです:
 
-- **unit** — `xnew()` が返すオブジェクトです。1つのコンポーネントインスタンスに対する DOM 要素、ライフサイクル制御、イベントリスナーを保持します。
-- **コンポーネント** — `(unit, props)` を受け取り、その unit の振る舞いを定義する素の関数です。
+- **unit** — `xnew()` の戻り値です。コンポーネントインスタンスの DOM 要素、ライフサイクル制御、イベントリスナーを保持します。
+- **コンポーネント** — `(unit, props)` を受け取り、その unit の振る舞いを定義する関数です。
 
 ### 基本構文
-`xnew` の使い方は大きく2つあります:
+`xnew` の使い方は主に2通りです:
 
 #### 1. コンポーネントの作成
 ```js
@@ -85,7 +85,7 @@ unit.element; // Access the created DOM element
 
 ### 例1: はじめてのコンポーネント
 
-考えられる最小の xnew プログラムです。コンポーネント1つ、要素1つ、5行だけ:
+最小の xnew プログラムです。コンポーネント1つ、要素1つ、5行のみ:
 
 ```html
 <!DOCTYPE html>
@@ -109,7 +109,7 @@ unit.element; // Access the created DOM element
 </html>
 ```
 
-このコードは次の HTML を生成します:
+生成される HTML:
 ```html
 <body>
   <p>Hello, xnew!</p>
@@ -118,7 +118,7 @@ unit.element; // Access the created DOM element
 
 ### 例2: 複数の要素を作る
 
-`xnew.nest()` はネストのコンテキストをずらし、以降の要素がコンテナの中に配置されるようにします。これを使えば、HTML の壁を書かずに構造化されたレイアウトを組み立てられます:
+`xnew.nest()` はネストのコンテキストを切り替え、以降の要素をコンテナ内に配置します。HTML を書き連ねずに、構造化されたレイアウトを組めます:
 
 <iframe style={{width:'100%',height:'120px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/element.html" ></iframe>
 
@@ -157,7 +157,7 @@ unit.element; // Access the created DOM element
 </html>
 ```
 
-生成される HTML はこちら:
+生成される HTML:
 ```html
 <body>
   <p>Create new HTML elements.</p>
@@ -169,14 +169,14 @@ unit.element; // Access the created DOM element
 </body>
 ```
 
-**重要なポイント:**
-- `xnew.nest()` はコンテナ要素を作成し、以降の要素をその中にネストします
-- コンポーネントは他のコンポーネントを呼び出してコードを整理できます
+**ポイント:**
+- `xnew.nest()` はコンテナを作り、以降の要素をその中にネストします
+- コンポーネントから他のコンポーネントを呼び出せます
 - 各コンポーネントは再利用可能な関数です
 
 ### 例3: インタラクションを加える
 
-ここからが xnew の本領発揮です。下のボックスをクリックすると、CSS による回転アニメーションが開始・停止します。`start`、`update`、`stop` のライフサイクルイベントがすべて面倒を見てくれるため、手動で `requestAnimationFrame` を管理する必要はありません:
+ここからが本領です。下のボックスをクリックすると、CSS による回転アニメーションが開始・停止します。`start`・`update`・`stop` のライフサイクルイベントが処理を担うので、`requestAnimationFrame` を手動で管理する必要はありません:
 
 <iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/box.html" ></iframe>
 
@@ -229,15 +229,15 @@ unit.element; // Access the created DOM element
 </html>
 ```
 
-**重要なポイント:**
-- `unit.on()` でコンポーネントにイベントリスナーを追加できます
-- `unit.start()` と `unit.stop()` でアニメーションを制御します
-- `update` イベントはアニメーション中に連続して発火します
+**ポイント:**
+- `unit.on()` でイベントリスナーを追加します
+- `unit.start()` / `unit.stop()` でアニメーションを制御します
+- `update` イベントはアニメーション中、毎フレーム発火します
 
 ## 次のステップ
 
-これで xnew で開発を始めるのに必要なことはすべて押さえました。次は以下を参考にしてください:
+これで xnew を始める準備は整いました。次はこちらへ:
 
-1. **[Basics — xnew](./basics/xnew)** — イベント、ライフサイクル、カスタムメソッドなどの完全な API リファレンス
-2. **[Basics — xnew.timeout / interval / transition](./basics/xnew.timeout)** — 自動クリーンアップとチェイン可能なトランジションを備えたタイマー
-3. **[Addons — xpixi / xthree](./addons/xpixi)** — PixiJS / Three.js との手軽な連携
+1. **[Basics — xnew](./basics/xnew)** — イベント、ライフサイクル、カスタムメソッドなどの API リファレンス
+2. **[Basics — xnew.timeout / interval / transition](./basics/xnew.timeout)** — 自動クリーンアップ対応のタイマーとチェイン可能なトランジション
+3. **[Addons — xpixi / xthree](./addons/xpixi)** — PixiJS / Three.js 連携

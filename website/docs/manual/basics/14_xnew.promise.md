@@ -1,6 +1,6 @@
 # xnew.promise
 
-`xnew.promise` は標準の Promise をラップし、その `.then()` / `.catch()` ハンドラが現在の xnew コンポーネントスコープ内で実行されるようにします。Promise が解決される前にコンポーネントが finalize された場合、ハンドラは静かに破棄されます。古いコールバックも、クラッシュもありません。
+`xnew.promise` は標準の Promise をラップし、`.then()` / `.catch()` ハンドラが現在の xnew コンポーネントスコープ内で実行されるようにします。Promise が解決される前にコンポーネントが finalize された場合、ハンドラは破棄されます。古いコールバックの実行やクラッシュは発生しません。
 
 ## 使い方
 
@@ -12,17 +12,17 @@ const wrappedPromise = xnew.promise(promise);
 - `promise`: 標準の Promise オブジェクトまたは unit
 
 **戻り値:**
-- 現在の `xnew` スコープ内でハンドラを実行するラップされた Promise
+- 現在の `xnew` スコープ内でハンドラを実行するラップ済み Promise
 
-## なぜ xnew.promise を使うのか？
+## 用途
 
-通常の `Promise` は非同期で解決されます。`.then()` が実行される頃には、リクエストを開始したコンポーネントが既に消えている可能性があります。追加の管理コードがない場合、古い DOM への書き込み、要素の欠落、微妙なバグなどを引き起こす可能性があります。
+通常の `Promise` は非同期で解決されます。`.then()` の実行時点で、リクエストを開始したコンポーネントが既に破棄されていることがあります。何も対策しないと、破棄済みの DOM への書き込みや要素の欠落といった不具合の原因になります。
 
-`xnew.promise` は Promise をコンポーネントに結び付けます。unit が finalize されると、保留中のハンドラは自動的に破棄されます。
+`xnew.promise` は Promise をコンポーネントに紐付けます。unit が finalize されると、保留中のハンドラは破棄されます。
 
 ## 例
 
-### 基本的な使い方
+### 基本
 
 ```js
 xnew((unit) => {
@@ -41,5 +41,5 @@ xnew((unit) => {
 ```
 
 :::tip
-一般的な Promise の処理には `xnew.promise` を使用してください。HTTP リクエストに特化した、より便利な API を提供する `xnew.fetch` も利用できます。
+汎用的な Promise の処理には `xnew.promise` を使用してください。HTTP リクエストには専用 API の `xnew.fetch` も利用できます。
 :::

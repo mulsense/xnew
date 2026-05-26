@@ -4,7 +4,7 @@ sidebar_position: 502
 
 # xthree
 
-`xthree` は xnew のコンポーネントライフサイクルと Three.js のシーングラフを橋渡しします。コンポーネントは自身の 3D オブジェクトを所有し、unit が finalize されると、そのメッシュやライトはシーンから自動的に削除されます。
+`xthree` は xnew のライフサイクルを Three.js のシーングラフに統合するアドオンです。各コンポーネントが自身の 3D オブジェクトを保持し、unit が finalize されるとメッシュやライトはシーンから自動的に削除されます。
 
 ## セットアップ
 
@@ -46,7 +46,7 @@ import xthree from '@mulsense/xnew/addons/xthree'
 
 ### `xthree.initialize({ canvas, camera? })`
 
-ルートコンポーネントで一度だけ呼び出して、WebGL レンダラーを生成します。呼び出した後は、以下にアクセスできます。
+ルートコンポーネントで一度だけ呼び出し、WebGL レンダラーを生成します。呼び出し後は次のプロパティにアクセスできます。
 - `xthree.renderer` — `THREE.WebGLRenderer`
 - `xthree.scene` — ルートの `THREE.Scene`
 - `xthree.camera` — アクティブなカメラ
@@ -67,7 +67,7 @@ function Main(unit) {
 
 ### `xthree.nest(threeObject)`
 
-`threeObject` を現在の Three.js の親の子として追加し、そのオブジェクトを返します。unit が finalize されると、オブジェクトはシーンから自動的に削除されます。
+`threeObject` を現在の Three.js 親オブジェクトの子として追加し、そのまま返します。unit が finalize されると、対象オブジェクトはシーンから自動的に削除されます。
 
 ```js
 function Box(unit) {

@@ -1,6 +1,6 @@
 # xnew.timeout
 
-`xnew.timeout` は 2 つの改善が加えられた `setTimeout` です。コールバックは正しい xnew のスコープで実行され、所有する unit が finalize されると自動的にキャンセルされます。timeout と transition を連鎖させて、コールバックをネストせずに複数ステップのシーケンスを構築することもできます。
+`xnew.timeout` は 2 つの拡張を加えた `setTimeout` です。コールバックは正しい xnew スコープで実行され、所有する unit の finalize 時に自動でキャンセルされます。timeout と transition を連鎖させて、コールバックをネストせずに多段シーケンスを構築できます。
 
 ## 使い方
 
@@ -10,10 +10,10 @@ const timeout = xnew.timeout(callback, interval);
 
 **パラメータ:**
 - `callback`: 遅延後に実行する関数
-- `duration`: 実行までの時間（ミリ秒）
+- `duration`: 実行までの時間 (ミリ秒)
 
 **戻り値:**
-- 以下を持つ transition オブジェクト：
+- 次のプロパティを持つ transition オブジェクト:
   - `clear()`: transition をキャンセル
   - `timeout(callback, duration)`: 別の timeout を連鎖
   - `transition(callback, duration, easing)`: 別の transition を連鎖
@@ -61,7 +61,7 @@ xnew('<button>', (unit) => {
 
 ## 自動クリーンアップ
 
-unit が finalize されると、そのすべての timeout が自動的にクリアされます：
+unit の finalize 時に、その unit に紐づくすべての timeout が自動でクリアされます。
 
 ```js
 const unit = xnew((unit) => {
@@ -77,5 +77,5 @@ const unit = xnew((unit) => {
 ```
 
 :::tip
-すべての timeout は親 unit が finalize されたときに自動的にクリーンアップされます。これによりメモリリークを防止し、コンポーネント破棄後にコールバックが実行されないことを保証します。
+親 unit の finalize 時にすべての timeout が自動でクリーンアップされます。メモリリークを防ぎ、破棄後のコールバック実行を抑止します。
 :::
