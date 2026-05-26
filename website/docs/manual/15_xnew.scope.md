@@ -1,28 +1,28 @@
 # xnew.scope
 
-`xnew.scope` captures the current component context and returns a wrapper that restores it when called. Use this when you need to call xnew APIs inside a raw `setTimeout`, `setInterval`, or a native `addEventListener` — places where the xnew scope would otherwise be lost.
+`xnew.scope` は現在のコンポーネントコンテキストをキャプチャし、呼び出された際にそれを復元するラッパーを返します。raw な `setTimeout`、`setInterval`、ネイティブの `addEventListener` の中で xnew API を呼び出す必要がある場合に使用します。これらの場所では本来 xnew スコープが失われてしまいます。
 
-In most cases you won't need this: `xnew.timeout`, `xnew.interval`, and `unit.on` all preserve scope automatically. `xnew.scope` is the escape hatch for when you're using browser APIs directly.
+ほとんどの場合、これは必要ありません。`xnew.timeout`、`xnew.interval`、`unit.on` はすべて自動的にスコープを保持します。`xnew.scope` はブラウザ API を直接使用する場合のためのエスケープハッチです。
 
-## Basic Usage
+## 基本的な使い方
 
 ```js
 xnew.scope(callback);
 ```
 
-**Parameters:**
-- `callback` - Function to execute with preserved scope
+**パラメータ:**
+- `callback` - スコープを保持して実行する関数
 
-**Returns:**
-- Wrapped function with preserved scope
+**戻り値:**
+- スコープが保持されたラップ関数
 
-## Why It's Needed
+## なぜ必要なのか
 
-In asynchronous operations like `setTimeout` or event listeners, the xnew component context is normally lost. `xnew.scope` ensures the correct component scope is maintained within these async callbacks.
+`setTimeout` やイベントリスナーなどの非同期処理では、通常 xnew のコンポーネントコンテキストが失われます。`xnew.scope` はこれらの非同期コールバック内で正しいコンポーネントスコープが維持されることを保証します。
 
-## Examples
+## 例
 
-### Preserving Scope in setTimeout
+### setTimeout でのスコープ保持
 
 ```js
 function Timer(unit) {
@@ -35,7 +35,7 @@ function Timer(unit) {
 }
 ```
 
-### Using with Event Listeners
+### イベントリスナーでの使用
 
 ```js
 function Button(unit) {
@@ -48,7 +48,7 @@ function Button(unit) {
 }
 ```
 
-## Notes
+## 注意
 
-- Always wrap callbacks with `xnew.scope` when using xnew APIs like `xnew.on` inside async operations or event handlers
-- `xnew.scope` is unnecessary if you're already in the correct scope
+- 非同期処理やイベントハンドラの内部で `xnew.on` などの xnew API を使用する場合は、必ずコールバックを `xnew.scope` でラップしてください
+- すでに正しいスコープにいる場合は `xnew.scope` は不要です

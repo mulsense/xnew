@@ -1,28 +1,28 @@
 # xnew.extend
 
-`xnew.extend` runs another component function in the current unit's context and merges its returned API onto the unit. No new element is created — you're just mixing behavior in.
+`xnew.extend` は現在の unit のコンテキストで別のコンポーネント関数を実行し、その返り値の API を unit にマージします。新しい要素は生成されず、振る舞いをミックスインするだけです。
 
-This is how you build reusable behavior "mixins": write a component that adds dragging, logging, keyboard handling, or any other capability, then drop it into any other component with one line.
+これは再利用可能な「ミックスイン」を構築する方法です。ドラッグ、ロギング、キーボード操作などの機能を追加するコンポーネントを書いておけば、他の任意のコンポーネントに 1 行で組み込めます。
 
-## Usage
+## 使い方
 
 ```js
 xnew.extend(Component, props);
 ```
 
-**Parameters:**
-- `Component`: A component function to extend with
-- `props`: Optional properties passed to the component function
+**パラメータ:**
+- `Component`: 拡張に使用するコンポーネント関数
+- `props`: コンポーネント関数に渡される任意のプロパティ
 
-**Behavior:**
-- Executes the component function immediately in the current unit's context.
-- Merges returned properties/methods onto the current unit.
-- Event handlers accumulate — they are never overridden by later extensions.
-- If two extensions return the same property name, the later one wins.
+**動作:**
+- 現在の unit のコンテキストで即座にコンポーネント関数を実行します。
+- 返されたプロパティ/メソッドを現在の unit にマージします。
+- イベントハンドラは累積されます。後の拡張で上書きされることはありません。
+- 2 つの拡張が同じプロパティ名を返した場合、後のものが優先されます。
 
-## Example
+## 例
 
-### Mixing in a Logger
+### ロガーのミックスイン
 
 ```js
 function Logger(unit) {
@@ -42,9 +42,9 @@ const unit = xnew((unit) => {
 // Output: [2025-01-15T10:30:00.000Z] Application started
 ```
 
-### Mixing in Behavior (Draggable)
+### 振る舞いのミックスイン（ドラッグ可能化）
 
-A more practical example — pull drag logic into its own component and reuse it anywhere:
+より実用的な例として、ドラッグロジックを独自のコンポーネントに切り出して、どこでも再利用できるようにします：
 
 ```js
 function Draggable(unit) {
@@ -81,6 +81,6 @@ xnew(Card);
 ```
 
 :::note
-`xnew.extend` can only be called during component initialization (inside the component function). You cannot call it after the unit is created.
+`xnew.extend` はコンポーネントの初期化中（コンポーネント関数の内部）でのみ呼び出せます。unit が生成された後に呼び出すことはできません。
 :::
 

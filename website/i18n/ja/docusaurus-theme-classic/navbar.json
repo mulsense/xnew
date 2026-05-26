@@ -1,0 +1,22 @@
+{
+  "title": {
+    "message": "xnew",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.document": {
+    "message": "document",
+    "description": "Navbar item with label document"
+  },
+  "item.label.examples": {
+    "message": "sample",
+    "description": "Navbar item with label examples"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

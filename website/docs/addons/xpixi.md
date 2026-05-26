@@ -4,16 +4,16 @@ sidebar_position: 501
 
 # xpixi
 
-`xpixi` bridges xnew's component lifecycle with PixiJS's scene graph. You get xnew's automatic cleanup and event system on top of PixiJS's high-performance 2D renderer — no manual `addChild` / `removeChild` bookkeeping when components are destroyed.
+`xpixi` は xnew のコンポーネントライフサイクルと PixiJS のシーングラフを橋渡しします。PixiJS の高性能な 2D レンダラーの上に、xnew の自動クリーンアップとイベントシステムを利用できます。コンポーネントが破棄される際に、`addChild` / `removeChild` を手動で管理する必要はありません。
 
-## Setup
-### Via CDN
+## セットアップ
+### CDN を使う
 ```html
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.js"></script>
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xpixi.js"></script>
 ```
 
-### Via CDN (ESM)
+### CDN を使う (ESM)
 ```html
 <script type="importmap">
 {
@@ -32,7 +32,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 </script>
 ```
 
-### Via npm
+### npm を使う
 ```bash
 npm install @mulsense/xnew@0.7.x
 ```
@@ -41,14 +41,14 @@ import xnew from '@mulsense/xnew'
 import xpixi from '@mulsense/xnew/addons/xpixi'
 ```
 
-## Core API
+## コア API
 
 ### `xpixi.initialize({ canvas })`
 
-Call once in the root component to create the PixiJS renderer. After this you have access to:
-- `xpixi.renderer` — the PixiJS renderer
-- `xpixi.scene` — the root `PIXI.Container`
-- `xpixi.canvas` — the `<canvas>` element
+ルートコンポーネントで一度だけ呼び出して、PixiJS のレンダラーを生成します。呼び出した後は、以下にアクセスできます。
+- `xpixi.renderer` — PixiJS のレンダラー
+- `xpixi.scene` — ルートの `PIXI.Container`
+- `xpixi.canvas` — `<canvas>` 要素
 
 ```js
 function Main(unit) {
@@ -61,7 +61,7 @@ function Main(unit) {
 
 ### `xpixi.nest(pixiObject)`
 
-Analogous to `xnew.nest` but for PixiJS objects. Adds `pixiObject` to the current parent container and returns it. The object is automatically removed from the scene when the unit is finalized.
+`xnew.nest` の PixiJS オブジェクト版です。`pixiObject` を現在の親コンテナに追加し、そのオブジェクトを返します。unit が finalize されると、オブジェクトはシーンから自動的に削除されます。
 
 ```js
 function Enemy(unit) {

@@ -34,12 +34,13 @@ const config = {
     },
   },
 
-  // Even if you don't use internationalization, you can use this field to set
-  // useful metadata like html lang. For example, if your site is Chinese, you
-  // may want to replace "en" with "zh-Hans".
   i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
+    defaultLocale: 'ja',
+    locales: ['ja', 'en'],
+    localeConfigs: {
+      ja: { label: '日本語', htmlLang: 'ja' },
+      en: { label: 'English', htmlLang: 'en' },
+    },
   },
 
   presets: [
@@ -85,7 +86,7 @@ const config = {
       navbar: {
         title: 'xnew',
         logo: {
-          alt: 'My Site Logo',
+          alt: '',
           src: 'img/logo.svg',
         },
         items: [
@@ -105,6 +106,10 @@ const config = {
           {
             href: 'https://github.com/mulsense/xnew',
             label: 'GitHub',
+            position: 'right',
+          },
+          {
+            type: 'localeDropdown',
             position: 'right',
           },
         ],

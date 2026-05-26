@@ -1,34 +1,34 @@
 # xnew.nest
 
-`xnew.nest` creates a child element and shifts `unit.element` to point to it. Any elements created after the call are placed inside the new element automatically — no manual parent references needed.
+`xnew.nest` は子要素を生成し、`unit.element` をその要素に切り替えます。この呼び出し以降に生成される要素は、自動的に新しい要素の中に配置されます。親要素への手動参照は不要です。
 
-## Usage
+## 使い方
 
 ```js
 const element = xnew.nest(htmlString);
 ```
 
-**Parameters:**
-- `htmlString`: HTML string to create the element (e.g., `'<div>'`, `'<span class="highlight">'`)
+**パラメータ:**
+- `htmlString`: 要素を生成するための HTML 文字列（例: `'<div>'`, `'<span class="highlight">'`）
 
-**Returns:**
-- The newly created HTMLElement
+**戻り値:**
+- 新しく生成された HTMLElement
 
-**Side effect:**
-- `unit.element` now points to the newly created element
+**副作用:**
+- `unit.element` が新しく生成された要素を指すようになります
 
-## How It Works
+## 動作の仕組み
 
-`xnew.nest` does two things at once:
+`xnew.nest` は同時に 2 つのことを行います：
 
-1. Creates the new element as a child of the current element.
-2. Shifts `unit.element` so the next `xnew()` calls land inside it.
+1. 現在の要素の子として新しい要素を生成します。
+2. `unit.element` を切り替え、次の `xnew()` 呼び出しがその内側に配置されるようにします。
 
-Wrapping a block in a nested `xnew(() => { ... })` call limits the context shift to that scope, so the parent level is restored when the inner function returns. This is how you build multi-level layouts cleanly.
+ブロックをネストされた `xnew(() => { ... })` 呼び出しで包むと、コンテキストの切り替えがそのスコープに限定され、内部関数が終了すると親レベルに復元されます。これが多階層レイアウトをクリーンに構築する方法です。
 
-## Example
+## 例
 
-### Basic Nesting
+### 基本的なネスト
 
 ```js
 xnew((unit) => {
@@ -48,7 +48,7 @@ xnew((unit) => {
 // </header>
 ```
 
-### Managing Nesting Levels
+### ネストレベルの管理
 
 ```js
 function Card(unit, { title, content }) {
@@ -83,13 +83,13 @@ xnew(Card, {
 // </div>
 ```
 
-## Key Concepts
+## 主要な概念
 
-- **Context shift** — `xnew.nest` changes `unit.element` to the newly created element.
-- **Scoped nesting** — wrap blocks in a nested `xnew()` call to contain the context shift; the parent level is restored when the inner function returns.
-- **Return value** — `xnew.nest` returns the raw `HTMLElement` for cases where you need direct access.
-- **Automatic cleanup** — nested elements are removed when the parent unit is finalized.
+- **コンテキストの切り替え** — `xnew.nest` は `unit.element` を新しく生成された要素に変更します。
+- **スコープ付きネスト** — ブロックをネストされた `xnew()` 呼び出しで包むことで、コンテキストの切り替えを限定できます。内部関数が終了すると親レベルが復元されます。
+- **戻り値** — `xnew.nest` は raw な `HTMLElement` を返すため、直接アクセスが必要な場合にも対応できます。
+- **自動クリーンアップ** — ネストされた要素は親 unit が finalize されると削除されます。
 
 :::tip
-Use nested `xnew()` calls to maintain proper element hierarchy. After a nested `xnew()` completes, the context returns to the parent level.
+適切な要素階層を維持するためにネストされた `xnew()` 呼び出しを使用してください。ネストされた `xnew()` が完了すると、コンテキストは親レベルに戻ります。
 :::

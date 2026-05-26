@@ -1,22 +1,22 @@
 # xnew.find
 
-`xnew.find` returns every currently active unit created with a given component function. It's the quickest way to broadcast to all enemies, sync all counters, or run collision detection against every moving object — without maintaining manual arrays.
+`xnew.find` は、特定のコンポーネント関数で生成され、現在アクティブなすべての unit を返します。手動で配列を管理することなく、すべての敵にブロードキャストしたり、すべてのカウンターを同期したり、移動するすべてのオブジェクトと衝突判定を行ったりする最も簡単な方法です。
 
-## Usage
+## 使い方
 
 ```js
 const units = xnew.find(Component);
 ```
 
-**Parameters:**
-- `Component`: The component function to search for
+**パラメータ:**
+- `Component`: 検索対象のコンポーネント関数
 
-**Returns:**
-- An array of all units created with the specified component function
+**戻り値:**
+- 指定したコンポーネント関数で生成されたすべての unit の配列
 
-## Example
+## 例
 
-### Basic Usage
+### 基本的な使い方
 
 ```js
 function Counter(unit) {
@@ -45,7 +45,7 @@ console.log(allCounters.length); // 3
 allCounters.forEach(counter => counter.increment());
 ```
 
-### Managing Multiple Instances
+### 複数インスタンスの管理
 
 ```js
 function Player(unit, { name }) {
@@ -81,17 +81,17 @@ const totalScore = players.reduce((sum, player) => sum + player.getScore(), 0);
 console.log('Total score:', totalScore); // 30
 ```
 
-## Use Cases
+## ユースケース
 
-`xnew.find` is particularly useful for:
+`xnew.find` は特に以下の用途に有用です：
 
-- **Coordinating multiple instances**: Update or control all instances of a component type
-- **State synchronization**: Keep multiple components in sync
-- **Broadcasting**: Send messages or events to all instances
-- **Cleanup operations**: Find and remove all instances of a component
-- **Statistics and monitoring**: Count or analyze active components
-- **Filtering and selection**: Find specific instances based on criteria
+- **複数インスタンスの連携**: 特定のコンポーネントタイプのすべてのインスタンスを更新または制御
+- **状態の同期**: 複数コンポーネントを同期状態に保つ
+- **ブロードキャスト**: すべてのインスタンスにメッセージやイベントを送信
+- **クリーンアップ操作**: コンポーネントのすべてのインスタンスを検索して削除
+- **統計と監視**: アクティブなコンポーネントの数を数えたり分析したりする
+- **フィルタリングと選択**: 条件に基づいた特定のインスタンスの検索
 
 :::tip
-`xnew.find` only returns currently active units. If a unit has been finalized, it will not appear in the results.
+`xnew.find` は現在アクティブな unit のみを返します。finalize された unit は結果に含まれません。
 :::

@@ -1,32 +1,32 @@
 # xnew.context
 
-`xnew.context` lets descendant components read shared data from an ancestor without passing it through every layer. It's the xnew answer to prop-drilling.
+`xnew.context` は、子孫コンポーネントが祖先から共有データを読み取れるようにします。中間の各層を経由してデータを渡す必要はありません。xnew における prop-drilling への解答です。
 
-Set up a "provider" component that holds state, create it once near the root, and any descendant can retrieve it by name — even deeply nested ones.
+状態を保持する「プロバイダー」コンポーネントを設定し、ルート付近で 1 度だけ生成すれば、深くネストされた子孫を含むあらゆる子孫から名前で取得できます。
 
-## Usage
+## 使い方
 
-### Get Context Value
+### コンテキスト値の取得
 ```js
 const value = xnew.context(component);
 ```
 
-**Parameters:**
-- `component`: Component function for the context property
+**パラメータ:**
+- `component`: コンテキストプロパティを表すコンポーネント関数
 
-**Returns:**
-- When getting: The context value, or `undefined` if not found
+**戻り値:**
+- 取得時: コンテキスト値、見つからない場合は `undefined`
 
-## How It Works
+## 動作の仕組み
 
-- Context values are inherited from parent to child units
-- Child units can override context values locally
-- Overriding in a child doesn't affect the parent's value
-- Context lookup searches up the unit hierarchy until a value is found
+- コンテキスト値は親 unit から子 unit に継承されます
+- 子 unit はコンテキスト値をローカルでオーバーライドできます
+- 子でのオーバーライドは親の値に影響しません
+- コンテキスト検索は値が見つかるまで unit 階層を上方向に探索します
 
-## Example
+## 例
 
-### Data Share
+### データの共有
 
 ```js
 xnew((unit) => {
@@ -48,7 +48,7 @@ function Child(unit) {
 
 ```
 
-### Nested Context Override
+### ネストされたコンテキストのオーバーライド
 
 ```js
 xnew((unit) => {
@@ -77,15 +77,15 @@ function Child2(unit) {
 }
 ```
 
-## Use Cases
+## ユースケース
 
-`xnew.context` is particularly useful for:
+`xnew.context` は特に以下の用途に有用です：
 
-- **Theme / config** — a single `Theme` component at the root, consumed anywhere below
-- **Game state** — score, level, or player data shared across the scene tree
-- **Scene management** — passing a `Flow` controller down to child scenes without explicit props
-- **Dependency injection** — services like audio or input that many components need
+- **テーマ / 設定** — ルートに 1 つの `Theme` コンポーネントを置き、その下のどこからでも利用
+- **ゲーム状態** — スコア、レベル、プレイヤーデータをシーンツリー全体で共有
+- **シーン管理** — `Flow` コントローラを明示的な props なしで子シーンに渡す
+- **依存性注入** — オーディオや入力など、多くのコンポーネントが必要とするサービス
 
 :::tip
-`xnew.context` looks up the unit hierarchy until it finds a matching provider. A child can create its own provider with the same component to shadow the parent's value locally, without affecting any other branch.
+`xnew.context` は一致するプロバイダーが見つかるまで unit 階層を遡って検索します。子は同じコンポーネントで独自のプロバイダーを作成して、他の枝に影響を与えずに親の値をローカルでシャドウできます。
 :::

@@ -1,37 +1,37 @@
 # xnew.transition
 
-`xnew.transition` drives a value from `0` to `1` over a set duration, calling your callback every frame. Feed that value into any property — opacity, position, scale, color — and you get smooth animation with one function call.
+`xnew.transition` は値を指定された期間にわたって `0` から `1` まで変化させ、フレームごとにコールバックを呼び出します。その値を任意のプロパティ（不透明度、位置、スケール、色）に渡せば、1 つの関数呼び出しでなめらかなアニメーションが得られます。
 
-It's also chainable: you can sequence timeouts and transitions without nesting callbacks.
+また連鎖可能で、コールバックをネストせずに timeout と transition をシーケンス化できます。
 
-## Usage
+## 使い方
 
 ```js
 const transition = xnew.transition(callback, interval, easing);
 ```
 
-**Parameters:**
-- `callback({ value })`: Function called on each frame with progress value (0.0 to 1.0)
-- `duration`: Animation duration interval in milliseconds (default: 0)
-- `easing`: Easing function name (default: 'linear')
+**パラメータ:**
+- `callback({ value })`: 進捗値（0.0 〜 1.0）と共にフレームごとに呼び出される関数
+- `duration`: アニメーション期間（ミリ秒、デフォルト: 0）
+- `easing`: イージング関数名（デフォルト: 'linear'）
 
-**Returns:**
-- A transition object with:
-  - `clear()`: Cancel the transition
-  - `timeout(callback, interval)`: Chain another timeout
-  - `transition(callback, interval, easing)`: Chain another transition
+**戻り値:**
+- 以下を持つ transition オブジェクト：
+  - `clear()`: transition をキャンセル
+  - `timeout(callback, interval)`: 別の timeout を連鎖
+  - `transition(callback, interval, easing)`: 別の transition を連鎖
 
-## Available Easing Functions
+## 利用可能なイージング関数
 
-- `'linear'` - Constant speed
-- `'ease'` - Slow start and end, fast middle
-- `'ease-in'` - Slow start
-- `'ease-out'` - Slow end
-- `'ease-in-out'` - Slow start and end
+- `'linear'` - 一定速度
+- `'ease'` - 始点と終点はゆっくり、中間は速い
+- `'ease-in'` - 始点がゆっくり
+- `'ease-out'` - 終点がゆっくり
+- `'ease-in-out'` - 始点と終点がゆっくり
 
-## Example
+## 例
 
-### Fade In Animation
+### フェードインアニメーション
 
 ```js
 xnew('<div>', (unit) => {
@@ -43,7 +43,7 @@ xnew('<div>', (unit) => {
   }, 2000, 'ease-in');
 });
 ```
-### Canceling Transitions
+### transition のキャンセル
 
 ```js
 xnew('<div>', (unit) => {
@@ -60,9 +60,9 @@ xnew('<div>', (unit) => {
 });
 ```
 
-## Automatic Cleanup
+## 自動クリーンアップ
 
-When a unit is finalized, all its transitions are automatically cleared:
+unit が finalize されると、そのすべての transition が自動的にクリアされます：
 
 ```js
 const unit = xnew((unit) => {
@@ -78,5 +78,5 @@ xnew.timeout(() => {
 ```
 
 :::tip
-All transitions are automatically cleaned up when their parent unit is finalized. This prevents animations from continuing after a component is destroyed.
+すべての transition は親 unit が finalize されたときに自動的にクリーンアップされます。これによりコンポーネント破棄後もアニメーションが継続することを防ぎます。
 :::

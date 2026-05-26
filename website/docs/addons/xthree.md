@@ -4,17 +4,17 @@ sidebar_position: 502
 
 # xthree
 
-`xthree` bridges xnew's component lifecycle with Three.js's scene graph. Components own their 3D objects — when a unit is finalized, its meshes and lights are removed from the scene automatically.
+`xthree` は xnew のコンポーネントライフサイクルと Three.js のシーングラフを橋渡しします。コンポーネントは自身の 3D オブジェクトを所有し、unit が finalize されると、そのメッシュやライトはシーンから自動的に削除されます。
 
-## Setup
+## セットアップ
 
-### Via CDN
+### CDN を使う
 ```html
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.js"></script>
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xthree.js"></script>
 ```
 
-### Via CDN (ESM)
+### CDN を使う (ESM)
 ```html
 <script type="importmap">
 {
@@ -33,7 +33,7 @@ import xthree from '@mulsense/xnew/addons/xthree'
 </script>
 ```
 
-### Via npm
+### npm を使う
 ```bash
 npm install @mulsense/xnew@0.7.x
 ```
@@ -42,15 +42,15 @@ import xnew from '@mulsense/xnew'
 import xthree from '@mulsense/xnew/addons/xthree'
 ```
 
-## Core API
+## コア API
 
 ### `xthree.initialize({ canvas, camera? })`
 
-Call once in the root component to create the WebGL renderer. After this you have access to:
-- `xthree.renderer` — the `THREE.WebGLRenderer`
-- `xthree.scene` — the root `THREE.Scene`
-- `xthree.camera` — the active camera
-- `xthree.canvas` — the `<canvas>` element
+ルートコンポーネントで一度だけ呼び出して、WebGL レンダラーを生成します。呼び出した後は、以下にアクセスできます。
+- `xthree.renderer` — `THREE.WebGLRenderer`
+- `xthree.scene` — ルートの `THREE.Scene`
+- `xthree.camera` — アクティブなカメラ
+- `xthree.canvas` — `<canvas>` 要素
 
 ```js
 function Main(unit) {
@@ -67,7 +67,7 @@ function Main(unit) {
 
 ### `xthree.nest(threeObject)`
 
-Adds `threeObject` as a child of the current Three.js parent and returns it. When the unit is finalized, the object is removed from the scene automatically.
+`threeObject` を現在の Three.js の親の子として追加し、そのオブジェクトを返します。unit が finalize されると、オブジェクトはシーンから自動的に削除されます。
 
 ```js
 function Box(unit) {

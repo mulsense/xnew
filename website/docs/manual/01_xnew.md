@@ -1,21 +1,21 @@
 # xnew
 
-`xnew` is the core function of the library. It creates a **unit** — a self-contained component instance that owns its DOM element, its event listeners, and its lifecycle.
+`xnew` はライブラリの中核となる関数です。**unit** を生成します。unit とは自身の DOM 要素、イベントリスナー、ライフサイクルを所有する自己完結型のコンポーネントインスタンスです。
 
-The key insight: when a unit is destroyed, everything inside it — timers, listeners, child elements — is cleaned up automatically. You never have to write teardown code by hand.
+重要なポイントは、unit が破棄されたとき、その内部にあるすべて（タイマー、リスナー、子要素）が自動的にクリーンアップされることです。後片付けのコードを手書きする必要はありません。
 
-## Overview
+## 概要
 
-`xnew` gives you:
+`xnew` が提供する機能：
 
-- **Reusable components** — plain functions; no class syntax needed
-- **Automatic DOM management** — create or attach elements declaratively
-- **A built-in event system** — DOM events, lifecycle events, and custom events in one unified API
-- **Composable building blocks** — nest components inside each other to build any structure
+- **再利用可能なコンポーネント** — クラス構文不要のプレーンな関数
+- **自動的な DOM 管理** — 宣言的に要素を生成またはアタッチ
+- **組み込みのイベントシステム** — DOM イベント、ライフサイクルイベント、カスタムイベントを統一 API で扱える
+- **組み合わせ可能なビルディングブロック** — コンポーネントを互いにネストすることで任意の構造を構築可能
 
-## Usage
+## 使い方
 
-All arguments are optional, so `xnew` scales from a single throwaway element to a full component tree.
+すべての引数はオプションのため、`xnew` は単一の使い捨て要素から完全なコンポーネントツリーまで柔軟に対応します。
 
 ```js
 const unit = xnew(target, Component, props); // or xnew(Component, props)
@@ -24,15 +24,15 @@ function Component(unit, props) {
   // Define component behavior here
 }
 ```
-- `target` *(optional)* — the HTML element to attach to. Pass a DOM element, an HTML string like `'<div class="box">'`, or omit to inherit from the parent context.
-- `Component` *(optional)* — a function that defines what this unit does.
-- `props` *(optional)* — data passed as the second argument to the component function.
+- `target` *(オプション)* — アタッチする HTML 要素。DOM 要素、`'<div class="box">'` のような HTML 文字列を渡すか、省略して親のコンテキストから継承します。
+- `Component` *(オプション)* — この unit の動作を定義する関数。
+- `props` *(オプション)* — コンポーネント関数の第二引数として渡されるデータ。
 
-## Components
+## コンポーネント
 
-A component is just a function. It receives the unit it belongs to and any props passed in from the caller. There's nothing special to inherit or extend.
+コンポーネントは単なる関数です。所属する unit と、呼び出し元から渡された props を受け取ります。継承や拡張に関する特別なルールはありません。
 
-### Simple Component Example
+### シンプルなコンポーネントの例
 ```js
 function MyComponent(unit, { message }) {
   // Access the HTML element
@@ -46,7 +46,7 @@ function MyComponent(unit, { message }) {
 const unit = xnew(MyComponent, { message: 'Hello World' });
 ```
 
-### Arrow Function Components
+### アロー関数コンポーネント
 ```js
 const unit = xnew((unit, props) => {
   // Component logic here
@@ -54,13 +54,13 @@ const unit = xnew((unit, props) => {
 });
 ```
 
-## Targeting
+## ターゲット指定
 
-The `target` parameter determines which element the component is attached to. Access it anywhere inside the component via `unit.element`.
+`target` パラメータは、コンポーネントがアタッチされる要素を決定します。コンポーネント内のどこからでも `unit.element` でアクセスできます。
 
-### Targeting Existing Elements
+### 既存要素をターゲットにする
 
-Use element references to target existing HTML elements:
+要素参照を使って既存の HTML 要素をターゲットにします：
 
 ```html
 <body>
@@ -74,9 +74,9 @@ Use element references to target existing HTML elements:
 </body>
 ```
 
-### Creating New Elements
+### 新しい要素の生成
 
-Create new HTML elements by providing an HTML string as the target:
+HTML 文字列を target に渡すと、新しい HTML 要素を生成します：
 
 ```html
 <body>
@@ -88,9 +88,9 @@ Create new HTML elements by providing an HTML string as the target:
 </body>
 ```
 
-### Element Inheritance
+### 要素の継承
 
-When no target is specified, xnew inherits the element from its parent context:
+target を指定しない場合、xnew は親コンテキストから要素を継承します：
 
 ```html
 <div id="parent"></div>
@@ -109,9 +109,9 @@ When no target is specified, xnew inherits the element from its parent context:
 </script>
 ```
 
-### Setting textContent
+### textContent の設定
 
-You can set the content directly when creating elements:
+要素生成時に直接コンテンツを設定できます：
 
 ```js
 // Create element with content
@@ -123,11 +123,11 @@ xnew('<p>', (unit) => {
 });
 ```
 
-## Event System
+## イベントシステム
 
-xnew uses a single unified API — `unit.on` / `unit.off` — for DOM events, lifecycle events, and custom events. There's nothing extra to learn for each category.
+xnew は DOM イベント、ライフサイクルイベント、カスタムイベントのすべてに対して単一の統一 API（`unit.on` / `unit.off`）を使用します。カテゴリごとに追加で覚えることはありません。
 
-### Adding Event Listeners
+### イベントリスナーの追加
 
 ```js
 function MyComponent(unit) {
@@ -147,9 +147,9 @@ unit.on('click', ({ event }) => {
 });
 ```
 
-### Removing Event Listeners
+### イベントリスナーの削除
 
-Use `unit.off()` to remove event listeners:
+`unit.off()` でイベントリスナーを削除します：
 
 ```js
 const unit = xnew(MyComponent);
@@ -168,11 +168,11 @@ unit.on('click', myClickHandler);
 unit.off('click', myClickHandler);
 ```
 
-## Lifecycle Events
+## ライフサイクルイベント
 
-These five events cover the entire life of a component. You only need to listen to the ones you care about.
+以下の 5 つのイベントがコンポーネントの全ライフサイクルをカバーします。必要なものだけリッスンすれば十分です。
 
-### Available Lifecycle Events
+### 利用可能なライフサイクルイベント
 
 ```js
 function MyComponent(unit) {
@@ -206,7 +206,7 @@ function MyComponent(unit) {
 const unit = xnew(MyComponent);
 ```
 
-### Lifecycle Example: Animated Counter
+### ライフサイクルの例：アニメーションカウンター
 
 ```js
 function AnimatedCounter(unit, { maxCount }) {
@@ -234,12 +234,12 @@ function AnimatedCounter(unit, { maxCount }) {
 const counter = xnew('<div>', AnimatedCounter, { maxCount: 50 });
 ```
 
-## Lifecycle Control Methods
+## ライフサイクル制御メソッド
 
-Three methods give you full control over a unit's life:  `start` it, `stop` it, or `finalize` it for good.
+3 つのメソッドで unit のライフサイクルを完全に制御できます。`start` で開始、`stop` で停止、`finalize` で完全に破棄します。
 
 ### `unit.start()`
-Starts the update loop. Components start automatically by default.
+update ループを開始します。コンポーネントはデフォルトで自動的に開始されます。
 
 ```js
 const unit = xnew((unit) => {
@@ -257,7 +257,7 @@ xnew.timeout(() => {
 ```
 
 ### `unit.stop()`
-Stops the update loop. The component remains alive but doesn't update.
+update ループを停止します。コンポーネントは生存し続けますが、更新は行われません。
 
 ```js
 const unit = xnew((unit) => {
@@ -268,7 +268,7 @@ const unit = xnew((unit) => {
 ```
 
 ### `unit.finalize()`
-Completely destroys the component and removes its element from the DOM.
+コンポーネントを完全に破棄し、要素を DOM から削除します。
 
 ```js
 const unit = xnew('<div>', 'Click to destroy me');
@@ -293,9 +293,9 @@ xnew.interval(() => {
 }, 1000);
 ```
 
-### Lifecycle Execution Order
+### ライフサイクルの実行順序
 
-Child events always fire **before** parent events. This means children finish their setup before the parent's `start` runs, and finish tearing down before the parent's `stop` runs.
+子のイベントは必ず親のイベントよりも**先に**発火します。つまり、子は親の `start` が実行される前にセットアップを完了し、親の `stop` が実行される前に後片付けを完了します。
 
 ```js
 function Parent(unit) {
@@ -325,7 +325,7 @@ function Child2(unit) {
 const parent = xnew(Parent);
 ```
 
-**Output:**
+**出力:**
 ```
 Child1 start
 Child2 start
@@ -345,9 +345,9 @@ Child2 stop
 Parent stop
 ```
 
-## DOM Events
+## DOM イベント
 
-Standard DOM event names work out of the box through `unit.on`. The callback receives `{ event }` — the native DOM Event object.
+標準的な DOM イベント名は `unit.on` でそのまま利用できます。コールバックはネイティブの DOM Event オブジェクトを含む `{ event }` を受け取ります。
 
 ```js
 function InteractiveButton(unit) {
@@ -368,13 +368,13 @@ function InteractiveButton(unit) {
 const button = xnew('<button>Hover and click me</button>', InteractiveButton);
 ```
 
-## Custom Events
+## カスタムイベント
 
-Components need to talk to each other without tight coupling. xnew solves this with a prefix-based event system.
+コンポーネント同士は密結合にならずに通信する必要があります。xnew はプレフィックスベースのイベントシステムでこの問題を解決します。
 
-### Global Events (+ prefix)
+### グローバルイベント（`+` プレフィックス）
 
-A `+` prefix makes the event visible to every active component in the app — useful for things like score updates, game-over signals, or theme changes:
+`+` プレフィックスを付けたイベントは、アプリ内で動作中のすべてのコンポーネントから可視になります。スコア更新、ゲームオーバー通知、テーマ変更などに便利です：
 
 ```js
 function Sender(unit) {
@@ -404,9 +404,9 @@ xnew(Sender);
 xnew(Receiver);
 ```
 
-### Internal Events (- prefix)
+### 内部イベント（`-` プレフィックス）
 
-A `-` prefix scopes the event to the component and its direct parent only — perfect for a child reporting back to its owner without leaking into the rest of the app:
+`-` プレフィックスを付けたイベントは、そのコンポーネントと直接の親のみにスコープが限定されます。アプリの他の部分に漏れずに、子から親へ報告したい場合に最適です：
 
 ```js
 function Timer(unit) {
@@ -428,11 +428,11 @@ timer.on('-message', (data) => {
 });
 ```
 
-## Custom Methods
+## カスタムメソッド
 
-Return an object from your component function and those properties become part of the unit's public API. This is the cleanest way to expose behavior to callers without breaking encapsulation.
+コンポーネント関数からオブジェクトを返すと、そのプロパティが unit の公開 API に組み込まれます。これがカプセル化を保ちつつ、呼び出し元に振る舞いを公開する最もクリーンな方法です。
 
-### Basic Custom Methods
+### 基本的なカスタムメソッド
 
 ```js
 function Counter(unit) {
@@ -456,7 +456,7 @@ counter.increment();          // count: 1
 console.log(counter.value()); // 1
 ```
 
-### Getters and Setters
+### ゲッターとセッター
 
 ```js
 function ColorBox(unit) {
@@ -490,13 +490,13 @@ console.log(box.color);    // Getter: "blue"
 box.randomize();           // Custom method
 ```
 
-### Reserved Property Names
+### 予約済みプロパティ名
 
-Avoid these reserved names when creating custom properties:
+カスタムプロパティを定義する際は、以下の予約名を避けてください：
 - `start`, `stop`, `finalize`
 - `element`, `on`, `off`,
-- `_` (internal use)
+- `_` (内部利用)
 
 
-Next, check out [`xnew.nest`](./xnew.nest) to see how to build nested element structures cleanly.
+次は [`xnew.nest`](./xnew.nest) を参照し、ネストされた要素構造をクリーンに構築する方法を確認してください。
 

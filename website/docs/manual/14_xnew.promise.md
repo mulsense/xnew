@@ -1,28 +1,28 @@
 # xnew.promise
 
-`xnew.promise` wraps a standard Promise so its `.then()` / `.catch()` handlers run inside the current xnew component scope. If the component is finalized before the Promise resolves, the handlers are silently discarded — no stale callbacks, no crashes.
+`xnew.promise` は標準の Promise をラップし、その `.then()` / `.catch()` ハンドラが現在の xnew コンポーネントスコープ内で実行されるようにします。Promise が解決される前にコンポーネントが finalize された場合、ハンドラは静かに破棄されます。古いコールバックも、クラッシュもありません。
 
-## Usage
+## 使い方
 
 ```js
 const wrappedPromise = xnew.promise(promise);
 ```
 
-**Parameters:**
-- `promise`: A standard Promise object or unit
+**パラメータ:**
+- `promise`: 標準の Promise オブジェクトまたは unit
 
-**Returns:**
-- A wrapped Promise that executes handlers within the current `xnew` scope
+**戻り値:**
+- 現在の `xnew` スコープ内でハンドラを実行するラップされた Promise
 
-## Why Use xnew.promise?
+## なぜ xnew.promise を使うのか？
 
-A plain `Promise` resolves asynchronously — by the time `.then()` runs, the component that started the request might already be gone. Without extra bookkeeping, that leads to stale DOM writes, missing elements, or subtle bugs.
+通常の `Promise` は非同期で解決されます。`.then()` が実行される頃には、リクエストを開始したコンポーネントが既に消えている可能性があります。追加の管理コードがない場合、古い DOM への書き込み、要素の欠落、微妙なバグなどを引き起こす可能性があります。
 
-`xnew.promise` ties the Promise to the component. When the unit is finalized, pending handlers are dropped automatically.
+`xnew.promise` は Promise をコンポーネントに結び付けます。unit が finalize されると、保留中のハンドラは自動的に破棄されます。
 
-## Example
+## 例
 
-### Basic Usage
+### 基本的な使い方
 
 ```js
 xnew((unit) => {
@@ -41,5 +41,5 @@ xnew((unit) => {
 ```
 
 :::tip
-Use `xnew.promise` for general Promise handling. For HTTP requests specifically, use `xnew.fetch` which provides a more convenient API for fetching data.
+一般的な Promise の処理には `xnew.promise` を使用してください。HTTP リクエストに特化した、より便利な API を提供する `xnew.fetch` も利用できます。
 :::
