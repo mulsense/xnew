@@ -3,18 +3,6 @@
     "message": "Next",
     "description": "The label for version current"
   },
-  "sidebar.tutorialSidebar.category.document": {
-    "message": "document",
-    "description": "The label for category 'document' in sidebar 'tutorialSidebar'"
-  },
-  "sidebar.tutorialSidebar.category.document.link.generated-index.title": {
-    "message": "document",
-    "description": "The generated-index page title for category 'document' in sidebar 'tutorialSidebar'"
-  },
-  "sidebar.tutorialSidebar.category.document.link.generated-index.description": {
-    "message": "Learn about the most important xnew concepts!",
-    "description": "The generated-index page description for category 'document' in sidebar 'tutorialSidebar'"
-  },
   "sidebar.tutorialSidebar.category.manual": {
     "message": "manual",
     "description": "The label for category 'manual' in sidebar 'tutorialSidebar'"
@@ -22,6 +10,18 @@
   "sidebar.tutorialSidebar.category.manual.link.generated-index.title": {
     "message": "manual",
     "description": "The generated-index page title for category 'manual' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.manual.link.generated-index.description": {
+    "message": "Learn about the most important xnew concepts!",
+    "description": "The generated-index page description for category 'manual' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.basics": {
+    "message": "basics",
+    "description": "The label for category 'basics' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.basics.link.generated-index.title": {
+    "message": "basics",
+    "description": "The generated-index page title for category 'basics' in sidebar 'tutorialSidebar'"
   },
   "sidebar.tutorialSidebar.category.addons": {
     "message": "addons",

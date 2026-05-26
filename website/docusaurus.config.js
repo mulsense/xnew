@@ -43,6 +43,20 @@ const config = {
     },
   },
 
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          { from: '/docs/category/document', to: '/docs/manual' },
+          { from: '/docs/category/manual', to: '/docs/manual/basics' },
+          { from: '/docs/category/addons', to: '/docs/manual/addons' },
+          { from: '/docs/category/examples', to: '/docs/examples' },
+        ],
+      },
+    ],
+  ],
+
   presets: [
     [
       'classic',
@@ -94,7 +108,7 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'document',
+            label: 'manual',
           },
           {
             type: 'docSidebar',
@@ -121,8 +135,8 @@ const config = {
             title: 'Docs',
             items: [
               {
-                label: 'document',
-                to: '/docs/getstart',
+                label: 'manual',
+                to: '/docs/manual/getstart',
               },
               {
                 label: 'examples',

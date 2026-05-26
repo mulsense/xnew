@@ -7,9 +7,9 @@
     "message": "",
     "description": "The alt text of navbar logo"
   },
-  "item.label.document": {
-    "message": "document",
-    "description": "Navbar item with label document"
+  "item.label.manual": {
+    "message": "manual",
+    "description": "Navbar item with label manual"
   },
   "item.label.examples": {
     "message": "examples",

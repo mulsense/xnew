@@ -238,6 +238,6 @@ unit.element; // Access the created DOM element
 
 これで xnew で開発を始めるのに必要なことはすべて押さえました。次は以下を参考にしてください:
 
-1. **[マニュアル — xnew](./manual/xnew)** — イベント、ライフサイクル、カスタムメソッドなどの完全な API リファレンス
-2. **[マニュアル — xnew.timeout / interval / transition](./manual/xnew.timeout)** — 自動クリーンアップとチェイン可能なトランジションを備えたタイマー
-3. **[アドオン — xpixi / xthree](./addons/xpixi)** — PixiJS / Three.js との手軽な連携
+1. **[Basics — xnew](./basics/xnew)** — イベント、ライフサイクル、カスタムメソッドなどの完全な API リファレンス
+2. **[Basics — xnew.timeout / interval / transition](./basics/xnew.timeout)** — 自動クリーンアップとチェイン可能なトランジションを備えたタイマー
+3. **[Addons — xpixi / xthree](./addons/xpixi)** — PixiJS / Three.js との手軽な連携
