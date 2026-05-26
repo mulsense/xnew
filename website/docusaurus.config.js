@@ -53,6 +53,21 @@ const config = {
           { from: '/docs/category/addons', to: '/docs/manual/addons' },
           { from: '/docs/category/examples', to: '/docs/examples' },
         ],
+        createRedirects(existingPath) {
+          const explicitFroms = [
+            '/docs/category/document',
+            '/docs/category/manual',
+            '/docs/category/addons',
+            '/docs/category/examples',
+          ];
+          if (existingPath.startsWith('/docs/')) {
+            const withCategory = existingPath.replace('/docs/', '/docs/category/');
+            if (!explicitFroms.includes(withCategory)) {
+              return [withCategory];
+            }
+          }
+          return undefined;
+        },
       },
     ],
   ],
