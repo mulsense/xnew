@@ -66,27 +66,18 @@ export const xnew = Object.assign(
             }
         },
 
-        append(parent: Unit, ...args: UnitArgs): void {
+        append(parent: Unit | null, ...args: UnitArgs): void {
             try {
-                const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
-                Unit.scope(snapshot, () => {
-                    new Unit(parent, ...args);
-                });
+                if (parent === null) {
+                    new Unit(null, ...args);
+                } else {
+                    const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
+                    Unit.scope(snapshot, () => {
+                        new Unit(parent, ...args);
+                    });
+                }
             } catch (error: unknown) {
                 console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
-                throw error;
-            }
-        },
-
-        next(unit: Unit, ...args: UnitArgs): void {
-            try {
-                const parent = unit._.parent as Unit;
-                const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
-                Unit.scope(snapshot, () => {
-                    new Unit(parent, ...args);
-                });
-            } catch (error: unknown) {      
-                console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
                 throw error;
             }
         },

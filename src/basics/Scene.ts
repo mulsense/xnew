@@ -6,11 +6,11 @@ export function Scene(unit: Unit) {
     
     return {
         moveTo(Component: Function, props?: any) {
-            xnew.next(unit, Component, props);
+            xnew.append(unit.parent, Component, props);
             unit.finalize();
         },
         nextScene(Component: Function, props?: any) {
-            xnew.next(unit, Component, props);
+            xnew.append(unit.parent, Component, props);
             unit.finalize();
         },
         append(Component: Function, props?: any) {

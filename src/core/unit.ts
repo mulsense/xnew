@@ -122,6 +122,10 @@ export class Unit {
         Unit.currentUnit = backup;
     }
 
+    public get parent(): Unit | null {
+        return this._.parent;
+    }
+    
     public get element(): UnitElement {
         return this._.currentElement;
     }
