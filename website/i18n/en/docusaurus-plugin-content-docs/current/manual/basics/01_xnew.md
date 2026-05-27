@@ -1,17 +1,6 @@
 # xnew
 
-`xnew` is the core function of the library. It creates a **unit** — a self-contained component instance that owns its DOM element, its event listeners, and its lifecycle.
-
-The key insight: when a unit is destroyed, everything inside it — timers, listeners, child elements — is cleaned up automatically. You never have to write teardown code by hand.
-
-## Overview
-
-`xnew` gives you:
-
-- **Reusable components** — plain functions; no class syntax needed
-- **Automatic DOM management** — create or attach elements declaratively
-- **A built-in event system** — DOM events, lifecycle events, and custom events in one unified API
-- **Composable building blocks** — nest components inside each other to build any structure
+`xnew` is the core function of the library. It creates a **unit** — the component instance. When a unit is destroyed, everything inside it (timers, listeners, child elements) is cleaned up automatically, so you never have to write teardown code by hand.
 
 ## Usage
 
@@ -125,7 +114,7 @@ xnew('<p>', (unit) => {
 
 ## Event System
 
-xnew uses a single unified API — `unit.on` / `unit.off` — for DOM events, lifecycle events, and custom events. There's nothing extra to learn for each category.
+DOM events, lifecycle events, and custom events are all handled through `unit.on` / `unit.off`.
 
 ### Adding Event Listeners
 
@@ -278,21 +267,6 @@ unit.on('click', () => {
 });
 ```
 
-```js
-function RandomColor(unit) {
-  const colors = ['red', 'blue', 'green', 'yellow'];
-  const randomColor = colors[Math.floor(Math.random() * colors.length)];
-  unit.element.style.background = randomColor;
-}
-
-const unit = xnew('<div style="width:100px;height:100px;">', RandomColor);
-
-// Reboot to get a new random color
-xnew.interval(() => {
-  unit.reboot();
-}, 1000);
-```
-
 ### Lifecycle Execution Order
 
 Child events always fire **before** parent events. This means children finish their setup before the parent's `start` runs, and finish tearing down before the parent's `stop` runs.
@@ -370,7 +344,7 @@ const button = xnew('<button>Hover and click me</button>', InteractiveButton);
 
 ## Custom Events
 
-Components need to talk to each other without tight coupling. xnew solves this with a prefix-based event system.
+A prefix on the event name controls its reach, letting components communicate without tight coupling.
 
 ### Global Events (+ prefix)
 
@@ -430,7 +404,7 @@ timer.on('-message', (data) => {
 
 ## Custom Methods
 
-Return an object from your component function and those properties become part of the unit's public API. This is the cleanest way to expose behavior to callers without breaking encapsulation.
+Return an object from your component function and its properties become part of the unit. This lets you encapsulate internal state while exposing only the operations callers need.
 
 ### Basic Custom Methods
 

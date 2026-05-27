@@ -4,7 +4,7 @@ sidebar_position: 501
 
 # xpixi
 
-`xpixi` bridges xnew's component lifecycle with PixiJS's scene graph. You get xnew's automatic cleanup and event system on top of PixiJS's high-performance 2D renderer — no manual `addChild` / `removeChild` bookkeeping when components are destroyed.
+`xpixi` bridges xnew's component lifecycle with PixiJS's scene graph. Components own their 2D objects — when a unit is destroyed, its objects are removed from the scene automatically.
 
 ## Setup
 ### Via CDN
@@ -61,7 +61,7 @@ function Main(unit) {
 
 ### `xpixi.nest(pixiObject)`
 
-Analogous to `xnew.nest` but for PixiJS objects. Adds `pixiObject` to the current parent container and returns it. The object is automatically removed from the scene when the unit is finalized.
+Analogous to `xnew.nest` but for PixiJS objects. Adds `pixiObject` to the current parent container and returns it. When the unit is destroyed, the object is removed from the scene automatically.
 
 ```js
 function Enemy(unit) {

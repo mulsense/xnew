@@ -83,15 +83,10 @@ console.log('Total score:', totalScore); // 30
 
 ## Use Cases
 
-`xnew.find` is particularly useful for:
+- **Coordinating multiple instances** — update or control all instances of a component type
+- **State synchronization** — keep multiple components in sync
+- **Broadcasting** — send messages or events to all instances
+- **Cleanup operations** — find and remove all instances of a component
+- **Statistics and monitoring** — count or analyze active components
 
-- **Coordinating multiple instances**: Update or control all instances of a component type
-- **State synchronization**: Keep multiple components in sync
-- **Broadcasting**: Send messages or events to all instances
-- **Cleanup operations**: Find and remove all instances of a component
-- **Statistics and monitoring**: Count or analyze active components
-- **Filtering and selection**: Find specific instances based on criteria
-
-:::tip
-`xnew.find` only returns currently active units. If a unit has been finalized, it will not appear in the results.
-:::
+Only currently active units are returned; finalized units are excluded.

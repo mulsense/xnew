@@ -1,8 +1,6 @@
 # xnew.extend
 
-`xnew.extend` runs another component function in the current unit's context and merges its returned API onto the unit. No new element is created — you're just mixing behavior in.
-
-This is how you build reusable behavior "mixins": write a component that adds dragging, logging, keyboard handling, or any other capability, then drop it into any other component with one line.
+`xnew.extend` mixes another component's behavior into the current unit. No new element is created. Write reusable behavior — dragging, logging, keyboard handling — once as a component, and drop it into any other component with one line.
 
 ## Usage
 

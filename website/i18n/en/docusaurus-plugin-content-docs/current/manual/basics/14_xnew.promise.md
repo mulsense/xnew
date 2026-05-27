@@ -1,6 +1,6 @@
 # xnew.promise
 
-`xnew.promise` wraps a standard Promise so its `.then()` / `.catch()` handlers run inside the current xnew component scope. If the component is finalized before the Promise resolves, the handlers are silently discarded — no stale callbacks, no crashes.
+`xnew.promise` ties a standard Promise to the current component so its `.then()` / `.catch()` handlers run in the component's scope. If the component is destroyed before the Promise resolves, the pending handlers are dropped — no stale DOM writes, no crashes.
 
 ## Usage
 
@@ -13,12 +13,6 @@ const wrappedPromise = xnew.promise(promise);
 
 **Returns:**
 - A wrapped Promise that executes handlers within the current `xnew` scope
-
-## Why Use xnew.promise?
-
-A plain `Promise` resolves asynchronously — by the time `.then()` runs, the component that started the request might already be gone. Without extra bookkeeping, that leads to stale DOM writes, missing elements, or subtle bugs.
-
-`xnew.promise` ties the Promise to the component. When the unit is finalized, pending handlers are dropped automatically.
 
 ## Example
 

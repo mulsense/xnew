@@ -76,7 +76,3 @@ xnew.timeout(() => {
   unit.finalize();
 }, 2000);
 ```
-
-:::tip
-All transitions are automatically cleaned up when their parent unit is finalized. This prevents animations from continuing after a component is destroyed.
-:::

@@ -67,7 +67,3 @@ xnew.timeout(() => {
   unit.finalize();
 }, 5000);
 ```
-
-:::tip
-All intervals are automatically cleaned up when their parent unit is finalized, preventing memory leaks and ensuring proper resource management.
-:::

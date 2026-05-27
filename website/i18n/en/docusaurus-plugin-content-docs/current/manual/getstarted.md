@@ -10,14 +10,10 @@ sidebar_position: 1
 
 `xnew` is a JavaScript / TypeScript library for component-oriented programming.
 
-The core idea is simple: a component is just a function. Call `xnew(MyComponent)` and xnew takes care of the DOM, the lifecycle, and the event wiring for you. No classes, no boilerplate — just functions that describe what your component does.
+The key features:
 
-What makes xnew particularly useful:
-
-- **Automatic cleanup** — timers, event listeners, and DOM elements created inside a component are all torn down together when the component is destroyed. No more hunting for memory leaks.
-- **A built-in animation loop** — the `update` event fires every frame (~60fps), so animations are trivial to write.
-- **Flexible event system** — components can talk to each other through global (`+event`) or internal (`-event`) custom events without tight coupling.
-- **Game-ready addons** — first-party PixiJS and Three.js integrations let you build complex interactive apps with the same component model.
+- **Component-oriented** — each feature of your application is implemented as a self-contained component. Components automatically wire themselves together, so you can build without worrying about how they interact.
+- **Game-ready addons** — official integrations for PixiJS, Three.js, matter-js, and Rapier let you build complex interactive apps and games on the same model.
 
 ## Setup
 
@@ -59,11 +55,6 @@ import xnew from '@mulsense/xnew';
 
 ## Tutorial
 
-Two concepts to know, and then you're off:
-
-- **unit** — the object returned by `xnew()`. It holds the DOM element, lifecycle controls, and event listeners for one component instance.
-- **component** — a plain function that receives `(unit, props)` and defines what that unit does.
-
 ### Basic Syntax
 There are two main ways to use `xnew`:
 
@@ -85,7 +76,7 @@ unit.element; // Access the created DOM element
 
 ### Example 1: Your First Component
 
-The smallest possible xnew program — one component, one element, five lines:
+A minimal example that creates a single component and displays a message:
 
 ```html
 <!DOCTYPE html>
@@ -176,7 +167,7 @@ This generates:
 
 ### Example 3: Adding Interactivity
 
-Here's where xnew really shines. Click the box below to start and stop a CSS rotation animation. Notice how the `start`, `update`, and `stop` lifecycle events handle everything — no manual `requestAnimationFrame` bookkeeping needed:
+Click the box below to start and stop a CSS rotation animation.
 
 <iframe style={{width:'100%',height:'300px',border:'solid 1px #DDD',borderRadius:'6px'}} src="/xnew/0_manual/box.html" ></iframe>
 

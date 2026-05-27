@@ -1,10 +1,10 @@
 # xnew.scope
 
-`xnew.scope` captures the current component context and returns a wrapper that restores it when called. Use this when you need to call xnew APIs inside a raw `setTimeout`, `setInterval`, or a native `addEventListener` — places where the xnew scope would otherwise be lost.
+`xnew.scope` captures the current component context and returns a wrapper that restores it when called. The xnew scope is normally lost inside a raw `setTimeout` or a native `addEventListener`, so this is the escape hatch for calling xnew APIs from those callbacks.
 
-In most cases you won't need this: `xnew.timeout`, `xnew.interval`, and `unit.on` all preserve scope automatically. `xnew.scope` is the escape hatch for when you're using browser APIs directly.
+You usually won't need it: `xnew.timeout`, `xnew.interval`, and `unit.on` all preserve scope automatically.
 
-## Basic Usage
+## Usage
 
 ```js
 xnew.scope(callback);
@@ -15,10 +15,6 @@ xnew.scope(callback);
 
 **Returns:**
 - Wrapped function with preserved scope
-
-## Why It's Needed
-
-In asynchronous operations like `setTimeout` or event listeners, the xnew component context is normally lost. `xnew.scope` ensures the correct component scope is maintained within these async callbacks.
 
 ## Examples
 
@@ -48,7 +44,3 @@ function Button(unit) {
 }
 ```
 
-## Notes
-
-- Always wrap callbacks with `xnew.scope` when using xnew APIs like `xnew.on` inside async operations or event handlers
-- `xnew.scope` is unnecessary if you're already in the correct scope

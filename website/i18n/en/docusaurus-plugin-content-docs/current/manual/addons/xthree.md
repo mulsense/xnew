@@ -4,7 +4,7 @@ sidebar_position: 502
 
 # xthree
 
-`xthree` bridges xnew's component lifecycle with Three.js's scene graph. Components own their 3D objects — when a unit is finalized, its meshes and lights are removed from the scene automatically.
+`xthree` bridges xnew's component lifecycle with Three.js's scene graph. Components own their 3D objects — when a unit is destroyed, its meshes and lights are removed from the scene automatically.
 
 ## Setup
 
@@ -67,7 +67,7 @@ function Main(unit) {
 
 ### `xthree.nest(threeObject)`
 
-Adds `threeObject` as a child of the current Three.js parent and returns it. When the unit is finalized, the object is removed from the scene automatically.
+Adds `threeObject` as a child of the current Three.js parent and returns it. When the unit is destroyed, the object is removed from the scene automatically.
 
 ```js
 function Box(unit) {

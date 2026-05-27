@@ -12,19 +12,11 @@ const element = xnew.nest(htmlString);
 - `htmlString`: HTML string to create the element (e.g., `'<div>'`, `'<span class="highlight">'`)
 
 **Returns:**
-- The newly created HTMLElement
-
-**Side effect:**
-- `unit.element` now points to the newly created element
+- The newly created HTMLElement (`unit.element` also now points to this element)
 
 ## How It Works
 
-`xnew.nest` does two things at once:
-
-1. Creates the new element as a child of the current element.
-2. Shifts `unit.element` so the next `xnew()` calls land inside it.
-
-Wrapping a block in a nested `xnew(() => { ... })` call limits the context shift to that scope, so the parent level is restored when the inner function returns. This is how you build multi-level layouts cleanly.
+`xnew.nest` creates the new element as a child of the current element and shifts the context so that subsequent `xnew()` calls land inside it. Wrap a block in `xnew(() => { ... })` to limit the shift to that scope — the parent level is restored when the inner function returns.
 
 ## Example
 
@@ -83,13 +75,4 @@ xnew(Card, {
 // </div>
 ```
 
-## Key Concepts
-
-- **Context shift** — `xnew.nest` changes `unit.element` to the newly created element.
-- **Scoped nesting** — wrap blocks in a nested `xnew()` call to contain the context shift; the parent level is restored when the inner function returns.
-- **Return value** — `xnew.nest` returns the raw `HTMLElement` for cases where you need direct access.
-- **Automatic cleanup** — nested elements are removed when the parent unit is finalized.
-
-:::tip
-Use nested `xnew()` calls to maintain proper element hierarchy. After a nested `xnew()` completes, the context returns to the parent level.
-:::
+Nested elements are removed when the parent unit is finalized.
