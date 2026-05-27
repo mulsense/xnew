@@ -594,6 +594,9 @@
             this._.afterSnapshot = Unit.snapshot(this);
             Unit.currentUnit = backup;
         }
+        get parent() {
+            return this._.parent;
+        }
         get element() {
             return this._.currentElement;
         }
@@ -1007,27 +1010,18 @@
         append(parent, ...args) {
             var _a;
             try {
-                const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-                Unit.scope(snapshot, () => {
-                    new Unit(parent, ...args);
-                });
+                if (parent === null) {
+                    new Unit(null, ...args);
+                }
+                else {
+                    const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
+                    Unit.scope(snapshot, () => {
+                        new Unit(parent, ...args);
+                    });
+                }
             }
             catch (error) {
                 console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
-                throw error;
-            }
-        },
-        next(unit, ...args) {
-            var _a;
-            try {
-                const parent = unit._.parent;
-                const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-                Unit.scope(snapshot, () => {
-                    new Unit(parent, ...args);
-                });
-            }
-            catch (error) {
-                console.error('xnew.next(unit: Unit, ...args: UnitArgs): ', error);
                 throw error;
             }
         },
@@ -1657,11 +1651,11 @@
     function Scene(unit) {
         return {
             moveTo(Component, props) {
-                xnew$1.next(unit, Component, props);
+                xnew$1.append(unit.parent, Component, props);
                 unit.finalize();
             },
             nextScene(Component, props) {
-                xnew$1.next(unit, Component, props);
+                xnew$1.append(unit.parent, Component, props);
                 unit.finalize();
             },
             append(Component, props) {

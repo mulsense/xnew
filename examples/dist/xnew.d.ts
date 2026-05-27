@@ -88,6 +88,7 @@ declare class Unit {
         eventor: Eventor;
     };
     constructor(parent: Unit | null, ...args: UnitArgs);
+    get parent(): Unit | null;
     get element(): UnitElement;
     start(): void;
     stop(): void;
@@ -302,8 +303,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    append(parent: Unit, ...args: UnitArgs): void;
-    next(unit: Unit, ...args: UnitArgs): void;
+    append(parent: Unit | null, ...args: UnitArgs): void;
     context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
