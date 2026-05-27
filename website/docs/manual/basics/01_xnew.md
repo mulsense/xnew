@@ -1,17 +1,6 @@
 # xnew
 
-`xnew` はライブラリの中核となる関数で、**unit** を生成します。unit は 1 つのコンポーネントインスタンスに対応し、自身の DOM 要素・イベントリスナー・ライフサイクルを保持します。
-
-unit が破棄されると、内部のタイマー・リスナー・子要素はすべて自動で解放されます。後片付けのコードを書く必要はありません。
-
-## 概要
-
-`xnew` の主な機能は次のとおりです。
-
-- **再利用可能なコンポーネント** — クラスを使わず、関数で定義できます
-- **DOM 管理** — 要素の生成・既存要素へのアタッチを宣言的に記述できます
-- **統一されたイベント API** — DOM イベント・ライフサイクルイベント・カスタムイベントを単一の API で扱えます
-- **コンポーザブルな構造** — コンポーネントをネストして任意のツリーを構築できます
+`xnew` はライブラリの中核となる関数で、コンポーネントの実体である **unit** を生成します。unit が破棄されると、内部のタイマー・リスナー・子要素はまとめて自動で解放されるため、後片付けのコードは不要です。
 
 ## 使い方
 
@@ -54,11 +43,11 @@ const unit = xnew((unit, props) => {
 });
 ```
 
-## ターゲットの指定
+## ターゲット指定
 
 `target` パラメータはコンポーネントのアタッチ先を決めます。コンポーネント内ではいつでも `unit.element` から参照できます。
 
-### 既存要素にアタッチする
+### 既存要素へのアタッチ
 
 要素参照を渡すと、その既存要素にアタッチします。
 
@@ -74,7 +63,7 @@ const unit = xnew((unit, props) => {
 </body>
 ```
 
-### 新しい要素を生成する
+### 新しい要素の生成
 
 HTML 文字列を渡すと、新しい要素を生成してアタッチします。
 
@@ -125,7 +114,7 @@ xnew('<p>', (unit) => {
 
 ## イベントシステム
 
-xnew は DOM イベント・ライフサイクルイベント・カスタムイベントをすべて `unit.on` / `unit.off` の単一 API で扱います。種類ごとに API を覚える必要はありません。
+DOM イベント・ライフサイクルイベント・カスタムイベントは、すべて `unit.on` / `unit.off` で扱います。
 
 ### イベントリスナーの登録
 
@@ -172,7 +161,7 @@ unit.off('click', myClickHandler);
 
 ライフサイクル全体は 5 つのイベントでカバーされます。必要なものだけを購読してください。
 
-### ライフサイクルイベント一覧
+### 一覧
 
 ```js
 function MyComponent(unit) {
@@ -278,21 +267,6 @@ unit.on('click', () => {
 });
 ```
 
-```js
-function RandomColor(unit) {
-  const colors = ['red', 'blue', 'green', 'yellow'];
-  const randomColor = colors[Math.floor(Math.random() * colors.length)];
-  unit.element.style.background = randomColor;
-}
-
-const unit = xnew('<div style="width:100px;height:100px;">', RandomColor);
-
-// Reboot to get a new random color
-xnew.interval(() => {
-  unit.reboot();
-}, 1000);
-```
-
 ### ライフサイクルの実行順序
 
 子のイベントは親より**先に**発火します。これにより、子は親の `start` より前に初期化を終え、親の `stop` より前に後片付けを完了できます。
@@ -351,7 +325,9 @@ Parent stop
 
 ```js
 function InteractiveButton(unit) {
-  unit.on('click', ({ event }) => {
+  xnew.nest('<button>', 'Hover and click me');
+
+unit.on('click', ({ event }) => {
     console.log('Button clicked!');
     event.preventDefault(); // Standard DOM event object
   });
@@ -365,12 +341,12 @@ function InteractiveButton(unit) {
   });
 }
 
-const button = xnew('<button>Hover and click me</button>', InteractiveButton);
+const button = xnew(InteractiveButton);
 ```
 
 ## カスタムイベント
 
-コンポーネント間は密結合にせず通信できます。xnew ではイベント名のプレフィックスでスコープを切り替えます。
+イベント名のプレフィックスで通信範囲を切り替え、コンポーネント間を疎結合に保ったまま通信できます。
 
 ### グローバルイベント (`+` プレフィックス)
 
@@ -430,7 +406,7 @@ timer.on('-message', (data) => {
 
 ## カスタムメソッド
 
-コンポーネント関数からオブジェクトを返すと、そのプロパティが unit の公開 API として組み込まれます。内部状態をカプセル化しつつ、必要な操作だけを外部に公開できます。
+コンポーネント関数からオブジェクトを返すと、そのプロパティが unit に組み込まれます。内部状態をカプセル化しつつ、必要な操作だけを外部に公開できます。
 
 ### 基本
 

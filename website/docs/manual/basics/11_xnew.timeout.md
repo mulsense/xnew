@@ -1,6 +1,6 @@
 # xnew.timeout
 
-`xnew.timeout` は xnew 用に拡張された `setTimeout` です。コールバックは生成時の xnew スコープで実行され、所属する unit が finalize されると自動でキャンセルされます。timeout と transition を連鎖させれば、コールバックをネストせずに多段シーケンスを記述できます。
+`xnew.timeout` は xnew 用に拡張された `setTimeout` です。所属する unit が破棄されると自動でキャンセルされ、ID を保持して `clearTimeout` を呼ぶ必要はありません。timeout と transition を連鎖させれば、コールバックをネストせずに多段シーケンスを記述できます。
 
 ## 使い方
 
@@ -75,7 +75,3 @@ const unit = xnew((unit) => {
   }, 1000);
 });
 ```
-
-:::tip
-親 unit の finalize 時にすべての timeout が自動でクリーンアップされるため、メモリリークや破棄後のコールバック実行を心配する必要はありません。
-:::

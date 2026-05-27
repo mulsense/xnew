@@ -67,7 +67,3 @@ xnew.timeout(() => {
   unit.finalize();
 }, 5000);
 ```
-
-:::tip
-親 unit の finalize 時にすべての interval が自動でクリーンアップされるため、メモリリークやリソースの取りこぼしを心配する必要はありません。
-:::

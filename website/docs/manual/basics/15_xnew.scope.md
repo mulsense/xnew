@@ -1,8 +1,8 @@
 # xnew.scope
 
-`xnew.scope` は現在のコンポーネントコンテキストを取り込み、呼び出し時にそのコンテキストを復元するラッパー関数を返します。素の `setTimeout` / `setInterval` やネイティブの `addEventListener` の中で xnew API を呼び出したいときに使用します。これらの内部では通常、xnew のスコープが失われています。
+`xnew.scope` は現在のコンポーネントコンテキストを取り込み、呼び出し時にそのコンテキストを復元するラッパー関数を返します。素の `setTimeout` やネイティブの `addEventListener` の中では xnew のスコープが失われるため、その内部で xnew API を呼び出したいときに使用するエスケープハッチです。
 
-ほとんどの場面では出番がありません。`xnew.timeout` / `xnew.interval` / `unit.on` はスコープを自動で保持します。`xnew.scope` はブラウザ API を直接使う場合のエスケープハッチとして用意されています。
+`xnew.timeout` / `xnew.interval` / `unit.on` はスコープを自動で保持するので、通常は出番がありません。
 
 ## 使い方
 
@@ -15,10 +15,6 @@ xnew.scope(callback);
 
 **戻り値:**
 - スコープを保持したラップ関数
-
-## 用途
-
-`setTimeout` やネイティブのイベントリスナーといった非同期処理の内部では、xnew のコンポーネントコンテキストが失われます。`xnew.scope` はこれらのコールバック内で正しいスコープを保持するためのものです。
 
 ## 例
 
@@ -48,7 +44,3 @@ function Button(unit) {
 }
 ```
 
-## 注意
-
-- 非同期処理やイベントハンドラの内部で `xnew.on` などの xnew API を使う場合は、コールバックを `xnew.scope` でラップしてください。
-- 既に正しいスコープにいる場合、`xnew.scope` は不要です。

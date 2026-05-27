@@ -4,7 +4,7 @@ sidebar_position: 501
 
 # xpixi
 
-`xpixi` は xnew のライフサイクルを PixiJS のシーングラフに統合するアドオンです。PixiJS の 2D レンダラーに、xnew の自動クリーンアップとイベントシステムを組み合わせて利用できます。コンポーネントの破棄に合わせて `addChild` / `removeChild` を手動で呼び分ける必要はありません。
+`xpixi` は xnew のライフサイクルを PixiJS のシーングラフに統合するアドオンです。各コンポーネントが自身の 2D オブジェクトを保持し、unit が破棄されるとシーンからも自動的に取り除かれます。
 
 ## セットアップ
 ### CDN
@@ -61,7 +61,7 @@ function Main(unit) {
 
 ### `xpixi.nest(pixiObject)`
 
-`xnew.nest` の PixiJS オブジェクト版です。`pixiObject` を現在の親コンテナに追加し、そのまま返します。unit が finalize されると、対象オブジェクトはシーンから自動的に削除されます。
+`xnew.nest` の PixiJS オブジェクト版です。`pixiObject` を現在の親コンテナに追加し、そのまま返します。unit が破棄されると、対象オブジェクトはシーンから自動的に取り除かれます。
 
 ```js
 function Enemy(unit) {

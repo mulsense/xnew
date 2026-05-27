@@ -76,7 +76,3 @@ xnew.timeout(() => {
   unit.finalize();
 }, 2000);
 ```
-
-:::tip
-親 unit の finalize 時にすべての transition が自動でクリーンアップされるため、破棄後にアニメーションが走り続けることはありません。
-:::

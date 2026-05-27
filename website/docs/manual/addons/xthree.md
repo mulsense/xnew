@@ -4,7 +4,7 @@ sidebar_position: 502
 
 # xthree
 
-`xthree` は xnew のライフサイクルを Three.js のシーングラフに統合するアドオンです。各コンポーネントが自身の 3D オブジェクトを保持し、unit が finalize されるとメッシュやライトはシーンから自動的に削除されます。
+`xthree` は xnew のライフサイクルを Three.js のシーングラフに統合するアドオンです。各コンポーネントが自身の 3D オブジェクトを保持し、unit が破棄されるとメッシュやライトはシーンから自動的に取り除かれます。
 
 ## セットアップ
 
@@ -67,7 +67,7 @@ function Main(unit) {
 
 ### `xthree.nest(threeObject)`
 
-`threeObject` を現在の Three.js 親オブジェクトの子として追加し、そのまま返します。unit が finalize されると、対象オブジェクトはシーンから自動的に削除されます。
+`threeObject` を現在の Three.js 親オブジェクトの子として追加し、そのまま返します。unit が破棄されると、対象オブジェクトはシーンから自動的に取り除かれます。
 
 ```js
 function Box(unit) {
