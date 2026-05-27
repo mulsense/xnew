@@ -2,15 +2,19 @@ import { xnew as base } from './core/xnew';
 import { Unit, UnitTimer } from './core/unit';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
+import { SVG, SVGText } from './basics/SVG';
 import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
 import { Scene } from './basics/Scene';
+import { VolumeController } from './basics/Volume';
 
 import { XImage, XImageArgs } from './utils/image';
 import { master, AudioFile, Synthesizer, SynthesizerOptions } from './utils/audio';
 
 const basics = {
+    SVG,
+    SVGText,
     Screen,
     OpenAndClose,
     AnalogStick,
@@ -19,6 +23,7 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    VolumeController,
 };
 
 const audio = {

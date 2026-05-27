@@ -28,15 +28,56 @@ const config = {
   projectName: 'xnew', // Usually your repo name.
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
-
-  // Even if you don't use internationalization, you can use this field to set
-  // useful metadata like html lang. For example, if your site is Chinese, you
-  // may want to replace "en" with "zh-Hans".
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
   },
+
+  i18n: {
+    defaultLocale: 'ja',
+    locales: ['ja', 'en'],
+    localeConfigs: {
+      ja: { label: '日本語', htmlLang: 'ja' },
+      en: { label: 'English', htmlLang: 'en' },
+    },
+  },
+
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          { from: '/docs/category/document', to: '/docs/manual' },
+          { from: '/docs/category/manual', to: '/docs/manual/basics' },
+          { from: '/docs/category/addons', to: '/docs/manual/addons' },
+          { from: '/docs/category/examples', to: '/docs/examples' },
+        ],
+        createRedirects(existingPath) {
+          const aliases = [];
+
+          const explicitFroms = [
+            '/docs/category/document',
+            '/docs/category/manual',
+            '/docs/category/addons',
+            '/docs/category/examples',
+          ];
+          if (existingPath.startsWith('/docs/')) {
+            const withCategory = existingPath.replace('/docs/', '/docs/category/');
+            if (!explicitFroms.includes(withCategory)) {
+              aliases.push(withCategory);
+            }
+          }
+
+          if (existingPath.startsWith('/docs/examples/games/')) {
+            aliases.push(existingPath.replace('/docs/examples/games/', '/docs/examples/game/'));
+          }
+
+          return aliases.length > 0 ? aliases : undefined;
+        },
+      },
+    ],
+  ],
 
   presets: [
     [
@@ -81,7 +122,7 @@ const config = {
       navbar: {
         title: 'xnew',
         logo: {
-          alt: 'My Site Logo',
+          alt: '',
           src: 'img/logo.svg',
         },
         items: [
@@ -89,7 +130,7 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'document',
+            label: 'manual',
           },
           {
             type: 'docSidebar',
@@ -103,6 +144,10 @@ const config = {
             label: 'GitHub',
             position: 'right',
           },
+          {
+            type: 'localeDropdown',
+            position: 'right',
+          },
         ],
       },
       footer: {
@@ -112,12 +157,12 @@ const config = {
             title: 'Docs',
             items: [
               {
-                label: 'document',
-                to: '/docs/getstart',
+                label: 'manual',
+                to: '/docs/manual/getstarted',
               },
               {
                 label: 'examples',
-                to: '/docs/examples/basic/element',
+                to: '/docs/examples/basics/element',
               },
             ],
           },

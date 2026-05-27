@@ -1,0 +1,62 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.tutorialSidebar.category.manual": {
+    "message": "manual",
+    "description": "The label for category 'manual' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.manual.link.generated-index.title": {
+    "message": "manual",
+    "description": "The generated-index page title for category 'manual' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.manual.link.generated-index.description": {
+    "message": "xnew のもっとも重要なコンセプトを学びましょう！",
+    "description": "The generated-index page description for category 'manual' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.basics": {
+    "message": "basics",
+    "description": "The label for category 'basics' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.basics.link.generated-index.title": {
+    "message": "basics",
+    "description": "The generated-index page title for category 'basics' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.addons": {
+    "message": "addons",
+    "description": "The label for category 'addons' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.tutorialSidebar.category.addons.link.generated-index.title": {
+    "message": "addons",
+    "description": "The generated-index page title for category 'addons' in sidebar 'tutorialSidebar'"
+  },
+  "sidebar.examplesSidebar.category.examples": {
+    "message": "examples",
+    "description": "The label for category 'examples' in sidebar 'examplesSidebar'"
+  },
+  "sidebar.examplesSidebar.category.examples.link.generated-index.title": {
+    "message": "examples",
+    "description": "The generated-index page title for category 'examples' in sidebar 'examplesSidebar'"
+  },
+  "sidebar.examplesSidebar.category.examples.link.generated-index.description": {
+    "message": "さまざまな xnew のサンプル！",
+    "description": "The generated-index page description for category 'examples' in sidebar 'examplesSidebar'"
+  },
+  "sidebar.examplesSidebar.category.basic": {
+    "message": "basic",
+    "description": "The label for category 'basic' in sidebar 'examplesSidebar'"
+  },
+  "sidebar.examplesSidebar.category.pixi.js": {
+    "message": "pixi.js",
+    "description": "The label for category 'pixi.js' in sidebar 'examplesSidebar'"
+  },
+  "sidebar.examplesSidebar.category.three.js": {
+    "message": "three.js",
+    "description": "The label for category 'three.js' in sidebar 'examplesSidebar'"
+  },
+  "sidebar.examplesSidebar.category.game": {
+    "message": "game",
+    "description": "The label for category 'game' in sidebar 'examplesSidebar'"
+  }
+}

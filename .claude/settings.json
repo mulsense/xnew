@@ -3,10 +3,8 @@
     "allow": [
       "WebFetch",
       "WebSearch",
-      "Bash(npm run *)",
-      "Bash(git status)",
-      "Bash(git diff *)",
-      "Bash(git log *)",
+      "Bash(npm *)",
+      "Bash(git *)",
       "Read(./**)",
       "Edit(./**)"
     ],
