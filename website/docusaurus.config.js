@@ -158,7 +158,7 @@ const config = {
             items: [
               {
                 label: 'manual',
-                to: '/docs/manual/getstart',
+                to: '/docs/manual/getstarted',
               },
               {
                 label: 'examples',

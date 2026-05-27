@@ -30,7 +30,7 @@ const sidebars = {
         slug: '/manual',
       },
       items: [
-        'manual/getstart',
+        'manual/getstarted',
         {
           type: 'category',
           label: 'basics',

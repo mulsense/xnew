@@ -4,16 +4,16 @@ sidebar_position: 501
 
 # xpixi
 
-`xpixi` は xnew のライフサイクルを PixiJS のシーングラフに統合するアドオンです。PixiJS の 2D レンダラーに、xnew の自動クリーンアップとイベントシステムを組み合わせて利用できます。コンポーネントの破棄時に `addChild` / `removeChild` の手動管理は不要です。
+`xpixi` は xnew のライフサイクルを PixiJS のシーングラフに統合するアドオンです。PixiJS の 2D レンダラーに、xnew の自動クリーンアップとイベントシステムを組み合わせて利用できます。コンポーネントの破棄に合わせて `addChild` / `removeChild` を手動で呼び分ける必要はありません。
 
 ## セットアップ
-### CDN を使う
+### CDN
 ```html
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.js"></script>
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xpixi.js"></script>
 ```
 
-### CDN を使う (ESM)
+### CDN (ESM)
 ```html
 <script type="importmap">
 {
@@ -32,7 +32,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 </script>
 ```
 
-### npm を使う
+### npm
 ```bash
 npm install @mulsense/xnew@0.7.x
 ```
@@ -45,7 +45,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 
 ### `xpixi.initialize({ canvas })`
 
-ルートコンポーネントで一度だけ呼び出し、PixiJS のレンダラーを生成します。呼び出し後は次のプロパティにアクセスできます。
+ルートコンポーネントで一度だけ呼び出し、PixiJS のレンダラーを生成します。呼び出し後、次のプロパティにアクセスできます。
 - `xpixi.renderer` — PixiJS のレンダラー
 - `xpixi.scene` — ルートの `PIXI.Container`
 - `xpixi.canvas` — `<canvas>` 要素
@@ -61,7 +61,7 @@ function Main(unit) {
 
 ### `xpixi.nest(pixiObject)`
 
-`xnew.nest` の PixiJS オブジェクト版で、`pixiObject` を現在の親コンテナに追加してそのまま返します。unit が finalize されると、対象オブジェクトはシーンから自動的に削除されます。
+`xnew.nest` の PixiJS オブジェクト版です。`pixiObject` を現在の親コンテナに追加し、そのまま返します。unit が finalize されると、対象オブジェクトはシーンから自動的に削除されます。
 
 ```js
 function Enemy(unit) {

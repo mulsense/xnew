@@ -1,6 +1,6 @@
 # xnew.interval
 
-`xnew.interval` は自動クリーンアップ付きの `setInterval` です。所有する unit の finalize 時に interval は自動停止します。ID を保持して `clearInterval` を呼ぶ必要はありません。
+`xnew.interval` は自動クリーンアップに対応した `setInterval` です。所属する unit が finalize されると interval は自動停止します。ID を保持して `clearInterval` を呼ぶ必要はありません。
 
 ## 使い方
 
@@ -17,7 +17,7 @@ const interval = xnew.interval(callback, delay);
 
 ## 例
 
-### 基本的なカウンター
+### カウンター
 
 ```js
 xnew('<div>', (unit) => {
@@ -53,7 +53,7 @@ xnew('<div>', (unit) => {
 
 ## 自動クリーンアップ
 
-unit の finalize 時に、その unit に紐づくすべての interval が自動でクリアされます。
+unit が finalize されると、その unit に紐づくすべての interval が自動でキャンセルされます。
 
 ```js
 const unit = xnew((unit) => {
@@ -69,5 +69,5 @@ xnew.timeout(() => {
 ```
 
 :::tip
-親 unit の finalize 時にすべての interval が自動でクリーンアップされます。メモリリークを防ぎ、リソースを安全に管理できます。
+親 unit の finalize 時にすべての interval が自動でクリーンアップされるため、メモリリークやリソースの取りこぼしを心配する必要はありません。
 :::

@@ -8,13 +8,13 @@ sidebar_position: 502
 
 ## セットアップ
 
-### CDN を使う
+### CDN
 ```html
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.js"></script>
 <script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xthree.js"></script>
 ```
 
-### CDN を使う (ESM)
+### CDN (ESM)
 ```html
 <script type="importmap">
 {
@@ -33,7 +33,7 @@ import xthree from '@mulsense/xnew/addons/xthree'
 </script>
 ```
 
-### npm を使う
+### npm
 ```bash
 npm install @mulsense/xnew@0.7.x
 ```
@@ -46,7 +46,7 @@ import xthree from '@mulsense/xnew/addons/xthree'
 
 ### `xthree.initialize({ canvas, camera? })`
 
-ルートコンポーネントで一度だけ呼び出し、WebGL レンダラーを生成します。呼び出し後は次のプロパティにアクセスできます。
+ルートコンポーネントで一度だけ呼び出し、WebGL レンダラーを生成します。呼び出し後、次のプロパティにアクセスできます。
 - `xthree.renderer` — `THREE.WebGLRenderer`
 - `xthree.scene` — ルートの `THREE.Scene`
 - `xthree.camera` — アクティブなカメラ
