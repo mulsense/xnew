@@ -54,6 +54,8 @@ const config = {
           { from: '/docs/category/examples', to: '/docs/examples' },
         ],
         createRedirects(existingPath) {
+          const aliases = [];
+
           const explicitFroms = [
             '/docs/category/document',
             '/docs/category/manual',
@@ -63,10 +65,15 @@ const config = {
           if (existingPath.startsWith('/docs/')) {
             const withCategory = existingPath.replace('/docs/', '/docs/category/');
             if (!explicitFroms.includes(withCategory)) {
-              return [withCategory];
+              aliases.push(withCategory);
             }
           }
-          return undefined;
+
+          if (existingPath.startsWith('/docs/examples/games/')) {
+            aliases.push(existingPath.replace('/docs/examples/games/', '/docs/examples/game/'));
+          }
+
+          return aliases.length > 0 ? aliases : undefined;
         },
       },
     ],
@@ -155,7 +162,7 @@ const config = {
               },
               {
                 label: 'examples',
-                to: '/docs/examples/basic/element',
+                to: '/docs/examples/basics/element',
               },
             ],
           },
