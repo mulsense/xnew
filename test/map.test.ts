@@ -36,6 +36,17 @@ describe('MapSet', () => {
         expect(mapSet.size).toBe(0);
     });
 
+    it('should delete the whole entry with a single argument', () => {
+        const mapSet = new MapSet<string, number>();
+        mapSet.add('key1', 1);
+        mapSet.add('key1', 2);
+
+        expect(mapSet.delete('key1')).toBe(true);
+        expect(mapSet.has('key1')).toBe(false);
+        expect(mapSet.size).toBe(0);
+        expect(mapSet.delete('key1')).toBe(false);
+    });
+
     it('should iterate keys', () => {
         const mapSet = new MapSet<string, number>();
         mapSet.add('key1', 1);
@@ -139,6 +150,17 @@ describe('MapMap', () => {
 
         expect(mapMap.has('key1')).toBe(false);
         expect(mapMap.size).toBe(0);
+    });
+
+    it('should delete the whole entry with a single argument', () => {
+        const mapMap = new MapMap<string, string, number>();
+        mapMap.set('key1', 'subA', 1);
+        mapMap.set('key1', 'subB', 2);
+
+        expect(mapMap.delete('key1')).toBe(true);
+        expect(mapMap.has('key1')).toBe(false);
+        expect(mapMap.size).toBe(0);
+        expect(mapMap.delete('key1')).toBe(false);
     });
 
     it('should iterate all keys', () => {

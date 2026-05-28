@@ -1,4 +1,17 @@
 //----------------------------------------------------------------------------------------------------
+// nested map utilities
+//
+// Map subclasses keyed by two levels, used for indexes such as the Unit
+// listener table (type → listener → meta) and the Component / Context
+// reverse lookups. They auto-create the inner collection on insert and
+// auto-remove the outer entry when the inner collection becomes empty,
+// so callers do not have to manage the nested structure by hand.
+//
+// - MapSet<Key, Value>        : wraps Map<Key, Set<Value>>
+// - MapMap<Key1, Key2, Value> : wraps Map<Key1, Map<Key2, Value>>
+//----------------------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------------------
 // map set
 //----------------------------------------------------------------------------------------------------
 
@@ -16,7 +29,12 @@ export class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     }
 
     public add(key: Key, value: Value): MapSet<Key, Value> {
-        super.set(key, (super.get(key) ?? new Set<Value>).add(value));
+        let set = super.get(key);
+        if (set === undefined) {
+            set = new Set<Value>();
+            super.set(key, set);
+        }
+        set.add(value);
         return this;
     }
 
@@ -35,14 +53,20 @@ export class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     public delete(key: Key): boolean;
     public delete(key: Key, value: Value): boolean;
     public delete(key: Key, value?: Value): boolean {
-        let ret: boolean = false;
         if (value === undefined) {
-            ret = (super.get(key)?.size === 0) ? super.delete(key) : false;
+            return super.delete(key);
         } else {
-            ret = super.get(key)?.delete(value) ?? false;
-            (super.get(key)?.size === 0) && super.delete(key);
+            const set = super.get(key);
+            if (set === undefined) {
+                return false;
+            } else {
+                const ret = set.delete(value);
+                if (set.size === 0) {
+                    super.delete(key);
+                }
+                return ret;
+            }
         }
-        return ret;
     }
 }
 
@@ -72,7 +96,12 @@ export class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
             super.set(key1, key2OrValue as Map<Key2, Value>);
         } else {
             // 3 args: set nested value
-            super.set(key1, (super.get(key1) ?? new Map<Key2, Value>).set(key2OrValue as Key2, value));
+            let inner = super.get(key1);
+            if (inner === undefined) {
+                inner = new Map<Key2, Value>();
+                super.set(key1, inner);
+            }
+            inner.set(key2OrValue as Key2, value);
         }
         return this;
     }
@@ -103,13 +132,19 @@ export class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     public delete(key1: Key1): boolean;
     public delete(key1: Key1, key2: Key2): boolean;
     public delete(key1: Key1, key2?: Key2): boolean {
-        let ret: boolean = false;
         if (key2 === undefined) {
-            ret = (super.get(key1)?.size === 0) ? super.delete(key1) : false;
+            return super.delete(key1);
         } else {
-            ret = super.get(key1)?.delete(key2) ?? false;
-            (super.get(key1)?.size === 0) && super.delete(key1);
+            const inner = super.get(key1);
+            if (inner === undefined) {
+                return false;
+            } else {
+                const ret = inner.delete(key2);
+                if (inner.size === 0) {
+                    super.delete(key1);
+                }
+                return ret;
+            }
         }
-        return ret;
     }
 }
