@@ -1,3 +1,13 @@
+//----------------------------------------------------------------------------------------------------
+// xrapier3d — Rapier 3D (compat build) integration
+//
+// Same shape as xrapier2d but with a 3D gravity vector. `initialize({ gravity })` mounts a Root
+// Unit that awaits RAPIER.init() (WASM is lazy-loaded) and creates a RAPIER.World; child
+// components read the world through xnew.context(Root).
+//
+// - default : { initialize, world }
+//----------------------------------------------------------------------------------------------------
+
 import xnew from '@mulsense/xnew';
 import RAPIER from '@dimforge/rapier3d-compat';
 

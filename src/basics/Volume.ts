@@ -1,3 +1,13 @@
+//----------------------------------------------------------------------------------------------------
+// Volume — speaker-icon + slider bound to the audio master gain
+//
+// Reads and writes the global master GainNode exported from utils/audio. Clicking the speaker
+// icon opens an anchored slider (Open and Close + transition driven layout) and dragging it
+// updates master.gain in real time; the icon swaps to a muted glyph when the value reaches 0.
+//
+// - VolumeController : component({ anchor: 'left' | 'right' | 'top' | 'bottom' })
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { master } from '../utils/audio';

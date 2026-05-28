@@ -1,3 +1,20 @@
+//----------------------------------------------------------------------------------------------------
+// Unit — the lifecycle, ownership, and scoping primitive of xnew
+//
+// A Unit bundles a DOM element, a Component function that extends it, child units, event listeners,
+// timers, and registered promises into one entity, and drives the application through a state
+// machine: invoked → initialized → started ↔ stopped → finalizing → finalized.
+//
+// Deferred callbacks (DOM events, timers, promise continuations) re-enter Unit.scope using a
+// Snapshot of (unit, context, element, Component), so handlers always run as if still inside the
+// originating component, even after async hops.
+//
+// - UnitElement / UnitArgs : public type aliases for Unit inputs
+// - Unit                   : core class — lifecycle, listeners, contexts, emit
+// - UnitPromise            : promise wrapper that resumes in the originating Unit scope
+// - UnitTimer              : queueable timer used by xnew.timeout / interval / transition
+//----------------------------------------------------------------------------------------------------
+
 import { MapSet, MapMap } from './map';
 import { AnimationTicker, Timer, TimerOptions } from './time';
 import { Eventor } from './event';

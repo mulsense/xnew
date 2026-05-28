@@ -1,3 +1,25 @@
+//----------------------------------------------------------------------------------------------------
+// xnew — public entry point of the library
+//
+// `xnew(...)` creates a new Unit as a child of the currently active Unit (auto-initializing the
+// root Unit and render ticker on the first call). All the attached helpers operate on the implicit
+// Unit.currentUnit, so they are meant to be called from inside a Component function.
+//
+// This file is intentionally thin: each helper forwards to a static method on Unit, wrapped in a
+// try / catch that logs and re-throws so consumers see both a console message and the exception.
+//
+// - xnew(...)                            : create a child Unit
+// - xnew.nest / extend                   : extend the current Unit during initialization
+// - xnew.append / find                   : tree manipulation and lookup
+// - xnew.context                         : ancestor context lookup
+// - xnew.promise / then / catch / finally / defer / collect
+//                                          promises bound to the current Unit
+// - xnew.scope                           : capture current Unit scope into a callback
+// - xnew.emit                            : '+global' / '-local' custom events
+// - xnew.timeout / interval / transition : UnitTimer-backed scheduling
+// - xnew.protect                         : exclude current Unit from emit / find
+//----------------------------------------------------------------------------------------------------
+
 import { Unit, UnitArgs, UnitPromise, UnitTimer, UnitElement } from './unit';
 
 export const xnew = Object.assign(

@@ -1,4 +1,17 @@
 //----------------------------------------------------------------------------------------------------
+// time — visibility-aware tickers and timers
+//
+// rAF loops must pause when the document is hidden, and setTimeout-based timers must stop
+// accumulating elapsed time during that period. These primitives bake that behavior in so the
+// rest of xnew (the root render loop in Unit.reset, UnitTimer.timeout / interval / transition)
+// does not have to re-implement it.
+//
+// - AnimationTicker     : rAF-driven callback at a target FPS
+// - Timer / TimerOptions: setTimeout-based timer with optional easing transition; auto-paused on
+//                         document visibility change
+//----------------------------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------------------------
 // visibility change
 //----------------------------------------------------------------------------------------------------
 

@@ -1,3 +1,11 @@
+//----------------------------------------------------------------------------------------------------
+// image — Canvas wrapper for crop and download
+//
+// Lightweight wrapper around HTMLCanvasElement that adds the two operations the rest of the
+// package needs: pulling a rectangular sub-canvas (crop) and triggering a browser download as PNG.
+//
+// - XImage / XImageArgs : wraps an existing canvas, or creates a new one at width × height
+//----------------------------------------------------------------------------------------------------
 
 export type XImageArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
 

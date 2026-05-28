@@ -1,3 +1,13 @@
+//----------------------------------------------------------------------------------------------------
+// xmatter — matter-js (2D physics) integration
+//
+// `initialize()` mounts a Root Unit that creates a Matter.Engine; child Units retrieve the engine
+// and its world through xnew.context(Root). Lifetime is tied to the Root Unit — engine is GC'd
+// when that Unit finalizes.
+//
+// - default : { initialize, engine, world }
+//----------------------------------------------------------------------------------------------------
+
 import xnew from '@mulsense/xnew';
 import Matter from 'matter-js';
 

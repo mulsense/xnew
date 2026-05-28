@@ -1,3 +1,14 @@
+//----------------------------------------------------------------------------------------------------
+// SVG — inline SVG container components
+//
+// Thin wrappers that nest an <svg> element with sensible defaults for stroke / fill / line caps
+// so callers can drop in <path> / <polygon> / <circle> children without re-specifying the same
+// presentation attributes on every shape.
+//
+// - SVG     : component({ viewBox, stroke, fill, ... }) — generic SVG root
+// - SVGText : component({ text, fontSize, ... }) — SVG-rendered text auto-fitted to its bbox
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 

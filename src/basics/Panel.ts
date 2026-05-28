@@ -1,3 +1,14 @@
+//----------------------------------------------------------------------------------------------------
+// Panel — stackable form-style settings panel
+//
+// Returns a builder API for laying out parameter rows backed by native form controls (range /
+// checkbox / select / button). Values are written through to a shared `params` object so the
+// panel can drive an external state bag without extra wiring. Groups can be nested and toggled
+// open/closed via the Accordion transition.
+//
+// - Panel : component({ params }) returning { group, button, select, range, checkbox, separator }
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { SVG } from './SVG';

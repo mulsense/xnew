@@ -1,3 +1,19 @@
+//----------------------------------------------------------------------------------------------------
+// audio — Web Audio primitives shared across the package
+//
+// A single AudioContext + master GainNode are created at module load so every audio source in the
+// package mixes through one bus. Callers (AudioFile, Synthesizer, Volume controller) connect to
+// `master` rather than `context.destination` so the global volume is one writable value.
+//
+// Side effect on import: instantiates window.AudioContext and connects the master gain.
+//
+// - context, master : shared global AudioContext and its master GainNode
+// - AudioFile       : decoded audio buffer with play / pause / volume + fade in / out
+// - Synthesizer / SynthesizerOptions
+//                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
+//                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
+//----------------------------------------------------------------------------------------------------
+
 export const context: AudioContext = new window.AudioContext();
 export const master: GainNode = context.createGain();
 

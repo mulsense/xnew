@@ -1,3 +1,15 @@
+//----------------------------------------------------------------------------------------------------
+// Transition — open / close animation primitives
+//
+// OpenAndClose owns a 0..1 progress value driven by xnew.transition and exposes open / close /
+// toggle, broadcasting the value via '-transition' / '-opened' / '-closed' emits. Accordion and
+// Popup are presentation layers that pick up that progress value via xnew.context(OpenAndClose).
+//
+// - OpenAndClose : component returning { toggle, open, close }
+// - Accordion    : collapses height + opacity to follow the progress value
+// - Popup        : full-viewport overlay that opens on mount and finalizes when closed
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
 

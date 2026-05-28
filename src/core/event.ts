@@ -1,3 +1,18 @@
+//----------------------------------------------------------------------------------------------------
+// Eventor — normalized DOM event binding for Units
+//
+// Bridges raw DOM events to the xnew-flavored types that Unit.on accepts. A single Eventor.add()
+// dispatches to a per-type implementation that wraps the raw listener and emits a unified payload
+// ({ event, position, vector, delta, ... }), so a component author sees the same shape across
+// pointer, drag, wheel, keyboard, resize, click-outside, etc.
+//
+// Registration is deferred by one setTimeout tick so listeners attached during component init do
+// not fire on the same tick that created them.
+//
+// - Eventor : keeps a (type, listener) → finalize map; add() / remove() manage the underlying
+//             native listeners and observers, ResizeObserver, and key-combo state machines.
+//----------------------------------------------------------------------------------------------------
+
 import { MapSet, MapMap } from './map';
 
 //----------------------------------------------------------------------------------------------------

@@ -1,3 +1,14 @@
+//----------------------------------------------------------------------------------------------------
+// Controller — virtual game-pad input components
+//
+// Drag-based on-screen inputs that translate pointer movement into a normalized vector (x / y in
+// [-1, 1]) and emit it through xnew.emit as '-down' / '-move' / '-up' so parent components can
+// react without touching DOM events directly.
+//
+// - AnalogStick : continuous radial vector; visual stick follows the pointer within a radius
+// - DPad        : quantized 4 or 8 way vector; highlights the active arrow segment
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { SVG } from '../basics/SVG';
