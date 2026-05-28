@@ -18,12 +18,13 @@
 import { MapSet, MapMap } from './map';
 import { Ticker, Timer, TimerOptions } from './time';
 import { Eventor } from './event';
+import { isElement, DomElement } from './element';
 
 //----------------------------------------------------------------------------------------------------
 // definitions
 //----------------------------------------------------------------------------------------------------
 
-export type UnitElement = HTMLElement | SVGElement;
+export type UnitElement = DomElement;
 
 export type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
 
@@ -32,10 +33,6 @@ interface Context { previous: Context | null; key?: any; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; Component: Function | null; }
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
-
-function isElement(value: unknown): value is UnitElement {
-    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
-}
 
 //----------------------------------------------------------------------------------------------------
 // unit
