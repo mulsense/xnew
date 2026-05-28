@@ -5,19 +5,33 @@ beforeEach(() => {
     Unit.reset();
 });
 
+afterEach(() => {
+    Unit.rootUnit?.finalize();
+});
+
 describe('xnew.context', () => {
-    it('basic', () => {
-        function A(unit: Unit) {
+    it('exposes a value defined by an ancestor via xnew.extend', () => {
+        function Theme(_: Unit) {
             return {
-                get value() { return 'A'; },
-            }
+                get name() { return 'dark'; },
+            };
         }
-        xnew((unit: Unit) => {
-            xnew.extend(A);
-            xnew((unit: Unit) => {
-                expect(xnew.context(A)?.value).toBe('A');
+
+        xnew(() => {
+            xnew.extend(Theme);
+            xnew(() => {
+                expect(xnew.context(Theme)?.name).toBe('dark');
+            });
+        });
+    });
+
+    it('returns undefined when no ancestor exposes the requested component', () => {
+        function Absent(_: Unit) {}
+
+        xnew(() => {
+            xnew(() => {
+                expect(xnew.context(Absent)).toBeUndefined();
             });
         });
     });
 });
-

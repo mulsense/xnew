@@ -5,25 +5,38 @@ beforeEach(() => {
     Unit.reset();
 });
 
-describe('unit context', () => {
-
-    it('component', () => {
-        xnew(() => {
-            const unit1 = xnew(A);
-            const unit2 = xnew(B);
-            const unit3 = xnew(C);
-
-            expect(xnew.find(A)[0]).toBe(unit1);
-            expect(xnew.find(B)[0]).toBe(unit2);
-            expect(xnew.find(C)[0]).toBe(unit3);
-        });
-
-        function A(unit: Unit) {
-        }
-        function B(unit: Unit) {
-        }
-        function C(unit: Unit) {
-        }
-    });
+afterEach(() => {
+    Unit.rootUnit?.finalize();
 });
 
+describe('xnew.find', () => {
+    it('returns every unit instance registered under the given component', () => {
+        function A(_: Unit) {}
+        function B(_: Unit) {}
+
+        let a1!: Unit, a2!: Unit, b1!: Unit;
+        xnew(() => {
+            a1 = xnew(A);
+            a2 = xnew(A);
+            b1 = xnew(B);
+        });
+
+        expect(xnew.find(A)).toEqual(expect.arrayContaining([a1, a2]));
+        expect(xnew.find(A)).toHaveLength(2);
+        expect(xnew.find(B)).toEqual([b1]);
+    });
+
+    it('returns an empty array when no unit matches', () => {
+        function Absent(_: Unit) {}
+        expect(xnew.find(Absent)).toEqual([]);
+    });
+
+    it('drops a unit from the index after finalize', () => {
+        function A(_: Unit) {}
+        const unit = xnew(A);
+        expect(xnew.find(A)).toContain(unit);
+
+        unit.finalize();
+        expect(xnew.find(A)).not.toContain(unit);
+    });
+});

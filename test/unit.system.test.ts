@@ -1,35 +1,53 @@
 import { Unit } from '../src/core/unit';
 import { xnew } from '../src/core/xnew';
 
-beforeEach(() => {
-    Unit.reset();
-});
-
-describe('unit system', () => {
-    it('basic', () => {
-        return new Promise<void>((resolve, reject) => {
-            let state = 0;
-            let start = Date.now();
-            const margin = 100;
-          
-            xnew((unit: Unit) => {
-                xnew.promise(new Promise<void>((resolve, reject) => {
-                    setTimeout(() => {
-                        resolve();
-                        unit.start();
-                    }, 500);
-                }));
-                unit.stop();
-                unit.on('start', () => {
-                    const d = Date.now() - start;
-                    expect(d).toBeGreaterThan(500 - margin);
-                    expect(d).toBeLessThan(500 + margin);
-                    state++;
-                });
-            });
-            
-            setTimeout(() => state === 1 ? resolve() : reject(), 500 + margin);
-        });
+describe('Unit lifecycle', () => {
+    beforeEach(() => {
+        jest.useFakeTimers({ now: 0 });
+        Unit.reset();
     });
 
+    afterEach(() => {
+        Unit.rootUnit?.finalize();
+        jest.useRealTimers();
+    });
+
+    it('emits start when the unit is started explicitly after a stop()', async () => {
+        const onStart = jest.fn();
+        let target!: Unit;
+
+        xnew((unit: Unit) => {
+            target = unit;
+            unit.stop();
+            unit.on('start', onStart);
+        });
+
+        setTimeout(() => target.start(), 500);
+
+        await jest.advanceTimersByTimeAsync(499);
+        expect(onStart).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(50);
+        expect(onStart).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits stop when transitioning from started to stopped', async () => {
+        const onStop = jest.fn();
+        const unit = xnew((u: Unit) => u.on('stop', onStop));
+
+        await jest.advanceTimersByTimeAsync(20);
+
+        unit.stop();
+        expect(onStop).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits finalize exactly once when the unit is finalized', () => {
+        const onFinalize = jest.fn();
+        const unit = xnew((u: Unit) => u.on('finalize', onFinalize));
+
+        unit.finalize();
+        unit.finalize();
+
+        expect(onFinalize).toHaveBeenCalledTimes(1);
+    });
 });
