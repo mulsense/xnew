@@ -93,8 +93,8 @@ export class Unit {
             baseElement = target;
         } else if (parent !== null) {
             baseElement = parent._.currentElement;
-        } else if (document?.body) {
-            baseElement = document.body;
+        } else if (globalThis.document?.body) {
+            baseElement = globalThis.document.body;
         } else {
             baseElement = null as unknown as UnitElement;
         }
@@ -394,7 +394,7 @@ export class Unit {
         if (unit._.listeners.has(type, listener) === false) {
             unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
-            if (/^[A-Za-z]/.test(type)) {
+            if (/^[A-Za-z]/.test(type) && unit.element !== null) {
                 unit._.eventor.add(unit.element, type, execute, options);
             }
         }

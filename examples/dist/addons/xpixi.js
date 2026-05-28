@@ -23,6 +23,16 @@
 
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
+    //----------------------------------------------------------------------------------------------------
+    // xpixi — PixiJS 8 integration
+    //
+    // `initialize({ canvas })` mounts a Root Unit that auto-detects a Pixi renderer and owns a root
+    // Container. `xpixi.nest(displayObject)` adds the object to the current Pixi parent (root scene
+    // or nearest enclosing nest), ties its removal to Unit finalize, and exposes it as the context
+    // for further nested calls — so the xnew tree and Pixi scene graph stay in sync automatically.
+    //
+    // - default : { initialize, nest, renderer, scene, canvas }
+    //----------------------------------------------------------------------------------------------------
     var xpixi = {
         initialize({ canvas = null } = {}) {
             xnew.promise(xnew(Root, { canvas }));

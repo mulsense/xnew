@@ -14,15 +14,17 @@
 //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
 //----------------------------------------------------------------------------------------------------
 
-export const context: AudioContext = new window.AudioContext();
-export const master: GainNode = context.createGain();
+export const context: AudioContext = typeof window !== 'undefined' ? new window.AudioContext() : null as unknown as AudioContext;
+export const master: GainNode = context !== null ? context.createGain() : null as unknown as GainNode;
 
 //----------------------------------------------------------------------------------------------------
 // master volume
 //----------------------------------------------------------------------------------------------------
 
-master.gain.value = 0.1;
-master.connect(context.destination);
+if (context !== null && master !== null) {
+    master.gain.value = 0.1;
+    master.connect(context.destination);
+}
 
 //----------------------------------------------------------------------------------------------------
 // audio file

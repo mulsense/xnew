@@ -84,7 +84,9 @@ export class Timer {
         this.ticker = new Ticker(() => this.animation());
 
         this.visibilityListener = () => document.hidden === false ? this._start() : this._stop();
-        document.addEventListener('visibilitychange', this.visibilityListener);
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', this.visibilityListener);
+        }
 
         this.options.transition?.(0.0);
         this.start();
@@ -109,7 +111,9 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        document.removeEventListener('visibilitychange', this.visibilityListener);
+        if (typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', this.visibilityListener);
+        }
         this.ticker.clear();
     }
 

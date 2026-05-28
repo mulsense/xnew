@@ -5,6 +5,18 @@
 })(this, (function () { 'use strict';
 
     //----------------------------------------------------------------------------------------------------
+    // nested map utilities
+    //
+    // Map subclasses keyed by two levels, used for indexes such as the Unit
+    // listener table (type → listener → meta) and the Component / Context
+    // reverse lookups. They auto-create the inner collection on insert and
+    // auto-remove the outer entry when the inner collection becomes empty,
+    // so callers do not have to manage the nested structure by hand.
+    //
+    // - MapSet<Key, Value>        : wraps Map<Key, Set<Value>>
+    // - MapMap<Key1, Key2, Value> : wraps Map<Key1, Map<Key2, Value>>
+    //----------------------------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------
     // map set
     //----------------------------------------------------------------------------------------------------
     class MapSet extends Map {
@@ -17,9 +29,18 @@
                 return (_b = (_a = super.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
             }
         }
+        /**
+         * Adds a value to the inner Set at the given key.
+         * Creates and stores a new Set on the first insert for that key.
+         * @returns the MapSet itself, for chaining.
+         */
         add(key, value) {
-            var _a;
-            super.set(key, ((_a = super.get(key)) !== null && _a !== void 0 ? _a : new Set).add(value));
+            let set = super.get(key);
+            if (set === undefined) {
+                set = new Set();
+                super.set(key, set);
+            }
+            set.add(value);
             return this;
         }
         keys(key) {
@@ -32,16 +53,22 @@
             }
         }
         delete(key, value) {
-            var _a, _b, _c, _d;
-            let ret = false;
             if (value === undefined) {
-                ret = (((_a = super.get(key)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? super.delete(key) : false;
+                return super.delete(key);
             }
             else {
-                ret = (_c = (_b = super.get(key)) === null || _b === void 0 ? void 0 : _b.delete(value)) !== null && _c !== void 0 ? _c : false;
-                (((_d = super.get(key)) === null || _d === void 0 ? void 0 : _d.size) === 0) && super.delete(key);
+                const set = super.get(key);
+                if (set === undefined) {
+                    return false;
+                }
+                else {
+                    const ret = set.delete(value);
+                    if (set.size === 0) {
+                        super.delete(key);
+                    }
+                    return ret;
+                }
             }
-            return ret;
         }
     }
     //----------------------------------------------------------------------------------------------------
@@ -58,14 +85,18 @@
             }
         }
         set(key1, key2OrValue, value) {
-            var _a;
             if (value === undefined) {
-                // 2 args: directly set Map<Key2, Value>
+                // 2 args: assign the inner Map directly
                 super.set(key1, key2OrValue);
             }
             else {
-                // 3 args: set nested value
-                super.set(key1, ((_a = super.get(key1)) !== null && _a !== void 0 ? _a : new Map).set(key2OrValue, value));
+                // 3 args: assign a nested value
+                let inner = super.get(key1);
+                if (inner === undefined) {
+                    inner = new Map();
+                    super.set(key1, inner);
+                }
+                inner.set(key2OrValue, value);
             }
             return this;
         }
@@ -88,53 +119,70 @@
             }
         }
         delete(key1, key2) {
-            var _a, _b, _c, _d;
-            let ret = false;
             if (key2 === undefined) {
-                ret = (((_a = super.get(key1)) === null || _a === void 0 ? void 0 : _a.size) === 0) ? super.delete(key1) : false;
+                return super.delete(key1);
             }
             else {
-                ret = (_c = (_b = super.get(key1)) === null || _b === void 0 ? void 0 : _b.delete(key2)) !== null && _c !== void 0 ? _c : false;
-                (((_d = super.get(key1)) === null || _d === void 0 ? void 0 : _d.size) === 0) && super.delete(key1);
+                const inner = super.get(key1);
+                if (inner === undefined) {
+                    return false;
+                }
+                else {
+                    const ret = inner.delete(key2);
+                    if (inner.size === 0) {
+                        super.delete(key1);
+                    }
+                    return ret;
+                }
             }
-            return ret;
         }
     }
 
     //----------------------------------------------------------------------------------------------------
-    // visibility change
+    // time — runtime-agnostic tickers and timers
+    //
+    // xnew's root render loop and UnitTimer.timeout / interval / transition need a steady clock that
+    // behaves the same in browser and Node. Ticker feature-detects requestAnimationFrame (browser) and
+    // falls back to setTimeout (Node) so the rest of the package can stay runtime-agnostic. Timer
+    // layers easing and visibility-aware pause on top, for use in transition primitives.
+    //
+    // - Ticker              : callback at a target FPS — rAF in browser, setTimeout in Node
+    // - Timer / TimerOptions: setTimeout-based timer with optional easing transition; auto-paused on
+    //                         document visibility change (browser only)
     //----------------------------------------------------------------------------------------------------
-    class Visibility {
-        constructor(callback) {
-            this.listener = () => callback === null || callback === void 0 ? void 0 : callback(document.hidden === false);
-            document.addEventListener('visibilitychange', this.listener);
-        }
-        clear() {
-            document.removeEventListener('visibilitychange', this.listener);
-        }
-    }
     //----------------------------------------------------------------------------------------------------
-    // animation ticker
+    // ticker
     //----------------------------------------------------------------------------------------------------
-    class AnimationTicker {
+    class Ticker {
         constructor(callback, fps = 60) {
-            const self = this;
-            this.id = null;
+            this.cancel = null;
+            const minDelta = (1000 / fps) * 0.9;
+            const interval = 1000 / fps;
             let previous = 0;
-            function ticker() {
+            const tick = () => {
                 const delta = Date.now() - previous;
-                if (delta > (1000 / fps) * 0.9) {
+                if (delta > minDelta) {
                     callback();
                     previous += delta;
                 }
-                self.id = requestAnimationFrame(ticker);
-            }
-            self.id = requestAnimationFrame(ticker);
+                schedule();
+            };
+            const schedule = () => {
+                if (typeof requestAnimationFrame !== 'undefined') {
+                    const id = requestAnimationFrame(tick);
+                    this.cancel = () => cancelAnimationFrame(id);
+                }
+                else {
+                    const id = setTimeout(tick, interval);
+                    this.cancel = () => clearTimeout(id);
+                }
+            };
+            schedule();
         }
         clear() {
-            if (this.id !== null) {
-                cancelAnimationFrame(this.id);
-                this.id = null;
+            if (this.cancel !== null) {
+                this.cancel();
+                this.cancel = null;
             }
         }
     }
@@ -145,8 +193,11 @@
             this.id = null;
             this.time = { start: 0.0, processed: 0.0 };
             this.request = true;
-            this.ticker = new AnimationTicker(() => this.animation());
-            this.visibility = new Visibility((visible) => visible ? this._start() : this._stop());
+            this.ticker = new Ticker(() => this.animation());
+            this.visibilityListener = () => document.hidden === false ? this._start() : this._stop();
+            if (typeof document !== 'undefined') {
+                document.addEventListener('visibilitychange', this.visibilityListener);
+            }
             (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
             this.start();
         }
@@ -171,7 +222,9 @@
                 clearTimeout(this.id);
                 this.id = null;
             }
-            this.visibility.clear();
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', this.visibilityListener);
+            }
             this.ticker.clear();
         }
         elapsed() {
@@ -207,6 +260,20 @@
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Eventor — normalized DOM event binding for Units
+    //
+    // Bridges raw DOM events to the xnew-flavored types that Unit.on accepts. A single Eventor.add()
+    // dispatches to a per-type implementation that wraps the raw listener and emits a unified payload
+    // ({ event, position, vector, delta, ... }), so a component author sees the same shape across
+    // pointer, drag, wheel, keyboard, resize, click-outside, etc.
+    //
+    // Registration is deferred by one setTimeout tick so listeners attached during component init do
+    // not fire on the same tick that created them.
+    //
+    // - Eventor : keeps a (type, listener) → finalize map; add() / remove() manage the underlying
+    //             native listeners and observers, ResizeObserver, and key-combo state machines.
+    //----------------------------------------------------------------------------------------------------
     function addEventListener(target, type, execute, options) {
         let initalized = false;
         const id = setTimeout(() => {
@@ -519,17 +586,36 @@
         return { position };
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Unit — the lifecycle, ownership, and scoping primitive of xnew
+    //
+    // A Unit bundles a DOM element, a Component function that extends it, child units, event listeners,
+    // timers, and registered promises into one entity, and drives the application through a state
+    // machine: invoked → initialized → started ↔ stopped → finalizing → finalized.
+    //
+    // Deferred callbacks (DOM events, timers, promise continuations) re-enter Unit.scope using a
+    // Snapshot of (unit, context, element, Component), so handlers always run as if still inside the
+    // originating component, even after async hops.
+    //
+    // - UnitElement / UnitArgs : public type aliases for Unit inputs
+    // - Unit                   : core class — lifecycle, listeners, contexts, emit
+    // - UnitPromise            : promise wrapper that resumes in the originating Unit scope
+    // - UnitTimer              : queueable timer used by xnew.timeout / interval / transition
+    //----------------------------------------------------------------------------------------------------
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
+    function isElement(value) {
+        return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
+    }
     //----------------------------------------------------------------------------------------------------
     // unit
     //----------------------------------------------------------------------------------------------------
     class Unit {
         constructor(parent, ...args) {
-            var _a;
+            var _a, _b;
             let target;
             let Component;
             let props;
-            if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement || typeof args[0] === 'string') {
+            if (isElement(args[0]) || typeof args[0] === 'string') {
                 target = args[0];
                 Component = args[1];
                 props = args[2];
@@ -543,14 +629,17 @@
             Unit.currentUnit = this;
             parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
             let baseElement;
-            if (target instanceof HTMLElement || target instanceof SVGElement) {
+            if (isElement(target)) {
                 baseElement = target;
             }
             else if (parent !== null) {
                 baseElement = parent._.currentElement;
             }
+            else if ((_a = globalThis.document) === null || _a === void 0 ? void 0 : _a.body) {
+                baseElement = globalThis.document.body;
+            }
             else {
-                baseElement = (document === null || document === void 0 ? void 0 : document.body) ? document.body : null;
+                baseElement = null;
             }
             let baseComponent;
             if (typeof Component === 'function') {
@@ -562,7 +651,7 @@
             else {
                 baseComponent = (unit) => { };
             }
-            const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
+            const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
             this._ = {
                 parent,
                 state: 'invoked',
@@ -646,7 +735,7 @@
             }
         }
         static nest(unit, target, textContent) {
-            if (target instanceof HTMLElement || target instanceof SVGElement) {
+            if (isElement(target)) {
                 unit._.nestElements.push({ element: target, owned: false });
                 unit._.currentElement = target;
                 return target;
@@ -741,7 +830,7 @@
             var _a;
             (_a = Unit.rootUnit) === null || _a === void 0 ? void 0 : _a.finalize();
             Unit.currentUnit = Unit.rootUnit = new Unit(null);
-            const ticker = new AnimationTicker(() => {
+            const ticker = new Ticker(() => {
                 Unit.start(Unit.rootUnit);
                 Unit.update(Unit.rootUnit);
                 Unit.render(Unit.rootUnit);
@@ -809,7 +898,7 @@
             if (unit._.listeners.has(type, listener) === false) {
                 unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
                 Unit.type2units.add(type, unit);
-                if (/^[A-Za-z]/.test(type)) {
+                if (/^[A-Za-z]/.test(type) && unit.element !== null) {
                     unit._.eventor.add(unit.element, type, execute, options);
                 }
             }
@@ -941,6 +1030,27 @@
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // xnew — public entry point of the library
+    //
+    // `xnew(...)` creates a new Unit as a child of the currently active Unit (auto-initializing the
+    // root Unit and render ticker on the first call). All the attached helpers operate on the implicit
+    // Unit.currentUnit, so they are meant to be called from inside a Component function.
+    //
+    // This file is intentionally thin: each helper forwards to a static method on Unit, wrapped in a
+    // try / catch that logs and re-throws so consumers see both a console message and the exception.
+    //
+    // - xnew(...)                            : create a child Unit
+    // - xnew.nest / extend                   : extend the current Unit during initialization
+    // - xnew.append / find                   : tree manipulation and lookup
+    // - xnew.context                         : ancestor context lookup
+    // - xnew.promise / then / catch / finally / defer / collect
+    //                                          promises bound to the current Unit
+    // - xnew.scope                           : capture current Unit scope into a callback
+    // - xnew.emit                            : '+global' / '-local' custom events
+    // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
+    // - xnew.protect                         : exclude current Unit from emit / find
+    //----------------------------------------------------------------------------------------------------
     const xnew$1 = Object.assign(
     /**
      * creates a new Unit component
@@ -1122,37 +1232,37 @@
                 throw error;
             }
         },
-        resolvers() {
-            let state = null;
-            let resolve = null;
-            let reject = null;
+        /**
+         * Creates a deferred promise registered to the current unit, controllable from outside.
+         * Returns `{ resolve, reject }` to settle the promise on demand.
+         * Calls after the first settle are ignored.
+         * @example
+         * const { resolve } = xnew.defer();
+         * button.addEventListener('click', () => resolve());
+         * xnew.then(() => console.log('clicked'));
+         */
+        defer() {
+            let settled = false;
+            let resolve;
+            let reject;
             const unitPromise = new UnitPromise(new Promise((res, rej) => {
-                if (state === 'resolved') {
-                    res(null);
-                }
-                else if (state === 'rejected') {
-                    rej();
-                }
-                else {
-                    resolve = res;
-                    reject = rej;
-                    state = 'pending';
-                }
+                resolve = res;
+                reject = rej;
             }));
             Unit.currentUnit._.promises.push(unitPromise);
             return {
                 resolve() {
-                    if (state === 'pending') {
-                        resolve === null || resolve === void 0 ? void 0 : resolve(null);
-                    }
-                    state = 'resolved';
+                    if (settled)
+                        return;
+                    settled = true;
+                    resolve();
                 },
                 reject() {
-                    if (state === 'pending') {
-                        reject === null || reject === void 0 ? void 0 : reject();
-                    }
-                    state = 'rejected';
-                }
+                    if (settled)
+                        return;
+                    settled = true;
+                    reject();
+                },
             };
         },
         /**
@@ -1275,6 +1385,17 @@
         },
     });
 
+    //----------------------------------------------------------------------------------------------------
+    // Transition — open / close animation primitives
+    //
+    // OpenAndClose owns a 0..1 progress value driven by xnew.transition and exposes open / close /
+    // toggle, broadcasting the value via '-transition' / '-opened' / '-closed' emits. Accordion and
+    // Popup are presentation layers that pick up that progress value via xnew.context(OpenAndClose).
+    //
+    // - OpenAndClose : component returning { toggle, open, close }
+    // - Accordion    : collapses height + opacity to follow the progress value
+    // - Popup        : full-viewport overlay that opens on mount and finalizes when closed
+    //----------------------------------------------------------------------------------------------------
     function OpenAndClose(unit, { open = true, transition = { duration: 200, easing: 'ease' } }) {
         let value = open ? 1.0 : 0.0;
         let sign = open ? +1 : -1;
@@ -1331,6 +1452,16 @@
         });
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // SVG — inline SVG container components
+    //
+    // Thin wrappers that nest an <svg> element with sensible defaults for stroke / fill / line caps
+    // so callers can drop in <path> / <polygon> / <circle> children without re-specifying the same
+    // presentation attributes on every shape.
+    //
+    // - SVG     : component({ viewBox, stroke, fill, ... }) — generic SVG root
+    // - SVGText : component({ text, fontSize, ... }) — SVG-rendered text auto-fitted to its bbox
+    //----------------------------------------------------------------------------------------------------
     function SVG(unit, { viewBox = '0 0 64 64', className = '', style = '', stroke = 'none', strokeOpacity = 1, strokeWidth = 1, strokeLinejoin = 'round', strokeLinecap = 'round', fill = 'none', fillOpacity = 1 } = {}) {
         xnew$1.nest(`<svg
         viewBox="${viewBox}"
@@ -1362,6 +1493,15 @@
         svg.style.overflow = 'visible';
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Aspect — fixed aspect-ratio container component
+    //
+    // Nests two flex / container-query wrappers so the component's element keeps the requested
+    // aspect ratio inside any parent box, regardless of which axis is constraining. `fit: 'contain'`
+    // shrinks to fit; `fit: 'cover'` grows to fill.
+    //
+    // - Aspect : component({ aspect, fit })
+    //----------------------------------------------------------------------------------------------------
     function Aspect(unit, { aspect = 1.0, fit = 'contain' } = {}) {
         xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">');
         xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size;">`);
@@ -1374,6 +1514,15 @@
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Screen — aspect-fitted <canvas> component
+    //
+    // Wraps a fixed-resolution <canvas> in an Aspect container so the drawing buffer keeps the
+    // requested width × height while CSS scales it to the surrounding box. Convenience component
+    // used as the base of game-style examples.
+    //
+    // - Screen : component({ width, height, fit }) returning { canvas }
+    //----------------------------------------------------------------------------------------------------
     function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
         xnew$1.extend(Aspect, { aspect: width / height, fit });
         const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom;">`);
@@ -1382,6 +1531,16 @@
         };
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Controller — virtual game-pad input components
+    //
+    // Drag-based on-screen inputs that translate pointer movement into a normalized vector (x / y in
+    // [-1, 1]) and emit it through xnew.emit as '-down' / '-move' / '-up' so parent components can
+    // react without touching DOM events directly.
+    //
+    // - AnalogStick : continuous radial vector; visual stick follows the pointer within a radius
+    // - DPad        : quantized 4 or 8 way vector; highlights the active arrow segment
+    //----------------------------------------------------------------------------------------------------
     //----------------------------------------------------------------------------------------------------
     // controller
     //----------------------------------------------------------------------------------------------------
@@ -1477,6 +1636,16 @@
         });
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Panel — stackable form-style settings panel
+    //
+    // Returns a builder API for laying out parameter rows backed by native form controls (range /
+    // checkbox / select / button). Values are written through to a shared `params` object so the
+    // panel can drive an external state bag without extra wiring. Groups can be nested and toggled
+    // open/closed via the Accordion transition.
+    //
+    // - Panel : component({ params }) returning { group, button, select, range, checkbox, separator }
+    //----------------------------------------------------------------------------------------------------
     const paleColor$1 = 'color-mix(in srgb, currentColor 20%, transparent)';
     function Panel(unit, { params }) {
         const object = params !== null && params !== void 0 ? params : {};
@@ -1648,6 +1817,15 @@
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Scene — sibling-swap navigation primitive
+    //
+    // A trivial component that exposes helpers for swapping itself with another component under the
+    // same parent. `moveTo` / `nextScene` mount the new component as a sibling and finalize self;
+    // `append` mounts as a child without unmounting.
+    //
+    // - Scene : component returning { moveTo, nextScene, append }
+    //----------------------------------------------------------------------------------------------------
     function Scene(unit) {
         return {
             moveTo(Component, props) {
@@ -1664,13 +1842,30 @@
         };
     }
 
-    const context = new window.AudioContext();
-    const master = context.createGain();
+    //----------------------------------------------------------------------------------------------------
+    // audio — Web Audio primitives shared across the package
+    //
+    // A single AudioContext + master GainNode are created at module load so every audio source in the
+    // package mixes through one bus. Callers (AudioFile, Synthesizer, Volume controller) connect to
+    // `master` rather than `context.destination` so the global volume is one writable value.
+    //
+    // Side effect on import: instantiates window.AudioContext and connects the master gain.
+    //
+    // - context, master : shared global AudioContext and its master GainNode
+    // - AudioFile       : decoded audio buffer with play / pause / volume + fade in / out
+    // - Synthesizer / SynthesizerOptions
+    //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
+    //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
+    //----------------------------------------------------------------------------------------------------
+    const context = typeof window !== 'undefined' ? new window.AudioContext() : null;
+    const master = context !== null ? context.createGain() : null;
     //----------------------------------------------------------------------------------------------------
     // master volume
     //----------------------------------------------------------------------------------------------------
-    master.gain.value = 0.1;
-    master.connect(context.destination);
+    if (context !== null && master !== null) {
+        master.gain.value = 0.1;
+        master.connect(context.destination);
+    }
     //----------------------------------------------------------------------------------------------------
     // audio file
     //----------------------------------------------------------------------------------------------------
@@ -1888,6 +2083,15 @@
         }
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // Volume — speaker-icon + slider bound to the audio master gain
+    //
+    // Reads and writes the global master GainNode exported from utils/audio. Clicking the speaker
+    // icon opens an anchored slider (Open and Close + transition driven layout) and dragging it
+    // updates master.gain in real time; the icon swaps to a muted glyph when the value reaches 0.
+    //
+    // - VolumeController : component({ anchor: 'left' | 'right' | 'top' | 'bottom' })
+    //----------------------------------------------------------------------------------------------------
     const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
     function SpeakerIcon(unit, { muted = false } = {}) {
         xnew$1.extend(SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
@@ -1939,6 +2143,14 @@
         unit.on('click.outside', () => system.close());
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // image — Canvas wrapper for crop and download
+    //
+    // Lightweight wrapper around HTMLCanvasElement that adds the two operations the rest of the
+    // package needs: pulling a rectangular sub-canvas (crop) and triggering a browser download as PNG.
+    //
+    // - XImage / XImageArgs : wraps an existing canvas, or creates a new one at width × height
+    //----------------------------------------------------------------------------------------------------
     class XImage {
         constructor(...args) {
             if (args[0] instanceof HTMLCanvasElement) {
