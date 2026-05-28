@@ -21,7 +21,7 @@ function append(dir, src, name, globals = {}) {
         ],
         external: Object.keys(globals),
         plugins: [
-            typescript(),
+            typescript({ removeComments: true }),
             copyto(`./dist/${dir}${name}.js`, `./examples/dist/${dir}${name}.js`),
             copyto(`./dist/${dir}${name}.mjs`, `./examples/dist/${dir}${name}.mjs`),
         ],
@@ -30,7 +30,7 @@ function append(dir, src, name, globals = {}) {
         input: `./src/${dir}${src}.ts`,
         output: { file: `./dist/${dir}${name}.d.ts`, format: 'es', },
         plugins: [
-            dts(),
+            dts({ compilerOptions: { removeComments: true } }),
             copyto(`./dist/${dir}${name}.d.ts`, `./examples/dist/${dir}${name}.d.ts`),
         ]
     });

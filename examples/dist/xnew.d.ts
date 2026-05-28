@@ -1,80 +1,21 @@
 declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
-    /**
-     * Tests membership at either level.
-     * - has(key)        : whether the outer map contains the key.
-     * - has(key, value) : whether the inner Set at the key contains the value.
-     * @returns true if the queried entry exists, false otherwise.
-     */
     has(key: Key): boolean;
     has(key: Key, value: Value): boolean;
-    /**
-     * Adds a value to the inner Set at the given key.
-     * Creates and stores a new Set on the first insert for that key.
-     * @returns the MapSet itself, for chaining.
-     */
     add(key: Key, value: Value): MapSet<Key, Value>;
-    /**
-     * Iterates either level.
-     * - keys()    : iterates outer keys of the map.
-     * - keys(key) : iterates values held by the inner Set at the key.
-     * @returns an iterator over the requested level, or an empty iterator when the key is absent.
-     */
     keys(): IterableIterator<Key>;
     keys(key: Key): IterableIterator<Value>;
-    /**
-     * Removes entries at either level.
-     * - delete(key)        : removes the whole entry at the key.
-     * - delete(key, value) : removes the value from the inner Set at the key,
-     *                        and additionally removes the outer entry once
-     *                        the inner Set becomes empty.
-     * @returns true if something was actually removed, false otherwise.
-     */
     delete(key: Key): boolean;
     delete(key: Key, value: Value): boolean;
 }
 declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
-    /**
-     * Tests membership at either level.
-     * - has(key1)       : whether the outer map contains key1.
-     * - has(key1, key2) : whether the inner Map at key1 contains key2.
-     * @returns true if the queried entry exists, false otherwise.
-     */
     has(key1: Key1): boolean;
     has(key1: Key1, key2: Key2): boolean;
-    /**
-     * Stores an entry at either level.
-     * - set(key1, value)       : assigns the given inner Map at key1 directly,
-     *                            overwriting any existing inner Map.
-     * - set(key1, key2, value) : assigns value under (key1, key2),
-     *                            creating the inner Map on the first insert.
-     * @returns the MapMap itself, for chaining.
-     */
     set(key1: Key1, value: Map<Key2, Value>): this;
     set(key1: Key1, key2: Key2, value: Value): this;
-    /**
-     * Retrieves an entry at either level.
-     * - get(key1)       : returns the inner Map at key1.
-     * - get(key1, key2) : returns the nested value at (key1, key2).
-     * @returns the requested inner Map or value, or undefined when the entry is absent.
-     */
     get(key1: Key1): Map<Key2, Value> | undefined;
     get(key1: Key1, key2: Key2): Value | undefined;
-    /**
-     * Iterates either level.
-     * - keys()     : iterates outer keys of the map.
-     * - keys(key1) : iterates keys of the inner Map at key1.
-     * @returns an iterator over the requested level, or an empty iterator when key1 is absent.
-     */
     keys(): IterableIterator<Key1>;
     keys(key1: Key1): IterableIterator<Key2>;
-    /**
-     * Removes entries at either level.
-     * - delete(key1)       : removes the whole entry at key1.
-     * - delete(key1, key2) : removes the nested entry at (key1, key2),
-     *                        and additionally removes the outer entry once
-     *                        the inner Map becomes empty.
-     * @returns true if something was actually removed, false otherwise.
-     */
     delete(key1: Key1): boolean;
     delete(key1: Key1, key2: Key2): boolean;
 }

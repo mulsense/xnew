@@ -4,15 +4,6 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xmatter = factory(global.xnew, global.Matter));
 })(this, (function (xnew, Matter) { 'use strict';
 
-    //----------------------------------------------------------------------------------------------------
-    // xmatter — matter-js (2D physics) integration
-    //
-    // `initialize()` mounts a Root Unit that creates a Matter.Engine; child Units retrieve the engine
-    // and its world through xnew.context(Root). Lifetime is tied to the Root Unit — engine is GC'd
-    // when that Unit finalizes.
-    //
-    // - default : { initialize, engine, world }
-    //----------------------------------------------------------------------------------------------------
     var xmatter = {
         initialize({} = {}) {
             xnew.promise(xnew(Root, {}));

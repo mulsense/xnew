@@ -4,21 +4,6 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xnew = factory());
 })(this, (function () { 'use strict';
 
-    //----------------------------------------------------------------------------------------------------
-    // nested map utilities
-    //
-    // Map subclasses keyed by two levels, used for indexes such as the Unit
-    // listener table (type → listener → meta) and the Component / Context
-    // reverse lookups. They auto-create the inner collection on insert and
-    // auto-remove the outer entry when the inner collection becomes empty,
-    // so callers do not have to manage the nested structure by hand.
-    //
-    // - MapSet<Key, Value>        : wraps Map<Key, Set<Value>>
-    // - MapMap<Key1, Key2, Value> : wraps Map<Key1, Map<Key2, Value>>
-    //----------------------------------------------------------------------------------------------------
-    //----------------------------------------------------------------------------------------------------
-    // map set
-    //----------------------------------------------------------------------------------------------------
     class MapSet extends Map {
         has(key, value) {
             var _a, _b;
@@ -29,11 +14,6 @@
                 return (_b = (_a = super.get(key)) === null || _a === void 0 ? void 0 : _a.has(value)) !== null && _b !== void 0 ? _b : false;
             }
         }
-        /**
-         * Adds a value to the inner Set at the given key.
-         * Creates and stores a new Set on the first insert for that key.
-         * @returns the MapSet itself, for chaining.
-         */
         add(key, value) {
             let set = super.get(key);
             if (set === undefined) {
@@ -71,9 +51,6 @@
             }
         }
     }
-    //----------------------------------------------------------------------------------------------------
-    // map map
-    //----------------------------------------------------------------------------------------------------
     class MapMap extends Map {
         has(key1, key2) {
             var _a, _b;
@@ -86,11 +63,9 @@
         }
         set(key1, key2OrValue, value) {
             if (value === undefined) {
-                // 2 args: assign the inner Map directly
                 super.set(key1, key2OrValue);
             }
             else {
-                // 3 args: assign a nested value
                 let inner = super.get(key1);
                 if (inner === undefined) {
                     inner = new Map();
@@ -138,21 +113,6 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // time — runtime-agnostic tickers and timers
-    //
-    // xnew's root render loop and UnitTimer.timeout / interval / transition need a steady clock that
-    // behaves the same in browser and Node. Ticker feature-detects requestAnimationFrame (browser) and
-    // falls back to setTimeout (Node) so the rest of the package can stay runtime-agnostic. Timer
-    // layers easing and visibility-aware pause on top, for use in transition primitives.
-    //
-    // - Ticker              : callback at a target FPS — rAF in browser, setTimeout in Node
-    // - Timer / TimerOptions: setTimeout-based timer with optional easing transition; auto-paused on
-    //                         document visibility change (browser only)
-    //----------------------------------------------------------------------------------------------------
-    //----------------------------------------------------------------------------------------------------
-    // ticker
-    //----------------------------------------------------------------------------------------------------
     class Ticker {
         constructor(callback, fps = 60) {
             this.cancel = null;
@@ -260,20 +220,6 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Eventor — normalized DOM event binding for Units
-    //
-    // Bridges raw DOM events to the xnew-flavored types that Unit.on accepts. A single Eventor.add()
-    // dispatches to a per-type implementation that wraps the raw listener and emits a unified payload
-    // ({ event, position, vector, delta, ... }), so a component author sees the same shape across
-    // pointer, drag, wheel, keyboard, resize, click-outside, etc.
-    //
-    // Registration is deferred by one setTimeout tick so listeners attached during component init do
-    // not fire on the same tick that created them.
-    //
-    // - Eventor : keeps a (type, listener) → finalize map; add() / remove() manage the underlying
-    //             native listeners and observers, ResizeObserver, and key-combo state machines.
-    //----------------------------------------------------------------------------------------------------
     function addEventListener(target, type, execute, options) {
         let initalized = false;
         const id = setTimeout(() => {
@@ -586,29 +532,10 @@
         return { position };
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Unit — the lifecycle, ownership, and scoping primitive of xnew
-    //
-    // A Unit bundles a DOM element, a Component function that extends it, child units, event listeners,
-    // timers, and registered promises into one entity, and drives the application through a state
-    // machine: invoked → initialized → started ↔ stopped → finalizing → finalized.
-    //
-    // Deferred callbacks (DOM events, timers, promise continuations) re-enter Unit.scope using a
-    // Snapshot of (unit, context, element, Component), so handlers always run as if still inside the
-    // originating component, even after async hops.
-    //
-    // - UnitElement / UnitArgs : public type aliases for Unit inputs
-    // - Unit                   : core class — lifecycle, listeners, contexts, emit
-    // - UnitPromise            : promise wrapper that resumes in the originating Unit scope
-    // - UnitTimer              : queueable timer used by xnew.timeout / interval / transition
-    //----------------------------------------------------------------------------------------------------
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     function isElement(value) {
         return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
     }
-    //----------------------------------------------------------------------------------------------------
-    // unit
-    //----------------------------------------------------------------------------------------------------
     class Unit {
         constructor(parent, ...args) {
             var _a, _b;
@@ -671,11 +598,9 @@
                 systems: { start: [], update: [], render: [], stop: [], finalize: [] },
                 eventor: new Eventor(),
             };
-            // nest html element
             if (typeof target === 'string') {
                 Unit.nest(this, target);
             }
-            // setup Component
             Unit.extend(this, baseComponent, props);
             if (this._.state === 'invoked') {
                 this._.state = 'initialized';
@@ -708,7 +633,6 @@
                 unit.off();
                 unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
                 unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
-                // remove contexts
                 const contexts = Unit.unit2Contexts.get(unit);
                 contexts === null || contexts === void 0 ? void 0 : contexts.forEach((context) => {
                     let temp = context.previous;
@@ -947,13 +871,7 @@
     Unit.currentComponent = () => { };
     Unit.unit2Contexts = new MapSet();
     Unit.component2units = new MapSet();
-    //----------------------------------------------------------------------------------------------------
-    // event
-    //----------------------------------------------------------------------------------------------------
     Unit.type2units = new MapSet();
-    //----------------------------------------------------------------------------------------------------
-    // extensions
-    //----------------------------------------------------------------------------------------------------
     class UnitPromise {
         constructor(promise) { this.promise = promise; }
         then(callback) { return this.wrap('then', callback); }
@@ -1030,56 +948,11 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // xnew — public entry point of the library
-    //
-    // `xnew(...)` creates a new Unit as a child of the currently active Unit (auto-initializing the
-    // root Unit and render ticker on the first call). All the attached helpers operate on the implicit
-    // Unit.currentUnit, so they are meant to be called from inside a Component function.
-    //
-    // This file is intentionally thin: each helper forwards to a static method on Unit, wrapped in a
-    // try / catch that logs and re-throws so consumers see both a console message and the exception.
-    //
-    // - xnew(...)                            : create a child Unit
-    // - xnew.nest / extend                   : extend the current Unit during initialization
-    // - xnew.append / find                   : tree manipulation and lookup
-    // - xnew.context                         : ancestor context lookup
-    // - xnew.promise / then / catch / finally / defer / collect
-    //                                          promises bound to the current Unit
-    // - xnew.scope                           : capture current Unit scope into a callback
-    // - xnew.emit                            : '+global' / '-local' custom events
-    // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
-    // - xnew.protect                         : exclude current Unit from emit / find
-    //----------------------------------------------------------------------------------------------------
-    const xnew$1 = Object.assign(
-    /**
-     * creates a new Unit component
-     * xnew(Component?: Function | string, props?: Object): Unit;
-     * xnew(target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
-     * @param target - HTMLElement | SVGElement, or HTML tag for new element
-     * @param Component - component function
-     * @param props - properties for component function
-     * @returns a new Unit instance
-     * @example
-     * const unit = xnew(MyComponent, { data: 0 })
-     * const unit = xnew(element, MyComponent, { data: 0 })
-     * const unit = xnew('<div>', MyComponent, { data: 0 })
-     */
-    function (...args) {
+    const xnew$1 = Object.assign(function (...args) {
         if (Unit.rootUnit === undefined)
             Unit.reset();
         return new Unit(Unit.currentUnit, ...args);
     }, {
-        /**
-         * Creates a child HTML/SVG element inside the current component's element.
-         * Must be called during component initialization (before setup completes).
-         * @param target - An existing HTML/SVG element, or a tag string like `'<div>'`
-         * @returns The provided element, or the newly created element
-         * @throws Error if called after the component has finished initializing
-         * @example
-         * const div = xnew.nest('<div>')
-         * div.textContent = 'Hello'
-         */
         nest(target) {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
@@ -1092,15 +965,6 @@
                 throw error;
             }
         },
-        /**
-         * Extends the current component with another component's functionality
-         * @param Component - component function to extend with
-         * @param props - optional properties to pass to the extended component
-         * @returns defines returned by the extended component
-         * @throws Error if called after component initialization
-         * @example
-         * const api = xnew.extend(BaseComponent, { data: {} })
-         */
         extend(Component, props) {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
@@ -1135,17 +999,6 @@
                 throw error;
             }
         },
-        /**
-         * Gets the Unit instance associated with the given component in the ancestor context chain
-         * @param key - component function used as context key
-         * @returns The Unit instance registered with the given component, or undefined if not found
-         * @example
-         * // Create parent unit with component A
-         * const parent = xnew(A);
-         *
-         * // Inside a child component, get the parent unit
-         * const parentUnit = xnew.context(A)
-         */
         context(key) {
             try {
                 return Unit.getContext(Unit.currentUnit, key);
@@ -1155,13 +1008,6 @@
                 throw error;
             }
         },
-        /**
-         * Registers a promise with the current component for lifecycle management
-         * @param promise - A Promise, async function, or Unit to register
-         * @returns UnitPromise wrapper for chaining
-         * @example
-         * xnew.promise(fetchData()).then(data => console.log(data))
-         */
         promise(promise) {
             try {
                 let unitPromise;
@@ -1182,13 +1028,6 @@
                 throw error;
             }
         },
-        /**
-         * Handles successful resolution of all registered promises in the current component
-         * @param callback - Function to call when all promises resolve
-         * @returns UnitPromise for chaining
-         * @example
-         * xnew.then(results => console.log('All promises resolved', results))
-         */
         then(callback) {
             try {
                 const currentUnit = Unit.currentUnit;
@@ -1199,13 +1038,6 @@
                 throw error;
             }
         },
-        /**
-         * Handles rejection of any registered promise in the current component
-         * @param callback - Function to call if any promise rejects
-         * @returns UnitPromise for chaining
-         * @example
-         * xnew.catch(error => console.error('Promise failed', error))
-         */
         catch(callback) {
             try {
                 return UnitPromise.all(Unit.currentUnit._.promises)
@@ -1216,13 +1048,6 @@
                 throw error;
             }
         },
-        /**
-         * Executes callback after all registered promises settle (resolve or reject)
-         * @param callback - Function to call after promises settle
-         * @returns UnitPromise for chaining
-         * @example
-         * xnew.finally(() => console.log('All promises settled'))
-         */
         finally(callback) {
             try {
                 return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
@@ -1232,15 +1057,6 @@
                 throw error;
             }
         },
-        /**
-         * Creates a deferred promise registered to the current unit, controllable from outside.
-         * Returns `{ resolve, reject }` to settle the promise on demand.
-         * Calls after the first settle are ignored.
-         * @example
-         * const { resolve } = xnew.defer();
-         * button.addEventListener('click', () => resolve());
-         * xnew.then(() => console.log('clicked'));
-         */
         defer() {
             let settled = false;
             let resolve;
@@ -1265,13 +1081,6 @@
                 },
             };
         },
-        /**
-         * Outputs a value to the current unit's promise results
-         * @param object - object to output for the promise
-         * @returns void
-         * @example
-         * xnew.collect({ data: 123});
-         */
         collect(object) {
             try {
                 Object.assign(Unit.currentUnit._.results, object);
@@ -1281,28 +1090,10 @@
                 throw error;
             }
         },
-        /**
-         * Creates a scoped callback that captures the current component context
-         * @param callback - Function to wrap with current scope
-         * @returns Function that executes callback in the captured scope
-         * @example
-         * setTimeout(xnew.scope(() => {
-         *   console.log('This runs in the xnew component scope')
-         * }), 1000)
-         */
         scope(callback) {
             const snapshot = Unit.snapshot(Unit.currentUnit);
             return (...args) => Unit.scope(snapshot, callback, ...args);
         },
-        /**
-         * Finds all instances of a component in the component tree
-         * @param Component - Component function to search for
-         * @returns Array of Unit instances matching the component
-         * @throws Error if component parameter is invalid
-         * @example
-         * const buttons = xnew.find(ButtonComponent)
-         * buttons.forEach(btn => btn.finalize())
-         */
         find(Component) {
             try {
                 return Unit.find(Component);
@@ -1312,15 +1103,6 @@
                 throw error;
             }
         },
-        /**
-         * Emits a custom event to components
-         * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
-         * @param props - Event properties object to pass to listeners
-         * @returns void
-         * @example
-         * xnew.emit('+globalevent', { data: 123 }); // Global event
-         * xnew.emit('-localevent', { data: 123 }); // Local event
-         */
         emit(type, ...args) {
             try {
                 return Unit.emit(type, ...args);
@@ -1330,72 +1112,20 @@
                 throw error;
             }
         },
-        /**
-         * Executes a callback once after a delay, managed by component lifecycle
-         * @param callback - Function to execute after duration
-         * @param duration - Duration in milliseconds
-         * @returns Object with clear() method to cancel the timeout
-         * @example
-         * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
-         * // Cancel if needed: timer.clear()
-         */
         timeout(callback, duration = 0) {
             return new UnitTimer().timeout(callback, duration);
         },
-        /**
-         * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-         * @param callback - Function to execute at each duration
-         * @param duration - Duration in milliseconds
-         * @returns Object with clear() method to stop the interval
-         * @example
-         * const timer = xnew.interval(() => console.log('Tick'), 1000)
-         * // Stop when needed: timer.clear()
-         */
         interval(callback, duration, iterations = 0) {
             return new UnitTimer().interval(callback, duration, iterations);
         },
-        /**
-         * Creates a transition animation with easing, executing callback with progress values
-         * @param callback - Function called with progress value (0.0 to 1.0)
-         * @param duration - Duration of transition in milliseconds
-         * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
-         * @returns Object with clear() and next() methods for controlling transitions
-         * @example
-         * xnew.transition(p => {
-         *   element.style.opacity = p
-         * }, 500, 'ease-out').transition(p => {
-         *   element.style.transform = `scale(${p})`
-         * }, 300)
-         */
         transition(transition, duration = 0, easing = 'linear') {
             return new UnitTimer().transition(transition, duration, easing);
         },
-        /**
-         * Call this method within a component function to enable protection.
-         * Protected components will not respond to global events emitted via xnew.emit,
-         * and will be excluded from xnew.find searches.
-         * @example
-         * function MyComponent(unit) {
-         *   xnew.protect();
-         *   // Component logic here
-         * }
-         */
         protect() {
             Unit.currentUnit._.protected = true;
         },
     });
 
-    //----------------------------------------------------------------------------------------------------
-    // Transition — open / close animation primitives
-    //
-    // OpenAndClose owns a 0..1 progress value driven by xnew.transition and exposes open / close /
-    // toggle, broadcasting the value via '-transition' / '-opened' / '-closed' emits. Accordion and
-    // Popup are presentation layers that pick up that progress value via xnew.context(OpenAndClose).
-    //
-    // - OpenAndClose : component returning { toggle, open, close }
-    // - Accordion    : collapses height + opacity to follow the progress value
-    // - Popup        : full-viewport overlay that opens on mount and finalizes when closed
-    //----------------------------------------------------------------------------------------------------
     function OpenAndClose(unit, { open = true, transition = { duration: 200, easing: 'ease' } }) {
         let value = open ? 1.0 : 0.0;
         let sign = open ? +1 : -1;
@@ -1452,16 +1182,6 @@
         });
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // SVG — inline SVG container components
-    //
-    // Thin wrappers that nest an <svg> element with sensible defaults for stroke / fill / line caps
-    // so callers can drop in <path> / <polygon> / <circle> children without re-specifying the same
-    // presentation attributes on every shape.
-    //
-    // - SVG     : component({ viewBox, stroke, fill, ... }) — generic SVG root
-    // - SVGText : component({ text, fontSize, ... }) — SVG-rendered text auto-fitted to its bbox
-    //----------------------------------------------------------------------------------------------------
     function SVG(unit, { viewBox = '0 0 64 64', className = '', style = '', stroke = 'none', strokeOpacity = 1, strokeWidth = 1, strokeLinejoin = 'round', strokeLinecap = 'round', fill = 'none', fillOpacity = 1 } = {}) {
         xnew$1.nest(`<svg
         viewBox="${viewBox}"
@@ -1493,15 +1213,6 @@
         svg.style.overflow = 'visible';
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Aspect — fixed aspect-ratio container component
-    //
-    // Nests two flex / container-query wrappers so the component's element keeps the requested
-    // aspect ratio inside any parent box, regardless of which axis is constraining. `fit: 'contain'`
-    // shrinks to fit; `fit: 'cover'` grows to fill.
-    //
-    // - Aspect : component({ aspect, fit })
-    //----------------------------------------------------------------------------------------------------
     function Aspect(unit, { aspect = 1.0, fit = 'contain' } = {}) {
         xnew$1.nest('<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; container-type: size;">');
         xnew$1.nest(`<div style="position: relative; aspect-ratio: ${aspect}; container-type: size;">`);
@@ -1514,15 +1225,6 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Screen — aspect-fitted <canvas> component
-    //
-    // Wraps a fixed-resolution <canvas> in an Aspect container so the drawing buffer keeps the
-    // requested width × height while CSS scales it to the surrounding box. Convenience component
-    // used as the base of game-style examples.
-    //
-    // - Screen : component({ width, height, fit }) returning { canvas }
-    //----------------------------------------------------------------------------------------------------
     function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
         xnew$1.extend(Aspect, { aspect: width / height, fit });
         const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom;">`);
@@ -1531,19 +1233,6 @@
         };
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Controller — virtual game-pad input components
-    //
-    // Drag-based on-screen inputs that translate pointer movement into a normalized vector (x / y in
-    // [-1, 1]) and emit it through xnew.emit as '-down' / '-move' / '-up' so parent components can
-    // react without touching DOM events directly.
-    //
-    // - AnalogStick : continuous radial vector; visual stick follows the pointer within a radius
-    // - DPad        : quantized 4 or 8 way vector; highlights the active arrow segment
-    //----------------------------------------------------------------------------------------------------
-    //----------------------------------------------------------------------------------------------------
-    // controller
-    //----------------------------------------------------------------------------------------------------
     const svgTemplate = { viewBox: '0 0 64 64', style: "position: absolute; width: 100%; height: 100%;" };
     function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 } = {}) {
         xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
@@ -1636,16 +1325,6 @@
         });
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Panel — stackable form-style settings panel
-    //
-    // Returns a builder API for laying out parameter rows backed by native form controls (range /
-    // checkbox / select / button). Values are written through to a shared `params` object so the
-    // panel can drive an external state bag without extra wiring. Groups can be nested and toggled
-    // open/closed via the Accordion transition.
-    //
-    // - Panel : component({ params }) returning { group, button, select, range, checkbox, separator }
-    //----------------------------------------------------------------------------------------------------
     const paleColor$1 = 'color-mix(in srgb, currentColor 20%, transparent)';
     function Panel(unit, { params }) {
         const object = params !== null && params !== void 0 ? params : {};
@@ -1725,15 +1404,12 @@
     function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
         value = value !== null && value !== void 0 ? value : min;
         xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none;">`);
-        // fill bar
         const ratio = (value - min) / (max - min);
         const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor$1}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
-        // overlay labels
         const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
             xnew$1('<div>', key);
             xnew$1('<div key="status">', value);
         });
-        // hidden native input for interaction
         xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
         unit.on('input', ({ event }) => {
             const v = Number(event.target.value);
@@ -1817,15 +1493,6 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Scene — sibling-swap navigation primitive
-    //
-    // A trivial component that exposes helpers for swapping itself with another component under the
-    // same parent. `moveTo` / `nextScene` mount the new component as a sibling and finalize self;
-    // `append` mounts as a child without unmounting.
-    //
-    // - Scene : component returning { moveTo, nextScene, append }
-    //----------------------------------------------------------------------------------------------------
     function Scene(unit) {
         return {
             moveTo(Component, props) {
@@ -1842,33 +1509,12 @@
         };
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // audio — Web Audio primitives shared across the package
-    //
-    // A single AudioContext + master GainNode are created at module load so every audio source in the
-    // package mixes through one bus. Callers (AudioFile, Synthesizer, Volume controller) connect to
-    // `master` rather than `context.destination` so the global volume is one writable value.
-    //
-    // Side effect on import: instantiates window.AudioContext and connects the master gain.
-    //
-    // - context, master : shared global AudioContext and its master GainNode
-    // - AudioFile       : decoded audio buffer with play / pause / volume + fade in / out
-    // - Synthesizer / SynthesizerOptions
-    //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
-    //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
-    //----------------------------------------------------------------------------------------------------
     const context = typeof window !== 'undefined' ? new window.AudioContext() : null;
     const master = context !== null ? context.createGain() : null;
-    //----------------------------------------------------------------------------------------------------
-    // master volume
-    //----------------------------------------------------------------------------------------------------
     if (context !== null && master !== null) {
         master.gain.value = 0.1;
         master.connect(context.destination);
     }
-    //----------------------------------------------------------------------------------------------------
-    // audio file
-    //----------------------------------------------------------------------------------------------------
     class AudioFile {
         constructor(path) {
             this.promise = fetch(path)
@@ -1902,7 +1548,6 @@
                 this.start = context.currentTime;
                 this.source.playbackRate.value = 1;
                 this.source.start(context.currentTime, offset / 1000);
-                // Apply fade-in effect if fade duration is specified
                 if (fade > 0) {
                     this.fade.gain.setValueAtTime(0, context.currentTime);
                     this.fade.gain.linearRampToValueAtTime(1.0, context.currentTime + fade / 1000);
@@ -1919,7 +1564,6 @@
             var _a, _b;
             if (this.buffer !== undefined && this.start !== null) {
                 const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
-                // Apply fade-out effect if fade duration is specified
                 if (fade > 0) {
                     this.fade.gain.setValueAtTime(1.0, context.currentTime);
                     this.fade.gain.linearRampToValueAtTime(0, context.currentTime + fade / 1000);
@@ -2083,15 +1727,6 @@
         }
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // Volume — speaker-icon + slider bound to the audio master gain
-    //
-    // Reads and writes the global master GainNode exported from utils/audio. Clicking the speaker
-    // icon opens an anchored slider (Open and Close + transition driven layout) and dragging it
-    // updates master.gain in real time; the icon swaps to a muted glyph when the value reaches 0.
-    //
-    // - VolumeController : component({ anchor: 'left' | 'right' | 'top' | 'bottom' })
-    //----------------------------------------------------------------------------------------------------
     const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
     function SpeakerIcon(unit, { muted = false } = {}) {
         xnew$1.extend(SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
@@ -2143,14 +1778,6 @@
         unit.on('click.outside', () => system.close());
     }
 
-    //----------------------------------------------------------------------------------------------------
-    // image — Canvas wrapper for crop and download
-    //
-    // Lightweight wrapper around HTMLCanvasElement that adds the two operations the rest of the
-    // package needs: pulling a rectangular sub-canvas (crop) and triggering a browser download as PNG.
-    //
-    // - XImage / XImageArgs : wraps an existing canvas, or creates a new one at width × height
-    //----------------------------------------------------------------------------------------------------
     class XImage {
         constructor(...args) {
             if (args[0] instanceof HTMLCanvasElement) {

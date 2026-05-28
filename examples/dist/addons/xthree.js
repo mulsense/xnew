@@ -23,16 +23,6 @@
 
     var THREE__namespace = /*#__PURE__*/_interopNamespaceDefault(THREE);
 
-    //----------------------------------------------------------------------------------------------------
-    // xthree — Three.js integration
-    //
-    // `initialize({ canvas, camera })` mounts a Root Unit that owns a WebGLRenderer + Scene + Camera.
-    // `xthree.nest(object3D)` adds the object to the current Three parent (root scene or nearest
-    // enclosing nest), exposes it as context for further nests, and on Unit finalize removes it from
-    // its parent AND traverses descendants disposing geometry / material to release GPU resources.
-    //
-    // - default : { initialize, nest, renderer, camera, scene, canvas }
-    //----------------------------------------------------------------------------------------------------
     var xthree = {
         initialize({ canvas = null, camera = null } = {}) {
             xnew.promise(xnew(Root, { canvas, camera }));
