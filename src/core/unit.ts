@@ -16,7 +16,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { MapSet, MapMap } from './map';
-import { AnimationTicker, Timer, TimerOptions } from './time';
+import { Ticker, Timer, TimerOptions } from './time';
 import { Eventor } from './event';
 
 //----------------------------------------------------------------------------------------------------
@@ -32,6 +32,10 @@ interface Context { previous: Context | null; key?: any; value?: any; }
 interface Snapshot { unit: Unit; context: Context; element: UnitElement; Component: Function | null; }
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
+
+function isElement(value: unknown): value is UnitElement {
+    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
+}
 
 //----------------------------------------------------------------------------------------------------
 // unit
@@ -69,7 +73,7 @@ export class Unit {
         let Component: Function | string | number | undefined;
         let props: Object | undefined;
 
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement || typeof args[0] === 'string') {
+        if (isElement(args[0]) || typeof args[0] === 'string') {
             target = args[0] as UnitElement | string;
             Component = args[1] as Function | string | number | undefined;
             props = args[2] as Object | undefined;
@@ -85,12 +89,14 @@ export class Unit {
         parent?._.children.push(this);
 
         let baseElement: UnitElement;
-        if (target instanceof HTMLElement || target instanceof SVGElement) {
+        if (isElement(target)) {
             baseElement = target;
         } else if (parent !== null) {
             baseElement = parent._.currentElement;
+        } else if (document?.body) {
+            baseElement = document.body;
         } else {
-            baseElement = document?.body ? document.body : null as unknown as UnitElement;
+            baseElement = null as unknown as UnitElement;
         }
 
         let baseComponent: Function;
@@ -202,7 +208,7 @@ export class Unit {
     }
 
     static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement {
-        if (target instanceof HTMLElement || target instanceof SVGElement) {
+        if (isElement(target)) {
             unit._.nestElements.push({ element: target, owned: false });
             unit._.currentElement = target;
             return target;
@@ -305,7 +311,7 @@ export class Unit {
     static reset(): void {
         Unit.rootUnit?.finalize();
         Unit.currentUnit = Unit.rootUnit = new Unit(null);
-        const ticker = new AnimationTicker(() => {
+        const ticker = new Ticker(() => {
             Unit.start(Unit.rootUnit);
             Unit.update(Unit.rootUnit);
             Unit.render(Unit.rootUnit);

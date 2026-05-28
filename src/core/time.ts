@@ -1,60 +1,54 @@
 //----------------------------------------------------------------------------------------------------
-// time — visibility-aware tickers and timers
+// time — runtime-agnostic tickers and timers
 //
-// rAF loops must pause when the document is hidden, and setTimeout-based timers must stop
-// accumulating elapsed time during that period. These primitives bake that behavior in so the
-// rest of xnew (the root render loop in Unit.reset, UnitTimer.timeout / interval / transition)
-// does not have to re-implement it.
+// xnew's root render loop and UnitTimer.timeout / interval / transition need a steady clock that
+// behaves the same in browser and Node. Ticker feature-detects requestAnimationFrame (browser) and
+// falls back to setTimeout (Node) so the rest of the package can stay runtime-agnostic. Timer
+// layers easing and visibility-aware pause on top, for use in transition primitives.
 //
-// - AnimationTicker     : rAF-driven callback at a target FPS
+// - Ticker              : callback at a target FPS — rAF in browser, setTimeout in Node
 // - Timer / TimerOptions: setTimeout-based timer with optional easing transition; auto-paused on
-//                         document visibility change
+//                         document visibility change (browser only)
 //----------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------
-// visibility change
+// ticker
 //----------------------------------------------------------------------------------------------------
 
-class Visibility {
-    private listener: ((this: Document, event: Event) => any);
-
-    constructor(callback?: Function) {
-        this.listener = () => callback?.(document.hidden === false);
-        document.addEventListener('visibilitychange', this.listener);
-    }
-
-    clear(): void {
-        document.removeEventListener('visibilitychange', this.listener);
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
-// animation ticker
-//----------------------------------------------------------------------------------------------------
-
-export class AnimationTicker {
-    private id: number | null;
+export class Ticker {
+    private cancel: (() => void) | null = null;
 
     constructor(callback: Function, fps: number = 60) {
-        const self = this;
-        this.id = null;
+        const minDelta = (1000 / fps) * 0.9;
+        const interval = 1000 / fps;
         let previous = 0;
 
-        function ticker() {
+        const tick = () => {
             const delta = Date.now() - previous;
-            if (delta > (1000 / fps) * 0.9) {
+            if (delta > minDelta) {
                 callback();
                 previous += delta;
             }
-            self.id = requestAnimationFrame(ticker);
-        }
-        self.id = requestAnimationFrame(ticker);
+            schedule();
+        };
+
+        const schedule = (): void => {
+            if (typeof requestAnimationFrame !== 'undefined') {
+                const id = requestAnimationFrame(tick);
+                this.cancel = () => cancelAnimationFrame(id);
+            } else {
+                const id = setTimeout(tick, interval);
+                this.cancel = () => clearTimeout(id);
+            }
+        };
+
+        schedule();
     }
- 
+
     clear(): void {
-        if (this.id !== null) {
-            cancelAnimationFrame(this.id);
-            this.id = null;
+        if (this.cancel !== null) {
+            this.cancel();
+            this.cancel = null;
         }
     }
 }
@@ -77,8 +71,8 @@ export class Timer {
 
     private time: { start: number, processed: number };
     private request: boolean;
-    private visibility: Visibility;
-    private ticker: AnimationTicker;
+    private visibilityListener: () => void;
+    private ticker: Ticker;
 
     constructor(options: TimerOptions) {
         this.options = options;
@@ -87,9 +81,10 @@ export class Timer {
         this.time = { start: 0.0, processed: 0.0 };
 
         this.request = true;
-        this.ticker = new AnimationTicker(() => this.animation());
-  
-        this.visibility = new Visibility((visible: boolean) => visible ? this._start() : this._stop());
+        this.ticker = new Ticker(() => this.animation());
+
+        this.visibilityListener = () => document.hidden === false ? this._start() : this._stop();
+        document.addEventListener('visibilitychange', this.visibilityListener);
 
         this.options.transition?.(0.0);
         this.start();
@@ -114,7 +109,7 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        this.visibility.clear();
+        document.removeEventListener('visibilitychange', this.visibilityListener);
         this.ticker.clear();
     }
 
