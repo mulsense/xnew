@@ -177,37 +177,37 @@ export const xnew = Object.assign(
             }
         },
 
-        resolvers() {
-            let state: 'pending' | 'resolved' | 'rejected' | null = null;
-            let resolve: Function | null = null;
-            let reject: Function | null = null;
+        /**
+         * Creates a deferred promise registered to the current unit, controllable from outside.
+         * Returns `{ resolve, reject }` to settle the promise on demand.
+         * Calls after the first settle are ignored.
+         * @example
+         * const { resolve } = xnew.defer();
+         * button.addEventListener('click', () => resolve());
+         * xnew.then(() => console.log('clicked'));
+         */
+        defer(): { resolve: () => void; reject: () => void } {
+            let settled = false;
+            let resolve!: (value?: unknown) => void;
+            let reject!: (reason?: unknown) => void;
 
             const unitPromise = new UnitPromise(new Promise((res, rej) => {
-                if (state === 'resolved') {
-                    res(null);
-                } else if (state === 'rejected') {
-                    rej();
-                } else {
-                    resolve = res;
-                    reject = rej;
-                    state = 'pending';
-                }
-            }))
+                resolve = res;
+                reject = rej;
+            }));
             Unit.currentUnit._.promises.push(unitPromise);
 
             return {
                 resolve() {
-                    if (state === 'pending') {
-                        resolve?.(null);
-                    } 
-                    state = 'resolved';
+                    if (settled) return;
+                    settled = true;
+                    resolve();
                 },
                 reject() {
-                    if (state === 'pending') {
-                        reject?.();
-                    }
-                    state = 'rejected';
-                }
+                    if (settled) return;
+                    settled = true;
+                    reject();
+                },
             };
         },
 

@@ -106,7 +106,7 @@ function PreRender(unit, { url }) {
   const textures = [];
   let frameIndex = 0;
 
-  const { resolve } = xnew.resolvers();
+  const { resolve } = xnew.defer();
 
   unit.on('render', () => {
     if (model.vrm === null) return;
@@ -150,7 +150,7 @@ function PreRender(unit, { url }) {
 
 function Model(unit, { url }) {
   const object = xthree.nest(new THREE.Object3D());
-  const { resolve } = xnew.resolvers();
+  const { resolve } = xnew.defer();
 
   let vrm = null;
   const loader = new GLTFLoader();

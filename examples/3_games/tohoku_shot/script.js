@@ -34,7 +34,7 @@ function Contents(unit) {
 function BakedCharacters(_unit) {
   const texturesList = new Array(CHARACTER_FILES.length).fill(null);
   let doneCount = 0;
-  const { resolve } = xnew.resolvers();
+  const { resolve } = xnew.defer();
 
   for (let i = 0; i < CHARACTER_FILES.length; i++) {
     const name = CHARACTER_FILES[i];
@@ -79,7 +79,7 @@ function Baking(unit, { url }) {
   const model = xnew(Model, { url });
   const textures = [];
   let frameIndex = 0;
-  const { resolve } = xnew.resolvers();
+  const { resolve } = xnew.defer();
 
   unit.on('render', () => {
     if (model.vrm === null) return;
@@ -121,7 +121,7 @@ function Baking(unit, { url }) {
 
 function Model(_unit, { url }) {
   const object = xthree.nest(new THREE.Object3D());
-  const { resolve } = xnew.resolvers();
+  const { resolve } = xnew.defer();
 
   let vrm = null;
   const loader = new GLTFLoader();
