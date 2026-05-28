@@ -1509,7 +1509,7 @@ if (context !== null && master !== null) {
     master.gain.value = 0.1;
     master.connect(context.destination);
 }
-class AudioFile {
+class AudioData {
     constructor(path) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
@@ -1772,7 +1772,7 @@ function VolumeController(unit, { anchor = 'left' } = {}) {
     unit.on('click.outside', () => system.close());
 }
 
-class XImage {
+class ImageData {
     constructor(...args) {
         if (args[0] instanceof HTMLCanvasElement) {
             this.canvas = args[0];
@@ -1790,7 +1790,7 @@ class XImage {
         canvas.width = width;
         canvas.height = height;
         (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-        return new XImage(canvas);
+        return new ImageData(canvas);
     }
     download(filename) {
         const link = document.createElement('a');
@@ -1815,7 +1815,7 @@ const basics = {
 };
 const audio = {
     load(path) {
-        const music = new AudioFile(path);
+        const music = new AudioData(path);
         const object = {
             play(options = {}) {
                 const unit = xnew();
@@ -1842,7 +1842,7 @@ const audio = {
 };
 const image = {
     from(canvas) {
-        return new XImage(canvas);
+        return new ImageData(canvas);
     }
 };
 const xnew = Object.assign(xnew$1, { basics, audio, image });

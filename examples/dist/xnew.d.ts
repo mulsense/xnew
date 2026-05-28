@@ -246,11 +246,11 @@ declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
 
-declare class XImage {
+declare class ImageData {
     canvas: HTMLCanvasElement;
     constructor(canvas: HTMLCanvasElement);
     constructor(width: number, height: number);
-    crop(x: number, y: number, width: number, height: number): XImage;
+    crop(x: number, y: number, width: number, height: number): ImageData;
     download(filename: string): void;
 }
 
@@ -341,7 +341,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
         volume: number;
     };
     image: {
-        from(canvas: HTMLCanvasElement): XImage;
+        from(canvas: HTMLCanvasElement): ImageData;
     };
 };
 

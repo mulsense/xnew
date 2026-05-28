@@ -9,8 +9,8 @@ import { Panel } from './basics/Panel';
 import { Scene } from './basics/Scene';
 import { VolumeController } from './basics/Volume';
 
-import { XImage, XImageArgs } from './utils/image';
-import { master, AudioFile, Synthesizer, SynthesizerOptions } from './utils/audio';
+import { ImageData, ImageDataArgs } from './utils/image';
+import { master, AudioData, Synthesizer, SynthesizerOptions } from './utils/audio';
 
 const basics = {
     SVG,
@@ -28,7 +28,7 @@ const basics = {
 
 const audio = {
     load(path: string) {
-        const music = new AudioFile(path);
+        const music = new AudioData(path);
         const object = {
             play(options: { offset?: number, fade?: number, loop?: boolean } = {}) {
                 const unit = xnew();
@@ -57,8 +57,8 @@ const audio = {
 
 const image = {
 
-    from(canvas: HTMLCanvasElement): XImage {
-        return new XImage(canvas);
+    from(canvas: HTMLCanvasElement): ImageData {
+        return new ImageData(canvas);
     }
 }
 
