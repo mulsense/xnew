@@ -112,7 +112,7 @@ function Baking(unit, { url }) {
     frameIndex += batch;
 
     if (frameIndex >= BAKE_FRAMES) {
-      xnew.output({ textures });
+      xnew.collect({ textures });
       resolve();
       unit.finalize();
     }

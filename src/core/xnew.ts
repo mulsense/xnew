@@ -216,13 +216,13 @@ export const xnew = Object.assign(
          * @param object - object to output for the promise
          * @returns void
          * @example
-         * xnew.output({ data: 123});
+         * xnew.collect({ data: 123});
          */
-        output(object?: Record<string, any>): void {
+        collect(object?: Record<string, any>): void {
             try {
                 Object.assign(Unit.currentUnit._.results, object);
             } catch (error: unknown) {
-                console.error('xnew.output(object?: Record<string, any>): ', error);
+                console.error('xnew.collect(object?: Record<string, any>): ', error);
                 throw error;
             }
         },

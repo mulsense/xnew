@@ -1160,14 +1160,14 @@
          * @param object - object to output for the promise
          * @returns void
          * @example
-         * xnew.output({ data: 123});
+         * xnew.collect({ data: 123});
          */
-        output(object) {
+        collect(object) {
             try {
                 Object.assign(Unit.currentUnit._.results, object);
             }
             catch (error) {
-                console.error('xnew.output(object?: Record<string, any>): ', error);
+                console.error('xnew.collect(object?: Record<string, any>): ', error);
                 throw error;
             }
         },

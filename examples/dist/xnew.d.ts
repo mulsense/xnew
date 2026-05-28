@@ -313,7 +313,7 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
         resolve(): void;
         reject(): void;
     };
-    output(object?: Record<string, any>): void;
+    collect(object?: Record<string, any>): void;
     scope(callback: any): any;
     find(Component: Function): Unit[];
     emit(type: string, ...args: any[]): void;

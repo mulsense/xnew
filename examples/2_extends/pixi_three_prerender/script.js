@@ -36,7 +36,7 @@ function Contents(unit) {
 
 function BakedCharacters(unit) {
   for (const name of CHARACTER_FILES) {
-    xnew.promise(xnew(PreRender, { url: `../../assets/${name}` })).then((value) => xnew.output({ [name]: value.textures }));
+    xnew.promise(xnew(PreRender, { url: `../../assets/${name}` })).then((value) => xnew.collect({ [name]: value.textures }));
   }
 }
 
@@ -115,22 +115,22 @@ function PreRender(unit, { url }) {
     const batch = 30; // Number of frames to bake per render
     for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
       // const t = i * (Math.PI / BAKE_FRAMES * 3);
-      const t = 11 * (Math.PI / BAKE_FRAMES * 3);
+      const t = i * (Math.PI / BAKE_FRAMES * 3);
 
       model.threeObject.rotation.y = t * 4 / 3;
       model.threeObject.rotation.z = t * 2 / 3;
       const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
-      // g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
-      // g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-      // g('hips').position.z          = Math.sin(t * 12) *  0.05;
-      // g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-      // g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-      // g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-      // g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-      // g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-      // g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-      // g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-      // g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+      g('hips').position.z          = Math.sin(t * 12) *  0.05;
+      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
       model.vrm.update(t);
 
       composer.render();
@@ -141,7 +141,7 @@ function PreRender(unit, { url }) {
     frameIndex += batch;
 
     if (frameIndex >= BAKE_FRAMES) {
-      xnew.output({ textures });
+      xnew.collect({ textures });
       resolve();
       unit.finalize();
     }
