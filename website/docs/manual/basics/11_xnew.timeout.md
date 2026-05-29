@@ -1,6 +1,6 @@
 # xnew.timeout
 
-`xnew.timeout` は xnew 用に拡張された `setTimeout` です。所属する unit が破棄されると自動でキャンセルされ、ID を保持して `clearTimeout` を呼ぶ必要はありません。timeout と transition を連鎖させれば、コールバックをネストせずに多段シーケンスを記述できます。
+`xnew.timeout` は xnew 用に拡張された `setTimeout` です。所属する unit が終了すると自動でキャンセルされ、ID を保持して `clearTimeout` を呼ぶ必要はありません。
 
 ## 使い方
 

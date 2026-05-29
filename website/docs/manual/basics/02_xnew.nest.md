@@ -1,15 +1,15 @@
 # xnew.nest
 
-`xnew.nest` は子要素を生成して `unit.element` をその要素に切り替えます。以降に生成される要素は新しい要素の内側に配置されるため、親要素を変数で持ち回る必要はありません。
+`xnew.nest` は子要素を生成して `unit.element` をその要素に切り替えます。
 
 ## 使い方
 
 ```js
-const element = xnew.nest(htmlString);
+const element = xnew.nest(tag);
 ```
 
 **パラメータ:**
-- `htmlString`: 要素を生成するための HTML 文字列 (例: `'<div>'`、`'<span class="highlight">'`)
+- `tag`: 要素を生成するための HTML 文字列 (例: `'<div>'`、`'<span class="highlight">'`)
 
 **戻り値:**
 - 生成された HTMLElement (`unit.element` も同じ要素を指すようになります)

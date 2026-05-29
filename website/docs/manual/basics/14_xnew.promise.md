@@ -33,7 +33,3 @@ xnew((unit) => {
   });
 });
 ```
-
-:::tip
-汎用的な Promise 処理には `xnew.promise` を使ってください。HTTP リクエスト向けには専用の `xnew.fetch` も利用できます。
-:::
