@@ -1,6 +1,6 @@
 # xnew.interval
 
-`xnew.interval` は自動クリーンアップに対応した `setInterval` です。所属する unit が finalize されると interval は自動停止します。ID を保持して `clearInterval` を呼ぶ必要はありません。
+`xnew.interval` は自動クリーンアップに対応した `setInterval` です。所属する unit が終了すると interval は自動停止します。ID を保持して `clearInterval` を呼ぶ必要はありません。
 
 ## 使い方
 
