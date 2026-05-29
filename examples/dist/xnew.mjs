@@ -1493,10 +1493,13 @@ function Scene(unit) {
     };
 }
 
+const DEFAULT_MASTER_GAIN = 0.1;
+const DEFAULT_BPM = 120;
+const RELEASE_CLEANUP_DELAY_MS = 2000;
 const context = typeof window !== 'undefined' ? new window.AudioContext() : null;
 const master = context !== null ? context.createGain() : null;
 if (context !== null && master !== null) {
-    master.gain.value = 0.1;
+    master.gain.value = DEFAULT_MASTER_GAIN;
     master.connect(context.destination);
 }
 class AudioData {
@@ -1530,7 +1533,6 @@ class AudioData {
             this.source.loop = loop;
             this.source.connect(this.fade);
             this.start = context.currentTime;
-            this.source.playbackRate.value = 1;
             this.source.start(context.currentTime, offset / 1000);
             if (fade > 0) {
                 this.fade.gain.setValueAtTime(0, context.currentTime);
@@ -1581,132 +1583,167 @@ const keymap = {
 const notemap = {
     '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
 };
+function resolveFrequency(value) {
+    if (typeof value === 'string') {
+        return keymap[value];
+    }
+    else {
+        return value;
+    }
+}
+function resolveDurationSeconds(value, bpm) {
+    if (typeof value === 'string') {
+        return notemap[value] * 60 / bpm;
+    }
+    else if (typeof value === 'number') {
+        return value / 1000;
+    }
+    else {
+        return 0;
+    }
+}
+function semitoneOffset(baseFreq, amount) {
+    return baseFreq * (Math.pow(2.0, amount / 12.0) - 1.0);
+}
+function scheduleAttackDecay(param, start, base, amount, ADSR) {
+    const [a, d, s] = ADSR;
+    param.value = base;
+    param.setValueAtTime(base, start);
+    param.linearRampToValueAtTime(base + amount, start + a / 1000);
+    param.linearRampToValueAtTime(base + amount * s, start + (a + d) / 1000);
+}
+function scheduleRelease(param, start, dv, base, amount, ADSR) {
+    const [a, d, s, r] = ADSR;
+    const end = dv > 0 ? dv : (context.currentTime - start);
+    const rate = a === 0 ? 1.0 : Math.min(end / (a / 1000), 1.0);
+    if (rate < 1.0) {
+        param.cancelScheduledValues(start);
+        param.setValueAtTime(base, start);
+        param.linearRampToValueAtTime(base + amount * rate, start + (a / 1000) * rate);
+        param.linearRampToValueAtTime(base + amount * rate * s, start + ((a + d) / 1000) * rate);
+    }
+    param.linearRampToValueAtTime(base + amount * rate * s, start + Math.max(((a + d) / 1000) * rate, dv));
+    param.linearRampToValueAtTime(base, start + Math.max(((a + d) / 1000) * rate, end) + r / 1000);
+}
+function createImpulseResponse(timeMs, decay = 2.0) {
+    const length = context.sampleRate * timeMs / 1000;
+    const impulse = context.createBuffer(2, length, context.sampleRate);
+    const ch0 = impulse.getChannelData(0);
+    const ch1 = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+        const k = Math.pow(1 - i / length, decay);
+        ch0[i] = (2 * Math.random() - 1) * k;
+        ch1[i] = (2 * Math.random() - 1) * k;
+    }
+    return impulse;
+}
+function attachLFO(target, baseFreq, lfo, start) {
+    const oscillator = context.createOscillator();
+    const depth = context.createGain();
+    depth.gain.value = semitoneOffset(baseFreq, lfo.amount);
+    oscillator.type = lfo.type;
+    oscillator.frequency.value = lfo.rate;
+    oscillator.start(start);
+    oscillator.connect(depth);
+    depth.connect(target.frequency);
+    return { oscillator, depth };
+}
+function attachReverb(amp, target, reverb) {
+    const convolver = context.createConvolver();
+    convolver.buffer = createImpulseResponse(reverb.time);
+    const depth = context.createGain();
+    depth.gain.value = reverb.mix;
+    target.gain.value *= (1.0 - reverb.mix);
+    amp.connect(convolver);
+    convolver.connect(depth);
+    depth.connect(master);
+    return { convolver, depth };
+}
 class Synthesizer {
     constructor(props) { this.props = props; }
     press(frequency, duration, wait) {
         var _a;
         const props = this.props;
-        const fv = typeof frequency === 'string' ? keymap[frequency] : frequency;
-        const dv = typeof duration === 'string' ? (notemap[duration] * 60 / ((_a = props.bpm) !== null && _a !== void 0 ? _a : 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
+        const freq = resolveFrequency(frequency);
+        const dv = resolveDurationSeconds(duration, (_a = props.bpm) !== null && _a !== void 0 ? _a : DEFAULT_BPM);
         const start = context.currentTime + (wait !== null && wait !== void 0 ? wait : 0) / 1000;
-        const nodes = {};
-        nodes.oscillator = context.createOscillator();
-        nodes.oscillator.type = props.oscillator.type;
-        nodes.oscillator.frequency.value = fv;
-        if (props.oscillator.LFO) {
-            nodes.oscillatorLFO = context.createOscillator();
-            nodes.oscillatorLFODepth = context.createGain();
-            nodes.oscillatorLFODepth.gain.value = fv * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
-            nodes.oscillatorLFO.type = props.oscillator.LFO.type;
-            nodes.oscillatorLFO.frequency.value = props.oscillator.LFO.rate;
-            nodes.oscillatorLFO.start(start);
-            nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
-            nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
-        }
-        nodes.amp = context.createGain();
-        nodes.amp.gain.value = 0.0;
-        nodes.target = context.createGain();
-        nodes.target.gain.value = 1.0;
-        nodes.amp.connect(nodes.target);
-        nodes.target.connect(master);
+        const oscillator = context.createOscillator();
+        oscillator.type = props.oscillator.type;
+        oscillator.frequency.value = freq;
+        const lfo = props.oscillator.LFO ? attachLFO(oscillator, freq, props.oscillator.LFO, start) : null;
+        const amp = context.createGain();
+        amp.gain.value = 0.0;
+        const target = context.createGain();
+        target.gain.value = 1.0;
+        amp.connect(target);
+        target.connect(master);
+        let filter = null;
         if (props.filter) {
-            nodes.filter = context.createBiquadFilter();
-            nodes.filter.type = props.filter.type;
-            nodes.filter.frequency.value = props.filter.cutoff;
-            nodes.oscillator.connect(nodes.filter);
-            nodes.filter.connect(nodes.amp);
+            filter = context.createBiquadFilter();
+            filter.type = props.filter.type;
+            filter.frequency.value = props.filter.cutoff;
+            oscillator.connect(filter);
+            filter.connect(amp);
         }
         else {
-            nodes.oscillator.connect(nodes.amp);
+            oscillator.connect(amp);
         }
-        if (props.reverb) {
-            nodes.convolver = context.createConvolver();
-            nodes.convolver.buffer = impulseResponse({ time: props.reverb.time });
-            nodes.convolverDepth = context.createGain();
-            nodes.convolverDepth.gain.value = 1.0;
-            nodes.convolverDepth.gain.value *= props.reverb.mix;
-            nodes.target.gain.value *= (1.0 - props.reverb.mix);
-            nodes.amp.connect(nodes.convolver);
-            nodes.convolver.connect(nodes.convolverDepth);
-            nodes.convolverDepth.connect(master);
-        }
+        const reverb = props.reverb ? attachReverb(amp, target, props.reverb) : null;
         if (props.oscillator.envelope) {
-            const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-            startEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
+            const amount = semitoneOffset(freq, props.oscillator.envelope.amount);
+            scheduleAttackDecay(oscillator.frequency, start, freq, amount, props.oscillator.envelope.ADSR);
         }
         if (props.amp.envelope) {
-            startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+            scheduleAttackDecay(amp.gain, start, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
         }
-        nodes.oscillator.start(start);
+        oscillator.start(start);
+        const oscillators = [oscillator];
+        const nodesToDisconnect = [oscillator, amp, target];
+        if (lfo) {
+            oscillators.push(lfo.oscillator);
+            nodesToDisconnect.push(lfo.oscillator, lfo.depth);
+        }
+        if (filter) {
+            nodesToDisconnect.push(filter);
+        }
+        if (reverb) {
+            nodesToDisconnect.push(reverb.convolver, reverb.depth);
+        }
+        const release = () => {
+            const end = dv > 0 ? dv : (context.currentTime - start);
+            let stop;
+            if (props.amp.envelope) {
+                const [a, d, , r] = props.amp.envelope.ADSR;
+                const aSec = a / 1000;
+                const dSec = d / 1000;
+                const rSec = r / 1000;
+                const rate = aSec === 0.0 ? 1.0 : Math.min(end / (aSec + 0.001), 1.0);
+                stop = start + Math.max((aSec + dSec) * rate, end) + rSec;
+            }
+            else {
+                stop = start + end;
+            }
+            if (props.oscillator.envelope) {
+                const amount = semitoneOffset(freq, props.oscillator.envelope.amount);
+                scheduleRelease(oscillator.frequency, start, dv, freq, amount, props.oscillator.envelope.ADSR);
+            }
+            if (props.amp.envelope) {
+                scheduleRelease(amp.gain, start, dv, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+            }
+            for (const o of oscillators) {
+                o.stop(stop);
+            }
+            setTimeout(() => {
+                for (const n of nodesToDisconnect) {
+                    n.disconnect();
+                }
+            }, RELEASE_CLEANUP_DELAY_MS);
+        };
         if (dv > 0) {
             release();
         }
         else {
             return { release };
-        }
-        function release() {
-            let stop = null;
-            const end = dv > 0 ? dv : (context.currentTime - start);
-            if (props.amp.envelope) {
-                const ADSR = props.amp.envelope.ADSR;
-                const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / (adsr[0] + 0.001), 1.0);
-                stop = start + Math.max((adsr[0] + adsr[1]) * rate, end) + adsr[3];
-            }
-            else {
-                stop = start + end;
-            }
-            if (nodes.oscillatorLFO) {
-                nodes.oscillatorLFO.stop(stop);
-            }
-            if (props.oscillator.envelope) {
-                const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
-            }
-            if (props.amp.envelope) {
-                stopEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
-            }
-            nodes.oscillator.stop(stop);
-            setTimeout(() => {
-                var _a, _b, _c, _d, _e;
-                nodes.oscillator.disconnect();
-                nodes.amp.disconnect();
-                nodes.target.disconnect();
-                (_a = nodes.oscillatorLFO) === null || _a === void 0 ? void 0 : _a.disconnect();
-                (_b = nodes.oscillatorLFODepth) === null || _b === void 0 ? void 0 : _b.disconnect();
-                (_c = nodes.filter) === null || _c === void 0 ? void 0 : _c.disconnect();
-                (_d = nodes.convolver) === null || _d === void 0 ? void 0 : _d.disconnect();
-                (_e = nodes.convolverDepth) === null || _e === void 0 ? void 0 : _e.disconnect();
-            }, 2000);
-        }
-        function stopEnvelope(param, base, amount, ADSR) {
-            const end = dv > 0 ? dv : (context.currentTime - start);
-            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(end / (ADSR[0] / 1000), 1.0);
-            if (rate < 1.0) {
-                param.cancelScheduledValues(start);
-                param.setValueAtTime(base, start);
-                param.linearRampToValueAtTime(base + amount * rate, start + ADSR[0] / 1000 * rate);
-                param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
-            }
-            param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv));
-            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, end) + ADSR[3] / 1000);
-        }
-        function startEnvelope(param, base, amount, ADSR) {
-            param.value = base;
-            param.setValueAtTime(base, start);
-            param.linearRampToValueAtTime(base + amount, start + ADSR[0] / 1000);
-            param.linearRampToValueAtTime(base + amount * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000);
-        }
-        function impulseResponse({ time, decay = 2.0 }) {
-            const length = context.sampleRate * time / 1000;
-            const impulse = context.createBuffer(2, length, context.sampleRate);
-            const ch0 = impulse.getChannelData(0);
-            const ch1 = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                ch0[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-                ch1[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-            }
-            return impulse;
         }
     }
 }
