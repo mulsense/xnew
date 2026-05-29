@@ -10,7 +10,7 @@ import { Scene } from './basics/Scene';
 import { VolumeController } from './basics/Volume';
 
 import { ImageData, ImageDataArgs } from './utils/image';
-import { master, AudioData, Synthesizer, SynthesizerOptions } from './utils/audio';
+import { master, AudioTrack, Synthesizer, SynthesizerOptions } from './utils/audio';
 
 const basics = {
     SVG,
@@ -28,17 +28,20 @@ const basics = {
 
 const audio = {
     load(path: string) {
-        const music = new AudioData(path);
+        const music = new AudioTrack(path);
         const object = {
             play(options: { offset?: number, fade?: number, loop?: boolean } = {}) {
                 const unit = xnew();
-                if (music.start === null) {
+                if (!music.isPlaying) {
                     music.play(options);
                     unit.on('finalize', () => music.pause({ fade: options.fade }));
                 }
             },
             pause(options: { fade?: number } = {}) {
                 music.pause(options);
+            },
+            stop(options: { fade?: number } = {}) {
+                music.stop(options);
             }
         }
         return xnew.promise(music.promise).then(() => object);

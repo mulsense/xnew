@@ -2,13 +2,15 @@
 // audio — Web Audio primitives shared across the package
 //
 // A single AudioContext + master GainNode are created at module load so every audio source in the
-// package mixes through one bus. Callers (AudioData, Synthesizer, Volume controller) connect to
+// package mixes through one bus. Callers (AudioTrack, Synthesizer, Volume controller) connect to
 // `master` rather than `context.destination` so the global volume is one writable value.
 //
 // Side effect on import: instantiates window.AudioContext and connects the master gain.
 //
 // - context, master : shared global AudioContext and its master GainNode
-// - AudioData       : decoded audio buffer with play / pause / volume + fade in / out
+// - AudioTrack      : decoded audio buffer with play / pause / resume / volume + fade in / out.
+//                     `promise` resolves when the buffer is ready and rejects on load failure;
+//                     `play()` / `resume()` throw if the buffer is not yet loaded.
 // - Synthesizer / SynthesizerOptions
 //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
 //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
@@ -28,25 +30,31 @@ if (context !== null && master !== null) {
 
 //----------------------------------------------------------------------------------------------------
 // audio file
+//
+// `startedAt` is the (virtual) AudioContext time at which playback would have started from offset 0
+// — i.e. `currentTime - startedAt` is the position within the buffer. On pause, that position is
+// frozen into `pausedOffsetMs` so a subsequent `play()` (with no explicit offset) picks it up — i.e.
+// `play()` doubles as resume. `stop()` halts playback AND zeros `pausedOffsetMs`, so the next
+// `play()` starts from the beginning. `loop` is stored so `pause()` can mod the position by
+// buffer.duration only when looping.
 //----------------------------------------------------------------------------------------------------
 
-export class AudioData {
+export class AudioTrack {
     private buffer?: AudioBuffer;
     private source: AudioBufferSourceNode | null;
     private amp: GainNode;
     private fade: GainNode;
+    private startedAt: number | null;
+    private pausedOffsetMs: number;
+    private loop: boolean;
 
     public promise: Promise<void>;
-    public start: number | null;
 
     constructor(path: string) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
             .then((response) => context.decodeAudioData(response))
-            .then((response) => { this.buffer = response })
-            .catch(() => {
-                console.warn(`"${path}" could not be loaded.`)
-            });
+            .then((response) => { this.buffer = response });
         this.amp = context.createGain();
         this.amp.gain.value = 1.0;
         this.amp.connect(master);
@@ -54,7 +62,17 @@ export class AudioData {
         this.fade.gain.value = 1.0;
         this.fade.connect(this.amp);
         this.source = null;
-        this.start = null;
+        this.startedAt = null;
+        this.pausedOffsetMs = 0;
+        this.loop = false;
+    }
+
+    get isPlaying(): boolean {
+        return this.startedAt !== null;
+    }
+
+    get isLoaded(): boolean {
+        return this.buffer !== undefined;
     }
 
     set volume(value: number) {
@@ -65,50 +83,113 @@ export class AudioData {
         return this.amp.gain.value;
     }
 
-    play({ offset = 0, fade = 0, loop = false }: { offset?: number, fade?: number, loop?: boolean } = {}) {
-        if (this.buffer !== undefined && this.start === null) {
-            this.source = context.createBufferSource();
-            this.source.buffer = this.buffer;
-            this.source.loop = loop;
-            this.source.connect(this.fade);
-
-            this.start = context.currentTime;
-            this.source.start(context.currentTime, offset / 1000);
-
-            if (fade > 0) {
-                this.fade.gain.setValueAtTime(0, context.currentTime);
-                this.fade.gain.linearRampToValueAtTime(1.0, context.currentTime + fade / 1000);
-            }
-
-            this.source.onended = () => {
-                this.start = null;
-                this.source?.disconnect();
-                this.source = null;
-            };
+    // Plays from `offset` (ms). If `offset` is omitted, resumes from the position saved by the last
+    // pause() — which is 0 on a fresh track, so the first call plays from the beginning.
+    // `loop` defaults to the previously-set value, so resume keeps the original loop config.
+    play({ offset, fade = 0, loop }: { offset?: number, fade?: number, loop?: boolean } = {}) {
+        if (this.buffer === undefined) {
+            throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
         }
+        if (this.startedAt !== null) {
+            return;
+        }
+        if (loop !== undefined) {
+            this.loop = loop;
+        }
+        this.startSource(offset ?? this.pausedOffsetMs, fade);
     }
 
     pause({ fade = 0 }: { fade?: number } = {}) {
-        if (this.buffer !== undefined && this.start !== null) {
-            const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
-
-            if (fade > 0) {
-                this.fade.gain.setValueAtTime(1.0, context.currentTime);
-                this.fade.gain.linearRampToValueAtTime(0, context.currentTime + fade / 1000);
-                this.source?.stop(context.currentTime + fade / 1000);
-            } else {
-                this.source?.stop(context.currentTime);
-            }
-
-            this.start = null;
-            return elapsed;
+        if (this.buffer === undefined || this.startedAt === null) {
+            return;
         }
+        const elapsedSec = context.currentTime - this.startedAt;
+        const positionSec = this.loop ? elapsedSec % this.buffer.duration : Math.min(elapsedSec, this.buffer.duration);
+        this.pausedOffsetMs = positionSec * 1000;
+
+        // Detach the current source before scheduling its stop. Its `onended` will fire after the
+        // fade-out completes (or immediately for fade=0); the guard inside `onended` checks
+        // `this.source === source` and, finding it false, skips state cleanup so pausedOffsetMs
+        // survives.
+        const source = this.source!;
+        this.source = null;
+        this.startedAt = null;
+        this.stopSource(source, fade);
+    }
+
+    // Stops playback (with optional fade-out) and resets the paused position to 0. After this,
+    // the next `play()` starts from the beginning.
+    stop({ fade = 0 }: { fade?: number } = {}) {
+        if (this.startedAt !== null) {
+            const source = this.source!;
+            this.source = null;
+            this.startedAt = null;
+            this.stopSource(source, fade);
+        }
+        this.pausedOffsetMs = 0;
     }
 
     clear() {
+        this.forceStop();
         this.amp.disconnect();
         this.fade.disconnect();
-        this.source?.disconnect();
+        this.pausedOffsetMs = 0;
+    }
+
+    // Hard-stops the source without triggering onended state cleanup. Caller is responsible for
+    // any further state reset (pausedOffsetMs, etc.).
+    private forceStop() {
+        if (this.source !== null) {
+            this.source.onended = null;
+            try {
+                this.source.stop();
+            } catch {
+                // Source was never started or already stopped — safe to ignore.
+            }
+            this.source.disconnect();
+            this.source = null;
+        }
+        this.startedAt = null;
+    }
+
+    private startSource(offsetMs: number, fadeMs: number) {
+        const source = context.createBufferSource();
+        this.source = source;
+        source.buffer = this.buffer!;
+        source.loop = this.loop;
+        source.connect(this.fade);
+
+        const now = context.currentTime;
+        this.startedAt = now - offsetMs / 1000;
+        source.start(now, offsetMs / 1000);
+
+        if (fadeMs > 0) {
+            this.fade.gain.setValueAtTime(0, now);
+            this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+        }
+
+        source.onended = () => {
+            source.disconnect();
+            // Only clear state if this is still the active source. `pause()` and `restart()`
+            // replace / null out `this.source`, so a stale onended firing after their fade-out
+            // must not clobber pausedOffsetMs.
+            if (this.source === source) {
+                this.source = null;
+                this.startedAt = null;
+                this.pausedOffsetMs = 0;
+            }
+        };
+    }
+
+    private stopSource(source: AudioBufferSourceNode, fadeMs: number) {
+        const now = context.currentTime;
+        if (fadeMs > 0) {
+            this.fade.gain.setValueAtTime(1.0, now);
+            this.fade.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
+            source.stop(now + fadeMs / 1000);
+        } else {
+            source.stop(now);
+        }
     }
 };
 

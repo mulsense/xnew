@@ -1502,15 +1502,12 @@ if (context !== null && master !== null) {
     master.gain.value = DEFAULT_MASTER_GAIN;
     master.connect(context.destination);
 }
-class AudioData {
+class AudioTrack {
     constructor(path) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
             .then((response) => context.decodeAudioData(response))
-            .then((response) => { this.buffer = response; })
-            .catch(() => {
-            console.warn(`"${path}" could not be loaded.`);
-        });
+            .then((response) => { this.buffer = response; });
         this.amp = context.createGain();
         this.amp.gain.value = 1.0;
         this.amp.connect(master);
@@ -1518,7 +1515,15 @@ class AudioData {
         this.fade.gain.value = 1.0;
         this.fade.connect(this.amp);
         this.source = null;
-        this.start = null;
+        this.startedAt = null;
+        this.pausedOffsetMs = 0;
+        this.loop = false;
+    }
+    get isPlaying() {
+        return this.startedAt !== null;
+    }
+    get isLoaded() {
+        return this.buffer !== undefined;
     }
     set volume(value) {
         this.amp.gain.value = value;
@@ -1526,47 +1531,90 @@ class AudioData {
     get volume() {
         return this.amp.gain.value;
     }
-    play({ offset = 0, fade = 0, loop = false } = {}) {
-        if (this.buffer !== undefined && this.start === null) {
-            this.source = context.createBufferSource();
-            this.source.buffer = this.buffer;
-            this.source.loop = loop;
-            this.source.connect(this.fade);
-            this.start = context.currentTime;
-            this.source.start(context.currentTime, offset / 1000);
-            if (fade > 0) {
-                this.fade.gain.setValueAtTime(0, context.currentTime);
-                this.fade.gain.linearRampToValueAtTime(1.0, context.currentTime + fade / 1000);
-            }
-            this.source.onended = () => {
-                var _a;
-                this.start = null;
-                (_a = this.source) === null || _a === void 0 ? void 0 : _a.disconnect();
-                this.source = null;
-            };
+    play({ offset, fade = 0, loop } = {}) {
+        if (this.buffer === undefined) {
+            throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
         }
+        if (this.startedAt !== null) {
+            return;
+        }
+        if (loop !== undefined) {
+            this.loop = loop;
+        }
+        this.startSource(offset !== null && offset !== void 0 ? offset : this.pausedOffsetMs, fade);
     }
     pause({ fade = 0 } = {}) {
-        var _a, _b;
-        if (this.buffer !== undefined && this.start !== null) {
-            const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
-            if (fade > 0) {
-                this.fade.gain.setValueAtTime(1.0, context.currentTime);
-                this.fade.gain.linearRampToValueAtTime(0, context.currentTime + fade / 1000);
-                (_a = this.source) === null || _a === void 0 ? void 0 : _a.stop(context.currentTime + fade / 1000);
-            }
-            else {
-                (_b = this.source) === null || _b === void 0 ? void 0 : _b.stop(context.currentTime);
-            }
-            this.start = null;
-            return elapsed;
+        if (this.buffer === undefined || this.startedAt === null) {
+            return;
         }
+        const elapsedSec = context.currentTime - this.startedAt;
+        const positionSec = this.loop ? elapsedSec % this.buffer.duration : Math.min(elapsedSec, this.buffer.duration);
+        this.pausedOffsetMs = positionSec * 1000;
+        const source = this.source;
+        this.source = null;
+        this.startedAt = null;
+        this.stopSource(source, fade);
+    }
+    stop({ fade = 0 } = {}) {
+        if (this.startedAt !== null) {
+            const source = this.source;
+            this.source = null;
+            this.startedAt = null;
+            this.stopSource(source, fade);
+        }
+        this.pausedOffsetMs = 0;
     }
     clear() {
-        var _a;
+        this.forceStop();
         this.amp.disconnect();
         this.fade.disconnect();
-        (_a = this.source) === null || _a === void 0 ? void 0 : _a.disconnect();
+        this.pausedOffsetMs = 0;
+    }
+    forceStop() {
+        if (this.source !== null) {
+            this.source.onended = null;
+            try {
+                this.source.stop();
+            }
+            catch (_a) {
+            }
+            this.source.disconnect();
+            this.source = null;
+        }
+        this.startedAt = null;
+    }
+    startSource(offsetMs, fadeMs) {
+        const source = context.createBufferSource();
+        this.source = source;
+        source.buffer = this.buffer;
+        source.loop = this.loop;
+        source.connect(this.fade);
+        const now = context.currentTime;
+        this.startedAt = now - offsetMs / 1000;
+        source.start(now, offsetMs / 1000);
+        if (fadeMs > 0) {
+            this.fade.gain.setValueAtTime(0, now);
+            this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+        }
+        source.onended = () => {
+            source.disconnect();
+            if (this.source === source) {
+                this.source = null;
+                this.startedAt = null;
+                this.pausedOffsetMs = 0;
+            }
+        };
+    }
+    stopSource(source, fadeMs) {
+        const now = context.currentTime;
+        if (fadeMs > 0) {
+            this.fade.gain.setValueAtTime(1.0, now);
+            this.fade.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
+            source.stop(now + fadeMs / 1000);
+        }
+        else {
+            source.stop(now);
+        }
     }
 }
 const keymap = {
@@ -1842,17 +1890,20 @@ const basics = {
 };
 const audio = {
     load(path) {
-        const music = new AudioData(path);
+        const music = new AudioTrack(path);
         const object = {
             play(options = {}) {
                 const unit = xnew();
-                if (music.start === null) {
+                if (!music.isPlaying) {
                     music.play(options);
                     unit.on('finalize', () => music.pause({ fade: options.fade }));
                 }
             },
             pause(options = {}) {
                 music.pause(options);
+            },
+            stop(options = {}) {
+                music.stop(options);
             }
         };
         return xnew.promise(music.promise).then(() => object);
