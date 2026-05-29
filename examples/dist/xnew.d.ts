@@ -253,6 +253,36 @@ declare class ImageData {
     download(filename: string): void;
 }
 
+declare class AudioTrack {
+    private buffer?;
+    private source;
+    private amp;
+    private fade;
+    private startedAt;
+    private pausedOffsetMs;
+    private loop;
+    promise: Promise<void>;
+    constructor(path: string);
+    get isPlaying(): boolean;
+    get isLoaded(): boolean;
+    set volume(value: number);
+    get volume(): number;
+    play({ offset, fade, loop }?: {
+        offset?: number;
+        fade?: number;
+        loop?: boolean;
+    }): void;
+    pause({ fade }?: {
+        fade?: number;
+    }): void;
+    stop({ fade }?: {
+        fade?: number;
+    }): void;
+    clear(): void;
+    private forceStop;
+    private startSource;
+    private stopSource;
+}
 type SynthesizerOptions = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
@@ -296,6 +326,9 @@ declare class Synthesizer {
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
+    namespace audio {
+        type AudioTrack = InstanceType<typeof AudioTrack>;
+    }
 }
 declare const xnew: ((...args: any[]) => Unit) & {
     nest(target: DomElement | string): HTMLElement | SVGElement;
@@ -334,6 +367,7 @@ declare const xnew: ((...args: any[]) => Unit) & {
         VolumeController: typeof VolumeController;
     };
     audio: {
+        AudioTrack: typeof AudioTrack;
         load(path: string): UnitPromise;
         synthesizer(props: SynthesizerOptions): Synthesizer;
         volume: number;

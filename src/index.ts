@@ -27,26 +27,14 @@ const basics = {
 };
 
 const audio = {
+    AudioTrack,
     load(path: string) {
         const music = new AudioTrack(path);
-        const object = {
-            play(options: { offset?: number, fade?: number, loop?: boolean } = {}) {
-                const unit = xnew();
-                if (!music.isPlaying) {
-                    music.play(options);
-                    unit.on('finalize', () => music.pause({ fade: options.fade }));
-                }
-            },
-            pause(options: { fade?: number } = {}) {
-                music.pause(options);
-            },
-            stop(options: { fade?: number } = {}) {
-                music.stop(options);
-            }
-        }
-        return xnew.promise(music.promise).then(() => object);
+        xnew().on('finalize', () => music.pause({ fade: 500 }));
+
+        return xnew.promise(music.promise).then(() => music);
     },
-    
+
     synthesizer(props: SynthesizerOptions) {
         return new Synthesizer(props);
     },
@@ -68,6 +56,9 @@ const image = {
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
     export type UnitTimer = InstanceType<typeof UnitTimer>;
+    export namespace audio {
+        export type AudioTrack = InstanceType<typeof AudioTrack>;
+    }
 }
 
 const xnew = Object.assign(base, { basics, audio, image });

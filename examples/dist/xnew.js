@@ -1895,24 +1895,11 @@
         VolumeController,
     };
     const audio = {
+        AudioTrack,
         load(path) {
             const music = new AudioTrack(path);
-            const object = {
-                play(options = {}) {
-                    const unit = xnew();
-                    if (!music.isPlaying) {
-                        music.play(options);
-                        unit.on('finalize', () => music.pause({ fade: options.fade }));
-                    }
-                },
-                pause(options = {}) {
-                    music.pause(options);
-                },
-                stop(options = {}) {
-                    music.stop(options);
-                }
-            };
-            return xnew.promise(music.promise).then(() => object);
+            xnew().on('finalize', () => music.pause({ fade: 500 }));
+            return xnew.promise(music.promise).then(() => music);
         },
         synthesizer(props) {
             return new Synthesizer(props);
