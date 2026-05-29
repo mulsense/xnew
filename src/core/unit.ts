@@ -9,7 +9,6 @@
 // Snapshot of (unit, context, element, Component), so handlers always run as if still inside the
 // originating component, even after async hops.
 //
-// - UnitElement / UnitArgs : public type aliases for Unit inputs
 // - Unit                   : core class — lifecycle, listeners, contexts, emit
 // - UnitPromise            : promise wrapper that resumes in the originating Unit scope
 // - UnitTimer              : queueable timer used by xnew.timeout / interval / transition
@@ -18,19 +17,15 @@
 import { MapSet, MapMap } from './map';
 import { Ticker, Timer, TimerOptions } from './time';
 import { Eventor } from './event';
-import { isElement, DomElement } from './element';
+import { isDomElement, DomElement } from './element';
 
 //----------------------------------------------------------------------------------------------------
 // definitions
 //----------------------------------------------------------------------------------------------------
 
-export type UnitElement = DomElement;
-
-export type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
-
 interface Context { previous: Context | null; key?: any; value?: any; }
 
-interface Snapshot { unit: Unit; context: Context; element: UnitElement; Component: Function | null; }
+interface Snapshot { unit: Unit; context: Context; element: DomElement; Component: Function | null; }
 
 const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
 
@@ -53,25 +48,25 @@ export class Unit {
         defines: Record<string, any>;
         systems: Record<string, { listener: Function, execute: Function }[]>;
 
-        currentElement: UnitElement;
+        currentElement: DomElement;
         currentContext: Context;
         currentComponent: Function | null;
 
         afterSnapshot: Snapshot | null;
 
-        nestElements: { element: UnitElement, owned: boolean }[];
+        nestElements: { element: DomElement, owned: boolean }[];
         Components: Function[];
-        listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
+        listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
     };
 
-    constructor(parent: Unit | null, ...args: UnitArgs) {
-        let target: UnitElement | string | null;
+    constructor(parent: Unit | null, ...args: any[]) {
+        let target: DomElement | string | null;
         let Component: Function | string | number | undefined;
         let props: Object | undefined;
 
-        if (isElement(args[0]) || typeof args[0] === 'string') {
-            target = args[0] as UnitElement | string;
+        if (isDomElement(args[0]) || typeof args[0] === 'string') {
+            target = args[0] as DomElement | string;
             Component = args[1] as Function | string | number | undefined;
             props = args[2] as Object | undefined;
         } else {
@@ -85,15 +80,15 @@ export class Unit {
 
         parent?._.children.push(this);
 
-        let baseElement: UnitElement;
-        if (isElement(target)) {
+        let baseElement: DomElement;
+        if (isDomElement(target)) {
             baseElement = target;
         } else if (parent !== null) {
             baseElement = parent._.currentElement;
         } else if (globalThis.document?.body) {
             baseElement = globalThis.document.body;
         } else {
-            baseElement = null as unknown as UnitElement;
+            baseElement = null as unknown as DomElement;
         }
 
         let baseComponent: Function;
@@ -146,7 +141,7 @@ export class Unit {
         return this._.parent;
     }
     
-    public get element(): UnitElement {
+    public get element(): DomElement {
         return this._.currentElement;
     }
 
@@ -204,8 +199,8 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement {
-        if (isElement(target)) {
+    static nest(unit: Unit, target: DomElement | string, textContent?: string | number): DomElement {
+        if (isDomElement(target)) {
             unit._.nestElements.push({ element: target, owned: false });
             unit._.currentElement = target;
             return target;
@@ -213,7 +208,7 @@ export class Unit {
             const match = target.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
                 unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
+                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as DomElement;
                 unit._.currentElement = element;
                 if (textContent !== undefined) {
                     element.textContent = textContent.toString();

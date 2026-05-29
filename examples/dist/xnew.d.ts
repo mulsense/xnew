@@ -43,8 +43,8 @@ declare class Eventor {
     private document_basic;
 }
 
-type UnitElement = HTMLElement | SVGElement;
-type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
+type DomElement = HTMLElement | SVGElement;
+
 interface Context {
     previous: Context | null;
     key?: any;
@@ -53,7 +53,7 @@ interface Context {
 interface Snapshot {
     unit: Unit;
     context: Context;
-    element: UnitElement;
+    element: DomElement;
     Component: Function | null;
 }
 declare class Unit {
@@ -71,30 +71,30 @@ declare class Unit {
             listener: Function;
             execute: Function;
         }[]>;
-        currentElement: UnitElement;
+        currentElement: DomElement;
         currentContext: Context;
         currentComponent: Function | null;
         afterSnapshot: Snapshot | null;
         nestElements: {
-            element: UnitElement;
+            element: DomElement;
             owned: boolean;
         }[];
         Components: Function[];
         listeners: MapMap<string, Function, {
-            element: UnitElement;
+            element: DomElement;
             Component: Function | null;
             execute: Function;
         }>;
         eventor: Eventor;
     };
-    constructor(parent: Unit | null, ...args: UnitArgs);
+    constructor(parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
-    get element(): UnitElement;
+    get element(): DomElement;
     start(): void;
     stop(): void;
     finalize(): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
+    static nest(unit: Unit, target: DomElement | string, textContent?: string | number): DomElement;
     static currentComponent: Function;
     static extend(unit: Unit, Component: Function, props?: Object): {
         [key: string]: any;
@@ -193,7 +193,7 @@ declare function Screen(unit: Unit, { width, height, fit }?: {
     height?: number;
     fit?: 'contain' | 'cover';
 }): {
-    readonly canvas: UnitElement;
+    readonly canvas: DomElement;
 };
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }?: {
@@ -237,9 +237,8 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
 };
 
 declare function Scene(unit: Unit): {
-    moveTo(Component: Function, props?: any): void;
-    nextScene(Component: Function, props?: any): void;
-    append(Component: Function, props?: any): void;
+    change(Component: Function, props?: any): void;
+    add(Component: Function, props?: any): void;
 };
 
 declare function VolumeController(unit: Unit, { anchor }?: {
@@ -298,12 +297,11 @@ declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
 }
-declare const xnew: ((...args: UnitArgs) => Unit) & {
-    nest(target: UnitElement | string): HTMLElement | SVGElement;
+declare const xnew: ((...args: any[]) => Unit) & {
+    nest(target: DomElement | string): HTMLElement | SVGElement;
     extend(Component: Function, props?: Object): {
         [key: string]: any;
     };
-    append(parent: Unit | null, ...args: UnitArgs): void;
     context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;

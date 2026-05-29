@@ -66,7 +66,7 @@ function TitleScene(unit) {
     xnew(Model, { position, rotation, id, scale: 0.8 });
   }
   xnew(ThreeTexture); // render three.js canvas as pixi texture
-  unit.on('pointerdown', () => unit.nextScene(GameScene));
+  unit.on('pointerdown', () => unit.change(GameScene));
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -109,7 +109,7 @@ function GameScene(unit) {
     xnew(GameOverText);
 
     xnew.timeout(() => {
-      unit.nextScene(ResultScene, { image });
+      unit.change(ResultScene, { image });
     }, 2000);
   });
 }
@@ -245,7 +245,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
-    button.on('click', () => xnew.context(xnew.basics.Scene).nextScene(TitleScene));
+    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene));
   });
 }
 
@@ -370,7 +370,7 @@ function Cursor(unit) {
   });
   unit.on('+drop', () => {
     if (model !== null) {
-      xnew.context(xnew.basics.Scene).append(ModelBall, { x: object.x, y: object.y + offset, id: model.id });
+      xnew.context(xnew.basics.Scene).add(ModelBall, { x: object.x, y: object.y + offset, id: model.id });
       model.finalize();
       model = null;
       xnew.emit('+reload');
@@ -399,7 +399,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
   const model = xnew(Model, { id, scale });
   xnew.emit('+scoreup', { score: id });
 
-  xnew.context(xnew.basics.Scene).append(StarParticles, { x, y });
+  xnew.context(xnew.basics.Scene).add(StarParticles, { x, y });
   
   ball.on('update', () => {
     const position = convert3d(ball.pixiObject.x, ball.pixiObject.y);
@@ -417,7 +417,7 @@ function ModelBall(ball, { x, y, id = 0 }) {
       const dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
       if (dist < ball.radius + target.radius + 0.01) {
-        xnew.context(xnew.basics.Scene).append(ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
+        xnew.context(xnew.basics.Scene).add(ModelBall, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, id: id + 1 });
         ball.finalize();
         target.finalize();
         break;

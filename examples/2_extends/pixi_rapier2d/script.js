@@ -31,7 +31,7 @@ function Contents(unit) {
   });
 
   const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => unit.nextScene(Contents));
+  button.on('click', () => unit.change(Contents));
 }
 
 function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options = {} }) {

@@ -160,7 +160,7 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
-  unit.on('pointerdown', () => unit.nextScene(GameScene));
+  unit.on('pointerdown', () => unit.change(GameScene));
 }
 
 function GameScene(unit) {
@@ -186,7 +186,7 @@ function GameScene(unit) {
     spawn.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      unit.on('keydown pointerdown', () => unit.nextScene(TitleScene));
+      unit.on('keydown pointerdown', () => unit.change(TitleScene));
     }, 1000);
   });
 }
@@ -213,10 +213,10 @@ function BloodVessels(_unit) {
     [700, 0, 730, 200, 670, 380, 720, 600],
   ];
   for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
-    g.nextScene(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0x5A0818, width: 20, alpha: 0.55 });
+    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0x5A0818, width: 20, alpha: 0.55 });
   }
   for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
-    g.nextScene(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0xA02040, width: 7, alpha: 0.3 });
+    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0xA02040, width: 7, alpha: 0.3 });
   }
 }
 
@@ -312,7 +312,7 @@ function Player(unit) {
 
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.append(xnew.context(xnew.basics.Scene), Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y }));
 
   unit.on('update', () => {
     object.x = Math.min(Math.max(object.x + velocity.x * 3, 10), 790);
@@ -412,14 +412,14 @@ function Enemy(unit, { id, x, y, invincible = false }) {
       // 分裂
       if (data.splitTo !== null) {
         for (let i = 0; i < 2; i++) {
-          xnew.append(xnew.context(xnew.basics.Scene), Enemy, { id: data.splitTo, x: object.x, y: object.y, invincible: true });
+          xnew.context(xnew.basics.Scene).add(Enemy, { id: data.splitTo, x: object.x, y: object.y, invincible: true });
         }
       }
       // 星（チェーンショット）
       for (let i = 0; i < 2; i++) {
-        xnew.append(xnew.context(xnew.basics.Scene), Star, { x: object.x, y: object.y, score });
+        xnew.context(xnew.basics.Scene).add(Star, { x: object.x, y: object.y, score });
       }
-      xnew.append(xnew.context(xnew.basics.Scene), ScorePopup, { x: object.x, y: object.y, score });
+      xnew.context(xnew.basics.Scene).add(ScorePopup, { x: object.x, y: object.y, score });
       xnew.context(ScoreManager).add(score);
       unit.finalize();
     },

@@ -10,7 +10,7 @@
 //
 // - xnew(...)                            : create a child Unit
 // - xnew.nest / extend                   : extend the current Unit during initialization
-// - xnew.append / find                   : tree manipulation and lookup
+// - xnew.find                            : lookup
 // - xnew.context                         : ancestor context lookup
 // - xnew.promise / then / catch / finally / defer / collect
 //                                          promises bound to the current Unit
@@ -20,7 +20,8 @@
 // - xnew.protect                         : exclude current Unit from emit / find
 //----------------------------------------------------------------------------------------------------
 
-import { Unit, UnitArgs, UnitPromise, UnitTimer, UnitElement } from './unit';
+import { Unit, UnitPromise, UnitTimer } from './unit';
+import { DomElement } from './element';
 
 export const xnew = Object.assign(
     /**
@@ -36,9 +37,17 @@ export const xnew = Object.assign(
      * const unit = xnew(element, MyComponent, { data: 0 })
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
-    function(...args: UnitArgs): Unit {
+    function(...args: any[]): Unit {
         if (Unit.rootUnit === undefined) Unit.reset();
-        return new Unit(Unit.currentUnit, ...args);
+
+        if (args[0] instanceof Unit) {
+            const parent = args.shift() as Unit;
+            const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
+            return Unit.scope(snapshot, () => new Unit(parent, ...args)) as Unit;
+        } else {
+            const parent = Unit.currentUnit ?? null;
+            return new Unit(parent, ...args);
+        }
     },
     {
         /**
@@ -51,14 +60,14 @@ export const xnew = Object.assign(
          * const div = xnew.nest('<div>')
          * div.textContent = 'Hello'
          */
-        nest(target: UnitElement | string): HTMLElement | SVGElement {
+        nest(target: DomElement | string): HTMLElement | SVGElement {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
-                } 
+                }
                 return Unit.nest(Unit.currentUnit, target);
             } catch (error: unknown) {
-                console.error('xnew.nest(target: UnitElement | string): ', error);
+                console.error('xnew.nest(target: DomElement | string): ', error);
                 throw error;
             }
         },
@@ -84,22 +93,6 @@ export const xnew = Object.assign(
                 return defines;
             } catch (error: unknown) {
                 console.error('xnew.extend(component: Function, props?: Object): ', error);
-                throw error;
-            }
-        },
-
-        append(parent: Unit | null, ...args: UnitArgs): void {
-            try {
-                if (parent === null) {
-                    new Unit(null, ...args);
-                } else {
-                    const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
-                    Unit.scope(snapshot, () => {
-                        new Unit(parent, ...args);
-                    });
-                }
-            } catch (error: unknown) {
-                console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
                 throw error;
             }
         },

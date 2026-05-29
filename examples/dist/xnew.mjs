@@ -214,7 +214,7 @@ class Timer {
     }
 }
 
-function addEventListener(target, type, execute, options) {
+function listen(target, type, execute, options) {
     let initalized = false;
     const id = setTimeout(() => {
         initalized = true;
@@ -228,6 +228,10 @@ function addEventListener(target, type, execute, options) {
             target.removeEventListener(type, execute);
         }
     };
+}
+function getPointerPosition(element, event) {
+    const rect = element.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 class Eventor {
     constructor() {
@@ -303,7 +307,7 @@ class Eventor {
         }
     }
     element_basic(props) {
-        return addEventListener(props.element, props.type, (event) => {
+        return listen(props.element, props.type, (event) => {
             props.listener({ event });
         }, props.options);
     }
@@ -320,7 +324,7 @@ class Eventor {
         };
     }
     element_change(props) {
-        return addEventListener(props.element, props.type, (event) => {
+        return listen(props.element, props.type, (event) => {
             let value = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -335,7 +339,7 @@ class Eventor {
         }, props.options);
     }
     element_input(props) {
-        return addEventListener(props.element, props.type, (event) => {
+        return listen(props.element, props.type, (event) => {
             let value = null;
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
@@ -350,41 +354,41 @@ class Eventor {
         }, props.options);
     }
     element_click(props) {
-        return addEventListener(props.element, props.type, (event) => {
-            props.listener({ event, position: pointer(props.element, event).position });
+        return listen(props.element, props.type, (event) => {
+            props.listener({ event, position: getPointerPosition(props.element, event) });
         }, props.options);
     }
     element_click_outside(props) {
-        return addEventListener(document, props.type.split('.')[0], (event) => {
+        return listen(document, props.type.split('.')[0], (event) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, position: pointer(props.element, event).position });
+                props.listener({ event, position: getPointerPosition(props.element, event) });
             }
         }, props.options);
     }
     element_pointer(props) {
-        return addEventListener(props.element, props.type, (event) => {
-            props.listener({ event, position: pointer(props.element, event).position });
+        return listen(props.element, props.type, (event) => {
+            props.listener({ event, position: getPointerPosition(props.element, event) });
         }, props.options);
     }
     element_mouse(props) {
-        return addEventListener(props.element, props.type, (event) => {
-            props.listener({ event, position: pointer(props.element, event).position });
+        return listen(props.element, props.type, (event) => {
+            props.listener({ event, position: getPointerPosition(props.element, event) });
         }, props.options);
     }
     element_touch(props) {
-        return addEventListener(props.element, props.type, (event) => {
-            props.listener({ event, position: pointer(props.element, event).position });
+        return listen(props.element, props.type, (event) => {
+            props.listener({ event, position: getPointerPosition(props.element, event) });
         }, props.options);
     }
     element_pointer_outside(props) {
-        return addEventListener(document, props.type.split('.')[0], (event) => {
+        return listen(document, props.type.split('.')[0], (event) => {
             if (props.element.contains(event.target) === false) {
-                props.listener({ event, position: pointer(props.element, event).position });
+                props.listener({ event, position: getPointerPosition(props.element, event) });
             }
         }, props.options);
     }
     element_wheel(props) {
-        return addEventListener(props.element, props.type, (event) => {
+        return listen(props.element, props.type, (event) => {
             props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
         }, props.options);
     }
@@ -392,13 +396,13 @@ class Eventor {
         let pointermove = null;
         let pointerup = null;
         let pointercancel = null;
-        const pointerdown = addEventListener(props.element, 'pointerdown', (event) => {
+        const pointerdown = listen(props.element, 'pointerdown', (event) => {
             const id = event.pointerId;
-            const position = pointer(props.element, event).position;
+            const position = getPointerPosition(props.element, event);
             let previous = position;
-            pointermove = addEventListener(window, 'pointermove', (event) => {
+            pointermove = listen(window, 'pointermove', (event) => {
                 if (event.pointerId === id) {
-                    const position = pointer(props.element, event).position;
+                    const position = getPointerPosition(props.element, event);
                     const delta = { x: position.x - previous.x, y: position.y - previous.y };
                     if (props.type === 'dragmove') {
                         props.listener({ event, position, delta });
@@ -406,18 +410,18 @@ class Eventor {
                     previous = position;
                 }
             }, props.options);
-            pointerup = addEventListener(window, 'pointerup', (event) => {
+            pointerup = listen(window, 'pointerup', (event) => {
                 if (event.pointerId === id) {
-                    const position = pointer(props.element, event).position;
+                    const position = getPointerPosition(props.element, event);
                     if (props.type === 'dragend') {
                         props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
                     remove();
                 }
             }, props.options);
-            pointercancel = addEventListener(window, 'pointercancel', (event) => {
+            pointercancel = listen(window, 'pointercancel', (event) => {
                 if (event.pointerId === id) {
-                    const position = pointer(props.element, event).position;
+                    const position = getPointerPosition(props.element, event);
                     if (props.type === 'dragend') {
                         props.listener({ event, position, delta: { x: 0, y: 0 } });
                     }
@@ -443,13 +447,13 @@ class Eventor {
     }
     window_basic(props) {
         const type = props.type.substring('window.'.length);
-        return addEventListener(window, type, (event) => {
+        return listen(window, type, (event) => {
             props.listener({ event });
         }, props.options);
     }
     window_key(props) {
         const type = props.type.substring(props.type.indexOf('.') + 1);
-        return addEventListener(window, type, (event) => {
+        return listen(window, type, (event) => {
             if (event.repeat)
                 return;
             props.listener({ event });
@@ -457,7 +461,7 @@ class Eventor {
     }
     window_key_arrow(props) {
         const keymap = {};
-        const keydown = addEventListener(window, 'keydown', (event) => {
+        const keydown = listen(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
@@ -469,7 +473,7 @@ class Eventor {
                 props.listener({ event, vector });
             }
         }, props.options);
-        const keyup = addEventListener(window, 'keyup', (event) => {
+        const keyup = listen(window, 'keyup', (event) => {
             keymap[event.code] = 0;
             if (props.type === 'window.keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                 const vector = {
@@ -486,7 +490,7 @@ class Eventor {
     }
     window_key_wasd(props) {
         const keymap = {};
-        const finalize1 = addEventListener(window, 'keydown', (event) => {
+        const finalize1 = listen(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
@@ -498,7 +502,7 @@ class Eventor {
                 props.listener({ event, vector });
             }
         }, props.options);
-        const finalize2 = addEventListener(window, 'keyup', (event) => {
+        const finalize2 = listen(window, 'keyup', (event) => {
             keymap[event.code] = 0;
             if (props.type === 'window.keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 const vector = {
@@ -515,28 +519,24 @@ class Eventor {
     }
     document_basic(props) {
         const type = props.type.substring('document.'.length);
-        return addEventListener(document, type, (event) => {
+        return listen(document, type, (event) => {
             props.listener({ event });
         }, props.options);
     }
 }
-function pointer(element, event) {
-    const rect = element.getBoundingClientRect();
-    const position = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    return { position };
+
+function isDomElement(value) {
+    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
 }
 
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
-function isElement(value) {
-    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
-}
 class Unit {
     constructor(parent, ...args) {
         var _a, _b;
         let target;
         let Component;
         let props;
-        if (isElement(args[0]) || typeof args[0] === 'string') {
+        if (isDomElement(args[0]) || typeof args[0] === 'string') {
             target = args[0];
             Component = args[1];
             props = args[2];
@@ -550,7 +550,7 @@ class Unit {
         Unit.currentUnit = this;
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
         let baseElement;
-        if (isElement(target)) {
+        if (isDomElement(target)) {
             baseElement = target;
         }
         else if (parent !== null) {
@@ -653,7 +653,7 @@ class Unit {
         }
     }
     static nest(unit, target, textContent) {
-        if (isElement(target)) {
+        if (isDomElement(target)) {
             unit._.nestElements.push({ element: target, owned: false });
             unit._.currentElement = target;
             return target;
@@ -943,9 +943,18 @@ class UnitTimer {
 }
 
 const xnew$1 = Object.assign(function (...args) {
+    var _a, _b;
     if (Unit.rootUnit === undefined)
         Unit.reset();
-    return new Unit(Unit.currentUnit, ...args);
+    if (args[0] instanceof Unit) {
+        const parent = args.shift();
+        const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
+        return Unit.scope(snapshot, () => new Unit(parent, ...args));
+    }
+    else {
+        const parent = (_b = Unit.currentUnit) !== null && _b !== void 0 ? _b : null;
+        return new Unit(parent, ...args);
+    }
 }, {
     nest(target) {
         try {
@@ -955,7 +964,7 @@ const xnew$1 = Object.assign(function (...args) {
             return Unit.nest(Unit.currentUnit, target);
         }
         catch (error) {
-            console.error('xnew.nest(target: UnitElement | string): ', error);
+            console.error('xnew.nest(target: DomElement | string): ', error);
             throw error;
         }
     },
@@ -972,24 +981,6 @@ const xnew$1 = Object.assign(function (...args) {
         }
         catch (error) {
             console.error('xnew.extend(component: Function, props?: Object): ', error);
-            throw error;
-        }
-    },
-    append(parent, ...args) {
-        var _a;
-        try {
-            if (parent === null) {
-                new Unit(null, ...args);
-            }
-            else {
-                const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-                Unit.scope(snapshot, () => {
-                    new Unit(parent, ...args);
-                });
-            }
-        }
-        catch (error) {
-            console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
             throw error;
         }
     },
@@ -1489,16 +1480,12 @@ function Select(_, { key = '', value, items = [] } = {}) {
 
 function Scene(unit) {
     return {
-        moveTo(Component, props) {
-            xnew$1.append(unit.parent, Component, props);
+        change(Component, props) {
+            xnew$1(unit.parent, Component, props);
             unit.finalize();
         },
-        nextScene(Component, props) {
-            xnew$1.append(unit.parent, Component, props);
-            unit.finalize();
-        },
-        append(Component, props) {
-            xnew$1.append(unit, Component, props);
+        add(Component, props) {
+            xnew$1(unit, Component, props);
         }
     };
 }
