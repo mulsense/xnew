@@ -1184,17 +1184,21 @@ function SVG(unit, { viewBox = '0 0 64 64', className = '', style = '', stroke =
 function SVGText(unit, { text = '', fontSize = 20, anchor = { x: 0, y: 0 }, className = '', style = '', stroke = 'none', strokeOpacity = 1, strokeWidth = 1, strokeLinejoin = 'round', strokeLinecap = 'round', fill = 'currentColor', fillOpacity = 1 } = {}) {
     xnew$1.extend(SVG, { className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity });
     const svg = unit.element;
-    xnew$1.nest(`<text x="0" y="0" font-size="${fontSize}">`);
+    xnew$1.nest(`<text x="0" y="0" font-size="${fontSize}" paint-order="stroke fill">`);
     unit.element.textContent = text;
-    const bbox = unit.element.getBBox();
-    const padding = 0;
-    svg.setAttribute('viewBox', `
-        ${bbox.x - padding}
-        ${bbox.y - padding}
-        ${bbox.width + padding * 2}
-        ${bbox.height + padding * 2}
-    `);
-    svg.style.width = (bbox.width + padding * 2) + 'px';
+    function resize() {
+        const bbox = unit.element.getBBox();
+        const padding = 0;
+        svg.setAttribute('viewBox', `
+            ${bbox.x - padding}
+            ${bbox.y - padding}
+            ${bbox.width + padding * 2}
+            ${bbox.height + padding * 2}
+        `);
+        svg.style.width = (bbox.width + padding * 2) + 'px';
+    }
+    resize();
+    unit.on('resize', resize);
     svg.style.overflow = 'visible';
 }
 
@@ -1218,19 +1222,18 @@ function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
     };
 }
 
-const svgTemplate = { viewBox: '0 0 64 64', style: "position: absolute; width: 100%; height: 100%;" };
 function AnalogStick(unit, { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 } = {}) {
     xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
     xnew$1.nest(`<div style="width: 100%; height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto;">`);
     xnew$1((unit) => {
-        xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }));
+        xnew$1.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
         xnew$1('<polygon points="32  7 27 13 37 13">');
         xnew$1('<polygon points="32 57 27 51 37 51">');
         xnew$1('<polygon points=" 7 32 13 27 13 37">');
         xnew$1('<polygon points="57 32 51 27 51 37">');
     });
     const target = xnew$1((unit) => {
-        xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }));
+        xnew$1.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
         xnew$1('<circle cx="32" cy="32" r="14">');
     });
     unit.on('dragstart dragmove', ({ type, position }) => {
@@ -1260,12 +1263,12 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     ];
     const targets = polygons.map((polygon) => {
         return xnew$1((unit) => {
-            xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { fill, fillOpacity }));
+            xnew$1.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', fill, fillOpacity });
             xnew$1(polygon);
         });
     });
     xnew$1((unit) => {
-        xnew$1.extend(SVG, Object.assign(Object.assign({}, svgTemplate), { stroke, strokeOpacity, strokeWidth }));
+        xnew$1.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', stroke, strokeOpacity, strokeWidth });
         xnew$1('<polyline points="23 23 23  4 24  3 40  3 41  4 41 23">');
         xnew$1('<polyline points="23 41 23 60 24 61 40 61 41 60 41 41">');
         xnew$1('<polyline points="23 23  4 23  3 24  3 40  4 41 23 41">');
