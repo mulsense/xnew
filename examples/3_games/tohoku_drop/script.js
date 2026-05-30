@@ -184,7 +184,7 @@ function ResultImage(unit, { image }) {
 }
 
 function ResultBackground(unit) {
-  xnew.nest(`<div class="relative size-full bg-gradient-to-br from-stone-300 to-stone-400">`);
+  xnew.nest(`<div class="relative size-full bg-linear-to-br from-stone-300 to-stone-400">`);
   xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
   
   // floating circle
