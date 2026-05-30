@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>xnew network sample</title>
+  <link rel="stylesheet" href="/style.css">
+  <!-- xnew はサーバーが /xnew で配信するローカルビルドを使う -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@mulsense/xnew": "/xnew/xnew.mjs"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>xnew <span class="tag">network</span></h1>
+    <div id="status" class="status">接続中…</div>
+  </header>
+
+  <main id="app"></main>
+
+  <!-- socket.io クライアント (socket.io サーバーが自動配信。グローバル io を定義する) -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+
+</html>
