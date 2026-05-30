@@ -35,6 +35,8 @@ const app = express();
 app.use(express.static(join(__dirname, '..', 'public')));
 // ブラウザがオフラインでも import できるよう、ローカルの xnew ビルドを /xnew で配信する。
 app.use('/xnew', express.static(join(__dirname, '..', '..', 'dist')));
+// Tailwind (ブラウザ版) もローカル同梱のビルドを /thirdparty で配信する。
+app.use('/thirdparty', express.static(join(__dirname, '..', '..', 'thirdparty')));
 
 const httpServer = createServer(app);
 const io = new IOServer(httpServer);
