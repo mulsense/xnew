@@ -70,88 +70,109 @@ httpServer.listen(PORT, () => {
 });
 
 //----------------------------------------------------------------------------------------------------
-// Arena — サーバー側ゲーム状態とゲームループを持つ xnew コンポーネント
+// Arena — プレイヤーユニットの集合を管理し、状態を配信する xnew コンポーネント
 //
-// players (socketId -> プレイヤー) を保持し、'update' で全員の位置を積分、BROADCAST_HZ に
-// 間引いて 'state' を全員にブロードキャストする。join / leave / input を unit メソッドとして
-// 公開し、socket ハンドラから呼ばれる。
+// 物理計算は各 Player ユニットが自分で行う (下記)。Arena は socketId -> Player ユニットの
+// 対応を持ち、join で子として Player を生成、leave で finalize、input を該当 Player に中継する。
+// 'update' では BROADCAST_HZ に間引いて、全 Player の snapshot をまとめて 'state' 配信する。
+//
+// xnew の更新順は「子 -> 親」なので、1 tick 内で全 Player が動いた後に Arena が配信する
+// (= 配信内容は常に最新位置)。
 //----------------------------------------------------------------------------------------------------
 
 function Arena(unit, { io }) {
-    // socketId -> { id, name, color, x, y, input }
-    const players = new Map();
+    // socketId -> Player ユニット
+    const playerUnits = new Map();
     let nextColor = 0;
 
     let lastAt = Date.now();
     let accMs = 0;
     const broadcastIntervalMs = 1000 / BROADCAST_HZ;
 
-    // 物理計算: 'update' は xnew のルートティッカー (node では setTimeout、約 60fps) で発火する。
-    // ブラウザが描画に使うのと同じイベント。dt は実時計の差分から求めるので、tick が詰まっても
-    // 移動速度は変わらない。
+    // 配信のみ Arena が担当。'update' は xnew のルートティッカー (node では setTimeout、約 60fps)。
     unit.on('update', () => {
         const now = Date.now();
         const dt = (now - lastAt) / 1000;
         lastAt = now;
 
-        for (const player of players.values()) {
-            // input は方向ベクトル { x, y } (各軸 -1 / 0 / +1)。
-            let vx = player.input.x;
-            let vy = player.input.y;
-            // 斜め移動が √2 倍速くならないよう正規化する。
-            if (vx !== 0 && vy !== 0) {
-                const inv = 1 / Math.SQRT2;
-                vx *= inv;
-                vy *= inv;
-            }
-            player.x = clamp(player.x + vx * PLAYER_SPEED * dt, PLAYER_RADIUS, FIELD.w - PLAYER_RADIUS);
-            player.y = clamp(player.y + vy * PLAYER_SPEED * dt, PLAYER_RADIUS, FIELD.h - PLAYER_RADIUS);
-        }
-
         // 配信は BROADCAST_HZ に間引く (60fps のまま送ると帯域の無駄)。
         accMs += dt * 1000;
         if (accMs >= broadcastIntervalMs) {
             accMs -= broadcastIntervalMs;
-            io.emit('state', snapshot());
+            io.emit('state', {
+                players: [...playerUnits.values()].map((player) => player.snapshot()),
+            });
         }
     });
 
-    function snapshot() {
-        return {
-            players: [...players.values()].map((player) => ({
-                id: player.id,
-                name: player.name,
-                color: player.color,
-                // 帯域節約のため整数に丸める (1px 単位で表示には十分)。
-                x: Math.round(player.x),
-                y: Math.round(player.y),
-            })),
-        };
-    }
-
     return {
         join(id, name) {
+            if (playerUnits.has(id)) { return; }
             const cleanName = String(name || '').trim().slice(0, 12) || `guest-${id.slice(0, 4)}`;
-            players.set(id, {
+            // この join は Arena のスコープで実行されるため、xnew(Player) は Arena の子になる。
+            const player = xnew(Player, {
                 id,
                 name: cleanName,
                 color: COLORS[nextColor++ % COLORS.length],
                 x: PLAYER_RADIUS + Math.random() * (FIELD.w - PLAYER_RADIUS * 2),
                 y: PLAYER_RADIUS + Math.random() * (FIELD.h - PLAYER_RADIUS * 2),
-                input: { x: 0, y: 0 },
             });
+            playerUnits.set(id, player);
         },
         leave(id) {
-            players.delete(id);
+            const player = playerUnits.get(id);
+            if (!player) { return; }
+            player.finalize();
+            playerUnits.delete(id);
         },
         input(id, vector) {
-            const player = players.get(id);
-            if (!player) { return; }
+            playerUnits.get(id)?.setInput(vector);
+        },
+    };
+}
+
+//----------------------------------------------------------------------------------------------------
+// Player — 1 プレイヤー分の状態と自己移動を持つ xnew コンポーネント (Arena の子)
+//
+// 自分の input ベクトルに従い 'update' で毎フレーム自分の位置を積分する (サーバー権威の物理)。
+// setInput で入力を受け取り、snapshot で配信用の最小データを返す。Arena からの finalize で破棄。
+//----------------------------------------------------------------------------------------------------
+
+function Player(unit, { id, name, color, x, y }) {
+    let posX = x;
+    let posY = y;
+    let input = { x: 0, y: 0 };
+    let lastAt = Date.now();
+
+    // dt は実時計の差分から求めるので、tick が詰まっても移動速度は変わらない。
+    unit.on('update', () => {
+        const now = Date.now();
+        const dt = (now - lastAt) / 1000;
+        lastAt = now;
+
+        let vx = input.x;
+        let vy = input.y;
+        // 斜め移動が √2 倍速くならないよう正規化する。
+        if (vx !== 0 && vy !== 0) {
+            const inv = 1 / Math.SQRT2;
+            vx *= inv;
+            vy *= inv;
+        }
+        posX = clamp(posX + vx * PLAYER_SPEED * dt, PLAYER_RADIUS, FIELD.w - PLAYER_RADIUS);
+        posY = clamp(posY + vy * PLAYER_SPEED * dt, PLAYER_RADIUS, FIELD.h - PLAYER_RADIUS);
+    });
+
+    return {
+        setInput(vector) {
             // 各軸を -1 / 0 / +1 に丸める (不正値対策)。
-            player.input = {
+            input = {
                 x: Math.sign(Number(vector?.x) || 0),
                 y: Math.sign(Number(vector?.y) || 0),
             };
+        },
+        snapshot() {
+            // 帯域節約のため x/y は整数に丸める (1px 単位で表示には十分)。
+            return { id, name, color, x: Math.round(posX), y: Math.round(posY) };
         },
     };
 }
