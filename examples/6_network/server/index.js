@@ -1,182 +1,26 @@
 //----------------------------------------------------------------------------------------------------
-// 6_network — サーバーエントリ (express + socket.io + xnew)
+// 6_network — サーバーエントリ (cluster の分岐点)
 //
-// シンプルなリアルタイム対戦サンプルの「サーバー権威」側。プレイヤーは 1 つの共有フィールドに
-// 登場し、矢印 / WASD で動く。位置はクライアントが計算せず、サーバーが毎フレーム計算して
-// 一定レートで全員に配信する。同期の考え方 (サーバー権威 + 入力送信 + 状態スナップショット
-// 配信) は ../../../../WebGame/socketio を参考にしている。
+// 単一ポート (:3000) を保ちつつ「ルーム毎に別プロセス」を実現する構成 (docs/v0.1/socket.md の C 案)。
+// このファイルは node cluster の各プロセスで共通に実行され、役割ごとに分岐する:
 //
-// xnew の使い方が肝: ゲームループ (物理計算と配信) を setInterval ではなく xnew の Unit と
-// その 'update' イベントで回している = ブラウザ側とまったく同じ仕組みでサーバーが動く。
+//   - primary        : master.js  — :3000 を listen し、接続をルーム毎ワーカーへ振り分ける
+//   - worker(lobby)   : lobby.js   — 静的配信 + ロビー (ルーム一覧/人数) の socket.io
+//   - worker(room=rX) : room.js    — そのルーム専用の socket.io + xnew ゲームループ
+//
+// クライアントの接続は master が「接続確立時に 1 回だけ」担当ワーカーへソケットハンドルごと渡す。
+// 以降のフレームは各ワーカーが直接やり取りするため、master は毎フレームの中継をしない。
 //----------------------------------------------------------------------------------------------------
 
-import { createServer } from 'node:http';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import express from 'express';
-import { Server as IOServer } from 'socket.io';
+import cluster from 'node:cluster';
 
-// サーバーでも xnew を使う。examples/dist のローカルビルドをそのまま読み込む
-// (5_node-console と同じ流儀。npm 依存にせず monorepo のビルドを直接使う)。
-import xnew from '../../dist/xnew.mjs';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
-
-// ---- フィールド / 物理定数 (サーバーが唯一の真実) ----
-const FIELD = { w: 800, h: 600 };
-const PLAYER_RADIUS = 16;
-const PLAYER_SPEED = 200; // px / sec
-const BROADCAST_HZ = 30;  // 状態スナップショットを配信するレート
-const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#eab308'];
-
-// ---- HTTP + 静的配信 ----
-const app = express();
-app.use(express.static(join(__dirname, '..', 'public')));
-// ブラウザがオフラインでも import できるよう、ローカルの xnew ビルドを /xnew で配信する。
-app.use('/xnew', express.static(join(__dirname, '..', '..', 'dist')));
-// Tailwind (ブラウザ版) もローカル同梱のビルドを /thirdparty で配信する。
-app.use('/thirdparty', express.static(join(__dirname, '..', '..', 'thirdparty')));
-
-const httpServer = createServer(app);
-const io = new IOServer(httpServer);
-
-// xnew がサーバーのゲームループを駆動する。返り値の unit にゲーム操作メソッドが生える。
-const arena = xnew(Arena, { io });
-
-// ---- socket ハンドラ: socket とゲーム状態をつなぐだけの薄い層 ----
-io.on('connection', (socket) => {
-    // 接続直後に自分の id とフィールドサイズを通知。
-    socket.emit('welcome', { id: socket.id, field: FIELD });
-
-    // 名前を決めてフィールドに登場。
-    socket.on('join', ({ name } = {}) => {
-        arena.join(socket.id, name);
-    });
-
-    // 方向ベクトルを受け取り保存するだけ。実際の移動は次の update で行う (= サーバー権威)。
-    socket.on('input', (vector = {}) => {
-        arena.input(socket.id, vector);
-    });
-
-    socket.on('disconnect', () => {
-        arena.leave(socket.id);
-    });
-});
-
-httpServer.listen(PORT, () => {
-    console.log(`[xnew/6_network] listening on http://localhost:${PORT}`);
-    console.log(`[xnew/6_network] field=${FIELD.w}x${FIELD.h} broadcast=${BROADCAST_HZ}Hz`);
-});
-
-//----------------------------------------------------------------------------------------------------
-// Arena — プレイヤーユニットの集合を管理し、状態を配信する xnew コンポーネント
-//
-// 物理計算は各 Player ユニットが自分で行う (下記)。Arena は socketId -> Player ユニットの
-// 対応を持ち、join で子として Player を生成、leave で finalize、input を該当 Player に中継する。
-// 'update' では BROADCAST_HZ に間引いて、全 Player の snapshot をまとめて 'state' 配信する。
-//
-// xnew の更新順は「子 -> 親」なので、1 tick 内で全 Player が動いた後に Arena が配信する
-// (= 配信内容は常に最新位置)。
-//----------------------------------------------------------------------------------------------------
-
-function Arena(unit, { io }) {
-    // socketId -> Player ユニット
-    const playerUnits = new Map();
-    let nextColor = 0;
-
-    let lastAt = Date.now();
-    let accMs = 0;
-    const broadcastIntervalMs = 1000 / BROADCAST_HZ;
-
-    // 配信のみ Arena が担当。'update' は xnew のルートティッカー (node では setTimeout、約 60fps)。
-    unit.on('update', () => {
-        const now = Date.now();
-        const dt = (now - lastAt) / 1000;
-        lastAt = now;
-
-        // 配信は BROADCAST_HZ に間引く (60fps のまま送ると帯域の無駄)。
-        accMs += dt * 1000;
-        if (accMs >= broadcastIntervalMs) {
-            accMs -= broadcastIntervalMs;
-            io.emit('state', {
-                players: [...playerUnits.values()].map((player) => player.snapshot()),
-            });
-        }
-    });
-
-    return {
-        join(id, name) {
-            if (playerUnits.has(id)) { return; }
-            const cleanName = String(name || '').trim().slice(0, 12) || `guest-${id.slice(0, 4)}`;
-            // この join は Arena のスコープで実行されるため、xnew(Player) は Arena の子になる。
-            const player = xnew(Player, {
-                id,
-                name: cleanName,
-                color: COLORS[nextColor++ % COLORS.length],
-                x: PLAYER_RADIUS + Math.random() * (FIELD.w - PLAYER_RADIUS * 2),
-                y: PLAYER_RADIUS + Math.random() * (FIELD.h - PLAYER_RADIUS * 2),
-            });
-            playerUnits.set(id, player);
-        },
-        leave(id) {
-            const player = playerUnits.get(id);
-            if (!player) { return; }
-            player.finalize();
-            playerUnits.delete(id);
-        },
-        input(id, vector) {
-            playerUnits.get(id)?.setInput(vector);
-        },
-    };
-}
-
-//----------------------------------------------------------------------------------------------------
-// Player — 1 プレイヤー分の状態と自己移動を持つ xnew コンポーネント (Arena の子)
-//
-// 自分の input ベクトルに従い 'update' で毎フレーム自分の位置を積分する (サーバー権威の物理)。
-// setInput で入力を受け取り、snapshot で配信用の最小データを返す。Arena からの finalize で破棄。
-//----------------------------------------------------------------------------------------------------
-
-function Player(unit, { id, name, color, x, y }) {
-    let posX = x;
-    let posY = y;
-    let input = { x: 0, y: 0 };
-    let lastAt = Date.now();
-
-    // dt は実時計の差分から求めるので、tick が詰まっても移動速度は変わらない。
-    unit.on('update', () => {
-        const now = Date.now();
-        const dt = (now - lastAt) / 1000;
-        lastAt = now;
-
-        let vx = input.x;
-        let vy = input.y;
-        // 斜め移動が √2 倍速くならないよう正規化する。
-        if (vx !== 0 && vy !== 0) {
-            const inv = 1 / Math.SQRT2;
-            vx *= inv;
-            vy *= inv;
-        }
-        posX = clamp(posX + vx * PLAYER_SPEED * dt, PLAYER_RADIUS, FIELD.w - PLAYER_RADIUS);
-        posY = clamp(posY + vy * PLAYER_SPEED * dt, PLAYER_RADIUS, FIELD.h - PLAYER_RADIUS);
-    });
-
-    return {
-        setInput(vector) {
-            // 各軸を -1 / 0 / +1 に丸める (不正値対策)。
-            input = {
-                x: Math.sign(Number(vector?.x) || 0),
-                y: Math.sign(Number(vector?.y) || 0),
-            };
-        },
-        snapshot() {
-            // 帯域節約のため x/y は整数に丸める (1px 単位で表示には十分)。
-            return { id, name, color, x: Math.round(posX), y: Math.round(posY) };
-        },
-    };
-}
-
-function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+if (cluster.isPrimary) {
+    const { startMaster } = await import('./master.js');
+    startMaster();
+} else if (process.env.ROLE === 'lobby') {
+    const { startLobby } = await import('./lobby.js');
+    startLobby();
+} else {
+    const { startRoom } = await import('./room.js');
+    startRoom(process.env.ROOM_ID);
 }

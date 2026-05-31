@@ -2,13 +2,14 @@
   "name": "xnew-example-6-network",
   "version": "0.1.0",
   "private": true,
-  "description": "xnew network game sample (server-authoritative 2D movement sync over socket.io). Run: npm install && npm start, then open http://localhost:3000",
+  "description": "xnew network game sample (server-authoritative 2D movement sync over socket.io; lobby + room-per-process via cluster). Run: npm install && npm start, then open http://localhost:3000",
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js"
   },
   "dependencies": {
+    "@socket.io/sticky": "^1.0.4",
     "express": "^4.21.2",
     "socket.io": "^4.8.1"
   }
