@@ -8,8 +8,8 @@
 // listen はしない (接続は master から io.httpServer へ注入される)。人数が変わるたび master 経由で
 // lobby へ 'room:count' を通知する (フレーム毎ではない低頻度の制御通信)。
 //
-// - startRoom(roomId) : socket.io + Arena を起動し、setupWorker で接続を受け取る
-// - Arena / Player    : サーバー権威のゲーム状態 (xnew コンポーネント)
+// - startRoom(roomId, roomName) : socket.io + Arena を起動し、setupWorker で接続を受け取る
+// - Arena / Player              : サーバー権威のゲーム状態 (xnew コンポーネント)
 //----------------------------------------------------------------------------------------------------
 
 import { createServer } from 'node:http';
@@ -20,7 +20,7 @@ import { FIELD, PLAYER_RADIUS, PLAYER_SPEED, BROADCAST_HZ, COLORS, clamp } from 
 
 const { setupWorker } = sticky;
 
-export function startRoom(roomId) {
+export function startRoom(roomId, roomName) {
     const httpServer = createServer();
     const io = new IOServer(httpServer);
     setupWorker(io); // master からのソケットハンドルを受け取る (listen はしない)
@@ -29,7 +29,7 @@ export function startRoom(roomId) {
     const arena = xnew(Arena, { broadcast: (players) => io.emit('state', { players }) });
 
     io.on('connection', (socket) => {
-        socket.emit('welcome', { id: socket.id, field: FIELD, roomId, pid: process.pid });
+        socket.emit('welcome', { id: socket.id, field: FIELD, roomId, roomName, pid: process.pid });
 
         socket.on('join', ({ name } = {}) => {
             arena.join(socket.id, name);
@@ -47,7 +47,9 @@ export function startRoom(roomId) {
         process.send?.({ type: 'room:count', roomId, count: arena.count() });
     }
 
-    console.log(`[xnew/6_network] room worker '${roomId}' ready (pid=${process.pid})`);
+    // 起動完了を master へ通知 (master はこれを見てから一覧掲載/作成者へ通知する)。
+    process.send?.({ type: 'room:ready', roomId });
+    console.log(`[xnew/6_network] room worker '${roomId}' (${roomName}) ready (pid=${process.pid})`);
 }
 
 //----------------------------------------------------------------------------------------------------

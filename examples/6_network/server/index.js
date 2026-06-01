@@ -22,5 +22,5 @@ if (cluster.isPrimary) {
     startLobby();
 } else {
     const { startRoom } = await import('./room.js');
-    startRoom(process.env.ROOM_ID);
+    startRoom(process.env.ROOM_ID, process.env.ROOM_NAME);
 }

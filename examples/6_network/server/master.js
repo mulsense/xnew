@@ -1,29 +1,36 @@
 //----------------------------------------------------------------------------------------------------
-// 6_network — master (プライマリ): 単一ポート + 接続のルーム振り分け
+// 6_network — master (プライマリ): 単一ポート + 接続のルーム振り分け + ルームの動的管理
 //
-// :3000 を listen するのはこのプロセスだけ。起動時に lobby ワーカー 1 つと room ワーカー
-// (ROOMS 分) を fork し、受け付けた TCP 接続を「最初の HTTP チャンクの ?room=」を見て担当
-// ワーカーへ OS ソケットハンドルごと渡す (worker.send(msg, socket))。渡した後はワーカーが
-// クライアントと直接やり取りするので、master はフレーム毎の中継をしない。
+// :3000 を listen するのはこのプロセスだけ。起動時は lobby ワーカーのみ fork し、ルームは 0。
+// ロビーからの 'room:create' で room ワーカーを動的に fork し、空室 (人数 0) になったらその
+// プロセスを破棄する。ルーム台帳 (id/name/人数/担当ワーカー) の正本は master が持ち、変化の
+// たびに lobby ワーカーへ一覧を push する。
 //
-// 受け取り側 (ワーカー) は @socket.io/sticky の setupWorker が処理する。master 側の振り分けは
-// sid 単位ではなく room 単位にしたいため、setupMaster は使わず最小限を自前実装している。
+// 接続は確立時に 1 回だけ「最初の HTTP チャンクの ?room=」を見て担当ワーカーへソケットハンドル
+// ごと委譲する。以降のフレームは master を通らない (フレーム中継なし)。受け取り側は
+// @socket.io/sticky の setupWorker。room 単位の振り分けだけ master 側で自前実装している。
 //
-// - startMaster() : ワーカー fork + ルーティング + 異常終了時の再 fork を起動
+// - startMaster() : lobby fork + ルーティング + ルームの作成/破棄/再 fork を起動
 //----------------------------------------------------------------------------------------------------
 
 import cluster from 'node:cluster';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { ROOMS } from './shared.js';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const randomId = () => randomBytes(8).toString('hex');
 
+const ROOM_NAME_MAX = 16;
+const MAX_ROOMS = 16;          // fork 暴走の安全弁
+const ROOM_GRACE_MS = 30000;   // 作成後この時間 join が無ければ空き部屋を破棄
+
 export function startMaster() {
-    // workerId -> { role, roomId }  (異常終了時に同じ役割で再 fork するため)
+    // roomId -> { id, name, workerId, count, ready, reqId, graceTimer }
+    const rooms = new Map();
+    let nextRoomNum = 0;
+
+    // workerId -> { role, roomId }  (異常終了時の判定用)
     const meta = new Map();
-    const roomToWorkerId = new Map();
     let lobbyWorkerId = null;
 
     const forkLobby = () => {
@@ -31,29 +38,60 @@ export function startMaster() {
         meta.set(worker.id, { role: 'lobby' });
         lobbyWorkerId = worker.id;
     };
-    const forkRoom = (roomId) => {
-        const worker = cluster.fork({ ROLE: 'room', ROOM_ID: roomId });
-        meta.set(worker.id, { role: 'room', roomId });
-        roomToWorkerId.set(roomId, worker.id);
+    forkLobby();
+
+    const sendToLobby = (msg) => cluster.workers[lobbyWorkerId]?.send(msg);
+    // 一覧に載せるのは ready (起動完了) なルームだけ。
+    const roomList = () => [...rooms.values()]
+        .filter((r) => r.ready)
+        .map((r) => ({ id: r.id, name: r.name, memberCount: r.count }));
+    const pushRooms = () => sendToLobby({ type: 'rooms', rooms: roomList() });
+
+    const createRoom = (rawName, reqId) => {
+        if (rooms.size >= MAX_ROOMS) {
+            sendToLobby({ type: 'room:error', reqId, message: 'ルーム数が上限に達しています' });
+            return;
+        }
+        const id = `r${++nextRoomNum}`;
+        const name = String(rawName || '').trim().slice(0, ROOM_NAME_MAX) || `ルーム ${nextRoomNum}`;
+        const worker = cluster.fork({ ROLE: 'room', ROOM_ID: id, ROOM_NAME: name });
+        meta.set(worker.id, { role: 'room', roomId: id });
+        // 作成者が来ない空き部屋を掃除するためのタイマー (join が来たら解除)。
+        const graceTimer = setTimeout(() => {
+            if (rooms.get(id)?.count === 0) { removeRoom(id); }
+        }, ROOM_GRACE_MS);
+        rooms.set(id, { id, name, workerId: worker.id, count: 0, ready: false, reqId, graceTimer });
     };
 
-    forkLobby();
-    for (const room of ROOMS) {
-        forkRoom(room.id);
-    }
+    const removeRoom = (roomId) => {
+        const room = rooms.get(roomId);
+        if (!room) { return; }
+        clearTimeout(room.graceTimer);
+        rooms.delete(roomId);
+        cluster.workers[room.workerId]?.kill();
+        pushRooms();
+    };
 
-    // ワーカーが落ちたら同じ役割で再 fork (簡易リスポーン)。
+    // ワーカー終了時。lobby は再 fork、room は (クラッシュなら) 台帳から除去。
     cluster.on('exit', (worker) => {
         const m = meta.get(worker.id);
         meta.delete(worker.id);
         if (!m) { return; }
-        console.warn(`[master] worker exited (role=${m.role} room=${m.roomId ?? '-'}). respawning...`);
-        if (m.role === 'lobby') { forkLobby(); }
-        else { forkRoom(m.roomId); }
+        if (m.role === 'lobby') {
+            console.warn('[master] lobby worker exited. respawning...');
+            forkLobby();
+        } else {
+            const room = rooms.get(m.roomId);
+            if (room && room.workerId === worker.id) {
+                clearTimeout(room.graceTimer);
+                rooms.delete(m.roomId);
+                pushRooms();
+            }
+        }
     });
 
     // ---- 接続ルーティング (room 単位) ----
-    const sidToWorker = new Map();           // socket.io の再接続を同じワーカーへ寄せる保険
+    const sidToWorker = new Map();
     const sidRegex = /sid=([\w-]{20})/;
     const roomRegex = /[?&]room=([\w-]+)/;
 
@@ -65,7 +103,7 @@ export function startMaster() {
         }
         const room = roomRegex.exec(data);
         if (room) {
-            const workerId = roomToWorkerId.get(room[1]);
+            const workerId = rooms.get(room[1])?.workerId;
             if (workerId && cluster.workers[workerId]) { return workerId; }
         }
         // room 指定なし (静的配信 / ロビー socket) は lobby ワーカーへ。
@@ -81,7 +119,6 @@ export function startMaster() {
         socket.on('data', (buffer) => {
             const data = buffer.toString();
 
-            // 既に振り分け済みで、複数チャンクを引き継ぐ接続なら後続チャンクを転送。
             if (workerId && connectionId) {
                 cluster.workers[workerId]?.send({ type: 'sticky:http-chunk', data, connectionId });
                 return;
@@ -94,7 +131,6 @@ export function startMaster() {
 
             const target = cluster.workers[workerId];
             if (!target) { socket.destroy(); return; }
-            // ソケットハンドルごとワーカーへ委譲。keepOpen=false なら master からは切り離される。
             target.send(
                 { type: 'sticky:connection', data, connectionId },
                 socket,
@@ -104,23 +140,48 @@ export function startMaster() {
         });
     });
 
-    // HTTP ボディの終端を正しく検出させるため (sticky と同じおまじない)。
     httpServer.on('request', (req) => { req.on('data', () => {}); });
 
-    // ワーカー -> master のメッセージ。sid マップ更新と、人数のロビーへの中継。
     cluster.on('message', (worker, msg) => {
         if (!msg || typeof msg !== 'object') { return; }
-        if (msg.type === 'sticky:connection') {
-            sidToWorker.set(msg.data, worker.id);
-        } else if (msg.type === 'sticky:disconnection') {
-            sidToWorker.delete(msg.data);
-        } else if (msg.type === 'room:count') {
-            cluster.workers[lobbyWorkerId]?.send({ type: 'room:count', roomId: msg.roomId, count: msg.count });
+        switch (msg.type) {
+            case 'sticky:connection':
+                sidToWorker.set(msg.data, worker.id);
+                break;
+            case 'sticky:disconnection':
+                sidToWorker.delete(msg.data);
+                break;
+            case 'room:create':
+                createRoom(msg.name, msg.reqId);
+                break;
+            case 'room:ready': {
+                // room ワーカーの起動完了。ここで初めて一覧に載せ、作成者へ通知する
+                // (= クライアントが接続するときには必ずワーカーが受け入れ可能)。
+                const room = rooms.get(msg.roomId);
+                if (!room) { break; }
+                room.ready = true;
+                sendToLobby({ type: 'room:created', reqId: room.reqId, room: { id: room.id, name: room.name } });
+                pushRooms();
+                break;
+            }
+            case 'room:count': {
+                const room = rooms.get(msg.roomId);
+                if (!room) { break; }
+                room.count = msg.count;
+                if (msg.count > 0) {
+                    clearTimeout(room.graceTimer);
+                    pushRooms();
+                } else {
+                    // 空室になったらプロセスごと破棄。
+                    removeRoom(msg.roomId);
+                }
+                break;
+            }
         }
     });
 
     httpServer.listen(PORT, () => {
         console.log(`[xnew/6_network] master listening on http://localhost:${PORT} (pid=${process.pid})`);
-        console.log(`[xnew/6_network] rooms=[${ROOMS.map((r) => r.id).join(', ')}] — each room runs in its own process`);
+        console.log('[xnew/6_network] no rooms yet — create one from the lobby (each room runs in its own process)');
     });
 }

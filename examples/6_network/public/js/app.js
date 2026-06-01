@@ -36,16 +36,18 @@ function App(unit) {
         players: [],
     };
 
-    lobbySocket.on('connect', () => {
-        statusEl.classList.remove('text-red-400');
-        statusEl.classList.add('text-emerald-400');
-        statusEl.textContent = 'ロビー接続済み';
-    });
-    lobbySocket.on('disconnect', () => {
-        statusEl.classList.remove('text-emerald-400');
-        statusEl.classList.add('text-red-400');
-        statusEl.textContent = '切断されました';
-    });
+    const setStatus = (text, ok) => {
+        statusEl.textContent = text;
+        statusEl.classList.toggle('text-emerald-400', ok);
+        statusEl.classList.toggle('text-red-400', !ok);
+    };
+    // すでに接続済みなら即反映 (connect イベントを取り逃すケースの保険)。
+    if (lobbySocket.connected) { setStatus('ロビー接続済み', true); }
+
+    lobbySocket.on('connect', () => setStatus('ロビー接続済み', true));
+    lobbySocket.on('disconnect', () => setStatus('切断されました', false));
+    // 接続できない理由を画面に出す (websocket がプロキシ等で弾かれている場合など)。
+    lobbySocket.on('connect_error', (err) => setStatus(`接続エラー: ${err.message}`, false));
 
     xnew(JoinScene, { state });
 }
@@ -78,7 +80,10 @@ function JoinScene(unit, { state }) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// LobbyScene — ルーム選択 (Scene 継承)。lobby:rooms を購読して一覧を描き、選択で GameScene へ。
+// LobbyScene — ルーム作成 / 選択 (Scene 継承)
+//
+// ルームは動的。デフォルトは 0 個で、誰かが作成すると lobby:rooms で全員に一覧が届く。
+// 作成すると room:created で自分の入るべき roomId が返るので、そのまま GameScene へ遷移する。
 //----------------------------------------------------------------------------------------------------
 
 function LobbyScene(unit, { state }) {
@@ -89,26 +94,46 @@ function LobbyScene(unit, { state }) {
 
     const wrap = xnew.nest('<div class="absolute inset-0 flex items-center justify-center p-4">');
     wrap.innerHTML = `
-        <div class="w-full max-w-md flex flex-col gap-3">
-            <h2 class="m-0 text-xl font-semibold text-center">ルームを選択 (<span class="who"></span>)</h2>
+        <div class="w-full max-w-md flex flex-col gap-4">
+            <h2 class="m-0 text-xl font-semibold text-center">ロビー (<span class="who"></span>)</h2>
+            <form class="create flex gap-2">
+                <input class="cname flex-1 px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="16" placeholder="新しいルーム名" />
+                <button class="px-3 py-2 rounded-md border-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm cursor-pointer" type="submit">作成</button>
+            </form>
             <ul class="rooms flex flex-col gap-2"></ul>
-            <p class="m-0 text-xs text-slate-500 text-center">各ルームは別プロセスで動いています</p>
+            <p class="hint m-0 text-xs text-slate-500 text-center">各ルームは別プロセスで動いています</p>
         </div>`;
     wrap.querySelector('.who').textContent = state.name;
     const listEl = wrap.querySelector('.rooms');
+    const hintEl = wrap.querySelector('.hint');
+    const createForm = wrap.querySelector('.create');
+    const cnameInput = wrap.querySelector('.cname');
 
     function render() {
         listEl.innerHTML = '';
+        if (state.rooms.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'text-center text-slate-500 text-sm py-4';
+            li.textContent = 'まだルームがありません。上から作成してください。';
+            listEl.appendChild(li);
+            return;
+        }
         for (const room of state.rooms) {
             const li = document.createElement('li');
             li.className = 'flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg';
 
             const label = document.createElement('div');
-            label.innerHTML = `<span class="font-medium">${room.name}</span> <span class="text-xs text-slate-400">(${room.memberCount}人)</span>`;
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'font-medium';
+            nameSpan.textContent = room.name;            // textContent = ユーザー入力名を安全に表示
+            const countSpan = document.createElement('span');
+            countSpan.className = 'text-xs text-slate-400 ml-2';
+            countSpan.textContent = `(${room.memberCount}人)`;
+            label.append(nameSpan, countSpan);
 
             const btn = document.createElement('button');
             btn.className = 'px-3 py-1.5 rounded-md border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer';
-            btn.textContent = '参加';
+            btn.textContent = '入室';
             btn.addEventListener('click', () => unit.change(GameScene, { state, roomId: room.id }));
 
             li.append(label, btn);
@@ -117,8 +142,24 @@ function LobbyScene(unit, { state }) {
     }
 
     const onRooms = ({ rooms }) => { state.rooms = rooms; render(); };
+    const onCreated = ({ roomId }) => unit.change(GameScene, { state, roomId });
+    const onError = ({ message }) => { hintEl.textContent = message; };
     lobbySocket.on('lobby:rooms', onRooms);
-    unit.on('finalize', () => lobbySocket.off('lobby:rooms', onRooms));
+    lobbySocket.on('room:created', onCreated);
+    lobbySocket.on('room:error', onError);
+    unit.on('finalize', () => {
+        lobbySocket.off('lobby:rooms', onRooms);
+        lobbySocket.off('room:created', onCreated);
+        lobbySocket.off('room:error', onError);
+    });
+
+    createForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const name = cnameInput.value.trim();
+        if (!name) { return; }
+        lobbySocket.emit('room:create', { name });
+        cnameInput.value = '';
+    });
 
     lobbySocket.emit('lobby:enter');
     render(); // 既に state.rooms があれば即描画
@@ -141,12 +182,12 @@ function GameScene(unit, { state, roomId }) {
     // forceNew: lobbySocket とは別の物理接続にする。
     const gameSocket = io({ query: { room: roomId }, transports: ['websocket'], forceNew: true });
 
-    gameSocket.on('welcome', ({ id, field, roomId: rid, pid }) => {
+    gameSocket.on('welcome', ({ id, field, roomId: rid, roomName, pid }) => {
         state.selfId = id;
         state.field = field;
         state.roomId = rid;
         state.pid = pid;
-        statusEl.textContent = `room ${rid} · pid ${pid}`;
+        statusEl.textContent = `${roomName || rid} · pid ${pid}`;
         gameSocket.emit('join', { name: state.name });
     });
     gameSocket.on('state', (snapshot) => { state.players = snapshot.players; });

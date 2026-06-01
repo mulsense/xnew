@@ -1,9 +1,9 @@
 //----------------------------------------------------------------------------------------------------
-// 6_network — lobby ワーカー: 静的配信 + ロビー (ルーム一覧/人数) の socket.io
+// 6_network — lobby ワーカー: 静的配信 + ロビー (ルーム一覧/作成) の socket.io
 //
 // master からハンドオフされた「room 指定なし」の接続を担当する。静的ファイル (public / xnew /
-// thirdparty) と、ロビー用 socket.io を提供する。各ルームの人数は room ワーカーから master 経由で
-// 届く 'room:count' を集計し、'lobby:rooms' でロビーのクライアントへ配信する。
+// thirdparty) と、ロビー用 socket.io を提供する。ルーム台帳は master が持つので、ここはその最新
+// 一覧 (master から届く 'rooms') をミラーして配信し、作成要求 (room:create) を master へ中継する。
 //
 // listen はしない (接続は master から io.httpServer へ注入される)。
 //
@@ -16,7 +16,6 @@ import { dirname, join } from 'node:path';
 import express from 'express';
 import { Server as IOServer } from 'socket.io';
 import sticky from '@socket.io/sticky';
-import { ROOMS } from './shared.js';
 
 const { setupWorker } = sticky;
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -31,21 +30,28 @@ export function startLobby() {
     const io = new IOServer(httpServer);
     setupWorker(io); // master からのソケットハンドルを受け取る (listen はしない)
 
-    // roomId -> 人数。room ワーカーからの通知で更新する。
-    const counts = new Map(ROOMS.map((r) => [r.id, 0]));
-    const roomList = () => ROOMS.map((r) => ({ id: r.id, name: r.name, memberCount: counts.get(r.id) || 0 }));
+    let rooms = []; // master から届く最新のルーム一覧 [{id,name,memberCount}]
 
-    // master 経由で各ルームの人数更新を受け取り、ロビー全員へ反映。
     process.on('message', (msg) => {
-        if (msg && msg.type === 'room:count') {
-            counts.set(msg.roomId, msg.count);
-            io.emit('lobby:rooms', { rooms: roomList() });
+        if (!msg || typeof msg !== 'object') { return; }
+        if (msg.type === 'rooms') {
+            rooms = msg.rooms;
+            io.emit('lobby:rooms', { rooms });
+        } else if (msg.type === 'room:created') {
+            // 作成を要求した socket にだけ、入るべきルーム id を返す。
+            io.to(msg.reqId).emit('room:created', { roomId: msg.room.id });
+        } else if (msg.type === 'room:error') {
+            io.to(msg.reqId).emit('room:error', { message: msg.message });
         }
     });
 
     io.on('connection', (socket) => {
-        socket.emit('lobby:rooms', { rooms: roomList() });
-        socket.on('lobby:enter', () => socket.emit('lobby:rooms', { rooms: roomList() }));
+        socket.emit('lobby:rooms', { rooms });
+        socket.on('lobby:enter', () => socket.emit('lobby:rooms', { rooms }));
+        // ルーム作成は master だけが fork できるので中継する (reqId = 返信先 socket)。
+        socket.on('room:create', ({ name } = {}) => {
+            process.send?.({ type: 'room:create', name, reqId: socket.id });
+        });
     });
 
     console.log(`[xnew/6_network] lobby worker ready (pid=${process.pid})`);
