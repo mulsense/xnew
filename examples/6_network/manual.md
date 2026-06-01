@@ -1,31 +1,29 @@
 # 6_network — 使い方メモ
 
-xnew + socket.io のリアルタイム対戦サンプル。サーバー権威モデルで、**ロビーで選んだルーム毎に別プロセス**がゲームを処理する。仕組みの詳しい解説は [system.md](system.md) を参照。
+xnew + socket.io のリアルタイム対戦サンプル。サーバー権威モデルで、**1 つの Node プロセス**が
+socket.io の room 機能で複数の「論理ルーム」を捌く。仕組みの詳しい解説は [system.md](system.md) を参照。
 
 ## できること
 
 - 名前入力 → ロビーで **ルームを作成**（名前を指定）。デフォルトはルーム 0 個
 - 誰かが作ったルームはロビー一覧に表示され、**入室**できる
 - フィールド上の自キャラを矢印キー / WASD で移動（位置はサーバーが計算して全員へ配信）
-- ルーム毎に独立したプロセスでゲームが動く（作成時に fork、空室になるとプロセス破棄。別ルームは互いに見えない）
+- ルームは動的（作成で増え、空室になると破棄。別ルームは互いに見えない）
 
 ## 起動
 
 ```bash
 cd packages/xnew/examples/6_network
-npm install      # 初回のみ（express / socket.io / @socket.io/sticky）
+npm install      # 初回のみ（express / socket.io）
 npm start        # http://localhost:3000
 # 開発中は npm run dev（--watch でファイル変更時に自動再起動）
 ```
 
-起動直後はルームが無いので **master + lobby の 2 プロセス**。ルームを作るとその都度プロセスが増える:
+起動ログ:
 
 ```
-master listening on http://localhost:3000 (pid=...)
-no rooms yet — create one from the lobby (each room runs in its own process)
-lobby worker ready (pid=...)
-# ↓ ロビーでルームを作成すると
-room worker 'r1' (マイルーム) ready (pid=...)
+[xnew/6_network] listening on http://localhost:3000
+[xnew/6_network] single process, logical rooms (broadcast=30Hz)
 ```
 
 > サーバー側（`server/**`）を変更したら **再起動が必要**（静的ファイル `public/**` はリロードのみで反映）。
@@ -45,26 +43,21 @@ room worker 'r1' (マイルーム) ready (pid=...)
 ## 確認ポイント
 
 - **同期**: 一方を動かすと、もう一方の画面でも同じ位置に動く（自分の位置はクライアントで計算しない）
-- **ルーム = 別プロセス**: 右上 status の `ルーム名 · pid N`。同じルームの 2 窓は **同じ pid**、別ルームなら **別 pid**
-- **ルーム分離**: 別々のルームに入ると互いに見えない。ロビーの各ルームに人数 `(n人)` が表示され、参加/退出で増減
-- **動的なプロセス**: ルーム作成でプロセスが増え、全員退出で消える
-
-プロセスを目視したい場合（別ターミナル）。ルーム作成/退出に合わせて行数が増減する:
-
-```bash
-pgrep -fl "examples/6_network/server/index.js"   # 起動直後は master + lobby、ルームを作ると増える
-```
+- **ルーム分離**: 別々のルームに入ると互いに見えない（配信はそのルームの socket.io ルームにだけ）
+- **動的なルーム**: ロビーの各ルームに人数 `(n人)` が表示され、参加/退出で増減。全員退出でルームは消える
 
 ## 構成
 
 ```
 6_network/
 ├── server/
-│   ├── index.js   # cluster の分岐点（primary→master / worker→lobby or room）
-│   ├── master.js  # :3000 を listen。接続を ?room= で振り分け + ルームの動的 fork/破棄
-│   ├── lobby.js   # 静的配信 + ロビー（ルーム一覧/作成）の socket.io
-│   ├── room.js    # ルーム専用 socket.io + xnew（Arena/Player）
-│   └── shared.js  # 共通定数
+│   ├── index.js      # express(静的配信) + socket.io + ロビー/ゲームの配線
+│   ├── config.js     # ネット足回りの設定 (PORT / BROADCAST_HZ / 上限・grace)
+│   ├── registry.js   # ルーム台帳 (roomId→Room) と変化通知
+│   ├── room.js       # Room: 参加管理・ループ駆動(xnew)・配信。ゲームは plugin に委譲
+│   └── games/        # ★ゲームプラグイン (ファイルを足すだけで増やせる)
+│       ├── index.js  #   *.js を動的読込 → gameType レジストリ
+│       └── metaverse.js  # 最初のプラグイン: アバター移動
 └── public/
     ├── index.html # Tailwind(ブラウザ版) + importmap(xnew)
     ├── js/app.js  # xnew シーン: JoinScene → LobbyScene → GameScene
@@ -73,11 +66,12 @@ pgrep -fl "examples/6_network/server/index.js"   # 起動直後は master + lobb
 
 ### 仕組みの要点
 
-- **単一ポート**: 受けるのは master だけ。master は接続確立時に 1 回だけ、ソケットハンドルごと担当ワーカーへ委譲し、以降のフレームには関与しない（フレーム中継なし）。
-- **ルームは動的**: 作成要求で master が room ワーカーを fork、空室（人数 0）でそのプロセスを破棄。ルーム台帳の正本は master が持ち、変化のたび lobby へ一覧を push する。
-- **接続は 2 本**（同一ポート）: `lobbySocket`（room 無し→lobby ワーカー）/ `gameSocket`（`query.room` 付き→該当ルームワーカー、`forceNew`）。
-- **ゲームロジックは xnew**: room ワーカー内の `Arena` 配下に `Player` を動的ユニットとして追加。各 Player が自分の `update` で移動し、`Arena` が `BROADCAST_HZ`(30Hz) で `state` を配信。
-- ルーム人数は room ワーカー → master → lobby ワーカーへ低頻度で通知（フレーム毎ではない）。
+- **単一プロセス**: express の静的配信と socket.io が同じプロセス・同じポート(:3000)。
+- **論理ルーム**: ルームは socket.io の room。ゲーム接続は `socket.join(roomId)` でそのルームに入り、配信は `io.to(roomId).emit('state', …)` でそのルームだけに届く。
+- **プラグイン方式**: ゲーム固有ロジックは `games/*.js` に分離（契約: `id`/`name`/`create()` → `onJoin/onLeave/onInput/update/snapshot/welcome`）。ネット層（`room.js`/`registry.js`/`index.js`）はゲーム非依存。ゲームを増やす＝`games/` にファイルを足すだけ。
+- **ループは xnew**: `room.js` の `RoomLoop` が xnew の `update` で各ルームを駆動し、`BROADCAST_HZ`(30Hz) で `state` を配信。プラグイン自体はフレームワーク非依存。
+- **ルームは動的**: `room:create` で台帳に追加（その都度プラグインの `create()` を生成）、空室になったら破棄。
+- ルーム人数 = そのルームに参加中のプレイヤー数。
 
 ## プロトコル
 
@@ -88,7 +82,7 @@ pgrep -fl "examples/6_network/server/index.js"   # 起動直後は master + lobb
 | S→C(lobby) | `lobby:rooms` | `{rooms:[{id,name,memberCount}]}` | ルーム一覧/人数 |
 | S→C(lobby) | `room:created` | `{roomId}` | 作成者へ、入るべきルーム id |
 | S→C(lobby) | `room:error` | `{message}` | 作成失敗（上限超過など） |
-| S→C(room) | `welcome` | `{id, field, roomId, roomName, pid}` | 自分の id・フィールド・担当プロセス |
+| S→C(room) | `welcome` | `{id, field, roomId, roomName}` | 自分の id・フィールド・ルーム |
 | C→S(room) | `join` | `{name}` | フィールドに参加 |
 | C→S(room) | `input` | `{x, y}` | 方向ベクトル（各軸 -1/0/+1） |
 | S→C(room) | `state` | `{players:[{id,name,color,x,y}]}` | 位置スナップショット（30Hz） |

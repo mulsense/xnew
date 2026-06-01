@@ -5,14 +5,14 @@
 //   JoinScene(名前) → LobbyScene(ルーム選択) → GameScene(プレイ)。
 //
 // 接続は 2 本:
-//   - lobbySocket : room クエリ無し → master が lobby ワーカーへ振り分け (ルーム一覧/人数)
-//   - gameSocket  : query{room} 付き → master が該当ルームワーカーへ振り分け (プレイ)
-// どちらも同一ポート(:3000)。ルームを変えると gameSocket を張り直して別プロセスに着地する。
+//   - lobbySocket : room クエリ無し → サーバーはロビー扱い (ルーム一覧/作成)
+//   - gameSocket  : query{room} 付き → サーバーはそのルームへ join させる (プレイ)
+// どちらも同一ポート(:3000)。ルームを変えると gameSocket を張り直す。
 //----------------------------------------------------------------------------------------------------
 
 import xnew from '@mulsense/xnew';
 
-// ロビー用接続。room を付けないので lobby ワーカーへ振り分けられる。
+// ロビー用接続。room を付けないのでサーバーはロビー接続として扱う。
 const lobbySocket = io({ transports: ['websocket'] });
 
 xnew(document.querySelector('#app'), App);
@@ -32,7 +32,6 @@ function App(unit) {
         selfId: null,
         field: { w: 800, h: 600 },
         roomId: null,
-        pid: null,
         players: [],
     };
 
@@ -101,7 +100,7 @@ function LobbyScene(unit, { state }) {
                 <button class="px-3 py-2 rounded-md border-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm cursor-pointer" type="submit">作成</button>
             </form>
             <ul class="rooms flex flex-col gap-2"></ul>
-            <p class="hint m-0 text-xs text-slate-500 text-center">各ルームは別プロセスで動いています</p>
+            <p class="hint m-0 text-xs text-slate-500 text-center">ルームを作成 / 入室してアバターを動かそう</p>
         </div>`;
     wrap.querySelector('.who').textContent = state.name;
     const listEl = wrap.querySelector('.rooms');
@@ -169,7 +168,7 @@ function LobbyScene(unit, { state }) {
 // GameScene — canvas 描画 + 入力送信 (Scene 継承)
 //
 // 選んだルーム専用の接続 (gameSocket) を張り、welcome 後に join。離脱(ロビーに戻る/finalize)で
-// gameSocket を閉じる。ルーム毎にプロセスが違うことを示すため、status に room と pid を表示する。
+// gameSocket を閉じる。status には入室中のルーム名を表示する。
 //----------------------------------------------------------------------------------------------------
 
 function GameScene(unit, { state, roomId }) {
@@ -178,19 +177,20 @@ function GameScene(unit, { state, roomId }) {
     const PLAYER_RADIUS = 16;
     const statusEl = document.getElementById('status');
 
-    // ゲーム用接続。query.room で master が該当ルームワーカーへ振り分ける。
+    // ゲーム用接続。query.room でサーバーはそのルームへ join させる。
     // forceNew: lobbySocket とは別の物理接続にする。
     const gameSocket = io({ query: { room: roomId }, transports: ['websocket'], forceNew: true });
 
-    gameSocket.on('welcome', ({ id, field, roomId: rid, roomName, pid }) => {
+    gameSocket.on('welcome', ({ id, field, roomId: rid, roomName }) => {
         state.selfId = id;
         state.field = field;
         state.roomId = rid;
-        state.pid = pid;
-        statusEl.textContent = `${roomName || rid} · pid ${pid}`;
+        statusEl.textContent = roomName || rid;
         gameSocket.emit('join', { name: state.name });
     });
     gameSocket.on('state', (snapshot) => { state.players = snapshot.players; });
+    // ルームが既に無い場合はロビーへ戻す。
+    gameSocket.on('room:notfound', () => unit.change(LobbyScene, { state }));
 
     unit.on('finalize', () => gameSocket.close());
 
