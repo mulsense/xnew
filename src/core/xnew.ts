@@ -336,9 +336,10 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Call this method within a component function to enable protection.
-         * Protected components will not respond to global events emitted via xnew.emit,
-         * and will be excluded from xnew.find searches.
+         * Call this method within a component function to mark the current unit as a protection boundary.
+         * Its DESCENDANTS become a private subtree: '+global' events from xnew.emit and xnew.find lookups
+         * made from OUTSIDE the subtree will not reach the descendants. The protected unit itself stays
+         * visible, and code inside the subtree can still emit to / find its own descendants.
          * @example
          * function MyComponent(unit) {
          *   xnew.protect();

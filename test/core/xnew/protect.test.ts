@@ -19,8 +19,9 @@ import { xnew } from '../../../src/core/xnew';
 // subtree WHEN the event is emitted from OUTSIDE that subtree. If the emitter sits inside (or is)
 // the protected subtree, delivery proceeds normally.
 //
-// Unit.find (unit.ts:356-358) returns component2units verbatim and NEVER reads `_.protected`, so
-// protect does NOT affect xnew.find despite the JSDoc claim — covered by it.todo below.
+// Unit.find applies the SAME scope-dependent boundary: the DESCENDANTS of a protected unit are
+// excluded from xnew.find when the search runs from OUTSIDE the protected subtree, but are visible
+// when find runs from inside it. The protected unit ITSELF stays findable (only its subtree hides).
 //----------------------------------------------------------------------------------------------------
 
 describe('xnew.protect', () => {
@@ -99,8 +100,63 @@ describe('xnew.protect', () => {
         });
     });
 
-    // Unit.find ignores `_.protected` entirely (unit.ts:356-358 returns component2units verbatim),
-    // so the JSDoc claim that protected units are "excluded from xnew.find searches" is NOT
-    // implemented. Asserting exclusion here would fabricate a feature that does not exist.
-    it.todo('protect does not affect xnew.find (confirmed in source: Unit.find unit.ts:356-358 never reads _.protected)');
+    describe('find boundary', () => {
+        function Child(_: Unit) {}
+
+        it('excludes descendants of a protected unit when find is called from outside', () => {
+            let child!: Unit;
+            xnew(() => {
+                xnew((a: Unit) => {
+                    void a;
+                    xnew.protect();
+                    child = xnew(Child);
+                });
+            });
+            // called from the root scope, outside the protected subtree
+            expect(xnew.find(Child)).not.toContain(child);
+            expect(xnew.find(Child)).toHaveLength(0);
+        });
+
+        it('includes the protected unit itself in find results', () => {
+            function Panel(_: Unit) {
+                xnew.protect();
+            }
+            let panel!: Unit;
+            xnew(() => {
+                panel = xnew(Panel);
+            });
+            expect(xnew.find(Panel)).toContain(panel);
+        });
+
+        it('still finds descendants when find is called from inside the protected subtree', () => {
+            let child!: Unit;
+            let foundFromInside!: Unit[];
+            xnew(() => {
+                xnew((a: Unit) => {
+                    void a;
+                    xnew.protect();
+                    child = xnew(Child);
+                    foundFromInside = xnew.find(Child);
+                });
+            });
+            expect(foundFromInside).toContain(child);
+        });
+
+        it('does not exclude matching units in unrelated unprotected branches', () => {
+            let openChild!: Unit;
+            xnew(() => {
+                xnew((a: Unit) => {
+                    void a;
+                    xnew.protect();
+                    xnew(Child);
+                });
+                xnew(() => {
+                    openChild = xnew(Child);
+                });
+            });
+            const found = xnew.find(Child);
+            expect(found).toContain(openChild);
+            expect(found).toHaveLength(1);
+        });
+    });
 });

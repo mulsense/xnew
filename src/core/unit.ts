@@ -354,7 +354,16 @@ export class Unit {
     static component2units: MapSet<Function, Unit> = new MapSet();
 
     static find(Component: Function): Unit[] {
-        return [...(Unit.component2units.get(Component) ?? [])];
+        const current = Unit.currentUnit;
+        const ancestors: Unit[] = [];
+        for (let u = current?._.parent ?? null; u !== null; u = u._.parent) ancestors.push(u);
+        return [...(Unit.component2units.get(Component) ?? [])].filter((unit) => {
+            let boundary: Unit | undefined = undefined;
+            for (let u: Unit | null = unit._.parent; u !== null && boundary === undefined; u = u._.parent) {
+                if (u._.protected === true) boundary = u;
+            }
+            return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+        });
     }
 
     //----------------------------------------------------------------------------------------------------
