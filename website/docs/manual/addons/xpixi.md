@@ -9,8 +9,8 @@ sidebar_position: 501
 ## セットアップ
 ### CDN
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xpixi.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xpixi.js"></script>
 ```
 
 ### CDN (ESM)
@@ -18,8 +18,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.7.x/dist/xnew.mjs",
-    "@mulsense/xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.7.x/dist/addons/xpixi.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs",
+    "@mulsense/xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xpixi.mjs"
   }
 }
 </script>
@@ -34,7 +34,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 
 ### npm
 ```bash
-npm install @mulsense/xnew@0.7.x
+npm install @mulsense/xnew@0.8.x
 ```
 ```js
 import xnew from '@mulsense/xnew'
