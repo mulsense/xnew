@@ -1,0 +1,50 @@
+import { Unit } from '../../../src/core/unit';
+import { xnew } from '../../../src/core/xnew';
+
+describe('xnew() creation', () => {
+    beforeEach(() => { Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); });
+
+    it('creates and returns a Unit from a component function', () => {
+        const unit = xnew(() => {});
+        expect(unit).toBeInstanceOf(Unit);
+    });
+
+    it('passes props to the component function', () => {
+        const received = jest.fn();
+        xnew((_u: Unit, props: { value: number }) => received(props.value), { value: 42 });
+        expect(received).toHaveBeenCalledWith(42);
+    });
+
+    it('hosts created units under the root unit established by reset()', () => {
+        // Unit.reset() eagerly creates the root unit (Unit.rootUnit = new Unit(null)),
+        // so the root already exists before the first xnew() call rather than being
+        // initialized lazily on first use.
+        expect(Unit.rootUnit).not.toBeNull();
+        expect(Unit.rootUnit).toBeInstanceOf(Unit);
+
+        const root = Unit.rootUnit;
+        const unit = xnew(() => {});
+
+        // The first xnew() reuses the existing root as the parent rather than creating a new one.
+        expect(Unit.rootUnit).toBe(root);
+        expect(unit.parent).toBe(root);
+    });
+
+    it('creates a child whose parent is the enclosing unit', () => {
+        let outer!: Unit, inner!: Unit;
+        xnew((u: Unit) => { outer = u; inner = xnew(); });
+        expect(inner.parent).toBe(outer);
+    });
+
+    it('hosts the unit on an explicit DOM element target', () => {
+        const el = document.createElement('section');
+        const unit = xnew(el, () => {});
+        expect(unit.element).toBe(el);
+    });
+
+    it('creates the host element from a tag string target', () => {
+        const unit = xnew('<article id="a1">', () => {});
+        expect(unit.element.id).toBe('a1');
+    });
+});
