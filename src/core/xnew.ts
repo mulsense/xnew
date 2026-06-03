@@ -351,6 +351,48 @@ export const xnew = Object.assign(
         },
 
         /**
+         * Runs `callback` (like xnew.extend) only when the current unit is NOT a replica
+         * (i.e. authoritative or standalone/null). Place server-only logic here (update handlers,
+         * spawning synced children). Skipped — and never invoked — on replica units.
+         * @returns defines returned by the callback, or {} when skipped
+         */
+        server(callback: Function, props?: Object): { [key: string]: any } {
+            try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.server can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'replica') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            } catch (error: unknown) {
+                console.error('xnew.server(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Runs `callback` (like xnew.extend) only when the current unit is NOT authoritative
+         * (i.e. replica or standalone/null). Place browser-only setup here (DOM/sprite creation,
+         * render handlers). Skipped — and never invoked — on authoritative units.
+         * @returns defines returned by the callback, or {} when skipped
+         */
+        browser(callback: Function, props?: Object): { [key: string]: any } {
+            try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.browser can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'authoritative') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            } catch (error: unknown) {
+                console.error('xnew.browser(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+
+        /**
          * Global engine config. `config.mode = 'authoritative' | 'replica' | null` selects how
          * top-level units are stamped (see Unit mode inheritance) and which of xnew.server /
          * xnew.browser blocks run. Same object as Unit.config.
