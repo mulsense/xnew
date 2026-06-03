@@ -22,7 +22,7 @@
 
 import { Unit, UnitPromise, UnitTimer } from './unit';
 import { DomElement } from './element';
-import { registerComponent, captureStateTree } from './sync';
+import { registerComponent, captureStateTree, applyStateTree } from './sync';
 
 export const xnew = Object.assign(
     /**
@@ -413,6 +413,9 @@ export const xnew = Object.assign(
             },
             capture(root: Unit): ReturnType<typeof captureStateTree> {
                 return captureStateTree(root);
+            },
+            apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void {
+                applyStateTree(root, tree);
             },
         },
 

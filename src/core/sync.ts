@@ -7,10 +7,16 @@
 // - registerComponent / getRegisteredName / getRegisteredComponent / resetRegistry : 同期エンティティ型のレジストリ
 // - getSyncName        : unit が同期対象なら登録名(最初の一致)を返す
 // - captureStateTree   : authoritative サブツリー → SyncNode[](全量)
-// - applyStateTree     : SyncNode[] → replica サブツリーへ差分適用       ※Task 5 で追加
+// - applyStateTree     : SyncNode[] → replica サブツリーへ差分適用
+//
+// Caveats:
+// - xnew と sync は相互依存するが、xnew は applyStateTree の関数本体内でのみ使用するため
+//   ランタイムは安全である（モジュール評価時には呼び出されない）。
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
+// runtime-safe cycle: xnew↔sync — xnew は関数本体内でのみ使用し、モジュール評価時には呼ばれない
+import { xnew } from './xnew';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
@@ -69,4 +75,61 @@ export function captureStateTree(root: Unit): StateTree {
 
     walk(root, null);
     return nodes;
+}
+
+/** replica ルートごとに id→Unit のマップを保持する。Unit を汚染しないよう WeakMap に格納する。 */
+const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
+
+function xnewChild(parent: Unit, Component: Function): Unit {
+    return (xnew as any)(parent, Component);   // mode は親(replica)を継承する
+}
+
+/**
+ * Applies a state tree to a replica subtree, reconciling create/update/remove.
+ * @param root - root unit of the replica subtree (owned by the caller)
+ * @param tree - state tree captured from the authoritative side (pre-order: parents before children)
+ */
+export function applyStateTree(root: Unit, tree: StateTree): void {
+    let map = reconcileMaps.get(root);
+    if (map === undefined) {
+        map = new Map();
+        reconcileMaps.set(root, map);
+    }
+
+    const incoming = new Set<number>(tree.map((node) => node.id));
+
+    // create / update（tree は pre-order なので親が先に存在する）
+    for (const node of tree) {
+        const existing = map.get(node.id);
+        if (existing === undefined) {
+            // create
+            const Component = getRegisteredComponent(node.name);
+            if (Component === undefined) { continue; }
+            const parent = node.parentId === null ? root : map.get(node.parentId);
+            if (parent === undefined) { continue; }
+            const unit = xnewChild(parent, Component);
+            unit._.syncId = node.id;
+            if (unit._.syncState === null) { unit._.syncState = {}; }
+            Object.assign(unit._.syncState, node.state);
+            map.set(node.id, unit);
+        } else {
+            // update（変更フィールドのみ書き換え）
+            // 不変条件: 一度入ったキーは削除されない。capture は全フィールドを毎回送るため、
+            // サーバー側で state からキーを「消す」運用をすると replica に残り続ける（v1 の割り切り）。
+            if (existing._.syncState === null) { existing._.syncState = {}; }
+            for (const key of Object.keys(node.state)) {
+                if (existing._.syncState[key] !== node.state[key]) {
+                    existing._.syncState[key] = node.state[key];
+                }
+            }
+        }
+    }
+
+    // remove（incoming に存在しない id を finalize して map から除去）
+    for (const [id, unit] of [...map.entries()]) {
+        if (incoming.has(id) === false) {
+            unit.finalize();
+            map.delete(id);
+        }
+    }
 }
