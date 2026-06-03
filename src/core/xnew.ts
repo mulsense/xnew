@@ -22,6 +22,7 @@
 
 import { Unit, UnitPromise, UnitTimer } from './unit';
 import { DomElement } from './element';
+import { registerComponent } from './sync';
 
 export const xnew = Object.assign(
     /**
@@ -390,6 +391,26 @@ export const xnew = Object.assign(
                 console.error('xnew.browser(callback: Function, props?: Object): ', error);
                 throw error;
             }
+        },
+
+        /**
+         * Synchronized-state API (server→client state sync engine).
+         * - initialize : declare synced state on the current unit (single source of truth)
+         * - register   : register a synchronized entity type by name (call on both runtimes)
+         * (capture / apply are added in later tasks)
+         */
+        state: {
+            initialize(initial: Record<string, any> = {}): Record<string, any> {
+                const unit = Unit.currentUnit;
+                if (unit._.syncState === null) {
+                    unit._.syncState = {};
+                }
+                Object.assign(unit._.syncState, initial);
+                return unit._.syncState;
+            },
+            register(name: string, Component: Function): void {
+                registerComponent(name, Component);
+            },
         },
 
         /**
