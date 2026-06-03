@@ -86,6 +86,9 @@ declare class Unit {
             execute: Function;
         }>;
         eventor: Eventor;
+        mode: string | null;
+        syncState: Record<string, any> | null;
+        syncId: number | null;
     };
     constructor(parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
@@ -105,6 +108,10 @@ declare class Unit {
     static render(unit: Unit): void;
     static rootUnit: Unit;
     static currentUnit: Unit;
+    static config: {
+        mode: string | null;
+    };
+    static syncIdCounter: number;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
@@ -140,6 +147,16 @@ declare class UnitTimer {
     private static next;
     private static Component;
 }
+
+interface SyncNode {
+    id: number;
+    name: string;
+    parentId: number | null;
+    state: Record<string, any>;
+}
+type StateTree = SyncNode[];
+declare function captureStateTree(root: Unit): StateTree;
+declare function applyStateTree(root: Unit, tree: StateTree): void;
 
 interface TransitionOptions {
     duration?: number;
@@ -352,6 +369,21 @@ declare const xnew: ((...args: any[]) => Unit) & {
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
+    server(callback: Function, props?: Object): {
+        [key: string]: any;
+    };
+    browser(callback: Function, props?: Object): {
+        [key: string]: any;
+    };
+    state: {
+        initialize(initial?: Record<string, any>): Record<string, any>;
+        register(name: string, Component: Function): void;
+        capture(root: Unit): ReturnType<typeof captureStateTree>;
+        apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
+    };
+    config: {
+        mode: string | null;
+    };
 } & {
     basics: {
         SVG: typeof SVG;

@@ -538,7 +538,7 @@
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     class Unit {
         constructor(parent, ...args) {
-            var _a, _b;
+            var _a, _b, _c, _d;
             let target;
             let Component;
             let props;
@@ -597,6 +597,9 @@
                 defines: {},
                 systems: { start: [], update: [], render: [], stop: [], finalize: [] },
                 eventor: new Eventor(),
+                mode: parent ? ((_d = (_c = parent._.mode) !== null && _c !== void 0 ? _c : Unit.config.mode) !== null && _d !== void 0 ? _d : null) : null,
+                syncState: null,
+                syncId: null,
             };
             if (typeof target === 'string') {
                 Unit.nest(this, target);
@@ -752,6 +755,7 @@
         }
         static reset() {
             var _a;
+            Unit.syncIdCounter = 1;
             (_a = Unit.rootUnit) === null || _a === void 0 ? void 0 : _a.finalize();
             Unit.currentUnit = Unit.rootUnit = new Unit(null);
             const ticker = new Ticker(() => {
@@ -800,8 +804,19 @@
             }
         }
         static find(Component) {
-            var _a;
-            return [...((_a = Unit.component2units.get(Component)) !== null && _a !== void 0 ? _a : [])];
+            var _a, _b;
+            const current = Unit.currentUnit;
+            const ancestors = [];
+            for (let u = (_a = current === null || current === void 0 ? void 0 : current._.parent) !== null && _a !== void 0 ? _a : null; u !== null; u = u._.parent)
+                ancestors.push(u);
+            return [...((_b = Unit.component2units.get(Component)) !== null && _b !== void 0 ? _b : [])].filter((unit) => {
+                let boundary = undefined;
+                for (let u = unit._.parent; u !== null && boundary === undefined; u = u._.parent) {
+                    if (u._.protected === true)
+                        boundary = u;
+                }
+                return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+            });
         }
         on(type, listener, options) {
             const types = type.trim().split(/\s+/);
@@ -869,6 +884,8 @@
         }
     }
     Unit.currentComponent = () => { };
+    Unit.config = { mode: null };
+    Unit.syncIdCounter = 1;
     Unit.unit2Contexts = new MapSet();
     Unit.component2units = new MapSet();
     Unit.type2units = new MapSet();
@@ -945,6 +962,99 @@
                     Unit.scope(snapshot, options.transition, { value });
             }
             unit.on('finalize', () => timer.clear());
+        }
+    }
+
+    const nameToComponent = new Map();
+    const componentToName = new Map();
+    function registerComponent(name, Component) {
+        nameToComponent.set(name, Component);
+        componentToName.set(Component, name);
+    }
+    function getRegisteredName(Component) {
+        return componentToName.get(Component);
+    }
+    function getRegisteredComponent(name) {
+        return nameToComponent.get(name);
+    }
+    function getSyncName(unit) {
+        for (const Component of unit._.Components) {
+            const name = getRegisteredName(Component);
+            if (name !== undefined) {
+                return name;
+            }
+        }
+        return undefined;
+    }
+    function captureStateTree(root) {
+        const nodes = [];
+        const walk = (unit, nearestSyncedId) => {
+            var _a;
+            let parentForChildren = nearestSyncedId;
+            const name = getSyncName(unit);
+            if (name !== undefined) {
+                if (unit._.syncId === null) {
+                    unit._.syncId = Unit.syncIdCounter++;
+                }
+                nodes.push({
+                    id: unit._.syncId,
+                    name,
+                    parentId: nearestSyncedId,
+                    state: Object.assign({}, ((_a = unit._.syncState) !== null && _a !== void 0 ? _a : {})),
+                });
+                parentForChildren = unit._.syncId;
+            }
+            unit._.children.forEach((child) => walk(child, parentForChildren));
+        };
+        walk(root, null);
+        return nodes;
+    }
+    const reconcileMaps = new WeakMap();
+    function xnewChild(parent, Component) {
+        return xnew$1(parent, Component);
+    }
+    function applyStateTree(root, tree) {
+        let map = reconcileMaps.get(root);
+        if (map === undefined) {
+            map = new Map();
+            reconcileMaps.set(root, map);
+        }
+        const incoming = new Set(tree.map((node) => node.id));
+        for (const node of tree) {
+            const existing = map.get(node.id);
+            if (existing === undefined) {
+                const Component = getRegisteredComponent(node.name);
+                if (Component === undefined) {
+                    continue;
+                }
+                const parent = node.parentId === null ? root : map.get(node.parentId);
+                if (parent === undefined) {
+                    continue;
+                }
+                const unit = xnewChild(parent, Component);
+                unit._.syncId = node.id;
+                if (unit._.syncState === null) {
+                    unit._.syncState = {};
+                }
+                Object.assign(unit._.syncState, node.state);
+                map.set(node.id, unit);
+            }
+            else {
+                if (existing._.syncState === null) {
+                    existing._.syncState = {};
+                }
+                for (const key of Object.keys(node.state)) {
+                    if (existing._.syncState[key] !== node.state[key]) {
+                        existing._.syncState[key] = node.state[key];
+                    }
+                }
+            }
+        }
+        for (const [id, unit] of [...map.entries()]) {
+            if (incoming.has(id) === false) {
+                unit.finalize();
+                map.delete(id);
+            }
         }
     }
 
@@ -1115,6 +1225,56 @@
         protect() {
             Unit.currentUnit._.protected = true;
         },
+        server(callback, props) {
+            try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.server can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'replica') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            }
+            catch (error) {
+                console.error('xnew.server(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+        browser(callback, props) {
+            try {
+                if (Unit.currentUnit._.state !== 'invoked') {
+                    throw new Error('xnew.browser can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'authoritative') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            }
+            catch (error) {
+                console.error('xnew.browser(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+        state: {
+            initialize(initial = {}) {
+                const unit = Unit.currentUnit;
+                if (unit._.syncState === null) {
+                    unit._.syncState = {};
+                }
+                Object.assign(unit._.syncState, initial);
+                return unit._.syncState;
+            },
+            register(name, Component) {
+                registerComponent(name, Component);
+            },
+            capture(root) {
+                return captureStateTree(root);
+            },
+            apply(root, tree) {
+                applyStateTree(root, tree);
+            },
+        },
+        config: Unit.config,
     });
 
     function OpenAndClose(unit, { open = true, transition = { duration: 200, easing: 'ease' } }) {

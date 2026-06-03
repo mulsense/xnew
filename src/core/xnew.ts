@@ -18,6 +18,9 @@
 // - xnew.emit                            : '+global' / '-local' custom events
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
+// - xnew.config                          : global engine config (config.mode = 'authoritative' | 'replica')
+// - xnew.server / browser                : run a block only on authoritative / replica (extend-like)
+// - xnew.state.initialize / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer } from './unit';
