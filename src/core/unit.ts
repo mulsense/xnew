@@ -58,6 +58,10 @@ export class Unit {
         Components: Function[];
         listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
+
+        mode: string | null;
+        syncState: Record<string, any> | null;
+        syncId: number | null;
     };
 
     constructor(parent: Unit | null, ...args: any[]) {
@@ -120,6 +124,13 @@ export class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
+            // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
+            // Unit.config.mode を fallback とする（= サブツリーのルートが config.mode を採用）。
+            // Unit.config.mode は意図的に Unit.reset() でクリアしない（初回 xnew() が自動 reset を
+            // 走らせるため、クリアすると設定済み config.mode が生成前に消える）。利用側が戻す運用。
+            mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null,
+            syncState: null,
+            syncId: null,
         };
 
         // nest html element
@@ -299,8 +310,11 @@ export class Unit {
 
     static rootUnit: Unit;
     static currentUnit: Unit;
+    static config: { mode: string | null } = { mode: null };
+    static syncIdCounter: number = 1;
 
     static reset(): void {
+        Unit.syncIdCounter = 1;
         Unit.rootUnit?.finalize();
         Unit.currentUnit = Unit.rootUnit = new Unit(null);
         const ticker = new Ticker(() => {

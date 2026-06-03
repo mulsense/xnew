@@ -350,6 +350,13 @@ export const xnew = Object.assign(
             Unit.currentUnit._.protected = true;
         },
 
+        /**
+         * Global engine config. `config.mode = 'authoritative' | 'replica' | null` selects how
+         * top-level units are stamped (see Unit mode inheritance) and which of xnew.server /
+         * xnew.browser blocks run. Same object as Unit.config.
+         */
+        config: Unit.config,
+
     }
 );
 
