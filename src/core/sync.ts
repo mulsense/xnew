@@ -6,7 +6,7 @@
 //
 // - registerComponent / getRegisteredName / getRegisteredComponent / resetRegistry : 同期エンティティ型のレジストリ
 // - getSyncName        : unit が同期対象なら登録名(最初の一致)を返す
-// - captureStateTree   : authoritative サブツリー → SyncNode[](全量)   ※Task 4 で追加
+// - captureStateTree   : authoritative サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → replica サブツリーへ差分適用       ※Task 5 で追加
 //----------------------------------------------------------------------------------------------------
 
@@ -44,4 +44,29 @@ export function getSyncName(unit: Unit): string | undefined {
         }
     }
     return undefined;
+}
+
+export function captureStateTree(root: Unit): StateTree {
+    const nodes: StateTree = [];
+
+    const walk = (unit: Unit, nearestSyncedId: number | null): void => {
+        let parentForChildren = nearestSyncedId;
+        const name = getSyncName(unit);
+        if (name !== undefined) {
+            if (unit._.syncId === null) {
+                unit._.syncId = Unit.syncIdCounter++;
+            }
+            nodes.push({
+                id: unit._.syncId,
+                name,
+                parentId: nearestSyncedId,
+                state: { ...(unit._.syncState ?? {}) },
+            });
+            parentForChildren = unit._.syncId;
+        }
+        unit._.children.forEach((child) => walk(child, parentForChildren));
+    };
+
+    walk(root, null);
+    return nodes;
 }

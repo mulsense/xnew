@@ -20,3 +20,42 @@ describe('registry', () => {
         expect(getSyncName(unit)).toBeUndefined();
     });
 });
+
+describe('captureStateTree', () => {
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
+
+    function World(unit: Unit) { xnew.state.initialize({ tick: 0 }); xnew(Child); }
+    function Child(unit: Unit) { xnew.state.initialize({ position: 5 }); }
+
+    it('captures a synced unit; parentId is null when no synced ancestor exists', () => {
+        xnew.state.register('World', World);
+        xnew.state.register('Child', Child);
+        const root = xnew(function Root() { xnew(World); });
+        const tree = xnew.state.capture(root);
+        const worldNode = tree.find(n => n.name === 'World')!;
+        expect(worldNode).toBeDefined();
+        expect(worldNode.parentId).toBeNull();
+        expect(worldNode.state).toEqual({ tick: 0 });
+    });
+
+    it('sets a child parentId to the nearest synced ancestor id', () => {
+        xnew.state.register('World', World);
+        xnew.state.register('Child', Child);
+        const root = xnew(function Root() { xnew(World); });
+        const tree = xnew.state.capture(root);
+        const worldNode = tree.find(n => n.name === 'World')!;
+        const childNode = tree.find(n => n.name === 'Child')!;
+        expect(childNode.parentId).toBe(worldNode.id);
+    });
+
+    it('assigns stable ids and reflects mutated state on later captures', () => {
+        xnew.state.register('Child', Child);
+        const root = xnew(function Root() { xnew(Child); });
+        const first = xnew.state.capture(root)[0];
+        root._.children[0]._.syncState!.position = 9;
+        const second = xnew.state.capture(root)[0];
+        expect(second.id).toBe(first.id);
+        expect(second.state).toEqual({ position: 9 });
+    });
+});
