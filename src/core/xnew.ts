@@ -400,7 +400,8 @@ export const xnew = Object.assign(
          * Synchronized-state API (server→client state sync engine).
          * - initialize : declare synced state on the current unit (single source of truth)
          * - register   : register a synchronized entity type by name (call on both runtimes)
-         * (capture / apply are added in later tasks)
+         * - capture    : capture an authoritative subtree as a state tree
+         * - apply      : reconcile a state tree into a replica subtree
          */
         state: {
             initialize(initial: Record<string, any> = {}): Record<string, any> {
