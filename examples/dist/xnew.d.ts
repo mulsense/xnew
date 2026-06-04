@@ -381,9 +381,6 @@ declare const xnew: ((...args: any[]) => Unit) & {
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
     };
-    config: {
-        mode: string | null;
-    };
     boot(mode: string | null, callback: Function): any;
 } & {
     basics: {

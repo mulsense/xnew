@@ -5,8 +5,8 @@ import { getSyncName, getRegisteredComponent, resetRegistry } from '../../../src
 function Player() {}
 
 describe('registry', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     it('register maps a name to a component both ways', () => {
         xnew.sync.register({ Player });
@@ -22,8 +22,8 @@ describe('registry', () => {
 });
 
 describe('captureStateTree', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     function World(unit: Unit) { xnew.sync.state({ tick: 0 }); xnew(Child); }
     function Child(unit: Unit) { xnew.sync.state({ position: 5 }); }

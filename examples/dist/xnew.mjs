@@ -1279,7 +1279,6 @@ const xnew$1 = Object.assign(function (...args) {
             applyStateTree(root, tree);
         },
     },
-    config: Unit.config,
     boot(mode, callback) {
         const previous = Unit.config.mode;
         Unit.config.mode = mode;

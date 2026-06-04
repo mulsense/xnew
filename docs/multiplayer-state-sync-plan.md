@@ -27,7 +27,7 @@ export function captureStateTree(root: Unit): StateTree;
 export function applyStateTree(root: Unit, tree: StateTree): void;
 
 // src/core/xnew.ts に追加:
-//   xnew.config（= Unit.config）
+//   xnew.boot(mode, callback)      : callback 実行中だけ Unit.config.mode を適用し復元（mode 選択の唯一の公開手段）
 //   xnew.server(callback, props?)  : mode !== 'client' のとき Unit.extend 相当で callback 実行（null も実行）
 //   xnew.client(callback, props?)  : mode !== 'server' のとき実行（null も実行）
 //   xnew.sync = { state, register, capture, apply }
@@ -53,9 +53,9 @@ export function applyStateTree(root: Unit, tree: StateTree): void;
 
 テスト `test/core/sync/mode.test.ts`: ① config.mode を設定して作った top-level unit がその mode を持つ ② 子は親 mode を継承し config.mode 変更の影響を受けない ③ config.mode=null の既定で mode=null ④ 既存 test/core/unit・xnew が非回帰。
 
-各 describe の beforeEach に `Unit.reset(); xnew.config.mode = null;`、afterEach に `xnew.config.mode = null;`。
+各 describe の beforeEach に `Unit.reset(); Unit.config.mode = null;`、afterEach に `Unit.config.mode = null;`（テストは white-box に内部 `Unit.config` を操作。公開コードは `xnew.boot` を使う）。
 
-## Task 2: xnew.config / xnew.server / xnew.client
+## Task 2: xnew.boot / xnew.server / xnew.client
 
 `src/core/xnew.ts` helpers に追加:
 ```ts

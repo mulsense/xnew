@@ -2,29 +2,29 @@ import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.server / xnew.client', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); xnew.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     it('server mode runs server block, skips client block', () => {
         const serverRan = jest.fn(); const clientRan = jest.fn();
-        xnew.config.mode = 'server';
+        Unit.config.mode = 'server';
         xnew((u: Unit) => {
             xnew.server(() => { serverRan(); });
             xnew.client(() => { clientRan(); });
         });
-        xnew.config.mode = null;
+        Unit.config.mode = null;
         expect(serverRan).toHaveBeenCalledTimes(1);
         expect(clientRan).not.toHaveBeenCalled();
     });
 
     it('client mode runs client block, skips server block', () => {
         const serverRan = jest.fn(); const clientRan = jest.fn();
-        xnew.config.mode = 'client';
+        Unit.config.mode = 'client';
         xnew((u: Unit) => {
             xnew.server(() => { serverRan(); });
             xnew.client(() => { clientRan(); });
         });
-        xnew.config.mode = null;
+        Unit.config.mode = null;
         expect(clientRan).toHaveBeenCalledTimes(1);
         expect(serverRan).not.toHaveBeenCalled();
     });
@@ -40,28 +40,28 @@ describe('xnew.server / xnew.client', () => {
     });
 
     it('merges defines returned by the executed block onto the unit', () => {
-        xnew.config.mode = 'server';
+        Unit.config.mode = 'server';
         const unit = xnew((u: Unit) => {
             xnew.server(() => ({ greet: () => 'hi-from-server' }));
             xnew.client(() => ({ draw: () => 'should-not-exist' }));
         });
-        xnew.config.mode = null;
+        Unit.config.mode = null;
         expect(typeof (unit as any).greet).toBe('function');
         expect((unit as any).greet()).toBe('hi-from-server');
         expect((unit as any).draw).toBeUndefined();   // client block skipped on server
     });
 
     it('client block builds real DOM on client; not invoked on server', () => {
-        xnew.config.mode = 'client';
+        Unit.config.mode = 'client';
         let el: any;
         xnew((u: Unit) => { xnew.client(() => { el = xnew.nest('<div>'); }); });
-        xnew.config.mode = null;
+        Unit.config.mode = null;
         expect(el.tagName).toBe('DIV');
 
         let el2: any = 'untouched';
-        xnew.config.mode = 'server';
+        Unit.config.mode = 'server';
         xnew((u: Unit) => { xnew.client(() => { el2 = xnew.nest('<div>'); }); });
-        xnew.config.mode = null;
+        Unit.config.mode = null;
         expect(el2).toBe('untouched');   // client callback never ran, so nest never called
     });
 });

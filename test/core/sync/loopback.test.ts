@@ -15,15 +15,15 @@ function Mover(unit: Unit) {
 }
 
 describe('loopback simulation (server/client blocks)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register({ Mover }); });
-    afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; xnew.sync.register({ Mover }); });
+    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {
-        xnew.config.mode = 'server';
+        Unit.config.mode = 'server';
         const server = xnew(function Server() { xnew(Mover); });
-        xnew.config.mode = 'client';
+        Unit.config.mode = 'client';
         const client = xnew((u: Unit) => {});
-        xnew.config.mode = null;
+        Unit.config.mode = null;
 
         function cycle() {
             Unit.start(Unit.rootUnit);
@@ -53,11 +53,11 @@ describe('loopback simulation (server/client blocks)', () => {
             xnew.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
         }
 
-        xnew.config.mode = 'server';
+        Unit.config.mode = 'server';
         const server = xnew(Main);
-        xnew.config.mode = 'client';
+        Unit.config.mode = 'client';
         const client = xnew(Main);
-        xnew.config.mode = null;
+        Unit.config.mode = null;
 
         // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
         const tree = xnew.sync.capture(server);
@@ -94,11 +94,11 @@ describe('loopback simulation (server/client blocks)', () => {
                 });
             });
         }
-        xnew.config.mode = 'server';
+        Unit.config.mode = 'server';
         const server = xnew(Server);
-        xnew.config.mode = 'client';
+        Unit.config.mode = 'client';
         const client = xnew((u: Unit) => {});
-        xnew.config.mode = null;
+        Unit.config.mode = null;
 
         const sync = () => xnew.sync.apply(client, xnew.sync.capture(server));
         Unit.start(Unit.rootUnit);
