@@ -2,6 +2,7 @@ import xnew from '../../dist/xnew.mjs';
 
 //----------------------------------------------------------------------------------------------------
 // 2 階層のコンポーネント（Mover → Enemy）で state 同期を実験するサンプル。
+//   - Main   : server/client 共通のルート。中で xnew.server/xnew.client に分岐（同期対象ではない）
 //   - Mover  : server ブロック内で定期的に Enemy を spawn する親
 //   - Enemy  : 所定方向へ移動し、一定時間で消える子（synced）
 //   - server サブツリーで update/spawn、client サブツリーで描画
@@ -48,14 +49,25 @@ function Mover(unit) {
     });
 }
 
+// ---- Main: server / client で役割を分岐する共通ルート（同期対象ではない） ----
+function Main() {
+    xnew.server(() => {
+        xnew(Mover);   // server: ロジックツリー（Mover → Enemy）を生成
+    });
+
+    xnew.client(() => {
+        xnew.nest(document.getElementById('view'));   // client: 既存の #view を描画先にする（apply が replica をここに mount）
+    });
+}
+
 // 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）
 xnew.sync.register({ Enemy, Mover });
 
-// ---- 起動: config でモードを切り替えながらサブツリーを生成 ----
+// ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
 xnew.config.mode = 'server';
-const server = xnew(Mover);                                              // 擬似サーバー（ロジック）
+const server = xnew(Main);   // 擬似サーバー（ロジック）
 xnew.config.mode = 'client';
-const client = xnew(document.getElementById('view'), function View() {}); // ブラウザ表示
+const client = xnew(Main);   // ブラウザ表示
 xnew.config.mode = null;
 
 // ---- 毎フレーム capture → apply（実ネットワークの代わりにインメモリで反映） ----
