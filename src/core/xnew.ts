@@ -25,7 +25,7 @@
 
 import { Unit, UnitPromise, UnitTimer } from './unit';
 import { DomElement } from './element';
-import { registerComponent, captureStateTree, applyStateTree } from './sync';
+import { registerComponent, captureStateTree, applyStateTree, takeInjectedState } from './sync';
 
 export const xnew = Object.assign(
     /**
@@ -398,7 +398,8 @@ export const xnew = Object.assign(
 
         /**
          * State synchronization API (server→client state sync engine).
-         * - state    : declare synced state on the current unit (single source of truth)
+         * - state    : declare synced state on the current unit (server/standalone use `initial`;
+         *              on the client, apply injects server state so `initial` is ignored)
          * - register : register synchronized entity types by name map `{ Name: Component }` (call on both runtimes)
          * - capture  : capture a server subtree as a state tree
          * - apply    : reconcile a state tree into a client subtree
@@ -409,7 +410,10 @@ export const xnew = Object.assign(
                 if (unit._.syncState === null) {
                     unit._.syncState = {};
                 }
-                Object.assign(unit._.syncState, initial);
+                // client 側で apply が注入したサーバー状態があればそれで初期化（initial は使わない）。
+                // server / standalone(null) では注入が無いので initial で初期化する。
+                const injected = takeInjectedState();
+                Object.assign(unit._.syncState, injected ?? initial);
                 return unit._.syncState;
             },
             register(components: Record<string, Function>): void {

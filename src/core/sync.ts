@@ -8,6 +8,7 @@
 // - getSyncName        : unit が同期対象なら登録名(最初の一致)を返す
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用
+// - takeInjectedState  : apply の create 中に注入されたサーバー状態を一度だけ取り出す（xnew.sync.state が消費）
 //
 // Caveats:
 // - xnew と sync は相互依存するが、xnew は applyStateTree の関数本体内でのみ使用するため
@@ -77,6 +78,20 @@ export function captureStateTree(root: Unit): StateTree {
     return nodes;
 }
 
+/**
+ * apply の create 中だけ非 null になる、本体実行前に渡すサーバー状態の一時スロット。
+ * xnew.sync.state が takeInjectedState で「一度だけ」消費し、クライアント側はこの注入値で
+ * 初期化する（ローカルの初期値は使わない）。read-once なので親の注入値が子へ漏れない。
+ */
+let injectedState: Record<string, any> | null = null;
+
+/** 注入されたサーバー状態を取り出して消費する（無ければ null）。xnew.sync.state から呼ばれる。 */
+export function takeInjectedState(): Record<string, any> | null {
+    const state = injectedState;
+    injectedState = null;
+    return state;
+}
+
 /** client ルートごとに id→Unit のマップを保持する。Unit を汚染しないよう WeakMap に格納する。 */
 const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
@@ -107,10 +122,12 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             if (Component === undefined) { continue; }
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
+            injectedState = node.state;          // 本体実行前に注入（xnew.sync.state が消費）
             const unit = xnewChild(parent, Component);
+            injectedState = null;                // 本体が消費しなかった場合の漏れ防止
             unit._.syncId = node.id;
             if (unit._.syncState === null) { unit._.syncState = {}; }
-            Object.assign(unit._.syncState, node.state);
+            Object.assign(unit._.syncState, node.state);   // 状態を宣言しない型・欠落キーへの保険
             map.set(node.id, unit);
         } else {
             // update（変更フィールドのみ書き換え）

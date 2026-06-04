@@ -1009,6 +1009,12 @@
         walk(root, null);
         return nodes;
     }
+    let injectedState = null;
+    function takeInjectedState() {
+        const state = injectedState;
+        injectedState = null;
+        return state;
+    }
     const reconcileMaps = new WeakMap();
     function xnewChild(parent, Component) {
         return xnew$1(parent, Component);
@@ -1031,7 +1037,9 @@
                 if (parent === undefined) {
                     continue;
                 }
+                injectedState = node.state;
                 const unit = xnewChild(parent, Component);
+                injectedState = null;
                 unit._.syncId = node.id;
                 if (unit._.syncState === null) {
                     unit._.syncState = {};
@@ -1261,7 +1269,8 @@
                 if (unit._.syncState === null) {
                     unit._.syncState = {};
                 }
-                Object.assign(unit._.syncState, initial);
+                const injected = takeInjectedState();
+                Object.assign(unit._.syncState, injected !== null && injected !== void 0 ? injected : initial);
                 return unit._.syncState;
             },
             register(components) {
