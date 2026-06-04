@@ -64,11 +64,17 @@ function Main() {
 xnew.sync.register({ Enemy, Mover });
 
 // ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
-xnew.config.mode = 'server';
-const server = xnew(Main);   // 擬似サーバー（ロジック）
-xnew.config.mode = 'client';
-const client = xnew(Main);   // ブラウザ表示
-xnew.config.mode = null;
+// mode を指定してルートを生成し、生成後は null に戻す（戻し忘れ防止）。
+// ※ 本番では server / client は別プロセスで各自 mode を 1 回設定するだけ。この同居はデモ専用。
+const createRoot = (mode, ...args) => {
+    xnew.config.mode = mode;
+    const root = xnew(...args);
+    xnew.config.mode = null;
+    return root;
+};
+
+const server = createRoot('server', Main);   // 擬似サーバー（ロジック）
+const client = createRoot('client', Main);   // ブラウザ表示
 
 // ---- 毎フレーム capture → apply（実ネットワークの代わりにインメモリで反映） ----
 const stateView = document.getElementById('state');
