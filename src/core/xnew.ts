@@ -23,7 +23,7 @@
 // - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
 
-import { Unit, UnitPromise, UnitTimer } from './unit';
+import { Unit, UnitPromise, UnitTimer, Mode } from './unit';
 import { DomElement } from './element';
 import { registerComponent, captureStateTree, applyStateTree, takeInjectedState } from './sync';
 
@@ -437,7 +437,7 @@ export const xnew = Object.assign(
          * descendants inherit it (so spawning later does not need another boot).
          * @returns the Unit created by `xnew(...args)`
          */
-        boot(mode: string | null, ...args: any[]): any {
+        boot(mode: Mode, ...args: any[]): any {
             const previous = Unit.config.mode;
             Unit.config.mode = mode;
             try {

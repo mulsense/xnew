@@ -27,7 +27,17 @@ interface Context { previous: Context | null; key?: any; value?: any; }
 
 interface Snapshot { unit: Unit; context: Context; element: DomElement; Component: Function | null; }
 
-const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
+// lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
+export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
+
+// engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
+export type Mode = 'server' | 'client' | null;
+
+const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'] as const;
+type SystemEvent = typeof SYSTEM_EVENTS[number];
+function isSystemEvent(type: string): type is SystemEvent {
+    return (SYSTEM_EVENTS as readonly string[]).includes(type);
+}
 
 //----------------------------------------------------------------------------------------------------
 // unit
@@ -40,13 +50,13 @@ export class Unit {
         parent: Unit | null;
         children: Unit[];
 
-        status: string;   // lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
+        status: Status;
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
         results: Record<string, any>;
         defines: Record<string, any>;
-        systems: Record<string, { listener: Function, execute: Function }[]>;
+        systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
 
         currentElement: DomElement;
         currentContext: Context;
@@ -59,7 +69,7 @@ export class Unit {
         listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
 
-        mode: string | null;
+        mode: Mode;
         state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
         syncId: number | null;
     };
@@ -175,11 +185,11 @@ export class Unit {
         if (unit._.status !== 'finalized' && unit._.status !== 'finalizing') {
             unit._.status = 'finalizing';
 
-            unit._.children.reverse().forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
+            [...unit._.children].reverse().forEach((child: Unit) => child.finalize());
+            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
             unit.off();
 
-            unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
+            [...unit._.nestElements].reverse().filter(item => item.owned).forEach(item => item.element.remove());
             unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
             
             // remove contexts
@@ -233,8 +243,6 @@ export class Unit {
         }
     }
 
-    static currentComponent: Function = () => {};
-   
     static extend(unit: Unit, Component: Function, props?: Object): { [key: string]: any } {
         const backupComponent = unit._.currentComponent;
         unit._.currentComponent = Component;
@@ -303,7 +311,7 @@ export class Unit {
     }
 
     static render(unit: Unit): void {
-        if (unit._.status === 'started' || unit._.status === 'started' || unit._.status === 'stopped') {
+        if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child: Unit) => Unit.render(child));
             unit._.systems.render.forEach(({ execute }) => execute());
         }
@@ -311,7 +319,7 @@ export class Unit {
 
     static rootUnit: Unit;
     static currentUnit: Unit;
-    static config: { mode: string | null } = { mode: null };
+    static config: { mode: Mode } = { mode: null };
     static syncIdCounter: number = 1;
 
     static reset(): void {
@@ -338,8 +346,6 @@ export class Unit {
             snapshot.unit._.currentElement = snapshot.element;
             snapshot.unit._.currentComponent = snapshot.Component;
             return func(...args);
-        } catch (error) {
-            throw error;
         } finally {
             Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
@@ -368,16 +374,31 @@ export class Unit {
 
     static component2units: MapSet<Function, Unit> = new MapSet();
 
+    // parent 方向の祖先列（unit 自身は含まない）。
+    static ancestors(unit: Unit | null): Unit[] {
+        const ancestors: Unit[] = [];
+        for (let u = unit?._.parent ?? null; u !== null; u = u._.parent) ancestors.push(u);
+        return ancestors;
+    }
+
+    // from から parent 方向へ遡り、最初に見つかる protect 境界を返す（無ければ undefined）。
+    static protectBoundary(from: Unit | null): Unit | undefined {
+        for (let u = from; u !== null; u = u._.parent) {
+            if (u._.protected === true) return u;
+        }
+        return undefined;
+    }
+
+    // protect 境界 boundary 内の対象が、current（とその祖先列 ancestors）から可視か。
+    static isVisible(boundary: Unit | undefined, current: Unit | null, ancestors: Unit[]): boolean {
+        return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+    }
+
     static find(Component: Function): Unit[] {
         const current = Unit.currentUnit;
-        const ancestors: Unit[] = [];
-        for (let u = current?._.parent ?? null; u !== null; u = u._.parent) ancestors.push(u);
+        const ancestors = Unit.ancestors(current);
         return [...(Unit.component2units.get(Component) ?? [])].filter((unit) => {
-            let boundary: Unit | undefined = undefined;
-            for (let u: Unit | null = unit._.parent; u !== null && boundary === undefined; u = u._.parent) {
-                if (u._.protected === true) boundary = u;
-            }
-            return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+            return Unit.isVisible(Unit.protectBoundary(unit._.parent), current, ancestors);
         });
     }
 
@@ -404,7 +425,7 @@ export class Unit {
         const execute = (props: object) => {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         }
-        if (SYSTEM_EVENTS.includes(type)) {
+        if (isSystemEvent(type)) {
             unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
@@ -417,7 +438,7 @@ export class Unit {
     }
 
     static off(unit: Unit, type: string, listener?: Function): void {
-        if (SYSTEM_EVENTS.includes(type)) {
+        if (isSystemEvent(type)) {
             unit._.systems[type] = unit._.systems[type].filter(({ listener: lis }) => listener ? lis !== listener : false);
         }
         (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
@@ -436,14 +457,9 @@ export class Unit {
     static emit(type: string, props: object = {}): void {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
-            const ancestors: Unit[] = [];
-            for (let u = current._.parent; u !== null; u = u._.parent) ancestors.push(u);
+            const ancestors = Unit.ancestors(current);
             Unit.type2units.get(type)?.forEach((unit) => {
-                let find: Unit | undefined = undefined;
-                for (let u: Unit | null = unit; u !== null && find === undefined; u = u._.parent) {
-                    if (u._.protected === true) find = u;
-                }
-                if (find === undefined || ancestors.includes(find) === true || current === find) {
+                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
                     unit._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });
