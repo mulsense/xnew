@@ -44,6 +44,46 @@ describe('loopback simulation (server/client blocks)', () => {
         expect(client._.children.length).toBe(1);
     });
 
+    it('routes a single shared Main root to server/client by mode and mounts replicas into the nested element', () => {
+        const view = document.createElement('div');   // 既存の描画先（例の #view 相当）
+
+        // server/client 共通の非同期ルート。中で xnew.server / xnew.client に分岐する。
+        function Main() {
+            xnew.server(() => { xnew(Mover); });        // server: ロジックツリー
+            xnew.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
+        }
+
+        xnew.config.mode = 'server';
+        const server = xnew(Main);
+        xnew.config.mode = 'client';
+        const client = xnew(Main);
+        xnew.config.mode = null;
+
+        // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
+        const tree = xnew.sync.capture(server);
+        expect(tree.length).toBe(1);
+        expect(tree[0].name).toBe('Mover');
+        expect(tree[0].parentId).toBeNull();
+        expect(server._.children[0]._.mode).toBe('server');   // Main の server ブロックが生成した Mover
+
+        function cycle() {
+            Unit.start(Unit.rootUnit);
+            Unit.update(Unit.rootUnit);
+            xnew.sync.apply(client, xnew.sync.capture(server));
+            Unit.start(Unit.rootUnit);
+            Unit.render(Unit.rootUnit);
+        }
+        cycle();
+
+        // client Main の下に replica Mover が生成され、nest した既存 view 要素の配下に mount される。
+        const replicaMover = client._.children[0];
+        expect(replicaMover).toBeDefined();
+        expect(replicaMover._.mode).toBe('client');
+        expect(replicaMover._.state!.position).toBe(1);
+        expect(view.contains(replicaMover.element as Node)).toBe(true);
+        expect((replicaMover.element as HTMLElement).style.left).toBe('1px');
+    });
+
     it('mirrors spawn and despawn driven from server update', () => {
         function Server(unit: Unit) {
             let spawned = false; let child: Unit | null = null;
