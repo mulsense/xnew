@@ -5,12 +5,12 @@ import xnew from '../../dist/xnew.mjs';
 //   - Mover  : server ブロック内で定期的に Enemy を spawn する親
 //   - Enemy  : 所定方向へ移動し、一定時間で消える子（synced）
 //   - server サブツリーで update/spawn、client サブツリーで描画
-//   - xnew.state.capture(server) で取得した state tree を画面右に表示
+//   - xnew.sync.capture(server) で取得した state tree を画面右に表示
 //----------------------------------------------------------------------------------------------------
 
 // ---- Enemy: 右へ移動し、一定時間で消える ----
 function Enemy(unit, props = {}) {
-    const state = xnew.state.initialize({ x: 0, y: props.y ?? 0 });
+    const state = xnew.sync.state({ x: 0, y: props.y ?? 0 });
 
     xnew.server(() => {
         unit.on('update', () => { state.x += 3; });   // 所定方向（右）へ移動
@@ -26,11 +26,11 @@ function Enemy(unit, props = {}) {
         });
     });
 }
-xnew.state.register('Enemy', Enemy);
+xnew.sync.register('Enemy', Enemy);
 
 // ---- Mover: 定期的に Enemy を spawn する親 ----
 function Mover(unit) {
-    const state = xnew.state.initialize({ spawned: 0 });
+    const state = xnew.sync.state({ spawned: 0 });
 
     xnew.server(() => {
         let lane = 0;
@@ -46,7 +46,7 @@ function Mover(unit) {
         xnew.nest('<div>');       // Enemy 要素を内包するコンテナ
     });
 }
-xnew.state.register('Mover', Mover);
+xnew.sync.register('Mover', Mover);
 
 // ---- 起動: config でモードを切り替えながらサブツリーを生成 ----
 xnew.config.mode = 'server';
@@ -59,8 +59,8 @@ xnew.config.mode = null;
 const stateView = document.getElementById('state');
 xnew(function Driver(unit) {
     unit.on('update', () => {
-        const tree = xnew.state.capture(server);   // authoritative の state tree を取得
-        xnew.state.apply(client, tree);            // replica ツリーへ差分反映
+        const tree = xnew.sync.capture(server);   // authoritative の state tree を取得
+        xnew.sync.apply(client, tree);            // replica ツリーへ差分反映
         stateView.textContent = JSON.stringify(tree, null, 2);  // 取得した state を画面に表示
     });
 });

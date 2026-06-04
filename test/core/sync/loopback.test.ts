@@ -4,7 +4,7 @@ import { resetRegistry } from '../../../src/core/sync';
 
 // 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ
 function Mover(unit: Unit) {
-    const state = xnew.state.initialize({ position: 0 });
+    const state = xnew.sync.state({ position: 0 });
     xnew.server(() => {
         unit.on('update', () => { state.position += 1; });   // server のみ
     });
@@ -15,7 +15,7 @@ function Mover(unit: Unit) {
 }
 
 describe('loopback simulation (server/client blocks)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.state.register('Mover', Mover); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register('Mover', Mover); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {
@@ -28,7 +28,7 @@ describe('loopback simulation (server/client blocks)', () => {
         function cycle() {
             Unit.start(Unit.rootUnit);
             Unit.update(Unit.rootUnit);                              // server Mover: position += 1
-            xnew.state.apply(client, xnew.state.capture(server));    // sync
+            xnew.sync.apply(client, xnew.sync.capture(server));    // sync
             Unit.start(Unit.rootUnit);                               // start newly-created replica units
             Unit.render(Unit.rootUnit);                             // replica render
         }
@@ -60,7 +60,7 @@ describe('loopback simulation (server/client blocks)', () => {
         const client = xnew((u: Unit) => {});
         xnew.config.mode = null;
 
-        const sync = () => xnew.state.apply(client, xnew.state.capture(server));
+        const sync = () => xnew.sync.apply(client, xnew.sync.capture(server));
         Unit.start(Unit.rootUnit);
         Unit.update(Unit.rootUnit); sync();
         expect(client._.children.length).toBe(1);    // spawn mirrored

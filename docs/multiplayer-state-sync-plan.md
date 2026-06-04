@@ -30,7 +30,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void;
 //   xnew.config（= Unit.config）
 //   xnew.server(callback, props?)  : mode !== 'client' のとき Unit.extend 相当で callback 実行（null も実行）
 //   xnew.client(callback, props?)  : mode !== 'server' のとき実行（null も実行）
-//   xnew.state = { initialize, register, capture, apply }
+//   xnew.sync = { state, register, capture, apply }
 ```
 
 ## ファイル構成
@@ -82,13 +82,13 @@ client(callback: Function, props?: Object): { [key: string]: any } {
 - server/client が返す defines が unit にマージされる
 - client ブロック内の `xnew.nest('<div>')` が実 DOM を作る（client）/ server では client 自体が走らないので nest も呼ばれない
 
-## Task 3: sync.ts レジストリ + xnew.state.initialize/register
+## Task 3: sync.ts レジストリ + xnew.sync.state/register
 
 `src/core/sync.ts` 新規（registry / getSyncName / SyncNode / StateTree）。ヘッダは src/core 規約に従う。
-`src/core/xnew.ts` に `xnew.state` 名前空間を追加（この task では initialize/register を実装、capture/apply は次 task で追加）:
+`src/core/xnew.ts` に `xnew.sync` 名前空間を追加（この task では state/register を実装、capture/apply は次 task で追加）:
 ```ts
-state: {
-    initialize(initial: Record<string, any> = {}): Record<string, any> {
+sync: {
+    state(initial: Record<string, any> = {}): Record<string, any> {
         const unit = Unit.currentUnit;
         if (unit._.syncState === null) { unit._.syncState = {}; }
         Object.assign(unit._.syncState, initial);
@@ -98,15 +98,15 @@ state: {
     // capture / apply は Task 4/5 で追加
 },
 ```
-テスト `test/core/sync/state.test.ts`（initialize: 同一参照・マージ）、`test/core/sync/capture.test.ts` の `describe('registry')`（register 双方向、getSyncName）。
+テスト `test/core/sync/state.test.ts`（state: 同一参照・マージ）、`test/core/sync/capture.test.ts` の `describe('registry')`（register 双方向、getSyncName）。
 
-## Task 4: captureStateTree + xnew.state.capture
+## Task 4: captureStateTree + xnew.sync.capture
 
-`sync.ts` に pre-order DFS の `captureStateTree`（lazy id 付与、parentId=最近 synced 祖先、state は shallow copy）。`xnew.state.capture` を追加。テストは `capture.test.ts` に `describe('captureStateTree')`。
+`sync.ts` に pre-order DFS の `captureStateTree`（lazy id 付与、parentId=最近 synced 祖先、state は shallow copy）。`xnew.sync.capture` を追加。テストは `capture.test.ts` に `describe('captureStateTree')`。
 
-## Task 5: applyStateTree + xnew.state.apply
+## Task 5: applyStateTree + xnew.sync.apply
 
-`sync.ts` に reconcile（WeakMap、create/update/remove）。`xnewChild(parent, Component) = (xnew as any)(parent, Component)`（mode を渡さない＝親 client を継承）。`xnew.state.apply` を追加。循環 import（xnew↔sync）はランタイム安全。テスト `reconcile.test.ts`（create/update/remove）。
+`sync.ts` に reconcile（WeakMap、create/update/remove）。`xnewChild(parent, Component) = (xnew as any)(parent, Component)`（mode を渡さない＝親 client を継承）。`xnew.sync.apply` を追加。循環 import（xnew↔sync）はランタイム安全。テスト `reconcile.test.ts`（create/update/remove）。
 
 ## Task 6: ローカル模擬 往復テスト
 

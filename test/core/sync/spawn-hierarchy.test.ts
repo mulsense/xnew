@@ -6,7 +6,7 @@ import { resetRegistry } from '../../../src/core/sync';
 // 各 Enemy は所定方向へ移動して一定時間で消える。ブラウザ例 (index.js) と同じ構造の検証。
 
 function Enemy(unit: Unit, props: any = {}) {
-    const state = xnew.state.initialize({ x: props.x ?? 0 });
+    const state = xnew.sync.state({ x: props.x ?? 0 });
     xnew.server(() => {
         unit.on('update', () => { state.x += 1; });          // 所定方向へ移動
         xnew.timeout(() => unit.finalize(), 1000);           // 一定時間で消滅
@@ -18,7 +18,7 @@ function Enemy(unit: Unit, props: any = {}) {
 }
 
 function Mover(unit: Unit) {
-    const state = xnew.state.initialize({ spawned: 0 });
+    const state = xnew.sync.state({ spawned: 0 });
     xnew.server(() => {
         xnew.interval(() => { state.spawned += 1; xnew(Enemy, { x: 0 }); }, 500); // 定期 spawn
     });
@@ -33,13 +33,13 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         resetRegistry();
         Unit.reset();
         xnew.config.mode = null;
-        xnew.state.register('Mover', Mover);
-        xnew.state.register('Enemy', Enemy);
+        xnew.sync.register('Mover', Mover);
+        xnew.sync.register('Enemy', Enemy);
     });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
     function sync(server: Unit, client: Unit) {
-        return xnew.state.apply(client, xnew.state.capture(server));
+        return xnew.sync.apply(client, xnew.sync.capture(server));
     }
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
@@ -53,7 +53,7 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         await jest.advanceTimersByTimeAsync(500);            // interval が 1 回発火 → Enemy spawn
         Unit.update(Unit.rootUnit);                          // server Enemy が移動
 
-        const tree = xnew.state.capture(server);
+        const tree = xnew.sync.capture(server);
         const moverNode = tree.find(n => n.name === 'Mover')!;
         const enemyNode = tree.find(n => n.name === 'Enemy')!;
         expect(moverNode.parentId).toBeNull();

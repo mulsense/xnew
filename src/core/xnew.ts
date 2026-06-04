@@ -20,7 +20,7 @@
 // - xnew.protect                         : exclude current Unit from emit / find
 // - xnew.config                          : global engine config (config.mode = 'server' | 'client')
 // - xnew.server / client                 : run a block only on server / client (extend-like)
-// - xnew.state.initialize / register / capture / apply : server→client state sync (see core/sync.ts)
+// - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer } from './unit';
@@ -397,14 +397,14 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Synchronized-state API (server→client state sync engine).
-         * - initialize : declare synced state on the current unit (single source of truth)
-         * - register   : register a synchronized entity type by name (call on both runtimes)
-         * - capture    : capture a server subtree as a state tree
-         * - apply      : reconcile a state tree into a client subtree
+         * State synchronization API (server→client state sync engine).
+         * - state    : declare synced state on the current unit (single source of truth)
+         * - register : register a synchronized entity type by name (call on both runtimes)
+         * - capture  : capture a server subtree as a state tree
+         * - apply    : reconcile a state tree into a client subtree
          */
-        state: {
-            initialize(initial: Record<string, any> = {}): Record<string, any> {
+        sync: {
+            state(initial: Record<string, any> = {}): Record<string, any> {
                 const unit = Unit.currentUnit;
                 if (unit._.syncState === null) {
                     unit._.syncState = {};

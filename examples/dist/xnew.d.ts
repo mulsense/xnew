@@ -375,8 +375,8 @@ declare const xnew: ((...args: any[]) => Unit) & {
     client(callback: Function, props?: Object): {
         [key: string]: any;
     };
-    state: {
-        initialize(initial?: Record<string, any>): Record<string, any>;
+    sync: {
+        state(initial?: Record<string, any>): Record<string, any>;
         register(name: string, Component: Function): void;
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;

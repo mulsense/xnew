@@ -1249,8 +1249,8 @@ const xnew$1 = Object.assign(function (...args) {
             throw error;
         }
     },
-    state: {
-        initialize(initial = {}) {
+    sync: {
+        state(initial = {}) {
             const unit = Unit.currentUnit;
             if (unit._.syncState === null) {
                 unit._.syncState = {};
