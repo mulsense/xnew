@@ -40,7 +40,7 @@ export class Unit {
         parent: Unit | null;
         children: Unit[];
 
-        state: string;
+        status: string;   // lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
@@ -58,6 +58,10 @@ export class Unit {
         Components: Function[];
         listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
+
+        mode: string | null;
+        state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
+        syncId: number | null;
     };
 
     constructor(parent: Unit | null, ...args: any[]) {
@@ -104,7 +108,7 @@ export class Unit {
 
         this._ = {
             parent,
-            state: 'invoked',
+            status: 'invoked',
             tostart: true,
             protected: false,
             currentElement: baseElement,
@@ -120,6 +124,14 @@ export class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
+            // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
+            // Unit.config.mode を fallback とする（= サブツリーのルートが config.mode を採用）。
+            // Unit.config.mode は意図的に Unit.reset() でクリアしない（初回 xnew() が自動 reset を
+            // 走らせるため、クリアすると設定済み config.mode が生成前に消える）。利用側が戻す運用。
+            // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
+            mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null,
+            state: null,
+            syncId: null,
         };
 
         // nest html element
@@ -130,8 +142,8 @@ export class Unit {
         // setup Component
         Unit.extend(this, baseComponent, props); 
 
-        if (this._.state === 'invoked') {
-            this._.state = 'initialized';
+        if (this._.status === 'invoked') {
+            this._.status = 'initialized';
         }
         this._.afterSnapshot = Unit.snapshot(this);
         Unit.currentUnit = backup;
@@ -160,8 +172,8 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
-            unit._.state = 'finalizing';
+        if (unit._.status !== 'finalized' && unit._.status !== 'finalizing') {
+            unit._.status = 'finalizing';
 
             unit._.children.reverse().forEach((child: Unit) => child.finalize());
             unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
@@ -191,7 +203,7 @@ export class Unit {
                 delete unit[key as keyof Unit];
             });
             unit._.defines = {};
-            unit._.state = 'finalized';
+            unit._.status = 'finalized';
 
             if (unit._.parent) {
                 unit._.parent._.children = unit._.parent._.children.filter((u: Unit) => u !== unit);
@@ -266,32 +278,32 @@ export class Unit {
 
     static start(unit: Unit): void {
         if (unit._.tostart === false) return;
-        if (unit._.state === 'initialized' || unit._.state === 'stopped') {
-            unit._.state = 'started';
+        if (unit._.status === 'initialized' || unit._.status === 'stopped') {
+            unit._.status = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child));
             unit._.systems.start.forEach(({ execute }) => execute());
-        } else if (unit._.state === 'started') {
+        } else if (unit._.status === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child));
         }
     }
 
     static stop(unit: Unit): void {
-        if (unit._.state === 'started') {
-            unit._.state = 'stopped';
+        if (unit._.status === 'started') {
+            unit._.status = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
             unit._.systems.stop.forEach(({ execute }) => execute());
         }
     }
 
     static update(unit: Unit): void {
-        if (unit._.state === 'started') {
+        if (unit._.status === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child));
             unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
 
     static render(unit: Unit): void {
-        if (unit._.state === 'started' || unit._.state === 'started' || unit._.state === 'stopped') {
+        if (unit._.status === 'started' || unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child: Unit) => Unit.render(child));
             unit._.systems.render.forEach(({ execute }) => execute());
         }
@@ -299,8 +311,11 @@ export class Unit {
 
     static rootUnit: Unit;
     static currentUnit: Unit;
+    static config: { mode: string | null } = { mode: null };
+    static syncIdCounter: number = 1;
 
     static reset(): void {
+        Unit.syncIdCounter = 1;
         Unit.rootUnit?.finalize();
         Unit.currentUnit = Unit.rootUnit = new Unit(null);
         const ticker = new Ticker(() => {
@@ -312,7 +327,7 @@ export class Unit {
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
-        if (snapshot.unit._.state === 'finalized') {
+        if (snapshot.unit._.status === 'finalized') {
             return;
         } 
         const currentUnit = Unit.currentUnit;
@@ -483,7 +498,7 @@ export class UnitTimer {
 
     private static execute(timer: UnitTimer, options: TimerOptions, iterations: number) {
         const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
-        if (timer.unit === null || timer.unit._.state === 'finalized') {
+        if (timer.unit === null || timer.unit._.status === 'finalized') {
             timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
         } else if (timer.queue.length === 0) {
             timer.queue.push(props);

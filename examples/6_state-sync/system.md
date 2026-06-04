@@ -1,0 +1,229 @@
+# 6_state-sync — 仕組み解説
+
+xnew の状態同期システム(`xnew.boot` / `xnew.server` / `xnew.client` / `xnew.sync.*`)の
+仕組みを、`loopback/` サンプル(Mover → Enemy)を例に解説する。
+
+> 設計の背景・スコープは [packages/xnew/docs/multiplayer-state-sync-design.md](../../docs/multiplayer-state-sync-design.md) を参照。
+
+## 0. いちばん大きな絵
+
+ポイントは **「ツリーが 2 つある」** こと。
+
+```
+[サーバー側] server ツリー          [ブラウザ側] client ツリー
+  Mover (ロジック実行)                        Mover (描画だけ)
+   └ Enemy (位置を更新)        ───同期──▶      └ Enemy (位置を描画)
+```
+
+- **server ツリー** = 「本物」。ゲームロジック(`update`)が動き、状態を持つ。
+- **client ツリー** = 「影」。描画(`render`)だけ。状態はサーバーからコピーされてくる。
+- この 2 つを毎フレーム **capture(撮影)→ apply(反映)** で繋ぐ。
+
+`loopback/` ではテスト/デモの都合で**両方を 1 つのブラウザ内に同居**させているが、本番では
+server がサーバー、client がブラウザに分かれる。仕組みは同じ。
+
+## 1. mode — そのツリーが「本物」か「影」か
+
+各 unit は `_.mode`(`'server'` / `'client'` / `null`)を持つ。設定は
+**`xnew.boot(mode, ...args)`** で行う(mode を選ぶ唯一の公開手段)。その mode で `xnew(...args)` を
+生成し、終わると mode が前の値へ自動で戻る:
+
+```js
+const server = xnew.boot('server', Main);   // この Main とその子孫 = server
+const client = xnew.boot('client', Main);   // この Main とその子孫 = client
+```
+
+同じ `Main` を mode を切り替えて 2 回生成する。`Main` 自身は同期対象ではなく、各ツリーの
+ローカルなルートで、中で `xnew.server`/`xnew.client` に分岐する(server ではロジックツリーを
+生成、client では描画先 `#view` を用意するだけ)。
+
+```js
+function Main() {
+  xnew.server(() => { xnew(Mover); });                       // server: ロジックツリー
+  xnew.client(() => { xnew.nest(document.getElementById('view')); });  // client: 描画先
+}
+```
+
+```js
+function Main() {
+  xnew.server(() => { xnew(Mover); });                       // server: ロジックツリー
+  xnew.client(() => { xnew.nest(document.getElementById('view')); });  // client: 描画先
+}
+```
+
+継承ルール:
+
+```
+mode = 親があれば「親の mode ?? 現在の mode ?? null」、ルートなら null
+```
+
+- トップレベルの unit(`server` / `client` の両 `Main`)は **`xnew.boot` が適用中の mode を採用**。
+- その子孫は **親の mode を継承**(boot を抜けて mode が戻っても影響されない)。
+
+だから後から spawn される Enemy も、親 Mover(さらに親 Main)が server なら server になる。
+
+## 2. xnew.server / xnew.client — 1 つの関数で両対応
+
+設計の肝。コンポーネント関数の中を、実行先で分けて書く。
+
+```js
+function Enemy(unit, props = {}) {
+  const state = xnew.sync.state({ x: 0, y: props.y ?? 0 });  // 【共有】両方で動く
+
+  xnew.server(() => {                       // 【server でだけ動く】
+    unit.on('update', () => { state.x += 3; });   // ロジック
+    xnew.timeout(() => unit.finalize(), 3000);    // 寿命
+  });
+
+  xnew.client(() => {                       // 【client でだけ動く】
+    const el = xnew.nest('<div>');                // DOM 生成
+    unit.on('render', () => { el.style.left = `${state.x}px`; }); // 描画
+  });
+}
+```
+
+`xnew.server(cb)` / `xnew.client(cb)` の正体は **「mode を見て実行するか決める `xnew.extend`」**:
+
+- `xnew.server`: mode が `'client'` でなければ実行(server か null)
+- `xnew.client`: mode が `'server'` でなければ実行(client か null)
+- mode=null(単体アプリ)は **両方実行**
+
+**重要な帰結:** server の Enemy は `xnew.server` だけ走る → `update` ハンドラだけ登録され、
+DOM は作られない。client の Enemy は `xnew.client` だけ走る → DOM と `render` だけ登録され、
+`update` は無い。
+
+→ **エンジン(`Unit`)側は mode で一切分岐していない。** `update` も `render` も全 unit で普通に
+回るが、「そのモードに不要なハンドラはそもそも登録されていない」ので何も起きないだけ。
+これにより、スプライト等の任意オブジェクト生成を `xnew.client` ブロックに閉じ込められる
+(サーバーでは実行されないので仮想化が要らない)。
+
+## 3. xnew.sync.state — 同期される状態
+
+```js
+const state = xnew.sync.state({ x: 0, y: 0 });
+```
+
+- これが **同期対象の状態オブジェクト**(`unit._.state`)。single source of truth。
+- server 側では `update` がこれを書き換える(`state.x += 3`)。
+- client 側では capture/apply がここに値を**流し込む**。`render` はこれを読んで描く。
+- 同じ参照を返すので、`render` のクロージャが掴んだ `state` と apply が書き込む先は同一オブジェクト。
+
+**初期化の振る舞いは server / client で異なる:**
+
+- **server / standalone(`mode=null`)**: 引数の初期値(`{ x: 0, y: 0 }`)で初期化する。
+- **client**: 引数の初期値は**使わない**。`apply` が生成直前に注入したサーバー状態で初期化する。
+
+これにより、client のコンポーネント本体は**実行時点でサーバーの正しい状態を参照できる**
+(例: 生成位置やチーム色を state から決めてスプライトを作る)。仕組みは、`apply` の create が
+本体実行の直前にサーバー状態を一時スロットへ置き、`xnew.sync.state` がそれを**一度だけ**
+取り出して(read-once)消費する、というもの。`xnew()` の引数には現れず、消費後は即クリアされる
+ので、次に作られる unit へ漏れない。
+
+## 4. xnew.sync.register — 「同期する種類」の登録
+
+```js
+xnew.sync.register({ Enemy, Mover });   // 名前 ⇄ コンポーネントのマップで一括登録
+```
+
+- 名前 ⇄ コンポーネント関数 の対応表(レジストリ)に登録。キー(`'Enemy'`)が同期名、値が関数。
+- オブジェクトのショートハンド `{ Enemy }` を使えば、変数名がそのまま同期名になる(名前と関数のズレが起きない)。
+- **登録済みコンポーネントから作られた unit だけが「同期対象」**。
+- 未登録の unit(`View` / `Driver` / DOM ラッパ)は同期されない = ローカル専用。
+- サーバー/ブラウザ**両方で同じ register を呼ぶ**(名前から復元するため)。
+
+## 5. xnew.sync.capture — server ツリーを「撮影」
+
+```js
+const tree = xnew.sync.capture(server);
+```
+
+server ツリーを深さ優先で歩いて、同期 unit ごとに **SyncNode** を作り配列で返す:
+
+```js
+[
+  { id: 1, name: 'Mover', parentId: null, state: { spawned: 5 } },
+  { id: 2, name: 'Enemy', parentId: 1,    state: { x: 30, y: 26 } },
+  { id: 3, name: 'Enemy', parentId: 1,    state: { x: 9,  y: 8  } },
+]
+```
+
+- `id`: 同期 unit に一意採番(初回 capture 時に付与し以降固定)。
+- `parentId`: **最も近い同期祖先の id**(間のローカル unit は飛ばす)。これで木構造を表現。
+- `state`: `state`(同期状態)の浅いコピー。
+- **pre-order(親が先)** なのが apply で効く。
+
+## 6. xnew.sync.apply(reconcile)— client ツリーを「差分で」更新
+
+```js
+xnew.sync.apply(client, tree);
+```
+
+client ルートごとに `Map<id, Unit>` を保持し、受け取った `tree` と突き合わせて差分だけ適用:
+
+- **create**: map に無い id → `name` からコンポーネントを引き、**本体実行前にサーバー状態を一時スロットへ注入**してから
+  `parentId` の client unit の下に `xnew()` で生成(本体内の `xnew.sync.state` が注入値で初期化)→ 念のため
+  state を再度流し込む → map に登録。(pre-order なので親が必ず先に存在)
+- **update**: map にある id → 変わったフィールドだけ state に上書き。
+- **remove**: 今回の tree に無い id → その client unit を `finalize()` して map から削除。
+
+→ **ゼロから作り直すのではなく増分のみ**。サーバーで Enemy が消えれば次の capture から外れ、
+apply が client からも消す。create で作る client unit は **mode を渡さない**(親 client を継承)
+ので、自動的に `xnew.client` だけが走り DOM が作られる。
+
+## 7. 毎フレームの流れ(全体)
+
+`loopback/` の Driver:
+
+```js
+xnew(function Driver(unit) {
+  unit.on('update', () => {
+    const tree = xnew.sync.capture(server);  // ① 本物を撮影
+    xnew.sync.apply(client, tree);           // ② 影に反映
+  });
+});
+```
+
+xnew のティッカーは毎フレーム `start → update → render` を全ツリーに回す:
+
+```
+1 フレーム:
+  start  : 新しい unit を started にする
+  update : ・server の Enemy → state.x += 3（ロジック）
+           ・Driver → capture(server) → apply(client)（同期）
+  render : ・client の Enemy → state を読んで el を配置（描画）
+           （server の Enemy は render ハンドラが無いので何もしない）
+```
+
+## 8. Mover → Enemy を追ってみる
+
+1. 起動: `server = xnew(Main)`(server)。Main の `xnew.server` が `xnew(Mover)` を生成し、Mover の `xnew.server` が `xnew.interval` をセット。
+2. ある frame の update で interval 発火 → server に Enemy 生成(update=移動 と timeout=寿命 を持つ。DOM 無し)。
+3. 同 frame の Driver.update で `capture(server)` → Mover + Enemy の SyncNode 配列。
+4. `apply(client)` → client 側に Mover の下へ Enemy を生成(DOM と render を持つ)。state も流し込み。
+5. 以降の frame: server Enemy が `state.x` を増やす → capture に乗る → apply で client Enemy の state 更新 → render が右へ動かす。
+6. 3 秒後: server Enemy の timeout が `finalize` → capture から消える → apply が client Enemy を finalize。画面から消える。
+
+## 9. まとめ
+
+| 要素 | 役割 |
+|---|---|
+| `xnew.boot(mode, ...args)` | その mode で xnew(...args) を生成(server/client を選ぶ) |
+| `_.mode`(継承) | 各 unit が自分はどちら側かを知る |
+| `xnew.server` / `xnew.client` | 1 関数の中で実行先別にコードを分ける(mode 条件付き extend) |
+| `xnew.sync.state` | 同期される状態(single source of truth) |
+| `xnew.sync.register` | 同期する種類を名前登録(両ランタイム) |
+| `xnew.sync.capture` | server ツリー → SyncNode 配列(撮影) |
+| `xnew.sync.apply` | SyncNode 配列 → client ツリーへ差分反映 |
+
+設計の芯は **「エンジンは分岐しない。`server`/`client` ブロックで”その環境に必要なハンドラだけ
+登録する”ことで、update はサーバーだけ・render はクライアントだけに自然に分かれる」** という点。
+
+## 既知の課題（未対処）
+
+- **生成フレームの 1 フレーム遅延**: client unit は生成された frame ではまだ `'started'` でないため
+  `render` が 1 回遅れる。これにより、DOM 要素は本体で挿入済みなのに `left/top` を設定する `render`
+  が走らず、Enemy 生成時に赤丸が一瞬 (0,0) に出てから所定位置へ移ることがある。
+  - **解消済みの片側**: 「本体実行時点で state が既定値(0,0)」だった問題は、`apply` が本体実行前に
+    サーバー状態を注入する方式(§3)で解決済み。本体・初回 `render` ともに正しい state を見る。
+  - **残る片側**: 生成 frame で `render` がスキップされる点。`client` ブロック内で初期 `left/top` を
+    直接セットする/生成 frame で初期描画する等で対処予定。

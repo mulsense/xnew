@@ -1,0 +1,80 @@
+import xnew from '../../dist/xnew.mjs';
+
+//----------------------------------------------------------------------------------------------------
+// 2 階層のコンポーネント（Mover → Enemy）で state 同期を実験するサンプル。
+//   - Main   : server/client 共通のルート。中で xnew.server/xnew.client に分岐（同期対象ではない）
+//   - Mover  : server ブロック内で定期的に Enemy を spawn する親
+//   - Enemy  : 所定方向へ移動し、一定時間で消える子（synced）
+//   - server サブツリーで update/spawn、client サブツリーで描画
+//   - xnew.sync.capture(server) で取得した state tree を画面右に表示
+//----------------------------------------------------------------------------------------------------
+
+// ---- Enemy: 右へ移動し、一定時間で消える ----
+function Enemy(unit, props = {}) {
+    const state = xnew.sync.state({ x: 0, y: props.y ?? 0 });
+
+    xnew.server(() => {
+        unit.on('update', () => { state.x += 3; });   // 所定方向（右）へ移動
+        xnew.timeout(() => unit.finalize(), 3000);     // 3 秒で消滅
+    });
+
+    xnew.client(() => {
+        const el = xnew.nest('<div>');
+        el.style.cssText = 'position:absolute;width:16px;height:16px;background:#e44;border-radius:50%;';
+        el.style.left = `${state.x}px`;
+        el.style.top = `${state.y}px`;
+        unit.on('render', () => {
+            el.style.left = `${state.x}px`;
+            el.style.top = `${state.y}px`;
+        });
+    });
+}
+
+// ---- Mover: 定期的に Enemy を spawn する親 ----
+function Mover(unit) {
+    const state = xnew.sync.state({ spawned: 0 });
+
+    xnew.server(() => {
+        let lane = 0;
+        xnew.interval(() => {
+            const y = 8 + (lane % 6) * 18;
+            lane += 1;
+            state.spawned += 1;
+            xnew(Enemy, { y });   // Enemy は Mover の synced 子として生成
+        }, 600);
+    });
+
+    xnew.client(() => {
+        xnew.nest('<div>');       // Enemy 要素を内包するコンテナ
+    });
+}
+
+// ---- Main: server / client で役割を分岐する共通ルート（同期対象ではない） ----
+function Main() {
+    xnew.server(() => {
+        xnew(Mover);   // server: ロジックツリー（Mover → Enemy）を生成
+    });
+
+    xnew.client(() => {
+        xnew.nest(document.getElementById('view'));   // client: 既存の #view を描画先にする（apply が replica をここに mount）
+    });
+}
+
+// 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）
+xnew.sync.register({ Enemy, Mover });
+
+// ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
+// xnew.boot(mode, ...args) … その mode で xnew(...args) を生成し、終わったら mode を前の値へ復元。
+// ※ 本番では server / client は別プロセスで各自 mode を 1 回設定するだけ。この同居はデモ専用。
+const server = xnew.boot('server', Main);   // 擬似サーバー（ロジック）
+const client = xnew.boot('client', Main);   // ブラウザ表示
+
+// ---- 毎フレーム capture → apply（実ネットワークの代わりにインメモリで反映） ----
+const stateView = document.getElementById('state');
+xnew(function Driver(unit) {
+    unit.on('update', () => {
+        const tree = xnew.sync.capture(server);   // authoritative の state tree を取得
+        xnew.sync.apply(client, tree);            // replica ツリーへ差分反映
+        stateView.textContent = JSON.stringify(tree, null, 2);  // 取得した state を画面に表示
+    });
+});

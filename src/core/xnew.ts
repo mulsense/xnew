@@ -18,10 +18,14 @@
 // - xnew.emit                            : '+global' / '-local' custom events
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
+// - xnew.boot                            : create a root Unit with the engine mode temporarily set (server/client)
+// - xnew.server / client                 : run a block only on server / client (extend-like)
+// - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer } from './unit';
 import { DomElement } from './element';
+import { registerComponent, captureStateTree, applyStateTree, takeInjectedState } from './sync';
 
 export const xnew = Object.assign(
     /**
@@ -62,7 +66,7 @@ export const xnew = Object.assign(
          */
         nest(target: DomElement | string): HTMLElement | SVGElement {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 }
                 return Unit.nest(Unit.currentUnit, target);
@@ -83,7 +87,7 @@ export const xnew = Object.assign(
          */
         extend(Component: Function, props?: Object): { [key: string]: any } {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 }
                 if (Unit.currentUnit._.Components.includes(Component) === true) {
@@ -348,6 +352,99 @@ export const xnew = Object.assign(
          */
         protect(): void {
             Unit.currentUnit._.protected = true;
+        },
+
+        /**
+         * Runs `callback` (like xnew.extend) only when the current unit is NOT a client
+         * (i.e. server or standalone/null). Place server-only logic here (update handlers,
+         * spawning synced children). Skipped — and never invoked — on client units.
+         * @returns defines returned by the callback, or {} when skipped
+         */
+        server(callback: Function, props?: Object): { [key: string]: any } {
+            try {
+                if (Unit.currentUnit._.status !== 'invoked') {
+                    throw new Error('xnew.server can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'client') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            } catch (error: unknown) {
+                console.error('xnew.server(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Runs `callback` (like xnew.extend) only when the current unit is NOT a server
+         * (i.e. client or standalone/null). Place client-only setup here (DOM/sprite creation,
+         * render handlers). Skipped — and never invoked — on server units.
+         * @returns defines returned by the callback, or {} when skipped
+         */
+        client(callback: Function, props?: Object): { [key: string]: any } {
+            try {
+                if (Unit.currentUnit._.status !== 'invoked') {
+                    throw new Error('xnew.client can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'server') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            } catch (error: unknown) {
+                console.error('xnew.client(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+
+        /**
+         * State synchronization API (server→client state sync engine).
+         * - state    : declare synced state on the current unit (server/standalone use `initial`;
+         *              on the client, apply injects server state so `initial` is ignored)
+         * - register : register synchronized entity types by name map `{ Name: Component }` (call on both runtimes)
+         * - capture  : capture a server subtree as a state tree
+         * - apply    : reconcile a state tree into a client subtree
+         */
+        sync: {
+            state(initial: Record<string, any> = {}): Record<string, any> {
+                const unit = Unit.currentUnit;
+                if (unit._.state === null) {
+                    unit._.state = {};
+                }
+                // client 側で apply が注入したサーバー状態があればそれで初期化（initial は使わない）。
+                // server / standalone(null) では注入が無いので initial で初期化する。
+                const injected = takeInjectedState();
+                Object.assign(unit._.state, injected ?? initial);
+                return unit._.state;
+            },
+            register(components: Record<string, Function>): void {
+                for (const [name, Component] of Object.entries(components)) {
+                    registerComponent(name, Component);
+                }
+            },
+            capture(root: Unit): ReturnType<typeof captureStateTree> {
+                return captureStateTree(root);
+            },
+            apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void {
+                applyStateTree(root, tree);
+            },
+        },
+
+        /**
+         * Creates a root Unit with the engine mode temporarily set to `mode`, restoring the
+         * previous mode afterward (even on throw). The remaining arguments are forwarded to
+         * `xnew(...)`, so this is the only public way to select server / client mode — e.g.
+         * `const server = xnew.boot('server', Main)`. The created root adopts the mode and its
+         * descendants inherit it (so spawning later does not need another boot).
+         * @returns the Unit created by `xnew(...args)`
+         */
+        boot(mode: string | null, ...args: any[]): any {
+            const previous = Unit.config.mode;
+            Unit.config.mode = mode;
+            try {
+                return (xnew as any)(...args);
+            } finally {
+                Unit.config.mode = previous;
+            }
         },
 
     }

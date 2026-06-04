@@ -538,7 +538,7 @@
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     class Unit {
         constructor(parent, ...args) {
-            var _a, _b;
+            var _a, _b, _c, _d;
             let target;
             let Component;
             let props;
@@ -581,7 +581,7 @@
             const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
             this._ = {
                 parent,
-                state: 'invoked',
+                status: 'invoked',
                 tostart: true,
                 protected: false,
                 currentElement: baseElement,
@@ -597,13 +597,16 @@
                 defines: {},
                 systems: { start: [], update: [], render: [], stop: [], finalize: [] },
                 eventor: new Eventor(),
+                mode: parent ? ((_d = (_c = parent._.mode) !== null && _c !== void 0 ? _c : Unit.config.mode) !== null && _d !== void 0 ? _d : null) : null,
+                state: null,
+                syncId: null,
             };
             if (typeof target === 'string') {
                 Unit.nest(this, target);
             }
             Unit.extend(this, baseComponent, props);
-            if (this._.state === 'invoked') {
-                this._.state = 'initialized';
+            if (this._.status === 'invoked') {
+                this._.status = 'initialized';
             }
             this._.afterSnapshot = Unit.snapshot(this);
             Unit.currentUnit = backup;
@@ -626,8 +629,8 @@
             Unit.finalize(this);
         }
         static finalize(unit) {
-            if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
-                unit._.state = 'finalizing';
+            if (unit._.status !== 'finalized' && unit._.status !== 'finalizing') {
+                unit._.status = 'finalizing';
                 unit._.children.reverse().forEach((child) => child.finalize());
                 unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
                 unit.off();
@@ -652,7 +655,7 @@
                     delete unit[key];
                 });
                 unit._.defines = {};
-                unit._.state = 'finalized';
+                unit._.status = 'finalized';
                 if (unit._.parent) {
                     unit._.parent._.children = unit._.parent._.children.filter((u) => u !== unit);
                 }
@@ -722,36 +725,37 @@
         static start(unit) {
             if (unit._.tostart === false)
                 return;
-            if (unit._.state === 'initialized' || unit._.state === 'stopped') {
-                unit._.state = 'started';
+            if (unit._.status === 'initialized' || unit._.status === 'stopped') {
+                unit._.status = 'started';
                 unit._.children.forEach((child) => Unit.start(child));
                 unit._.systems.start.forEach(({ execute }) => execute());
             }
-            else if (unit._.state === 'started') {
+            else if (unit._.status === 'started') {
                 unit._.children.forEach((child) => Unit.start(child));
             }
         }
         static stop(unit) {
-            if (unit._.state === 'started') {
-                unit._.state = 'stopped';
+            if (unit._.status === 'started') {
+                unit._.status = 'stopped';
                 unit._.children.forEach((child) => Unit.stop(child));
                 unit._.systems.stop.forEach(({ execute }) => execute());
             }
         }
         static update(unit) {
-            if (unit._.state === 'started') {
+            if (unit._.status === 'started') {
                 unit._.children.forEach((child) => Unit.update(child));
                 unit._.systems.update.forEach(({ execute }) => execute());
             }
         }
         static render(unit) {
-            if (unit._.state === 'started' || unit._.state === 'started' || unit._.state === 'stopped') {
+            if (unit._.status === 'started' || unit._.status === 'started' || unit._.status === 'stopped') {
                 unit._.children.forEach((child) => Unit.render(child));
                 unit._.systems.render.forEach(({ execute }) => execute());
             }
         }
         static reset() {
             var _a;
+            Unit.syncIdCounter = 1;
             (_a = Unit.rootUnit) === null || _a === void 0 ? void 0 : _a.finalize();
             Unit.currentUnit = Unit.rootUnit = new Unit(null);
             const ticker = new Ticker(() => {
@@ -762,7 +766,7 @@
             Unit.rootUnit.on('finalize', () => ticker.clear());
         }
         static scope(snapshot, func, ...args) {
-            if (snapshot.unit._.state === 'finalized') {
+            if (snapshot.unit._.status === 'finalized') {
                 return;
             }
             const currentUnit = Unit.currentUnit;
@@ -800,8 +804,19 @@
             }
         }
         static find(Component) {
-            var _a;
-            return [...((_a = Unit.component2units.get(Component)) !== null && _a !== void 0 ? _a : [])];
+            var _a, _b;
+            const current = Unit.currentUnit;
+            const ancestors = [];
+            for (let u = (_a = current === null || current === void 0 ? void 0 : current._.parent) !== null && _a !== void 0 ? _a : null; u !== null; u = u._.parent)
+                ancestors.push(u);
+            return [...((_b = Unit.component2units.get(Component)) !== null && _b !== void 0 ? _b : [])].filter((unit) => {
+                let boundary = undefined;
+                for (let u = unit._.parent; u !== null && boundary === undefined; u = u._.parent) {
+                    if (u._.protected === true)
+                        boundary = u;
+                }
+                return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+            });
         }
         on(type, listener, options) {
             const types = type.trim().split(/\s+/);
@@ -869,6 +884,8 @@
         }
     }
     Unit.currentComponent = () => { };
+    Unit.config = { mode: null };
+    Unit.syncIdCounter = 1;
     Unit.unit2Contexts = new MapSet();
     Unit.component2units = new MapSet();
     Unit.type2units = new MapSet();
@@ -908,7 +925,7 @@
         }
         static execute(timer, options, iterations) {
             const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
-            if (timer.unit === null || timer.unit._.state === 'finalized') {
+            if (timer.unit === null || timer.unit._.status === 'finalized') {
                 timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
             }
             else if (timer.queue.length === 0) {
@@ -948,6 +965,107 @@
         }
     }
 
+    const nameToComponent = new Map();
+    const componentToName = new Map();
+    function registerComponent(name, Component) {
+        nameToComponent.set(name, Component);
+        componentToName.set(Component, name);
+    }
+    function getRegisteredName(Component) {
+        return componentToName.get(Component);
+    }
+    function getRegisteredComponent(name) {
+        return nameToComponent.get(name);
+    }
+    function getSyncName(unit) {
+        for (const Component of unit._.Components) {
+            const name = getRegisteredName(Component);
+            if (name !== undefined) {
+                return name;
+            }
+        }
+        return undefined;
+    }
+    function captureStateTree(root) {
+        const nodes = [];
+        const walk = (unit, nearestSyncedId) => {
+            var _a;
+            let parentForChildren = nearestSyncedId;
+            const name = getSyncName(unit);
+            if (name !== undefined) {
+                if (unit._.syncId === null) {
+                    unit._.syncId = Unit.syncIdCounter++;
+                }
+                nodes.push({
+                    id: unit._.syncId,
+                    name,
+                    parentId: nearestSyncedId,
+                    state: Object.assign({}, ((_a = unit._.state) !== null && _a !== void 0 ? _a : {})),
+                });
+                parentForChildren = unit._.syncId;
+            }
+            unit._.children.forEach((child) => walk(child, parentForChildren));
+        };
+        walk(root, null);
+        return nodes;
+    }
+    let injectedState = null;
+    function takeInjectedState() {
+        const state = injectedState;
+        injectedState = null;
+        return state;
+    }
+    const reconcileMaps = new WeakMap();
+    function xnewChild(parent, Component) {
+        return xnew$1(parent, Component);
+    }
+    function applyStateTree(root, tree) {
+        let map = reconcileMaps.get(root);
+        if (map === undefined) {
+            map = new Map();
+            reconcileMaps.set(root, map);
+        }
+        const incoming = new Set(tree.map((node) => node.id));
+        for (const node of tree) {
+            const existing = map.get(node.id);
+            if (existing === undefined) {
+                const Component = getRegisteredComponent(node.name);
+                if (Component === undefined) {
+                    continue;
+                }
+                const parent = node.parentId === null ? root : map.get(node.parentId);
+                if (parent === undefined) {
+                    continue;
+                }
+                injectedState = node.state;
+                const unit = xnewChild(parent, Component);
+                injectedState = null;
+                unit._.syncId = node.id;
+                if (unit._.state === null) {
+                    unit._.state = {};
+                }
+                Object.assign(unit._.state, node.state);
+                map.set(node.id, unit);
+            }
+            else {
+                if (existing._.state === null) {
+                    existing._.state = {};
+                }
+                for (const key of Object.keys(node.state)) {
+                    if (existing._.state[key] !== node.state[key]) {
+                        existing._.state[key] = node.state[key];
+                    }
+                }
+            }
+        }
+        for (const [id, unit] of [...map.entries()]) {
+            if (incoming.has(id) === false) {
+                unit.finalize();
+                map.delete(id);
+            }
+        }
+    }
+
     const xnew$1 = Object.assign(function (...args) {
         var _a, _b;
         if (Unit.rootUnit === undefined)
@@ -964,7 +1082,7 @@
     }, {
         nest(target) {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 }
                 return Unit.nest(Unit.currentUnit, target);
@@ -976,7 +1094,7 @@
         },
         extend(Component, props) {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 }
                 if (Unit.currentUnit._.Components.includes(Component) === true) {
@@ -1114,6 +1232,68 @@
         },
         protect() {
             Unit.currentUnit._.protected = true;
+        },
+        server(callback, props) {
+            try {
+                if (Unit.currentUnit._.status !== 'invoked') {
+                    throw new Error('xnew.server can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'client') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            }
+            catch (error) {
+                console.error('xnew.server(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+        client(callback, props) {
+            try {
+                if (Unit.currentUnit._.status !== 'invoked') {
+                    throw new Error('xnew.client can not be called after initialized.');
+                }
+                if (Unit.currentUnit._.mode === 'server') {
+                    return {};
+                }
+                return Unit.extend(Unit.currentUnit, callback, props);
+            }
+            catch (error) {
+                console.error('xnew.client(callback: Function, props?: Object): ', error);
+                throw error;
+            }
+        },
+        sync: {
+            state(initial = {}) {
+                const unit = Unit.currentUnit;
+                if (unit._.state === null) {
+                    unit._.state = {};
+                }
+                const injected = takeInjectedState();
+                Object.assign(unit._.state, injected !== null && injected !== void 0 ? injected : initial);
+                return unit._.state;
+            },
+            register(components) {
+                for (const [name, Component] of Object.entries(components)) {
+                    registerComponent(name, Component);
+                }
+            },
+            capture(root) {
+                return captureStateTree(root);
+            },
+            apply(root, tree) {
+                applyStateTree(root, tree);
+            },
+        },
+        boot(mode, ...args) {
+            const previous = Unit.config.mode;
+            Unit.config.mode = mode;
+            try {
+                return xnew$1(...args);
+            }
+            finally {
+                Unit.config.mode = previous;
+            }
         },
     });
 
