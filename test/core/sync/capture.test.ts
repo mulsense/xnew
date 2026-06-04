@@ -51,7 +51,7 @@ describe('captureStateTree', () => {
         xnew.sync.register({ Child });
         const root = xnew(function Root() { xnew(Child); });
         const first = xnew.sync.capture(root)[0];
-        root._.children[0]._.syncState!.position = 9;
+        root._.children[0]._.state!.position = 9;
         const second = xnew.sync.capture(root)[0];
         expect(second.id).toBe(first.id);
         expect(second.state).toEqual({ position: 9 });

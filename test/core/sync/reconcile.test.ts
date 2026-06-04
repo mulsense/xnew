@@ -24,7 +24,7 @@ describe('applyStateTree create', () => {
         const child = view._.children[0];
         expect(child._.syncId).toBe(1);
         expect(child._.mode).toBe('client');
-        expect(child._.syncState).toEqual({ value: 7 });
+        expect(child._.state).toEqual({ value: 7 });
     });
 
     it('creates nested replica units honoring parentId', () => {
@@ -75,7 +75,7 @@ describe('applyStateTree update', () => {
         const first = view._.children[0];
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: { value: 2 } }]);
         expect(view._.children[0]).toBe(first);
-        expect(first._.syncState).toEqual({ value: 2 });
+        expect(first._.state).toEqual({ value: 2 });
         expect(view._.children.length).toBe(1);
     });
 });
@@ -96,6 +96,6 @@ describe('applyStateTree remove', () => {
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: {} }]);
         expect(view._.children.length).toBe(1);
         expect(view._.children[0]._.syncId).toBe(1);
-        expect(removed._.state).toBe('finalized');
+        expect(removed._.status).toBe('finalized');
     });
 });

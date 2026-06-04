@@ -61,7 +61,7 @@ declare class Unit {
     _: {
         parent: Unit | null;
         children: Unit[];
-        state: string;
+        status: string;
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
@@ -87,7 +87,7 @@ declare class Unit {
         }>;
         eventor: Eventor;
         mode: string | null;
-        syncState: Record<string, any> | null;
+        state: Record<string, any> | null;
         syncId: number | null;
     };
     constructor(parent: Unit | null, ...args: any[]);

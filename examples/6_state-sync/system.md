@@ -87,7 +87,7 @@ DOM は作られない。client の Enemy は `xnew.client` だけ走る → DOM
 const state = xnew.sync.state({ x: 0, y: 0 });
 ```
 
-- これが **同期対象の状態オブジェクト**(`unit._.syncState`)。single source of truth。
+- これが **同期対象の状態オブジェクト**(`unit._.state`)。single source of truth。
 - server 側では `update` がこれを書き換える(`state.x += 3`)。
 - client 側では capture/apply がここに値を**流し込む**。`render` はこれを読んで描く。
 - 同じ参照を返すので、`render` のクロージャが掴んだ `state` と apply が書き込む先は同一オブジェクト。
@@ -133,7 +133,7 @@ server ツリーを深さ優先で歩いて、同期 unit ごとに **SyncNode**
 
 - `id`: 同期 unit に一意採番(初回 capture 時に付与し以降固定)。
 - `parentId`: **最も近い同期祖先の id**(間のローカル unit は飛ばす)。これで木構造を表現。
-- `state`: `syncState` の浅いコピー。
+- `state`: `state`(同期状態)の浅いコピー。
 - **pre-order(親が先)** なのが apply で効く。
 
 ## 6. xnew.sync.apply(reconcile)— client ツリーを「差分で」更新

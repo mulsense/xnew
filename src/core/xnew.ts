@@ -66,7 +66,7 @@ export const xnew = Object.assign(
          */
         nest(target: DomElement | string): HTMLElement | SVGElement {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.nest can not be called after initialized.');
                 }
                 return Unit.nest(Unit.currentUnit, target);
@@ -87,7 +87,7 @@ export const xnew = Object.assign(
          */
         extend(Component: Function, props?: Object): { [key: string]: any } {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
                 }
                 if (Unit.currentUnit._.Components.includes(Component) === true) {
@@ -362,7 +362,7 @@ export const xnew = Object.assign(
          */
         server(callback: Function, props?: Object): { [key: string]: any } {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.server can not be called after initialized.');
                 }
                 if (Unit.currentUnit._.mode === 'client') {
@@ -383,7 +383,7 @@ export const xnew = Object.assign(
          */
         client(callback: Function, props?: Object): { [key: string]: any } {
             try {
-                if (Unit.currentUnit._.state !== 'invoked') {
+                if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.client can not be called after initialized.');
                 }
                 if (Unit.currentUnit._.mode === 'server') {
@@ -407,14 +407,14 @@ export const xnew = Object.assign(
         sync: {
             state(initial: Record<string, any> = {}): Record<string, any> {
                 const unit = Unit.currentUnit;
-                if (unit._.syncState === null) {
-                    unit._.syncState = {};
+                if (unit._.state === null) {
+                    unit._.state = {};
                 }
                 // client 側で apply が注入したサーバー状態があればそれで初期化（initial は使わない）。
                 // server / standalone(null) では注入が無いので initial で初期化する。
                 const injected = takeInjectedState();
-                Object.assign(unit._.syncState, injected ?? initial);
-                return unit._.syncState;
+                Object.assign(unit._.state, injected ?? initial);
+                return unit._.state;
             },
             register(components: Record<string, Function>): void {
                 for (const [name, Component] of Object.entries(components)) {

@@ -11,7 +11,7 @@
 ## 契約（全 task 共通）
 
 ```ts
-// src/core/unit.ts — Unit._ 追加: mode/syncState/syncId。static: Unit.config = { mode: null }, Unit.syncIdCounter。
+// src/core/unit.ts — Unit._ 追加: mode/state/syncId。static: Unit.config = { mode: null }, Unit.syncIdCounter。
 //   mode 解決: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null
 //   ★ Unit.update/render/nest/on は変更しない（ゲートなし）。Unit.reset は syncIdCounter のみ初期化（config は触らない）。
 
@@ -45,8 +45,8 @@ export function applyStateTree(root: Unit, tree: StateTree): void;
 ## Task 1: エンジン core（mode/config、ゲートなし）
 
 `src/core/unit.ts`:
-- `public _` 型に `mode: string | null; syncState: Record<string, any> | null; syncId: number | null;`
-- `this._` リテラルに `mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null, syncState: null, syncId: null,`
+- `public _` 型に `mode: string | null; state: Record<string, any> | null; syncId: number | null;`
+- `this._` リテラルに `mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null, state: null, syncId: null,`
 - static 追加: `static config: { mode: string | null } = { mode: null };` `static syncIdCounter: number = 1;`
 - `static reset()` 先頭で `Unit.syncIdCounter = 1;`（config は触らない）
 - **update/render/nest/on は一切変更しない。**
@@ -90,9 +90,9 @@ client(callback: Function, props?: Object): { [key: string]: any } {
 sync: {
     state(initial: Record<string, any> = {}): Record<string, any> {
         const unit = Unit.currentUnit;
-        if (unit._.syncState === null) { unit._.syncState = {}; }
-        Object.assign(unit._.syncState, initial);
-        return unit._.syncState;
+        if (unit._.state === null) { unit._.state = {}; }
+        Object.assign(unit._.state, initial);
+        return unit._.state;
     },
     register(components: Record<string, Function>): void {
         for (const [name, Component] of Object.entries(components)) { registerComponent(name, Component); }

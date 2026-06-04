@@ -67,7 +67,7 @@ export function captureStateTree(root: Unit): StateTree {
                 id: unit._.syncId,
                 name,
                 parentId: nearestSyncedId,
-                state: { ...(unit._.syncState ?? {}) },
+                state: { ...(unit._.state ?? {}) },
             });
             parentForChildren = unit._.syncId;
         }
@@ -126,17 +126,17 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             const unit = xnewChild(parent, Component);
             injectedState = null;                // 本体が消費しなかった場合の漏れ防止
             unit._.syncId = node.id;
-            if (unit._.syncState === null) { unit._.syncState = {}; }
-            Object.assign(unit._.syncState, node.state);   // 状態を宣言しない型・欠落キーへの保険
+            if (unit._.state === null) { unit._.state = {}; }
+            Object.assign(unit._.state, node.state);   // 状態を宣言しない型・欠落キーへの保険
             map.set(node.id, unit);
         } else {
             // update（変更フィールドのみ書き換え）
             // 不変条件: 一度入ったキーは削除されない。capture は全フィールドを毎回送るため、
             // サーバー側で state からキーを「消す」運用をすると client に残り続ける（v1 の割り切り）。
-            if (existing._.syncState === null) { existing._.syncState = {}; }
+            if (existing._.state === null) { existing._.state = {}; }
             for (const key of Object.keys(node.state)) {
-                if (existing._.syncState[key] !== node.state[key]) {
-                    existing._.syncState[key] = node.state[key];
+                if (existing._.state[key] !== node.state[key]) {
+                    existing._.state[key] = node.state[key];
                 }
             }
         }
