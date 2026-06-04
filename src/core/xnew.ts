@@ -19,6 +19,7 @@
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
 // - xnew.config                          : global engine config (config.mode = 'server' | 'client')
+// - xnew.boot                            : run a callback with config.mode temporarily set (restores after)
 // - xnew.server / client                 : run a block only on server / client (extend-like)
 // - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
@@ -435,6 +436,22 @@ export const xnew = Object.assign(
          * xnew.client blocks run. Same object as Unit.config.
          */
         config: Unit.config,
+
+        /**
+         * Runs `callback` with `config.mode` temporarily set to `mode`, restoring the previous
+         * mode afterward (even on throw). Use it to bootstrap an environment root without leaving
+         * `config.mode` dangling — e.g. `const server = xnew.boot('server', () => xnew(Main))`.
+         * @returns whatever `callback` returns (typically the created root Unit)
+         */
+        boot(mode: string | null, callback: Function): any {
+            const previous = Unit.config.mode;
+            Unit.config.mode = mode;
+            try {
+                return callback();
+            } finally {
+                Unit.config.mode = previous;
+            }
+        },
 
     }
 );

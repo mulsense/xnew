@@ -39,6 +39,14 @@ xnew.config.mode = null;
 ローカルなルートで、中で `xnew.server`/`xnew.client` に分岐する(server ではロジックツリーを
 生成、client では描画先 `#view` を用意するだけ)。
 
+実際の `loopback/index.js` では、この「mode をセット→生成→戻す」を `xnew.boot(mode, fn)`
+(fn 実行中だけ config.mode を適用し終了後に復元)で書いている:
+
+```js
+const server = xnew.boot('server', () => xnew(Main));
+const client = xnew.boot('client', () => xnew(Main));
+```
+
 ```js
 function Main() {
   xnew.server(() => { xnew(Mover); });                       // server: ロジックツリー

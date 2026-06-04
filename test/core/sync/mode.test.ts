@@ -28,3 +28,34 @@ describe('mode inheritance', () => {
         expect(unit._.mode).toBeNull();
     });
 });
+
+describe('xnew.boot', () => {
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); xnew.config.mode = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
+
+    it('applies the mode during the callback and returns its result', () => {
+        const unit = xnew.boot('server', () => xnew((u: Unit) => {}));
+        expect(unit._.mode).toBe('server');
+    });
+
+    it('restores the previous config.mode after the callback', () => {
+        xnew.boot('client', () => xnew((u: Unit) => {}));
+        expect(xnew.config.mode).toBeNull();
+    });
+
+    it('restores the previous config.mode even when the callback throws', () => {
+        expect(() => xnew.boot('server', () => { throw new Error('boom'); })).toThrow('boom');
+        expect(xnew.config.mode).toBeNull();
+    });
+
+    it('restores to the outer mode when nested', () => {
+        let inner!: Unit; let outer!: Unit;
+        xnew.boot('server', () => {
+            inner = xnew.boot('client', () => xnew((u: Unit) => {})) as unknown as Unit;
+            outer = xnew((u: Unit) => {}) as unknown as Unit;   // back to 'server' after the nested boot
+        });
+        expect(inner._.mode).toBe('client');
+        expect(outer._.mode).toBe('server');
+        expect(xnew.config.mode).toBeNull();
+    });
+});

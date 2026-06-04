@@ -384,6 +384,7 @@ declare const xnew: ((...args: any[]) => Unit) & {
     config: {
         mode: string | null;
     };
+    boot(mode: string | null, callback: Function): any;
 } & {
     basics: {
         SVG: typeof SVG;

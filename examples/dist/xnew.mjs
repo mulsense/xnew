@@ -1280,6 +1280,16 @@ const xnew$1 = Object.assign(function (...args) {
         },
     },
     config: Unit.config,
+    boot(mode, callback) {
+        const previous = Unit.config.mode;
+        Unit.config.mode = mode;
+        try {
+            return callback();
+        }
+        finally {
+            Unit.config.mode = previous;
+        }
+    },
 });
 
 function OpenAndClose(unit, { open = true, transition = { duration: 200, easing: 'ease' } }) {
