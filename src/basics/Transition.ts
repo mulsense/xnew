@@ -23,9 +23,9 @@ export function OpenAndClose(unit: Unit,
     let sign: number = open ? +1 : -1;
     let timer = xnew.timeout(() => xnew.emit('-transition', { value }));
 
-    return {
+    const api = {
         toggle() {
-            sign < 0 ? unit.open() : unit.close();
+            sign < 0 ? api.open() : api.close();
         },
         open() {
             sign = +1;
@@ -51,7 +51,8 @@ export function OpenAndClose(unit: Unit,
             }, duration, easing)
             .timeout(() => xnew.emit('-closed'));
         },
-    }
+    };
+    return api;
 }
 
 export function Accordion(unit: Unit) {

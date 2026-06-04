@@ -530,6 +530,9 @@ function isDomElement(value) {
 }
 
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
+function isSystemEvent(type) {
+    return SYSTEM_EVENTS.includes(type);
+}
 class Unit {
     constructor(parent, ...args) {
         var _a, _b, _c, _d;
@@ -625,10 +628,10 @@ class Unit {
     static finalize(unit) {
         if (unit._.status !== 'finalized' && unit._.status !== 'finalizing') {
             unit._.status = 'finalizing';
-            unit._.children.reverse().forEach((child) => child.finalize());
-            unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
+            [...unit._.children].reverse().forEach((child) => child.finalize());
+            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
             unit.off();
-            unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
+            [...unit._.nestElements].reverse().filter(item => item.owned).forEach(item => item.element.remove());
             unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
             const contexts = Unit.unit2Contexts.get(unit);
             contexts === null || contexts === void 0 ? void 0 : contexts.forEach((context) => {
@@ -742,7 +745,7 @@ class Unit {
         }
     }
     static render(unit) {
-        if (unit._.status === 'started' || unit._.status === 'started' || unit._.status === 'stopped') {
+        if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child) => Unit.render(child));
             unit._.systems.render.forEach(({ execute }) => execute());
         }
@@ -772,9 +775,6 @@ class Unit {
             snapshot.unit._.currentComponent = snapshot.Component;
             return func(...args);
         }
-        catch (error) {
-            throw error;
-        }
         finally {
             Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
@@ -797,19 +797,29 @@ class Unit {
                 return context.value;
         }
     }
-    static find(Component) {
-        var _a, _b;
-        const current = Unit.currentUnit;
+    static ancestors(unit) {
+        var _a;
         const ancestors = [];
-        for (let u = (_a = current === null || current === void 0 ? void 0 : current._.parent) !== null && _a !== void 0 ? _a : null; u !== null; u = u._.parent)
+        for (let u = (_a = unit === null || unit === void 0 ? void 0 : unit._.parent) !== null && _a !== void 0 ? _a : null; u !== null; u = u._.parent)
             ancestors.push(u);
-        return [...((_b = Unit.component2units.get(Component)) !== null && _b !== void 0 ? _b : [])].filter((unit) => {
-            let boundary = undefined;
-            for (let u = unit._.parent; u !== null && boundary === undefined; u = u._.parent) {
-                if (u._.protected === true)
-                    boundary = u;
-            }
-            return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+        return ancestors;
+    }
+    static protectBoundary(from) {
+        for (let u = from; u !== null; u = u._.parent) {
+            if (u._.protected === true)
+                return u;
+        }
+        return undefined;
+    }
+    static isVisible(boundary, current, ancestors) {
+        return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+    }
+    static find(Component) {
+        var _a;
+        const current = Unit.currentUnit;
+        const ancestors = Unit.ancestors(current);
+        return [...((_a = Unit.component2units.get(Component)) !== null && _a !== void 0 ? _a : [])].filter((unit) => {
+            return Unit.isVisible(Unit.protectBoundary(unit._.parent), current, ancestors);
         });
     }
     on(type, listener, options) {
@@ -825,7 +835,7 @@ class Unit {
         const execute = (props) => {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         };
-        if (SYSTEM_EVENTS.includes(type)) {
+        if (isSystemEvent(type)) {
             unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
@@ -837,7 +847,7 @@ class Unit {
         }
     }
     static off(unit, type, listener) {
-        if (SYSTEM_EVENTS.includes(type)) {
+        if (isSystemEvent(type)) {
             unit._.systems[type] = unit._.systems[type].filter(({ listener: lis }) => listener ? lis !== listener : false);
         }
         (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
@@ -857,17 +867,10 @@ class Unit {
         var _a, _b;
         const current = Unit.currentUnit;
         if (type[0] === '+') {
-            const ancestors = [];
-            for (let u = current._.parent; u !== null; u = u._.parent)
-                ancestors.push(u);
+            const ancestors = Unit.ancestors(current);
             (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
                 var _a;
-                let find = undefined;
-                for (let u = unit; u !== null && find === undefined; u = u._.parent) {
-                    if (u._.protected === true)
-                        find = u;
-                }
-                if (find === undefined || ancestors.includes(find) === true || current === find) {
+                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
                     (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
                 }
             });
@@ -877,7 +880,6 @@ class Unit {
         }
     }
 }
-Unit.currentComponent = () => { };
 Unit.config = { mode: null };
 Unit.syncIdCounter = 1;
 Unit.unit2Contexts = new MapSet();
@@ -1060,7 +1062,7 @@ function applyStateTree(root, tree) {
     }
 }
 
-const xnew$1 = Object.assign(function (...args) {
+const xnew$1 = Object.assign((function (...args) {
     var _a, _b;
     if (Unit.rootUnit === undefined)
         Unit.reset();
@@ -1073,7 +1075,7 @@ const xnew$1 = Object.assign(function (...args) {
         const parent = (_b = Unit.currentUnit) !== null && _b !== void 0 ? _b : null;
         return new Unit(parent, ...args);
     }
-}, {
+}), {
     nest(target) {
         try {
             if (Unit.currentUnit._.status !== 'invoked') {
@@ -1295,9 +1297,9 @@ function OpenAndClose(unit, { open = true, transition = { duration: 200, easing:
     let value = open ? 1.0 : 0.0;
     let sign = open ? +1 : -1;
     let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { value }));
-    return {
+    const api = {
         toggle() {
-            sign < 0 ? unit.open() : unit.close();
+            sign < 0 ? api.open() : api.close();
         },
         open() {
             var _a, _b;
@@ -1326,6 +1328,7 @@ function OpenAndClose(unit, { open = true, transition = { duration: 200, easing:
                 .timeout(() => xnew$1.emit('-closed'));
         },
     };
+    return api;
 }
 function Accordion(unit) {
     const system = xnew$1.context(OpenAndClose);
@@ -1536,10 +1539,10 @@ function Panel(unit, { params }) {
     };
 }
 function Group(group, { name, open = false }) {
-    xnew$1.extend(OpenAndClose, { open });
+    const openAndClose = xnew$1.extend(OpenAndClose, { open });
     if (name) {
         xnew$1('<div style="height: 2em; margin: 0.125em 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit) => {
-            unit.on('click', () => group.toggle());
+            unit.on('click', () => openAndClose.toggle());
             xnew$1((unit) => {
                 xnew$1.extend(SVG, { viewBox: '0 0 12 12', stroke: 'currentColor', style: 'width: 1em; height: 1em; margin-right: 0.25em;' });
                 xnew$1('<path d="M6 2 10 6 6 10"/>');

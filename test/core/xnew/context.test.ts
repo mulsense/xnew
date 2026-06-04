@@ -21,7 +21,7 @@ describe('xnew.context', () => {
         });
 
         expect(resolved).toHaveBeenCalledTimes(1);
-        const found = resolved.mock.calls[0][0] as Unit;
+        const found = resolved.mock.calls[0][0] as Unit & { name: string };
         expect(found).toBe(themeUnit);
         expect(found.name).toBe('dark');
     });
@@ -41,7 +41,7 @@ describe('xnew.context', () => {
             });
         });
 
-        const found = resolved.mock.calls[0][0] as Unit;
+        const found = resolved.mock.calls[0][0] as Unit & { token: string };
         expect(found).toBe(providerUnit);
         expect(found.token).toBe('abc');
     });
@@ -79,7 +79,7 @@ describe('xnew.context', () => {
             });
         });
 
-        const found = resolved.mock.calls[0][0] as Unit;
+        const found = resolved.mock.calls[0][0] as Unit & { label: string };
         expect(found).toBe(innerScope);
         expect(found.label).toBe('inner');
         expect(found).not.toBe(outerScope);

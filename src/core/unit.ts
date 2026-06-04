@@ -33,6 +33,21 @@ export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finali
 // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
 export type Mode = 'server' | 'client' | null;
 
+// Component: Unit を拡張し、任意で defines(公開 API オブジェクト)を返す関数。
+// P = props 型、A = defines 型。defines は xnew(...) の戻り値に合成される(Unit & A)。
+export type Component<P extends object = any, A extends object = {}> =
+    (unit: Unit, props: P) => A | void;
+
+// Component の defines(戻り値 API)を取り出す。void/undefined は defines 無しとして {} に落とす。
+export type DefinesOf<C> =
+    C extends (...args: any[]) => infer R
+        ? ([R] extends [void] ? {} : Exclude<R, void | undefined>)
+        : {};
+
+// Component の props 型(第2引数)を取り出す。無い場合は {}。
+export type PropsOf<C> =
+    C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
+
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'] as const;
 type SystemEvent = typeof SYSTEM_EVENTS[number];
 function isSystemEvent(type: string): type is SystemEvent {
@@ -44,7 +59,6 @@ function isSystemEvent(type: string): type is SystemEvent {
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
-    [key: string]: any;
 
     public _: {
         parent: Unit | null;
@@ -260,7 +274,7 @@ export class Unit {
         unit._.Components.push(Component);
 
         Object.keys(defines).forEach((key) => {
-            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+            if ((unit as any)[key] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);

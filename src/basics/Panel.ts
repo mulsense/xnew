@@ -62,10 +62,10 @@ export function Panel(unit: Unit, { params }: PanelOptions) {
 }
 
 function Group(group: Unit, { name, open = false }: { name?: string, open?: boolean }) {
-    xnew.extend(OpenAndClose, { open });
+    const openAndClose = xnew.extend(OpenAndClose, { open });
     if (name) {
         xnew('<div style="height: 2em; margin: 0.125em 0; display: flex; align-items: center; cursor: pointer; user-select: none;">', (unit: Unit) => {
-            unit.on('click', () => group.toggle());
+            unit.on('click', () => openAndClose.toggle());
             xnew((unit: Unit) => {
                 xnew.extend(SVG, { viewBox: '0 0 12 12', stroke: 'currentColor', style: 'width: 1em; height: 1em; margin-right: 0.25em;' });
                 xnew('<path d="M6 2 10 6 6 10"/>');
