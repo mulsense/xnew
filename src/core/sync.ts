@@ -77,7 +77,7 @@ export function captureStateTree(root: Unit): StateTree {
     return nodes;
 }
 
-/** replica ルートごとに id→Unit のマップを保持する。Unit を汚染しないよう WeakMap に格納する。 */
+/** client ルートごとに id→Unit のマップを保持する。Unit を汚染しないよう WeakMap に格納する。 */
 const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
 function xnewChild(parent: Unit, Component: Function): Unit {
@@ -85,9 +85,9 @@ function xnewChild(parent: Unit, Component: Function): Unit {
 }
 
 /**
- * Applies a state tree to a replica subtree, reconciling create/update/remove.
- * @param root - root unit of the replica subtree (owned by the caller)
- * @param tree - state tree captured from the authoritative side (pre-order: parents before children)
+ * Applies a state tree to a client subtree, reconciling create/update/remove.
+ * @param root - root unit of the client subtree (owned by the caller)
+ * @param tree - state tree captured from the server side (pre-order: parents before children)
  */
 export function applyStateTree(root: Unit, tree: StateTree): void {
     let map = reconcileMaps.get(root);
@@ -115,7 +115,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         } else {
             // update（変更フィールドのみ書き換え）
             // 不変条件: 一度入ったキーは削除されない。capture は全フィールドを毎回送るため、
-            // サーバー側で state からキーを「消す」運用をすると replica に残り続ける（v1 の割り切り）。
+            // サーバー側で state からキーを「消す」運用をすると client に残り続ける（v1 の割り切り）。
             if (existing._.syncState === null) { existing._.syncState = {}; }
             for (const key of Object.keys(node.state)) {
                 if (existing._.syncState[key] !== node.state[key]) {

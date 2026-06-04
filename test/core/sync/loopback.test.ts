@@ -36,7 +36,7 @@ describe('loopback simulation (server/client blocks)', () => {
         cycle();
         const replicaMover = client._.children[0];
         expect(replicaMover._.syncState!.position).toBe(1);
-        expect((replicaMover.element as HTMLElement).style.left).toBe('1px');   // browser block render consumed synced state
+        expect((replicaMover.element as HTMLElement).style.left).toBe('1px');   // client block render consumed synced state
 
         cycle();
         expect(replicaMover._.syncState!.position).toBe(2);
