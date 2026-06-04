@@ -27,7 +27,7 @@ export function captureStateTree(root: Unit): StateTree;
 export function applyStateTree(root: Unit, tree: StateTree): void;
 
 // src/core/xnew.ts に追加:
-//   xnew.boot(mode, callback)      : callback 実行中だけ Unit.config.mode を適用し復元（mode 選択の唯一の公開手段）
+//   xnew.boot(mode, ...args)       : その mode で xnew(...args) を生成し Unit.config.mode を復元（mode 選択の唯一の公開手段）
 //   xnew.server(callback, props?)  : mode !== 'client' のとき Unit.extend 相当で callback 実行（null も実行）
 //   xnew.client(callback, props?)  : mode !== 'server' のとき実行（null も実行）
 //   xnew.sync = { state, register, capture, apply }

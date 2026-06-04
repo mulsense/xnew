@@ -64,10 +64,10 @@ function Main() {
 xnew.sync.register({ Enemy, Mover });
 
 // ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
-// xnew.boot(mode, fn) … fn の実行中だけ config.mode を適用し、終わったら前の値へ復元する。
+// xnew.boot(mode, ...args) … その mode で xnew(...args) を生成し、終わったら mode を前の値へ復元。
 // ※ 本番では server / client は別プロセスで各自 mode を 1 回設定するだけ。この同居はデモ専用。
-const server = xnew.boot('server', () => xnew(Main));   // 擬似サーバー（ロジック）
-const client = xnew.boot('client', () => xnew(Main));   // ブラウザ表示
+const server = xnew.boot('server', Main);   // 擬似サーバー（ロジック）
+const client = xnew.boot('client', Main);   // ブラウザ表示
 
 // ---- 毎フレーム capture → apply（実ネットワークの代わりにインメモリで反映） ----
 const stateView = document.getElementById('state');

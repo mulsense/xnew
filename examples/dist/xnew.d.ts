@@ -381,7 +381,7 @@ declare const xnew: ((...args: any[]) => Unit) & {
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
     };
-    boot(mode: string | null, callback: Function): any;
+    boot(mode: string | null, ...args: any[]): any;
 } & {
     basics: {
         SVG: typeof SVG;

@@ -18,7 +18,7 @@
 // - xnew.emit                            : '+global' / '-local' custom events
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
-// - xnew.boot                            : run a callback with the engine mode temporarily set (server/client)
+// - xnew.boot                            : create a root Unit with the engine mode temporarily set (server/client)
 // - xnew.server / client                 : run a block only on server / client (extend-like)
 // - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
@@ -430,18 +430,18 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Runs `callback` with the engine mode temporarily set to `mode`, restoring the previous
-         * mode afterward (even on throw). This is the only public way to select server / client
-         * mode — use it to bootstrap an environment root, e.g.
-         * `const server = xnew.boot('server', () => xnew(Main))`. Units created inside adopt the
-         * mode; their descendants inherit it (so spawning later does not need another boot).
-         * @returns whatever `callback` returns (typically the created root Unit)
+         * Creates a root Unit with the engine mode temporarily set to `mode`, restoring the
+         * previous mode afterward (even on throw). The remaining arguments are forwarded to
+         * `xnew(...)`, so this is the only public way to select server / client mode — e.g.
+         * `const server = xnew.boot('server', Main)`. The created root adopts the mode and its
+         * descendants inherit it (so spawning later does not need another boot).
+         * @returns the Unit created by `xnew(...args)`
          */
-        boot(mode: string | null, callback: Function): any {
+        boot(mode: string | null, ...args: any[]): any {
             const previous = Unit.config.mode;
             Unit.config.mode = mode;
             try {
-                return callback();
+                return (xnew as any)(...args);
             } finally {
                 Unit.config.mode = previous;
             }
