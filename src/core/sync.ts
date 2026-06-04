@@ -1,13 +1,13 @@
 //----------------------------------------------------------------------------------------------------
 // sync — server→client 状態同期エンジン
 //
-// authoritative ツリーの同期対象状態を SyncNode 列(state tree)として捕捉し、replica ツリーへ
+// server ツリーの同期対象状態を SyncNode 列(state tree)として捕捉し、client ツリーへ
 // 差分適用(create/update/remove)する。実ネットワークは扱わず、捕捉物の生成と再構成のみを担う。
 //
 // - registerComponent / getRegisteredName / getRegisteredComponent / resetRegistry : 同期エンティティ型のレジストリ
 // - getSyncName        : unit が同期対象なら登録名(最初の一致)を返す
-// - captureStateTree   : authoritative サブツリー → SyncNode[](全量)
-// - applyStateTree     : SyncNode[] → replica サブツリーへ差分適用
+// - captureStateTree   : server サブツリー → SyncNode[](全量)
+// - applyStateTree     : SyncNode[] → client サブツリーへ差分適用
 //
 // Caveats:
 // - xnew と sync は相互依存するが、xnew は applyStateTree の関数本体内でのみ使用するため
@@ -81,7 +81,7 @@ export function captureStateTree(root: Unit): StateTree {
 const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
 function xnewChild(parent: Unit, Component: Function): Unit {
-    return (xnew as any)(parent, Component);   // mode は親(replica)を継承する
+    return (xnew as any)(parent, Component);   // mode は親(client)を継承する
 }
 
 /**

@@ -1230,7 +1230,7 @@
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.server can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.mode === 'replica') {
+                if (Unit.currentUnit._.mode === 'client') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props);
@@ -1240,18 +1240,18 @@
                 throw error;
             }
         },
-        browser(callback, props) {
+        client(callback, props) {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
-                    throw new Error('xnew.browser can not be called after initialized.');
+                    throw new Error('xnew.client can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.mode === 'authoritative') {
+                if (Unit.currentUnit._.mode === 'server') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props);
             }
             catch (error) {
-                console.error('xnew.browser(callback: Function, props?: Object): ', error);
+                console.error('xnew.client(callback: Function, props?: Object): ', error);
                 throw error;
             }
         },

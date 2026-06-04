@@ -18,8 +18,8 @@
 // - xnew.emit                            : '+global' / '-local' custom events
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
-// - xnew.config                          : global engine config (config.mode = 'authoritative' | 'replica')
-// - xnew.server / browser                : run a block only on authoritative / replica (extend-like)
+// - xnew.config                          : global engine config (config.mode = 'server' | 'client')
+// - xnew.server / client                 : run a block only on server / client (extend-like)
 // - xnew.state.initialize / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
 
@@ -355,9 +355,9 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Runs `callback` (like xnew.extend) only when the current unit is NOT a replica
-         * (i.e. authoritative or standalone/null). Place server-only logic here (update handlers,
-         * spawning synced children). Skipped — and never invoked — on replica units.
+         * Runs `callback` (like xnew.extend) only when the current unit is NOT a client
+         * (i.e. server or standalone/null). Place server-only logic here (update handlers,
+         * spawning synced children). Skipped — and never invoked — on client units.
          * @returns defines returned by the callback, or {} when skipped
          */
         server(callback: Function, props?: Object): { [key: string]: any } {
@@ -365,7 +365,7 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.state !== 'invoked') {
                     throw new Error('xnew.server can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.mode === 'replica') {
+                if (Unit.currentUnit._.mode === 'client') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props);
@@ -376,22 +376,22 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Runs `callback` (like xnew.extend) only when the current unit is NOT authoritative
-         * (i.e. replica or standalone/null). Place browser-only setup here (DOM/sprite creation,
-         * render handlers). Skipped — and never invoked — on authoritative units.
+         * Runs `callback` (like xnew.extend) only when the current unit is NOT a server
+         * (i.e. client or standalone/null). Place client-only setup here (DOM/sprite creation,
+         * render handlers). Skipped — and never invoked — on server units.
          * @returns defines returned by the callback, or {} when skipped
          */
-        browser(callback: Function, props?: Object): { [key: string]: any } {
+        client(callback: Function, props?: Object): { [key: string]: any } {
             try {
                 if (Unit.currentUnit._.state !== 'invoked') {
-                    throw new Error('xnew.browser can not be called after initialized.');
+                    throw new Error('xnew.client can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.mode === 'authoritative') {
+                if (Unit.currentUnit._.mode === 'server') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props);
             } catch (error: unknown) {
-                console.error('xnew.browser(callback: Function, props?: Object): ', error);
+                console.error('xnew.client(callback: Function, props?: Object): ', error);
                 throw error;
             }
         },
@@ -400,8 +400,8 @@ export const xnew = Object.assign(
          * Synchronized-state API (server→client state sync engine).
          * - initialize : declare synced state on the current unit (single source of truth)
          * - register   : register a synchronized entity type by name (call on both runtimes)
-         * - capture    : capture an authoritative subtree as a state tree
-         * - apply      : reconcile a state tree into a replica subtree
+         * - capture    : capture a server subtree as a state tree
+         * - apply      : reconcile a state tree into a client subtree
          */
         state: {
             initialize(initial: Record<string, any> = {}): Record<string, any> {
@@ -424,9 +424,9 @@ export const xnew = Object.assign(
         },
 
         /**
-         * Global engine config. `config.mode = 'authoritative' | 'replica' | null` selects how
+         * Global engine config. `config.mode = 'server' | 'client' | null` selects how
          * top-level units are stamped (see Unit mode inheritance) and which of xnew.server /
-         * xnew.browser blocks run. Same object as Unit.config.
+         * xnew.client blocks run. Same object as Unit.config.
          */
         config: Unit.config,
 

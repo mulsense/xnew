@@ -372,7 +372,7 @@ declare const xnew: ((...args: any[]) => Unit) & {
     server(callback: Function, props?: Object): {
         [key: string]: any;
     };
-    browser(callback: Function, props?: Object): {
+    client(callback: Function, props?: Object): {
         [key: string]: any;
     };
     state: {

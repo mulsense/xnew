@@ -128,6 +128,7 @@ export class Unit {
             // Unit.config.mode を fallback とする（= サブツリーのルートが config.mode を採用）。
             // Unit.config.mode は意図的に Unit.reset() でクリアしない（初回 xnew() が自動 reset を
             // 走らせるため、クリアすると設定済み config.mode が生成前に消える）。利用側が戻す運用。
+            // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
             mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null,
             syncState: null,
             syncId: null,

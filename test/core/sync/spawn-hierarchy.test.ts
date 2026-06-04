@@ -11,7 +11,7 @@ function Enemy(unit: Unit, props: any = {}) {
         unit.on('update', () => { state.x += 1; });          // 所定方向へ移動
         xnew.timeout(() => unit.finalize(), 1000);           // 一定時間で消滅
     });
-    xnew.browser(() => {
+    xnew.client(() => {
         const el = xnew.nest('<div>');
         unit.on('render', () => { (el as HTMLElement).style.left = `${state.x}px`; });
     });
@@ -22,7 +22,7 @@ function Mover(unit: Unit) {
     xnew.server(() => {
         xnew.interval(() => { state.spawned += 1; xnew(Enemy, { x: 0 }); }, 500); // 定期 spawn
     });
-    xnew.browser(() => {
+    xnew.client(() => {
         xnew.nest('<div>');                                   // Enemy を内包するコンテナ
     });
 }
@@ -43,9 +43,9 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     }
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
-        xnew.config.mode = 'authoritative';
+        xnew.config.mode = 'server';
         const server = xnew(Mover);
-        xnew.config.mode = 'replica';
+        xnew.config.mode = 'client';
         const client = xnew((u: Unit) => {});
         xnew.config.mode = null;
 
@@ -72,9 +72,9 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     });
 
     it('despawns Enemy after its lifetime and removes that replica', async () => {
-        xnew.config.mode = 'authoritative';
+        xnew.config.mode = 'server';
         const server = xnew(Mover);
-        xnew.config.mode = 'replica';
+        xnew.config.mode = 'client';
         const client = xnew((u: Unit) => {});
         xnew.config.mode = null;
 

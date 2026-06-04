@@ -2,26 +2,26 @@ import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 import { resetRegistry } from '../../../src/core/sync';
 
-// 1 関数コンポーネント: server ブロック(update)と browser ブロック(描画) を持つ
+// 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ
 function Mover(unit: Unit) {
     const state = xnew.state.initialize({ position: 0 });
     xnew.server(() => {
-        unit.on('update', () => { state.position += 1; });   // authoritative のみ
+        unit.on('update', () => { state.position += 1; });   // server のみ
     });
-    xnew.browser(() => {
+    xnew.client(() => {
         const el = xnew.nest('<div>');
-        unit.on('render', () => { (el as HTMLElement).style.left = `${state.position}px`; }); // replica のみ
+        unit.on('render', () => { (el as HTMLElement).style.left = `${state.position}px`; }); // client のみ
     });
 }
 
-describe('loopback simulation (server/browser blocks)', () => {
+describe('loopback simulation (server/client blocks)', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.state.register('Mover', Mover); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
-    it('mirrors authoritative state into the replica subtree and renders it', () => {
-        xnew.config.mode = 'authoritative';
+    it('mirrors server state into the client subtree and renders it', () => {
+        xnew.config.mode = 'server';
         const server = xnew(function Server() { xnew(Mover); });
-        xnew.config.mode = 'replica';
+        xnew.config.mode = 'client';
         const client = xnew((u: Unit) => {});
         xnew.config.mode = null;
 
@@ -44,7 +44,7 @@ describe('loopback simulation (server/browser blocks)', () => {
         expect(client._.children.length).toBe(1);
     });
 
-    it('mirrors spawn and despawn driven from authoritative update', () => {
+    it('mirrors spawn and despawn driven from server update', () => {
         function Server(unit: Unit) {
             let spawned = false; let child: Unit | null = null;
             xnew.server(() => {
@@ -54,9 +54,9 @@ describe('loopback simulation (server/browser blocks)', () => {
                 });
             });
         }
-        xnew.config.mode = 'authoritative';
+        xnew.config.mode = 'server';
         const server = xnew(Server);
-        xnew.config.mode = 'replica';
+        xnew.config.mode = 'client';
         const client = xnew((u: Unit) => {});
         xnew.config.mode = null;
 

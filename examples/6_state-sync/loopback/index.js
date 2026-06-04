@@ -4,7 +4,7 @@ import xnew from '../../dist/xnew.mjs';
 // 2 階層のコンポーネント（Mover → Enemy）で state 同期を実験するサンプル。
 //   - Mover  : server ブロック内で定期的に Enemy を spawn する親
 //   - Enemy  : 所定方向へ移動し、一定時間で消える子（synced）
-//   - server(authoritative) サブツリーで update/spawn、replica サブツリーで描画
+//   - server サブツリーで update/spawn、client サブツリーで描画
 //   - xnew.state.capture(server) で取得した state tree を画面右に表示
 //----------------------------------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ function Enemy(unit, props = {}) {
         xnew.timeout(() => unit.finalize(), 3000);     // 3 秒で消滅
     });
 
-    xnew.browser(() => {
+    xnew.client(() => {
         const el = xnew.nest('<div>');
         el.style.cssText = 'position:absolute;width:16px;height:16px;background:#e44;border-radius:50%;';
         unit.on('render', () => {
@@ -42,16 +42,16 @@ function Mover(unit) {
         }, 600);
     });
 
-    xnew.browser(() => {
+    xnew.client(() => {
         xnew.nest('<div>');       // Enemy 要素を内包するコンテナ
     });
 }
 xnew.state.register('Mover', Mover);
 
 // ---- 起動: config でモードを切り替えながらサブツリーを生成 ----
-xnew.config.mode = 'authoritative';
+xnew.config.mode = 'server';
 const server = xnew(Mover);                                              // 擬似サーバー（ロジック）
-xnew.config.mode = 'replica';
+xnew.config.mode = 'client';
 const client = xnew(document.getElementById('view'), function View() {}); // ブラウザ表示
 xnew.config.mode = null;
 

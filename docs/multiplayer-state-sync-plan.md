@@ -1,8 +1,8 @@
-# xnew マルチプレイ状態同期 実装プラン（v2: server/browser ブロック方式）
+# xnew マルチプレイ状態同期 実装プラン（v2: server/client ブロック方式）
 
 > **For agentic workers:** subagent-driven-development で task ごとに実装。各 task は TDD（失敗テスト→実装→pass→commit）。
 
-**Goal:** 1 つのコンポーネント関数に `xnew.server`/`xnew.browser` ブロックで環境別コードを分けて書き、権威ツリーの状態をブラウザへ差分同期する。エンジンは mode で条件分岐しない。
+**Goal:** 1 つのコンポーネント関数に `xnew.server`/`xnew.client` ブロックで環境別コードを分けて書き、server ツリーの状態をクライアントへ差分同期する。エンジンは mode で条件分岐しない。
 
 **設計 spec:** [multiplayer-state-sync-design.md](multiplayer-state-sync-design.md)。作業ブランチ `v0.8/state-sync`。テストは `npx jest`、ビルドは `npm run build`（Sail 不使用）。
 
@@ -28,16 +28,16 @@ export function applyStateTree(root: Unit, tree: StateTree): void;
 
 // src/core/xnew.ts に追加:
 //   xnew.config（= Unit.config）
-//   xnew.server(callback, props?)  : mode !== 'replica' のとき Unit.extend 相当で callback 実行（null も実行）
-//   xnew.browser(callback, props?) : mode !== 'authoritative' のとき実行（null も実行）
+//   xnew.server(callback, props?)  : mode !== 'client' のとき Unit.extend 相当で callback 実行（null も実行）
+//   xnew.client(callback, props?)  : mode !== 'server' のとき実行（null も実行）
 //   xnew.state = { initialize, register, capture, apply }
 ```
 
 ## ファイル構成
 - Modify: `src/core/unit.ts`（フィールド・config・counter・mode 継承のみ）
 - Create: `src/core/sync.ts`
-- Modify: `src/core/xnew.ts`（config / server / browser / state 名前空間）
-- Create: `test/core/sync/{mode,server-browser,state,capture,reconcile,loopback}.test.ts`
+- Modify: `src/core/xnew.ts`（config / server / client / state 名前空間）
+- Create: `test/core/sync/{mode,server-client,state,capture,reconcile,loopback}.test.ts`
 - Create: `examples/6_state-sync/loopback/{index.html,index.js}`
 
 ---
@@ -55,19 +55,19 @@ export function applyStateTree(root: Unit, tree: StateTree): void;
 
 各 describe の beforeEach に `Unit.reset(); xnew.config.mode = null;`、afterEach に `xnew.config.mode = null;`。
 
-## Task 2: xnew.config / xnew.server / xnew.browser
+## Task 2: xnew.config / xnew.server / xnew.client
 
 `src/core/xnew.ts` helpers に追加:
 ```ts
 config: Unit.config,
 server(callback: Function, props?: Object): { [key: string]: any } {
-    if (Unit.currentUnit._.mode !== 'replica') {
+    if (Unit.currentUnit._.mode !== 'client') {
         return Unit.extend(Unit.currentUnit, callback, props);
     }
     return {};
 },
-browser(callback: Function, props?: Object): { [key: string]: any } {
-    if (Unit.currentUnit._.mode !== 'authoritative') {
+client(callback: Function, props?: Object): { [key: string]: any } {
+    if (Unit.currentUnit._.mode !== 'server') {
         return Unit.extend(Unit.currentUnit, callback, props);
     }
     return {};
@@ -75,12 +75,12 @@ browser(callback: Function, props?: Object): { [key: string]: any } {
 ```
 （`Unit.extend(unit, Component, props)` は既存。callback を Component として実行し defines をマージして返す。）
 
-テスト `test/core/sync/server-browser.test.ts`:
-- authoritative: server ブロック実行 / browser ブロック未実行（browser 内の副作用が起きない）
-- replica: browser 実行 / server 未実行
+テスト `test/core/sync/server-client.test.ts`:
+- server: server ブロック実行 / client ブロック未実行（client 内の副作用が起きない）
+- client: client 実行 / server 未実行
 - null: 両方実行
-- server/browser が返す defines が unit にマージされる
-- browser ブロック内の `xnew.nest('<div>')` が実 DOM を作る（replica）/ authoritative では browser 自体が走らないので nest も呼ばれない
+- server/client が返す defines が unit にマージされる
+- client ブロック内の `xnew.nest('<div>')` が実 DOM を作る（client）/ server では client 自体が走らないので nest も呼ばれない
 
 ## Task 3: sync.ts レジストリ + xnew.state.initialize/register
 
@@ -106,20 +106,20 @@ state: {
 
 ## Task 5: applyStateTree + xnew.state.apply
 
-`sync.ts` に reconcile（WeakMap、create/update/remove）。`xnewChild(parent, Component) = (xnew as any)(parent, Component)`（mode を渡さない＝親 replica を継承）。`xnew.state.apply` を追加。循環 import（xnew↔sync）はランタイム安全。テスト `reconcile.test.ts`（create/update/remove）。
+`sync.ts` に reconcile（WeakMap、create/update/remove）。`xnewChild(parent, Component) = (xnew as any)(parent, Component)`（mode を渡さない＝親 client を継承）。`xnew.state.apply` を追加。循環 import（xnew↔sync）はランタイム安全。テスト `reconcile.test.ts`（create/update/remove）。
 
 ## Task 6: ローカル模擬 往復テスト
 
-`test/core/sync/loopback.test.ts`: `Mover` を server/browser ブロックで定義し、authoritative server サブツリー + replica client サブツリーを 1 プロセスに同居。cycle で start→update→apply(capture)→start→render。replica の `state` と **DOM 反映**（`element.style.left`）を assert。spawn/despawn 反映も検証。
+`test/core/sync/loopback.test.ts`: `Mover` を server/client ブロックで定義し、server サブツリー + client サブツリーを 1 プロセスに同居。cycle で start→update→apply(capture)→start→render。client の `state` と **DOM 反映**（`element.style.left`）を assert。spawn/despawn 反映も検証。
 
 ## Task 7: example + ヘッダ + 全体ビルド
 
-`examples/6_state-sync/loopback/index.js`（`index2.js` 相当、import は `../../dist/xnew.mjs`）と `index.html`。`xnew.ts` ヘッダ inventory に config/server/browser/state.* を追記。`npm test` 全 pass、`npm run build` 成功（循環 dep 警告は許容）を確認。
+`examples/6_state-sync/loopback/index.js`（`index2.js` 相当、import は `../../dist/xnew.mjs`）と `index.html`。`xnew.ts` ヘッダ inventory に config/server/client/state.* を追記。`npm test` 全 pass、`npm run build` 成功（循環 dep 警告は許容）を確認。
 
 ---
 
 ## 完了条件
 - `npm test` 全 pass、既存挙動（mode 未指定）は不変。
-- `xnew.server`/`xnew.browser` で環境別コードが分離され、エンジンに mode 分岐がない。
+- `xnew.server`/`xnew.client` で環境別コードが分離され、エンジンに mode 分岐がない。
 - loopback テストで capture→apply 往復・DOM 反映・spawn/despawn を確認。
 - example がブラウザのみで動作。

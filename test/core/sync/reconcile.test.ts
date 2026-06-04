@@ -4,7 +4,7 @@ import { resetRegistry, StateTree } from '../../../src/core/sync';
 
 function Box(unit: Unit) {
     const state = xnew.state.initialize({ value: 0 });
-    xnew.browser(() => {
+    xnew.client(() => {
         const el = xnew.nest('<div>');
         unit.on('render', () => { (el as HTMLElement).textContent = String(state.value); });
     });
@@ -14,16 +14,16 @@ describe('applyStateTree create', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.state.register('Box', Box); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
-    function makeView() { xnew.config.mode = 'replica'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
+    function makeView() { xnew.config.mode = 'client'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
 
-    it('creates replica units under the reconcile root with state applied', () => {
+    it('creates client units under the reconcile root with state applied', () => {
         const view = makeView();
         const tree: StateTree = [{ id: 1, name: 'Box', parentId: null, state: { value: 7 } }];
         xnew.state.apply(view, tree);
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
         expect(child._.syncId).toBe(1);
-        expect(child._.mode).toBe('replica');
+        expect(child._.mode).toBe('client');
         expect(child._.syncState).toEqual({ value: 7 });
     });
 
@@ -41,7 +41,7 @@ describe('applyStateTree create', () => {
 describe('applyStateTree update', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.state.register('Box', Box); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
-    function makeView() { xnew.config.mode = 'replica'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
+    function makeView() { xnew.config.mode = 'client'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
 
     it('updates existing unit in place without recreating it', () => {
         const view = makeView();
@@ -57,7 +57,7 @@ describe('applyStateTree update', () => {
 describe('applyStateTree remove', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.state.register('Box', Box); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
-    function makeView() { xnew.config.mode = 'replica'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
+    function makeView() { xnew.config.mode = 'client'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
 
     it('finalizes replica units whose id disappears from the tree', () => {
         const view = makeView();
