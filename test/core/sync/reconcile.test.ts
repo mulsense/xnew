@@ -11,7 +11,7 @@ function Box(unit: Unit) {
 }
 
 describe('applyStateTree create', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register('Box', Box); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register({ Box }); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
     function makeView() { xnew.config.mode = 'client'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
@@ -39,7 +39,7 @@ describe('applyStateTree create', () => {
 });
 
 describe('applyStateTree update', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register('Box', Box); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register({ Box }); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
     function makeView() { xnew.config.mode = 'client'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
 
@@ -55,7 +55,7 @@ describe('applyStateTree update', () => {
 });
 
 describe('applyStateTree remove', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register('Box', Box); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); xnew.config.mode = null; xnew.sync.register({ Box }); });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
     function makeView() { xnew.config.mode = 'client'; const v = xnew((u: Unit) => {}); xnew.config.mode = null; return v; }
 

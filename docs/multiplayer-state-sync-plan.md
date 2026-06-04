@@ -94,7 +94,9 @@ sync: {
         Object.assign(unit._.syncState, initial);
         return unit._.syncState;
     },
-    register(name: string, Component: Function): void { registerComponent(name, Component); },
+    register(components: Record<string, Function>): void {
+        for (const [name, Component] of Object.entries(components)) { registerComponent(name, Component); }
+    },
     // capture / apply は Task 4/5 で追加
 },
 ```

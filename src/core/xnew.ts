@@ -399,7 +399,7 @@ export const xnew = Object.assign(
         /**
          * State synchronization API (server→client state sync engine).
          * - state    : declare synced state on the current unit (single source of truth)
-         * - register : register a synchronized entity type by name (call on both runtimes)
+         * - register : register synchronized entity types by name map `{ Name: Component }` (call on both runtimes)
          * - capture  : capture a server subtree as a state tree
          * - apply    : reconcile a state tree into a client subtree
          */
@@ -412,8 +412,10 @@ export const xnew = Object.assign(
                 Object.assign(unit._.syncState, initial);
                 return unit._.syncState;
             },
-            register(name: string, Component: Function): void {
-                registerComponent(name, Component);
+            register(components: Record<string, Function>): void {
+                for (const [name, Component] of Object.entries(components)) {
+                    registerComponent(name, Component);
+                }
             },
             capture(root: Unit): ReturnType<typeof captureStateTree> {
                 return captureStateTree(root);

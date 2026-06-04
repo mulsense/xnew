@@ -9,7 +9,7 @@ describe('registry', () => {
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
     it('register maps a name to a component both ways', () => {
-        xnew.sync.register('Player', Player);
+        xnew.sync.register({ Player });
         expect(getRegisteredComponent('Player')).toBe(Player);
         const unit = xnew(Player);
         expect(getSyncName(unit)).toBe('Player');
@@ -29,8 +29,7 @@ describe('captureStateTree', () => {
     function Child(unit: Unit) { xnew.sync.state({ position: 5 }); }
 
     it('captures a synced unit; parentId is null when no synced ancestor exists', () => {
-        xnew.sync.register('World', World);
-        xnew.sync.register('Child', Child);
+        xnew.sync.register({ World, Child });
         const root = xnew(function Root() { xnew(World); });
         const tree = xnew.sync.capture(root);
         const worldNode = tree.find(n => n.name === 'World')!;
@@ -40,8 +39,7 @@ describe('captureStateTree', () => {
     });
 
     it('sets a child parentId to the nearest synced ancestor id', () => {
-        xnew.sync.register('World', World);
-        xnew.sync.register('Child', Child);
+        xnew.sync.register({ World, Child });
         const root = xnew(function Root() { xnew(World); });
         const tree = xnew.sync.capture(root);
         const worldNode = tree.find(n => n.name === 'World')!;
@@ -50,7 +48,7 @@ describe('captureStateTree', () => {
     });
 
     it('assigns stable ids and reflects mutated state on later captures', () => {
-        xnew.sync.register('Child', Child);
+        xnew.sync.register({ Child });
         const root = xnew(function Root() { xnew(Child); });
         const first = xnew.sync.capture(root)[0];
         root._.children[0]._.syncState!.position = 9;

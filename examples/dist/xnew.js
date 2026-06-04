@@ -1264,8 +1264,10 @@
                 Object.assign(unit._.syncState, initial);
                 return unit._.syncState;
             },
-            register(name, Component) {
-                registerComponent(name, Component);
+            register(components) {
+                for (const [name, Component] of Object.entries(components)) {
+                    registerComponent(name, Component);
+                }
             },
             capture(root) {
                 return captureStateTree(root);

@@ -26,7 +26,6 @@ function Enemy(unit, props = {}) {
         });
     });
 }
-xnew.sync.register('Enemy', Enemy);
 
 // ---- Mover: 定期的に Enemy を spawn する親 ----
 function Mover(unit) {
@@ -46,7 +45,9 @@ function Mover(unit) {
         xnew.nest('<div>');       // Enemy 要素を内包するコンテナ
     });
 }
-xnew.sync.register('Mover', Mover);
+
+// 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）
+xnew.sync.register({ Enemy, Mover });
 
 // ---- 起動: config でモードを切り替えながらサブツリーを生成 ----
 xnew.config.mode = 'server';

@@ -33,8 +33,7 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         resetRegistry();
         Unit.reset();
         xnew.config.mode = null;
-        xnew.sync.register('Mover', Mover);
-        xnew.sync.register('Enemy', Enemy);
+        xnew.sync.register({ Mover, Enemy });
     });
     afterEach(() => { Unit.rootUnit?.finalize(); xnew.config.mode = null; jest.useRealTimers(); });
 
