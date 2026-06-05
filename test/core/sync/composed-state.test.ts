@@ -84,6 +84,23 @@ describe('composed synced state (base + extend)', () => {
         expect(childState.value).toBe(-1);                      // 子は自分の initial（親の注入が漏れない）
     });
 
+    // 基底コンポーネントも register されている場合（単独利用もあり得るため）でも、
+    // 実際にインスタンス化した最も派生したコンポーネントの名前で同期される。
+    it('syncs under the most-derived registered name even when the base is also registered', () => {
+        function ActorBase(unit: Unit, props: any = {}) { xnew.sync.state({ x: 0, y: props.y ?? 0 }); }
+        function EnemyDerived(unit: Unit, props: any = {}) { xnew.extend(ActorBase, props); xnew.sync.state({ hp: 3 }); }
+        resetRegistry(); xnew.sync.register({ ActorBase, EnemyDerived });   // 基底も登録
+
+        Unit.config.mode = 'server';
+        const server = xnew(function S() { xnew(EnemyDerived, { y: 8 }); });
+        Unit.config.mode = null;
+
+        const tree = xnew.sync.capture(server);
+        expect(tree).toHaveLength(1);
+        expect(tree[0].name).toBe('EnemyDerived');   // 基底 ActorBase ではなく派生 EnemyDerived
+        expect(tree[0].state).toEqual({ x: 0, y: 8, hp: 3 });
+    });
+
     // 6_state-sync サンプルの構成を再現: 基底 Actor(位置+描画) を Enemy が extend し hp を足す。
     it('mirrors the example: extended base nests the element, both declarations sync and render', () => {
         // 基底: 位置 {x,y} を宣言し、client で要素を nest して位置を反映する

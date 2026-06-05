@@ -5,7 +5,7 @@
 // 差分適用(create/update/remove)する。実ネットワークは扱わず、捕捉物の生成と再構成のみを担う。
 //
 // - registerComponent / getRegisteredName / getRegisteredComponent / resetRegistry : 同期エンティティ型のレジストリ
-// - getSyncName        : unit が同期対象なら登録名(最初の一致)を返す
+// - getSyncName        : unit が同期対象なら登録名(最も派生した = 末尾側の一致)を返す
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用（create 前に Unit.injectedSlot へサーバー状態を注入）
 //----------------------------------------------------------------------------------------------------
@@ -37,8 +37,10 @@ export function resetRegistry(): void {
 }
 
 export function getSyncName(unit: Unit): string | undefined {
-    for (const Component of unit._.Components) {
-        const name = getRegisteredName(Component);
+    // _.Components は [基底..., 実際にインスタンス化した Component] の順（extend した基底ほど先頭）。
+    // 基底も登録され得るので、最も派生した（= 末尾側の）登録名を採り、その型で client を再生成する。
+    for (let i = unit._.Components.length - 1; i >= 0; i--) {
+        const name = getRegisteredName(unit._.Components[i]);
         if (name !== undefined) {
             return name;
         }
