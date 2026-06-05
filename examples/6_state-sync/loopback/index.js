@@ -1,31 +1,47 @@
 import xnew from '../../dist/xnew.mjs';
 
 //----------------------------------------------------------------------------------------------------
-// 2 階層のコンポーネント（Mover → Enemy）で state 同期を実験するサンプル。
+// base + extend の合成 synced state を実験するサンプル。
 //   - Main   : server/client 共通のルート。中で xnew.server/xnew.client に分岐（同期対象ではない）
-//   - Mover  : server ブロック内で定期的に Enemy を spawn する親
-//   - Enemy  : 所定方向へ移動し、一定時間で消える子（synced）
-//   - server サブツリーで update/spawn、client サブツリーで描画
+//   - Mover  : server ブロック内で定期的に Enemy を spawn する親（synced）
+//   - Actor  : 位置 {x,y} を synced state で宣言し、client で矩形を描く「基底」コンポーネント
+//   - Enemy  : xnew.extend(Actor) で基底を取り込み、自分の synced state {hp} と挙動を足す子（synced）
 //   - xnew.sync.capture(server) で取得した state tree を画面右に表示
+//   - 各 Enemy の state が {x, y, hp}（Actor 由来 + Enemy 由来）にマージされて同期される点がポイント
 //----------------------------------------------------------------------------------------------------
 
-// ---- Enemy: 右へ移動し、一定時間で消える ----
-function Enemy(unit, props = {}) {
-    const state = xnew.sync.state({ x: 0, y: props.y ?? 0 });
-
-    xnew.server(() => {
-        unit.on('update', () => { state.x += 3; });   // 所定方向（右）へ移動
-        xnew.timeout(() => unit.finalize(), 3000);     // 3 秒で消滅
-    });
+// ---- Actor: 位置を持ち、client では矩形を描く「基底」コンポーネント ----
+// 位置 {x,y} を synced state で宣言し、client 側の DOM 生成と位置反映を担う共有部分。
+function Actor(unit, props = {}) {
+    const pos = xnew.sync.state({ x: 0, y: props.y ?? 0 });   // 基底が宣言する synced state
 
     xnew.client(() => {
         const el = xnew.nest('<div>');
-        el.style.cssText = 'position:absolute;width:16px;height:16px;background:#e44;border-radius:50%;';
-        el.style.left = `${state.x}px`;
-        el.style.top = `${state.y}px`;
+        el.style.cssText = 'position:absolute;width:16px;height:16px;border-radius:50%;';
         unit.on('render', () => {
-            el.style.left = `${state.x}px`;
-            el.style.top = `${state.y}px`;
+            el.style.left = `${pos.x}px`;   // 位置の反映は基底の責務
+            el.style.top = `${pos.y}px`;
+        });
+    });
+}
+
+// ---- Enemy: Actor を extend し、自分の synced state(hp) と挙動を足す ----
+function Enemy(unit, props = {}) {
+    xnew.extend(Actor, props);                    // 基底: 位置 {x,y} の宣言 + 描画を取り込む
+    const state = xnew.sync.state({ hp: 3 });     // 拡張: hp を追加宣言。返り値は merged な _.state（{x,y,hp}）
+
+    xnew.server(() => {
+        unit.on('update', () => { state.x += 3; });   // 位置（基底が宣言）を右へ更新
+        xnew.interval(() => {                          // hp（拡張が宣言）を毎秒減らし、0 で消滅
+            state.hp -= 1;
+            if (state.hp <= 0) { unit.finalize(); }
+        }, 1000);
+    });
+
+    xnew.client(() => {
+        const el = unit.element;   // 基底 Actor が nest した要素
+        unit.on('render', () => {
+            el.style.background = ['#888', '#e88', '#e55', '#e44'][state.hp] ?? '#888';   // hp で色を変える
         });
     });
 }
@@ -60,7 +76,8 @@ function Main() {
     });
 }
 
-// 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）
+// 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）。
+// Actor は基底（独立した同期対象ではない）なので登録しない → Enemy が 1 つの SyncNode になる。
 xnew.sync.register({ Enemy, Mover });
 
 // ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----

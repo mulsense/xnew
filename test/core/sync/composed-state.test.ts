@@ -83,4 +83,49 @@ describe('composed synced state (base + extend)', () => {
         expect(replicaHost._.state!.value).toBe(5);             // Host は注入値
         expect(childState.value).toBe(-1);                      // 子は自分の initial（親の注入が漏れない）
     });
+
+    // 6_state-sync サンプルの構成を再現: 基底 Actor(位置+描画) を Enemy が extend し hp を足す。
+    it('mirrors the example: extended base nests the element, both declarations sync and render', () => {
+        // 基底: 位置 {x,y} を宣言し、client で要素を nest して位置を反映する
+        function Actor(unit: Unit, props: any = {}) {
+            const pos = xnew.sync.state({ x: 0, y: props.y ?? 0 });
+            xnew.client(() => {
+                const el = xnew.nest('<div>') as HTMLElement;
+                unit.on('render', () => { el.style.left = `${pos.x}px`; el.style.top = `${pos.y}px`; });
+            });
+        }
+        // 拡張: Actor を取り込み hp を足し、基底が nest した要素を unit.element 経由で着色する
+        function Sprite(unit: Unit, props: any = {}) {
+            xnew.extend(Actor, props);
+            const state = xnew.sync.state({ hp: 3 });
+            xnew.server(() => { unit.on('update', () => { state.x += 3; state.hp -= 1; }); });
+            xnew.client(() => {
+                const el = unit.element as HTMLElement;
+                unit.on('render', () => { el.style.background = state.hp >= 2 ? 'red' : 'gray'; });
+            });
+        }
+        resetRegistry(); xnew.sync.register({ Sprite });
+
+        Unit.config.mode = 'server';
+        const server = xnew(function Server() { xnew(Sprite, { y: 8 }); });
+        Unit.config.mode = 'client';
+        const client = xnew((u: Unit) => {});
+        Unit.config.mode = null;
+
+        Unit.start(Unit.rootUnit);
+        Unit.update(Unit.rootUnit);                              // server Sprite: x=3, hp=2
+
+        const tree = xnew.sync.capture(server);
+        expect(tree).toHaveLength(1);
+        expect(tree[0].state).toEqual({ x: 3, y: 8, hp: 2 });    // Actor 由来(x,y) + Sprite 由来(hp) がマージ
+
+        xnew.sync.apply(client, tree);                           // create replica
+        Unit.start(Unit.rootUnit);
+        Unit.render(Unit.rootUnit);                             // replica render（両 render ハンドラが走る）
+
+        const el = client._.children[0].element as HTMLElement;
+        expect(el.style.left).toBe('3px');                      // 基底 Actor の render（位置）
+        expect(el.style.top).toBe('8px');
+        expect(el.style.background).toBe('red');                // 拡張 Sprite の render（hp 由来の色）
+    });
 });
