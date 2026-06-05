@@ -92,7 +92,7 @@ function Enemy(unit, props = {}) {
 
   xnew.client(() => {                         // 【client でだけ動く】
     const el = unit.element;                                // 基底 Actor が nest した要素
-    unit.on('render', () => { el.style.background = ['#888','#e88','#e55','#e44'][state.hp] ?? '#888'; });
+    unit.on('render', () => { el.style.background = ['#888','#e33','#f90','#3c3'][state.hp] ?? '#888'; });  // 緑=3→橙=2→赤=1
   });
 }
 ```
