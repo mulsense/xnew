@@ -14,8 +14,8 @@ import * as PIXI from 'pixi.js'
 
 export default {
     initialize(
-        { canvas = null }:
-        { canvas?: HTMLCanvasElement | null } = {}
+        { canvas }:
+        { canvas: HTMLCanvasElement }
     ) {
         xnew.promise(xnew(Root, { canvas }));
     },

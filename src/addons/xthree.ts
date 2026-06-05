@@ -14,8 +14,8 @@ import * as THREE from 'three';
 
 export default {
     initialize (
-        { canvas = null, camera = null }:
-        { canvas?: HTMLCanvasElement | null, camera?: THREE.Camera | null } = {}
+        { canvas, camera = null }:
+        { canvas: HTMLCanvasElement, camera?: THREE.Camera | null }
     ) {
         xnew.promise(xnew(Root, { canvas, camera }));
     },

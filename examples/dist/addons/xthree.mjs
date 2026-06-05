@@ -2,7 +2,7 @@ import xnew from '@mulsense/xnew';
 import * as THREE from 'three';
 
 var xthree = {
-    initialize({ canvas = null, camera = null } = {}) {
+    initialize({ canvas, camera = null }) {
         xnew.promise(xnew(Root, { canvas, camera }));
     },
     nest(object) {

@@ -24,7 +24,7 @@
     var THREE__namespace = /*#__PURE__*/_interopNamespaceDefault(THREE);
 
     var xthree = {
-        initialize({ canvas = null, camera = null } = {}) {
+        initialize({ canvas, camera = null }) {
             xnew.promise(xnew(Root, { canvas, camera }));
         },
         nest(object) {

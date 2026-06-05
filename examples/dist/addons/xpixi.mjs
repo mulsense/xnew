@@ -2,7 +2,7 @@ import xnew from '@mulsense/xnew';
 import * as PIXI from 'pixi.js';
 
 var xpixi = {
-    initialize({ canvas = null } = {}) {
+    initialize({ canvas }) {
         xnew.promise(xnew(Root, { canvas }));
     },
     nest(object) {

@@ -1,8 +1,8 @@
 import * as PIXI from 'pixi.js';
 
 declare const _default: {
-    initialize({ canvas }?: {
-        canvas?: HTMLCanvasElement | null;
+    initialize({ canvas }: {
+        canvas: HTMLCanvasElement;
     }): void;
     nest(object: any): any;
     readonly renderer: any;
