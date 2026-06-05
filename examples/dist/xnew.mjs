@@ -1012,9 +1012,6 @@ function takeInjectedState() {
     return state;
 }
 const reconcileMaps = new WeakMap();
-function xnewChild(parent, Component) {
-    return xnew$1(parent, Component);
-}
 function applyStateTree(root, tree) {
     let map = reconcileMaps.get(root);
     if (map === undefined) {
@@ -1034,7 +1031,7 @@ function applyStateTree(root, tree) {
                 continue;
             }
             injectedState = node.state;
-            const unit = xnewChild(parent, Component);
+            const unit = new Unit(parent, Component);
             injectedState = null;
             unit._.syncId = node.id;
             if (unit._.state === null) {

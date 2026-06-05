@@ -9,15 +9,9 @@
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用
 // - takeInjectedState  : apply の create 中に注入されたサーバー状態を一度だけ取り出す（xnew.sync.state が消費）
-//
-// Caveats:
-// - xnew と sync は相互依存するが、xnew は applyStateTree の関数本体内でのみ使用するため
-//   ランタイムは安全である（モジュール評価時には呼び出されない）。
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
-// runtime-safe cycle: xnew↔sync — xnew は関数本体内でのみ使用し、モジュール評価時には呼ばれない
-import { xnew } from './xnew';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
@@ -95,10 +89,6 @@ export function takeInjectedState(): Record<string, any> | null {
 /** client ルートごとに id→Unit のマップを保持する。Unit を汚染しないよう WeakMap に格納する。 */
 const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
-function xnewChild(parent: Unit, Component: Function): Unit {
-    return (xnew as any)(parent, Component);   // mode は親(client)を継承する
-}
-
 /**
  * Applies a state tree to a client subtree, reconciling create/update/remove.
  * @param root - root unit of the client subtree (owned by the caller)
@@ -123,7 +113,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
             injectedState = node.state;          // 本体実行前に注入（xnew.sync.state が消費）
-            const unit = xnewChild(parent, Component);
+            const unit = new Unit(parent, Component);   // mode は親(client)を継承する
             injectedState = null;                // 本体が消費しなかった場合の漏れ防止
             unit._.syncId = node.id;
             if (unit._.state === null) { unit._.state = {}; }
