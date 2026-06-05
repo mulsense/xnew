@@ -597,7 +597,9 @@ class Unit {
             mode: parent ? ((_d = (_c = parent._.mode) !== null && _c !== void 0 ? _c : Unit.config.mode) !== null && _d !== void 0 ? _d : null) : null,
             state: null,
             syncId: null,
+            injected: Unit.injectedSlot,
         };
+        Unit.injectedSlot = null;
         if (typeof target === 'string') {
             Unit.nest(this, target);
         }
@@ -882,6 +884,7 @@ class Unit {
 }
 Unit.config = { mode: null };
 Unit.syncIdCounter = 1;
+Unit.injectedSlot = null;
 Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
@@ -1005,12 +1008,6 @@ function captureStateTree(root) {
     walk(root, null);
     return nodes;
 }
-let injectedState = null;
-function takeInjectedState() {
-    const state = injectedState;
-    injectedState = null;
-    return state;
-}
 const reconcileMaps = new WeakMap();
 function applyStateTree(root, tree) {
     let map = reconcileMaps.get(root);
@@ -1030,9 +1027,9 @@ function applyStateTree(root, tree) {
             if (parent === undefined) {
                 continue;
             }
-            injectedState = node.state;
+            Unit.injectedSlot = node.state;
             const unit = new Unit(parent, Component);
-            injectedState = null;
+            Unit.injectedSlot = null;
             unit._.syncId = node.id;
             if (unit._.state === null) {
                 unit._.state = {};
@@ -1262,8 +1259,13 @@ const xnew$1 = Object.assign((function (...args) {
             if (unit._.state === null) {
                 unit._.state = {};
             }
-            const injected = takeInjectedState();
-            Object.assign(unit._.state, injected !== null && injected !== void 0 ? injected : initial);
+            const injected = unit._.injected;
+            for (const key of Object.keys(initial)) {
+                if (key in unit._.state) {
+                    console.warn(`xnew.sync.state: duplicate key "${key}" across declarations`);
+                }
+                unit._.state[key] = (injected !== null && key in injected) ? injected[key] : initial[key];
+            }
             return unit._.state;
         },
         register(components) {

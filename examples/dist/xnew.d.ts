@@ -95,6 +95,7 @@ declare class Unit {
         mode: Mode;
         state: Record<string, any> | null;
         syncId: number | null;
+        injected: Record<string, any> | null;
     };
     constructor(parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
@@ -117,6 +118,7 @@ declare class Unit {
         mode: Mode;
     };
     static syncIdCounter: number;
+    static injectedSlot: Record<string, any> | null;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
