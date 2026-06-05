@@ -19,30 +19,29 @@ export class Ticker {
     private cancel: (() => void) | null = null;
 
     constructor(callback: Function, fps: number = 30) {
-        const minDelta = (1000 / fps) * 0.9;
         const interval = 1000 / fps;
+        const minDelta = interval * 0.9;
         let previous = 0;
 
-        const tick = () => {
-            const delta = Date.now() - previous;
-            if (delta > minDelta) {
-                callback();
-                previous += delta;
-            }
-            schedule();
-        };
-
-        const schedule = (): void => {
+        const tick = (): void => {
             if (typeof requestAnimationFrame !== 'undefined') {
+                // rAF fires at the display refresh rate, so throttle down to the target fps.
+                const delta = Date.now() - previous;
+                if (delta > minDelta) {
+                    callback();
+                    previous += delta;
+                }
                 const id = requestAnimationFrame(tick);
                 this.cancel = () => cancelAnimationFrame(id);
             } else {
+                // setTimeout already fires at the target interval, so no throttling is needed.
+                callback();
                 const id = setTimeout(tick, interval);
                 this.cancel = () => clearTimeout(id);
             }
         };
 
-        schedule();
+        tick();
     }
 
     clear(): void {
@@ -61,18 +60,18 @@ export class Ticker {
  * Maps a linear progress value in [0, 1] to an eased value, anchored at 0 and 1.
  */
 function ease(p: number, easing?: string): number {
-    if (easing === 'ease-out') {
-        return Math.pow(1.0 - Math.pow(1.0 - p, 2.0), 0.5);
+    switch (easing) {
+        case 'ease-out':
+            return Math.pow(1.0 - Math.pow(1.0 - p, 2.0), 0.5);
+        case 'ease-in':
+            return Math.pow(1.0 - Math.pow(1.0 - p, 0.5), 2.0);
+        case 'ease':
+            return ((s) => s * s * (3 - 2 * s))(p ** 0.7);
+        case 'ease-in-out':
+            return p * p * (3 - 2 * p);
+        default:
+            return p;
     }
-    if (easing === 'ease-in') {
-        return Math.pow(1.0 - Math.pow(1.0 - p, 0.5), 2.0);
-    }
-    if (easing === 'ease' || easing === 'ease-in-out') {
-        const bias = easing === 'ease' ? 0.7 : 1.0;
-        const s = p ** bias;
-        return s * s * (3 - 2 * s);
-    }
-    return p;
 }
 
 export class Timer {
