@@ -6,9 +6,9 @@
 // falls back to setTimeout (Node) so the rest of the package can stay runtime-agnostic. Timer
 // layers easing and visibility-aware pause on top, for use in transition primitives.
 //
-// - Ticker              : callback at a target FPS — rAF in browser, setTimeout in Node
-// - Timer / TimerOptions: setTimeout-based timer with optional easing transition; auto-paused on
-//                         document visibility change (browser only)
+// - Ticker : callback at a target FPS — rAF in browser, setTimeout in Node
+// - Timer  : setTimeout-based timer with optional easing transition; auto-paused on document
+//            visibility change (browser only)
 //----------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------
@@ -18,7 +18,7 @@
 export class Ticker {
     private cancel: (() => void) | null = null;
 
-    constructor(callback: Function, fps: number = 60) {
+    constructor(callback: Function, fps: number = 30) {
         const minDelta = (1000 / fps) * 0.9;
         const interval = 1000 / fps;
         let previous = 0;
@@ -57,30 +57,37 @@ export class Ticker {
 // timer
 //----------------------------------------------------------------------------------------------------
 
-export interface TimerOptions {
-    timeout?: Function,
-    transition?: Function,
-    duration: number, 
-    easing?: string
+/**
+ * Maps a linear progress value in [0, 1] to an eased value, anchored at 0 and 1.
+ */
+function ease(p: number, easing?: string): number {
+    if (easing === 'ease-out') {
+        return Math.pow(1.0 - Math.pow(1.0 - p, 2.0), 0.5);
+    }
+    if (easing === 'ease-in') {
+        return Math.pow(1.0 - Math.pow(1.0 - p, 0.5), 2.0);
+    }
+    if (easing === 'ease' || easing === 'ease-in-out') {
+        const bias = easing === 'ease' ? 0.7 : 1.0;
+        const s = p ** bias;
+        return s * s * (3 - 2 * s);
+    }
+    return p;
 }
 
 export class Timer {
-    private options: TimerOptions;
-
-    private id: number | null;
-
-    private time: { start: number, processed: number };
-    private request: boolean;
+    private id: number | null = null;
+    private time: { start: number, processed: number } = { start: 0.0, processed: 0.0 };
+    private request: boolean = true;
     private visibilityListener: () => void;
     private ticker: Ticker;
 
-    constructor(options: TimerOptions) {
-        this.options = options;
-
-        this.id = null;
-        this.time = { start: 0.0, processed: 0.0 };
-
-        this.request = true;
+    constructor(
+        private timeout: Function | null,
+        private transition: Function | null,
+        private duration: number,
+        private easing?: string,
+    ) {
         this.ticker = new Ticker(() => this.animation());
 
         this.visibilityListener = () => document.hidden === false ? this._start() : this._stop();
@@ -88,22 +95,13 @@ export class Timer {
             document.addEventListener('visibilitychange', this.visibilityListener);
         }
 
-        this.options.transition?.(0.0);
+        this.transition?.(0.0);
         this.start();
     }
-    
+
     private animation(): void {
-        let p = Math.min(this.elapsed() / this.options.duration, 1.0);
-        if (this.options.easing === 'ease-out') {
-            p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
-        } else if (this.options.easing === 'ease-in') {
-            p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-        } else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
-            const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = p ** bias;
-            p = s * s * (3 - 2 * s);
-        }
-        this.options.transition?.(p);
+        const p = Math.min(this.elapsed() / this.duration, 1.0);
+        this.transition?.(ease(p, this.easing));
     }
 
     public clear(): void {
@@ -137,11 +135,11 @@ export class Timer {
                 this.id = null;
                 this.time = { start: 0.0, processed: 0.0 };
 
-                this.options.transition?.(1.0);
-                this.options.timeout?.();
+                this.transition?.(1.0);
+                this.timeout?.();
 
                 this.clear();
-            }, this.options.duration - this.time.processed) as unknown as number; 
+            }, this.duration - this.time.processed) as unknown as number;
             this.time.start = Date.now();
         }
     }

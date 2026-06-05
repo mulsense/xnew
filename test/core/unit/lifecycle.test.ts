@@ -30,7 +30,7 @@ describe('Unit lifecycle', () => {
     it('emits stop when transitioning from started to stopped', async () => {
         const onStop = jest.fn();
         const unit = xnew((u: Unit) => u.on('stop', onStop));
-        await jest.advanceTimersByTimeAsync(20);
+        await jest.advanceTimersByTimeAsync(40);
         unit.stop();
         expect(onStop).toHaveBeenCalledTimes(1);
     });
@@ -46,7 +46,7 @@ describe('Unit lifecycle', () => {
     it('does not emit stop again when already stopped', async () => {
         const onStop = jest.fn();
         const unit = xnew((u: Unit) => u.on('stop', onStop));
-        await jest.advanceTimersByTimeAsync(20);
+        await jest.advanceTimersByTimeAsync(40);
         unit.stop();
         unit.stop();
         expect(onStop).toHaveBeenCalledTimes(1);

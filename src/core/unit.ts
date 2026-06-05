@@ -15,7 +15,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { MapSet, MapMap } from './map';
-import { Ticker, Timer, TimerOptions } from './time';
+import { Ticker, Timer } from './time';
 import { Eventor } from './event';
 import { isDomElement, DomElement } from './element';
 
@@ -516,7 +516,7 @@ export class UnitPromise {
 
 export class UnitTimer {
     private unit: Unit | null = null;
-    private queue: Object[] = [];
+    private queue: Function[] = [];
 
     public clear() {
         this.queue = [];
@@ -525,53 +525,55 @@ export class UnitTimer {
     }
 
     public timeout(timeout: Function, duration: number = 0) {
-        return UnitTimer.execute(this, { timeout, duration }, 1)
+        return UnitTimer.execute(this, timeout, null, duration, undefined, 1);
     }
     public interval(timeout: Function, duration: number = 0, iterations: number = 0) {
-        return UnitTimer.execute(this, { timeout, duration }, iterations)
+        return UnitTimer.execute(this, timeout, null, duration, undefined, iterations);
     }
     public transition(transition: Function, duration: number = 0, easing?: string) {
-        return UnitTimer.execute(this, { transition, duration, easing }, 1)
+        return UnitTimer.execute(this, null, transition, duration, easing, 1);
     }
 
-    private static execute(timer: UnitTimer, options: TimerOptions, iterations: number) {
-        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
+    private static execute(timer: UnitTimer, timeout: Function | null, transition: Function | null, duration: number, easing: string | undefined, iterations: number) {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+
+        // Bind every timer parameter into the Component closure so nothing has to be carried as props.
+        const Component = (unit: Unit) => {
+            let counter = 0;
+            let current = new Timer(onTimeout, onTransition, duration, easing);
+
+            function onTimeout() {
+                if (timeout) Unit.scope(snapshot, timeout);
+                if (iterations <= 0 || counter < iterations - 1) {
+                    current = new Timer(onTimeout, onTransition, duration, easing);
+                } else {
+                    unit.finalize();
+                }
+                counter++;
+            }
+            function onTransition(value: number) {
+                if (transition) Unit.scope(snapshot, transition, { value });
+            }
+
+            unit.on('finalize', () => current.clear());
+        };
+
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
+            timer.unit = new Unit(Unit.currentUnit, Component);
         } else if (timer.queue.length === 0) {
-            timer.queue.push(props);
+            timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         } else {
-            timer.queue.push(props);  
+            timer.queue.push(Component);
         }
         return timer;
     }
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.queue.shift());
+            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
-    }
-
-    private static Component(unit: Unit, { options, iterations, snapshot }: { options: TimerOptions, iterations: number,snapshot: Snapshot }) {
-        let counter = 0;
-        let timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
-        
-        function timeout() {
-            if (options.timeout) Unit.scope(snapshot, options.timeout);
-            if (iterations <= 0 || counter < iterations - 1) {
-                timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
-            } else {
-                unit.finalize();
-            }
-            counter++;
-        }
-        function transition(value: number) {
-            if (options.transition) Unit.scope(snapshot, options.transition, { value });
-        }
-
-        unit.on('finalize', () => timer.clear());
     }
 }
 

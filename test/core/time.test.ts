@@ -50,7 +50,7 @@ describe('Timer', () => {
 
     it('fires the timeout callback once at the given duration', () => {
         const cb = jest.fn();
-        new Timer({ timeout: cb, duration: 500 });
+        new Timer(cb, null, 500);
         jest.advanceTimersByTime(499);
         expect(cb).not.toHaveBeenCalled();
         jest.advanceTimersByTime(1);
@@ -59,7 +59,7 @@ describe('Timer', () => {
 
     it('emits 0 first and 1 on completion via transition (bare number arg)', () => {
         const cb = jest.fn();
-        new Timer({ transition: cb, duration: 100 });
+        new Timer(null, cb, 100);
         // First call happens synchronously in the constructor with a bare 0.
         expect(cb).toHaveBeenCalledTimes(1);
         expect(cb.mock.calls[0][0]).toBe(0.0);
@@ -70,7 +70,7 @@ describe('Timer', () => {
 
     it('progresses transition monotonically between 0 and 1', () => {
         const cb = jest.fn();
-        new Timer({ transition: cb, duration: 200 });
+        new Timer(null, cb, 200);
         jest.advanceTimersByTime(200);
         const values = cb.mock.calls.map((c) => c[0] as number);
         // every emitted value is a bare number within [0, 1]
@@ -89,7 +89,7 @@ describe('Timer', () => {
 
     it('cancels a scheduled timeout via clear()', () => {
         const cb = jest.fn();
-        const timer = new Timer({ timeout: cb, duration: 500 });
+        const timer = new Timer(cb, null, 500);
         timer.clear();
         jest.advanceTimersByTime(1000);
         expect(cb).not.toHaveBeenCalled();
@@ -97,7 +97,7 @@ describe('Timer', () => {
 
     it('pauses the elapsed clock on stop() and resumes on start()', () => {
         const cb = jest.fn();
-        const timer = new Timer({ timeout: cb, duration: 500 });
+        const timer = new Timer(cb, null, 500);
         jest.advanceTimersByTime(300);
         timer.stop();
         // While stopped, advancing time must not fire the timeout.
@@ -114,8 +114,8 @@ describe('Timer', () => {
     it('applies ease-out easing so mid progress exceeds linear', () => {
         const linear: number[] = [];
         const eased: number[] = [];
-        new Timer({ transition: (p: number) => linear.push(p), duration: 1000 });
-        new Timer({ transition: (p: number) => eased.push(p), duration: 1000, easing: 'ease-out' });
+        new Timer(null, (p: number) => linear.push(p), 1000);
+        new Timer(null, (p: number) => eased.push(p), 1000, 'ease-out');
         // advance to roughly the midpoint
         jest.advanceTimersByTime(500);
         const linearMid = linear.at(-1)!;
@@ -136,7 +136,7 @@ describe('Timer', () => {
         (global as any).document = undefined;
         try {
             const cb = jest.fn();
-            expect(() => new Timer({ timeout: cb, duration: 100 })).not.toThrow();
+            expect(() => new Timer(cb, null, 100)).not.toThrow();
         } finally {
             (global as any).document = doc;
         }
