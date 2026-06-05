@@ -86,6 +86,7 @@ export class Unit {
         mode: Mode;
         state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
         syncId: number | null;
+        injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
     };
 
     constructor(parent: Unit | null, ...args: any[]) {
@@ -156,7 +157,11 @@ export class Unit {
             mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null,
             state: null,
             syncId: null,
+            // 構築開始時にグローバル注入スロットを退避（無ければ null）。各 xnew.sync.state が
+            // 消費せず参照し、サーバー値をキー単位で初期値より優先する。即 null 化で子へ漏らさない。
+            injected: Unit.injectedSlot,
         };
+        Unit.injectedSlot = null;
 
         // nest html element
         if (typeof target === 'string') {
@@ -335,6 +340,9 @@ export class Unit {
     static currentUnit: Unit;
     static config: { mode: Mode } = { mode: null };
     static syncIdCounter: number = 1;
+    // apply の create 中だけ非 null。Unit 構築開始時に _.injected へ退避し即 null 化する
+    // （sync が書き込み、Unit が読み取る。循環 import を避けるため slot を Unit 側に置く）。
+    static injectedSlot: Record<string, any> | null = null;
 
     static reset(): void {
         Unit.syncIdCounter = 1;

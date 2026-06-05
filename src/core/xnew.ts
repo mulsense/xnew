@@ -25,7 +25,7 @@
 
 import { Unit, UnitPromise, UnitTimer, Mode, Component, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerComponent, captureStateTree, applyStateTree, takeInjectedState } from './sync';
+import { registerComponent, captureStateTree, applyStateTree } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -420,10 +420,16 @@ export const xnew = Object.assign(
                 if (unit._.state === null) {
                     unit._.state = {};
                 }
-                // client 側で apply が注入したサーバー状態があればそれで初期化（initial は使わない）。
-                // server / standalone(null) では注入が無いので initial で初期化する。
-                const injected = takeInjectedState();
-                Object.assign(unit._.state, injected ?? initial);
+                // 複数の xnew.sync.state 宣言（base + extend 合成）が同じ _.state へキーをマージする。
+                // client 側は apply が _.injected に退避したサーバー状態をキー単位で initial より優先する
+                // （消費しないので全宣言が読める）。server / standalone(null) は initial を使う。
+                const injected = unit._.injected;
+                for (const key of Object.keys(initial)) {
+                    if (key in unit._.state) {
+                        console.warn(`xnew.sync.state: duplicate key "${key}" across declarations`);
+                    }
+                    unit._.state[key] = (injected !== null && key in injected) ? injected[key] : initial[key];
+                }
                 return unit._.state;
             },
             register(components: Record<string, Function>): void {

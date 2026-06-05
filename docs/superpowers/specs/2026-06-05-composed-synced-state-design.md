@@ -32,11 +32,13 @@
 [src/core/unit.ts](../../../src/core/unit.ts) の内部状態 `_` に
 `injected: Record<string, any> | null`（既定 `null`）を追加する。
 
-### 2. 構築開始時にグローバル注入スロットを Unit へ退避
+### 2. 構築開始時に注入スロットを Unit へ退避
 
-Unit コンストラクタの本体実行（`Unit.extend(this, baseComponent, props)`）直前で、
-sync.ts が公開する `consumeInjectedSlot()` を呼び、グローバル注入スロットを
-`this._.injected` に取り込み、グローバルは即 `null` 化する。
+注入スロットは `Unit.injectedSlot`（Unit の static）に置く。sync.ts は既に `Unit` を
+import しているため、ここに書き込めば unit.ts → sync.ts の **循環 import を新設せずに**
+済む（直近で「sync 循環依存解消」を行っているため、この向きの依存は足さない）。
+Unit コンストラクタは `_` 構築時に `Unit.injectedSlot` を `this._.injected` へ退避し、
+本体実行（`Unit.extend`）より前に `Unit.injectedSlot` を即 `null` 化する。
 
 - 注入は **この Unit に限定**され、本体内でインライン生成された子 Unit へ漏れない
   （read-once が担っていた漏れ防止を per-unit スコープで代替する）。
@@ -67,9 +69,9 @@ state(initial = {}) {
 
 ### 4. sync.ts の調整
 
-- `takeInjectedState`（read-once）を `consumeInjectedSlot`（構築時に1回、グローバル→null）
-  へリネーム。`apply` の `injectedState = node.state` → `new Unit(...)` → `injectedState = null`
-  の囲みは維持（コンストラクタが取り込む）。
+- read-once の `takeInjectedState` とモジュールローカルの `injectedState` を削除。
+  `apply` は `Unit.injectedSlot = node.state` → `new Unit(...)` → `Unit.injectedSlot = null`
+  の囲みで注入する（コンストラクタが構築開始時に取り込む）。
 - 構築後の保険 `Object.assign(unit._.state, node.state)` は、client が宣言しないキー用に残す。
 
 ### 5. 無変更
