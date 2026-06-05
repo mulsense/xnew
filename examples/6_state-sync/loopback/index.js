@@ -77,8 +77,9 @@ function Main() {
 }
 
 // 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）。
-// Actor は基底（独立した同期対象ではない）なので登録しない → Enemy が 1 つの SyncNode になる。
-xnew.sync.register({ Enemy, Mover });
+// Actor は基底だが単独利用もあり得るので登録しておく。Enemy は Actor を extend するが、
+// 同期名は「最も派生した登録名」＝ Enemy が採られる（基底 Actor に化けない）ので 1 SyncNode のまま。
+xnew.sync.register({ Actor, Enemy, Mover });
 
 // ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
 // xnew.boot(mode, ...args) … その mode で xnew(...args) を生成し、終わったら mode を前の値へ復元。

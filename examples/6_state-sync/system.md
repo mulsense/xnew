@@ -150,8 +150,11 @@ Enemy: xnew.sync.state({ hp })     ┘→  _.state = { x, y, hp }（1 つの Syn
   `{ x, y, hp }` を含むので、`state.x += 3`(基底が宣言した位置)もそのまま書ける。
 - client では §3 の通り `_.injected` が**消費されない**ため、Actor の宣言も Enemy の宣言も
   ともに構築時点でサーバー値を読める(どちらが先でも正しくハイドレートされる)。
-- 基底 `Actor` は**登録しない**(`register({ Enemy, Mover })`)。同期名は登録済みの先頭一致＝
-  `Enemy` になり、unit は 1 つの SyncNode として `{ x, y, hp }` を同期する。
+- 基底 `Actor` も**登録してよい**(単独利用もあり得るため)。同期名は `unit._.Components`(=
+  `[Actor, Enemy]`、extend した基底ほど先頭)の**最も派生した = 末尾側の登録名**を採るので、
+  `Actor`/`Enemy` 両方を登録しても `Enemy` が選ばれる。unit は 1 つの SyncNode として
+  `{ x, y, hp }` を同期し、client は `Enemy` を再生成する(`Enemy` が内部で `Actor` を extend)。
+  - もし先頭一致だと基底 `Actor` に化け、client が hp や挙動を失った“ただの Actor”を作ってしまう。
 - **同名キーを 2 宣言すると `console.warn`**(last-write-wins)。名前空間は分けないので衝突に注意。
 
 ## 4. xnew.sync.register — 「同期する種類」の登録

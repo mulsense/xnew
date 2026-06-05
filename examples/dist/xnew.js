@@ -983,8 +983,8 @@
         return nameToComponent.get(name);
     }
     function getSyncName(unit) {
-        for (const Component of unit._.Components) {
-            const name = getRegisteredName(Component);
+        for (let i = unit._.Components.length - 1; i >= 0; i--) {
+            const name = getRegisteredName(unit._.Components[i]);
             if (name !== undefined) {
                 return name;
             }
