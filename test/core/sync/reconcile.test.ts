@@ -1,8 +1,9 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { resetRegistry, StateTree } from '../../../src/core/sync';
+import { StateTree } from '../../../src/core/sync';
 
 function Box(unit: Unit) {
+    xnew.sync.register({ Box });   // Box は自分を直接の同期子として許可（ネスト用）
     const state = xnew.sync.state({ value: 0 });
     xnew.client(() => {
         const el = xnew.nest('<div>');
@@ -11,10 +12,10 @@ function Box(unit: Unit) {
 }
 
 describe('applyStateTree create', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; xnew.sync.register({ Box }); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
-    function makeView() { Unit.config.mode = 'client'; const v = xnew((u: Unit) => {}); Unit.config.mode = null; return v; }
+    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Box }); }); Unit.config.mode = null; return v; }
 
     it('creates client units under the reconcile root with state applied', () => {
         const view = makeView();
@@ -44,9 +45,9 @@ describe('applyStateTree state injection (client inits from server state)', () =
         const state = xnew.sync.state({ value: 0, who: 'local' });
         observed = { ...state };   // 本体実行時点で見えている state のスナップショット
     }
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; observed = null; xnew.sync.register({ Probe }); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; observed = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
-    function makeView() { Unit.config.mode = 'client'; const v = xnew((u: Unit) => {}); Unit.config.mode = null; return v; }
+    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Probe }); }); Unit.config.mode = null; return v; }
 
     it('injects server state before the body runs so local initial is ignored', () => {
         const view = makeView();
@@ -59,15 +60,15 @@ describe('applyStateTree state injection (client inits from server state)', () =
         xnew.sync.apply(view, [{ id: 1, name: 'Probe', parentId: null, state: { value: 42, who: 'server' } }]);
         observed = null;
         Unit.config.mode = null;
-        xnew(Probe);   // synced 型だが apply 経由でない → 注入は消費済みで local 初期値を使う
+        xnew(function Holder() { xnew.sync.register({ Probe }); xnew(Probe); });   // apply 経由でない生成
         expect(observed).toEqual({ value: 0, who: 'local' });
     });
 });
 
 describe('applyStateTree update', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; xnew.sync.register({ Box }); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
-    function makeView() { Unit.config.mode = 'client'; const v = xnew((u: Unit) => {}); Unit.config.mode = null; return v; }
+    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Box }); }); Unit.config.mode = null; return v; }
 
     it('updates existing unit in place without recreating it', () => {
         const view = makeView();
@@ -81,9 +82,9 @@ describe('applyStateTree update', () => {
 });
 
 describe('applyStateTree remove', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; xnew.sync.register({ Box }); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
-    function makeView() { Unit.config.mode = 'client'; const v = xnew((u: Unit) => {}); Unit.config.mode = null; return v; }
+    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Box }); }); Unit.config.mode = null; return v; }
 
     it('finalizes replica units whose id disappears from the tree', () => {
         const view = makeView();
