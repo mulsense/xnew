@@ -10,7 +10,7 @@
 // ルームにだけ送る。
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '../../dist/xnew.mjs';
+import xnew from '../../../../dist/xnew.mjs';
 import { BROADCAST_HZ, ROOM_GRACE_MS } from './config.js';
 
 export class Room {

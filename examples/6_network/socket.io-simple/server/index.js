@@ -31,8 +31,8 @@ const registry = new RoomRegistry();
 // ---- HTTP + 静的配信 ----
 const app = express();
 app.use(express.static(join(__dirname, '..', 'public')));
-app.use('/xnew', express.static(join(__dirname, '..', '..', 'dist')));
-app.use('/thirdparty', express.static(join(__dirname, '..', '..', 'thirdparty')));
+app.use('/xnew', express.static(join(__dirname, '..', '..', '..', '..', 'dist')));
+app.use('/thirdparty', express.static(join(__dirname, '..', '..', '..', 'thirdparty')));
 
 const httpServer = createServer(app);
 const io = new IOServer(httpServer);
