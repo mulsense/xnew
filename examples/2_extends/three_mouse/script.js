@@ -75,7 +75,12 @@ function Controller(unit) {
   pivot2.add(xthree.camera);
   pivot1.position.set(0, 0, 0);
   pivot2.position.set(0, 0, 0);
-  
+
+  // reusable vectors for screen-based panning
+  const right = new THREE.Vector3();
+  const up = new THREE.Vector3();
+  const forward = new THREE.Vector3();
+
   unit.on('touchstart contextmenu wheel', ({ event }) => event.preventDefault());
 
   unit.on('dragmove', ({ event, delta }) => {
@@ -84,13 +89,19 @@ function Controller(unit) {
       pivot2.rotation.x -= delta.y * 0.01;
       pivot1.rotation.z -= delta.x * 0.01;
     } else if (event.buttons & 2) {
-      // translate
-      xthree.camera.position.x += -delta.x * xthree.camera.position.z * 0.001;
-      xthree.camera.position.y += +delta.y * xthree.camera.position.z * 0.001;
+      // translate (pan along the screen plane, using the camera's world axes)
+      xthree.camera.updateWorldMatrix(true, false);
+      xthree.camera.matrixWorld.extractBasis(right, up, forward);
+
+      const distance = xthree.camera.position.length();
+      const factor = (distance / xthree.camera.zoom) * 0.001;
+      object.position.addScaledVector(right, -delta.x * factor);
+      object.position.addScaledVector(up, +delta.y * factor);
     }
   });
   unit.on('wheel', ({ event, delta }) => {
-    // scale
-    xthree.camera.position.z /= 1 + 0.001 * delta.y;
+    // scale (zoom without moving the camera)
+    xthree.camera.zoom *= 1 + 0.001 * delta.y;
+    xthree.camera.updateProjectionMatrix();
   });
 }
