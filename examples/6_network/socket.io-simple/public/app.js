@@ -32,7 +32,6 @@ function App(unit) {
         selfId: null,
         field: { w: 800, h: 600 },
         roomId: null,
-        players: [],
     };
 
     const setStatus = (text, ok) => {
@@ -165,48 +164,60 @@ function LobbyScene(unit, { state }) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// GameScene — canvas 描画 + 入力送信 (Scene 継承)
+// GameScene — client ツリー(xnew.sync) でアバターを描画 + 入力送信 (Scene 継承)
 //
-// 選んだルーム専用の接続 (gameSocket) を張り、welcome 後に join。離脱(ロビーに戻る/finalize)で
-// gameSocket を閉じる。status には入室中のルーム名を表示する。
+// welcome で受け取った gameType の共有モジュールを動的 import し、xnew.boot('client', World) で
+// このシーン配下に client ツリーを mount。サーバーからの 'sync'(state tree) を apply で差分反映する。
+// 描画はグローバルティッカーが回す(手動 render ループ無し)。入力は従来どおり emit('input')。
 //----------------------------------------------------------------------------------------------------
 
 function GameScene(unit, { state, roomId }) {
     xnew.extend(xnew.basics.Scene);
 
-    const PLAYER_RADIUS = 16;
     const statusEl = document.getElementById('status');
 
-    // ゲーム用接続。query.room でサーバーはそのルームへ join させる。
-    // forceNew: lobbySocket とは別の物理接続にする。
+    // ゲーム用接続。query.room でサーバーはそのルームへ join させる。forceNew で lobbySocket と分離。
     const gameSocket = io({ query: { room: roomId }, transports: ['websocket'], forceNew: true });
 
-    gameSocket.on('welcome', ({ id, field, roomId: rid, roomName }) => {
-        state.selfId = id;
-        state.field = field;
-        state.roomId = rid;
-        statusEl.textContent = roomName || rid;
-        gameSocket.emit('join', { name: state.name });
-    });
-    gameSocket.on('state', (snapshot) => { state.players = snapshot.players; });
-    // ルームが既に無い場合はロビーへ戻す。
-    gameSocket.on('room:notfound', () => unit.change(LobbyScene, { state }));
+    // フィールドを内包する wrapper。
+    const root = xnew.nest('<div class="absolute inset-0 overflow-hidden">');
 
-    unit.on('finalize', () => gameSocket.close());
-
-    // ---- 画面: フィールドを埋める wrapper の中に Screen(canvas) を載せる ----
-    const root = xnew.nest('<div class="absolute inset-0">');
-    const screen = xnew.extend(xnew.basics.Screen, { width: state.field.w, height: state.field.h, fit: 'contain' });
-    const ctx = screen.canvas.getContext('2d');
-
-    // ロビーに戻るボタン (canvas の上に重ねる)。
+    // ロビーに戻るボタン。
     const back = document.createElement('button');
     back.className = 'absolute top-3 left-3 z-10 px-3 py-1.5 rounded-md border-0 bg-slate-700 hover:bg-slate-600 text-white text-sm cursor-pointer';
     back.textContent = 'ロビーに戻る';
     back.addEventListener('click', () => unit.change(LobbyScene, { state }));
     root.appendChild(back);
 
-    // ---- 入力: xnew の window イベントで方向ベクトルを取得して送信 ----
+    let clientWorld = null;   // 受信ツリーを apply する client ルート(World)
+
+    gameSocket.on('welcome', async ({ id, field, roomId: rid, roomName, gameType }) => {
+        state.selfId = id;
+        state.field = field;
+        state.roomId = rid;
+        statusEl.textContent = roomName || rid;
+
+        // gameType の共有モジュールを動的ロードし、client ツリーをこのシーン配下に mount。
+        const mod = await import(`/games/${gameType}.js`);
+        clientWorld = xnew.boot('client', unit, mod.World, { selfId: id, field });
+
+        gameSocket.emit('join', { name: state.name });
+    });
+
+    // サーバーからの state tree を client ツリーへ差分反映。
+    gameSocket.on('sync', (tree) => {
+        if (clientWorld) { xnew.sync.apply(clientWorld, tree); }
+    });
+
+    // ルームが既に無い場合はロビーへ戻す。
+    gameSocket.on('room:notfound', () => unit.change(LobbyScene, { state }));
+
+    unit.on('finalize', () => {
+        clientWorld?.finalize();
+        gameSocket.close();
+    });
+
+    // ---- 入力: xnew の window イベントで方向ベクトルを取得して送信(sync は server→client のみ) ----
     unit.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ event, vector }) => {
         const el = event.target;
         if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) { return; }
@@ -214,39 +225,4 @@ function GameScene(unit, { state, roomId }) {
         gameSocket.emit('input', vector);
     });
     unit.on('window.blur', () => gameSocket.emit('input', { x: 0, y: 0 }));
-
-    // ---- 描画: 毎フレーム state を読みに来る ----
-    unit.on('render', () => {
-        const { width, height } = ctx.canvas;
-
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 1;
-        for (let x = 0; x < width; x += 40) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
-        }
-        for (let y = 0; y < height; y += 40) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-        }
-
-        for (const player of state.players) {
-            ctx.fillStyle = player.color;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, PLAYER_RADIUS, 0, Math.PI * 2);
-            ctx.fill();
-
-            if (player.id === state.selfId) {
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-
-            ctx.fillStyle = '#e2e8f0';
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(player.name, player.x, player.y - 22);
-        }
-    });
 }
