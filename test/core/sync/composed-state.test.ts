@@ -1,6 +1,5 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { resetRegistry } from '../../../src/core/sync';
 
 // Base: synced state を宣言する基底コンポーネント（最初の sync.state 宣言）
 function Base(unit: Unit) {
@@ -23,17 +22,16 @@ function Enemy(unit: Unit) {
 describe('composed synced state (base + extend)', () => {
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
-        resetRegistry(); Unit.reset(); Unit.config.mode = null;
-        xnew.sync.register({ Enemy });
+        Unit.reset(); Unit.config.mode = null;
         clientReadAtConstruction = {};
     });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     it('hydrates every sync.state declaration from injected server state at construction time', () => {
         Unit.config.mode = 'server';
-        const server = xnew(function Server() { xnew(Enemy); });
+        const server = xnew(function Server() { xnew.sync.register({ Enemy }); xnew(Enemy); });
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Enemy }); });
         Unit.config.mode = null;
 
         Unit.start(Unit.rootUnit);
@@ -67,12 +65,10 @@ describe('composed synced state (base + extend)', () => {
                 xnew(function Child() { childState = xnew.sync.state({ value: -1 }); });
             });
         }
-        resetRegistry(); xnew.sync.register({ Host });
-
         Unit.config.mode = 'server';
-        const server = xnew(function Server() { xnew(Host); });
+        const server = xnew(function Server() { xnew.sync.register({ Host }); xnew(Host); });
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Host }); });
         Unit.config.mode = null;
 
         Unit.start(Unit.rootUnit);
@@ -89,10 +85,8 @@ describe('composed synced state (base + extend)', () => {
     it('syncs under the most-derived registered name even when the base is also registered', () => {
         function ActorBase(unit: Unit, props: any = {}) { xnew.sync.state({ x: 0, y: props.y ?? 0 }); }
         function EnemyDerived(unit: Unit, props: any = {}) { xnew.extend(ActorBase, props); xnew.sync.state({ hp: 3 }); }
-        resetRegistry(); xnew.sync.register({ ActorBase, EnemyDerived });   // 基底も登録
-
         Unit.config.mode = 'server';
-        const server = xnew(function S() { xnew(EnemyDerived, { y: 8 }); });
+        const server = xnew(function S() { xnew.sync.register({ ActorBase, EnemyDerived }); xnew(EnemyDerived, { y: 8 }); });
         Unit.config.mode = null;
 
         const tree = xnew.sync.capture(server);
@@ -121,12 +115,10 @@ describe('composed synced state (base + extend)', () => {
                 unit.on('render', () => { el.style.background = state.hp >= 2 ? 'red' : 'gray'; });
             });
         }
-        resetRegistry(); xnew.sync.register({ Sprite });
-
         Unit.config.mode = 'server';
-        const server = xnew(function Server() { xnew(Sprite, { y: 8 }); });
+        const server = xnew(function Server() { xnew.sync.register({ Sprite }); xnew(Sprite, { y: 8 }); });
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Sprite }); });
         Unit.config.mode = null;
 
         Unit.start(Unit.rootUnit);
