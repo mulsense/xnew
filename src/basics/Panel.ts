@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
-import { Unit } from '../core/unit';
+import { Unit, Component } from '../core/unit';
 import { SVG } from './SVG';
 import { OpenAndClose, Accordion, Popup } from './Transition';
 
@@ -18,9 +18,20 @@ interface PanelOptions { name?: string; open?: boolean; params?: Record<string, 
 
 const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
 
+// hidden native control overlaid on the styled row to capture interaction
+const hiddenInput = 'position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;';
+
 export function Panel(unit: Unit, { params }: PanelOptions) {
     const object = params ?? {} as Record<string, any>;
-    
+
+    // resolve the initial value, mount the control and write changes back to `object`
+    function field(key: string, value: any, fallback: any, Component: Component<any, any>, props: object) {
+        object[key] = value ?? object[key] ?? fallback;
+        const control = xnew(Component, { key, value: object[key], ...props });
+        control.on('input', ({ value }: { value: any }) => object[key] = value);
+        return control;
+    }
+
     return {
         group({ name, open, params }: PanelOptions, inner: Function) {
             const group = xnew((unit: Unit) => {
@@ -35,25 +46,13 @@ export function Panel(unit: Unit, { params }: PanelOptions) {
             return button;
         },
         select(key: string, { value, items = [] }: { value?: string, items?: string[] } = {}) {
-            object[key] = value ?? object[key] ?? items[0] ?? '';
-
-            const select = xnew(Select, { key, value: object[key], items });
-            select.on('input', ({ value }: { value: string }) => object[key] = value);
-            return select;
+            return field(key, value, items[0] ?? '', Select, { items });
         },
         range(key: string, { value, min = 0, max = 100, step = 1 }: { value?: number, min?: number, max?: number, step?: number } = {}) {
-            object[key] = value ?? object[key] ?? min;
-
-            const number = xnew(Range, { key, value: object[key], min, max, step });
-            number.on('input', ({ value }: { value: number }) => object[key] = value);
-            return number;
+            return field(key, value, min, Range, { min, max, step });
         },
         checkbox(key: string, { value }: { value?: boolean } = {}) {
-            object[key] = value ?? object[key] ?? false;
-
-            const checkbox = xnew(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ value }: { value: boolean }) => object[key] = value);
-            return checkbox;
+            return field(key, value, false, Checkbox, {});
         },
         separator() {
             xnew(Separator);
@@ -118,7 +117,7 @@ function Range(unit: Unit,
     });
 
     // hidden native input for interaction
-    xnew.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
+    xnew.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="${hiddenInput}">`);
 
     unit.on('input', ({ event }: { event: Event }) => {
         const v = Number((event.target as HTMLInputElement).value);
@@ -146,8 +145,8 @@ function Checkbox(unit: Unit, { key = '', value }: { key?: string, value?: boole
         check.style.opacity = checked ? '1' : '0';
     };
     update(!!value);
-    xnew.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
-    unit.on('input', ({ event, value }: { event: Event, value: boolean }) => {
+    xnew.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="${hiddenInput}">`);
+    unit.on('input', ({ value }: { value: boolean }) => {
         update(value);
     });
 }

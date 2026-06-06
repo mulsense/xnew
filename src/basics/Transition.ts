@@ -23,36 +23,32 @@ export function OpenAndClose(unit: Unit,
     let sign: number = open ? +1 : -1;
     let timer = xnew.timeout(() => xnew.emit('-transition', { value }));
 
-    const api = {
+    // animate `value` toward 1 (dir +1, open) or 0 (dir -1, close), scaling duration by remaining distance
+    function animate(dir: number) {
+        sign = dir;
+        const d = dir > 0 ? 1 - value : value;
+        const duration = (transition?.duration ?? 200) * d;
+        const easing = transition?.easing ?? 'ease';
+        timer?.clear();
+        timer = xnew.transition(({ value: x }: { value: number }) => {
+            const remaining = x < 1.0 ? (1 - x) * d : 0.0;
+            value = dir > 0 ? 1.0 - remaining : remaining;
+            xnew.emit('-transition', { value });
+        }, duration, easing)
+        .timeout(() => xnew.emit(dir > 0 ? '-opened' : '-closed'));
+    }
+
+    return {
         toggle() {
-            sign < 0 ? api.open() : api.close();
+            animate(sign < 0 ? +1 : -1);
         },
         open() {
-            sign = +1;
-            const d = 1 - value;
-            const duration = (transition?.duration ?? 200) * d;
-            const easing = transition?.easing ?? 'ease';
-            timer?.clear();
-            timer = xnew.transition(({ value: x }: { value: number }) => {
-                value = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
-                xnew.emit('-transition', { value });
-            }, duration, easing)
-            .timeout(() => xnew.emit('-opened'));
+            animate(+1);
         },
         close() {
-            sign = -1;
-            const d = value;
-            const duration = (transition?.duration ?? 200) * d;
-            const easing = transition?.easing ?? 'ease';
-            timer?.clear();
-            timer = xnew.transition(({ value: x }: { value: number }) => {
-                value = x < 1.0 ? (1 - x) * d : 0.0;
-                xnew.emit('-transition', { value });
-            }, duration, easing)
-            .timeout(() => xnew.emit('-closed'));
+            animate(-1);
         },
     };
-    return api;
 }
 
 export function Accordion(unit: Unit) {
