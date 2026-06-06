@@ -108,30 +108,28 @@ class MapMap extends Map {
 }
 
 class Ticker {
-    constructor(callback, fps = 60) {
+    constructor(callback, fps = 30) {
         this.cancel = null;
-        const minDelta = (1000 / fps) * 0.9;
         const interval = 1000 / fps;
+        const minDelta = interval * 0.9;
         let previous = 0;
         const tick = () => {
-            const delta = Date.now() - previous;
-            if (delta > minDelta) {
-                callback();
-                previous += delta;
-            }
-            schedule();
-        };
-        const schedule = () => {
             if (typeof requestAnimationFrame !== 'undefined') {
+                const delta = Date.now() - previous;
+                if (delta > minDelta) {
+                    callback();
+                    previous += delta;
+                }
                 const id = requestAnimationFrame(tick);
                 this.cancel = () => cancelAnimationFrame(id);
             }
             else {
+                callback();
                 const id = setTimeout(tick, interval);
                 this.cancel = () => clearTimeout(id);
             }
         };
-        schedule();
+        tick();
     }
     clear() {
         if (this.cancel !== null) {
@@ -140,10 +138,27 @@ class Ticker {
         }
     }
 }
+function ease(p, easing) {
+    switch (easing) {
+        case 'ease-out':
+            return Math.pow(1.0 - Math.pow(1.0 - p, 2.0), 0.5);
+        case 'ease-in':
+            return Math.pow(1.0 - Math.pow(1.0 - p, 0.5), 2.0);
+        case 'ease':
+            return ((s) => s * s * (3 - 2 * s))(p ** 0.7);
+        case 'ease-in-out':
+            return p * p * (3 - 2 * p);
+        default:
+            return p;
+    }
+}
 class Timer {
-    constructor(options) {
-        var _a, _b;
-        this.options = options;
+    constructor(timeout, transition, duration, easing) {
+        var _a;
+        this.timeout = timeout;
+        this.transition = transition;
+        this.duration = duration;
+        this.easing = easing;
         this.id = null;
         this.time = { start: 0.0, processed: 0.0 };
         this.request = true;
@@ -152,24 +167,13 @@ class Timer {
         if (typeof document !== 'undefined') {
             document.addEventListener('visibilitychange', this.visibilityListener);
         }
-        (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 0.0);
+        (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 0.0);
         this.start();
     }
     animation() {
-        var _a, _b;
-        let p = Math.min(this.elapsed() / this.options.duration, 1.0);
-        if (this.options.easing === 'ease-out') {
-            p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
-        }
-        else if (this.options.easing === 'ease-in') {
-            p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-        }
-        else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
-            const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = p ** bias;
-            p = s * s * (3 - 2 * s);
-        }
-        (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, p);
+        var _a;
+        const p = Math.min(this.elapsed() / this.duration, 1.0);
+        (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, ease(p, this.easing));
     }
     clear() {
         if (this.id !== null) {
@@ -195,13 +199,13 @@ class Timer {
     _start() {
         if (this.request === true && this.id === null) {
             this.id = setTimeout(() => {
-                var _a, _b, _c, _d;
+                var _a, _b;
                 this.id = null;
                 this.time = { start: 0.0, processed: 0.0 };
-                (_b = (_a = this.options).transition) === null || _b === void 0 ? void 0 : _b.call(_a, 1.0);
-                (_d = (_c = this.options).timeout) === null || _d === void 0 ? void 0 : _d.call(_c);
+                (_a = this.transition) === null || _a === void 0 ? void 0 : _a.call(this, 1.0);
+                (_b = this.timeout) === null || _b === void 0 ? void 0 : _b.call(this);
                 this.clear();
-            }, this.options.duration - this.time.processed);
+            }, this.duration - this.time.processed);
             this.time.start = Date.now();
         }
     }
@@ -598,6 +602,7 @@ class Unit {
             state: null,
             syncId: null,
             injected: Unit.injectedSlot,
+            syncRegistry: null,
         };
         Unit.injectedSlot = null;
         if (typeof target === 'string') {
@@ -914,71 +919,73 @@ class UnitTimer {
         this.unit = null;
     }
     timeout(timeout, duration = 0) {
-        return UnitTimer.execute(this, { timeout, duration }, 1);
+        return UnitTimer.execute(this, timeout, null, duration, undefined, 1);
     }
     interval(timeout, duration = 0, iterations = 0) {
-        return UnitTimer.execute(this, { timeout, duration }, iterations);
+        return UnitTimer.execute(this, timeout, null, duration, undefined, iterations);
     }
     transition(transition, duration = 0, easing) {
-        return UnitTimer.execute(this, { transition, duration, easing }, 1);
+        return UnitTimer.execute(this, null, transition, duration, easing, 1);
     }
-    static execute(timer, options, iterations) {
-        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
+    static execute(timer, timeout, transition, duration, easing, iterations) {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        const Component = (unit) => {
+            let counter = 0;
+            let current = new Timer(onTimeout, onTransition, duration, easing);
+            function onTimeout() {
+                if (timeout)
+                    Unit.scope(snapshot, timeout);
+                if (iterations <= 0 || counter < iterations - 1) {
+                    current = new Timer(onTimeout, onTransition, duration, easing);
+                }
+                else {
+                    unit.finalize();
+                }
+                counter++;
+            }
+            function onTransition(value) {
+                if (transition)
+                    Unit.scope(snapshot, transition, { value });
+            }
+            unit.on('finalize', () => current.clear());
+        };
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
+            timer.unit = new Unit(Unit.currentUnit, Component);
         }
         else if (timer.queue.length === 0) {
-            timer.queue.push(props);
+            timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
         else {
-            timer.queue.push(props);
+            timer.queue.push(Component);
         }
         return timer;
     }
     static next(timer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.queue.shift());
+            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
-    static Component(unit, { options, iterations, snapshot }) {
-        let counter = 0;
-        let timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
-        function timeout() {
-            if (options.timeout)
-                Unit.scope(snapshot, options.timeout);
-            if (iterations <= 0 || counter < iterations - 1) {
-                timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
-            }
-            else {
-                unit.finalize();
-            }
-            counter++;
-        }
-        function transition(value) {
-            if (options.transition)
-                Unit.scope(snapshot, options.transition, { value });
-        }
-        unit.on('finalize', () => timer.clear());
-    }
 }
 
-const nameToComponent = new Map();
-const componentToName = new Map();
-function registerComponent(name, Component) {
-    nameToComponent.set(name, Component);
-    componentToName.set(Component, name);
-}
-function getRegisteredName(Component) {
-    return componentToName.get(Component);
-}
-function getRegisteredComponent(name) {
-    return nameToComponent.get(name);
+function registerOnUnit(unit, components) {
+    if (unit._.syncRegistry === null) {
+        unit._.syncRegistry = { byName: new Map(), byComponent: new Map() };
+    }
+    for (const [name, Component] of Object.entries(components)) {
+        unit._.syncRegistry.byName.set(name, Component);
+        unit._.syncRegistry.byComponent.set(Component, name);
+    }
 }
 function getSyncName(unit) {
+    var _a;
+    const registry = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.syncRegistry;
+    if (registry === undefined || registry === null) {
+        return undefined;
+    }
     for (let i = unit._.Components.length - 1; i >= 0; i--) {
-        const name = getRegisteredName(unit._.Components[i]);
+        const name = registry.byComponent.get(unit._.Components[i]);
         if (name !== undefined) {
             return name;
         }
@@ -1010,6 +1017,7 @@ function captureStateTree(root) {
 }
 const reconcileMaps = new WeakMap();
 function applyStateTree(root, tree) {
+    var _a;
     let map = reconcileMaps.get(root);
     if (map === undefined) {
         map = new Map();
@@ -1019,12 +1027,12 @@ function applyStateTree(root, tree) {
     for (const node of tree) {
         const existing = map.get(node.id);
         if (existing === undefined) {
-            const Component = getRegisteredComponent(node.name);
-            if (Component === undefined) {
-                continue;
-            }
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) {
+                continue;
+            }
+            const Component = (_a = parent._.syncRegistry) === null || _a === void 0 ? void 0 : _a.byName.get(node.name);
+            if (Component === undefined) {
                 continue;
             }
             Unit.injectedSlot = node.state;
@@ -1269,8 +1277,15 @@ const xnew$1 = Object.assign((function (...args) {
             return unit._.state;
         },
         register(components) {
-            for (const [name, Component] of Object.entries(components)) {
-                registerComponent(name, Component);
+            try {
+                if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
+                    throw new Error('xnew.sync.register can not be called outside a component.');
+                }
+                registerOnUnit(Unit.currentUnit, components);
+            }
+            catch (error) {
+                console.error('xnew.sync.register(components: Object): ', error);
+                throw error;
             }
         },
         capture(root) {
@@ -1296,38 +1311,31 @@ function OpenAndClose(unit, { open = true, transition = { duration: 200, easing:
     let value = open ? 1.0 : 0.0;
     let sign = open ? +1 : -1;
     let timer = xnew$1.timeout(() => xnew$1.emit('-transition', { value }));
-    const api = {
+    function animate(dir) {
+        var _a, _b;
+        sign = dir;
+        const d = dir > 0 ? 1 - value : value;
+        const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
+        const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
+        timer === null || timer === void 0 ? void 0 : timer.clear();
+        timer = xnew$1.transition(({ value: x }) => {
+            const remaining = x < 1.0 ? (1 - x) * d : 0.0;
+            value = dir > 0 ? 1.0 - remaining : remaining;
+            xnew$1.emit('-transition', { value });
+        }, duration, easing)
+            .timeout(() => xnew$1.emit(dir > 0 ? '-opened' : '-closed'));
+    }
+    return {
         toggle() {
-            sign < 0 ? api.open() : api.close();
+            animate(sign < 0 ? +1 : -1);
         },
         open() {
-            var _a, _b;
-            sign = +1;
-            const d = 1 - value;
-            const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
-            const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
-            timer === null || timer === void 0 ? void 0 : timer.clear();
-            timer = xnew$1.transition(({ value: x }) => {
-                value = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
-                xnew$1.emit('-transition', { value });
-            }, duration, easing)
-                .timeout(() => xnew$1.emit('-opened'));
+            animate(+1);
         },
         close() {
-            var _a, _b;
-            sign = -1;
-            const d = value;
-            const duration = ((_a = transition === null || transition === void 0 ? void 0 : transition.duration) !== null && _a !== void 0 ? _a : 200) * d;
-            const easing = (_b = transition === null || transition === void 0 ? void 0 : transition.easing) !== null && _b !== void 0 ? _b : 'ease';
-            timer === null || timer === void 0 ? void 0 : timer.clear();
-            timer = xnew$1.transition(({ value: x }) => {
-                value = x < 1.0 ? (1 - x) * d : 0.0;
-                xnew$1.emit('-transition', { value });
-            }, duration, easing)
-                .timeout(() => xnew$1.emit('-closed'));
+            animate(-1);
         },
     };
-    return api;
 }
 function Accordion(unit) {
     const system = xnew$1.context(OpenAndClose);
@@ -1496,8 +1504,16 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
 }
 
 const paleColor$1 = 'color-mix(in srgb, currentColor 20%, transparent)';
+const hiddenInput = 'position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;';
 function Panel(unit, { params }) {
     const object = params !== null && params !== void 0 ? params : {};
+    function field(key, value, fallback, Component, props) {
+        var _a;
+        object[key] = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : fallback;
+        const control = xnew$1(Component, Object.assign({ key, value: object[key] }, props));
+        control.on('input', ({ value }) => object[key] = value);
+        return control;
+    }
     return {
         group({ name, open, params }, inner) {
             const group = xnew$1((unit) => {
@@ -1512,25 +1528,14 @@ function Panel(unit, { params }) {
             return button;
         },
         select(key, { value, items = [] } = {}) {
-            var _a, _b;
-            object[key] = (_b = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : items[0]) !== null && _b !== void 0 ? _b : '';
-            const select = xnew$1(Select, { key, value: object[key], items });
-            select.on('input', ({ value }) => object[key] = value);
-            return select;
+            var _a;
+            return field(key, value, (_a = items[0]) !== null && _a !== void 0 ? _a : '', Select, { items });
         },
         range(key, { value, min = 0, max = 100, step = 1 } = {}) {
-            var _a;
-            object[key] = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : min;
-            const number = xnew$1(Range, { key, value: object[key], min, max, step });
-            number.on('input', ({ value }) => object[key] = value);
-            return number;
+            return field(key, value, min, Range, { min, max, step });
         },
         checkbox(key, { value } = {}) {
-            var _a;
-            object[key] = (_a = value !== null && value !== void 0 ? value : object[key]) !== null && _a !== void 0 ? _a : false;
-            const checkbox = xnew$1(Checkbox, { key, value: object[key] });
-            checkbox.on('input', ({ value }) => object[key] = value);
-            return checkbox;
+            return field(key, value, false, Checkbox, {});
         },
         separator() {
             xnew$1(Separator);
@@ -1580,7 +1585,7 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
         xnew$1('<div>', key);
         xnew$1('<div key="status">', value);
     });
-    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
+    xnew$1.nest(`<input type="range" name="${key}" min="${min}" max="${max}" step="${step}" value="${value}" style="${hiddenInput}">`);
     unit.on('input', ({ event }) => {
         const v = Number(event.target.value);
         const r = (v - min) / (max - min);
@@ -1603,8 +1608,8 @@ function Checkbox(unit, { key = '', value } = {}) {
         check.style.opacity = checked ? '1' : '0';
     };
     update(!!value);
-    xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;">`);
-    unit.on('input', ({ event, value }) => {
+    xnew$1.nest(`<input type="checkbox" name="${key}" ${value ? 'checked' : ''} style="${hiddenInput}">`);
+    unit.on('input', ({ value }) => {
         update(value);
     });
 }

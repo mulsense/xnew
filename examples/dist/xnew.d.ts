@@ -58,7 +58,7 @@ interface Snapshot {
 }
 type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
 type Mode = 'server' | 'client' | null;
-type Component<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
+type ComponentFn<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
 type DefinesOf<C> = C extends (...args: any[]) => infer R ? ([R] extends [void] ? {} : Exclude<R, void | undefined>) : {};
 type PropsOf<C> = C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
 declare const SYSTEM_EVENTS: readonly ["start", "update", "render", "stop", "finalize"];
@@ -96,6 +96,7 @@ declare class Unit {
         state: Record<string, any> | null;
         syncId: number | null;
         injected: Record<string, any> | null;
+        syncRegistry: SyncRegistry | null;
     };
     constructor(parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
@@ -155,7 +156,6 @@ declare class UnitTimer {
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     private static execute;
     private static next;
-    private static Component;
 }
 
 interface SyncNode {
@@ -165,12 +165,16 @@ interface SyncNode {
     state: Record<string, any>;
 }
 type StateTree = SyncNode[];
+interface SyncRegistry {
+    byName: Map<string, Function>;
+    byComponent: Map<Function, string>;
+}
 declare function captureStateTree(root: Unit): StateTree;
 declare function applyStateTree(root: Unit, tree: StateTree): void;
 
 interface XnewBase {
-    <C extends Component<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
-    <C extends Component<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    <C extends ComponentFn<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
     (target: DomElement | string, content?: string | number): Unit;
     (content: string | number): Unit;
     (parent: Unit | null, ...args: any[]): Unit;
@@ -362,7 +366,7 @@ declare class Synthesizer {
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
-    type Component<P extends object = any, A extends object = {}> = Component<P, A>;
+    type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
     type Mode = Mode;
     type Status = Status;
     namespace audio {
@@ -371,7 +375,7 @@ declare namespace xnew {
 }
 declare const xnew: XnewBase & {
     nest(target: DomElement | string): HTMLElement | SVGElement;
-    extend<C extends Component<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C>;
+    extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C>;
     context(key: any): any;
     promise(promise: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
@@ -389,8 +393,8 @@ declare const xnew: XnewBase & {
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
-    server<C extends Component<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
-    client<C extends Component<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
+    server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
+    client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
     sync: {
         state(initial?: Record<string, any>): Record<string, any>;
         register(components: Record<string, Function>): void;
