@@ -11,12 +11,11 @@
 //
 // GameInstance (ネット層 Room から呼ばれる。フレームワーク非依存):
 //   - welcome?(): object                 … welcome に混ぜる初期情報 (例 { field })
-//   - onJoin(playerId, info)             … 参加
-//   - onLeave?(playerId)                 … 退出
-//   - onInput?(playerId, message)        … 入力
-//   - update?(dt)                        … 1 フレーム進める (サーバー権威)
-//   - snapshot(): object                 … 配信する状態
-//   - dispose?()                         … 後始末
+//   - onJoin(playerId, info)             … 参加 (synced unit を spawn)
+//   - onLeave?(playerId)                 … 退出 (synced unit を finalize)
+//   - onInput?(playerId, message)        … 入力 (server 権威の入力 ref を更新)
+//   - capture(): SyncNode[]              … xnew.sync.capture した state tree (30Hz で配信)
+//   - dispose?()                         … 後始末 (server ツリーを finalize)
 //----------------------------------------------------------------------------------------------------
 
 import { readdir } from 'node:fs/promises';
