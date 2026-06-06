@@ -91,23 +91,23 @@ function LobbyScene(unit, { state }) {
 
     xnew.nest('<div class="absolute inset-0 flex items-center justify-center p-4">');
 
-    let cnameInput;
     let list;
     let hint;
     xnew('<div class="w-full max-w-md flex flex-col gap-4">', () => {
         xnew('<h2 class="m-0 text-xl font-semibold text-center">', `ロビー (${state.name})`);
 
-        const createForm = xnew('<form class="flex gap-2">', () => {
-            cnameInput = xnew('<input class="flex-1 px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="16" placeholder="新しいルーム名">');
+        xnew('<form class="flex gap-2">', (unit) => {
+            const cnameInput = xnew('<input class="flex-1 px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="16" placeholder="新しいルーム名">');
             xnew('<button class="px-3 py-2 rounded-md border-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm cursor-pointer" type="submit">', '作成');
+            unit.on('submit', ({ event }) => {
+                event.preventDefault();
+                const name = cnameInput.element.value.trim();
+                if (!name) { return; }
+                lobbySocket.emit('room:create', { name });
+                cnameInput.element.value = '';
+            });
         });
-        createForm.on('submit', ({ event }) => {
-            event.preventDefault();
-            const name = cnameInput.element.value.trim();
-            if (!name) { return; }
-            lobbySocket.emit('room:create', { name });
-            cnameInput.element.value = '';
-        });
+
 
         list = xnew('<ul class="flex flex-col gap-2">');
         hint = xnew('<p class="m-0 text-xs text-slate-500 text-center">', 'ルームを作成 / 入室してアバターを動かそう');
