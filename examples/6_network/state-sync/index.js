@@ -48,6 +48,7 @@ function Enemy(unit, props = {}) {
 
 // ---- Mover: 定期的に Enemy を spawn する親 ----
 function Mover(unit) {
+    xnew.sync.register({ Enemy });   // Mover が直接生成する同期子
     const state = xnew.sync.state({ spawned: 0 });
 
     xnew.server(() => {
@@ -67,6 +68,7 @@ function Mover(unit) {
 
 // ---- Main: server / client で役割を分岐する共通ルート（同期対象ではない） ----
 function Main() {
+    xnew.sync.register({ Mover });   // server/client 共通: Main の直接の同期子は Mover
     xnew.server(() => {
         xnew(Mover);   // server: ロジックツリー（Mover → Enemy）を生成
     });
@@ -75,11 +77,6 @@ function Main() {
         xnew.nest(document.getElementById('view'));   // client: 既存の #view を描画先にする（apply が replica をここに mount）
     });
 }
-
-// 同期する種類をまとめて登録（名前 ⇄ コンポーネントの対応表）。
-// Actor は基底だが単独利用もあり得るので登録しておく。Enemy は Actor を extend するが、
-// 同期名は「最も派生した登録名」＝ Enemy が採られる（基底 Actor に化けない）ので 1 SyncNode のまま。
-xnew.sync.register({ Actor, Enemy, Mover });
 
 // ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
 // xnew.boot(mode, ...args) … その mode で xnew(...args) を生成し、終わったら mode を前の値へ復元。
