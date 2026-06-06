@@ -18,6 +18,7 @@ import { MapSet, MapMap } from './map';
 import { Ticker, Timer } from './time';
 import { Eventor } from './event';
 import { isDomElement, DomElement } from './element';
+import type { SyncRegistry } from './sync';
 
 //----------------------------------------------------------------------------------------------------
 // definitions
@@ -87,6 +88,7 @@ export class Unit {
         state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
         syncId: number | null;
         injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
+        syncRegistry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
     };
 
     constructor(parent: Unit | null, ...args: any[]) {
@@ -160,6 +162,7 @@ export class Unit {
             // 構築開始時にグローバル注入スロットを退避（無ければ null）。各 xnew.sync.state が
             // 消費せず参照し、サーバー値をキー単位で初期値より優先する。即 null 化で子へ漏らさない。
             injected: Unit.injectedSlot,
+            syncRegistry: null,
         };
         Unit.injectedSlot = null;
 

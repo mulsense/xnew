@@ -1,13 +1,17 @@
 //----------------------------------------------------------------------------------------------------
-// sync — server→client 状態同期エンジン
+// sync — server→client 状態同期エンジン（スコープ付きレジストリ）
 //
 // server ツリーの同期対象状態を SyncNode 列(state tree)として捕捉し、client ツリーへ
 // 差分適用(create/update/remove)する。実ネットワークは扱わず、捕捉物の生成と再構成のみを担う。
 //
-// - registerComponent / getRegisteredName / getRegisteredComponent / resetRegistry : 同期エンティティ型のレジストリ
-// - getSyncName        : unit が同期対象なら登録名(最も派生した = 末尾側の一致)を返す
+// 同期対象の型は「各コンポーネントが自分の直接の子として登録した型」だけ。登録は Unit 単位で
+// 保持し（_.syncRegistry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
+//
+// - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリと追記
+// - getSyncName        : unit が同期対象なら、直接の親のレジストリ上の登録名(最派生一致)を返す
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
-// - applyStateTree     : SyncNode[] → client サブツリーへ差分適用（create 前に Unit.injectedSlot へサーバー状態を注入）
+// - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
+//                        レジストリで解決し、create 前に Unit.injectedSlot へサーバー状態を注入
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
@@ -15,32 +19,32 @@ import { Unit } from './unit';
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
 
-const nameToComponent: Map<string, Function> = new Map();
-const componentToName: Map<Function, string> = new Map();
-
-export function registerComponent(name: string, Component: Function): void {
-    nameToComponent.set(name, Component);
-    componentToName.set(Component, name);
+export interface SyncRegistry {
+    byName: Map<string, Function>;
+    byComponent: Map<Function, string>;
 }
 
-export function getRegisteredName(Component: Function): string | undefined {
-    return componentToName.get(Component);
-}
-
-export function getRegisteredComponent(name: string): Function | undefined {
-    return nameToComponent.get(name);
-}
-
-export function resetRegistry(): void {
-    nameToComponent.clear();
-    componentToName.clear();
+/** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
+export function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
+    if (unit._.syncRegistry === null) {
+        unit._.syncRegistry = { byName: new Map(), byComponent: new Map() };
+    }
+    for (const [name, Component] of Object.entries(components)) {
+        unit._.syncRegistry.byName.set(name, Component);
+        unit._.syncRegistry.byComponent.set(Component, name);
+    }
 }
 
 export function getSyncName(unit: Unit): string | undefined {
-    // _.Components は [基底..., 実際にインスタンス化した Component] の順（extend した基底ほど先頭）。
-    // 基底も登録され得るので、最も派生した（= 末尾側の）登録名を採り、その型で client を再生成する。
+    // 同期可否・登録名は「直接の親ユニットのレジストリ」で決まる。
+    // _.Components は [基底..., 実際にインスタンス化した Component] の順なので、最も派生した
+    // （= 末尾側の）一致を採る（基底に化けない / extend は最派生名で 1 SyncNode）。
+    const registry = unit._.parent?._.syncRegistry;
+    if (registry === undefined || registry === null) {
+        return undefined;
+    }
     for (let i = unit._.Components.length - 1; i >= 0; i--) {
-        const name = getRegisteredName(unit._.Components[i]);
+        const name = registry.byComponent.get(unit._.Components[i]);
         if (name !== undefined) {
             return name;
         }
@@ -95,10 +99,10 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         const existing = map.get(node.id);
         if (existing === undefined) {
             // create
-            const Component = getRegisteredComponent(node.name);
-            if (Component === undefined) { continue; }
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
+            const Component = parent._.syncRegistry?.byName.get(node.name);
+            if (Component === undefined) { continue; }   // 親が許可していない型は無視
             Unit.injectedSlot = node.state;      // 本体実行前に注入（Unit 構築開始時に _.injected へ退避）
             const unit = new Unit(parent, Component);   // mode は親(client)を継承する
             Unit.injectedSlot = null;            // 退避されなかった場合の漏れ防止（保険）
