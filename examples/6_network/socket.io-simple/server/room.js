@@ -10,7 +10,7 @@
 // ルームにだけ送る。
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '../../../../dist/xnew.mjs';
+import xnew from '@mulsense/xnew';
 import { BROADCAST_HZ, ROOM_GRACE_MS } from './config.js';
 
 export class Room {
@@ -68,7 +68,12 @@ export class Room {
 }
 
 //----------------------------------------------------------------------------------------------------
-// RoomLoop — このルームの 1 フレーム処理 (xnew コンポーネント)
+// RoomLoop — このルームの配信ループ (xnew コンポーネント)
+//
+// プレイヤーの位置更新は game 側の synced unit が同じグローバルティッカーの 'update' で自走する。
+// ここは BROADCAST_HZ に間引いて capture → そのルームへ 'sync' 配信するだけ。
+// 不変条件: createRoom で game.create()(server World ブート) が new Room(RoomLoop 生成) より先に
+// 評価されるため、毎フレーム「Player の update(移動) → RoomLoop の capture」の順になる。
 //----------------------------------------------------------------------------------------------------
 
 function RoomLoop(unit, { room }) {
@@ -78,15 +83,12 @@ function RoomLoop(unit, { room }) {
 
     unit.on('update', () => {
         const now = Date.now();
-        const dt = (now - lastAt) / 1000;
+        accMs += now - lastAt;
         lastAt = now;
 
-        room.game.update?.(dt);
-
-        accMs += dt * 1000;
         if (accMs >= intervalMs) {
             accMs -= intervalMs;
-            room.io.to(room.id).emit('state', room.game.snapshot());
+            room.io.to(room.id).emit('sync', room.game.capture());
         }
     });
 }
