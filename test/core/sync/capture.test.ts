@@ -1,36 +1,40 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { getSyncName, getRegisteredComponent, resetRegistry } from '../../../src/core/sync';
+import { getSyncName } from '../../../src/core/sync';
 
 function Player() {}
 
-describe('registry', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; });
+describe('registry (scoped)', () => {
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
-    it('register maps a name to a component both ways', () => {
-        xnew.sync.register({ Player });
-        expect(getRegisteredComponent('Player')).toBe(Player);
-        const unit = xnew(Player);
-        expect(getSyncName(unit)).toBe('Player');
+    it('a child is synced under the name its parent registered', () => {
+        const root = xnew(function Root() { xnew.sync.register({ Player }); xnew(Player); });
+        const player = root._.children[0];
+        expect(getSyncName(player)).toBe('Player');
     });
 
-    it('unregistered units are not synced', () => {
+    it('a child whose parent did not register it is not synced', () => {
+        const root = xnew(function Root() { xnew(Player); });   // register していない
+        const player = root._.children[0];
+        expect(getSyncName(player)).toBeUndefined();
+    });
+
+    it('a unit with no parent is not synced', () => {
         const unit = xnew((u: Unit) => {});
         expect(getSyncName(unit)).toBeUndefined();
     });
 });
 
 describe('captureStateTree', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
-    function World(unit: Unit) { xnew.sync.state({ tick: 0 }); xnew(Child); }
+    function World(unit: Unit) { xnew.sync.register({ Child }); xnew.sync.state({ tick: 0 }); xnew(Child); }
     function Child(unit: Unit) { xnew.sync.state({ position: 5 }); }
 
     it('captures a synced unit; parentId is null when no synced ancestor exists', () => {
-        xnew.sync.register({ World, Child });
-        const root = xnew(function Root() { xnew(World); });
+        const root = xnew(function Root() { xnew.sync.register({ World }); xnew(World); });
         const tree = xnew.sync.capture(root);
         const worldNode = tree.find(n => n.name === 'World')!;
         expect(worldNode).toBeDefined();
@@ -39,8 +43,7 @@ describe('captureStateTree', () => {
     });
 
     it('sets a child parentId to the nearest synced ancestor id', () => {
-        xnew.sync.register({ World, Child });
-        const root = xnew(function Root() { xnew(World); });
+        const root = xnew(function Root() { xnew.sync.register({ World }); xnew(World); });
         const tree = xnew.sync.capture(root);
         const worldNode = tree.find(n => n.name === 'World')!;
         const childNode = tree.find(n => n.name === 'Child')!;
@@ -48,8 +51,7 @@ describe('captureStateTree', () => {
     });
 
     it('assigns stable ids and reflects mutated state on later captures', () => {
-        xnew.sync.register({ Child });
-        const root = xnew(function Root() { xnew(Child); });
+        const root = xnew(function Root() { xnew.sync.register({ Child }); xnew(Child); });
         const first = xnew.sync.capture(root)[0];
         root._.children[0]._.state!.position = 9;
         const second = xnew.sync.capture(root)[0];
