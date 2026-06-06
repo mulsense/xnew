@@ -51,4 +51,12 @@ describe('scoped registry isolation', () => {
         const tree = xnew.sync.capture(root);
         expect(tree).toHaveLength(0);
     });
+
+    it('throws when register is called outside a component body', () => {
+        const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+        function Solo(unit: Unit) {}
+        // トップレベル（構築中のユニットが無い）で呼ぶとエラー
+        expect(() => xnew.sync.register({ Solo })).toThrow('outside a component');
+        err.mockRestore();
+    });
 });
