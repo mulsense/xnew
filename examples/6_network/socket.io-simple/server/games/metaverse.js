@@ -87,9 +87,40 @@ export function Player(unit, props = {}) {
     });
 }
 
-// ---- World: ルート。Player を register し、client では field コンテナを用意 ----
+// ---- World: ルート。Player を register し、server では spawn 管理、client では field を用意 ----
 export function World(unit, props = {}) {
     xnew.sync.register({ Player });
+
+    // server: プレイヤーの spawn / 入力 / 退出を World 内で管理し、defines として公開する。
+    // defines 関数は World のスコープで実行されるため、join 内の xnew(Player) は World の子になる。
+    xnew.server(() => {
+        const players = new Map();   // playerId -> { unit, input }
+        let nextColor = 0;
+        return {
+            join(playerId, { name } = {}) {
+                const input = { x: 0, y: 0 };
+                const player = xnew(Player, {
+                    id: playerId,
+                    name: cleanName(name, playerId),
+                    color: COLORS[nextColor++ % COLORS.length],
+                    x: PLAYER_RADIUS + Math.random() * (FIELD.w - PLAYER_RADIUS * 2),
+                    y: PLAYER_RADIUS + Math.random() * (FIELD.h - PLAYER_RADIUS * 2),
+                    input,
+                });
+                players.set(playerId, { unit: player, input });
+            },
+            leave(playerId) {
+                players.get(playerId)?.unit.finalize();
+                players.delete(playerId);
+            },
+            input(playerId, vector) {
+                const p = players.get(playerId);
+                if (!p) { return; }
+                p.input.x = Math.sign(Number(vector?.x) || 0);
+                p.input.y = Math.sign(Number(vector?.y) || 0);
+            },
+        };
+    });
 
     xnew.client(() => {
         const fieldW = props.field?.w ?? FIELD.w;
@@ -112,36 +143,22 @@ export function World(unit, props = {}) {
 }
 
 // ---- create: server World をブートし、room.js から呼ばれる GameInstance を返す ----
+// spawn / 入力 / 退出は World の defines（join / leave / input）に委譲する。
 export function create() {
     const world = xnew.boot('server', World);
-    const players = new Map();   // playerId -> { unit, input }
-    let nextColor = 0;
 
     return {
         welcome() {
             return { field: FIELD };
         },
-        onJoin(playerId, { name } = {}) {
-            const input = { x: 0, y: 0 };
-            const unit = xnew(world, Player, {
-                id: playerId,
-                name: cleanName(name, playerId),
-                color: COLORS[nextColor++ % COLORS.length],
-                x: PLAYER_RADIUS + Math.random() * (FIELD.w - PLAYER_RADIUS * 2),
-                y: PLAYER_RADIUS + Math.random() * (FIELD.h - PLAYER_RADIUS * 2),
-                input,
-            });
-            players.set(playerId, { unit, input });
+        onJoin(playerId, info) {
+            world.join(playerId, info ?? {});
         },
         onLeave(playerId) {
-            players.get(playerId)?.unit.finalize();
-            players.delete(playerId);
+            world.leave(playerId);
         },
         onInput(playerId, vector) {
-            const player = players.get(playerId);
-            if (!player) { return; }
-            player.input.x = Math.sign(Number(vector?.x) || 0);
-            player.input.y = Math.sign(Number(vector?.y) || 0);
+            world.input(playerId, vector);
         },
         capture() {
             return xnew.sync.capture(world);
