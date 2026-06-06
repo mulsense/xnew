@@ -33,6 +33,7 @@ const app = express();
 app.use(express.static(join(__dirname, '..', 'public')));
 app.use('/xnew', express.static(join(__dirname, '..', '..', '..', '..', 'dist')));
 app.use('/thirdparty', express.static(join(__dirname, '..', '..', '..', 'thirdparty')));
+app.use('/games', express.static(join(__dirname, 'games')));
 
 const httpServer = createServer(app);
 const io = new IOServer(httpServer);
