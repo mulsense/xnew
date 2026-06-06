@@ -57,22 +57,21 @@ function App(unit) {
 function JoinScene(unit, { state }) {
     xnew.extend(xnew.basics.Scene);
 
-    const overlay = xnew.nest('<div class="absolute inset-0 flex items-center justify-center bg-slate-900/85 z-10">');
-    overlay.innerHTML = `
-        <form class="flex flex-col gap-2.5 py-7 px-8 bg-slate-800 border border-slate-700 rounded-xl text-center">
-            <h2 class="m-0 text-xl font-semibold">ネットワークサンプル</h2>
-            <p class="m-0 text-sm text-slate-400">名前を入力してください</p>
-            <input class="px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="12" placeholder="あなたの名前" />
-            <button class="px-2.5 py-2 rounded-md border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer" type="submit">ロビーへ</button>
-        </form>`;
+    xnew.nest('<div class="absolute inset-0 flex items-center justify-center bg-slate-900/85 z-10">');
 
-    const form = overlay.querySelector('form');
-    const input = overlay.querySelector('input');
-    input.focus();
+    let input;
+    const form = xnew('<form class="flex flex-col gap-2.5 py-7 px-8 bg-slate-800 border border-slate-700 rounded-xl text-center">', () => {
+        xnew('<h2 class="m-0 text-xl font-semibold">', 'ネットワークサンプル');
+        xnew('<p class="m-0 text-sm text-slate-400">', '名前を入力してください');
+        input = xnew('<input class="px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="12" placeholder="あなたの名前">');
+        xnew('<button class="px-2.5 py-2 rounded-md border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer" type="submit">', 'ロビーへ');
+    });
 
-    form.addEventListener('submit', (event) => {
+    input.element.focus();
+
+    form.on('submit', ({ event }) => {
         event.preventDefault();
-        state.name = input.value.trim() || 'guest';
+        state.name = input.element.value.trim() || 'guest';
         unit.change(LobbyScene, { state });
     });
 }
@@ -90,58 +89,56 @@ function LobbyScene(unit, { state }) {
     const statusEl = document.getElementById('status');
     if (lobbySocket.connected) { statusEl.textContent = 'ロビー'; }
 
-    const wrap = xnew.nest('<div class="absolute inset-0 flex items-center justify-center p-4">');
-    wrap.innerHTML = `
-        <div class="w-full max-w-md flex flex-col gap-4">
-            <h2 class="m-0 text-xl font-semibold text-center">ロビー (<span class="who"></span>)</h2>
-            <form class="create flex gap-2">
-                <input class="cname flex-1 px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="16" placeholder="新しいルーム名" />
-                <button class="px-3 py-2 rounded-md border-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm cursor-pointer" type="submit">作成</button>
-            </form>
-            <ul class="rooms flex flex-col gap-2"></ul>
-            <p class="hint m-0 text-xs text-slate-500 text-center">ルームを作成 / 入室してアバターを動かそう</p>
-        </div>`;
-    wrap.querySelector('.who').textContent = state.name;
-    const listEl = wrap.querySelector('.rooms');
-    const hintEl = wrap.querySelector('.hint');
-    const createForm = wrap.querySelector('.create');
-    const cnameInput = wrap.querySelector('.cname');
+    xnew.nest('<div class="absolute inset-0 flex items-center justify-center p-4">');
 
+    let cnameInput;
+    let list;
+    let hint;
+    xnew('<div class="w-full max-w-md flex flex-col gap-4">', () => {
+        xnew('<h2 class="m-0 text-xl font-semibold text-center">', `ロビー (${state.name})`);
+
+        const createForm = xnew('<form class="flex gap-2">', () => {
+            cnameInput = xnew('<input class="flex-1 px-2.5 py-2 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-sm" type="text" maxlength="16" placeholder="新しいルーム名">');
+            xnew('<button class="px-3 py-2 rounded-md border-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm cursor-pointer" type="submit">', '作成');
+        });
+        createForm.on('submit', ({ event }) => {
+            event.preventDefault();
+            const name = cnameInput.element.value.trim();
+            if (!name) { return; }
+            lobbySocket.emit('room:create', { name });
+            cnameInput.element.value = '';
+        });
+
+        list = xnew('<ul class="flex flex-col gap-2">');
+        hint = xnew('<p class="m-0 text-xs text-slate-500 text-center">', 'ルームを作成 / 入室してアバターを動かそう');
+    });
+
+    // ルーム一覧は受信のたびに作り直す。前回ぶんの行 unit を finalize してから再生成する
+    // （xnew がライフサイクルを管理するので innerHTML クリアは不要）。
+    let rows = null;
     function render() {
-        listEl.innerHTML = '';
-        if (state.rooms.length === 0) {
-            const li = document.createElement('li');
-            li.className = 'text-center text-slate-500 text-sm py-4';
-            li.textContent = 'まだルームがありません。上から作成してください。';
-            listEl.appendChild(li);
-            return;
-        }
-        for (const room of state.rooms) {
-            const li = document.createElement('li');
-            li.className = 'flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg';
-
-            const label = document.createElement('div');
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'font-medium';
-            nameSpan.textContent = room.name;            // textContent = ユーザー入力名を安全に表示
-            const countSpan = document.createElement('span');
-            countSpan.className = 'text-xs text-slate-400 ml-2';
-            countSpan.textContent = `(${room.memberCount}人)`;
-            label.append(nameSpan, countSpan);
-
-            const btn = document.createElement('button');
-            btn.className = 'px-3 py-1.5 rounded-md border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer';
-            btn.textContent = '入室';
-            btn.addEventListener('click', () => unit.change(GameScene, { state, roomId: room.id }));
-
-            li.append(label, btn);
-            listEl.appendChild(li);
-        }
+        rows?.finalize();
+        rows = xnew(list, () => {
+            if (state.rooms.length === 0) {
+                xnew('<li class="text-center text-slate-500 text-sm py-4">', 'まだルームがありません。上から作成してください。');
+                return;
+            }
+            for (const room of state.rooms) {
+                xnew('<li class="flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg">', () => {
+                    xnew('<div>', () => {
+                        xnew('<span class="font-medium">', room.name);   // textContent = ユーザー入力名を安全に表示
+                        xnew('<span class="text-xs text-slate-400 ml-2">', `(${room.memberCount}人)`);
+                    });
+                    const enter = xnew('<button class="px-3 py-1.5 rounded-md border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer">', '入室');
+                    enter.on('click', () => unit.change(GameScene, { state, roomId: room.id }));
+                });
+            }
+        });
     }
 
     const onRooms = ({ rooms }) => { state.rooms = rooms; render(); };
     const onCreated = ({ roomId }) => unit.change(GameScene, { state, roomId });
-    const onError = ({ message }) => { hintEl.textContent = message; };
+    const onError = ({ message }) => { hint.element.textContent = message; };
     lobbySocket.on('lobby:rooms', onRooms);
     lobbySocket.on('room:created', onCreated);
     lobbySocket.on('room:error', onError);
@@ -149,14 +146,6 @@ function LobbyScene(unit, { state }) {
         lobbySocket.off('lobby:rooms', onRooms);
         lobbySocket.off('room:created', onCreated);
         lobbySocket.off('room:error', onError);
-    });
-
-    createForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const name = cnameInput.value.trim();
-        if (!name) { return; }
-        lobbySocket.emit('room:create', { name });
-        cnameInput.value = '';
     });
 
     lobbySocket.emit('lobby:enter');
