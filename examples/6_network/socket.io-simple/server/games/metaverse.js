@@ -65,7 +65,7 @@ export function Player(unit, props = {}) {
 
     xnew.client(() => {
         const world = xnew.context(World);
-        const isSelf = state.id === world?.selfId;
+        const isSelf = state.id === world?.getSelfId?.();
         const el = xnew.nest('<div>');
         el.style.cssText = 'position:absolute;width:32px;height:32px;margin-left:-16px;margin-top:-16px;'
             + `border-radius:50%;background:${state.color};`
@@ -107,7 +107,8 @@ export function World(unit, props = {}) {
         });
     });
 
-    return { selfId: props.selfId };   // client: Player が xnew.context(World).selfId で自分を判定
+    // defines は関数のみ可。client の Player が xnew.context(World).getSelfId() で自分を判定する。
+    return { getSelfId: () => props.selfId };
 }
 
 // ---- create: server World をブートし、room.js から呼ばれる GameInstance を返す ----
