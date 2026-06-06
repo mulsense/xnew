@@ -23,14 +23,14 @@
 // - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
 //----------------------------------------------------------------------------------------------------
 
-import { Unit, UnitPromise, UnitTimer, Mode, Component, DefinesOf, PropsOf } from './unit';
+import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
 import { registerComponent, captureStateTree, applyStateTree } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
-    <C extends Component<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
-    <C extends Component<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    <C extends ComponentFn<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
     (target: DomElement | string, content?: string | number): Unit;
     (content: string | number): Unit;
     (parent: Unit | null, ...args: any[]): Unit;
@@ -95,7 +95,7 @@ export const xnew = Object.assign(
          * @example
          * const api = xnew.extend(BaseComponent, { data: {} })
          */
-        extend<C extends Component<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C> {
+        extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C> {
             try {
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.extend can not be called after initialized.');
@@ -370,7 +370,7 @@ export const xnew = Object.assign(
          * spawning synced children). Skipped — and never invoked — on client units.
          * @returns defines returned by the callback, or {} when skipped
          */
-        server<C extends Component<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
+        server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
             try {
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.server can not be called after initialized.');
@@ -391,7 +391,7 @@ export const xnew = Object.assign(
          * render handlers). Skipped — and never invoked — on server units.
          * @returns defines returned by the callback, or {} when skipped
          */
-        client<C extends Component<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
+        client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
             try {
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.client can not be called after initialized.');

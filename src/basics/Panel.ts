@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
-import { Unit, Component } from '../core/unit';
+import { Unit, ComponentFn } from '../core/unit';
 import { SVG } from './SVG';
 import { OpenAndClose, Accordion, Popup } from './Transition';
 
@@ -25,7 +25,7 @@ export function Panel(unit: Unit, { params }: PanelOptions) {
     const object = params ?? {} as Record<string, any>;
 
     // resolve the initial value, mount the control and write changes back to `object`
-    function field(key: string, value: any, fallback: any, Component: Component<any, any>, props: object) {
+    function field(key: string, value: any, fallback: any, Component: ComponentFn<any, any>, props: object) {
         object[key] = value ?? object[key] ?? fallback;
         const control = xnew(Component, { key, value: object[key], ...props });
         control.on('input', ({ value }: { value: any }) => object[key] = value);

@@ -33,9 +33,9 @@ export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finali
 // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
 export type Mode = 'server' | 'client' | null;
 
-// Component: Unit を拡張し、任意で defines(公開 API オブジェクト)を返す関数。
+// ComponentFn: Unit を拡張し、任意で defines(公開 API オブジェクト)を返す関数の型。
 // P = props 型、A = defines 型。defines は xnew(...) の戻り値に合成される(Unit & A)。
-export type Component<P extends object = any, A extends object = {}> =
+export type ComponentFn<P extends object = any, A extends object = {}> =
     (unit: Unit, props: P) => A | void;
 
 // Component の defines(戻り値 API)を取り出す。void/undefined は defines 無しとして {} に落とす。

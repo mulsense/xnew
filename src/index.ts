@@ -1,5 +1,5 @@
 import { xnew as base } from './core/xnew';
-import { Unit, UnitTimer, Component as CoreComponent, Mode as CoreMode, Status as CoreStatus } from './core/unit';
+import { Unit, UnitTimer, ComponentFn, Mode as CoreMode, Status as CoreStatus } from './core/unit';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { SVG, SVGText } from './basics/SVG';
@@ -56,7 +56,7 @@ const image = {
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
     export type UnitTimer = InstanceType<typeof UnitTimer>;
-    export type Component<P extends object = any, A extends object = {}> = CoreComponent<P, A>;
+    export type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
     export type Mode = CoreMode;
     export type Status = CoreStatus;
     export namespace audio {
