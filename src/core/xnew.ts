@@ -25,7 +25,7 @@
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerComponent, captureStateTree, applyStateTree } from './sync';
+import { registerOnUnit, captureStateTree, applyStateTree } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -410,7 +410,7 @@ export const xnew = Object.assign(
          * State synchronization API (server→client state sync engine).
          * - state    : declare synced state on the current unit (server/standalone use `initial`;
          *              on the client, apply injects server state so `initial` is ignored)
-         * - register : register synchronized entity types by name map `{ Name: Component }` (call on both runtimes)
+         * - register : 現在のコンポーネントの「直接の同期子」を名前マップ `{ Name: Component }` で宣言（server/client 共通 body で呼ぶ）
          * - capture  : capture a server subtree as a state tree
          * - apply    : reconcile a state tree into a client subtree
          */
@@ -433,8 +433,14 @@ export const xnew = Object.assign(
                 return unit._.state;
             },
             register(components: Record<string, Function>): void {
-                for (const [name, Component] of Object.entries(components)) {
-                    registerComponent(name, Component);
+                try {
+                    if (Unit.currentUnit === null) {
+                        throw new Error('xnew.sync.register can not be called outside a component.');
+                    }
+                    registerOnUnit(Unit.currentUnit, components);
+                } catch (error: unknown) {
+                    console.error('xnew.sync.register(components: Object): ', error);
+                    throw error;
                 }
             },
             capture(root: Unit): ReturnType<typeof captureStateTree> {
