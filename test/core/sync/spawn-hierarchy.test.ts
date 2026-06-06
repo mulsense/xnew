@@ -1,6 +1,5 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { resetRegistry } from '../../../src/core/sync';
 
 // 2 階層: Mover が server ブロック内で定期的に Enemy(synced 子) を spawn し、
 // 各 Enemy は所定方向へ移動して一定時間で消える。ブラウザ例 (index.js) と同じ構造の検証。
@@ -18,6 +17,7 @@ function Enemy(unit: Unit, props: any = {}) {
 }
 
 function Mover(unit: Unit) {
+    xnew.sync.register({ Enemy });
     const state = xnew.sync.state({ spawned: 0 });
     xnew.server(() => {
         xnew.interval(() => { state.spawned += 1; xnew(Enemy, { x: 0 }); }, 500); // 定期 spawn
@@ -30,10 +30,8 @@ function Mover(unit: Unit) {
 describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
-        resetRegistry();
         Unit.reset();
         Unit.config.mode = null;
-        xnew.sync.register({ Mover, Enemy });
     });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
@@ -43,9 +41,9 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
         Unit.config.mode = 'server';
-        const server = xnew(Mover);
+        const server = xnew(function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Mover }); });
         Unit.config.mode = null;
 
         Unit.start(Unit.rootUnit);
@@ -72,9 +70,9 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
 
     it('despawns Enemy after its lifetime and removes that replica', async () => {
         Unit.config.mode = 'server';
-        const server = xnew(Mover);
+        const server = xnew(function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Mover }); });
         Unit.config.mode = null;
 
         Unit.start(Unit.rootUnit);

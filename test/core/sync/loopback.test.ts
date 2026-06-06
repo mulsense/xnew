@@ -1,6 +1,5 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { resetRegistry } from '../../../src/core/sync';
 
 // 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ
 function Mover(unit: Unit) {
@@ -15,14 +14,14 @@ function Mover(unit: Unit) {
 }
 
 describe('loopback simulation (server/client blocks)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); resetRegistry(); Unit.reset(); Unit.config.mode = null; xnew.sync.register({ Mover }); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {
         Unit.config.mode = 'server';
-        const server = xnew(function Server() { xnew(Mover); });
+        const server = xnew(function Server() { xnew.sync.register({ Mover }); xnew(Mover); });
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Mover }); });
         Unit.config.mode = null;
 
         function cycle() {
@@ -49,6 +48,7 @@ describe('loopback simulation (server/client blocks)', () => {
 
         // server/client 共通の非同期ルート。中で xnew.server / xnew.client に分岐する。
         function Main() {
+            xnew.sync.register({ Mover });               // server/client 共通: Mover を直接の同期子として宣言
             xnew.server(() => { xnew(Mover); });        // server: ロジックツリー
             xnew.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
         }
@@ -86,6 +86,7 @@ describe('loopback simulation (server/client blocks)', () => {
 
     it('mirrors spawn and despawn driven from server update', () => {
         function Server(unit: Unit) {
+            xnew.sync.register({ Mover });
             let spawned = false; let child: Unit | null = null;
             xnew.server(() => {
                 unit.on('update', () => {
@@ -97,7 +98,7 @@ describe('loopback simulation (server/client blocks)', () => {
         Unit.config.mode = 'server';
         const server = xnew(Server);
         Unit.config.mode = 'client';
-        const client = xnew((u: Unit) => {});
+        const client = xnew(function ClientRoot() { xnew.sync.register({ Mover }); });
         Unit.config.mode = null;
 
         const sync = () => xnew.sync.apply(client, xnew.sync.capture(server));
