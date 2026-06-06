@@ -180,14 +180,11 @@ function GameScene(unit, { state, roomId }) {
     const gameSocket = io({ query: { room: roomId }, transports: ['websocket'], forceNew: true });
 
     // フィールドを内包する wrapper。
-    const root = xnew.nest('<div class="absolute inset-0 overflow-hidden">');
+    xnew.nest('<div class="absolute inset-0 overflow-hidden">');
 
-    // ロビーに戻るボタン。
-    const back = document.createElement('button');
-    back.className = 'absolute top-3 left-3 z-10 px-3 py-1.5 rounded-md border-0 bg-slate-700 hover:bg-slate-600 text-white text-sm cursor-pointer';
-    back.textContent = 'ロビーに戻る';
-    back.addEventListener('click', () => unit.change(LobbyScene, { state }));
-    root.appendChild(back);
+    // ロビーに戻るボタン（wrapper の中に自動で nest される）。
+    const back = xnew('<button class="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-md border-0 bg-slate-700 hover:bg-slate-600 text-white text-sm cursor-pointer">', 'ロビーに戻る');
+    back.on('click', () => unit.change(LobbyScene, { state }));
 
     let clientWorld = null;   // 受信ツリーを apply する client ルート(World)
 
