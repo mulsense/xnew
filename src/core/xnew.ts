@@ -434,7 +434,7 @@ export const xnew = Object.assign(
             },
             register(components: Record<string, Function>): void {
                 try {
-                    if (Unit.currentUnit === null) {
+                    if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
                         throw new Error('xnew.sync.register can not be called outside a component.');
                     }
                     registerOnUnit(Unit.currentUnit, components);
