@@ -25,7 +25,8 @@
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerOnUnit, captureStateTree, applyStateTree } from './sync';
+import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot } from './sync';
+import type { Transport } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -411,8 +412,18 @@ export const xnew = Object.assign(
          * - state    : declare synced state on the current unit (server/standalone use `initial`;
          *              on the client, apply injects server state so `initial` is ignored)
          * - register : 現在のコンポーネントの「直接の同期子」を名前マップ `{ Name: Component }` で宣言（server/client 共通 body で呼ぶ）
-         * - capture  : capture a server subtree as a state tree
-         * - apply    : reconcile a state tree into a client subtree
+         * - mirror   : 状態の下り（server→client）を 1 呼び出しで配線（server=broadcast / client=apply）。下記 capture/apply の合成を隠す
+         * - capture  : capture a server subtree as a state tree（mirror を使わず手動配信したいとき用）
+         * - apply    : reconcile a state tree into a client subtree（同上）
+         *
+         * Event channel (socket.io 互換 transport, client→server / server→client):
+         * - loopback : インメモリ transport ハブ {server, connect(clientId?)} を生成
+         * - socketio : socket.io の io / socket を Transport 形へ橋渡し（実ネットワーク用。import 依存なし）
+         * - use      : 以後の xnew.boot が socket を自動バインドする transport を設定（server→server / client→connect()）
+         * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
+         * - emit     : ルートの socket でイベント送信（client→server、server 側は broadcast）
+         * - on       : イベント受信。server ハンドラは (clientId, payload)、client ハンドラは (payload)。
+         *              ※ ハンドラは tick の外で走るため unit 生成/finalize はせず、state 等の更新に留める
          */
         sync: {
             state(initial: Record<string, any> = {}): Record<string, any> {
@@ -449,6 +460,46 @@ export const xnew = Object.assign(
             apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void {
                 applyStateTree(root, tree);
             },
+            loopback(): ReturnType<typeof createLoopback> {
+                return createLoopback();
+            },
+            socketio(ioOrSocket: any): Transport {
+                // socket.io の io（server）/ socket（client）を Transport 形に橋渡しして返す。
+                return createSocketioTransport(ioOrSocket);
+            },
+            use(transport: Transport): void {
+                // 以後の xnew.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。
+                Unit.config.transport = transport;
+            },
+            mirror(root: Unit): void {
+                // 状態の下り（server→client 同期）を 1 呼び出しで配線する（server=broadcast / client=apply）。
+                mirrorRoot(root);
+            },
+            /** このルート(client)の自動発番された clientId（= socket.id）。server では undefined。 */
+            get clientId(): string | undefined {
+                const unit = Unit.currentUnit;
+                if (unit === null) {
+                    throw new Error('xnew.sync.clientId can not be read outside a component.');
+                }
+                return (getRootSocket(unit) as any).id;
+            },
+            emit(event: string, payload?: any): void {
+                const unit = Unit.currentUnit;
+                if (unit === null) {
+                    throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
+                }
+                getRootSocket(unit).emit(event, payload);
+            },
+            on(event: string, handler: (...args: any[]) => void): void {
+                const unit = Unit.currentUnit;
+                if (unit === null) {
+                    throw new Error('xnew.sync.on can not be called outside a component.');
+                }
+                const socket = getRootSocket(unit);
+                socket.on(event, handler as any);
+                // unit が消えたらハンドラも外す（共有 server socket にハンドラが溜まらないように）
+                unit.on('finalize', () => socket.off(event, handler as any));
+            },
         },
 
         /**
@@ -460,12 +511,24 @@ export const xnew = Object.assign(
          * @returns the Unit created by `xnew(...args)`
          */
         boot(mode: Mode, ...args: any[]): any {
+            // 初回 xnew でエンジンルートが生成されると socketSlot を消費してしまうため、
+            // slot をセットする前にここでルートを確実に用意しておく（boot ルートが slot を受け取れるように）。
+            if (Unit.rootUnit === undefined) { Unit.reset(); }
             const previous = Unit.config.mode;
             Unit.config.mode = mode;
+            // transport が設定されていれば、この boot ルートへバインドする socket を用意する
+            // （server→transport.server / client→transport.connect() で自動発番）。Unit 構築時に _.socket へ退避される。
+            const transport: Transport | null = Unit.config.transport;
+            if (transport !== null) {
+                Unit.socketSlot = mode === 'server' ? transport.server
+                    : mode === 'client' ? transport.connect()
+                    : null;
+            }
             try {
                 return (xnew as any)(...args);
             } finally {
                 Unit.config.mode = previous;
+                Unit.socketSlot = null;
             }
         },
 

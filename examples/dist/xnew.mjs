@@ -603,8 +603,10 @@ class Unit {
             syncId: null,
             injected: Unit.injectedSlot,
             syncRegistry: null,
+            socket: Unit.socketSlot,
         };
         Unit.injectedSlot = null;
+        Unit.socketSlot = null;
         if (typeof target === 'string') {
             Unit.nest(this, target);
         }
@@ -887,9 +889,10 @@ class Unit {
         }
     }
 }
-Unit.config = { mode: null };
+Unit.config = { mode: null, transport: null };
 Unit.syncIdCounter = 1;
 Unit.injectedSlot = null;
+Unit.socketSlot = null;
 Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
@@ -1061,6 +1064,119 @@ function applyStateTree(root, tree) {
             unit.finalize();
             map.delete(id);
         }
+    }
+}
+function createLoopback() {
+    const serverHandlers = new Map();
+    const clients = new Map();
+    let seq = 0;
+    const addHandler = (map, event, handler) => {
+        if (map.has(event) === false) {
+            map.set(event, new Set());
+        }
+        map.get(event).add(handler);
+    };
+    const removeHandler = (map, event, handler) => {
+        var _a;
+        (_a = map.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler);
+    };
+    const fireServer = (event, clientId, payload) => {
+        var _a;
+        (_a = serverHandlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((handler) => handler(clientId, payload));
+    };
+    const fireClient = (clientId, event, payload) => {
+        var _a, _b;
+        (_b = (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.get(event)) === null || _b === void 0 ? void 0 : _b.forEach((handler) => handler(payload));
+    };
+    const server = {
+        on(event, handler) { addHandler(serverHandlers, event, handler); },
+        off(event, handler) { removeHandler(serverHandlers, event, handler); },
+        emit(event, payload) { for (const clientId of clients.keys()) {
+            fireClient(clientId, event, payload);
+        } },
+        to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
+    };
+    function connect(clientId) {
+        if (clientId === undefined) {
+            clientId = 'c' + (++seq);
+        }
+        clients.set(clientId, new Map());
+        fireServer('connect', clientId);
+        return {
+            id: clientId,
+            emit(event, payload) { fireServer(event, clientId, payload); },
+            on(event, handler) { addHandler(clients.get(clientId), event, handler); },
+            off(event, handler) { removeHandler(clients.get(clientId), event, handler); },
+            disconnect() { clients.delete(clientId); fireServer('disconnect', clientId); },
+        };
+    }
+    return { server, connect };
+}
+function createSocketioTransport(ioOrSocket) {
+    let serverAdapter = null;
+    return {
+        get server() {
+            if (serverAdapter !== null) {
+                return serverAdapter;
+            }
+            const io = ioOrSocket;
+            const handlers = new Map();
+            const bucket = (event) => {
+                let set = handlers.get(event);
+                if (set === undefined) {
+                    handlers.set(event, set = new Set());
+                }
+                return set;
+            };
+            io.on('connection', (socket) => {
+                bucket('connect').forEach((fn) => fn(socket.id, undefined));
+                socket.onAny((event, payload) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, payload)); });
+                socket.on('disconnect', () => { var _a; return (_a = handlers.get('disconnect')) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, undefined)); });
+            });
+            serverAdapter = {
+                on: (event, handler) => bucket(event).add(handler),
+                off: (event, handler) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler); },
+                emit: (event, payload) => io.emit(event, payload),
+                to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
+            };
+            return serverAdapter;
+        },
+        connect() {
+            const socket = ioOrSocket;
+            return {
+                get id() { return socket.id; },
+                emit: (event, payload) => socket.emit(event, payload),
+                on: (event, handler) => socket.on(event, handler),
+                off: (event, handler) => socket.off(event, handler),
+                disconnect: () => socket.disconnect(),
+            };
+        },
+    };
+}
+function bootRoot(unit) {
+    let current = unit;
+    while (current._.parent !== null && current._.parent !== Unit.rootUnit) {
+        current = current._.parent;
+    }
+    return current;
+}
+function getRootSocket(unit) {
+    const socket = bootRoot(unit)._.socket;
+    if (socket === null) {
+        throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.boot.');
+    }
+    return socket;
+}
+function mirrorRoot(root) {
+    if (root._.mode === 'server') {
+        const socket = getRootSocket(root);
+        root.on('update', () => socket.emit('sync', captureStateTree(root)));
+    }
+    else if (root._.mode === 'client') {
+        const socket = getRootSocket(root);
+        const handler = (tree) => applyStateTree(root, tree);
+        socket.on('sync', handler);
+        root.on('finalize', () => socket.off('sync', handler));
     }
 }
 
@@ -1294,15 +1410,60 @@ const xnew$1 = Object.assign((function (...args) {
         apply(root, tree) {
             applyStateTree(root, tree);
         },
+        loopback() {
+            return createLoopback();
+        },
+        socketio(ioOrSocket) {
+            return createSocketioTransport(ioOrSocket);
+        },
+        use(transport) {
+            Unit.config.transport = transport;
+        },
+        mirror(root) {
+            mirrorRoot(root);
+        },
+        get clientId() {
+            const unit = Unit.currentUnit;
+            if (unit === null) {
+                throw new Error('xnew.sync.clientId can not be read outside a component.');
+            }
+            return getRootSocket(unit).id;
+        },
+        emit(event, payload) {
+            const unit = Unit.currentUnit;
+            if (unit === null) {
+                throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
+            }
+            getRootSocket(unit).emit(event, payload);
+        },
+        on(event, handler) {
+            const unit = Unit.currentUnit;
+            if (unit === null) {
+                throw new Error('xnew.sync.on can not be called outside a component.');
+            }
+            const socket = getRootSocket(unit);
+            socket.on(event, handler);
+            unit.on('finalize', () => socket.off(event, handler));
+        },
     },
     boot(mode, ...args) {
+        if (Unit.rootUnit === undefined) {
+            Unit.reset();
+        }
         const previous = Unit.config.mode;
         Unit.config.mode = mode;
+        const transport = Unit.config.transport;
+        if (transport !== null) {
+            Unit.socketSlot = mode === 'server' ? transport.server
+                : mode === 'client' ? transport.connect()
+                    : null;
+        }
         try {
             return xnew$1(...args);
         }
         finally {
             Unit.config.mode = previous;
+            Unit.socketSlot = null;
         }
     },
 });

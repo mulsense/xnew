@@ -89,6 +89,7 @@ export class Unit {
         syncId: number | null;
         injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
         syncRegistry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
+        socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
     };
 
     constructor(parent: Unit | null, ...args: any[]) {
@@ -163,8 +164,11 @@ export class Unit {
             // 消費せず参照し、サーバー値をキー単位で初期値より優先する。即 null 化で子へ漏らさない。
             injected: Unit.injectedSlot,
             syncRegistry: null,
+            // boot がセットした socket をこの（boot ルート）unit に退避し、即クリアして子へ漏らさない。
+            socket: Unit.socketSlot,
         };
         Unit.injectedSlot = null;
+        Unit.socketSlot = null;
 
         // nest html element
         if (typeof target === 'string') {
@@ -341,11 +345,13 @@ export class Unit {
 
     static rootUnit: Unit;
     static currentUnit: Unit;
-    static config: { mode: Mode } = { mode: null };
+    static config: { mode: Mode; transport: any } = { mode: null, transport: null };
     static syncIdCounter: number = 1;
     // apply の create 中だけ非 null。Unit 構築開始時に _.injected へ退避し即 null 化する
     // （sync が書き込み、Unit が読み取る。循環 import を避けるため slot を Unit 側に置く）。
     static injectedSlot: Record<string, any> | null = null;
+    // boot がバインドする socket を構築開始時に _.socket へ退避する slot（injectedSlot と同方式）。
+    static socketSlot: any | null = null;
 
     static reset(): void {
         Unit.syncIdCounter = 1;

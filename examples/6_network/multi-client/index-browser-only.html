@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>xnew multi-client (browser-only / loopback)</title>
+  <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
+  <script type="importmap">
+    { "imports": { "@mulsense/xnew": "../../dist/xnew.mjs" } }
+  </script>
+</head>
+<body class="m-2 font-sans text-gray-600">
+  <p class="text-[13px] leading-relaxed mb-3">
+    <b>browser-only 版（loopback）</b> … 1 ブラウザ内に <b>2 client + 1 server</b> を同居させた擬似マルチプレイ。
+    各ペイン（画面）は client（World）自身が生成する。<b>操作したいペインをクリックして選択</b>し、
+    <code>WASD</code> または <code>矢印キー</code> で動かす（選択中の client だけが入力を受け取る）。<br>
+    通信は <code>xnew.sync.loopback()</code> でインメモリ配線。実サーバー版は <code>index.html</code>。
+  </p>
+  <div class="flex gap-4 items-start">
+    <div id="stage" class="flex gap-4"></div>
+    <pre id="state" class="m-0 flex-1 h-40 overflow-auto bg-gray-100 p-2 font-mono text-xs leading-snug"></pre>
+  </div>
+  <script type="module" src="./index-browser-only.js"></script>
+</body>
+</html>

@@ -12,6 +12,17 @@
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
 //                        レジストリで解決し、create 前に Unit.injectedSlot へサーバー状態を注入
+//
+// イベントチャンネル（socket.io 互換の transport）。client が emit したイベントを server が on で受け取る。
+// transport はルート単位にバインドし（_.socket）、emit/on はカレントユニットのルートから解決する。
+// createLoopback はインメモリ実装で、これを socket.io アダプタ（同じ {server, connect} / socket 形）に
+// 差し替えれば実ネットワークになる。state の下り（capture/apply）はそのまま。
+// on ハンドラは xnew の tick/scope の外で走る点に注意: その中で unit の生成/finalize はせず（spawn は
+// tick 内の update で行う）、closure で掴んだ state の書き換えなどプレーンなデータ更新に留める。
+// - createLoopback         : インメモリ transport ハブ {server, connect(clientId)} を生成
+// - createSocketioTransport: socket.io の io / socket を Transport 形へ橋渡し（duck-type。import 依存なし）
+// - getRootSocket          : ルートにバインド済みの socket を解決（boot が _.socket へ自動バインドする）
+// - mirrorRoot             : 状態の下りを 1 呼び出しで配線（server=capture→emit('sync') / client=on('sync')→apply）
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
@@ -129,5 +140,157 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             unit.finalize();
             map.delete(id);
         }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------
+// イベントチャンネル（socket.io 互換 transport）
+//----------------------------------------------------------------------------------------------------
+
+/** socket.io の socket 相当（client 側）。emit で server へ送り、on で server からの push を受ける。 */
+export interface ClientSocket {
+    id: string;
+    emit(event: string, payload?: any): void;
+    on(event: string, handler: (payload: any) => void): void;
+    off(event: string, handler: (payload: any) => void): void;
+    disconnect(): void;
+}
+
+/** socket.io の io 相当（server 側）。on は (clientId, payload) を受け、emit は全 client へ broadcast。 */
+export interface ServerSocket {
+    on(event: string, handler: (clientId: string, payload: any) => void): void;
+    off(event: string, handler: (clientId: string, payload: any) => void): void;
+    emit(event: string, payload?: any): void;                 // broadcast
+    to(clientId: string): { emit(event: string, payload?: any): void };
+}
+
+export interface Transport { server: ServerSocket; connect(clientId?: string): ClientSocket; }
+
+/**
+ * In-memory transport hub. client.emit を server の on ハンドラへ（clientId 付きで）同期配送し、
+ * server.emit/to(clientId).emit を client の on ハンドラへ配送する。socket.io アダプタは同じ形を実装すればよい。
+ * socket.io 同様、1 イベントに複数ハンドラを登録できる（例: Player ごとに on('move')）。
+ */
+export function createLoopback(): Transport {
+    const serverHandlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
+    const clients = new Map<string, Map<string, Set<(payload: any) => void>>>();
+    let seq = 0;   // clientId 自動発番用（'c1', 'c2', ...）
+
+    const addHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
+        if (map.has(event) === false) { map.set(event, new Set()); }
+        map.get(event)!.add(handler);
+    };
+    const removeHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
+        map.get(event)?.delete(handler);
+    };
+    const fireServer = (event: string, clientId: string, payload?: any): void => {
+        serverHandlers.get(event)?.forEach((handler) => handler(clientId, payload));
+    };
+    const fireClient = (clientId: string, event: string, payload?: any): void => {
+        clients.get(clientId)?.get(event)?.forEach((handler) => handler(payload));
+    };
+
+    const server: ServerSocket = {
+        on(event, handler) { addHandler(serverHandlers, event, handler); },
+        off(event, handler) { removeHandler(serverHandlers, event, handler); },
+        emit(event, payload) { for (const clientId of clients.keys()) { fireClient(clientId, event, payload); } },  // broadcast
+        to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
+    };
+
+    function connect(clientId?: string): ClientSocket {
+        if (clientId === undefined) { clientId = 'c' + (++seq); }   // 未指定なら自動発番
+        clients.set(clientId, new Map());
+        fireServer('connect', clientId);
+        return {
+            id: clientId,
+            emit(event, payload) { fireServer(event, clientId, payload); },
+            on(event, handler) { addHandler(clients.get(clientId)!, event, handler); },
+            off(event, handler) { removeHandler(clients.get(clientId)!, event, handler); },
+            disconnect() { clients.delete(clientId); fireServer('disconnect', clientId); },
+        };
+    }
+
+    return { server, connect };
+}
+
+/**
+ * socket.io の io（server）/ socket（client）を Transport 形へ橋渡しするアダプタ。
+ * 渡す側を間違えないこと: server プロセスは io を、client は socket を渡す（boot が mode で使う側を選ぶ）。
+ * socket.io への import 依存は持たず、メソッド名（on/onAny/emit/to/disconnect）に duck-type で乗るだけ。
+ */
+export function createSocketioTransport(ioOrSocket: any): Transport {
+    let serverAdapter: ServerSocket | null = null;
+    return {
+        // server 側: io.on('connection') ごとに onAny で全イベントを (clientId, payload) へ橋渡しする。
+        get server(): ServerSocket {
+            if (serverAdapter !== null) { return serverAdapter; }
+            const io = ioOrSocket;
+            const handlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
+            const bucket = (event: string) => {
+                let set = handlers.get(event);
+                if (set === undefined) { handlers.set(event, set = new Set()); }
+                return set;
+            };
+            io.on('connection', (socket: any) => {
+                bucket('connect').forEach((fn) => fn(socket.id, undefined));
+                socket.onAny((event: string, payload: any) => handlers.get(event)?.forEach((fn) => fn(socket.id, payload)));
+                socket.on('disconnect', () => handlers.get('disconnect')?.forEach((fn) => fn(socket.id, undefined)));
+            });
+            serverAdapter = {
+                on: (event, handler) => bucket(event).add(handler),
+                off: (event, handler) => handlers.get(event)?.delete(handler),
+                emit: (event, payload) => io.emit(event, payload),
+                to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
+            };
+            return serverAdapter;
+        },
+        // client 側: socket をそのまま ClientSocket 形に薄くラップする。
+        connect(): ClientSocket {
+            const socket = ioOrSocket;
+            return {
+                get id() { return socket.id; },
+                emit: (event, payload) => socket.emit(event, payload),
+                on: (event, handler) => socket.on(event, handler),
+                off: (event, handler) => socket.off(event, handler),
+                disconnect: () => socket.disconnect(),
+            };
+        },
+    };
+}
+
+/** Walks up to the boot root (the highest ancestor below the engine root). */
+function bootRoot(unit: Unit): Unit {
+    let current = unit;
+    while (current._.parent !== null && current._.parent !== Unit.rootUnit) {
+        current = current._.parent;
+    }
+    return current;
+}
+
+/** Resolves the socket bound to the caller's boot root (throws if none bound). */
+export function getRootSocket(unit: Unit): ClientSocket | ServerSocket {
+    const socket = bootRoot(unit)._.socket;
+    if (socket === null) {
+        throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.boot.');
+    }
+    return socket;
+}
+
+/**
+ * 状態の下り（server→client）を 1 呼び出しで配線する。コンポーネント本体（boot ルート）で呼ぶ。
+ *   - server : 毎 update で capture → emit('sync')（全 client へ broadcast）
+ *   - client : on('sync') → apply（自分のツリーへ反映。unit finalize で off）
+ *   - null   : 何もしない（standalone）
+ * capture/apply/emit/on の合成を隠蔽する薄いヘルパー。細かい配信制御が要るときは手書きでよい。
+ */
+export function mirrorRoot(root: Unit): void {
+    if (root._.mode === 'server') {
+        const socket = getRootSocket(root) as ServerSocket;
+        root.on('update', () => socket.emit('sync', captureStateTree(root)));
+    } else if (root._.mode === 'client') {
+        const socket = getRootSocket(root) as ClientSocket;
+        const handler = (tree: StateTree) => applyStateTree(root, tree);
+        socket.on('sync', handler);
+        root.on('finalize', () => socket.off('sync', handler));
     }
 }

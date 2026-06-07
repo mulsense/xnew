@@ -97,6 +97,7 @@ declare class Unit {
         syncId: number | null;
         injected: Record<string, any> | null;
         syncRegistry: SyncRegistry | null;
+        socket: any | null;
     };
     constructor(parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
@@ -117,9 +118,11 @@ declare class Unit {
     static currentUnit: Unit;
     static config: {
         mode: Mode;
+        transport: any;
     };
     static syncIdCounter: number;
     static injectedSlot: Record<string, any> | null;
+    static socketSlot: any | null;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
@@ -171,6 +174,26 @@ interface SyncRegistry {
 }
 declare function captureStateTree(root: Unit): StateTree;
 declare function applyStateTree(root: Unit, tree: StateTree): void;
+interface ClientSocket {
+    id: string;
+    emit(event: string, payload?: any): void;
+    on(event: string, handler: (payload: any) => void): void;
+    off(event: string, handler: (payload: any) => void): void;
+    disconnect(): void;
+}
+interface ServerSocket {
+    on(event: string, handler: (clientId: string, payload: any) => void): void;
+    off(event: string, handler: (clientId: string, payload: any) => void): void;
+    emit(event: string, payload?: any): void;
+    to(clientId: string): {
+        emit(event: string, payload?: any): void;
+    };
+}
+interface Transport {
+    server: ServerSocket;
+    connect(clientId?: string): ClientSocket;
+}
+declare function createLoopback(): Transport;
 
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -400,6 +423,13 @@ declare const xnew: XnewBase & {
         register(components: Record<string, Function>): void;
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
+        loopback(): ReturnType<typeof createLoopback>;
+        socketio(ioOrSocket: any): Transport;
+        use(transport: Transport): void;
+        mirror(root: Unit): void;
+        readonly clientId: string | undefined;
+        emit(event: string, payload?: any): void;
+        on(event: string, handler: (...args: any[]) => void): void;
     };
     boot(mode: Mode, ...args: any[]): any;
 } & {
