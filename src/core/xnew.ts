@@ -11,6 +11,7 @@
 // - xnew(...)                            : create a child Unit
 // - xnew.nest / extend                   : extend the current Unit during initialization
 // - xnew.find                            : lookup
+// - xnew.group                           : keyed collection of child units (spawn/despawn/reconcile)
 // - xnew.context                         : ancestor context lookup
 // - xnew.promise / then / catch / finally / defer / collect
 //                                          promises bound to the current Unit
@@ -27,6 +28,8 @@ import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } f
 import { DomElement } from './element';
 import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot } from './sync';
 import type { Transport } from './sync';
+import { createGroup } from './group';
+import type { Group } from './group';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -285,6 +288,31 @@ export const xnew = Object.assign(
                 return Unit.find(Component);
             } catch (error: unknown) {
                 console.error('xnew.find(Component: Function): ', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Creates a keyed collection of child units owned by the current component.
+         * Unlike xnew.find (global, key-less, no lifecycle), the group looks up by key, is scoped to
+         * its own children, and manages spawn/despawn. Mutations apply during the owner's update tick;
+         * calls from outside the tick (e.g. socket on-handlers) are deferred to the next update.
+         * @param Component - component function instantiated for each key
+         * @returns a Group manager (get/has/size/keys/values/spawn/delete/reconcile/clear)
+         * @example
+         * const players = xnew.group(Player)
+         * players.spawn('c1', { clientId: 'c1' })   // idempotent
+         * players.reconcile(joined, (id) => ({ clientId: id }))
+         */
+        group<K = any>(Component: Function): Group<K> {
+            try {
+                const owner = Unit.currentUnit;
+                if (owner === null) {
+                    throw new Error('xnew.group can not be called outside a component.');
+                }
+                return createGroup<K>(owner, (props?: object) => (xnew as any)(owner, Component, props));
+            } catch (error: unknown) {
+                console.error('xnew.group(Component: Function): ', error);
                 throw error;
             }
         },

@@ -1,5 +1,6 @@
 import { xnew as base } from './core/xnew';
 import { Unit, UnitTimer, ComponentFn, Mode as CoreMode, Status as CoreStatus } from './core/unit';
+import { Group as CoreGroup } from './core/group';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { SVG, SVGText } from './basics/SVG';
@@ -61,6 +62,7 @@ namespace xnew {
     export type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
     export type Mode = CoreMode;
     export type Status = CoreStatus;
+    export type Group<K = any> = CoreGroup<K>;
     export namespace audio {
         export type AudioTrack = InstanceType<typeof AudioTrack>;
     }

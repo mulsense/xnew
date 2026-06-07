@@ -329,10 +329,20 @@ export class Unit {
         }
     }
 
+    // update 走査中だけ true（xnew.group が「今ツリーを安全に変更してよいか」を判定するための信号）。
+    // 走査外（socket の on ハンドラ等）からの spawn/delete は次 update へ遅延される。
+    static duringUpdate: boolean = false;
+
     static update(unit: Unit): void {
-        if (unit._.status === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.update(child));
-            unit._.systems.update.forEach(({ execute }) => execute());
+        const previous = Unit.duringUpdate;
+        Unit.duringUpdate = true;
+        try {
+            if (unit._.status === 'started') {
+                unit._.children.forEach((child: Unit) => Unit.update(child));
+                unit._.systems.update.forEach(({ execute }) => execute());
+            }
+        } finally {
+            Unit.duringUpdate = previous;
         }
     }
 

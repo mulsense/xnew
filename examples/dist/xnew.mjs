@@ -810,9 +810,16 @@ class Unit {
         }
     }
     static update(unit) {
-        if (unit._.status === 'started') {
-            unit._.children.forEach((child) => Unit.update(child));
-            unit._.systems.update.forEach(({ execute }) => execute());
+        const previous = Unit.duringUpdate;
+        Unit.duringUpdate = true;
+        try {
+            if (unit._.status === 'started') {
+                unit._.children.forEach((child) => Unit.update(child));
+                unit._.systems.update.forEach(({ execute }) => execute());
+            }
+        }
+        finally {
+            Unit.duringUpdate = previous;
         }
     }
     static render(unit) {
@@ -951,6 +958,7 @@ class Unit {
         }
     }
 }
+Unit.duringUpdate = false;
 Unit.config = { mode: null, transport: null };
 Unit.syncIdCounter = 1;
 Unit.injectedSlot = null;
@@ -1250,6 +1258,102 @@ function mirrorRoot(root) {
     }
 }
 
+function createGroup(owner, spawnChild) {
+    const index = new Map();
+    const queue = [];
+    let flushRegistered = false;
+    const enqueue = (op) => {
+        queue.push(op);
+        if (flushRegistered === false) {
+            flushRegistered = true;
+            owner.on('update', () => {
+                const ops = queue.splice(0);
+                ops.forEach((op) => op());
+            });
+        }
+    };
+    const create = (key, props) => {
+        const existing = index.get(key);
+        if (existing !== undefined) {
+            return existing;
+        }
+        const unit = spawnChild(props);
+        index.set(key, unit);
+        unit.on('finalize', () => {
+            if (index.get(key) === unit) {
+                index.delete(key);
+            }
+        });
+        return unit;
+    };
+    const remove = (key) => {
+        const unit = index.get(key);
+        if (unit === undefined) {
+            return false;
+        }
+        unit.finalize();
+        return true;
+    };
+    const reconcileNow = (want, propsFn) => {
+        for (const key of want) {
+            if (index.has(key) === false) {
+                create(key, propsFn ? propsFn(key) : undefined);
+            }
+        }
+        for (const key of [...index.keys()]) {
+            if (want.has(key) === false) {
+                remove(key);
+            }
+        }
+    };
+    return {
+        get size() {
+            return index.size;
+        },
+        get(key) {
+            return index.get(key);
+        },
+        has(key) {
+            return index.has(key);
+        },
+        keys() {
+            return index.keys();
+        },
+        values() {
+            return index.values();
+        },
+        [Symbol.iterator]() {
+            return index.entries();
+        },
+        spawn(key, props) {
+            if (Unit.duringUpdate === true) {
+                return create(key, props);
+            }
+            enqueue(() => create(key, props));
+            return undefined;
+        },
+        delete(key) {
+            if (Unit.duringUpdate === true) {
+                return remove(key);
+            }
+            enqueue(() => remove(key));
+            return false;
+        },
+        reconcile(keys, propsFn) {
+            const want = new Set(keys);
+            if (Unit.duringUpdate === true) {
+                reconcileNow(want, propsFn);
+            }
+            else {
+                enqueue(() => reconcileNow(want, propsFn));
+            }
+        },
+        clear() {
+            this.reconcile([]);
+        },
+    };
+}
+
 const xnew$1 = Object.assign((function (...args) {
     var _a, _b;
     if (Unit.rootUnit === undefined)
@@ -1393,6 +1497,19 @@ const xnew$1 = Object.assign((function (...args) {
         }
         catch (error) {
             console.error('xnew.find(Component: Function): ', error);
+            throw error;
+        }
+    },
+    group(Component) {
+        try {
+            const owner = Unit.currentUnit;
+            if (owner === null) {
+                throw new Error('xnew.group can not be called outside a component.');
+            }
+            return createGroup(owner, (props) => xnew$1(owner, Component, props));
+        }
+        catch (error) {
+            console.error('xnew.group(Component: Function): ', error);
             throw error;
         }
     },

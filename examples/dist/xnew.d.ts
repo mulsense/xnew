@@ -129,6 +129,7 @@ declare class Unit {
     };
     static start(unit: Unit): void;
     static stop(unit: Unit): void;
+    static duringUpdate: boolean;
     static update(unit: Unit): void;
     static render(unit: Unit): void;
     static rootUnit: Unit;
@@ -208,6 +209,19 @@ interface Transport {
     connect(clientId?: string): ClientSocket;
 }
 declare function createLoopback(): Transport;
+
+interface Group<K = any> {
+    readonly size: number;
+    get(key: K): Unit | undefined;
+    has(key: K): boolean;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<Unit>;
+    [Symbol.iterator](): IterableIterator<[K, Unit]>;
+    spawn(key: K, props?: object): Unit | undefined;
+    delete(key: K): boolean;
+    reconcile(keys: Iterable<K>, propsFn?: (key: K) => object | undefined): void;
+    clear(): void;
+}
 
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -414,6 +428,7 @@ declare namespace xnew {
     type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
     type Mode = Mode;
     type Status = Status;
+    type Group<K = any> = Group<K>;
     namespace audio {
         type AudioTrack = InstanceType<typeof AudioTrack>;
     }
@@ -433,6 +448,7 @@ declare const xnew: XnewBase & {
     collect(object?: Record<string, any>): void;
     scope(callback: any): any;
     find(Component: Function): Unit[];
+    group<K = any>(Component: Function): Group<K>;
     emit(type: string, ...args: any[]): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
