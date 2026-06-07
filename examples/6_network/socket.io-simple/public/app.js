@@ -155,7 +155,7 @@ function LobbyScene(unit, { state }) {
 //----------------------------------------------------------------------------------------------------
 // GameScene — client ツリー(xnew.sync) でアバターを描画 + 入力送信 (Scene 継承)
 //
-// welcome で受け取った gameType の共有モジュールを動的 import し、xnew.boot('client', World) で
+// welcome で受け取った gameType の共有モジュールを動的 import し、xnew.sync.boot('client', World) で
 // このシーン配下に client ツリーを mount。サーバーからの 'sync'(state tree) を apply で差分反映する。
 // 描画はグローバルティッカーが回す(手動 render ループ無し)。入力は従来どおり emit('input')。
 //----------------------------------------------------------------------------------------------------
@@ -185,7 +185,7 @@ function GameScene(unit, { state, roomId }) {
 
         // gameType の共有モジュールを動的ロードし、client ツリーをこのシーン配下に mount。
         const mod = await import(`/games/${gameType}.js`);
-        clientWorld = xnew.boot('client', unit, mod.World, { selfId: id, field });
+        clientWorld = xnew.sync.boot('client', unit, mod.World, { selfId: id, field });
 
         gameSocket.emit('join', { name: state.name });
     });

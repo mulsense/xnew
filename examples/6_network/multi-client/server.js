@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------------------------------
 // multi-client（socket.io 版・server 側）— express で静的配信し、socket.io で実ネットワーク同期する。
 //   ★ browser-only 版との違いは「use() に渡す transport（xnew.sync.socketio(io)）」と「server を別プロセス
-//      (node)で boot する」点だけ。ゲーム本体 game.js は無改変。World が presence 管理・移動・mirror(下り) を行う。
+//      (node)で boot する」点だけ。ゲーム本体 game.js は無改変。World は presence 管理・移動のみ（下りの配線は起動側）。
 //   xnew のティッカーは node でも回る（socket.io-simple と同じ）。World.update が毎フレーム動く。
 //----------------------------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ const io = new IOServer(httpServer);
 
 // ★ 切り替えはここだけ: loopback の代わりに socket.io アダプタを use する。
 xnew.sync.use(xnew.sync.socketio(io));
-xnew.boot('server', World);   // World が接続管理・移動・'sync' broadcast(mirror) を行う（game.js は共通）
+xnew.sync.boot('server', World);   // World が接続管理・移動を行う。下り(capture→'sync' broadcast)は boot が自動配線
 
 httpServer.listen(PORT, () => {
     console.log(`[multi-client] socket.io server on http://localhost:${PORT}/`);

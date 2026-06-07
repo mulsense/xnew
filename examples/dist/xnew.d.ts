@@ -19,6 +19,23 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1): boolean;
     delete(key1: Key1, key2: Key2): boolean;
 }
+declare class BiMap<Left, Right> {
+    private readonly forward;
+    private readonly backward;
+    get size(): number;
+    set(left: Left, right: Right): this;
+    getRight(left: Left): Right | undefined;
+    getLeft(right: Right): Left | undefined;
+    hasLeft(left: Left): boolean;
+    hasRight(right: Right): boolean;
+    deleteLeft(left: Left): boolean;
+    deleteRight(right: Right): boolean;
+    clear(): void;
+    lefts(): IterableIterator<Left>;
+    rights(): IterableIterator<Right>;
+    entries(): IterableIterator<[Left, Right]>;
+    [Symbol.iterator](): IterableIterator<[Left, Right]>;
+}
 
 declare class Eventor {
     private map;
@@ -168,10 +185,7 @@ interface SyncNode {
     state: Record<string, any>;
 }
 type StateTree = SyncNode[];
-interface SyncRegistry {
-    byName: Map<string, Function>;
-    byComponent: Map<Function, string>;
-}
+type SyncRegistry = BiMap<string, Function>;
 declare function captureStateTree(root: Unit): StateTree;
 declare function applyStateTree(root: Unit, tree: StateTree): void;
 interface ClientSocket {
@@ -304,6 +318,14 @@ declare function Scene(unit: Unit): {
     add(Component: Function, props?: any): void;
 };
 
+declare function Selectable(unit: Unit, { selected }?: {
+    selected?: boolean;
+}): {
+    readonly selected: boolean;
+    select(): void;
+    deselect(): void;
+};
+
 declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
@@ -430,8 +452,8 @@ declare const xnew: XnewBase & {
         readonly clientId: string | undefined;
         emit(event: string, payload?: any): void;
         on(event: string, handler: (...args: any[]) => void): void;
+        boot(mode: Mode, ...args: any[]): any;
     };
-    boot(mode: Mode, ...args: any[]): any;
 } & {
     basics: {
         SVG: typeof SVG;
@@ -444,6 +466,7 @@ declare const xnew: XnewBase & {
         Accordion: typeof Accordion;
         Popup: typeof Popup;
         Scene: typeof Scene;
+        Selectable: typeof Selectable;
         VolumeController: typeof VolumeController;
     };
     audio: {

@@ -12,9 +12,11 @@ import { World } from './game.js';
 xnew.sync.use(xnew.sync.loopback());           // ← transport を差し替えれば実ネットワークになる
 const stage = document.getElementById('stage');
 
-const server = xnew.boot('server', World);     // 擬似サーバー（1 つ）
-xnew.boot('client', stage, World);             // 擬似クライアント（左ペイン）
-xnew.boot('client', stage, World);             // 擬似クライアント（右ペイン）
+// 状態のやり取りは boot が配線する: server=capture→broadcast / client=apply（transport バインド時に自動）。
+const server = xnew.sync.boot('server', World);     // 擬似サーバー（1 つ）
+const left = xnew.sync.boot('client', stage, World); // 擬似クライアント（左ペイン）
+xnew.sync.boot('client', stage, World);             // 擬似クライアント（右ペイン）
+left.select();                                  // 左ペインを初期選択（クリックで切替）
 
 // （デバッグ）server の state tree を表示
 const stateView = document.getElementById('state');

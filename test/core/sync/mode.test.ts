@@ -29,35 +29,35 @@ describe('mode inheritance', () => {
     });
 });
 
-describe('xnew.boot', () => {
+describe('xnew.sync.boot', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
     afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
 
     it('creates the unit with the given mode and returns it', () => {
-        const unit = xnew.boot('server', (u: Unit) => {});
+        const unit = xnew.sync.boot('server', (u: Unit) => {});
         expect(unit._.mode).toBe('server');
     });
 
     it('forwards extra args to xnew (target, Component)', () => {
         const el = document.createElement('div');
-        const unit = xnew.boot('client', el, (u: Unit) => {});
+        const unit = xnew.sync.boot('client', el, (u: Unit) => {});
         expect(unit._.mode).toBe('client');
         expect(unit.element).toBe(el);
     });
 
     it('restores the previous mode after creation', () => {
-        xnew.boot('client', (u: Unit) => {});
+        xnew.sync.boot('client', (u: Unit) => {});
         expect(Unit.config.mode).toBeNull();
     });
 
     it('restores the previous mode even when the component throws', () => {
-        expect(() => xnew.boot('server', () => { throw new Error('boom'); })).toThrow('boom');
+        expect(() => xnew.sync.boot('server', () => { throw new Error('boom'); })).toThrow('boom');
         expect(Unit.config.mode).toBeNull();
     });
 
     it('restores to the previous mode, not hardcoded null', () => {
         Unit.config.mode = 'server';                       // 既に server コンテキスト下にいる想定
-        const unit = xnew.boot('client', (u: Unit) => {});
+        const unit = xnew.sync.boot('client', (u: Unit) => {});
         expect(unit._.mode).toBe('client');
         expect(Unit.config.mode).toBe('server');           // null 決め打ちでなく前の値へ復元
         Unit.config.mode = null;

@@ -7,7 +7,7 @@
 // 同期対象の型は「各コンポーネントが自分の直接の子として登録した型」だけ。登録は Unit 単位で
 // 保持し（_.syncRegistry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
 //
-// - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリと追記
+// - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリ（BiMap）と追記
 // - getSyncName        : unit が同期対象なら、直接の親のレジストリ上の登録名(最派生一致)を返す
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
@@ -26,23 +26,21 @@
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
+import { BiMap } from './map';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
 
-export interface SyncRegistry {
-    byName: Map<string, Function>;
-    byComponent: Map<Function, string>;
-}
+/** ユニット単位の同期レジストリ。name(left) ⇄ Component(right) の 1:1 双方向マップ。 */
+export type SyncRegistry = BiMap<string, Function>;
 
 /** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
 export function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
     if (unit._.syncRegistry === null) {
-        unit._.syncRegistry = { byName: new Map(), byComponent: new Map() };
+        unit._.syncRegistry = new BiMap<string, Function>();
     }
     for (const [name, Component] of Object.entries(components)) {
-        unit._.syncRegistry.byName.set(name, Component);
-        unit._.syncRegistry.byComponent.set(Component, name);
+        unit._.syncRegistry.set(name, Component);
     }
 }
 
@@ -55,7 +53,7 @@ export function getSyncName(unit: Unit): string | undefined {
         return undefined;
     }
     for (let i = unit._.Components.length - 1; i >= 0; i--) {
-        const name = registry.byComponent.get(unit._.Components[i]);
+        const name = registry.getLeft(unit._.Components[i]);
         if (name !== undefined) {
             return name;
         }
@@ -112,7 +110,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             // create
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
-            const Component = parent._.syncRegistry?.byName.get(node.name);
+            const Component = parent._.syncRegistry?.getRight(node.name);
             if (Component === undefined) { continue; }   // 親が許可していない型は無視
             Unit.injectedSlot = node.state;      // 本体実行前に注入（Unit 構築開始時に _.injected へ退避）
             const unit = new Unit(parent, Component);   // mode は親(client)を継承する
@@ -204,8 +202,10 @@ export function createLoopback(): Transport {
         return {
             id: clientId,
             emit(event, payload) { fireServer(event, clientId, payload); },
-            on(event, handler) { addHandler(clients.get(clientId)!, event, handler); },
-            off(event, handler) { removeHandler(clients.get(clientId)!, event, handler); },
+            // disconnect 後（clients から削除済み）の on/off は no-op にする（実 socket.io の挙動に合わせる。
+            // boot の自動 mirror が finalize で off('sync') を呼ぶため、切断済みでも安全である必要がある）。
+            on(event, handler) { const map = clients.get(clientId); if (map !== undefined) { addHandler(map, event, handler); } },
+            off(event, handler) { const map = clients.get(clientId); if (map !== undefined) { removeHandler(map, event, handler); } },
             disconnect() { clients.delete(clientId); fireServer('disconnect', clientId); },
         };
     }
@@ -271,19 +271,27 @@ function bootRoot(unit: Unit): Unit {
 export function getRootSocket(unit: Unit): ClientSocket | ServerSocket {
     const socket = bootRoot(unit)._.socket;
     if (socket === null) {
-        throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.boot.');
+        throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
     }
     return socket;
 }
 
+/** 既に mirror 済みのルート。boot の自動配線と明示 mirror() の二重配線を防ぐ（冪等化）。 */
+const mirroredRoots: WeakSet<Unit> = new WeakSet();
+
 /**
- * 状態の下り（server→client）を 1 呼び出しで配線する。コンポーネント本体（boot ルート）で呼ぶ。
+ * 状態の下り（server→client）を 1 呼び出しで配線する。socket がバインド済みのルートに対して呼ぶ。
  *   - server : 毎 update で capture → emit('sync')（全 client へ broadcast）
  *   - client : on('sync') → apply（自分のツリーへ反映。unit finalize で off）
  *   - null   : 何もしない（standalone）
- * capture/apply/emit/on の合成を隠蔽する薄いヘルパー。細かい配信制御が要るときは手書きでよい。
+ * capture/apply/emit/on の合成を隠蔽する薄いヘルパー。同一ルートに 2 度呼んでも 2 度目は no-op
+ * （xnew.sync.boot が socket バインド時に自動で呼ぶため。細かい配信制御が要るときは capture/apply を手書きでよい）。
  */
 export function mirrorRoot(root: Unit): void {
+    if (mirroredRoots.has(root)) {
+        return;
+    }
+    mirroredRoots.add(root);
     if (root._.mode === 'server') {
         const socket = getRootSocket(root) as ServerSocket;
         root.on('update', () => socket.emit('sync', captureStateTree(root)));

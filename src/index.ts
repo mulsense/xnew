@@ -7,6 +7,7 @@ import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
 import { Scene } from './basics/Scene';
+import { Selectable } from './basics/Selectable';
 import { VolumeController } from './basics/Volume';
 
 import { ImageData, ImageDataArgs } from './utils/image';
@@ -23,6 +24,7 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    Selectable,
     VolumeController,
 };
 

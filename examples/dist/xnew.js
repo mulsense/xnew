@@ -112,6 +112,68 @@
             }
         }
     }
+    class BiMap {
+        constructor() {
+            this.forward = new Map();
+            this.backward = new Map();
+        }
+        get size() {
+            return this.forward.size;
+        }
+        set(left, right) {
+            if (this.forward.has(left)) {
+                this.backward.delete(this.forward.get(left));
+            }
+            if (this.backward.has(right)) {
+                this.forward.delete(this.backward.get(right));
+            }
+            this.forward.set(left, right);
+            this.backward.set(right, left);
+            return this;
+        }
+        getRight(left) {
+            return this.forward.get(left);
+        }
+        getLeft(right) {
+            return this.backward.get(right);
+        }
+        hasLeft(left) {
+            return this.forward.has(left);
+        }
+        hasRight(right) {
+            return this.backward.has(right);
+        }
+        deleteLeft(left) {
+            if (!this.forward.has(left)) {
+                return false;
+            }
+            this.backward.delete(this.forward.get(left));
+            return this.forward.delete(left);
+        }
+        deleteRight(right) {
+            if (!this.backward.has(right)) {
+                return false;
+            }
+            this.forward.delete(this.backward.get(right));
+            return this.backward.delete(right);
+        }
+        clear() {
+            this.forward.clear();
+            this.backward.clear();
+        }
+        lefts() {
+            return this.forward.keys();
+        }
+        rights() {
+            return this.backward.keys();
+        }
+        entries() {
+            return this.forward.entries();
+        }
+        [Symbol.iterator]() {
+            return this.forward.entries();
+        }
+    }
 
     class Ticker {
         constructor(callback, fps = 30) {
@@ -980,11 +1042,10 @@
 
     function registerOnUnit(unit, components) {
         if (unit._.syncRegistry === null) {
-            unit._.syncRegistry = { byName: new Map(), byComponent: new Map() };
+            unit._.syncRegistry = new BiMap();
         }
         for (const [name, Component] of Object.entries(components)) {
-            unit._.syncRegistry.byName.set(name, Component);
-            unit._.syncRegistry.byComponent.set(Component, name);
+            unit._.syncRegistry.set(name, Component);
         }
     }
     function getSyncName(unit) {
@@ -994,7 +1055,7 @@
             return undefined;
         }
         for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const name = registry.byComponent.get(unit._.Components[i]);
+            const name = registry.getLeft(unit._.Components[i]);
             if (name !== undefined) {
                 return name;
             }
@@ -1040,7 +1101,7 @@
                 if (parent === undefined) {
                     continue;
                 }
-                const Component = (_a = parent._.syncRegistry) === null || _a === void 0 ? void 0 : _a.byName.get(node.name);
+                const Component = (_a = parent._.syncRegistry) === null || _a === void 0 ? void 0 : _a.getRight(node.name);
                 if (Component === undefined) {
                     continue;
                 }
@@ -1111,8 +1172,12 @@
             return {
                 id: clientId,
                 emit(event, payload) { fireServer(event, clientId, payload); },
-                on(event, handler) { addHandler(clients.get(clientId), event, handler); },
-                off(event, handler) { removeHandler(clients.get(clientId), event, handler); },
+                on(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
+                    addHandler(map, event, handler);
+                } },
+                off(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
+                    removeHandler(map, event, handler);
+                } },
                 disconnect() { clients.delete(clientId); fireServer('disconnect', clientId); },
             };
         }
@@ -1169,11 +1234,16 @@
     function getRootSocket(unit) {
         const socket = bootRoot(unit)._.socket;
         if (socket === null) {
-            throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.boot.');
+            throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
         }
         return socket;
     }
+    const mirroredRoots = new WeakSet();
     function mirrorRoot(root) {
+        if (mirroredRoots.has(root)) {
+            return;
+        }
+        mirroredRoots.add(root);
         if (root._.mode === 'server') {
             const socket = getRootSocket(root);
             root.on('update', () => socket.emit('sync', captureStateTree(root)));
@@ -1451,26 +1521,30 @@
                 socket.on(event, handler);
                 unit.on('finalize', () => socket.off(event, handler));
             },
-        },
-        boot(mode, ...args) {
-            if (Unit.rootUnit === undefined) {
-                Unit.reset();
-            }
-            const previous = Unit.config.mode;
-            Unit.config.mode = mode;
-            const transport = Unit.config.transport;
-            if (transport !== null) {
-                Unit.socketSlot = mode === 'server' ? transport.server
-                    : mode === 'client' ? transport.connect()
-                        : null;
-            }
-            try {
-                return xnew$1(...args);
-            }
-            finally {
-                Unit.config.mode = previous;
-                Unit.socketSlot = null;
-            }
+            boot(mode, ...args) {
+                if (Unit.rootUnit === undefined) {
+                    Unit.reset();
+                }
+                const previous = Unit.config.mode;
+                Unit.config.mode = mode;
+                const transport = Unit.config.transport;
+                if (transport !== null) {
+                    Unit.socketSlot = mode === 'server' ? transport.server
+                        : mode === 'client' ? transport.connect()
+                            : null;
+                }
+                try {
+                    const root = xnew$1(...args);
+                    if (transport !== null) {
+                        mirrorRoot(root);
+                    }
+                    return root;
+                }
+                finally {
+                    Unit.config.mode = previous;
+                    Unit.socketSlot = null;
+                }
+            },
         },
     });
 
@@ -1844,6 +1918,24 @@
             add(Component, props) {
                 xnew$1(unit, Component, props);
             }
+        };
+    }
+
+    function Selectable(unit, { selected = false } = {}) {
+        let current = selected;
+        const change = (next) => {
+            if (current === next) {
+                return;
+            }
+            current = next;
+            xnew$1.emit(current ? '-select' : '-deselect');
+        };
+        unit.on('click', () => change(true));
+        unit.on('click.outside', () => change(false));
+        return {
+            get selected() { return current; },
+            select() { change(true); },
+            deselect() { change(false); },
         };
     }
 
@@ -2240,6 +2332,7 @@
         Accordion,
         Popup,
         Scene,
+        Selectable,
         VolumeController,
     };
     const audio = {

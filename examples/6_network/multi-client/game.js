@@ -9,8 +9,10 @@ import xnew from '@mulsense/xnew';
 //       server: on('join'/'disconnect') で参加集合 → update で Player を spawn/despawn。
 //               （presence は生の接続でなく明示的 'join' 基準。transport の upgrade/probe な idle 接続で
 //                 幽霊プレイヤーが出るのを防ぐ）。
-//       client: 自分のペイン(画面)を生成し、init で emit('join')。クリックで選択、選択中だけ emit('move')（入力の上り）。
-//       状態の下り（server→client）は xnew.sync.mirror(unit) が 1 行で配線する（capture/apply/'sync' は隠蔽）。
+//       client: 自分のペイン(画面)を生成し、init で emit('join')。xnew.basics.Selectable を extend して
+//               「クリックで選択／他ペインのクリックで自動解除（相互排他）」を得る（状態は unit.selected）。
+//               選択中のペインだけ emit('move')（入力の上り）。
+//       状態の下り（server→client）の配線はゲームロジックに含めない。transport 使用時は xnew.sync.boot が自動配線する。
 //   - Player : 自機。synced state {x, y, clientId}。server は 'move' の方向ベクトルを vel に保持し、
 //              update で積分して移動。client で描画。
 //   - DOM は xnew 記法 + Tailwind。動的な位置(left/top)だけ inline style。
@@ -24,9 +26,6 @@ const LABEL = { c1: 'text-blue-500', c2: 'text-red-500' };
 
 const clamp = (v, max) => Math.max(0, Math.min(max, v));
 const colorOf = (id, map, fallback) => map[id] ?? fallback;
-
-// 「1 つだけ選択」の相互排他のための最小の共有状態。選択/非選択の判定と見た目反映は各 World 内で行う。
-const session = { selected: null };   // 現在の操作対象 clientId（最初に来た client を初期選択）
 
 // ---- Player: 自機。位置を synced state で持ち、server は受信時に移動、client で描画 ----
 export function Player(unit, props = {}) {
@@ -62,9 +61,9 @@ export function Player(unit, props = {}) {
 
 // ---- World: server/client 共通ルート ----
 export function World(unit) {
-    xnew.sync.register({ Player });
-    xnew.sync.mirror(unit);   // 状態の下り（server=broadcast / client=apply）をこの 1 行で配線
-    // socket は xnew.sync.use(...) により boot が自動でこのルートにバインドする。
+    xnew.sync.register({ Player });   // 同期対象の型を宣言（どの子を replica にするか）
+    // 状態の下り（server=broadcast / client=apply）の配線と socket バインドは xnew.sync.boot が自動で行う
+    // （transport は起動側の xnew.sync.use(...) で設定）。ゲームロジックは同期の配線を持たない。
 
     xnew.server(() => {
         const joined = new Set();      // 参加中の clientId（presence）
@@ -87,37 +86,31 @@ export function World(unit) {
     xnew.client(() => {
         const clientId = xnew.sync.clientId;   // 自動発番された自分の id（= socket.id）
         unit.viewerId = clientId;              // Player.render が「自機かどうか」を判定するために刻む
-        if (session.selected === null) { session.selected = clientId; }   // 最初に来た client を初期選択
         xnew.sync.emit('join');                // server に参加を通知（presence。これで初めて Player が spawn される）
 
         // 画面（ペイン）を World 自身が生成する。以後 unit.element = このペイン（Player replica はこの配下に mount）。
         const pane = xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50 cursor-pointer">');
         xnew(`<div class="absolute left-1 top-0.5 text-[11px] font-bold pointer-events-none ${colorOf(clientId, LABEL, 'text-gray-500')}">`, clientId);   // ラベル
 
-        const isSelected = () => session.selected === clientId;   // 選択判定は World 内で行う
-
-        // クリックでこのペインを操作対象に選択。
-        unit.on('click', () => { session.selected = clientId; });
-
-        // 選択状態を見た目に反映（枠を強調）。選択を外れた瞬間は停止信号を送る。
-        let wasSelected = isSelected();
-        unit.on('update', () => {
-            const selected = isSelected();
-            pane.classList.toggle('border-black', selected);
-            pane.classList.toggle('border-gray-300', !selected);
-            pane.classList.toggle('ring-2', selected);
-            pane.classList.toggle('ring-black/20', selected);
-            if (wasSelected && !selected) { xnew.sync.emit('move', { x: 0, y: 0 }); }   // 選択を外れたら停止
-            wasSelected = selected;
+        // 選択ふるまいを付与: クリックで選択（他ペインは click.outside で自動解除 = 相互排他）。状態は unit.selected。
+        xnew.extend(xnew.basics.Selectable);
+        unit.on('-select', () => {
+            pane.classList.add('border-black', 'ring-2', 'ring-black/20');
+            pane.classList.remove('border-gray-300');
+        });
+        unit.on('-deselect', () => {
+            pane.classList.remove('border-black', 'ring-2', 'ring-black/20');
+            pane.classList.add('border-gray-300');
+            xnew.sync.emit('move', { x: 0, y: 0 });   // 選択を外れたら停止
         });
 
         // 入力の上り: キー入力(WASD/矢印)を方向ベクトルで受け取り、選択中のペインだけが emit('move')。
         unit.on('window.keydown.wasd window.keyup.wasd window.keydown.arrow window.keyup.arrow', ({ event, vector }) => {
-            if (!isSelected()) { return; }
+            if (!unit.selected) { return; }
             event.preventDefault();
             xnew.sync.emit('move', vector);
         });
         // フォーカスを失ったら停止（押しっぱなしのまま離れた時の暴走防止）。
-        unit.on('window.blur', () => { if (isSelected()) { xnew.sync.emit('move', { x: 0, y: 0 }); } });
+        unit.on('window.blur', () => { if (unit.selected) { xnew.sync.emit('move', { x: 0, y: 0 }); } });
     });
 }

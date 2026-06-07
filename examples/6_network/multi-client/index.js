@@ -15,6 +15,8 @@ const status = document.getElementById('status');
 socket.once('connect', () => {
     if (status) { status.textContent = `接続: ${socket.id}`; status.className = 'text-green-600'; }
     xnew.sync.use(xnew.sync.socketio(socket));   // ← transport を socket.io に（切り替えはここだけ）
-    xnew.boot('client', stage, World);                // boot 後に socket.id が確定 → clientId が使える
+    const client = xnew.sync.boot('client', stage, World); // boot 後に socket.id が確定 → clientId が使える
+    // 状態のやり取り（下り: server の 'sync' を apply）は boot が自動配線する。
+    client.select();                                  // このタブの 1 ペインを初期選択（すぐ操作できる）
 });
 socket.on('disconnect', () => { if (status) { status.textContent = '切断'; status.className = 'text-red-500'; } });

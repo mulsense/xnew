@@ -18,9 +18,9 @@
 // - xnew.emit                            : '+global' / '-local' custom events
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
-// - xnew.boot                            : create a root Unit with the engine mode temporarily set (server/client)
 // - xnew.server / client                 : run a block only on server / client (extend-like)
-// - xnew.sync.state / register / capture / apply : server→client state sync (see core/sync.ts)
+// - xnew.sync.state / register / capture / apply / boot : server→client state sync (see core/sync.ts)
+//   xnew.sync.boot : create a root Unit with the engine mode set (server/client) + auto socket bind / mirror
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
@@ -412,18 +412,20 @@ export const xnew = Object.assign(
          * - state    : declare synced state on the current unit (server/standalone use `initial`;
          *              on the client, apply injects server state so `initial` is ignored)
          * - register : 現在のコンポーネントの「直接の同期子」を名前マップ `{ Name: Component }` で宣言（server/client 共通 body で呼ぶ）
-         * - mirror   : 状態の下り（server→client）を 1 呼び出しで配線（server=broadcast / client=apply）。下記 capture/apply の合成を隠す
+         * - mirror   : 状態の下り（server→client）を配線（server=broadcast / client=apply）。**transport 使用時は xnew.sync.boot が自動で呼ぶ**ため通常は不要。手動配線したいとき用（冪等）
          * - capture  : capture a server subtree as a state tree（mirror を使わず手動配信したいとき用）
          * - apply    : reconcile a state tree into a client subtree（同上）
          *
          * Event channel (socket.io 互換 transport, client→server / server→client):
          * - loopback : インメモリ transport ハブ {server, connect(clientId?)} を生成
          * - socketio : socket.io の io / socket を Transport 形へ橋渡し（実ネットワーク用。import 依存なし）
-         * - use      : 以後の xnew.boot が socket を自動バインドする transport を設定（server→server / client→connect()）
+         * - use      : 以後の xnew.sync.boot が socket を自動バインドする transport を設定（server→server / client→connect()）
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
          * - emit     : ルートの socket でイベント送信（client→server、server 側は broadcast）
          * - on       : イベント受信。server ハンドラは (clientId, payload)、client ハンドラは (payload)。
          *              ※ ハンドラは tick の外で走るため unit 生成/finalize はせず、state 等の更新に留める
+         * - boot     : その mode(server/client) でルートを生成する唯一の公開手段。transport 使用時は
+         *              socket 自動バインド + 状態の下り(mirror)の自動配線も行う
          */
         sync: {
             state(initial: Record<string, any> = {}): Record<string, any> {
@@ -468,7 +470,7 @@ export const xnew = Object.assign(
                 return createSocketioTransport(ioOrSocket);
             },
             use(transport: Transport): void {
-                // 以後の xnew.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。
+                // 以後の xnew.sync.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。
                 Unit.config.transport = transport;
             },
             mirror(root: Unit): void {
@@ -500,36 +502,43 @@ export const xnew = Object.assign(
                 // unit が消えたらハンドラも外す（共有 server socket にハンドラが溜まらないように）
                 unit.on('finalize', () => socket.off(event, handler as any));
             },
-        },
 
-        /**
-         * Creates a root Unit with the engine mode temporarily set to `mode`, restoring the
-         * previous mode afterward (even on throw). The remaining arguments are forwarded to
-         * `xnew(...)`, so this is the only public way to select server / client mode — e.g.
-         * `const server = xnew.boot('server', Main)`. The created root adopts the mode and its
-         * descendants inherit it (so spawning later does not need another boot).
-         * @returns the Unit created by `xnew(...args)`
-         */
-        boot(mode: Mode, ...args: any[]): any {
-            // 初回 xnew でエンジンルートが生成されると socketSlot を消費してしまうため、
-            // slot をセットする前にここでルートを確実に用意しておく（boot ルートが slot を受け取れるように）。
-            if (Unit.rootUnit === undefined) { Unit.reset(); }
-            const previous = Unit.config.mode;
-            Unit.config.mode = mode;
-            // transport が設定されていれば、この boot ルートへバインドする socket を用意する
-            // （server→transport.server / client→transport.connect() で自動発番）。Unit 構築時に _.socket へ退避される。
-            const transport: Transport | null = Unit.config.transport;
-            if (transport !== null) {
-                Unit.socketSlot = mode === 'server' ? transport.server
-                    : mode === 'client' ? transport.connect()
-                    : null;
-            }
-            try {
-                return (xnew as any)(...args);
-            } finally {
-                Unit.config.mode = previous;
-                Unit.socketSlot = null;
-            }
+            /**
+             * Creates a root Unit with the engine mode temporarily set to `mode`, restoring the
+             * previous mode afterward (even on throw). The remaining arguments are forwarded to
+             * `xnew(...)`, so this is the only public way to select server / client mode — e.g.
+             * `const server = xnew.sync.boot('server', Main)`. The created root adopts the mode and its
+             * descendants inherit it (so spawning later does not need another boot). transport 使用時は
+             * socket の自動バインドと状態の下り（mirror）の自動配線もここで行う。
+             * @returns the Unit created by `xnew(...args)`
+             */
+            boot(mode: Mode, ...args: any[]): any {
+                // 初回 xnew でエンジンルートが生成されると socketSlot を消費してしまうため、
+                // slot をセットする前にここでルートを確実に用意しておく（boot ルートが slot を受け取れるように）。
+                if (Unit.rootUnit === undefined) { Unit.reset(); }
+                const previous = Unit.config.mode;
+                Unit.config.mode = mode;
+                // transport が設定されていれば、この boot ルートへバインドする socket を用意する
+                // （server→transport.server / client→transport.connect() で自動発番）。Unit 構築時に _.socket へ退避される。
+                const transport: Transport | null = Unit.config.transport;
+                if (transport !== null) {
+                    Unit.socketSlot = mode === 'server' ? transport.server
+                        : mode === 'client' ? transport.connect()
+                        : null;
+                }
+                try {
+                    const root = (xnew as any)(...args);
+                    // transport がある＝socket バインド済みなら、状態の下り（server=broadcast / client=apply）を
+                    // ここで自動配線する。mirrorRoot は冪等なのでコンポーネント側で明示 mirror しても二重にならない。
+                    if (transport !== null) {
+                        mirrorRoot(root);
+                    }
+                    return root;
+                } finally {
+                    Unit.config.mode = previous;
+                    Unit.socketSlot = null;
+                }
+            },
         },
 
     }
