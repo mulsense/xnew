@@ -454,8 +454,8 @@ declare const xnew: XnewBase & {
         use(transport: Transport): void;
         mirror(root: Unit): void;
         readonly clientId: string | undefined;
-        emit(event: string, payload?: any): void;
-        on(event: string, handler: (...args: any[]) => void): void;
+        emit(event: string, payload?: Record<string, any>): void;
+        on(event: string, handler: (payload: Record<string, any>) => void): void;
         boot(mode: Mode, ...args: any[]): any;
     };
 } & {

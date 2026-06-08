@@ -424,9 +424,10 @@ export const xnew = Object.assign(
          * - socketio : socket.io の io / socket を Transport 形へ橋渡し（実ネットワーク用。import 依存なし）
          * - use      : 以後の xnew.sync.boot が socket を自動バインドする transport を設定（server→server / client→connect()）
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
-         * - emit     : ルートの socket でイベント送信（client→server、server 側は broadcast）
-         * - on       : イベント受信。server ハンドラは (clientId, payload)、client ハンドラは (payload)。
-         *              ※ ハンドラは tick の外で走るため unit 生成/finalize はせず、state 等の更新に留める
+         * - emit     : イベント送信（client→server / server→client）。payload はオブジェクト。送信ユニットの
+         *              syncId を自動付与。プレフィックス '-'=同一コンポーネント(同一 syncId 宛て) / '+'・無印=全体
+         * - on       : イベント受信。ハンドラは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）。
+         *              '-event' は送信元と同じ syncId のときだけ発火。※ハンドラは登録元ユニットのスコープで実行
          * - boot     : その mode(server/client) でルートを生成する唯一の公開手段。transport 使用時は
          *              socket 自動バインド + 状態の下り(mirror)の自動配線も行う
          */
@@ -488,24 +489,37 @@ export const xnew = Object.assign(
                 }
                 return (getRootSocket(unit) as any).id;
             },
-            emit(event: string, payload?: any): void {
+            emit(event: string, payload: Record<string, any> = {}): void {
                 const unit = Unit.currentUnit;
                 if (unit === null) {
                     throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
                 }
-                getRootSocket(unit).emit(event, payload);
+                // 送信ユニットの syncId を載せて送る（受信側の '-'(同一コンポーネント)ルーティング用）。
+                // ペイロードは data に包む。id（送信元 clientId）は受信側の transport が付与する。
+                getRootSocket(unit).emit(event, { syncId: unit._.syncId, data: payload });
             },
-            on(event: string, handler: (...args: any[]) => void): void {
+            on(event: string, handler: (payload: Record<string, any>) => void): void {
                 const unit = Unit.currentUnit;
                 if (unit === null) {
                     throw new Error('xnew.sync.on can not be called outside a component.');
                 }
                 const socket = getRootSocket(unit);
+                // '-' = 同一コンポーネント（送信ユニットと同じ syncId のときだけ発火）。'+' / 無印 = 全体。
+                const sameComponent = event[0] === '-';
+                const isServer = unit._.mode === 'server';
                 // ハンドラは socket 発火時（tick/scope の外）に呼ばれるため、登録元ユニットのスコープで実行する。
                 // これで内部の xnew(...) が正しい親（このユニット）の子として生成される。unit 消滅時は scope が
-                // 早期 return するので安全。
+                // 早期 return するので安全。handler へは単一オブジェクト { id, ...payload } を渡す（id=送信元 clientId）。
                 const snapshot = Unit.snapshot(unit);
-                const scoped = (...args: any[]) => Unit.scope(snapshot, handler, ...args);
+                const scoped = (...args: any[]) => {
+                    // server: (clientId, message) / client: (message)。connect/disconnect は message=undefined。
+                    const id = isServer ? args[0] : undefined;
+                    const message = isServer ? args[1] : args[0];
+                    if (sameComponent && (message?.syncId ?? null) !== unit._.syncId) {
+                        return;   // 別コンポーネント宛て（syncId 不一致）は無視
+                    }
+                    Unit.scope(snapshot, handler, { id, ...(message?.data ?? {}) });
+                };
                 socket.on(event, scoped as any);
                 // unit が消えたらハンドラも外す（共有 server socket にハンドラが溜まらないように）
                 unit.on('finalize', () => socket.off(event, scoped as any));

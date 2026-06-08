@@ -8,8 +8,10 @@ import xnew from '@mulsense/xnew';
 //       server: 'join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
 //       client: ペインを生成し emit('join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」だけを担う。
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。
-//       server: 'move' の方向を vel に保持→update で積分。 client: 描画＋（自機なら）入力(WASD/矢印)→emit('move')。
-//               自機判定は state.clientId === xnew.sync.clientId、入力可否は上位 World の Selectable.selected。
+//       server: '-move'（同一コンポーネント宛て）で方向を vel に保持→update で積分。
+//       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.clientId。
+//   - sync イベント: emit/on は payload を 1 オブジェクトに統一（handler は { id, ...payload }）。プレフィックス
+//       '-'=同一コンポーネント(同じ syncId 宛て・client replica↔server で一致) / '+'・無印=全体。
 //   - key: xnew(C, { key }) で同一性の目印を付け、xnew.find(C, { key }) で引ける（key はグローバル一意の想定）。
 //----------------------------------------------------------------------------------------------------
 
@@ -22,9 +24,9 @@ export function Player(unit, { clientId = '' } = {}) {
     const state = xnew.sync.state({ x: 0, y: 0, clientId });
 
     xnew.server(() => {
-        const vel = { x: 0, y: 0 };   // 'move' で受けた方向(速度)。update で積分し、押しっぱなしで動き続ける
-        xnew.sync.on('move', (id, vector) => {
-            if (id !== state.clientId) { return; }
+        const vel = { x: 0, y: 0 };   // 受けた方向(速度)。update で積分し、押しっぱなしで動き続ける
+        // '-move' = 同一コンポーネント宛て。自機(同じ syncId の client replica)からの move だけが届く（id 判定不要）。
+        xnew.sync.on('-move', ({ vector }) => {
             vel.x = Math.sign(vector?.x || 0);
             vel.y = Math.sign(vector?.y || 0);
         });
@@ -41,12 +43,12 @@ export function Player(unit, { clientId = '' } = {}) {
         // 入力 → 移動はこの自機の動作。自機（このクライアント自身の Player）だけが入力を受ける。
         if (state.clientId === xnew.sync.clientId) {
             const pane = xnew.context(xnew.basics.Selectable);   // 所属する World の選択状態/イベント
-            const stop = () => xnew.sync.emit('move', { x: 0, y: 0 });
-            // 所属ペインが選択中のときだけ、方向ベクトルを emit('move')（入力の上り）。
+            const stop = () => xnew.sync.emit('-move', { vector: { x: 0, y: 0 } });
+            // 所属ペインが選択中のときだけ、方向ベクトルを emit('-move')（自機の入力の上り）。
             unit.on('window.keydown.wasd window.keyup.wasd window.keydown.arrow window.keyup.arrow', ({ event, vector }) => {
                 if (!pane?.selected) { return; }
                 event.preventDefault();
-                xnew.sync.emit('move', vector);
+                xnew.sync.emit('-move', { vector });
             });
             unit.on('window.blur', () => { if (pane?.selected) { stop(); } });   // フォーカス喪失で停止
             pane?.on('-deselect', stop);                                          // 選択を外れたら停止
@@ -62,8 +64,8 @@ export function World(unit) {
     xnew.server(() => {
         // clientId を key にして Player を生成（同一性の目印）。disconnect では key で引いて finalize。
         // sync.on は登録元ユニットのスコープで走るので、xnew(Player) は World の子として生成される。
-        xnew.sync.on('join', (clientId) => xnew(Player, { key: clientId, clientId }));
-        xnew.sync.on('disconnect', (clientId) => xnew.find(Player, { key: clientId })[0]?.finalize());
+        xnew.sync.on('join', ({ id }) => xnew(Player, { key: id, clientId: id }));
+        xnew.sync.on('disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());
     });
 
     xnew.client(() => {

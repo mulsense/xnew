@@ -1507,12 +1507,12 @@ const xnew$1 = Object.assign((function (...args) {
             }
             return getRootSocket(unit).id;
         },
-        emit(event, payload) {
+        emit(event, payload = {}) {
             const unit = Unit.currentUnit;
             if (unit === null) {
                 throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
             }
-            getRootSocket(unit).emit(event, payload);
+            getRootSocket(unit).emit(event, { syncId: unit._.syncId, data: payload });
         },
         on(event, handler) {
             const unit = Unit.currentUnit;
@@ -1520,8 +1520,18 @@ const xnew$1 = Object.assign((function (...args) {
                 throw new Error('xnew.sync.on can not be called outside a component.');
             }
             const socket = getRootSocket(unit);
+            const sameComponent = event[0] === '-';
+            const isServer = unit._.mode === 'server';
             const snapshot = Unit.snapshot(unit);
-            const scoped = (...args) => Unit.scope(snapshot, handler, ...args);
+            const scoped = (...args) => {
+                var _a, _b;
+                const id = isServer ? args[0] : undefined;
+                const message = isServer ? args[1] : args[0];
+                if (sameComponent && ((_a = message === null || message === void 0 ? void 0 : message.syncId) !== null && _a !== void 0 ? _a : null) !== unit._.syncId) {
+                    return;
+                }
+                Unit.scope(snapshot, handler, Object.assign({ id }, ((_b = message === null || message === void 0 ? void 0 : message.data) !== null && _b !== void 0 ? _b : {})));
+            };
             socket.on(event, scoped);
             unit.on('finalize', () => socket.off(event, scoped));
         },

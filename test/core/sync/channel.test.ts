@@ -70,7 +70,7 @@ describe('event channel (socket.io-compatible transport)', () => {
 
         const received: Array<[string, any]> = [];
         const server = xnew.sync.boot('server', function Server() {
-            xnew.server(() => { xnew.sync.on('move', (clientId, payload) => received.push([clientId, payload])); });
+            xnew.server(() => { xnew.sync.on('move', ({ id, ...payload }) => received.push([id, payload])); });
         });
 
         let id1: string | undefined;
@@ -112,13 +112,14 @@ describe('event channel (socket.io-compatible transport)', () => {
             xnew.server(() => {
                 state = xnew.sync.state({ x: 0 });
                 // 受信時に closure の state を直接更新（inbox 不要）。unit 生成等はしない。
-                xnew.sync.on('move', (_clientId, payload) => { state.x += payload.dx; });
+                xnew.sync.on('move', ({ dx }) => { state.x += dx; });
             });
         });
 
         const socket = hub.connect();
-        socket.emit('move', { dx: 5 });
-        socket.emit('move', { dx: 2 });
+        // 生 socket から送るときも xnew.sync.emit と同じ封筒 { syncId, data } で送る。
+        socket.emit('move', { data: { dx: 5 } });
+        socket.emit('move', { data: { dx: 2 } });
         expect(state.x).toBe(7);
     });
 
@@ -127,10 +128,10 @@ describe('event channel (socket.io-compatible transport)', () => {
         function Player(unit: Unit, props: { clientId?: string } = {}) {
             const state = xnew.sync.state({ x: 0, y: 0, clientId: props.clientId ?? '' });
             xnew.server(() => {
-                xnew.sync.on('move', (clientId, payload) => {
-                    if (clientId !== state.clientId) { return; }     // 自分宛だけ
-                    state.x += payload.dx ?? 0;
-                    state.y += payload.dy ?? 0;
+                xnew.sync.on('move', ({ id, dx, dy }) => {
+                    if (id !== state.clientId) { return; }     // 自分宛だけ（無印=全体なので id で絞る）
+                    state.x += dx ?? 0;
+                    state.y += dy ?? 0;
                 });
             });
             xnew.client(() => { xnew.nest('<div>'); });
@@ -142,8 +143,8 @@ describe('event channel (socket.io-compatible transport)', () => {
             xnew.server(() => {
                 const connected = new Set<string>();
                 const players = new Map<string, Unit>();
-                xnew.sync.on('connect', (clientId) => connected.add(clientId));
-                xnew.sync.on('disconnect', (clientId) => connected.delete(clientId));
+                xnew.sync.on('connect', ({ id }) => connected.add(id));
+                xnew.sync.on('disconnect', ({ id }) => connected.delete(id));
                 unit.on('update', () => {
                     for (const clientId of connected) {
                         if (!players.has(clientId)) { players.set(clientId, xnew(Player, { clientId }) as unknown as Unit); }
@@ -248,17 +249,41 @@ describe('event channel (socket.io-compatible transport)', () => {
         function World(unit: Unit) {
             world = unit;
             // ハンドラ内で生成した Child は、登録元(World)の子として作られなければならない。
-            xnew.sync.on('join', (clientId: string) => xnew(Child, { key: clientId, clientId }));
+            xnew.sync.on('join', ({ id }) => xnew(Child, { key: id, clientId: id }));
         }
         const transport = xnew.sync.loopback();
         xnew.sync.use(transport);
         xnew.sync.boot('server', World);
 
-        // 同じ transport の client が join を送ると server の on('join') が発火する。
-        transport.connect('c1').emit('join', 'c1');
+        // 同じ transport の client が join を送ると server の on('join') が発火する（id=clientId）。
+        transport.connect('c1').emit('join');
 
         const child = xnew.find(Child, { key: 'c1' })[0];
         expect(child).toBeDefined();
         expect(child.parent).toBe(world);   // stale な currentUnit でなく World の子
+    });
+
+    it("'-event' routes only to the handler whose unit shares the emitter syncId (same component)", () => {
+        const hub = xnew.sync.loopback();
+        xnew.sync.use(hub);
+        const hits: string[] = [];
+        // server 側: syncId を持つ 2 ユニットが各々 on('-move') を登録。
+        function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
+            unit._.syncId = props.syncId ?? null;
+            xnew.server(() => { xnew.sync.on('-move', ({ vector }) => hits.push(`${props.tag}:${vector.x}`)); });
+        }
+        xnew.sync.boot('server', function Server() {
+            xnew.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
+        });
+
+        // client 側: syncId=10 のユニットから '-move' を送ると、同じ syncId の A だけに届く。
+        xnew.sync.boot('client', function Client(unit: Unit) {
+            xnew.client(() => {
+                unit._.syncId = 10;
+                xnew.sync.emit('-move', { vector: { x: 1 } });
+            });
+        });
+
+        expect(hits).toEqual(['A:1']);   // B(syncId=20) には届かない
     });
 });

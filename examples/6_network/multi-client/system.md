@@ -26,9 +26,10 @@
                          └────move(上り)──── 選択中ペインが emit('move', vector)
 ```
 
-- **入力の上り** … client は `unit.on('window.keydown.wasd' ...)` でキー入力を方向ベクトルにし、
-  **クリックで選択中のペイン**だけが `xnew.sync.emit('move', vector)` を送る。server の `Player` は
-  `xnew.sync.on('move', ...)` で速度を更新し、`update` で積分して動く（権威）。
+- **入力の上り** … 自機（`state.clientId === xnew.sync.clientId`）の `Player`(client) がキー入力を方向ベクトルにし、
+  所属ペインが選択中のときだけ `xnew.sync.emit('-move', { vector })` を送る。server の `Player` は
+  `xnew.sync.on('-move', ({ vector }) => ...)` で速度を更新し `update` で積分（権威）。`-move` は **同一 syncId 宛て**
+  なので、client replica ↔ server で syncId が一致する「自分の Player」にだけ届く（clientId 判定が要らない）。
 - **状態の下り** … `World` で `xnew.sync.mirror(unit)` を 1 回呼ぶだけ。server なら毎 update で capture→broadcast、
   client なら受信して apply、を mirror が中で配線する（`capture`/`apply`/`'sync'` の合成は隠蔽）。
 - **接続管理** … client は init で `emit('join')`、`World`(server) は `on('join'/'disconnect')` の集合を見て `update` 内で
@@ -44,8 +45,8 @@
 | `xnew.sync.use(transport)` | 起動コード | （io / io() の用意） | 以後の `boot` が socket を自動バインドする transport を登録 |
 | `xnew.sync.mirror(unit)` | コンポーネント body | （`io.emit` / `socket.on`） | 状態の下りを 1 行で配線（server=capture→broadcast / client=apply） |
 | `xnew.sync.clientId` | client コンポーネント | `socket.id` | このルートの自動発番 id（手動で渡さない）。server では undefined |
-| `xnew.sync.emit(event, payload)` | client（init / handler） | `socket.emit(event, payload)` | server へ送信（server 側で呼ぶと broadcast） |
-| `xnew.sync.on(event, handler)` | コンポーネント init | `socket.on(event, cb)` | 受信。server は `(clientId, payload)`、client は `(payload)`。1 イベントに複数登録可（unit finalize で自動 off） |
+| `xnew.sync.emit(event, payload)` | コンポーネント / handler | `socket.emit(event, payload)` | 送信。payload はオブジェクト。送信ユニットの syncId を自動付与。`-`=同一コンポーネント宛て / `+`・無印=全体 |
+| `xnew.sync.on(event, handler)` | コンポーネント init | `socket.on(event, cb)` | 受信。handler は単一オブジェクト `{ id, ...payload }`（id=送信元 clientId）。`-event` は送信元と同じ syncId のときだけ発火。複数登録可・自動 off |
 
 `xnew.sync.state` / `register`（同期する state と種類の宣言）と、`capture` / `apply`（mirror を使わず手動配信する低レベル）は
 [../state-sync/system.md](../state-sync/system.md) 参照。このサンプルでは下りは `mirror` に任せる。
