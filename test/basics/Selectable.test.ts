@@ -64,4 +64,29 @@ describe('Selectable', () => {
         expect(item.selected).toBe(true);
         expect(events).toEqual([]);   // 初期値では emit しない
     });
+
+    // multi-client の Player(子)が、上位 World(Selectable を extend)の選択状態を読み、解除を受け取るパターン。
+    it('lets a descendant read selection via context and receive -deselect from the ancestor', () => {
+        const view = document.createElement('div');
+        document.body.appendChild(view);
+        let ctx: Unit | undefined;
+        const events: string[] = [];
+        function Child(_: Unit) {
+            ctx = xnew.context(Selectable);   // Selectable を extend した上位ユニット
+            ctx!.on('-deselect', () => events.push('deselect'));
+        }
+        function Parent(_: Unit) {
+            xnew.extend(Selectable);
+            xnew(Child);
+        }
+        const parent = xnew(view, Parent);
+        jest.advanceTimersByTime(0);
+
+        expect(ctx).toBe(parent);          // context は Selectable を持つ親ユニット
+        expect((ctx as any).selected).toBe(false);
+        (parent as any).select();
+        expect((ctx as any).selected).toBe(true);   // 子から選択状態を読める
+        (parent as any).deselect();
+        expect(events).toEqual(['deselect']);        // 子が解除イベントを受け取れる
+    });
 });
