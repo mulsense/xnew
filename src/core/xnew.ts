@@ -470,9 +470,10 @@ export const xnew = Object.assign(
             loopback(): ReturnType<typeof createLoopback> {
                 return createLoopback();
             },
-            socketio(ioOrSocket: any): Transport {
+            socketio(ioOrSocket: any, opts?: { room?: string }): Transport {
                 // socket.io の io（server）/ socket（client）を Transport 形に橋渡しして返す。
-                return createSocketioTransport(ioOrSocket);
+                // opts.room: server を 1 ルームに絞る（io.to(room) 配信 + query.room 受信フィルタ）。
+                return createSocketioTransport(ioOrSocket, opts);
             },
             use(transport: Transport): void {
                 // 以後の xnew.sync.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。

@@ -243,6 +243,42 @@ describe('event channel (socket.io-compatible transport)', () => {
         expect(received).toEqual([['s1', { dx: 1 }]]);
     });
 
+    it('socketio({ room }): scopes broadcast to io.to(room) and filters connections by query.room', () => {
+        // socket.io 風モック: io.to(r) は r ごとの emit を記録、connection で socket を渡す。
+        const sent: Array<[string, string, any]> = [];   // [room, event, payload]
+        const joined: string[] = [];
+        let connectionCb: ((s: any) => void) | null = null;
+        const io = {
+            on: (ev: string, cb: any) => { if (ev === 'connection') { connectionCb = cb; } },
+            to: (room: string) => ({ emit: (event: string, payload: any) => sent.push([room, event, payload]) }),
+            emit: () => {},
+        };
+        const transport = xnew.sync.socketio(io, { room: 'r1' });
+        const got: Array<[string, any]> = [];
+        transport.server.onAny((event, clientId, payload) => got.push([clientId, payload]));
+
+        // socket モック: onAny を保持。join を記録。
+        const anyOf = new Map<string, Function>();
+        const mk = (sid: string, room: string) => ({
+            id: sid, handshake: { query: { room } },
+            join: (r: string) => joined.push(`${sid}->${r}`),
+            onAny: (cb: any) => anyOf.set(sid, cb),
+            on: () => {},
+        });
+        connectionCb!(mk('s1', 'r1'));
+        connectionCb!(mk('s2', 'r2'));   // 別ルーム → 無視される
+
+        expect(joined).toContain('s1->r1');
+        expect(joined).not.toContain('s2->r2');
+        expect(anyOf.has('s2')).toBe(false);   // r2 の socket は wire されない
+
+        anyOf.get('s1')!('move', { syncId: 1, data: { x: 1 } });
+        expect(got).toEqual([['s1', { syncId: 1, data: { x: 1 } }]]);
+
+        transport.server.emit('sync', [{ id: 1 }]);
+        expect(sent).toContainEqual(['r1', 'sync', [{ id: 1 }]]);   // broadcast は io.to('r1') へ
+    });
+
     it('unit.on sync handler runs in the registering unit scope (inner xnew(...) parents correctly)', () => {
         function Child(_: Unit) {}
         let world!: Unit;

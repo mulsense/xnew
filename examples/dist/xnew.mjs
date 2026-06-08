@@ -1194,7 +1194,8 @@ function createLoopback() {
     }
     return { server, connect };
 }
-function createSocketioTransport(ioOrSocket) {
+function createSocketioTransport(ioOrSocket, opts = {}) {
+    const room = opts.room;
     let serverAdapter = null;
     return {
         get server() {
@@ -1212,6 +1213,13 @@ function createSocketioTransport(ioOrSocket) {
                 return set;
             };
             io.on('connection', (socket) => {
+                var _a, _b;
+                if (room !== undefined && ((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room) {
+                    return;
+                }
+                if (room !== undefined) {
+                    socket.join(room);
+                }
                 bucket('connect').forEach((fn) => fn(socket.id, undefined));
                 socket.onAny((event, payload) => {
                     var _a;
@@ -1220,10 +1228,11 @@ function createSocketioTransport(ioOrSocket) {
                 });
                 socket.on('disconnect', () => { var _a; return (_a = handlers.get('disconnect')) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, undefined)); });
             });
+            const target = () => (room !== undefined ? io.to(room) : io);
             serverAdapter = {
                 on: (event, handler) => bucket(event).add(handler),
                 off: (event, handler) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler); },
-                emit: (event, payload) => io.emit(event, payload),
+                emit: (event, payload) => target().emit(event, payload),
                 to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
                 onAny: (handler) => anyHandlers.add(handler),
             };
@@ -1547,8 +1556,8 @@ const xnew$1 = Object.assign((function (...args) {
         loopback() {
             return createLoopback();
         },
-        socketio(ioOrSocket) {
-            return createSocketioTransport(ioOrSocket);
+        socketio(ioOrSocket, opts) {
+            return createSocketioTransport(ioOrSocket, opts);
         },
         use(transport) {
             Unit.config.transport = transport;

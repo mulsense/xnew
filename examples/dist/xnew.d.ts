@@ -452,7 +452,9 @@ declare const xnew: XnewBase & {
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
         loopback(): ReturnType<typeof createLoopback>;
-        socketio(ioOrSocket: any): Transport;
+        socketio(ioOrSocket: any, opts?: {
+            room?: string;
+        }): Transport;
         use(transport: Transport): void;
         mirror(root: Unit): void;
         readonly clientId: string | undefined;

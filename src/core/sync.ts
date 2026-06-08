@@ -231,10 +231,13 @@ export function createLoopback(): Transport {
  * 渡す側を間違えないこと: server プロセスは io を、client は socket を渡す（boot が mode で使う側を選ぶ）。
  * socket.io への import 依存は持たず、メソッド名（on/onAny/emit/to/disconnect）に duck-type で乗るだけ。
  */
-export function createSocketioTransport(ioOrSocket: any): Transport {
+export function createSocketioTransport(ioOrSocket: any, opts: { room?: string } = {}): Transport {
+    const room = opts.room;
     let serverAdapter: ServerSocket | null = null;
     return {
         // server 側: io.on('connection') ごとに onAny で全イベントを (clientId, payload) へ橋渡しする。
+        // room 指定時は「query.room が一致する socket だけ」を扱い、配信も io.to(room) に絞る（複数ルームが
+        // 1 つの io を共有するため）。
         get server(): ServerSocket {
             if (serverAdapter !== null) { return serverAdapter; }
             const io = ioOrSocket;
@@ -246,6 +249,8 @@ export function createSocketioTransport(ioOrSocket: any): Transport {
                 return set;
             };
             io.on('connection', (socket: any) => {
+                if (room !== undefined && socket.handshake?.query?.room !== room) { return; }   // 別ルームは無視
+                if (room !== undefined) { socket.join(room); }   // io.to(room) の宛先にする
                 bucket('connect').forEach((fn) => fn(socket.id, undefined));
                 socket.onAny((event: string, payload: any) => {
                     handlers.get(event)?.forEach((fn) => fn(socket.id, payload));
@@ -253,10 +258,11 @@ export function createSocketioTransport(ioOrSocket: any): Transport {
                 });
                 socket.on('disconnect', () => handlers.get('disconnect')?.forEach((fn) => fn(socket.id, undefined)));
             });
+            const target = () => (room !== undefined ? io.to(room) : io);   // broadcast 先（room 指定時はそのルームだけ）
             serverAdapter = {
                 on: (event, handler) => bucket(event).add(handler),
                 off: (event, handler) => handlers.get(event)?.delete(handler),
-                emit: (event, payload) => io.emit(event, payload),
+                emit: (event, payload) => target().emit(event, payload),
                 to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
                 onAny: (handler) => anyHandlers.add(handler),
             };
