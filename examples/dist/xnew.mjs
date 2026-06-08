@@ -601,7 +601,7 @@ function isSystemEvent(type) {
 }
 class Unit {
     constructor(parent, ...args) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         let target;
         let Component;
         let props;
@@ -615,6 +615,7 @@ class Unit {
             Component = args[0];
             props = args[1];
         }
+        const key = (_a = props === null || props === void 0 ? void 0 : props.key) !== null && _a !== void 0 ? _a : null;
         const backup = Unit.currentUnit;
         Unit.currentUnit = this;
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
@@ -625,7 +626,7 @@ class Unit {
         else if (parent !== null) {
             baseElement = parent._.currentElement;
         }
-        else if ((_a = globalThis.document) === null || _a === void 0 ? void 0 : _a.body) {
+        else if ((_b = globalThis.document) === null || _b === void 0 ? void 0 : _b.body) {
             baseElement = globalThis.document.body;
         }
         else {
@@ -641,7 +642,7 @@ class Unit {
         else {
             baseComponent = (unit) => { };
         }
-        const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
+        const baseContext = (_c = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _c !== void 0 ? _c : { previous: null };
         this._ = {
             parent,
             status: 'invoked',
@@ -660,10 +661,11 @@ class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
-            mode: parent ? ((_d = (_c = parent._.mode) !== null && _c !== void 0 ? _c : Unit.config.mode) !== null && _d !== void 0 ? _d : null) : null,
+            mode: parent ? ((_e = (_d = parent._.mode) !== null && _d !== void 0 ? _d : Unit.config.mode) !== null && _e !== void 0 ? _e : null) : null,
             state: null,
             syncId: null,
             injected: Unit.injectedSlot,
+            key,
             syncRegistry: null,
             socket: Unit.socketSlot,
         };
@@ -684,6 +686,9 @@ class Unit {
     }
     get element() {
         return this._.currentElement;
+    }
+    get key() {
+        return this._.key;
     }
     start() {
         this._.tostart = true;
@@ -810,16 +815,9 @@ class Unit {
         }
     }
     static update(unit) {
-        const previous = Unit.duringUpdate;
-        Unit.duringUpdate = true;
-        try {
-            if (unit._.status === 'started') {
-                unit._.children.forEach((child) => Unit.update(child));
-                unit._.systems.update.forEach(({ execute }) => execute());
-            }
-        }
-        finally {
-            Unit.duringUpdate = previous;
+        if (unit._.status === 'started') {
+            unit._.children.forEach((child) => Unit.update(child));
+            unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
     static render(unit) {
@@ -892,11 +890,14 @@ class Unit {
     static isVisible(boundary, current, ancestors) {
         return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
     }
-    static find(Component) {
+    static find(Component, key) {
         var _a;
         const current = Unit.currentUnit;
         const ancestors = Unit.ancestors(current);
         return [...((_a = Unit.component2units.get(Component)) !== null && _a !== void 0 ? _a : [])].filter((unit) => {
+            if (key !== undefined && unit._.key !== key) {
+                return false;
+            }
             return Unit.isVisible(Unit.protectBoundary(unit._.parent), current, ancestors);
         });
     }
@@ -958,7 +959,6 @@ class Unit {
         }
     }
 }
-Unit.duringUpdate = false;
 Unit.config = { mode: null, transport: null };
 Unit.syncIdCounter = 1;
 Unit.injectedSlot = null;
@@ -1258,102 +1258,6 @@ function mirrorRoot(root) {
     }
 }
 
-function createGroup(owner, spawnChild) {
-    const index = new Map();
-    const queue = [];
-    let flushRegistered = false;
-    const enqueue = (op) => {
-        queue.push(op);
-        if (flushRegistered === false) {
-            flushRegistered = true;
-            owner.on('update', () => {
-                const ops = queue.splice(0);
-                ops.forEach((op) => op());
-            });
-        }
-    };
-    const create = (key, props) => {
-        const existing = index.get(key);
-        if (existing !== undefined) {
-            return existing;
-        }
-        const unit = spawnChild(props);
-        index.set(key, unit);
-        unit.on('finalize', () => {
-            if (index.get(key) === unit) {
-                index.delete(key);
-            }
-        });
-        return unit;
-    };
-    const remove = (key) => {
-        const unit = index.get(key);
-        if (unit === undefined) {
-            return false;
-        }
-        unit.finalize();
-        return true;
-    };
-    const reconcileNow = (want, propsFn) => {
-        for (const key of want) {
-            if (index.has(key) === false) {
-                create(key, propsFn ? propsFn(key) : undefined);
-            }
-        }
-        for (const key of [...index.keys()]) {
-            if (want.has(key) === false) {
-                remove(key);
-            }
-        }
-    };
-    return {
-        get size() {
-            return index.size;
-        },
-        get(key) {
-            return index.get(key);
-        },
-        has(key) {
-            return index.has(key);
-        },
-        keys() {
-            return index.keys();
-        },
-        values() {
-            return index.values();
-        },
-        [Symbol.iterator]() {
-            return index.entries();
-        },
-        spawn(key, props) {
-            if (Unit.duringUpdate === true) {
-                return create(key, props);
-            }
-            enqueue(() => create(key, props));
-            return undefined;
-        },
-        delete(key) {
-            if (Unit.duringUpdate === true) {
-                return remove(key);
-            }
-            enqueue(() => remove(key));
-            return false;
-        },
-        reconcile(keys, propsFn) {
-            const want = new Set(keys);
-            if (Unit.duringUpdate === true) {
-                reconcileNow(want, propsFn);
-            }
-            else {
-                enqueue(() => reconcileNow(want, propsFn));
-            }
-        },
-        clear() {
-            this.reconcile([]);
-        },
-    };
-}
-
 const xnew$1 = Object.assign((function (...args) {
     var _a, _b;
     if (Unit.rootUnit === undefined)
@@ -1491,25 +1395,12 @@ const xnew$1 = Object.assign((function (...args) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
         return (...args) => Unit.scope(snapshot, callback, ...args);
     },
-    find(Component) {
+    find(Component, opts) {
         try {
-            return Unit.find(Component);
+            return Unit.find(Component, opts === null || opts === void 0 ? void 0 : opts.key);
         }
         catch (error) {
-            console.error('xnew.find(Component: Function): ', error);
-            throw error;
-        }
-    },
-    group(Component) {
-        try {
-            const owner = Unit.currentUnit;
-            if (owner === null) {
-                throw new Error('xnew.group can not be called outside a component.');
-            }
-            return createGroup(owner, (props) => xnew$1(owner, Component, props));
-        }
-        catch (error) {
-            console.error('xnew.group(Component: Function): ', error);
+            console.error('xnew.find(Component: Function, opts?): ', error);
             throw error;
         }
     },
@@ -1629,8 +1520,10 @@ const xnew$1 = Object.assign((function (...args) {
                 throw new Error('xnew.sync.on can not be called outside a component.');
             }
             const socket = getRootSocket(unit);
-            socket.on(event, handler);
-            unit.on('finalize', () => socket.off(event, handler));
+            const snapshot = Unit.snapshot(unit);
+            const scoped = (...args) => Unit.scope(snapshot, handler, ...args);
+            socket.on(event, scoped);
+            unit.on('finalize', () => socket.off(event, scoped));
         },
         boot(mode, ...args) {
             if (Unit.rootUnit === undefined) {

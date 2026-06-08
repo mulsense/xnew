@@ -84,6 +84,7 @@ export class Unit {
         listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
 
+        key: any;   // 予約 prop `key` の値（同一性の目印。xnew.find(Component, { key }) で引ける。未指定なら null）
         mode: Mode;
         state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
         syncId: number | null;
@@ -106,6 +107,10 @@ export class Unit {
             Component = args[0] as Function | string | number | undefined;
             props = args[1] as Object | undefined;
         }
+
+        // 予約 prop `key`: 同一性の目印としてユニットに保持する（xnew.find(Component, { key }) で引ける）。
+        // props には残したまま（コンポーネントが読みたければ読める）。未指定なら null。
+        const key = (props as any)?.key ?? null;
 
         const backup = Unit.currentUnit;
         Unit.currentUnit = this;
@@ -163,6 +168,7 @@ export class Unit {
             // 構築開始時にグローバル注入スロットを退避（無ければ null）。各 xnew.sync.state が
             // 消費せず参照し、サーバー値をキー単位で初期値より優先する。即 null 化で子へ漏らさない。
             injected: Unit.injectedSlot,
+            key,
             syncRegistry: null,
             // boot がセットした socket をこの（boot ルート）unit に退避し、即クリアして子へ漏らさない。
             socket: Unit.socketSlot,
@@ -191,6 +197,10 @@ export class Unit {
     
     public get element(): DomElement {
         return this._.currentElement;
+    }
+
+    public get key(): any {
+        return this._.key;
     }
 
     public start(): void {
@@ -329,20 +339,10 @@ export class Unit {
         }
     }
 
-    // update 走査中だけ true（xnew.group が「今ツリーを安全に変更してよいか」を判定するための信号）。
-    // 走査外（socket の on ハンドラ等）からの spawn/delete は次 update へ遅延される。
-    static duringUpdate: boolean = false;
-
     static update(unit: Unit): void {
-        const previous = Unit.duringUpdate;
-        Unit.duringUpdate = true;
-        try {
-            if (unit._.status === 'started') {
-                unit._.children.forEach((child: Unit) => Unit.update(child));
-                unit._.systems.update.forEach(({ execute }) => execute());
-            }
-        } finally {
-            Unit.duringUpdate = previous;
+        if (unit._.status === 'started') {
+            unit._.children.forEach((child: Unit) => Unit.update(child));
+            unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
 
@@ -435,10 +435,13 @@ export class Unit {
         return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
     }
 
-    static find(Component: Function): Unit[] {
+    static find(Component: Function, key?: any): Unit[] {
         const current = Unit.currentUnit;
         const ancestors = Unit.ancestors(current);
         return [...(Unit.component2units.get(Component) ?? [])].filter((unit) => {
+            if (key !== undefined && unit._.key !== key) {
+                return false;   // key 指定時は一致するユニットだけ（key はグローバル一意の想定）
+            }
             return Unit.isVisible(Unit.protectBoundary(unit._.parent), current, ancestors);
         });
     }

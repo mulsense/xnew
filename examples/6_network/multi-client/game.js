@@ -5,12 +5,11 @@ import xnew from '@mulsense/xnew';
 //   ネットワークは xnew.sync（emit/on/clientId）だけに依存。transport は起動側が xnew.sync.use(...) で差す。
 //
 //   - World  : server/client 共通ルート。socket バインドと状態の下り(mirror)は xnew.sync.boot が自動で行う。
-//       server: clientId をキーにした xnew.group(Player) を 'join' で spawn / 'disconnect' で delete。
+//       server: 'join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
 //       client: ペインを生成し emit('join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」。
 //               選択中のペインだけ入力(WASD/矢印)を emit('move') で送る。
 //   - Player : synced state {x, y, clientId}。server が 'move' の方向を vel に保持→update で積分、client が描画。
-//   - 注意: on ハンドラは tick の外で走るので素の unit 生成/finalize はしないが、xnew.group の spawn/delete は
-//           tick 外から呼んでも次 update へ自動遅延されるので on ハンドラから直接使える。
+//   - key: xnew(C, { key }) で同一性の目印を付け、xnew.find(C, { key }) で引ける（key はグローバル一意の想定）。
 //----------------------------------------------------------------------------------------------------
 
 const FIELD = { w: 224, h: 144 };   // 自機(16px)が 240x160 のペインに収まる移動範囲
@@ -45,10 +44,10 @@ export function World(unit) {
     xnew.sync.register({ Player });   // 同期対象の型を宣言
 
     xnew.server(() => {
-        // clientId をキーに Player を管理。spawn/delete は on(tick 外)から呼んでも次 update で安全に適用される。
-        const players = xnew.group(Player);
-        xnew.sync.on('join', (clientId) => players.spawn(clientId, { clientId }));
-        xnew.sync.on('disconnect', (clientId) => players.delete(clientId));
+        // clientId を key にして Player を生成（同一性の目印）。disconnect では key で引いて finalize。
+        // sync.on は登録元ユニットのスコープで走るので、xnew(Player) は World の子として生成される。
+        xnew.sync.on('join', (clientId) => xnew(Player, { key: clientId, clientId }));
+        xnew.sync.on('disconnect', (clientId) => xnew.find(Player, { key: clientId })[0]?.finalize());
     });
 
     xnew.client(() => {

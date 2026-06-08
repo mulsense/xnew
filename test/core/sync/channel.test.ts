@@ -241,4 +241,24 @@ describe('event channel (socket.io-compatible transport)', () => {
 
         expect(received).toEqual([['s1', { dx: 1 }]]);
     });
+
+    it('xnew.sync.on runs the handler in the registering unit scope (inner xnew(...) parents correctly)', () => {
+        function Child(_: Unit) {}
+        let world!: Unit;
+        function World(unit: Unit) {
+            world = unit;
+            // ハンドラ内で生成した Child は、登録元(World)の子として作られなければならない。
+            xnew.sync.on('join', (clientId: string) => xnew(Child, { key: clientId, clientId }));
+        }
+        const transport = xnew.sync.loopback();
+        xnew.sync.use(transport);
+        xnew.sync.boot('server', World);
+
+        // 同じ transport の client が join を送ると server の on('join') が発火する。
+        transport.connect('c1').emit('join', 'c1');
+
+        const child = xnew.find(Child, { key: 'c1' })[0];
+        expect(child).toBeDefined();
+        expect(child.parent).toBe(world);   // stale な currentUnit でなく World の子
+    });
 });

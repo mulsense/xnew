@@ -27,4 +27,36 @@ describe('xnew.find', () => {
         unit.finalize();
         expect(xnew.find(A)).not.toContain(unit);
     });
+
+    describe('by reserved key prop', () => {
+        function A(_: Unit) {}
+
+        it('stores the key prop on the unit and exposes it via unit.key', () => {
+            const a = xnew(A, { key: 'k1', extra: 1 });
+            expect(a.key).toBe('k1');
+            expect(xnew(A).key).toBeNull();   // 未指定なら null
+        });
+
+        it('filters results to the matching key', () => {
+            let a1!: Unit, a2!: Unit;
+            xnew(() => { a1 = xnew(A, { key: 'k1' }); a2 = xnew(A, { key: 'k2' }); });
+            expect(xnew.find(A, { key: 'k1' })).toEqual([a1]);
+            expect(xnew.find(A, { key: 'k2' })).toEqual([a2]);
+            expect(xnew.find(A, { key: 'missing' })).toEqual([]);
+        });
+
+        it('excludes keyless units when a key is given, but includes them without one', () => {
+            let keyed!: Unit, keyless!: Unit;
+            xnew(() => { keyed = xnew(A, { key: 'k1' }); keyless = xnew(A); });
+            expect(xnew.find(A, { key: 'k1' })).toEqual([keyed]);
+            expect(xnew.find(A)).toEqual(expect.arrayContaining([keyed, keyless]));
+            expect(xnew.find(A)).toHaveLength(2);
+        });
+
+        it('preserves falsy keys (0 / empty string) rather than treating them as absent', () => {
+            const zero = xnew(A, { key: 0 });
+            expect(zero.key).toBe(0);
+            expect(xnew.find(A, { key: 0 })).toEqual([zero]);
+        });
+    });
 });

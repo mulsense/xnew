@@ -10,8 +10,7 @@
 //
 // - xnew(...)                            : create a child Unit
 // - xnew.nest / extend                   : extend the current Unit during initialization
-// - xnew.find                            : lookup
-// - xnew.group                           : keyed collection of child units (spawn/despawn/reconcile)
+// - xnew.find                            : lookup (optionally by reserved `key` prop)
 // - xnew.context                         : ancestor context lookup
 // - xnew.promise / then / catch / finally / defer / collect
 //                                          promises bound to the current Unit
@@ -28,8 +27,6 @@ import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } f
 import { DomElement } from './element';
 import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot } from './sync';
 import type { Transport } from './sync';
-import { createGroup } from './group';
-import type { Group } from './group';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -279,40 +276,18 @@ export const xnew = Object.assign(
          * @param Component - Component function to search for
          * @returns Array of Unit instances matching the component
          * @throws Error if component parameter is invalid
+         * @param Component - Component function to search for
+         * @param opts - optional filter. `key` restricts results to units created with a matching
+         *               reserved `key` prop (`xnew(Component, { key })`). key はグローバル一意の想定。
          * @example
          * const buttons = xnew.find(ButtonComponent)
-         * buttons.forEach(btn => btn.finalize())
+         * const player = xnew.find(Player, { key: clientId })[0]
          */
-        find(Component: Function): Unit[] {
+        find(Component: Function, opts?: { key?: any }): Unit[] {
             try {
-                return Unit.find(Component);
+                return Unit.find(Component, opts?.key);
             } catch (error: unknown) {
-                console.error('xnew.find(Component: Function): ', error);
-                throw error;
-            }
-        },
-
-        /**
-         * Creates a keyed collection of child units owned by the current component.
-         * Unlike xnew.find (global, key-less, no lifecycle), the group looks up by key, is scoped to
-         * its own children, and manages spawn/despawn. Mutations apply during the owner's update tick;
-         * calls from outside the tick (e.g. socket on-handlers) are deferred to the next update.
-         * @param Component - component function instantiated for each key
-         * @returns a Group manager (get/has/size/keys/values/spawn/delete/reconcile/clear)
-         * @example
-         * const players = xnew.group(Player)
-         * players.spawn('c1', { clientId: 'c1' })   // idempotent
-         * players.reconcile(joined, (id) => ({ clientId: id }))
-         */
-        group<K = any>(Component: Function): Group<K> {
-            try {
-                const owner = Unit.currentUnit;
-                if (owner === null) {
-                    throw new Error('xnew.group can not be called outside a component.');
-                }
-                return createGroup<K>(owner, (props?: object) => (xnew as any)(owner, Component, props));
-            } catch (error: unknown) {
-                console.error('xnew.group(Component: Function): ', error);
+                console.error('xnew.find(Component: Function, opts?): ', error);
                 throw error;
             }
         },
@@ -526,9 +501,14 @@ export const xnew = Object.assign(
                     throw new Error('xnew.sync.on can not be called outside a component.');
                 }
                 const socket = getRootSocket(unit);
-                socket.on(event, handler as any);
+                // ハンドラは socket 発火時（tick/scope の外）に呼ばれるため、登録元ユニットのスコープで実行する。
+                // これで内部の xnew(...) が正しい親（このユニット）の子として生成される。unit 消滅時は scope が
+                // 早期 return するので安全。
+                const snapshot = Unit.snapshot(unit);
+                const scoped = (...args: any[]) => Unit.scope(snapshot, handler, ...args);
+                socket.on(event, scoped as any);
                 // unit が消えたらハンドラも外す（共有 server socket にハンドラが溜まらないように）
-                unit.on('finalize', () => socket.off(event, handler as any));
+                unit.on('finalize', () => socket.off(event, scoped as any));
             },
 
             /**
