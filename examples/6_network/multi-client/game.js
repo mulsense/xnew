@@ -10,8 +10,8 @@ import xnew from '@mulsense/xnew';
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。
 //       server: '-move'（同一コンポーネント宛て）で方向を vel に保持→update で積分。
 //       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.clientId。
-//   - sync イベント: emit/on は payload を 1 オブジェクトに統一（handler は { id, ...payload }）。プレフィックス
-//       '-'=同一コンポーネント(同じ syncId 宛て・client replica↔server で一致) / '+'・無印=全体。
+//   - sync イベント: 送信は xnew.sync.emit（payload はオブジェクト・syncId 自動付与）、受信は unit.on（受信 unit を明示）。
+//       handler は { id, ...payload }。プレフィックス '-'=同一コンポーネント(同じ syncId・replica↔server で一致) / '+'・無印=全体。
 //   - key: xnew(C, { key }) で同一性の目印を付け、xnew.find(C, { key }) で引ける（key はグローバル一意の想定）。
 //----------------------------------------------------------------------------------------------------
 
@@ -26,7 +26,8 @@ export function Player(unit, { clientId = '' } = {}) {
     xnew.server(() => {
         const vel = { x: 0, y: 0 };   // 受けた方向(速度)。update で積分し、押しっぱなしで動き続ける
         // '-move' = 同一コンポーネント宛て。自機(同じ syncId の client replica)からの move だけが届く（id 判定不要）。
-        xnew.sync.on('-move', ({ vector }) => {
+        // 受け手は unit.on（受信 unit = この Player を明示）。socket→unit.on の橋渡しは boot が配線する。
+        unit.on('-move', ({ vector }) => {
             vel.x = Math.sign(vector?.x || 0);
             vel.y = Math.sign(vector?.y || 0);
         });
@@ -64,8 +65,8 @@ export function World(unit) {
     xnew.server(() => {
         // clientId を key にして Player を生成（同一性の目印）。disconnect では key で引いて finalize。
         // sync.on は登録元ユニットのスコープで走るので、xnew(Player) は World の子として生成される。
-        xnew.sync.on('join', ({ id }) => xnew(Player, { key: id, clientId: id }));
-        xnew.sync.on('disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());
+        unit.on('join', ({ id }) => xnew(Player, { key: id, clientId: id }));
+        unit.on('disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());
     });
 
     xnew.client(() => {

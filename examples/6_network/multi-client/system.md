@@ -46,7 +46,7 @@
 | `xnew.sync.mirror(unit)` | コンポーネント body | （`io.emit` / `socket.on`） | 状態の下りを 1 行で配線（server=capture→broadcast / client=apply） |
 | `xnew.sync.clientId` | client コンポーネント | `socket.id` | このルートの自動発番 id（手動で渡さない）。server では undefined |
 | `xnew.sync.emit(event, payload)` | コンポーネント / handler | `socket.emit(event, payload)` | 送信。payload はオブジェクト。送信ユニットの syncId を自動付与。`-`=同一コンポーネント宛て / `+`・無印=全体 |
-| `xnew.sync.on(event, handler)` | コンポーネント init | `socket.on(event, cb)` | 受信。handler は単一オブジェクト `{ id, ...payload }`（id=送信元 clientId）。`-event` は送信元と同じ syncId のときだけ発火。複数登録可・自動 off |
+| `unit.on(event, handler)` | コンポーネント init | `socket.on(event, cb)` | **受信は unit.on に統一**（受信 unit を明示）。handler は `{ type, id, ...payload }`（id=送信元 clientId）。`-event` は送信元と同じ syncId のときだけ発火。socket→unit.on の橋渡しは boot が配線 |
 
 `xnew.sync.state` / `register`（同期する state と種類の宣言）と、`capture` / `apply`（mirror を使わず手動配信する低レベル）は
 [../state-sync/system.md](../state-sync/system.md) 参照。このサンプルでは下りは `mirror` に任せる。
@@ -58,9 +58,12 @@
 - **キー入力は xnew の window イベントで受ける**: `unit.on('window.keydown.wasd window.keyup.wasd window.keydown.arrow
   window.keyup.arrow', ({ event, vector }) => ...)`。`vector` は `{x,y} ∈ {-1,0,1}`（WASD と矢印で同じ形）。
   socket.io-simple の `public/app.js` と同じ書き方。
-- **`on`（sync）のハンドラは tick の外で走る**（loopback では emit 中、本物の socket.io ではネットワークコールバック）。
-  なので中で **unit 生成/finalize はしない**。`xnew.sync.state`/closure で掴んだ変数を更新するに留める。
-  `xnew.sync.on` は登録元の unit が finalize されると自動で off される。
+- **sync イベントの受信は `unit.on(event, …)` に統一**（送信は `xnew.emit`(ローカル) と `xnew.sync.emit`(ネット)で区別）。
+  socket で届いた同期イベントを対象 unit のリスナへ橋渡しするディスパッチャを boot が設置する。受信 unit が
+  finalize されればリスナも自動で消える。なお `unit.on('-move')` は **ローカルの `xnew.emit('-move')` でも発火**する
+  （受信側は送信元を区別しない）。
+- ハンドラは tick の外で走る場合がある（socket 受信時）が、`unit.on` は登録元 unit のスコープで実行されるので、
+  ハンドラ内の `xnew(...)` は正しい親（その unit）の子として生成できる。
 
 ## 2. 2 つの起動 — 切り替えは transport だけ
 

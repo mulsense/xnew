@@ -1138,6 +1138,8 @@ function applyStateTree(root, tree) {
 function createLoopback() {
     const serverHandlers = new Map();
     const clients = new Map();
+    const serverAnyHandlers = new Set();
+    const clientAnyHandlers = new Map();
     let seq = 0;
     const addHandler = (map, event, handler) => {
         if (map.has(event) === false) {
@@ -1152,10 +1154,14 @@ function createLoopback() {
     const fireServer = (event, clientId, payload) => {
         var _a;
         (_a = serverHandlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((handler) => handler(clientId, payload));
+        if (event !== 'connect' && event !== 'disconnect') {
+            serverAnyHandlers.forEach((handler) => handler(event, clientId, payload));
+        }
     };
     const fireClient = (clientId, event, payload) => {
-        var _a, _b;
+        var _a, _b, _c;
         (_b = (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.get(event)) === null || _b === void 0 ? void 0 : _b.forEach((handler) => handler(payload));
+        (_c = clientAnyHandlers.get(clientId)) === null || _c === void 0 ? void 0 : _c.forEach((handler) => handler(event, payload));
     };
     const server = {
         on(event, handler) { addHandler(serverHandlers, event, handler); },
@@ -1164,12 +1170,14 @@ function createLoopback() {
             fireClient(clientId, event, payload);
         } },
         to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
+        onAny(handler) { serverAnyHandlers.add(handler); },
     };
     function connect(clientId) {
         if (clientId === undefined) {
             clientId = 'c' + (++seq);
         }
         clients.set(clientId, new Map());
+        clientAnyHandlers.set(clientId, new Set());
         fireServer('connect', clientId);
         return {
             id: clientId,
@@ -1180,7 +1188,8 @@ function createLoopback() {
             off(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
                 removeHandler(map, event, handler);
             } },
-            disconnect() { clients.delete(clientId); fireServer('disconnect', clientId); },
+            onAny(handler) { var _a; (_a = clientAnyHandlers.get(clientId)) === null || _a === void 0 ? void 0 : _a.add(handler); },
+            disconnect() { clients.delete(clientId); clientAnyHandlers.delete(clientId); fireServer('disconnect', clientId); },
         };
     }
     return { server, connect };
@@ -1194,6 +1203,7 @@ function createSocketioTransport(ioOrSocket) {
             }
             const io = ioOrSocket;
             const handlers = new Map();
+            const anyHandlers = new Set();
             const bucket = (event) => {
                 let set = handlers.get(event);
                 if (set === undefined) {
@@ -1203,7 +1213,11 @@ function createSocketioTransport(ioOrSocket) {
             };
             io.on('connection', (socket) => {
                 bucket('connect').forEach((fn) => fn(socket.id, undefined));
-                socket.onAny((event, payload) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, payload)); });
+                socket.onAny((event, payload) => {
+                    var _a;
+                    (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, payload));
+                    anyHandlers.forEach((fn) => fn(event, socket.id, payload));
+                });
                 socket.on('disconnect', () => { var _a; return (_a = handlers.get('disconnect')) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, undefined)); });
             });
             serverAdapter = {
@@ -1211,6 +1225,7 @@ function createSocketioTransport(ioOrSocket) {
                 off: (event, handler) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler); },
                 emit: (event, payload) => io.emit(event, payload),
                 to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
+                onAny: (handler) => anyHandlers.add(handler),
             };
             return serverAdapter;
         },
@@ -1221,6 +1236,7 @@ function createSocketioTransport(ioOrSocket) {
                 emit: (event, payload) => socket.emit(event, payload),
                 on: (event, handler) => socket.on(event, handler),
                 off: (event, handler) => socket.off(event, handler),
+                onAny: (handler) => socket.onAny(handler),
                 disconnect: () => socket.disconnect(),
             };
         },
@@ -1256,6 +1272,46 @@ function mirrorRoot(root) {
         socket.on('sync', handler);
         root.on('finalize', () => socket.off('sync', handler));
     }
+}
+const dispatchedRoots = new WeakSet();
+function installSyncDispatch(root) {
+    if (dispatchedRoots.has(root)) {
+        return;
+    }
+    dispatchedRoots.add(root);
+    const socket = getRootSocket(root);
+    if (root._.mode === 'server') {
+        socket.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
+        socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+        socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+    }
+    else if (root._.mode === 'client') {
+        socket.onAny((event, message) => dispatchSync(root, event, undefined, message));
+    }
+}
+function dispatchSync(root, event, id, message) {
+    if (root._.status === 'finalized') {
+        return;
+    }
+    const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
+    const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
+    const props = Object.assign({ id }, data);
+    const targets = Unit.type2units.get(event);
+    if (targets === undefined) {
+        return;
+    }
+    const sameComponent = event[0] === '-';
+    const syncId = isEnvelope ? message.syncId : undefined;
+    targets.forEach((unit) => {
+        var _a;
+        if (bootRoot(unit) !== root) {
+            return;
+        }
+        if (sameComponent && unit._.syncId !== syncId) {
+            return;
+        }
+        (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
+    });
 }
 
 const xnew$1 = Object.assign((function (...args) {
@@ -1514,27 +1570,6 @@ const xnew$1 = Object.assign((function (...args) {
             }
             getRootSocket(unit).emit(event, { syncId: unit._.syncId, data: payload });
         },
-        on(event, handler) {
-            const unit = Unit.currentUnit;
-            if (unit === null) {
-                throw new Error('xnew.sync.on can not be called outside a component.');
-            }
-            const socket = getRootSocket(unit);
-            const sameComponent = event[0] === '-';
-            const isServer = unit._.mode === 'server';
-            const snapshot = Unit.snapshot(unit);
-            const scoped = (...args) => {
-                var _a, _b;
-                const id = isServer ? args[0] : undefined;
-                const message = isServer ? args[1] : args[0];
-                if (sameComponent && ((_a = message === null || message === void 0 ? void 0 : message.syncId) !== null && _a !== void 0 ? _a : null) !== unit._.syncId) {
-                    return;
-                }
-                Unit.scope(snapshot, handler, Object.assign({ id }, ((_b = message === null || message === void 0 ? void 0 : message.data) !== null && _b !== void 0 ? _b : {})));
-            };
-            socket.on(event, scoped);
-            unit.on('finalize', () => socket.off(event, scoped));
-        },
         boot(mode, ...args) {
             if (Unit.rootUnit === undefined) {
                 Unit.reset();
@@ -1551,6 +1586,7 @@ const xnew$1 = Object.assign((function (...args) {
                 const root = xnew$1(...args);
                 if (transport !== null) {
                     mirrorRoot(root);
+                    installSyncDispatch(root);
                 }
                 return root;
             }

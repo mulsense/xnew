@@ -23,6 +23,7 @@
 // - createSocketioTransport: socket.io の io / socket を Transport 形へ橋渡し（duck-type。import 依存なし）
 // - getRootSocket          : ルートにバインド済みの socket を解決（boot が _.socket へ自動バインドする）
 // - mirrorRoot             : 状態の下りを 1 呼び出しで配線（server=capture→emit('sync') / client=on('sync')→apply）
+// - installSyncDispatch    : socket で届いたイベントを対象 unit の unit.on(event) リスナへ橋渡し（'-'=同一 syncId / 他=全体）
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
@@ -151,6 +152,7 @@ export interface ClientSocket {
     emit(event: string, payload?: any): void;
     on(event: string, handler: (payload: any) => void): void;
     off(event: string, handler: (payload: any) => void): void;
+    onAny(handler: (event: string, payload: any) => void): void;   // 全イベント受信（dispatcher 用。connect/disconnect は除く）
     disconnect(): void;
 }
 
@@ -160,6 +162,7 @@ export interface ServerSocket {
     off(event: string, handler: (clientId: string, payload: any) => void): void;
     emit(event: string, payload?: any): void;                 // broadcast
     to(clientId: string): { emit(event: string, payload?: any): void };
+    onAny(handler: (event: string, clientId: string, payload: any) => void): void;   // 全イベント受信（connect/disconnect は除く）
 }
 
 export interface Transport { server: ServerSocket; connect(clientId?: string): ClientSocket; }
@@ -172,6 +175,8 @@ export interface Transport { server: ServerSocket; connect(clientId?: string): C
 export function createLoopback(): Transport {
     const serverHandlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
     const clients = new Map<string, Map<string, Set<(payload: any) => void>>>();
+    const serverAnyHandlers = new Set<(event: string, clientId: string, payload: any) => void>();
+    const clientAnyHandlers = new Map<string, Set<(event: string, payload: any) => void>>();
     let seq = 0;   // clientId 自動発番用（'c1', 'c2', ...）
 
     const addHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
@@ -183,9 +188,14 @@ export function createLoopback(): Transport {
     };
     const fireServer = (event: string, clientId: string, payload?: any): void => {
         serverHandlers.get(event)?.forEach((handler) => handler(clientId, payload));
+        // onAny は app イベントだけ（connect/disconnect は dispatcher が socket.on で別途受ける）。
+        if (event !== 'connect' && event !== 'disconnect') {
+            serverAnyHandlers.forEach((handler) => handler(event, clientId, payload));
+        }
     };
     const fireClient = (clientId: string, event: string, payload?: any): void => {
         clients.get(clientId)?.get(event)?.forEach((handler) => handler(payload));
+        clientAnyHandlers.get(clientId)?.forEach((handler) => handler(event, payload));
     };
 
     const server: ServerSocket = {
@@ -193,11 +203,13 @@ export function createLoopback(): Transport {
         off(event, handler) { removeHandler(serverHandlers, event, handler); },
         emit(event, payload) { for (const clientId of clients.keys()) { fireClient(clientId, event, payload); } },  // broadcast
         to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
+        onAny(handler) { serverAnyHandlers.add(handler); },
     };
 
     function connect(clientId?: string): ClientSocket {
         if (clientId === undefined) { clientId = 'c' + (++seq); }   // 未指定なら自動発番
         clients.set(clientId, new Map());
+        clientAnyHandlers.set(clientId, new Set());
         fireServer('connect', clientId);
         return {
             id: clientId,
@@ -206,7 +218,8 @@ export function createLoopback(): Transport {
             // boot の自動 mirror が finalize で off('sync') を呼ぶため、切断済みでも安全である必要がある）。
             on(event, handler) { const map = clients.get(clientId); if (map !== undefined) { addHandler(map, event, handler); } },
             off(event, handler) { const map = clients.get(clientId); if (map !== undefined) { removeHandler(map, event, handler); } },
-            disconnect() { clients.delete(clientId); fireServer('disconnect', clientId); },
+            onAny(handler) { clientAnyHandlers.get(clientId)?.add(handler); },
+            disconnect() { clients.delete(clientId); clientAnyHandlers.delete(clientId); fireServer('disconnect', clientId); },
         };
     }
 
@@ -226,6 +239,7 @@ export function createSocketioTransport(ioOrSocket: any): Transport {
             if (serverAdapter !== null) { return serverAdapter; }
             const io = ioOrSocket;
             const handlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
+            const anyHandlers = new Set<(event: string, clientId: string, payload: any) => void>();
             const bucket = (event: string) => {
                 let set = handlers.get(event);
                 if (set === undefined) { handlers.set(event, set = new Set()); }
@@ -233,7 +247,10 @@ export function createSocketioTransport(ioOrSocket: any): Transport {
             };
             io.on('connection', (socket: any) => {
                 bucket('connect').forEach((fn) => fn(socket.id, undefined));
-                socket.onAny((event: string, payload: any) => handlers.get(event)?.forEach((fn) => fn(socket.id, payload)));
+                socket.onAny((event: string, payload: any) => {
+                    handlers.get(event)?.forEach((fn) => fn(socket.id, payload));
+                    anyHandlers.forEach((fn) => fn(event, socket.id, payload));   // socket.io の onAny は connect/disconnect を含まない
+                });
                 socket.on('disconnect', () => handlers.get('disconnect')?.forEach((fn) => fn(socket.id, undefined)));
             });
             serverAdapter = {
@@ -241,6 +258,7 @@ export function createSocketioTransport(ioOrSocket: any): Transport {
                 off: (event, handler) => handlers.get(event)?.delete(handler),
                 emit: (event, payload) => io.emit(event, payload),
                 to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
+                onAny: (handler) => anyHandlers.add(handler),
             };
             return serverAdapter;
         },
@@ -252,6 +270,7 @@ export function createSocketioTransport(ioOrSocket: any): Transport {
                 emit: (event, payload) => socket.emit(event, payload),
                 on: (event, handler) => socket.on(event, handler),
                 off: (event, handler) => socket.off(event, handler),
+                onAny: (handler) => socket.onAny(handler),
                 disconnect: () => socket.disconnect(),
             };
         },
@@ -301,4 +320,55 @@ export function mirrorRoot(root: Unit): void {
         socket.on('sync', handler);
         root.on('finalize', () => socket.off('sync', handler));
     }
+}
+
+/** 既に dispatcher を設置したルート（boot から二重設置されないように）。 */
+const dispatchedRoots: WeakSet<Unit> = new WeakSet();
+
+/**
+ * socket で届いたイベントを、対象 unit の `unit.on(event)` リスナへ橋渡しするディスパッチャを設置する。
+ * 受け手が xnew.sync.on ではなく unit.on に統一されるため、socket→unit のルーティングをここで担う。
+ *   - '-event' … message.syncId と一致する syncId を持つ unit のリスナだけ発火（同一コンポーネント）。
+ *   - '+event' / 無印 … この root 配下で該当リスナを持つ全 unit を発火（全体）。
+ *   - connect/disconnect（transport 由来）… 同名イベントとして全体配信。
+ * handler へは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）を渡す。
+ */
+export function installSyncDispatch(root: Unit): void {
+    if (dispatchedRoots.has(root)) {
+        return;
+    }
+    dispatchedRoots.add(root);
+    const socket = getRootSocket(root);
+    if (root._.mode === 'server') {
+        (socket as ServerSocket).onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
+        socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+        socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+    } else if (root._.mode === 'client') {
+        (socket as ClientSocket).onAny((event, message) => dispatchSync(root, event, undefined, message));
+    }
+}
+
+/** 1 つの受信イベントを、root 配下の該当 unit リスナへ配る。 */
+function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
+    if (root._.status === 'finalized') {
+        return;
+    }
+    const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
+    const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
+    const props = { id, ...data };
+    const targets = Unit.type2units.get(event);
+    if (targets === undefined) {
+        return;
+    }
+    const sameComponent = event[0] === '-';
+    const syncId = isEnvelope ? message.syncId : undefined;
+    targets.forEach((unit) => {
+        if (bootRoot(unit) !== root) {
+            return;   // 別ルート（別 client / server）の unit には配らない
+        }
+        if (sameComponent && unit._.syncId !== syncId) {
+            return;   // '-' は同一 syncId のみ
+        }
+        unit._.listeners.get(event)?.forEach((item) => item.execute(props));
+    });
 }

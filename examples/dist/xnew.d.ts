@@ -195,6 +195,7 @@ interface ClientSocket {
     emit(event: string, payload?: any): void;
     on(event: string, handler: (payload: any) => void): void;
     off(event: string, handler: (payload: any) => void): void;
+    onAny(handler: (event: string, payload: any) => void): void;
     disconnect(): void;
 }
 interface ServerSocket {
@@ -204,6 +205,7 @@ interface ServerSocket {
     to(clientId: string): {
         emit(event: string, payload?: any): void;
     };
+    onAny(handler: (event: string, clientId: string, payload: any) => void): void;
 }
 interface Transport {
     server: ServerSocket;
@@ -455,7 +457,6 @@ declare const xnew: XnewBase & {
         mirror(root: Unit): void;
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
-        on(event: string, handler: (payload: Record<string, any>) => void): void;
         boot(mode: Mode, ...args: any[]): any;
     };
 } & {

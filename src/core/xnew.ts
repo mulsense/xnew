@@ -25,7 +25,7 @@
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot } from './sync';
+import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot, installSyncDispatch } from './sync';
 import type { Transport } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -426,8 +426,9 @@ export const xnew = Object.assign(
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
          * - emit     : イベント送信（client→server / server→client）。payload はオブジェクト。送信ユニットの
          *              syncId を自動付与。プレフィックス '-'=同一コンポーネント(同一 syncId 宛て) / '+'・無印=全体
-         * - on       : イベント受信。ハンドラは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）。
-         *              '-event' は送信元と同じ syncId のときだけ発火。※ハンドラは登録元ユニットのスコープで実行
+         *   受信は xnew.sync.on ではなく **unit.on(event, ({ id, ...payload }) => …)** に統一（受信 unit を明示）。
+         *   handler が受ける object は xnew の慣習どおり { type, id, ...payload }（type=イベント名, id=送信元 clientId）。
+         *   socket→unit.on の橋渡しは boot が installSyncDispatch で配線する（'-' は同一 syncId のリスナだけ発火）。
          * - boot     : その mode(server/client) でルートを生成する唯一の公開手段。transport 使用時は
          *              socket 自動バインド + 状態の下り(mirror)の自動配線も行う
          */
@@ -498,32 +499,6 @@ export const xnew = Object.assign(
                 // ペイロードは data に包む。id（送信元 clientId）は受信側の transport が付与する。
                 getRootSocket(unit).emit(event, { syncId: unit._.syncId, data: payload });
             },
-            on(event: string, handler: (payload: Record<string, any>) => void): void {
-                const unit = Unit.currentUnit;
-                if (unit === null) {
-                    throw new Error('xnew.sync.on can not be called outside a component.');
-                }
-                const socket = getRootSocket(unit);
-                // '-' = 同一コンポーネント（送信ユニットと同じ syncId のときだけ発火）。'+' / 無印 = 全体。
-                const sameComponent = event[0] === '-';
-                const isServer = unit._.mode === 'server';
-                // ハンドラは socket 発火時（tick/scope の外）に呼ばれるため、登録元ユニットのスコープで実行する。
-                // これで内部の xnew(...) が正しい親（このユニット）の子として生成される。unit 消滅時は scope が
-                // 早期 return するので安全。handler へは単一オブジェクト { id, ...payload } を渡す（id=送信元 clientId）。
-                const snapshot = Unit.snapshot(unit);
-                const scoped = (...args: any[]) => {
-                    // server: (clientId, message) / client: (message)。connect/disconnect は message=undefined。
-                    const id = isServer ? args[0] : undefined;
-                    const message = isServer ? args[1] : args[0];
-                    if (sameComponent && (message?.syncId ?? null) !== unit._.syncId) {
-                        return;   // 別コンポーネント宛て（syncId 不一致）は無視
-                    }
-                    Unit.scope(snapshot, handler, { id, ...(message?.data ?? {}) });
-                };
-                socket.on(event, scoped as any);
-                // unit が消えたらハンドラも外す（共有 server socket にハンドラが溜まらないように）
-                unit.on('finalize', () => socket.off(event, scoped as any));
-            },
 
             /**
              * Creates a root Unit with the engine mode temporarily set to `mode`, restoring the
@@ -550,10 +525,11 @@ export const xnew = Object.assign(
                 }
                 try {
                     const root = (xnew as any)(...args);
-                    // transport がある＝socket バインド済みなら、状態の下り（server=broadcast / client=apply）を
-                    // ここで自動配線する。mirrorRoot は冪等なのでコンポーネント側で明示 mirror しても二重にならない。
+                    // transport がある＝socket バインド済みなら、状態の下り（mirror）と
+                    // socket→unit.on の橋渡し（dispatcher）をここで自動配線する（どちらも冪等）。
                     if (transport !== null) {
                         mirrorRoot(root);
+                        installSyncDispatch(root);
                     }
                     return root;
                 } finally {

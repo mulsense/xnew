@@ -69,8 +69,8 @@ describe('event channel (socket.io-compatible transport)', () => {
         xnew.sync.use(xnew.sync.loopback());   // 以後の boot が socket を自動バインド
 
         const received: Array<[string, any]> = [];
-        const server = xnew.sync.boot('server', function Server() {
-            xnew.server(() => { xnew.sync.on('move', ({ id, ...payload }) => received.push([id, payload])); });
+        const server = xnew.sync.boot('server', function Server(unit: Unit) {
+            xnew.server(() => { unit.on('move', ({ id, x }: any) => received.push([id, { x }])); });
         });
 
         let id1: string | undefined;
@@ -108,11 +108,11 @@ describe('event channel (socket.io-compatible transport)', () => {
         const hub = xnew.sync.loopback();
         xnew.sync.use(hub);
         let state: Record<string, any> = {};
-        xnew.sync.boot('server', function Server() {
+        xnew.sync.boot('server', function Server(unit: Unit) {
             xnew.server(() => {
                 state = xnew.sync.state({ x: 0 });
                 // 受信時に closure の state を直接更新（inbox 不要）。unit 生成等はしない。
-                xnew.sync.on('move', ({ dx }) => { state.x += dx; });
+                unit.on('move', ({ dx }: any) => { state.x += dx; });
             });
         });
 
@@ -128,7 +128,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         function Player(unit: Unit, props: { clientId?: string } = {}) {
             const state = xnew.sync.state({ x: 0, y: 0, clientId: props.clientId ?? '' });
             xnew.server(() => {
-                xnew.sync.on('move', ({ id, dx, dy }) => {
+                unit.on('move', ({ id, dx, dy }: any) => {
                     if (id !== state.clientId) { return; }     // 自分宛だけ（無印=全体なので id で絞る）
                     state.x += dx ?? 0;
                     state.y += dy ?? 0;
@@ -143,8 +143,8 @@ describe('event channel (socket.io-compatible transport)', () => {
             xnew.server(() => {
                 const connected = new Set<string>();
                 const players = new Map<string, Unit>();
-                xnew.sync.on('connect', ({ id }) => connected.add(id));
-                xnew.sync.on('disconnect', ({ id }) => connected.delete(id));
+                unit.on('connect', ({ id }: any) => connected.add(id));
+                unit.on('disconnect', ({ id }: any) => connected.delete(id));
                 unit.on('update', () => {
                     for (const clientId of connected) {
                         if (!players.has(clientId)) { players.set(clientId, xnew(Player, { clientId }) as unknown as Unit); }
@@ -243,13 +243,13 @@ describe('event channel (socket.io-compatible transport)', () => {
         expect(received).toEqual([['s1', { dx: 1 }]]);
     });
 
-    it('xnew.sync.on runs the handler in the registering unit scope (inner xnew(...) parents correctly)', () => {
+    it('unit.on sync handler runs in the registering unit scope (inner xnew(...) parents correctly)', () => {
         function Child(_: Unit) {}
         let world!: Unit;
         function World(unit: Unit) {
             world = unit;
             // ハンドラ内で生成した Child は、登録元(World)の子として作られなければならない。
-            xnew.sync.on('join', ({ id }) => xnew(Child, { key: id, clientId: id }));
+            unit.on('join', ({ id }: any) => xnew(Child, { key: id, clientId: id }));
         }
         const transport = xnew.sync.loopback();
         xnew.sync.use(transport);
@@ -270,7 +270,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         // server 側: syncId を持つ 2 ユニットが各々 on('-move') を登録。
         function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
             unit._.syncId = props.syncId ?? null;
-            xnew.server(() => { xnew.sync.on('-move', ({ vector }) => hits.push(`${props.tag}:${vector.x}`)); });
+            xnew.server(() => { unit.on('-move', ({ vector }: any) => hits.push(`${props.tag}:${vector.x}`)); });
         }
         xnew.sync.boot('server', function Server() {
             xnew.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
