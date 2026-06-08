@@ -18,7 +18,7 @@
 export class Ticker {
     private cancel: (() => void) | null = null;
 
-    constructor(callback: Function, fps: number = 30) {
+    constructor(callback: Function, fps: number = 60) {
         const interval = 1000 / fps;
         const minDelta = interval * 0.9;
         let previous = 0;

@@ -170,7 +170,7 @@ class BiMap {
 }
 
 class Ticker {
-    constructor(callback, fps = 30) {
+    constructor(callback, fps = 60) {
         this.cancel = null;
         const interval = 1000 / fps;
         const minDelta = interval * 0.9;
