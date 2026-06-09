@@ -24,7 +24,7 @@ describe('applyStateTree create', () => {
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
         expect(child._.sync.id).toBe(1);
-        expect(child._.sync.mode).toBe('client');
+        expect(child._.mode).toBe('client');
         expect(child._.sync.state).toEqual({ value: 7 });
     });
 

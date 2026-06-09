@@ -97,12 +97,12 @@ export class Unit {
         eventor: Eventor;
 
         key: any;   // reserved prop for find(key) (global unique assumed)
+        mode: Mode;   // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)。親から継承
 
         // server→client 同期に関わる状態は sync 配下にまとめる（xnew.sync.* と core/sync.ts が読む）。
         sync: {
             id: number | null;   // 同期ノード id（capture 時に採番。SyncNode.id と対応）
             root: Unit | null;   // この unit が属する同期ツリーのルート（boot root）。option.mode 指定なら自身、それ以外は親から継承
-            mode: Mode;
             state: Record<string, any> | null;   // synced state. xnew.sync.state で宣言、または options.state でプリシード（null until set）
             registry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
             socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
@@ -173,15 +173,15 @@ export class Unit {
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
             key,
+            // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
+            // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
+            // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
+            mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
             sync: {
                 id: null,
                 // option.mode が指定された（= boot 経由で生成された）unit を同期ツリーのルートとし、
                 // 自身を指す。それ以外は親のルートを継承する（engine root 配下は null）。
                 root: options?.mode !== undefined ? this : (parent?._.sync.root ?? null),
-                // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
-                // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
-                // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
-                mode: parent ? (parent._.sync.mode ?? options?.mode ?? null) : null,
                 // apply/sync が渡したサーバー状態を初期値としてプリシード（無ければ null）。
                 // xnew.sync.state は既存キーを尊重するので、これが宣言の initial より優先される。
                 state: options?.state ? { ...options.state } : null,

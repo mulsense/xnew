@@ -58,7 +58,7 @@ describe('loopback simulation (server/client blocks)', () => {
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Mover');
         expect(tree[0].parentId).toBeNull();
-        expect(server._.children[0]._.sync.mode).toBe('server');   // Main の server ブロックが生成した Mover
+        expect(server._.children[0]._.mode).toBe('server');   // Main の server ブロックが生成した Mover
 
         function cycle() {
             Unit.start(Unit.engineRoot);
@@ -72,7 +72,7 @@ describe('loopback simulation (server/client blocks)', () => {
         // client Main の下に replica Mover が生成され、nest した既存 view 要素の配下に mount される。
         const replicaMover = client._.children[0];
         expect(replicaMover).toBeDefined();
-        expect(replicaMover._.sync.mode).toBe('client');
+        expect(replicaMover._.mode).toBe('client');
         expect(replicaMover._.sync.state!.position).toBe(1);
         expect(view.contains(replicaMover.element as Node)).toBe(true);
         expect((replicaMover.element as HTMLElement).style.left).toBe('1px');

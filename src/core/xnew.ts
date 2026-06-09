@@ -379,7 +379,7 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.server can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.sync.mode === 'client') {
+                if (Unit.currentUnit._.mode === 'client') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
@@ -400,7 +400,7 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.client can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.sync.mode === 'server') {
+                if (Unit.currentUnit._.mode === 'server') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;

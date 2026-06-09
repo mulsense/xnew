@@ -306,10 +306,10 @@ export function mirrorRoot(root: Unit): void {
         return;
     }
     mirroredRoots.add(root);
-    if (root._.sync.mode === 'server') {
+    if (root._.mode === 'server') {
         const socket = getRootSocket(root) as ServerSocket;
         root.on('update', () => socket.emit('sync', captureStateTree(root)));
-    } else if (root._.sync.mode === 'client') {
+    } else if (root._.mode === 'client') {
         const socket = getRootSocket(root) as ClientSocket;
         const handler = (tree: StateTree) => applyStateTree(root, tree);
         socket.on('sync', handler);
@@ -334,11 +334,11 @@ export function installSyncDispatch(root: Unit): void {
     }
     dispatchedRoots.add(root);
     const socket = getRootSocket(root);
-    if (root._.sync.mode === 'server') {
+    if (root._.mode === 'server') {
         (socket as ServerSocket).onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
         socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
         socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
-    } else if (root._.sync.mode === 'client') {
+    } else if (root._.mode === 'client') {
         (socket as ClientSocket).onAny((event, message) => dispatchSync(root, event, undefined, message));
     }
 }
