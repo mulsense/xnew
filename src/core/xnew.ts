@@ -477,7 +477,7 @@ export const xnew = Object.assign(
             },
             use(transport: Transport): void {
                 // 以後の xnew.sync.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。
-                Unit.config.transport = transport;
+                Unit.transport = transport;
             },
             /** このルート(client)の自動発番された clientId（= socket.id）。server では undefined。 */
             get clientId(): string | undefined {
@@ -494,7 +494,7 @@ export const xnew = Object.assign(
                 }
                 // 送信ユニットの syncId を載せて送る（受信側の '-'(同一コンポーネント)ルーティング用）。
                 // ペイロードは data に包む。id（送信元 clientId）は受信側の transport が付与する。
-                getRootSocket(unit).emit(event, { syncId: unit._.sync.syncId, data: payload });
+                getRootSocket(unit).emit(event, { syncId: unit._.sync.id, data: payload });
             },
 
             /**
@@ -512,7 +512,7 @@ export const xnew = Object.assign(
                 if (Unit.engineRoot === undefined) { Unit.reset(); }
                 // transport が設定されていれば、この boot ルートへバインドする socket を用意する
                 // （server→transport.server / client→transport.connect() で自動発番）。
-                const transport: Transport | null = Unit.config.transport;
+                const transport: Transport | null = Unit.transport;
                 const socket = transport === null ? null
                     : mode === 'server' ? transport.server
                     : mode === 'client' ? transport.connect()

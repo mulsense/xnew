@@ -9,8 +9,8 @@ import { xnew } from '../../../src/core/xnew';
 //----------------------------------------------------------------------------------------------------
 
 describe('event channel (socket.io-compatible transport)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.transport = null; });
-    afterEach(() => { Unit.engineRoot?.finalize(); Unit.config.transport = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.transport = null; });
+    afterEach(() => { Unit.engineRoot?.finalize(); Unit.transport = null; jest.useRealTimers(); });
 
     it('loopback routes client.emit to server.on tagged with clientId', () => {
         const hub = xnew.sync.loopback();
@@ -304,7 +304,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         const hits: string[] = [];
         // server 側: syncId を持つ 2 ユニットが各々 on('-move') を登録。
         function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
-            unit._.sync.syncId = props.syncId ?? null;
+            unit._.sync.id = props.syncId ?? null;
             xnew.server(() => { unit.on('-move', ({ vector }: any) => hits.push(`${props.tag}:${vector.x}`)); });
         }
         xnew.sync.boot('server', function Server() {
@@ -314,7 +314,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         // client 側: syncId=10 のユニットから '-move' を送ると、同じ syncId の A だけに届く。
         xnew.sync.boot('client', function Client(unit: Unit) {
             xnew.client(() => {
-                unit._.sync.syncId = 10;
+                unit._.sync.id = 10;
                 xnew.sync.emit('-move', { vector: { x: 1 } });
             });
         });

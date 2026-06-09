@@ -58,8 +58,8 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         Unit.render(Unit.engineRoot);
 
         const replicaMover = client._.children[0];
-        expect(replicaMover._.sync.syncId).toBe(moverNode.id);
-        const replicaEnemy = replicaMover._.children.find(c => c._.sync.syncId === enemyNode.id)!;
+        expect(replicaMover._.sync.id).toBe(moverNode.id);
+        const replicaEnemy = replicaMover._.children.find(c => c._.sync.id === enemyNode.id)!;
         expect(replicaEnemy).toBeDefined();                  // replica 側も Mover -> Enemy の 2 階層
         expect(replicaEnemy._.sync.state!.x).toBe(enemyNode.state.x);
     });
@@ -74,12 +74,12 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         const replicaMover = client._.children[0];
         expect(replicaMover._.children.length).toBe(1);
         const firstEnemy = replicaMover._.children[0];
-        const firstId = firstEnemy._.sync.syncId;
+        const firstId = firstEnemy._.sync.id;
 
         await jest.advanceTimersByTimeAsync(1000);           // 最初の Enemy の寿命経過 → server 側 finalize
         sync(server, client);
         // 最初の Enemy は replica からも消える（interval で別の Enemy は spawn され続ける）
         expect(firstEnemy._.status).toBe('finalized');
-        expect(replicaMover._.children.some(c => c._.sync.syncId === firstId)).toBe(false);
+        expect(replicaMover._.children.some(c => c._.sync.id === firstId)).toBe(false);
     });
 });

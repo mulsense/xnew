@@ -23,7 +23,7 @@ describe('applyStateTree create', () => {
         xnew.sync.apply(view, tree);
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
-        expect(child._.sync.syncId).toBe(1);
+        expect(child._.sync.id).toBe(1);
         expect(child._.sync.mode).toBe('client');
         expect(child._.sync.state).toEqual({ value: 7 });
     });
@@ -34,8 +34,8 @@ describe('applyStateTree create', () => {
             { id: 1, name: 'Box', parentId: null, state: { value: 1 } },
             { id: 2, name: 'Box', parentId: 1, state: { value: 2 } },
         ]);
-        expect(view._.children[0]._.sync.syncId).toBe(1);
-        expect(view._.children[0]._.children[0]._.sync.syncId).toBe(2);
+        expect(view._.children[0]._.sync.id).toBe(1);
+        expect(view._.children[0]._.children[0]._.sync.id).toBe(2);
     });
 });
 
@@ -92,10 +92,10 @@ describe('applyStateTree remove', () => {
             { id: 2, name: 'Box', parentId: null, state: {} },
         ]);
         expect(view._.children.length).toBe(2);
-        const removed = view._.children.find(c => c._.sync.syncId === 2)!;
+        const removed = view._.children.find(c => c._.sync.id === 2)!;
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: {} }]);
         expect(view._.children.length).toBe(1);
-        expect(view._.children[0]._.sync.syncId).toBe(1);
+        expect(view._.children[0]._.sync.id).toBe(1);
         expect(removed._.status).toBe('finalized');
     });
 });

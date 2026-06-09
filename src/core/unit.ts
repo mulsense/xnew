@@ -99,11 +99,12 @@ export class Unit {
 
         // server→client 同期に関わる状態は sync 配下にまとめる（xnew.sync.* と core/sync.ts が読む）。
         sync: {
+            root: Unit | null;   // この unit が属する同期ツリーのルート（boot root）。option.mode 指定なら自身、それ以外は親から継承
             mode: Mode;
             state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
-            syncId: number | null;
+            id: number | null;   // 同期ノード id（capture 時に採番。SyncNode.id と対応）
             injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
-            syncRegistry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
+            registry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
             socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
         };
     };
@@ -174,16 +175,19 @@ export class Unit {
             eventor: new Eventor(),
             key,
             sync: {
+                // option.mode が指定された（= boot 経由で生成された）unit を同期ツリーのルートとし、
+                // 自身を指す。それ以外は親のルートを継承する（engine root 配下は null）。
+                root: options?.mode !== undefined ? this : (parent?._.sync.root ?? null),
                 // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
                 // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
                 // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
                 mode: parent ? (parent._.sync.mode ?? options?.mode ?? null) : null,
                 state: null,
-                syncId: null,
+                id: null,
                 // apply/sync が options で渡したサーバー状態（無ければ null）。各 xnew.sync.state が
                 // 消費せず参照し、サーバー値をキー単位で初期値より優先する。
                 injected: options?.injected ?? null,
-                syncRegistry: null,
+                registry: null,
                 // boot が options で渡したこの（boot ルート）unit にバインドする socket（無ければ null）。
                 socket: options?.socket ?? null,
             },
@@ -368,7 +372,7 @@ export class Unit {
 
     static engineRoot: Unit;
     static currentUnit: Unit;
-    static config: { transport: any } = { transport: null };
+    static transport: any = null;
     static syncIdCounter: number = 1;
 
     static reset(): void {
