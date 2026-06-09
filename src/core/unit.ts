@@ -36,12 +36,13 @@ export type Mode = 'server' | 'client' | null;
 
 // Unit 構築時の補助パラメータ。以前はグローバル slot（config.mode / injectedSlot / socketSlot）で
 // 渡していたものを、コンストラクタ第1引数として明示的に受け取る。
-// - mode     : サブツリールートのエンジンモード（親 mode が null のときの fallback）
-// - injected : apply/sync が構築前に渡すサーバー状態（各 xnew.sync.state がキー単位で優先参照）
-// - socket   : boot がこのルートにバインドする socket（socket.io 互換の口）
+// - mode   : サブツリールートのエンジンモード（親 mode が null のときの fallback）
+// - state  : 構築時に _.sync.state へプリシードする初期状態（apply/sync が渡すサーバー状態。
+//            xnew.sync.state は既存キーを尊重するので、宣言した initial より優先される）
+// - socket : boot がこのルートにバインドする socket（socket.io 互換の口）
 export interface UnitOptions {
     mode?: Mode;
-    injected?: Record<string, any> | null;
+    state?: Record<string, any> | null;
     socket?: any | null;
 }
 
@@ -95,15 +96,14 @@ export class Unit {
         listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
 
-        key: any;   // 予約 prop `key` の値（同一性の目印。xnew.find(Component, { key }) で引ける。未指定なら null）
+        key: any;   // reserved prop for find(key) (global unique assumed)
 
         // server→client 同期に関わる状態は sync 配下にまとめる（xnew.sync.* と core/sync.ts が読む）。
         sync: {
+            id: number | null;   // 同期ノード id（capture 時に採番。SyncNode.id と対応）
             root: Unit | null;   // この unit が属する同期ツリーのルート（boot root）。option.mode 指定なら自身、それ以外は親から継承
             mode: Mode;
-            state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
-            id: number | null;   // 同期ノード id（capture 時に採番。SyncNode.id と対応）
-            injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
+            state: Record<string, any> | null;   // synced state. xnew.sync.state で宣言、または options.state でプリシード（null until set）
             registry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
             socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
         };
@@ -114,6 +114,7 @@ export class Unit {
         let Component: Function | string | number | undefined;
         let props: Object | undefined;
 
+        // parse arguments: (target,) Component, props 
         if (isDomElement(args[0]) || typeof args[0] === 'string') {
             target = args[0] as DomElement | string;
             Component = args[1] as Function | string | number | undefined;
@@ -123,10 +124,6 @@ export class Unit {
             Component = args[0] as Function | string | number | undefined;
             props = args[1] as Object | undefined;
         }
-
-        // 予約 prop `key`: 同一性の目印としてユニットに保持する（xnew.find(Component, { key }) で引ける）。
-        // props には残したまま（コンポーネントが読みたければ読める）。未指定なら null。
-        const key = (props as any)?.key ?? null;
 
         const backup = Unit.currentUnit;
         Unit.currentUnit = this;
@@ -155,6 +152,8 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { previous: null };
 
+        const key = (props as any)?.key ?? null;
+     
         this._ = {
             parent,
             status: 'invoked',
@@ -175,6 +174,7 @@ export class Unit {
             eventor: new Eventor(),
             key,
             sync: {
+                id: null,
                 // option.mode が指定された（= boot 経由で生成された）unit を同期ツリーのルートとし、
                 // 自身を指す。それ以外は親のルートを継承する（engine root 配下は null）。
                 root: options?.mode !== undefined ? this : (parent?._.sync.root ?? null),
@@ -182,11 +182,9 @@ export class Unit {
                 // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
                 // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
                 mode: parent ? (parent._.sync.mode ?? options?.mode ?? null) : null,
-                state: null,
-                id: null,
-                // apply/sync が options で渡したサーバー状態（無ければ null）。各 xnew.sync.state が
-                // 消費せず参照し、サーバー値をキー単位で初期値より優先する。
-                injected: options?.injected ?? null,
+                // apply/sync が渡したサーバー状態を初期値としてプリシード（無ければ null）。
+                // xnew.sync.state は既存キーを尊重するので、これが宣言の initial より優先される。
+                state: options?.state ? { ...options.state } : null,
                 registry: null,
                 // boot が options で渡したこの（boot ルート）unit にバインドする socket（無ければ null）。
                 socket: options?.socket ?? null,

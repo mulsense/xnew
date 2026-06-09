@@ -438,15 +438,13 @@ export const xnew = Object.assign(
                 if (unit._.sync.state === null) {
                     unit._.sync.state = {};
                 }
-                // 複数の xnew.sync.state 宣言（base + extend 合成）が同じ _.sync.state へキーをマージする。
-                // client 側は apply が _.sync.injected に退避したサーバー状態をキー単位で initial より優先する
-                // （消費しないので全宣言が読める）。server / standalone(null) は initial を使う。
-                const injected = unit._.sync.injected;
+                // 既に値があるキーは尊重し、無いキーだけ initial で埋める。これにより
+                // (1) apply が options.state でプリシードしたサーバー状態、(2) 先行する宣言、
+                // のどちらも後続の initial より優先される（base + extend 合成のマージ）。
                 for (const key of Object.keys(initial)) {
-                    if (key in unit._.sync.state) {
-                        console.warn(`xnew.sync.state: duplicate key "${key}" across declarations`);
+                    if ((key in unit._.sync.state) === false) {
+                        unit._.sync.state[key] = initial[key];
                     }
-                    unit._.sync.state[key] = (injected !== null && key in injected) ? injected[key] : initial[key];
                 }
                 return unit._.sync.state;
             },

@@ -11,7 +11,7 @@
 // - getSyncName        : unit が同期対象なら、直接の親のレジストリ上の登録名(最派生一致)を返す
 // - captureStateTree   : server サブツリー → SyncNode[](全量)
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
-//                        レジストリで解決し、create 時に new Unit の options.injected でサーバー状態を注入
+//                        レジストリで解決し、create 時に new Unit の options.state でサーバー状態をプリシード
 //
 // イベントチャンネル（socket.io 互換の transport）。client が emit したイベントを server が on で受け取る。
 // transport はルート単位にバインドし（_.sync.socket）、emit/on はカレントユニットのルートから解決する。
@@ -113,11 +113,10 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             if (parent === undefined) { continue; }
             const Component = parent._.sync.registry?.getRight(node.name);
             if (Component === undefined) { continue; }   // 親が許可していない型は無視
-            // サーバー状態を options.injected で渡す（Unit 構築開始時に _.sync.injected へ退避）。mode は親(client)を継承する。
-            const unit = new Unit({ injected: node.state }, parent, Component);
+            // サーバー状態を options.state で渡し、構築時に _.sync.state へプリシードする
+            // （状態を宣言しない型・欠落キーもこれで埋まる）。mode は親(client)を継承する。
+            const unit = new Unit({ state: node.state }, parent, Component);
             unit._.sync.id = node.id;
-            if (unit._.sync.state === null) { unit._.sync.state = {}; }
-            Object.assign(unit._.sync.state, node.state);   // 状態を宣言しない型・欠落キーへの保険
             map.set(node.id, unit);
         } else {
             // update（変更フィールドのみ書き換え）

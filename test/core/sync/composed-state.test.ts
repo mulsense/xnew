@@ -41,15 +41,12 @@ describe('composed synced state (base + extend)', () => {
         expect(replica._.sync.state).toEqual({ hp: 101, x: 3 });
     });
 
-    it('warns on duplicate keys across declarations (last-write-wins)', () => {
-        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    it('keeps the first value when keys collide across declarations (existing-wins)', () => {
         const unit = xnew((u: Unit) => {
             xnew.sync.state({ pos: 1 });
-            xnew.sync.state({ pos: 2 });   // 同名キー
+            xnew.sync.state({ pos: 2 });   // 同名キー: 既存（先勝ち）を尊重
         });
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate key "pos"'));
-        expect(unit._.sync.state).toEqual({ pos: 2 });   // last-write-wins
-        warn.mockRestore();
+        expect(unit._.sync.state).toEqual({ pos: 1 });   // existing-wins（プリシード/先行宣言を優先する規則と一貫）
     });
 
     it('does not leak injected state into a non-synced child built during the body', () => {
