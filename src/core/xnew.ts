@@ -53,7 +53,7 @@ export const xnew = Object.assign(
      * const unit = xnew('<div>', MyComponent, { data: 0 })
      */
     (function(...args: any[]): Unit {
-        if (Unit.rootUnit === undefined) Unit.reset();
+        if (Unit.engineRoot === undefined) Unit.reset();
 
         if (args[0] instanceof Unit) {
             const parent = args.shift() as Unit;
@@ -379,7 +379,7 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.server can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.mode === 'client') {
+                if (Unit.currentUnit._.sync.mode === 'client') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
@@ -400,7 +400,7 @@ export const xnew = Object.assign(
                 if (Unit.currentUnit._.status !== 'invoked') {
                     throw new Error('xnew.client can not be called after initialized.');
                 }
-                if (Unit.currentUnit._.mode === 'server') {
+                if (Unit.currentUnit._.sync.mode === 'server') {
                     return {};
                 }
                 return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
@@ -435,20 +435,20 @@ export const xnew = Object.assign(
         sync: {
             state(initial: Record<string, any> = {}): Record<string, any> {
                 const unit = Unit.currentUnit;
-                if (unit._.state === null) {
-                    unit._.state = {};
+                if (unit._.sync.state === null) {
+                    unit._.sync.state = {};
                 }
-                // 複数の xnew.sync.state 宣言（base + extend 合成）が同じ _.state へキーをマージする。
-                // client 側は apply が _.injected に退避したサーバー状態をキー単位で initial より優先する
+                // 複数の xnew.sync.state 宣言（base + extend 合成）が同じ _.sync.state へキーをマージする。
+                // client 側は apply が _.sync.injected に退避したサーバー状態をキー単位で initial より優先する
                 // （消費しないので全宣言が読める）。server / standalone(null) は initial を使う。
-                const injected = unit._.injected;
+                const injected = unit._.sync.injected;
                 for (const key of Object.keys(initial)) {
-                    if (key in unit._.state) {
+                    if (key in unit._.sync.state) {
                         console.warn(`xnew.sync.state: duplicate key "${key}" across declarations`);
                     }
-                    unit._.state[key] = (injected !== null && key in injected) ? injected[key] : initial[key];
+                    unit._.sync.state[key] = (injected !== null && key in injected) ? injected[key] : initial[key];
                 }
-                return unit._.state;
+                return unit._.sync.state;
             },
             register(components: Record<string, Function>): void {
                 try {
@@ -479,10 +479,6 @@ export const xnew = Object.assign(
                 // 以後の xnew.sync.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。
                 Unit.config.transport = transport;
             },
-            mirror(root: Unit): void {
-                // 状態の下り（server→client 同期）を 1 呼び出しで配線する（server=broadcast / client=apply）。
-                mirrorRoot(root);
-            },
             /** このルート(client)の自動発番された clientId（= socket.id）。server では undefined。 */
             get clientId(): string | undefined {
                 const unit = Unit.currentUnit;
@@ -498,7 +494,7 @@ export const xnew = Object.assign(
                 }
                 // 送信ユニットの syncId を載せて送る（受信側の '-'(同一コンポーネント)ルーティング用）。
                 // ペイロードは data に包む。id（送信元 clientId）は受信側の transport が付与する。
-                getRootSocket(unit).emit(event, { syncId: unit._.syncId, data: payload });
+                getRootSocket(unit).emit(event, { syncId: unit._.sync.syncId, data: payload });
             },
 
             /**
@@ -513,7 +509,7 @@ export const xnew = Object.assign(
             boot(mode: Mode, ...args: any[]): Unit {
                 // boot ルートはエンジンルートの子として生成する。先にエンジンルートを確実に用意し、
                 // それを親（= Unit.currentUnit）として root を直接構築する。
-                if (Unit.rootUnit === undefined) { Unit.reset(); }
+                if (Unit.engineRoot === undefined) { Unit.reset(); }
                 // transport が設定されていれば、この boot ルートへバインドする socket を用意する
                 // （server→transport.server / client→transport.connect() で自動発番）。
                 const transport: Transport | null = Unit.config.transport;

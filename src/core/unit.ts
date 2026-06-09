@@ -96,12 +96,16 @@ export class Unit {
         eventor: Eventor;
 
         key: any;   // 予約 prop `key` の値（同一性の目印。xnew.find(Component, { key }) で引ける。未指定なら null）
-        mode: Mode;
-        state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
-        syncId: number | null;
-        injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
-        syncRegistry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
-        socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
+
+        // server→client 同期に関わる状態は sync 配下にまとめる（xnew.sync.* と core/sync.ts が読む）。
+        sync: {
+            mode: Mode;
+            state: Record<string, any> | null;   // synchronized state declared via xnew.sync.state (null until declared)
+            syncId: number | null;
+            injected: Record<string, any> | null;   // server state injected by apply during construction (null otherwise)
+            syncRegistry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
+            socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
+        };
     };
 
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
@@ -168,19 +172,21 @@ export class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
-            // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
-            // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
-            // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
-            mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
-            state: null,
-            syncId: null,
-            // apply/sync が options で渡したサーバー状態（無ければ null）。各 xnew.sync.state が
-            // 消費せず参照し、サーバー値をキー単位で初期値より優先する。
-            injected: options?.injected ?? null,
             key,
-            syncRegistry: null,
-            // boot が options で渡したこの（boot ルート）unit にバインドする socket（無ければ null）。
-            socket: options?.socket ?? null,
+            sync: {
+                // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
+                // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
+                // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
+                mode: parent ? (parent._.sync.mode ?? options?.mode ?? null) : null,
+                state: null,
+                syncId: null,
+                // apply/sync が options で渡したサーバー状態（無ければ null）。各 xnew.sync.state が
+                // 消費せず参照し、サーバー値をキー単位で初期値より優先する。
+                injected: options?.injected ?? null,
+                syncRegistry: null,
+                // boot が options で渡したこの（boot ルート）unit にバインドする socket（無ければ null）。
+                socket: options?.socket ?? null,
+            },
         };
 
         // nest html element
@@ -360,21 +366,21 @@ export class Unit {
         }
     }
 
-    static rootUnit: Unit;
+    static engineRoot: Unit;
     static currentUnit: Unit;
     static config: { transport: any } = { transport: null };
     static syncIdCounter: number = 1;
 
     static reset(): void {
         Unit.syncIdCounter = 1;
-        Unit.rootUnit?.finalize();
-        Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
+        Unit.engineRoot?.finalize();
+        Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
         const ticker = new Ticker(() => {
-            Unit.start(Unit.rootUnit);
-            Unit.update(Unit.rootUnit);
-            Unit.render(Unit.rootUnit);
+            Unit.start(Unit.engineRoot);
+            Unit.update(Unit.engineRoot);
+            Unit.render(Unit.engineRoot);
         });
-        Unit.rootUnit.on('finalize', () => ticker.clear());
+        Unit.engineRoot.on('finalize', () => ticker.clear());
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {

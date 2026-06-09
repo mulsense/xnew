@@ -6,7 +6,7 @@ describe('xnew.scope', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
     });
 
     it('captures the current unit scope into a callback', () => {

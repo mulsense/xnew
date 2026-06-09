@@ -3,12 +3,12 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.sync.state', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('registers synced state on the current unit and returns the same reference', () => {
         let state!: Record<string, any>;
         const unit = xnew((u: Unit) => { state = xnew.sync.state({ position: 0 }); });
-        expect(unit._.state).toBe(state);
+        expect(unit._.sync.state).toBe(state);
         expect(state.position).toBe(0);
     });
 

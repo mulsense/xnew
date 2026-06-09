@@ -6,7 +6,7 @@ describe('Unit.on / Unit.off', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
     });
 
     describe('on', () => {

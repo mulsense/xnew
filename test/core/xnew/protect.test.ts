@@ -29,7 +29,7 @@ describe('xnew.protect', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
     });
 
     it('is idempotent when called multiple times', () => {

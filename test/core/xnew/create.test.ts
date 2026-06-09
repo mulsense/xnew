@@ -3,7 +3,7 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('xnew() creation', () => {
     beforeEach(() => { Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); });
 
     it('creates and returns a Unit from a component function', () => {
         const unit = xnew(() => {});
@@ -17,17 +17,17 @@ describe('xnew() creation', () => {
     });
 
     it('hosts created units under the root unit established by reset()', () => {
-        // Unit.reset() eagerly creates the root unit (Unit.rootUnit = new Unit(null)),
+        // Unit.reset() eagerly creates the root unit (Unit.engineRoot = new Unit(null)),
         // so the root already exists before the first xnew() call rather than being
         // initialized lazily on first use.
-        expect(Unit.rootUnit).not.toBeNull();
-        expect(Unit.rootUnit).toBeInstanceOf(Unit);
+        expect(Unit.engineRoot).not.toBeNull();
+        expect(Unit.engineRoot).toBeInstanceOf(Unit);
 
-        const root = Unit.rootUnit;
+        const root = Unit.engineRoot;
         const unit = xnew(() => {});
 
         // The first xnew() reuses the existing root as the parent rather than creating a new one.
-        expect(Unit.rootUnit).toBe(root);
+        expect(Unit.engineRoot).toBe(root);
         expect(unit.parent).toBe(root);
     });
 

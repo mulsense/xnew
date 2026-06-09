@@ -6,7 +6,7 @@ describe('xnew.emit', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
     });
 
     describe('local (-)', () => {

@@ -3,7 +3,7 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.server / xnew.client', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('server mode runs server block, skips client block', () => {
         const serverRan = jest.fn(); const clientRan = jest.fn();

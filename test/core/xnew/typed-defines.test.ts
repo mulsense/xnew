@@ -24,7 +24,7 @@ describe('typed defines', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
     });
 
     it('xnew(Component) merges typed defines onto the returned unit', () => {

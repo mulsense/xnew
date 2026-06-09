@@ -3,7 +3,7 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.find', () => {
     beforeEach(() => { Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); });
 
     it('returns every unit registered under the given component', () => {
         function A(_: Unit) {}

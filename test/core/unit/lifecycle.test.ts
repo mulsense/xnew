@@ -7,7 +7,7 @@ describe('Unit lifecycle', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
         jest.useRealTimers();
     });
 

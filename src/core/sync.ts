@@ -5,7 +5,7 @@
 // 差分適用(create/update/remove)する。実ネットワークは扱わず、捕捉物の生成と再構成のみを担う。
 //
 // 同期対象の型は「各コンポーネントが自分の直接の子として登録した型」だけ。登録は Unit 単位で
-// 保持し（_.syncRegistry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
+// 保持し（_.sync.syncRegistry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
 //
 // - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリ（BiMap）と追記
 // - getSyncName        : unit が同期対象なら、直接の親のレジストリ上の登録名(最派生一致)を返す
@@ -14,14 +14,14 @@
 //                        レジストリで解決し、create 時に new Unit の options.injected でサーバー状態を注入
 //
 // イベントチャンネル（socket.io 互換の transport）。client が emit したイベントを server が on で受け取る。
-// transport はルート単位にバインドし（_.socket）、emit/on はカレントユニットのルートから解決する。
+// transport はルート単位にバインドし（_.sync.socket）、emit/on はカレントユニットのルートから解決する。
 // createLoopback はインメモリ実装で、これを socket.io アダプタ（同じ {server, connect} / socket 形）に
 // 差し替えれば実ネットワークになる。state の下り（capture/apply）はそのまま。
 // on ハンドラは xnew の tick/scope の外で走る点に注意: その中で unit の生成/finalize はせず（spawn は
 // tick 内の update で行う）、closure で掴んだ state の書き換えなどプレーンなデータ更新に留める。
 // - createLoopback         : インメモリ transport ハブ {server, connect(clientId)} を生成
 // - createSocketioTransport: socket.io の io / socket を Transport 形へ橋渡し（duck-type。import 依存なし）
-// - getRootSocket          : ルートにバインド済みの socket を解決（boot が _.socket へ自動バインドする）
+// - getRootSocket          : ルートにバインド済みの socket を解決（boot が _.sync.socket へ自動バインドする）
 // - mirrorRoot             : 状態の下りを 1 呼び出しで配線（server=capture→emit('sync') / client=on('sync')→apply）
 // - installSyncDispatch    : socket で届いたイベントを対象 unit の unit.on(event) リスナへ橋渡し（'-'=同一 syncId / 他=全体）
 //----------------------------------------------------------------------------------------------------
@@ -37,11 +37,11 @@ export type SyncRegistry = BiMap<string, Function>;
 
 /** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
 export function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
-    if (unit._.syncRegistry === null) {
-        unit._.syncRegistry = new BiMap<string, Function>();
+    if (unit._.sync.syncRegistry === null) {
+        unit._.sync.syncRegistry = new BiMap<string, Function>();
     }
     for (const [name, Component] of Object.entries(components)) {
-        unit._.syncRegistry.set(name, Component);
+        unit._.sync.syncRegistry.set(name, Component);
     }
 }
 
@@ -49,7 +49,7 @@ export function getSyncName(unit: Unit): string | undefined {
     // 同期可否・登録名は「直接の親ユニットのレジストリ」で決まる。
     // _.Components は [基底..., 実際にインスタンス化した Component] の順なので、最も派生した
     // （= 末尾側の）一致を採る（基底に化けない / extend は最派生名で 1 SyncNode）。
-    const registry = unit._.parent?._.syncRegistry;
+    const registry = unit._.parent?._.sync.syncRegistry;
     if (registry === undefined || registry === null) {
         return undefined;
     }
@@ -69,16 +69,16 @@ export function captureStateTree(root: Unit): StateTree {
         let parentForChildren = nearestSyncedId;
         const name = getSyncName(unit);
         if (name !== undefined) {
-            if (unit._.syncId === null) {
-                unit._.syncId = Unit.syncIdCounter++;
+            if (unit._.sync.syncId === null) {
+                unit._.sync.syncId = Unit.syncIdCounter++;
             }
             nodes.push({
-                id: unit._.syncId,
+                id: unit._.sync.syncId,
                 name,
                 parentId: nearestSyncedId,
-                state: { ...(unit._.state ?? {}) },
+                state: { ...(unit._.sync.state ?? {}) },
             });
-            parentForChildren = unit._.syncId;
+            parentForChildren = unit._.sync.syncId;
         }
         unit._.children.forEach((child) => walk(child, parentForChildren));
     };
@@ -111,22 +111,22 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             // create
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
-            const Component = parent._.syncRegistry?.getRight(node.name);
+            const Component = parent._.sync.syncRegistry?.getRight(node.name);
             if (Component === undefined) { continue; }   // 親が許可していない型は無視
-            // サーバー状態を options.injected で渡す（Unit 構築開始時に _.injected へ退避）。mode は親(client)を継承する。
+            // サーバー状態を options.injected で渡す（Unit 構築開始時に _.sync.injected へ退避）。mode は親(client)を継承する。
             const unit = new Unit({ injected: node.state }, parent, Component);
-            unit._.syncId = node.id;
-            if (unit._.state === null) { unit._.state = {}; }
-            Object.assign(unit._.state, node.state);   // 状態を宣言しない型・欠落キーへの保険
+            unit._.sync.syncId = node.id;
+            if (unit._.sync.state === null) { unit._.sync.state = {}; }
+            Object.assign(unit._.sync.state, node.state);   // 状態を宣言しない型・欠落キーへの保険
             map.set(node.id, unit);
         } else {
             // update（変更フィールドのみ書き換え）
             // 不変条件: 一度入ったキーは削除されない。capture は全フィールドを毎回送るため、
             // サーバー側で state からキーを「消す」運用をすると client に残り続ける（v1 の割り切り）。
-            if (existing._.state === null) { existing._.state = {}; }
+            if (existing._.sync.state === null) { existing._.sync.state = {}; }
             for (const key of Object.keys(node.state)) {
-                if (existing._.state[key] !== node.state[key]) {
-                    existing._.state[key] = node.state[key];
+                if (existing._.sync.state[key] !== node.state[key]) {
+                    existing._.sync.state[key] = node.state[key];
                 }
             }
         }
@@ -285,7 +285,7 @@ export function createSocketioTransport(ioOrSocket: any, opts: { room?: string }
 /** Walks up to the boot root (the highest ancestor below the engine root). */
 function bootRoot(unit: Unit): Unit {
     let current = unit;
-    while (current._.parent !== null && current._.parent !== Unit.rootUnit) {
+    while (current._.parent !== null && current._.parent !== Unit.engineRoot) {
         current = current._.parent;
     }
     return current;
@@ -293,14 +293,14 @@ function bootRoot(unit: Unit): Unit {
 
 /** Resolves the socket bound to the caller's boot root (throws if none bound). */
 export function getRootSocket(unit: Unit): ClientSocket | ServerSocket {
-    const socket = bootRoot(unit)._.socket;
+    const socket = bootRoot(unit)._.sync.socket;
     if (socket === null) {
         throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
     }
     return socket;
 }
 
-/** 既に mirror 済みのルート。boot の自動配線と明示 mirror() の二重配線を防ぐ（冪等化）。 */
+/** 既に mirror 済みのルート。boot の自動配線が同一ルートへ二重配線するのを防ぐ（冪等化）。 */
 const mirroredRoots: WeakSet<Unit> = new WeakSet();
 
 /**
@@ -316,10 +316,10 @@ export function mirrorRoot(root: Unit): void {
         return;
     }
     mirroredRoots.add(root);
-    if (root._.mode === 'server') {
+    if (root._.sync.mode === 'server') {
         const socket = getRootSocket(root) as ServerSocket;
         root.on('update', () => socket.emit('sync', captureStateTree(root)));
-    } else if (root._.mode === 'client') {
+    } else if (root._.sync.mode === 'client') {
         const socket = getRootSocket(root) as ClientSocket;
         const handler = (tree: StateTree) => applyStateTree(root, tree);
         socket.on('sync', handler);
@@ -344,11 +344,11 @@ export function installSyncDispatch(root: Unit): void {
     }
     dispatchedRoots.add(root);
     const socket = getRootSocket(root);
-    if (root._.mode === 'server') {
+    if (root._.sync.mode === 'server') {
         (socket as ServerSocket).onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
         socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
         socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
-    } else if (root._.mode === 'client') {
+    } else if (root._.sync.mode === 'client') {
         (socket as ClientSocket).onAny((event, message) => dispatchSync(root, event, undefined, message));
     }
 }
@@ -371,7 +371,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
         if (bootRoot(unit) !== root) {
             return;   // 別ルート（別 client / server）の unit には配らない
         }
-        if (sameComponent && unit._.syncId !== syncId) {
+        if (sameComponent && unit._.sync.syncId !== syncId) {
             return;   // '-' は同一 syncId のみ
         }
         unit._.listeners.get(event)?.forEach((item) => item.execute(props));

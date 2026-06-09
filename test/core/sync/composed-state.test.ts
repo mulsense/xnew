@@ -25,20 +25,20 @@ describe('composed synced state (base + extend)', () => {
         Unit.reset();
         clientReadAtConstruction = {};
     });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('hydrates every sync.state declaration from injected server state at construction time', () => {
         const server = xnew.sync.boot('server', function Server() { xnew.sync.register({ Enemy }); xnew(Enemy); });
         const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Enemy }); });
 
-        Unit.start(Unit.rootUnit);
-        Unit.update(Unit.rootUnit);                              // server Enemy: hp=101, x=3
+        Unit.start(Unit.engineRoot);
+        Unit.update(Unit.engineRoot);                              // server Enemy: hp=101, x=3
         xnew.sync.apply(client, xnew.sync.capture(server));     // create replica
 
         const replica = client._.children[0];
         // Base(hp) と Enemy(x) の両宣言が、構築時点でサーバー値として読めている
         expect(clientReadAtConstruction).toEqual({ hp: 101, x: 3 });
-        expect(replica._.state).toEqual({ hp: 101, x: 3 });
+        expect(replica._.sync.state).toEqual({ hp: 101, x: 3 });
     });
 
     it('warns on duplicate keys across declarations (last-write-wins)', () => {
@@ -48,7 +48,7 @@ describe('composed synced state (base + extend)', () => {
             xnew.sync.state({ pos: 2 });   // 同名キー
         });
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate key "pos"'));
-        expect(unit._.state).toEqual({ pos: 2 });   // last-write-wins
+        expect(unit._.sync.state).toEqual({ pos: 2 });   // last-write-wins
         warn.mockRestore();
     });
 
@@ -56,7 +56,7 @@ describe('composed synced state (base + extend)', () => {
         let childState: Record<string, any> = {};
         function Host(unit: Unit) {
             xnew.sync.state({ value: 0 });
-            xnew.server(() => { unit.on('update', () => { (unit._.state as any).value += 5; }); });
+            xnew.server(() => { unit.on('update', () => { (unit._.sync.state as any).value += 5; }); });
             // 本体内でインライン生成する非 synced 子（apply ではなく親本体が生成する）
             xnew.client(() => {
                 xnew(function Child() { childState = xnew.sync.state({ value: -1 }); });
@@ -65,12 +65,12 @@ describe('composed synced state (base + extend)', () => {
         const server = xnew.sync.boot('server', function Server() { xnew.sync.register({ Host }); xnew(Host); });
         const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Host }); });
 
-        Unit.start(Unit.rootUnit);
-        Unit.update(Unit.rootUnit);                              // server Host: value=5
+        Unit.start(Unit.engineRoot);
+        Unit.update(Unit.engineRoot);                              // server Host: value=5
         xnew.sync.apply(client, xnew.sync.capture(server));     // create replica Host + inline Child
 
         const replicaHost = client._.children[0];
-        expect(replicaHost._.state!.value).toBe(5);             // Host は注入値
+        expect(replicaHost._.sync.state!.value).toBe(5);             // Host は注入値
         expect(childState.value).toBe(-1);                      // 子は自分の initial（親の注入が漏れない）
     });
 
@@ -110,16 +110,16 @@ describe('composed synced state (base + extend)', () => {
         const server = xnew.sync.boot('server', function Server() { xnew.sync.register({ Sprite }); xnew(Sprite, { y: 8 }); });
         const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Sprite }); });
 
-        Unit.start(Unit.rootUnit);
-        Unit.update(Unit.rootUnit);                              // server Sprite: x=3, hp=2
+        Unit.start(Unit.engineRoot);
+        Unit.update(Unit.engineRoot);                              // server Sprite: x=3, hp=2
 
         const tree = xnew.sync.capture(server);
         expect(tree).toHaveLength(1);
         expect(tree[0].state).toEqual({ x: 3, y: 8, hp: 2 });    // Actor 由来(x,y) + Sprite 由来(hp) がマージ
 
         xnew.sync.apply(client, tree);                           // create replica
-        Unit.start(Unit.rootUnit);
-        Unit.render(Unit.rootUnit);                             // replica render（両 render ハンドラが走る）
+        Unit.start(Unit.engineRoot);
+        Unit.render(Unit.engineRoot);                             // replica render（両 render ハンドラが走る）
 
         const el = client._.children[0].element as HTMLElement;
         expect(el.style.left).toBe('3px');                      // 基底 Actor の render（位置）

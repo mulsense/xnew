@@ -7,7 +7,7 @@ describe('UnitPromise', () => {
         Unit.reset();
     });
     afterEach(() => {
-        Unit.rootUnit?.finalize();
+        Unit.engineRoot?.finalize();
         jest.useRealTimers();
     });
 

@@ -3,11 +3,11 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('mode inheritance', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('a booted top-level unit adopts the given mode', () => {
         const unit = xnew.sync.boot('server', (u: Unit) => {});
-        expect(unit._.mode).toBe('server');
+        expect(unit._.sync.mode).toBe('server');
     });
 
     it('a nested unit inherits its parent mode', () => {
@@ -15,28 +15,28 @@ describe('mode inheritance', () => {
         xnew.sync.boot('server', (u: Unit) => {
             child = xnew((c: Unit) => {}) as unknown as Unit;
         });
-        expect(child._.mode).toBe('server');
+        expect(child._.sync.mode).toBe('server');
     });
 
     it('defaults to null without a boot', () => {
         const unit = xnew((u: Unit) => {});
-        expect(unit._.mode).toBeNull();
+        expect(unit._.sync.mode).toBeNull();
     });
 });
 
 describe('xnew.sync.boot', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('creates the unit with the given mode and returns it', () => {
         const unit = xnew.sync.boot('server', (u: Unit) => {});
-        expect(unit._.mode).toBe('server');
+        expect(unit._.sync.mode).toBe('server');
     });
 
     it('forwards extra args to the unit (target, Component)', () => {
         const el = document.createElement('div');
         const unit = xnew.sync.boot('client', el, (u: Unit) => {});
-        expect(unit._.mode).toBe('client');
+        expect(unit._.sync.mode).toBe('client');
         expect(unit.element).toBe(el);
     });
 
@@ -47,6 +47,6 @@ describe('xnew.sync.boot', () => {
     it('does not leak mode into a later plain xnew root', () => {
         xnew.sync.boot('client', (u: Unit) => {});
         const plain = xnew((u: Unit) => {});
-        expect(plain._.mode).toBeNull();   // mode は options で渡るだけ。グローバルに残らない
+        expect(plain._.sync.mode).toBeNull();   // mode は options で渡るだけ。グローバルに残らない
     });
 });

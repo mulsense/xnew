@@ -15,27 +15,27 @@ function Mover(unit: Unit) {
 
 describe('loopback simulation (server/client blocks)', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {
         const server = xnew.sync.boot('server', function Server() { xnew.sync.register({ Mover }); xnew(Mover); });
         const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Mover }); });
 
         function cycle() {
-            Unit.start(Unit.rootUnit);
-            Unit.update(Unit.rootUnit);                              // server Mover: position += 1
+            Unit.start(Unit.engineRoot);
+            Unit.update(Unit.engineRoot);                              // server Mover: position += 1
             xnew.sync.apply(client, xnew.sync.capture(server));    // sync
-            Unit.start(Unit.rootUnit);                               // start newly-created replica units
-            Unit.render(Unit.rootUnit);                             // replica render
+            Unit.start(Unit.engineRoot);                               // start newly-created replica units
+            Unit.render(Unit.engineRoot);                             // replica render
         }
 
         cycle();
         const replicaMover = client._.children[0];
-        expect(replicaMover._.state!.position).toBe(1);
+        expect(replicaMover._.sync.state!.position).toBe(1);
         expect((replicaMover.element as HTMLElement).style.left).toBe('1px');   // client block render consumed synced state
 
         cycle();
-        expect(replicaMover._.state!.position).toBe(2);
+        expect(replicaMover._.sync.state!.position).toBe(2);
         expect((replicaMover.element as HTMLElement).style.left).toBe('2px');
         expect(client._.children.length).toBe(1);
     });
@@ -58,22 +58,22 @@ describe('loopback simulation (server/client blocks)', () => {
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Mover');
         expect(tree[0].parentId).toBeNull();
-        expect(server._.children[0]._.mode).toBe('server');   // Main の server ブロックが生成した Mover
+        expect(server._.children[0]._.sync.mode).toBe('server');   // Main の server ブロックが生成した Mover
 
         function cycle() {
-            Unit.start(Unit.rootUnit);
-            Unit.update(Unit.rootUnit);
+            Unit.start(Unit.engineRoot);
+            Unit.update(Unit.engineRoot);
             xnew.sync.apply(client, xnew.sync.capture(server));
-            Unit.start(Unit.rootUnit);
-            Unit.render(Unit.rootUnit);
+            Unit.start(Unit.engineRoot);
+            Unit.render(Unit.engineRoot);
         }
         cycle();
 
         // client Main の下に replica Mover が生成され、nest した既存 view 要素の配下に mount される。
         const replicaMover = client._.children[0];
         expect(replicaMover).toBeDefined();
-        expect(replicaMover._.mode).toBe('client');
-        expect(replicaMover._.state!.position).toBe(1);
+        expect(replicaMover._.sync.mode).toBe('client');
+        expect(replicaMover._.sync.state!.position).toBe(1);
         expect(view.contains(replicaMover.element as Node)).toBe(true);
         expect((replicaMover.element as HTMLElement).style.left).toBe('1px');
     });
@@ -93,10 +93,10 @@ describe('loopback simulation (server/client blocks)', () => {
         const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Mover }); });
 
         const sync = () => xnew.sync.apply(client, xnew.sync.capture(server));
-        Unit.start(Unit.rootUnit);
-        Unit.update(Unit.rootUnit); sync();
+        Unit.start(Unit.engineRoot);
+        Unit.update(Unit.engineRoot); sync();
         expect(client._.children.length).toBe(1);    // spawn mirrored
-        Unit.update(Unit.rootUnit); sync();
+        Unit.update(Unit.engineRoot); sync();
         expect(client._.children.length).toBe(0);     // despawn mirrored
     });
 });

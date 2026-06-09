@@ -3,7 +3,7 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('Unit hierarchy', () => {
     beforeEach(() => { Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); });
 
     it('a unit created inside a component has that component as parent', () => {
         let outer!: Unit, inner!: Unit;
@@ -13,7 +13,7 @@ describe('Unit hierarchy', () => {
 
     it('a top-level unit has the root unit as parent', () => {
         const unit = xnew(() => {});
-        expect(unit.parent).toBe(Unit.rootUnit);
+        expect(unit.parent).toBe(Unit.engineRoot);
     });
 
     it('finalizing a parent finalizes its children', () => {

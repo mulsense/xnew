@@ -3,7 +3,7 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('Unit element hosting', () => {
     beforeEach(() => { Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); });
 
     describe('default host element', () => {
         it('defaults the element to document.body for a root-level unit', () => {

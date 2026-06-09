@@ -3,7 +3,7 @@ import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.extend', () => {
     beforeEach(() => { Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); });
 
     describe('basic composition', () => {
         it('exposes base methods on the unit', () => {

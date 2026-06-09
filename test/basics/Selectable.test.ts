@@ -6,7 +6,7 @@ import { Selectable } from '../../src/basics/Selectable';
 // xnew のイベント登録は listen() の setTimeout(0) 後に addEventListener されるため、各生成後に timer を進める。
 describe('Selectable', () => {
     beforeEach(() => { jest.useFakeTimers(); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; });
 
     const click = (el: Element) => el.dispatchEvent(new Event('click', { bubbles: true }));
 

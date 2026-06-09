@@ -13,7 +13,7 @@ function Box(unit: Unit) {
 
 describe('applyStateTree create', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Box }); }); }
 
@@ -23,9 +23,9 @@ describe('applyStateTree create', () => {
         xnew.sync.apply(view, tree);
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
-        expect(child._.syncId).toBe(1);
-        expect(child._.mode).toBe('client');
-        expect(child._.state).toEqual({ value: 7 });
+        expect(child._.sync.syncId).toBe(1);
+        expect(child._.sync.mode).toBe('client');
+        expect(child._.sync.state).toEqual({ value: 7 });
     });
 
     it('creates nested replica units honoring parentId', () => {
@@ -34,8 +34,8 @@ describe('applyStateTree create', () => {
             { id: 1, name: 'Box', parentId: null, state: { value: 1 } },
             { id: 2, name: 'Box', parentId: 1, state: { value: 2 } },
         ]);
-        expect(view._.children[0]._.syncId).toBe(1);
-        expect(view._.children[0]._.children[0]._.syncId).toBe(2);
+        expect(view._.children[0]._.sync.syncId).toBe(1);
+        expect(view._.children[0]._.children[0]._.sync.syncId).toBe(2);
     });
 });
 
@@ -46,7 +46,7 @@ describe('applyStateTree state injection (client inits from server state)', () =
         observed = { ...state };   // 本体実行時点で見えている state のスナップショット
     }
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Probe }); }); }
 
     it('injects server state before the body runs so local initial is ignored', () => {
@@ -66,7 +66,7 @@ describe('applyStateTree state injection (client inits from server state)', () =
 
 describe('applyStateTree update', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Box }); }); }
 
     it('updates existing unit in place without recreating it', () => {
@@ -75,14 +75,14 @@ describe('applyStateTree update', () => {
         const first = view._.children[0];
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: { value: 2 } }]);
         expect(view._.children[0]).toBe(first);
-        expect(first._.state).toEqual({ value: 2 });
+        expect(first._.sync.state).toEqual({ value: 2 });
         expect(view._.children.length).toBe(1);
     });
 });
 
 describe('applyStateTree remove', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Box }); }); }
 
     it('finalizes replica units whose id disappears from the tree', () => {
@@ -92,10 +92,10 @@ describe('applyStateTree remove', () => {
             { id: 2, name: 'Box', parentId: null, state: {} },
         ]);
         expect(view._.children.length).toBe(2);
-        const removed = view._.children.find(c => c._.syncId === 2)!;
+        const removed = view._.children.find(c => c._.sync.syncId === 2)!;
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: {} }]);
         expect(view._.children.length).toBe(1);
-        expect(view._.children[0]._.syncId).toBe(1);
+        expect(view._.children[0]._.sync.syncId).toBe(1);
         expect(removed._.status).toBe('finalized');
     });
 });

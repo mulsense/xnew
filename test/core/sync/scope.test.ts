@@ -4,7 +4,7 @@ import { getSyncName } from '../../../src/core/sync';
 
 describe('scoped registry isolation', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     // 同名 'Child' を 2 つの親がそれぞれ別の実体で登録する
     function ChildA(unit: Unit) { xnew.sync.state({ kind: 'A' }); }
@@ -38,8 +38,8 @@ describe('scoped registry isolation', () => {
         const replicaB = client._.children.find(c => getSyncName(c) === 'ParentB')!;
         expect(replicaA._.children[0]._.Components.includes(ChildA)).toBe(true);
         expect(replicaB._.children[0]._.Components.includes(ChildB)).toBe(true);
-        expect(replicaA._.children[0]._.state).toEqual({ kind: 'A' });
-        expect(replicaB._.children[0]._.state).toEqual({ kind: 'B' });
+        expect(replicaA._.children[0]._.sync.state).toEqual({ kind: 'A' });
+        expect(replicaB._.children[0]._.sync.state).toEqual({ kind: 'B' });
     });
 
     it('a child not registered by its parent is omitted from capture', () => {

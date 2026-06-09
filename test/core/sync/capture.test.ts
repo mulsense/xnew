@@ -6,7 +6,7 @@ function Player() {}
 
 describe('registry (scoped)', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('a child is synced under the name its parent registered', () => {
         const root = xnew(function Root() { xnew.sync.register({ Player }); xnew(Player); });
@@ -28,7 +28,7 @@ describe('registry (scoped)', () => {
 
 describe('captureStateTree', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
-    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     function World(unit: Unit) { xnew.sync.register({ Child }); xnew.sync.state({ tick: 0 }); xnew(Child); }
     function Child(unit: Unit) { xnew.sync.state({ position: 5 }); }
@@ -53,7 +53,7 @@ describe('captureStateTree', () => {
     it('assigns stable ids and reflects mutated state on later captures', () => {
         const root = xnew(function Root() { xnew.sync.register({ Child }); xnew(Child); });
         const first = xnew.sync.capture(root)[0];
-        root._.children[0]._.state!.position = 9;
+        root._.children[0]._.sync.state!.position = 9;
         const second = xnew.sync.capture(root)[0];
         expect(second.id).toBe(first.id);
         expect(second.state).toEqual({ position: 9 });
