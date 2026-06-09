@@ -214,10 +214,6 @@ export class Unit {
         return this._.currentElement;
     }
 
-    public get key(): any {
-        return this._.key;
-    }
-
     public start(): void {
         this._.tostart = true;
     }

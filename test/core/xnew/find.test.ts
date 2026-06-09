@@ -31,10 +31,10 @@ describe('xnew.find', () => {
     describe('by reserved key prop', () => {
         function A(_: Unit) {}
 
-        it('stores the key prop on the unit and exposes it via unit.key', () => {
+        it('stores the key prop on the unit (_.key)', () => {
             const a = xnew(A, { key: 'k1', extra: 1 });
-            expect(a.key).toBe('k1');
-            expect(xnew(A).key).toBeNull();   // 未指定なら null
+            expect(a._.key).toBe('k1');
+            expect(xnew(A)._.key).toBeNull();   // 未指定なら null
         });
 
         it('filters results to the matching key', () => {
@@ -55,7 +55,7 @@ describe('xnew.find', () => {
 
         it('preserves falsy keys (0 / empty string) rather than treating them as absent', () => {
             const zero = xnew(A, { key: 0 });
-            expect(zero.key).toBe(0);
+            expect(zero._.key).toBe(0);
             expect(xnew.find(A, { key: 0 })).toEqual([zero]);
         });
     });
