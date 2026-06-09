@@ -58,10 +58,10 @@ export const xnew = Object.assign(
         if (args[0] instanceof Unit) {
             const parent = args.shift() as Unit;
             const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
-            return Unit.scope(snapshot, () => new Unit(parent, ...args)) as Unit;
+            return Unit.scope(snapshot, () => new Unit(null, parent, ...args)) as Unit;
         } else {
             const parent = Unit.currentUnit ?? null;
-            return new Unit(parent, ...args);
+            return new Unit(null, parent, ...args);
         }
     }) as unknown as XnewBase,
     {
@@ -510,33 +510,26 @@ export const xnew = Object.assign(
              * socket の自動バインドと状態の下り（mirror）の自動配線もここで行う。
              * @returns the Unit created by `xnew(...args)`
              */
-            boot(mode: Mode, ...args: any[]): any {
-                // 初回 xnew でエンジンルートが生成されると socketSlot を消費してしまうため、
-                // slot をセットする前にここでルートを確実に用意しておく（boot ルートが slot を受け取れるように）。
+            boot(mode: Mode, ...args: any[]): Unit {
+                // boot ルートはエンジンルートの子として生成する。先にエンジンルートを確実に用意し、
+                // それを親（= Unit.currentUnit）として root を直接構築する。
                 if (Unit.rootUnit === undefined) { Unit.reset(); }
-                const previous = Unit.config.mode;
-                Unit.config.mode = mode;
                 // transport が設定されていれば、この boot ルートへバインドする socket を用意する
-                // （server→transport.server / client→transport.connect() で自動発番）。Unit 構築時に _.socket へ退避される。
+                // （server→transport.server / client→transport.connect() で自動発番）。
                 const transport: Transport | null = Unit.config.transport;
+                const socket = transport === null ? null
+                    : mode === 'server' ? transport.server
+                    : mode === 'client' ? transport.connect()
+                    : null;
+                // mode / socket を options で明示的に渡す（boot ルートが採用し、子孫は mode を継承する）。
+                const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
+                // transport がある＝socket バインド済みなら、状態の下り（mirror）と
+                // socket→unit.on の橋渡し（dispatcher）をここで自動配線する（どちらも冪等）。
                 if (transport !== null) {
-                    Unit.socketSlot = mode === 'server' ? transport.server
-                        : mode === 'client' ? transport.connect()
-                        : null;
+                    mirrorRoot(root);
+                    installSyncDispatch(root);
                 }
-                try {
-                    const root = (xnew as any)(...args);
-                    // transport がある＝socket バインド済みなら、状態の下り（mirror）と
-                    // socket→unit.on の橋渡し（dispatcher）をここで自動配線する（どちらも冪等）。
-                    if (transport !== null) {
-                        mirrorRoot(root);
-                        installSyncDispatch(root);
-                    }
-                    return root;
-                } finally {
-                    Unit.config.mode = previous;
-                    Unit.socketSlot = null;
-                }
+                return root;
             },
         },
 

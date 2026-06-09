@@ -31,20 +31,16 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
         Unit.reset();
-        Unit.config.mode = null;
     });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
 
     function sync(server: Unit, client: Unit) {
         return xnew.sync.apply(client, xnew.sync.capture(server));
     }
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
-        Unit.config.mode = 'server';
-        const server = xnew(function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
-        Unit.config.mode = 'client';
-        const client = xnew(function ClientRoot() { xnew.sync.register({ Mover }); });
-        Unit.config.mode = null;
+        const server = xnew.sync.boot('server', function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Mover }); });
 
         Unit.start(Unit.rootUnit);
         await jest.advanceTimersByTimeAsync(500);            // interval が 1 回発火 → Enemy spawn
@@ -69,11 +65,8 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     });
 
     it('despawns Enemy after its lifetime and removes that replica', async () => {
-        Unit.config.mode = 'server';
-        const server = xnew(function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
-        Unit.config.mode = 'client';
-        const client = xnew(function ClientRoot() { xnew.sync.register({ Mover }); });
-        Unit.config.mode = null;
+        const server = xnew.sync.boot('server', function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ Mover }); });
 
         Unit.start(Unit.rootUnit);
         await jest.advanceTimersByTimeAsync(500);            // 最初の Enemy が spawn

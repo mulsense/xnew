@@ -2,8 +2,8 @@ import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.sync.state', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
 
     it('registers synced state on the current unit and returns the same reference', () => {
         let state!: Record<string, any>;

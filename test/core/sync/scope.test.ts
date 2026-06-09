@@ -3,8 +3,8 @@ import { xnew } from '../../../src/core/xnew';
 import { getSyncName } from '../../../src/core/sync';
 
 describe('scoped registry isolation', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
 
     // 同名 'Child' を 2 つの親がそれぞれ別の実体で登録する
     function ChildA(unit: Unit) { xnew.sync.state({ kind: 'A' }); }
@@ -25,15 +25,12 @@ describe('scoped registry isolation', () => {
     });
 
     it('apply re-creates each Child with the component its reconciled parent registered', () => {
-        Unit.config.mode = 'server';
-        const server = xnew(function Root() {
+        const server = xnew.sync.boot('server', function Root() {
             xnew.sync.register({ ParentA, ParentB });
             xnew(ParentA);
             xnew(ParentB);
         });
-        Unit.config.mode = 'client';
-        const client = xnew(function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
-        Unit.config.mode = null;
+        const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
 
         xnew.sync.apply(client, xnew.sync.capture(server));
 

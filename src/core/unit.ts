@@ -34,6 +34,17 @@ export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finali
 // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
 export type Mode = 'server' | 'client' | null;
 
+// Unit 構築時の補助パラメータ。以前はグローバル slot（config.mode / injectedSlot / socketSlot）で
+// 渡していたものを、コンストラクタ第1引数として明示的に受け取る。
+// - mode     : サブツリールートのエンジンモード（親 mode が null のときの fallback）
+// - injected : apply/sync が構築前に渡すサーバー状態（各 xnew.sync.state がキー単位で優先参照）
+// - socket   : boot がこのルートにバインドする socket（socket.io 互換の口）
+export interface UnitOptions {
+    mode?: Mode;
+    injected?: Record<string, any> | null;
+    socket?: any | null;
+}
+
 // ComponentFn: Unit を拡張し、任意で defines(公開 API オブジェクト)を返す関数の型。
 // P = props 型、A = defines 型。defines は xnew(...) の戻り値に合成される(Unit & A)。
 export type ComponentFn<P extends object = any, A extends object = {}> =
@@ -93,7 +104,7 @@ export class Unit {
         socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
     };
 
-    constructor(parent: Unit | null, ...args: any[]) {
+    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
         let target: DomElement | string | null;
         let Component: Function | string | number | undefined;
         let props: Object | undefined;
@@ -158,23 +169,19 @@ export class Unit {
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
             // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
-            // Unit.config.mode を fallback とする（= サブツリーのルートが config.mode を採用）。
-            // Unit.config.mode は意図的に Unit.reset() でクリアしない（初回 xnew() が自動 reset を
-            // 走らせるため、クリアすると設定済み config.mode が生成前に消える）。利用側が戻す運用。
+            // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
             // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
-            mode: parent ? (parent._.mode ?? Unit.config.mode ?? null) : null,
+            mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
             state: null,
             syncId: null,
-            // 構築開始時にグローバル注入スロットを退避（無ければ null）。各 xnew.sync.state が
-            // 消費せず参照し、サーバー値をキー単位で初期値より優先する。即 null 化で子へ漏らさない。
-            injected: Unit.injectedSlot,
+            // apply/sync が options で渡したサーバー状態（無ければ null）。各 xnew.sync.state が
+            // 消費せず参照し、サーバー値をキー単位で初期値より優先する。
+            injected: options?.injected ?? null,
             key,
             syncRegistry: null,
-            // boot がセットした socket をこの（boot ルート）unit に退避し、即クリアして子へ漏らさない。
-            socket: Unit.socketSlot,
+            // boot が options で渡したこの（boot ルート）unit にバインドする socket（無ければ null）。
+            socket: options?.socket ?? null,
         };
-        Unit.injectedSlot = null;
-        Unit.socketSlot = null;
 
         // nest html element
         if (typeof target === 'string') {
@@ -355,18 +362,13 @@ export class Unit {
 
     static rootUnit: Unit;
     static currentUnit: Unit;
-    static config: { mode: Mode; transport: any } = { mode: null, transport: null };
+    static config: { transport: any } = { transport: null };
     static syncIdCounter: number = 1;
-    // apply の create 中だけ非 null。Unit 構築開始時に _.injected へ退避し即 null 化する
-    // （sync が書き込み、Unit が読み取る。循環 import を避けるため slot を Unit 側に置く）。
-    static injectedSlot: Record<string, any> | null = null;
-    // boot がバインドする socket を構築開始時に _.socket へ退避する slot（injectedSlot と同方式）。
-    static socketSlot: any | null = null;
 
     static reset(): void {
         Unit.syncIdCounter = 1;
         Unit.rootUnit?.finalize();
-        Unit.currentUnit = Unit.rootUnit = new Unit(null);
+        Unit.currentUnit = Unit.rootUnit = new Unit(null, null);
         const ticker = new Ticker(() => {
             Unit.start(Unit.rootUnit);
             Unit.update(Unit.rootUnit);
@@ -581,7 +583,7 @@ export class UnitTimer {
         };
 
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, Component);
+            timer.unit = new Unit(null, Unit.currentUnit, Component);
         } else if (timer.queue.length === 0) {
             timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
@@ -593,7 +595,7 @@ export class UnitTimer {
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
+            timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }

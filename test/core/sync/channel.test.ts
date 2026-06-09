@@ -9,8 +9,8 @@ import { xnew } from '../../../src/core/xnew';
 //----------------------------------------------------------------------------------------------------
 
 describe('event channel (socket.io-compatible transport)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; Unit.config.transport = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; Unit.config.transport = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.transport = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.transport = null; jest.useRealTimers(); });
 
     it('loopback routes client.emit to server.on tagged with clientId', () => {
         const hub = xnew.sync.loopback();
@@ -93,8 +93,8 @@ describe('event channel (socket.io-compatible transport)', () => {
     });
 
     it('use(): boot binds the transport even on the very first call (engine root not yet created)', () => {
-        // 回帰: 初回 xnew で reset が走るとエンジンルートが socketSlot を消費してしまう問題（node 起動時に発覚）。
-        // boot がルートを先に用意することで、boot ルートが socket を受け取れる。
+        // 回帰: 初回 xnew で reset が走るとエンジンルートが socket を消費してしまっていた問題（node 起動時に発覚）。
+        // boot がルートを先に用意し、socket を options で boot ルートに直接渡すことで解消。
         (Unit as any).rootUnit = undefined;   // 「まだ何も生成されていない」状態を再現
         xnew.sync.use(xnew.sync.loopback());
         let id: string | undefined;

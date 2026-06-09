@@ -12,10 +12,10 @@ function Box(unit: Unit) {
 }
 
 describe('applyStateTree create', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
 
-    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Box }); }); Unit.config.mode = null; return v; }
+    function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Box }); }); }
 
     it('creates client units under the reconcile root with state applied', () => {
         const view = makeView();
@@ -45,9 +45,9 @@ describe('applyStateTree state injection (client inits from server state)', () =
         const state = xnew.sync.state({ value: 0, who: 'local' });
         observed = { ...state };   // 本体実行時点で見えている state のスナップショット
     }
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; observed = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
-    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Probe }); }); Unit.config.mode = null; return v; }
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Probe }); }); }
 
     it('injects server state before the body runs so local initial is ignored', () => {
         const view = makeView();
@@ -59,16 +59,15 @@ describe('applyStateTree state injection (client inits from server state)', () =
         const view = makeView();
         xnew.sync.apply(view, [{ id: 1, name: 'Probe', parentId: null, state: { value: 42, who: 'server' } }]);
         observed = null;
-        Unit.config.mode = null;
-        xnew(function Holder() { xnew.sync.register({ Probe }); xnew(Probe); });   // apply 経由でない生成
+        xnew(function Holder() { xnew.sync.register({ Probe }); xnew(Probe); });   // apply 経由でない生成（null mode）
         expect(observed).toEqual({ value: 0, who: 'local' });
     });
 });
 
 describe('applyStateTree update', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
-    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Box }); }); Unit.config.mode = null; return v; }
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Box }); }); }
 
     it('updates existing unit in place without recreating it', () => {
         const view = makeView();
@@ -82,9 +81,9 @@ describe('applyStateTree update', () => {
 });
 
 describe('applyStateTree remove', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
-    function makeView() { Unit.config.mode = 'client'; const v = xnew(function View() { xnew.sync.register({ Box }); }); Unit.config.mode = null; return v; }
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
+    function makeView() { return xnew.sync.boot('client', function View() { xnew.sync.register({ Box }); }); }
 
     it('finalizes replica units whose id disappears from the tree', () => {
         const view = makeView();

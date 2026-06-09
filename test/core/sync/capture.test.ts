@@ -5,8 +5,8 @@ import { getSyncName } from '../../../src/core/sync';
 function Player() {}
 
 describe('registry (scoped)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
 
     it('a child is synced under the name its parent registered', () => {
         const root = xnew(function Root() { xnew.sync.register({ Player }); xnew(Player); });
@@ -27,8 +27,8 @@ describe('registry (scoped)', () => {
 });
 
 describe('captureStateTree', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); Unit.config.mode = null; });
-    afterEach(() => { Unit.rootUnit?.finalize(); Unit.config.mode = null; jest.useRealTimers(); });
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    afterEach(() => { Unit.rootUnit?.finalize(); jest.useRealTimers(); });
 
     function World(unit: Unit) { xnew.sync.register({ Child }); xnew.sync.state({ tick: 0 }); xnew(Child); }
     function Child(unit: Unit) { xnew.sync.state({ position: 5 }); }
