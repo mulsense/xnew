@@ -515,7 +515,8 @@ export const xnew = Object.assign(
                     : mode === 'server' ? transport.server
                     : mode === 'client' ? transport.connect()
                     : null;
-                // mode / socket を options で明示的に渡す（boot ルートが採用し、子孫は mode を継承する）。
+                // mode / socket を options で明示的に渡す。socket は unit には保持されず、構築時に
+                // boot ルートとして syncRoots へ登録される（子孫は findSyncRoot で解決する）。
                 const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
                 // transport がある＝socket バインド済みなら、状態の下り（mirror）と
                 // socket→unit.on の橋渡し（dispatcher）をここで自動配線する（どちらも冪等）。

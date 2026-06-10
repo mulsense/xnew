@@ -14,14 +14,17 @@
 //                        レジストリで解決し、create 時に new Unit の options.state でサーバー状態をプリシード
 //
 // イベントチャンネル（socket.io 互換の transport）。client が emit したイベントを server が on で受け取る。
-// transport はルート単位にバインドし（_.sync.socket）、emit/on はカレントユニットのルートから解決する。
+// transport はルート単位にバインドし、socket などのルート情報は syncRoots マップ（root unit をキー）が保持する。
+// emit/on は findSyncRoot でカレントユニットのルートを解決して引く。
 // createLoopback はインメモリ実装で、これを socket.io アダプタ（同じ {server, connect} / socket 形）に
 // 差し替えれば実ネットワークになる。state の下り（capture/apply）はそのまま。
 // on ハンドラは xnew の tick/scope の外で走る点に注意: その中で unit の生成/finalize はせず（spawn は
 // tick 内の update で行う）、closure で掴んだ state の書き換えなどプレーンなデータ更新に留める。
 // - createLoopback         : インメモリ transport ハブ {server, connect(clientId)} を生成
 // - createSocketioTransport: socket.io の io / socket を Transport 形へ橋渡し（duck-type。import 依存なし）
-// - getRootSocket          : ルートにバインド済みの socket を解決（boot が _.sync.socket へ自動バインドする）
+// - registerSyncRoot       : boot ルートを syncRoots に登録（root → { socket } の関連情報）
+// - findSyncRoot           : unit から parent を辿り、属する同期ツリーのルート unit を解決
+// - getRootSocket          : ルートにバインド済みの socket を解決（boot が registerSyncRoot で登録する）
 // - mirrorRoot             : 状態の下りを 1 呼び出しで配線（server=capture→emit('sync') / client=on('sync')→apply）
 // - installSyncDispatch    : socket で届いたイベントを対象 unit の unit.on(event) リスナへ橋渡し（'-'=同一 syncId / 他=全体）
 //----------------------------------------------------------------------------------------------------
@@ -281,9 +284,38 @@ export function createSocketioTransport(ioOrSocket: any, opts: { room?: string }
     };
 }
 
+//----------------------------------------------------------------------------------------------------
+// 同期ツリーのルート情報（syncRoots）
+//----------------------------------------------------------------------------------------------------
+
+/** boot ルートに紐づく関連情報。socket（このルートにバインドされた socket.io 互換の口）を保持する。 */
+export interface SyncRootInfo { socket: ClientSocket | ServerSocket | null; }
+
+/**
+ * boot で生成された同期ツリーのルート → そのルートの関連情報（socket など）。
+ * unit を汚染しないよう WeakMap に置き、ルート判定（findSyncRoot）と socket 解決（getRootSocket）の両方がこれを引く。
+ */
+const syncRoots: WeakMap<Unit, SyncRootInfo> = new WeakMap();
+
+/** boot がルートを登録する（xnew.sync.boot から呼ぶ）。root をキーに socket などの関連情報を保持する。 */
+export function registerSyncRoot(root: Unit, info: SyncRootInfo): void {
+    syncRoots.set(root, info);
+}
+
+/** unit から parent 方向へ遡り、syncRoots に登録された最も近いルート unit を返す（無ければ null）。 */
+export function findSyncRoot(unit: Unit): Unit | null {
+    for (let u: Unit | null = unit; u !== null; u = u._.parent) {
+        if (syncRoots.has(u)) {
+            return u;
+        }
+    }
+    return null;
+}
+
 /** Resolves the socket bound to the caller's sync-tree root (throws if none bound). */
 export function getRootSocket(unit: Unit): ClientSocket | ServerSocket {
-    const socket = unit._.sync.root?._.sync.socket ?? null;
+    const root = findSyncRoot(unit);
+    const socket = (root !== null ? syncRoots.get(root)?.socket : null) ?? null;
     if (socket === null) {
         throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
     }
@@ -358,7 +390,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
     const sameComponent = event[0] === '-';
     const syncId = isEnvelope ? message.syncId : undefined;
     targets.forEach((unit) => {
-        if (unit._.sync.root !== root) {
+        if (findSyncRoot(unit) !== root) {
             return;   // 別ルート（別 client / server）の unit には配らない
         }
         if (sameComponent && unit._.sync.id !== syncId) {

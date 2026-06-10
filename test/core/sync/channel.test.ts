@@ -1,5 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import { getRootSocket, ClientSocket } from '../../../src/core/sync';
 
 //----------------------------------------------------------------------------------------------------
 // イベントチャンネル（socket.io 互換 transport: loopback / bind / emit / on）
@@ -196,8 +197,8 @@ describe('event channel (socket.io-compatible transport)', () => {
         expect(client1._.children.filter((c: Unit) => c._.sync.state).length).toBe(2);
         expect(client2._.children.filter((c: Unit) => c._.sync.state).length).toBe(2);
 
-        // 切断 → 次フレームで despawn（boot が自動バインドした socket は _.sync.socket で取得できる）
-        client2._.sync.socket.disconnect();
+        // 切断 → 次フレームで despawn（boot が自動バインドした socket は getRootSocket で取得できる）
+        (getRootSocket(client2) as ClientSocket).disconnect();
         Unit.update(Unit.engineRoot);
         expect(xnew.sync.capture(server).filter((n) => n.name === 'Player').length).toBe(1);
     });

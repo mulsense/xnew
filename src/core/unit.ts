@@ -18,6 +18,7 @@ import { MapSet, MapMap } from './map';
 import { Ticker, Timer } from './time';
 import { Eventor } from './event';
 import { isDomElement, DomElement } from './element';
+import { registerSyncRoot } from './sync';
 import type { SyncRegistry } from './sync';
 
 //----------------------------------------------------------------------------------------------------
@@ -39,7 +40,8 @@ export type Mode = 'server' | 'client' | null;
 // - mode   : サブツリールートのエンジンモード（親 mode が null のときの fallback）
 // - state  : 構築時に _.sync.state へプリシードする初期状態（apply/sync が渡すサーバー状態。
 //            xnew.sync.state は既存キーを尊重するので、宣言した initial より優先される）
-// - socket : boot がこのルートにバインドする socket（socket.io 互換の口）
+// - socket : boot ルート（mode 指定）にバインドする socket。unit には保持せず、構築時に
+//            core/sync.ts の syncRoots へ {socket} として登録する（socket.io 互換の口）
 export interface UnitOptions {
     mode?: Mode;
     state?: Record<string, any> | null;
@@ -100,12 +102,11 @@ export class Unit {
         mode: Mode;   // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)。親から継承
 
         // server→client 同期に関わる状態は sync 配下にまとめる（xnew.sync.* と core/sync.ts が読む）。
+        // ルート（boot root）に紐づく socket などの情報は core/sync.ts の syncRoots マップが保持する。
         sync: {
             id: number | null;   // 同期ノード id（capture 時に採番。SyncNode.id と対応）
-            root: Unit | null;   // この unit が属する同期ツリーのルート（boot root）。option.mode 指定なら自身、それ以外は親から継承
             state: Record<string, any> | null;   // synced state. xnew.sync.state で宣言、または options.state でプリシード（null until set）
             registry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
-            socket: any | null;   // このルートにバインドされた socket（boot が transport から自動セット、socket.io 互換の口）
         };
     };
 
@@ -179,17 +180,20 @@ export class Unit {
             mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
             sync: {
                 id: null,
-                // option.mode が指定された（= boot 経由で生成された）unit を同期ツリーのルートとし、
-                // 自身を指す。それ以外は親のルートを継承する（engine root 配下は null）。
-                root: options?.mode !== undefined ? this : (parent?._.sync.root ?? null),
                 // apply/sync が渡したサーバー状態を初期値としてプリシード（無ければ null）。
                 // xnew.sync.state は既存キーを尊重するので、これが宣言の initial より優先される。
                 state: options?.state ? { ...options.state } : null,
                 registry: null,
-                // boot が options で渡したこの（boot ルート）unit にバインドする socket（無ければ null）。
-                socket: options?.socket ?? null,
             },
         };
+
+        // boot ルート（options.mode 指定 = boot 経由で生成された unit）を同期ツリーのルートとして
+        // syncRoots へ登録する。socket などの関連情報はそこが保持し、子孫は findSyncRoot で解決する。
+        // body（Unit.extend）より前に登録するのは、ルート自身の body が xnew.sync.emit/clientId を
+        // 同期的に呼んでも socket を解決できるようにするため（旧 _.sync.root/socket と同タイミング）。
+        if (options?.mode !== undefined) {
+            registerSyncRoot(this, { socket: options?.socket ?? null });
+        }
 
         // nest html element
         if (typeof target === 'string') {
