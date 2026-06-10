@@ -306,6 +306,13 @@ declare function Scene(unit: Unit): {
     add(Component: Function, props?: any): void;
 };
 
+declare function Room(unit: Unit, { socket, component }: {
+    socket: ClientSocket;
+    component: Function;
+}): {
+    readonly client: Unit;
+};
+
 declare function Selectable(unit: Unit, { selected }?: {
     selected?: boolean;
 }): {
@@ -454,6 +461,7 @@ declare const xnew: XnewBase & {
         Accordion: typeof Accordion;
         Popup: typeof Popup;
         Scene: typeof Scene;
+        Room: typeof Room;
         Selectable: typeof Selectable;
         VolumeController: typeof VolumeController;
     };

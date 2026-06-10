@@ -336,4 +336,36 @@ describe('event channel (socket.io-compatible transport)', () => {
 
         expect(hits.sort()).toEqual(['A:1', 'B:1']);
     });
+
+    it('client boot delivers basic socket events (connect/disconnect/room:notfound) to the boot PARENT (A)', () => {
+        // 基本イベントは root 配下ではなく「boot を呼んだ親ユニット A」の unit.on へ届く（room の scene 等）。
+        const handlers = new Map<string, Set<Function>>();
+        const socket: ClientSocket = {
+            id: 'c1',
+            emit: () => {},
+            on: (event, h) => { if (!handlers.has(event)) { handlers.set(event, new Set()); } handlers.get(event)!.add(h); },
+            off: (event, h) => { handlers.get(event)?.delete(h); },
+            onAny: () => {},
+            disconnect: () => {},
+        };
+        const fire = (event: string, payload?: any) => handlers.get(event)?.forEach((h) => (h as Function)(payload));
+
+        const parentLog: string[] = [];
+        const rootLog: string[] = [];
+        xnew(function Parent(unit: Unit) {
+            xnew.sync.boot(socket, function Client(client: Unit) {
+                client.on('connect', () => rootLog.push('connect'));   // root 配下には届かない
+            });
+            unit.on('connect', () => parentLog.push('connect'));
+            unit.on('disconnect', () => parentLog.push('disconnect'));
+            unit.on('room:notfound', ({ roomId }: any) => parentLog.push(`notfound:${roomId}`));
+        });
+
+        fire('connect');
+        fire('room:notfound', { roomId: 'r1' });
+        fire('disconnect');
+
+        expect(parentLog).toEqual(['connect', 'notfound:r1', 'disconnect']);
+        expect(rootLog).toEqual([]);   // 基本イベントは root 配下の unit には配られない
+    });
 });

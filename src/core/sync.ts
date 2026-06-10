@@ -230,6 +230,26 @@ export function registerSyncRoot(root: Unit, info: { socket: RootSocket | null }
     syncRoots.set(root, info);
 }
 
+/**
+ * socket の「基本イベント」一覧。dispatchSync（syncRoot 配下の unit へ）とは別経路で、boot を呼んだ
+ * 親ユニット A（= boot ルートの親）の `unit.on(event)` へ配る対象。app ロジックではなく接続まわりの
+ * 通知に限る（connect/disconnect は transport 由来、room:notfound は server からの入室不可通知）。
+ */
+const BASIC_EVENTS = ['connect', 'disconnect', 'room:notfound'] as const;
+
+/**
+ * boot ルートの親ユニット A へ socket の基本イベントを配る別経路。dispatchSync は syncRoot 配下の unit に
+ * 配るが、こちらは root の「外」にいる親 A 1 つだけに配る（A = xnew.sync.boot を呼んだ unit）。
+ * A の `unit.on(event)` リスナを発火し、payload があれば props として渡す。
+ */
+function dispatchBasicEvent(parent: Unit | null, event: string, payload?: any): void {
+    if (parent === null || parent._.status === 'finalized') {
+        return;
+    }
+    const props = (payload !== null && typeof payload === 'object') ? payload : {};
+    parent._.listeners.get(event)?.forEach((item) => item.execute(props));
+}
+
 /** unit から parent 方向へ遡り、syncRoots に登録された最も近いルート unit を返す（無ければ null）。 */
 export function findSyncRoot(unit: Unit): Unit | null {
     for (let u: Unit | null = unit; u !== null; u = u._.parent) {
@@ -259,11 +279,15 @@ export function getRootSocket(unit: Unit): RootSocket {
  *   - server : 毎 update で capture → emit('sync')（全 client へ broadcast）
  *   - client : on('sync') → apply（自分のツリーへ反映。unit finalize で off）
  *
- * (2) socket→unit.on のディスパッチャ（受信イベントを対象 unit の `unit.on(event)` リスナへ橋渡し）:
+ * (2) socket→unit.on のディスパッチャ（アプリイベントを root 配下の対象 unit の `unit.on(event)` へ橋渡し）:
  *   - '-event' … 送信元と同一 syncId の unit のリスナだけ発火（自身）。
  *   - '+event' / 無印 … この root 配下で該当リスナを持つ全 unit を発火（全体）。
- *   - connect/disconnect（transport 由来）… 同名イベントとして全体配信。
  *   handler へは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）を渡す。
+ *
+ * (3) 基本イベント（BASIC_EVENTS = connect / disconnect / room:notfound）は、root 配下ではなく
+ *   **boot を呼んだ親ユニット A（= parent）** の `unit.on(event)` へ配る（dispatchBasicEvent）。これにより
+ *   syncRoot の外にある scene/host（例: GameScene）が接続まわりの通知を直接受け取れる。server では
+ *   connect/disconnect を root 配下（spawn/despawn 用）と親 A の両方へ配る。
  *
  * 各 boot で新しい root を 1 度だけ配線するため、二重配線は起きない（冪等ガード不要）。
  *
@@ -282,16 +306,20 @@ export function bootSyncRoot(socket: RootSocket, parent: Unit | null, ...args: a
         root.on('update', () => server.emit('sync', captureStateTree(root)));
         // (2) ディスパッチャ: 受信イベントを対象 unit の on(event) へ
         server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-        server.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
-        server.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+        // connect/disconnect は root 配下（World 等）へ配り（spawn/despawn 用）、同時に親 A へも基本イベントとして配る。
+        server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect'); });
+        server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect'); });
     } else {
         const client = socket as ClientSocket;
         // (1) 状態の下り: on('sync') → apply（finalize で解除）
         const handler = (tree: StateTree) => applyStateTree(root, tree);
         client.on('sync', handler);
         root.on('finalize', () => client.off('sync', handler));
-        // (2) ディスパッチャ
+        // (2) ディスパッチャ: アプリイベントは root 配下の unit.on へ
         client.onAny((event, message) => dispatchSync(root, event, undefined, message));
+        // (3) 基本イベントは boot を呼んだ親ユニット A の unit.on へ配る（root 配下ではなく親へ。socket.io の
+        //     onAny は connect/disconnect を含まないため明示。room:notfound は server からの入室不可通知）。
+        BASIC_EVENTS.forEach((event) => client.on(event, (payload: any) => dispatchBasicEvent(parent, event, payload)));
     }
     return root;
 }

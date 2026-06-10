@@ -93,34 +93,29 @@ function LobbyScene(unit) {
 
 //----------------------------------------------------------------------------------------------------
 // GameScene — そのルームへ接続し、client ツリー(World) を 1 ペイン mount してプレイ
-//   gameSocket は query{room} 付きで張る（forceNew で lobbySocket と分離）。接続確定後に
-//   socketio transport の client socket で World を boot する（mode は socket から判定される）。
+//   gameSocket は query{room} 付きで張る（forceNew で lobbySocket と分離）。socket の用意と HTML
+//   （戻るボタン・ペインの mount 先）だけを持ち、room 関連の配線（boot / select / socket 所有）は
+//   xnew.basics.Room に委ねる。Room へ渡す socket は server 側（transport.server）と対称に
+//   transport.connect()（ClientSocket）を渡す。boot は基本イベント（connect / disconnect / room:notfound）
+//   を boot を呼んだ親ユニット（= この GameScene）の unit.on へ配るので、接続まわりはここで受け取れる。
 //----------------------------------------------------------------------------------------------------
 
 function GameScene(unit, { roomId }) {
     xnew.extend(xnew.basics.Scene);
 
     const gameSocket = window.io({ query: { room: roomId }, forceNew: true });
+    const transport = xnew.sync.socketio(gameSocket);
+    const socket = transport.connect();   // xnew.sync.boot へ渡す ClientSocket（server の transport.server と対称）
 
     const back = xnew('<button class="px-3 py-1 mb-2 rounded border-0 bg-gray-500 hover:bg-gray-600 text-white text-sm cursor-pointer">', '← ロビーに戻る');
     back.on('click', () => unit.change(LobbyScene));
     xnew.nest('<div class="flex gap-4">');   // 自機ペインの mount 先（World の client が pane を nest する）
 
-    // boot は Unit.currentUnit（= この GameScene）の子として World を生成する。よって raw な socket
-    // コールバックではなく、ここ（component body）で同期的に boot する。socket 未接続でも
-    // World client の emit('-join') は socket.io がバッファし、接続後に送られる。clientId は同期到着後
-    // （= 接続後）に Player が読むので問題ない。
-    const transport = xnew.sync.socketio(gameSocket);
-    const client = xnew.sync.boot(transport.connect(), World);   // socket から mode=client を判定。下りは boot が自動配線
-    client.select();   // このペインを初期選択（すぐ操作できる）
+    // room 関連の配線は Room が引き受ける（boot(World)→select、finalize で client 畳み + socket 切断）。
+    // socket は xnew.sync.boot へ直接渡され、基本イベントは boot 親（この GameScene）の unit.on へ届く。
+    xnew.extend(xnew.basics.Room, { socket, component: World });
 
-    if (gameSocket.connected) { setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true); }
-    gameSocket.on('connect', () => setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
-    gameSocket.on('room:notfound', () => unit.change(LobbyScene));   // 消滅ルームへ来たらロビーへ
-    gameSocket.on('disconnect', () => setStatus('切断', false));
-
-    unit.on('finalize', () => {
-        client.finalize();
-        gameSocket.close();
-    });
+    unit.on('connect', () => setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
+    unit.on('disconnect', () => setStatus('切断', false));
+    unit.on('room:notfound', () => unit.change(LobbyScene));   // 消滅ルームへ来たらロビーへ
 }

@@ -1135,6 +1135,15 @@ const syncRoots = new WeakMap();
 function registerSyncRoot(root, info) {
     syncRoots.set(root, info);
 }
+const BASIC_EVENTS = ['connect', 'disconnect', 'room:notfound'];
+function dispatchBasicEvent(parent, event, payload) {
+    var _a;
+    if (parent === null || parent._.status === 'finalized') {
+        return;
+    }
+    const props = (payload !== null && typeof payload === 'object') ? payload : {};
+    (_a = parent._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
+}
 function findSyncRoot(unit) {
     for (let u = unit; u !== null; u = u._.parent) {
         if (syncRoots.has(u)) {
@@ -1158,8 +1167,8 @@ function bootSyncRoot(socket, parent, ...args) {
         const server = socket;
         root.on('update', () => server.emit('sync', captureStateTree(root)));
         server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-        server.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
-        server.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+        server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect'); });
+        server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect'); });
     }
     else {
         const client = socket;
@@ -1167,6 +1176,7 @@ function bootSyncRoot(socket, parent, ...args) {
         client.on('sync', handler);
         root.on('finalize', () => client.off('sync', handler));
         client.onAny((event, message) => dispatchSync(root, event, undefined, message));
+        BASIC_EVENTS.forEach((event) => client.on(event, (payload) => dispatchBasicEvent(parent, event, payload)));
     }
     return root;
 }
@@ -2029,6 +2039,19 @@ function Scene(unit) {
     };
 }
 
+function Room(unit, { socket, component }) {
+    var _a;
+    const client = xnew$1.sync.boot(socket, component);
+    (_a = client.select) === null || _a === void 0 ? void 0 : _a.call(client);
+    unit.on('finalize', () => {
+        client.finalize();
+        socket.disconnect();
+    });
+    return {
+        get client() { return client; },
+    };
+}
+
 function Selectable(unit, { selected = false } = {}) {
     let current = selected;
     const change = (next) => {
@@ -2442,6 +2465,7 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    Room,
     Selectable,
     VolumeController,
 };
