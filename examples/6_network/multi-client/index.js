@@ -7,7 +7,7 @@ import { World } from './game.js';
 //     - lobbySocket : room 無し → ロビー（ルーム一覧 / 作成）
 //     - gameSocket  : query{room} 付き → そのルームに参加（入室のたびに張り直す）
 //   ★ browser-only 版との違いは「boot へ渡す socket（socketio transport 由来）」と「ロビー経由で
-//      ルームを選ぶ」点だけ。ゲーム本体 game.js は無改変（World が clientId/emit('join')/move を処理）。
+//      ルームを選ぶ」点だけ。ゲーム本体 game.js は無改変（World が clientId/emit('-join')/move を処理）。
 //----------------------------------------------------------------------------------------------------
 
 const lobbySocket = window.io();   // room 無し → サーバーはロビー接続として扱う
@@ -108,7 +108,7 @@ function GameScene(unit, { roomId }) {
 
     // boot は Unit.currentUnit（= この GameScene）の子として World を生成する。よって raw な socket
     // コールバックではなく、ここ（component body）で同期的に boot する。socket 未接続でも
-    // World client の emit('join') は socket.io がバッファし、接続後に送られる。clientId は同期到着後
+    // World client の emit('-join') は socket.io がバッファし、接続後に送られる。clientId は同期到着後
     // （= 接続後）に Player が読むので問題ない。
     const transport = xnew.sync.socketio(gameSocket);
     const client = xnew.sync.boot(transport.connect(), World);   // socket から mode=client を判定。下りは boot が自動配線

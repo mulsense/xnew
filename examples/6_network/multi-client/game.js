@@ -5,8 +5,8 @@ import xnew from '@mulsense/xnew';
 //   ネットワークは xnew.sync（emit/on/clientId）だけに依存。socket は起動側が xnew.sync.boot(socket, ...) で渡す（server=transport.server / client=transport.connect()）。
 //
 //   - World  : server/client 共通ルート。socket バインドと状態の下り(capture/apply)は xnew.sync.boot が自動で行う。
-//       server: 'join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
-//       client: ペインを生成し emit('join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」だけを担う。
+//       server: '-join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
+//       client: ペインを生成し emit('-join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」だけを担う。
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。
 //       server: '-move'（同一コンポーネント宛て）で方向を vel に保持→update で積分。
 //       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.clientId。
@@ -65,12 +65,12 @@ export function World(unit) {
     xnew.server(() => {
         // clientId を key にして Player を生成（同一性の目印）。disconnect では key で引いて finalize。
         // sync.on は登録元ユニットのスコープで走るので、xnew(Player) は World の子として生成される。
-        unit.on('join', ({ id }) => xnew(Player, { key: id, clientId: id }));
+        unit.on('-join', ({ id }) => xnew(Player, { key: id, clientId: id }));
         unit.on('disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());
     });
 
     xnew.client(() => {
-        xnew.sync.emit('join');   // 参加通知（これで server が Player を spawn する）
+        xnew.sync.emit('-join');   // 参加通知（これで server が Player を spawn する）。'-' = 自身宛て: client ルート ⇄ 対応する server ルート（共に syncId=null で一致）。
         const pane = xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50 cursor-pointer">');
 
         // クリックで選択（他ペインのクリックで自動解除 = 相互排他）。入力→移動は自機 Player 側が担う。
