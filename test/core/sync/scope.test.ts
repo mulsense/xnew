@@ -1,11 +1,10 @@
 import { Unit } from '../../../src/core/unit';
 import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/core/xnew';
-import xsocket from '../../../src/addons/xsocket';
 
 describe('scoped registry isolation', () => {
-    let transport: ReturnType<typeof xsocket.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
+    let transport: ReturnType<typeof xnew.sync.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     // 同名 'Child' を 2 つの親がそれぞれ別の実体で登録する

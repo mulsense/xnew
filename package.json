@@ -34,11 +34,6 @@
       "import": "./dist/addons/xrapier3d.mjs",
       "require": "./dist/addons/xrapier3d.js"
     },
-    "./addons/xsocket": {
-      "types": "./dist/addons/xsocket.d.ts",
-      "import": "./dist/addons/xsocket.mjs",
-      "require": "./dist/addons/xsocket.js"
-    },
     "./addons/xthree": {
       "types": "./dist/addons/xthree.d.ts",
       "import": "./dist/addons/xthree.mjs",

@@ -1,5 +1,4 @@
 import xnew from '@mulsense/xnew';
-import xsocket from '@mulsense/xnew/addons/xsocket';
 import { World } from './game.js';
 
 //----------------------------------------------------------------------------------------------------
@@ -111,7 +110,7 @@ function GameScene(unit, { roomId }) {
     // コールバックではなく、ここ（component body）で同期的に boot する。socket 未接続でも
     // World client の emit('join') は socket.io がバッファし、接続後に送られる。clientId は同期到着後
     // （= 接続後）に Player が読むので問題ない。
-    const transport = xsocket.socketio(gameSocket);
+    const transport = xnew.sync.socketio(gameSocket);
     const client = xnew.sync.boot(transport.connect(), World);   // socket から mode=client を判定。下りは boot が自動配線
     client.select();   // このペインを初期選択（すぐ操作できる）
 

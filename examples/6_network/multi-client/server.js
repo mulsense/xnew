@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------------------------------
 // multi-client（socket.io 版・server 側）— express で静的配信し、socket.io で実ネットワーク同期する。
-//   ロビー + 動的ルームは addon の xsocket.serveRooms に委譲する（ルームごとに room スコープの
+//   ロビー + 動的ルームは addon の xnew.sync.serveRooms に委譲する（ルームごとに room スコープの
 //   transport + boot(World) し、人数カウントと空室掃除まで担う）。ゲーム本体 game.js は無改変。
 //   xnew のティッカーは node でも回る。各ルームの World.update が毎フレーム動く。
 //----------------------------------------------------------------------------------------------------
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import express from 'express';
 import { Server as IOServer } from 'socket.io';
-import xsocket from '@mulsense/xnew/addons/xsocket';
+import xnew from '@mulsense/xnew';
 import { World } from './game.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,7 +27,7 @@ const io = new IOServer(httpServer);
 
 // ★ ロビー + 動的ルームをこの 1 行で配線。ルームごとに socketio(io, { room }) + boot(World) を
 //   addon が担い、auto-mirror がそのルームにだけ broadcast する（World は無改変で注入）。
-xsocket.serveRooms(io, { component: World });
+xnew.sync.serveRooms(io, { component: World });
 
 httpServer.listen(PORT, () => {
     console.log(`[multi-client] socket.io server on http://localhost:${PORT}/`);

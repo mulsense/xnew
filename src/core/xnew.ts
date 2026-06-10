@@ -26,7 +26,7 @@
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot } from './sync';
+import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot, loopback, socketio, serveRooms } from './sync';
 import type { RootSocket } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -420,7 +420,7 @@ export const xnew = Object.assign(
          * - apply    : reconcile a state tree into a client subtree（同上）
          *
          * Event channel (client→server / server→client)。transport（loopback / socketio）と Transport 形は
-         * アドオン `@mulsense/xnew/addons/xsocket` に分離した（boot に socket を渡す）:
+         * xnew.sync.loopback / xnew.sync.socketio で供給する（boot に socket を渡す）:
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
          * - emit     : イベント送信（client→server / server→client）。payload はオブジェクト。送信ユニットの
          *              syncId を自動付与。プレフィックス **'+event'=全コンポーネント / '-event'=自身(同一 syncId 宛て)**
@@ -493,7 +493,7 @@ export const xnew = Object.assign(
              *   xnew.sync.boot(transport.server, Main)      // server: socket バインド + 下り自動配線
              *   xnew.sync.boot(transport.connect(), Main)   // client: socket バインド + 下り自動配線
              * Binding always auto-wires the down-channel (capture→broadcast / on→apply) and the
-             * event dispatcher. transport（loopback / socketio）は addon `@mulsense/xnew/addons/xsocket` から。
+             * event dispatcher. transport（loopback / socketio）は xnew.sync.loopback / xnew.sync.socketio から。
              * @returns the Unit created by `xnew(...args)`
              */
             boot(socket: RootSocket, ...args: any[]): Unit {
@@ -502,6 +502,11 @@ export const xnew = Object.assign(
                 // （状態の下り mirror + dispatcher）まで bootSyncRoot に委譲する。
                 return bootSyncRoot(socket, Unit.currentUnit, ...args);
             },
+
+            // transport（boot に渡す socket を供給する）。socket.io への import 依存は持たず duck-type で乗る。
+            loopback,    // in-memory transport ハブ（同一プロセスで server↔client を繋ぐ。テスト/擬似用）
+            socketio,    // socket.io の io（server）/ socket（client）を Transport 形へ橋渡し
+            serveRooms,  // ロビー + 動的ルームをサーバーに配線（ルームごとに boot）
         },
 
     }
