@@ -100,10 +100,7 @@ const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
  */
 export function applyStateTree(root: Unit, tree: StateTree): void {
     let map = reconcileMaps.get(root);
-    if (map === undefined) {
-        map = new Map();
-        reconcileMaps.set(root, map);
-    }
+    if (map === undefined) { reconcileMaps.set(root, map = new Map()); }
 
     const incoming = new Set<number>(tree.map((node) => node.id));
 
@@ -167,6 +164,9 @@ export interface ServerSocket {
 }
 
 export interface Transport { server: ServerSocket; connect(clientId?: string): ClientSocket; }
+
+/** boot ルートにバインドされる socket（server なら ServerSocket / client なら ClientSocket）。 */
+export type RootSocket = ClientSocket | ServerSocket;
 
 /**
  * In-memory transport hub. client.emit を server の on ハンドラへ（clientId 付きで）同期配送し、
@@ -288,42 +288,45 @@ export function createSocketioTransport(ioOrSocket: any, opts: { room?: string }
 // 同期ツリーのルート情報（syncRoots）
 //----------------------------------------------------------------------------------------------------
 
-/** boot ルートに紐づく関連情報。socket（このルートにバインドされた socket.io 互換の口）を保持する。 */
-export interface SyncRootInfo { socket: ClientSocket | ServerSocket | null; }
-
 /**
- * boot で生成された同期ツリーのルート → そのルートの関連情報（socket など）。
+ * boot で生成された同期ツリーのルート → そのルートに紐づく関連情報（socket など）。
  * unit を汚染しないよう WeakMap に置き、ルート判定（findSyncRoot）と socket 解決（getRootSocket）の両方がこれを引く。
  */
-const syncRoots: WeakMap<Unit, SyncRootInfo> = new WeakMap();
+const syncRoots: WeakMap<Unit, { socket: RootSocket | null }> = new WeakMap();
 
 /** boot がルートを登録する（xnew.sync.boot から呼ぶ）。root をキーに socket などの関連情報を保持する。 */
-export function registerSyncRoot(root: Unit, info: SyncRootInfo): void {
+export function registerSyncRoot(root: Unit, info: { socket: RootSocket | null }): void {
     syncRoots.set(root, info);
 }
 
 /** unit から parent 方向へ遡り、syncRoots に登録された最も近いルート unit を返す（無ければ null）。 */
 export function findSyncRoot(unit: Unit): Unit | null {
     for (let u: Unit | null = unit; u !== null; u = u._.parent) {
-        if (syncRoots.has(u)) {
-            return u;
-        }
+        if (syncRoots.has(u)) { return u; }
     }
     return null;
 }
 
 /** Resolves the socket bound to the caller's sync-tree root (throws if none bound). */
-export function getRootSocket(unit: Unit): ClientSocket | ServerSocket {
+export function getRootSocket(unit: Unit): RootSocket {
+    // findSyncRoot は syncRoots.has で見つけたルートを返すので、get は必ず存在する。
     const root = findSyncRoot(unit);
-    const socket = (root !== null ? syncRoots.get(root)?.socket : null) ?? null;
+    const socket = root !== null ? syncRoots.get(root)!.socket : null;
     if (socket === null) {
         throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
     }
     return socket;
 }
 
-/** 既に mirror 済みのルート。boot の自動配線が同一ルートへ二重配線するのを防ぐ（冪等化）。 */
+/** 同一ルートへの二重配線を防ぐ冪等ガード。set に未登録のときだけ登録して fn を 1 度実行する。 */
+function wireOnce(set: WeakSet<Unit>, root: Unit, fn: () => void): void {
+    if (set.has(root) === false) {
+        set.add(root);
+        fn();
+    }
+}
 const mirroredRoots: WeakSet<Unit> = new WeakSet();
+const dispatchedRoots: WeakSet<Unit> = new WeakSet();
 
 /**
  * 状態の下り（server→client）を 1 呼び出しで配線する。socket がバインド済みのルートに対して呼ぶ。
@@ -334,23 +337,18 @@ const mirroredRoots: WeakSet<Unit> = new WeakSet();
  * （xnew.sync.boot が socket バインド時に自動で呼ぶため。細かい配信制御が要るときは capture/apply を手書きでよい）。
  */
 export function mirrorRoot(root: Unit): void {
-    if (mirroredRoots.has(root)) {
-        return;
-    }
-    mirroredRoots.add(root);
-    if (root._.mode === 'server') {
-        const socket = getRootSocket(root) as ServerSocket;
-        root.on('update', () => socket.emit('sync', captureStateTree(root)));
-    } else if (root._.mode === 'client') {
-        const socket = getRootSocket(root) as ClientSocket;
-        const handler = (tree: StateTree) => applyStateTree(root, tree);
-        socket.on('sync', handler);
-        root.on('finalize', () => socket.off('sync', handler));
-    }
+    wireOnce(mirroredRoots, root, () => {
+        if (root._.mode === 'server') {
+            const socket = getRootSocket(root) as ServerSocket;
+            root.on('update', () => socket.emit('sync', captureStateTree(root)));
+        } else if (root._.mode === 'client') {
+            const socket = getRootSocket(root) as ClientSocket;
+            const handler = (tree: StateTree) => applyStateTree(root, tree);
+            socket.on('sync', handler);
+            root.on('finalize', () => socket.off('sync', handler));
+        }
+    });
 }
-
-/** 既に dispatcher を設置したルート（boot から二重設置されないように）。 */
-const dispatchedRoots: WeakSet<Unit> = new WeakSet();
 
 /**
  * socket で届いたイベントを、対象 unit の `unit.on(event)` リスナへ橋渡しするディスパッチャを設置する。
@@ -361,18 +359,16 @@ const dispatchedRoots: WeakSet<Unit> = new WeakSet();
  * handler へは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）を渡す。
  */
 export function installSyncDispatch(root: Unit): void {
-    if (dispatchedRoots.has(root)) {
-        return;
-    }
-    dispatchedRoots.add(root);
-    const socket = getRootSocket(root);
-    if (root._.mode === 'server') {
-        (socket as ServerSocket).onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-        socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
-        socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
-    } else if (root._.mode === 'client') {
-        (socket as ClientSocket).onAny((event, message) => dispatchSync(root, event, undefined, message));
-    }
+    wireOnce(dispatchedRoots, root, () => {
+        const socket = getRootSocket(root);
+        if (root._.mode === 'server') {
+            (socket as ServerSocket).onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
+            socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+            socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+        } else if (root._.mode === 'client') {
+            (socket as ClientSocket).onAny((event, message) => dispatchSync(root, event, undefined, message));
+        }
+    });
 }
 
 /** 1 つの受信イベントを、root 配下の該当 unit リスナへ配る。 */
