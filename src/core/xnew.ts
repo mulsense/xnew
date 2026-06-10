@@ -19,8 +19,9 @@
 // - xnew.timeout / interval / transition : UnitTimer-backed scheduling
 // - xnew.protect                         : exclude current Unit from emit / find
 // - xnew.server / client                 : run a block only on server / client (extend-like)
-// - xnew.sync.state / register / capture / apply / boot : server→client state sync (see core/sync.ts)
-//   xnew.sync.boot : create a root Unit with the engine mode set (server/client) + auto socket bind / mirror
+// - xnew.sync.state / register / capture / apply / emit / boot : server→client state sync (see core/sync.ts)
+//   xnew.sync.boot('server'|'client', transport?, ...) : create a mode root, binding the optional
+//   transport's socket + auto-wiring the down-channel (capture/apply) and event dispatcher
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
@@ -415,22 +416,20 @@ export const xnew = Object.assign(
          * - state    : declare synced state on the current unit (server/standalone use `initial`;
          *              on the client, apply injects server state so `initial` is ignored)
          * - register : 現在のコンポーネントの「直接の同期子」を名前マップ `{ Name: Component }` で宣言（server/client 共通 body で呼ぶ）
-         * - mirror   : 状態の下り（server→client）を配線（server=broadcast / client=apply）。**transport 使用時は xnew.sync.boot が自動で呼ぶ**ため通常は不要。手動配線したいとき用（冪等）
-         * - capture  : capture a server subtree as a state tree（mirror を使わず手動配信したいとき用）
+         * - capture  : capture a server subtree as a state tree（boot の自動 mirror を使わず、手動・任意レートで配信/検査したいとき用）
          * - apply    : reconcile a state tree into a client subtree（同上）
          *
          * Event channel (socket.io 互換 transport, client→server / server→client):
          * - loopback : インメモリ transport ハブ {server, connect(clientId?)} を生成
          * - socketio : socket.io の io / socket を Transport 形へ橋渡し（実ネットワーク用。import 依存なし）
-         * - use      : 以後の xnew.sync.boot が socket を自動バインドする transport を設定（server→server / client→connect()）
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
          * - emit     : イベント送信（client→server / server→client）。payload はオブジェクト。送信ユニットの
          *              syncId を自動付与。プレフィックス '-'=同一コンポーネント(同一 syncId 宛て) / '+'・無印=全体
          *   受信は xnew.sync.on ではなく **unit.on(event, ({ id, ...payload }) => …)** に統一（受信 unit を明示）。
          *   handler が受ける object は xnew の慣習どおり { type, id, ...payload }（type=イベント名, id=送信元 clientId）。
          *   socket→unit.on の橋渡しは boot が installSyncDispatch で配線する（'-' は同一 syncId のリスナだけ発火）。
-         * - boot     : その mode(server/client) でルートを生成する唯一の公開手段。transport 使用時は
-         *              socket 自動バインド + 状態の下り(mirror)の自動配線も行う
+         * - boot     : その mode(server/client) でルートを生成する唯一の公開手段。transport を渡すと
+         *              socket 自動バインド + 状態の下り(capture/apply)の自動配線も行う
          */
         sync: {
             state(initial: Record<string, any> = {}): Record<string, any> {
@@ -473,10 +472,6 @@ export const xnew = Object.assign(
                 // opts.room: server を 1 ルームに絞る（io.to(room) 配信 + query.room 受信フィルタ）。
                 return createSocketioTransport(ioOrSocket, opts);
             },
-            use(transport: Transport): void {
-                // 以後の xnew.sync.boot がこの transport から socket を自動バインドする（server→server, client→connect()）。
-                Unit.transport = transport;
-            },
             /** このルート(client)の自動発番された clientId（= socket.id）。server では undefined。 */
             get clientId(): string | undefined {
                 const unit = Unit.currentUnit;
@@ -496,21 +491,29 @@ export const xnew = Object.assign(
             },
 
             /**
-             * Creates a root Unit with the engine mode temporarily set to `mode`, restoring the
-             * previous mode afterward (even on throw). The remaining arguments are forwarded to
-             * `xnew(...)`, so this is the only public way to select server / client mode — e.g.
-             * `const server = xnew.sync.boot('server', Main)`. The created root adopts the mode and its
-             * descendants inherit it (so spawning later does not need another boot). transport 使用時は
-             * socket の自動バインドと状態の下り（mirror）の自動配線もここで行う。
+             * Creates a root Unit for `mode` (server / client / null). This is the only public way to
+             * select server / client mode — e.g. `const server = xnew.sync.boot('server', Main)`.
+             * The created root adopts the mode and its descendants inherit it.
+             *
+             * An optional transport may be passed as the first argument after `mode`; the remaining
+             * arguments are forwarded to `xnew(...)`:
+             *   xnew.sync.boot('server', Main)                  // standalone（transport なし）
+             *   xnew.sync.boot('server', transport, Main)       // socket バインド + 状態の下り自動配線
+             * When a transport is given, this binds the socket (server→server / client→connect()) and
+             * auto-wires the down-channel (capture→broadcast / on→apply) and the event dispatcher.
              * @returns the Unit created by `xnew(...args)`
              */
             boot(mode: Mode, ...args: any[]): Unit {
                 // boot ルートはエンジンルートの子として生成する。先にエンジンルートを確実に用意し、
                 // それを親（= Unit.currentUnit）として root を直接構築する。
                 if (Unit.engineRoot === undefined) { Unit.reset(); }
-                // transport が設定されていれば、この boot ルートへバインドする socket を用意する
-                // （server→transport.server / client→transport.connect() で自動発番）。
-                const transport: Transport | null = Unit.transport;
+                // 先頭引数が transport（{ server, connect } を持つ）ならこの boot ルートへバインドする。
+                // それ以外（Component / target / content）はそのまま xnew(...) へ転送する。
+                // server getter を呼ばないよう `in` で存在チェックする（socketio の server は遅延生成）。
+                const head = args[0];
+                const transport: Transport | null =
+                    (head !== null && typeof head === 'object' && 'server' in head && typeof head.connect === 'function')
+                        ? args.shift() as Transport : null;
                 const socket = transport === null ? null
                     : mode === 'server' ? transport.server
                     : mode === 'client' ? transport.connect()

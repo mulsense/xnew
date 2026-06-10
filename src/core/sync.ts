@@ -313,7 +313,7 @@ export function getRootSocket(unit: Unit): RootSocket {
     const root = findSyncRoot(unit);
     const socket = root !== null ? syncRoots.get(root)!.socket : null;
     if (socket === null) {
-        throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
+        throw new Error('no socket bound to this root; pass a transport to xnew.sync.boot(mode, transport, ...).');
     }
     return socket;
 }

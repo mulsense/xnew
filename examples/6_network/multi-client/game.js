@@ -2,9 +2,9 @@ import xnew from '@mulsense/xnew';
 
 //----------------------------------------------------------------------------------------------------
 // game — multi-client のゲームロジック（loopback / socket.io 共通・無改変で動く）。
-//   ネットワークは xnew.sync（emit/on/clientId）だけに依存。transport は起動側が xnew.sync.use(...) で差す。
+//   ネットワークは xnew.sync（emit/on/clientId）だけに依存。transport は起動側が xnew.sync.boot(mode, transport, ...) で渡す。
 //
-//   - World  : server/client 共通ルート。socket バインドと状態の下り(mirror)は xnew.sync.boot が自動で行う。
+//   - World  : server/client 共通ルート。socket バインドと状態の下り(capture/apply)は xnew.sync.boot が自動で行う。
 //       server: 'join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
 //       client: ペインを生成し emit('join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」だけを担う。
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。

@@ -601,13 +601,295 @@
         return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
     }
 
+    function registerOnUnit(unit, components) {
+        if (unit._.sync.registry === null) {
+            unit._.sync.registry = new BiMap();
+        }
+        for (const [name, Component] of Object.entries(components)) {
+            unit._.sync.registry.set(name, Component);
+        }
+    }
+    function getSyncName(unit) {
+        var _a;
+        const registry = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.sync.registry;
+        if (registry === undefined || registry === null) {
+            return undefined;
+        }
+        for (let i = unit._.Components.length - 1; i >= 0; i--) {
+            const name = registry.getLeft(unit._.Components[i]);
+            if (name !== undefined) {
+                return name;
+            }
+        }
+        return undefined;
+    }
+    function captureStateTree(root) {
+        const nodes = [];
+        const walk = (unit, nearestSyncedId) => {
+            var _a;
+            let parentForChildren = nearestSyncedId;
+            const name = getSyncName(unit);
+            if (name !== undefined) {
+                if (unit._.sync.id === null) {
+                    unit._.sync.id = Unit.syncIdCounter++;
+                }
+                nodes.push({
+                    id: unit._.sync.id,
+                    name,
+                    parentId: nearestSyncedId,
+                    state: Object.assign({}, ((_a = unit._.sync.state) !== null && _a !== void 0 ? _a : {})),
+                });
+                parentForChildren = unit._.sync.id;
+            }
+            unit._.children.forEach((child) => walk(child, parentForChildren));
+        };
+        walk(root, null);
+        return nodes;
+    }
+    const reconcileMaps = new WeakMap();
+    function applyStateTree(root, tree) {
+        var _a;
+        let map = reconcileMaps.get(root);
+        if (map === undefined) {
+            reconcileMaps.set(root, map = new Map());
+        }
+        const incoming = new Set(tree.map((node) => node.id));
+        for (const node of tree) {
+            const existing = map.get(node.id);
+            if (existing === undefined) {
+                const parent = node.parentId === null ? root : map.get(node.parentId);
+                if (parent === undefined) {
+                    continue;
+                }
+                const Component = (_a = parent._.sync.registry) === null || _a === void 0 ? void 0 : _a.getRight(node.name);
+                if (Component === undefined) {
+                    continue;
+                }
+                const unit = new Unit({ state: node.state }, parent, Component);
+                unit._.sync.id = node.id;
+                map.set(node.id, unit);
+            }
+            else {
+                if (existing._.sync.state === null) {
+                    existing._.sync.state = {};
+                }
+                for (const key of Object.keys(node.state)) {
+                    if (existing._.sync.state[key] !== node.state[key]) {
+                        existing._.sync.state[key] = node.state[key];
+                    }
+                }
+            }
+        }
+        for (const [id, unit] of [...map.entries()]) {
+            if (incoming.has(id) === false) {
+                unit.finalize();
+                map.delete(id);
+            }
+        }
+    }
+    function createLoopback() {
+        const serverHandlers = new Map();
+        const clients = new Map();
+        const serverAnyHandlers = new Set();
+        const clientAnyHandlers = new Map();
+        let seq = 0;
+        const addHandler = (map, event, handler) => {
+            if (map.has(event) === false) {
+                map.set(event, new Set());
+            }
+            map.get(event).add(handler);
+        };
+        const removeHandler = (map, event, handler) => {
+            var _a;
+            (_a = map.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler);
+        };
+        const fireServer = (event, clientId, payload) => {
+            var _a;
+            (_a = serverHandlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((handler) => handler(clientId, payload));
+            if (event !== 'connect' && event !== 'disconnect') {
+                serverAnyHandlers.forEach((handler) => handler(event, clientId, payload));
+            }
+        };
+        const fireClient = (clientId, event, payload) => {
+            var _a, _b, _c;
+            (_b = (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.get(event)) === null || _b === void 0 ? void 0 : _b.forEach((handler) => handler(payload));
+            (_c = clientAnyHandlers.get(clientId)) === null || _c === void 0 ? void 0 : _c.forEach((handler) => handler(event, payload));
+        };
+        const server = {
+            on(event, handler) { addHandler(serverHandlers, event, handler); },
+            off(event, handler) { removeHandler(serverHandlers, event, handler); },
+            emit(event, payload) { for (const clientId of clients.keys()) {
+                fireClient(clientId, event, payload);
+            } },
+            to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
+            onAny(handler) { serverAnyHandlers.add(handler); },
+        };
+        function connect(clientId) {
+            if (clientId === undefined) {
+                clientId = 'c' + (++seq);
+            }
+            clients.set(clientId, new Map());
+            clientAnyHandlers.set(clientId, new Set());
+            fireServer('connect', clientId);
+            return {
+                id: clientId,
+                emit(event, payload) { fireServer(event, clientId, payload); },
+                on(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
+                    addHandler(map, event, handler);
+                } },
+                off(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
+                    removeHandler(map, event, handler);
+                } },
+                onAny(handler) { var _a; (_a = clientAnyHandlers.get(clientId)) === null || _a === void 0 ? void 0 : _a.add(handler); },
+                disconnect() { clients.delete(clientId); clientAnyHandlers.delete(clientId); fireServer('disconnect', clientId); },
+            };
+        }
+        return { server, connect };
+    }
+    function createSocketioTransport(ioOrSocket, opts = {}) {
+        const room = opts.room;
+        let serverAdapter = null;
+        return {
+            get server() {
+                if (serverAdapter !== null) {
+                    return serverAdapter;
+                }
+                const io = ioOrSocket;
+                const handlers = new Map();
+                const anyHandlers = new Set();
+                const bucket = (event) => {
+                    let set = handlers.get(event);
+                    if (set === undefined) {
+                        handlers.set(event, set = new Set());
+                    }
+                    return set;
+                };
+                io.on('connection', (socket) => {
+                    var _a, _b;
+                    if (room !== undefined && ((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room) {
+                        return;
+                    }
+                    if (room !== undefined) {
+                        socket.join(room);
+                    }
+                    bucket('connect').forEach((fn) => fn(socket.id, undefined));
+                    socket.onAny((event, payload) => {
+                        var _a;
+                        (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, payload));
+                        anyHandlers.forEach((fn) => fn(event, socket.id, payload));
+                    });
+                    socket.on('disconnect', () => { var _a; return (_a = handlers.get('disconnect')) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, undefined)); });
+                });
+                const target = () => (room !== undefined ? io.to(room) : io);
+                serverAdapter = {
+                    on: (event, handler) => bucket(event).add(handler),
+                    off: (event, handler) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler); },
+                    emit: (event, payload) => target().emit(event, payload),
+                    to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
+                    onAny: (handler) => anyHandlers.add(handler),
+                };
+                return serverAdapter;
+            },
+            connect() {
+                const socket = ioOrSocket;
+                return {
+                    get id() { return socket.id; },
+                    emit: (event, payload) => socket.emit(event, payload),
+                    on: (event, handler) => socket.on(event, handler),
+                    off: (event, handler) => socket.off(event, handler),
+                    onAny: (handler) => socket.onAny(handler),
+                    disconnect: () => socket.disconnect(),
+                };
+            },
+        };
+    }
+    const syncRoots = new WeakMap();
+    function registerSyncRoot(root, info) {
+        syncRoots.set(root, info);
+    }
+    function findSyncRoot(unit) {
+        for (let u = unit; u !== null; u = u._.parent) {
+            if (syncRoots.has(u)) {
+                return u;
+            }
+        }
+        return null;
+    }
+    function getRootSocket(unit) {
+        const root = findSyncRoot(unit);
+        const socket = root !== null ? syncRoots.get(root).socket : null;
+        if (socket === null) {
+            throw new Error('no socket bound to this root; pass a transport to xnew.sync.boot(mode, transport, ...).');
+        }
+        return socket;
+    }
+    function wireOnce(set, root, fn) {
+        if (set.has(root) === false) {
+            set.add(root);
+            fn();
+        }
+    }
+    const mirroredRoots = new WeakSet();
+    const dispatchedRoots = new WeakSet();
+    function mirrorRoot(root) {
+        wireOnce(mirroredRoots, root, () => {
+            if (root._.mode === 'server') {
+                const socket = getRootSocket(root);
+                root.on('update', () => socket.emit('sync', captureStateTree(root)));
+            }
+            else if (root._.mode === 'client') {
+                const socket = getRootSocket(root);
+                const handler = (tree) => applyStateTree(root, tree);
+                socket.on('sync', handler);
+                root.on('finalize', () => socket.off('sync', handler));
+            }
+        });
+    }
+    function installSyncDispatch(root) {
+        wireOnce(dispatchedRoots, root, () => {
+            const socket = getRootSocket(root);
+            if (root._.mode === 'server') {
+                socket.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
+                socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+                socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+            }
+            else if (root._.mode === 'client') {
+                socket.onAny((event, message) => dispatchSync(root, event, undefined, message));
+            }
+        });
+    }
+    function dispatchSync(root, event, id, message) {
+        if (root._.status === 'finalized') {
+            return;
+        }
+        const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
+        const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
+        const props = Object.assign({ id }, data);
+        const targets = Unit.type2units.get(event);
+        if (targets === undefined) {
+            return;
+        }
+        const sameComponent = event[0] === '-';
+        const syncId = isEnvelope ? message.syncId : undefined;
+        targets.forEach((unit) => {
+            var _a;
+            if (findSyncRoot(unit) !== root) {
+                return;
+            }
+            if (sameComponent && unit._.sync.id !== syncId) {
+                return;
+            }
+            (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
+        });
+    }
+
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     function isSystemEvent(type) {
         return SYSTEM_EVENTS.includes(type);
     }
     class Unit {
-        constructor(parent, ...args) {
-            var _a, _b, _c, _d, _e;
+        constructor(options, parent, ...args) {
+            var _a, _b, _c, _d, _e, _f;
             let target;
             let Component;
             let props;
@@ -621,7 +903,6 @@
                 Component = args[0];
                 props = args[1];
             }
-            const key = (_a = props === null || props === void 0 ? void 0 : props.key) !== null && _a !== void 0 ? _a : null;
             const backup = Unit.currentUnit;
             Unit.currentUnit = this;
             parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
@@ -632,7 +913,7 @@
             else if (parent !== null) {
                 baseElement = parent._.currentElement;
             }
-            else if ((_b = globalThis.document) === null || _b === void 0 ? void 0 : _b.body) {
+            else if ((_a = globalThis.document) === null || _a === void 0 ? void 0 : _a.body) {
                 baseElement = globalThis.document.body;
             }
             else {
@@ -648,7 +929,8 @@
             else {
                 baseComponent = (unit) => { };
             }
-            const baseContext = (_c = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _c !== void 0 ? _c : { previous: null };
+            const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
+            const key = (_c = props === null || props === void 0 ? void 0 : props.key) !== null && _c !== void 0 ? _c : null;
             this._ = {
                 parent,
                 status: 'invoked',
@@ -667,16 +949,17 @@
                 defines: {},
                 systems: { start: [], update: [], render: [], stop: [], finalize: [] },
                 eventor: new Eventor(),
-                mode: parent ? ((_e = (_d = parent._.mode) !== null && _d !== void 0 ? _d : Unit.config.mode) !== null && _e !== void 0 ? _e : null) : null,
-                state: null,
-                syncId: null,
-                injected: Unit.injectedSlot,
                 key,
-                syncRegistry: null,
-                socket: Unit.socketSlot,
+                mode: parent ? ((_e = (_d = parent._.mode) !== null && _d !== void 0 ? _d : options === null || options === void 0 ? void 0 : options.mode) !== null && _e !== void 0 ? _e : null) : null,
+                sync: {
+                    id: null,
+                    state: (options === null || options === void 0 ? void 0 : options.state) ? Object.assign({}, options.state) : null,
+                    registry: null,
+                },
             };
-            Unit.injectedSlot = null;
-            Unit.socketSlot = null;
+            if ((options === null || options === void 0 ? void 0 : options.mode) !== undefined) {
+                registerSyncRoot(this, { socket: (_f = options === null || options === void 0 ? void 0 : options.socket) !== null && _f !== void 0 ? _f : null });
+            }
             if (typeof target === 'string') {
                 Unit.nest(this, target);
             }
@@ -692,9 +975,6 @@
         }
         get element() {
             return this._.currentElement;
-        }
-        get key() {
-            return this._.key;
         }
         start() {
             this._.tostart = true;
@@ -835,14 +1115,14 @@
         static reset() {
             var _a;
             Unit.syncIdCounter = 1;
-            (_a = Unit.rootUnit) === null || _a === void 0 ? void 0 : _a.finalize();
-            Unit.currentUnit = Unit.rootUnit = new Unit(null);
+            (_a = Unit.engineRoot) === null || _a === void 0 ? void 0 : _a.finalize();
+            Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
             const ticker = new Ticker(() => {
-                Unit.start(Unit.rootUnit);
-                Unit.update(Unit.rootUnit);
-                Unit.render(Unit.rootUnit);
+                Unit.start(Unit.engineRoot);
+                Unit.update(Unit.engineRoot);
+                Unit.render(Unit.engineRoot);
             });
-            Unit.rootUnit.on('finalize', () => ticker.clear());
+            Unit.engineRoot.on('finalize', () => ticker.clear());
         }
         static scope(snapshot, func, ...args) {
             if (snapshot.unit._.status === 'finalized') {
@@ -965,10 +1245,7 @@
             }
         }
     }
-    Unit.config = { mode: null, transport: null };
     Unit.syncIdCounter = 1;
-    Unit.injectedSlot = null;
-    Unit.socketSlot = null;
     Unit.unit2Contexts = new MapSet();
     Unit.component2units = new MapSet();
     Unit.type2units = new MapSet();
@@ -1029,7 +1306,7 @@
                 unit.on('finalize', () => current.clear());
             };
             if (timer.unit === null || timer.unit._.status === 'finalized') {
-                timer.unit = new Unit(Unit.currentUnit, Component);
+                timer.unit = new Unit(null, Unit.currentUnit, Component);
             }
             else if (timer.queue.length === 0) {
                 timer.queue.push(Component);
@@ -1042,305 +1319,24 @@
         }
         static next(timer) {
             if (timer.queue.length > 0) {
-                timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
+                timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
                 timer.unit.on('finalize', () => UnitTimer.next(timer));
             }
         }
     }
 
-    function registerOnUnit(unit, components) {
-        if (unit._.syncRegistry === null) {
-            unit._.syncRegistry = new BiMap();
-        }
-        for (const [name, Component] of Object.entries(components)) {
-            unit._.syncRegistry.set(name, Component);
-        }
-    }
-    function getSyncName(unit) {
-        var _a;
-        const registry = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.syncRegistry;
-        if (registry === undefined || registry === null) {
-            return undefined;
-        }
-        for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const name = registry.getLeft(unit._.Components[i]);
-            if (name !== undefined) {
-                return name;
-            }
-        }
-        return undefined;
-    }
-    function captureStateTree(root) {
-        const nodes = [];
-        const walk = (unit, nearestSyncedId) => {
-            var _a;
-            let parentForChildren = nearestSyncedId;
-            const name = getSyncName(unit);
-            if (name !== undefined) {
-                if (unit._.syncId === null) {
-                    unit._.syncId = Unit.syncIdCounter++;
-                }
-                nodes.push({
-                    id: unit._.syncId,
-                    name,
-                    parentId: nearestSyncedId,
-                    state: Object.assign({}, ((_a = unit._.state) !== null && _a !== void 0 ? _a : {})),
-                });
-                parentForChildren = unit._.syncId;
-            }
-            unit._.children.forEach((child) => walk(child, parentForChildren));
-        };
-        walk(root, null);
-        return nodes;
-    }
-    const reconcileMaps = new WeakMap();
-    function applyStateTree(root, tree) {
-        var _a;
-        let map = reconcileMaps.get(root);
-        if (map === undefined) {
-            map = new Map();
-            reconcileMaps.set(root, map);
-        }
-        const incoming = new Set(tree.map((node) => node.id));
-        for (const node of tree) {
-            const existing = map.get(node.id);
-            if (existing === undefined) {
-                const parent = node.parentId === null ? root : map.get(node.parentId);
-                if (parent === undefined) {
-                    continue;
-                }
-                const Component = (_a = parent._.syncRegistry) === null || _a === void 0 ? void 0 : _a.getRight(node.name);
-                if (Component === undefined) {
-                    continue;
-                }
-                Unit.injectedSlot = node.state;
-                const unit = new Unit(parent, Component);
-                Unit.injectedSlot = null;
-                unit._.syncId = node.id;
-                if (unit._.state === null) {
-                    unit._.state = {};
-                }
-                Object.assign(unit._.state, node.state);
-                map.set(node.id, unit);
-            }
-            else {
-                if (existing._.state === null) {
-                    existing._.state = {};
-                }
-                for (const key of Object.keys(node.state)) {
-                    if (existing._.state[key] !== node.state[key]) {
-                        existing._.state[key] = node.state[key];
-                    }
-                }
-            }
-        }
-        for (const [id, unit] of [...map.entries()]) {
-            if (incoming.has(id) === false) {
-                unit.finalize();
-                map.delete(id);
-            }
-        }
-    }
-    function createLoopback() {
-        const serverHandlers = new Map();
-        const clients = new Map();
-        const serverAnyHandlers = new Set();
-        const clientAnyHandlers = new Map();
-        let seq = 0;
-        const addHandler = (map, event, handler) => {
-            if (map.has(event) === false) {
-                map.set(event, new Set());
-            }
-            map.get(event).add(handler);
-        };
-        const removeHandler = (map, event, handler) => {
-            var _a;
-            (_a = map.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler);
-        };
-        const fireServer = (event, clientId, payload) => {
-            var _a;
-            (_a = serverHandlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((handler) => handler(clientId, payload));
-            if (event !== 'connect' && event !== 'disconnect') {
-                serverAnyHandlers.forEach((handler) => handler(event, clientId, payload));
-            }
-        };
-        const fireClient = (clientId, event, payload) => {
-            var _a, _b, _c;
-            (_b = (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.get(event)) === null || _b === void 0 ? void 0 : _b.forEach((handler) => handler(payload));
-            (_c = clientAnyHandlers.get(clientId)) === null || _c === void 0 ? void 0 : _c.forEach((handler) => handler(event, payload));
-        };
-        const server = {
-            on(event, handler) { addHandler(serverHandlers, event, handler); },
-            off(event, handler) { removeHandler(serverHandlers, event, handler); },
-            emit(event, payload) { for (const clientId of clients.keys()) {
-                fireClient(clientId, event, payload);
-            } },
-            to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
-            onAny(handler) { serverAnyHandlers.add(handler); },
-        };
-        function connect(clientId) {
-            if (clientId === undefined) {
-                clientId = 'c' + (++seq);
-            }
-            clients.set(clientId, new Map());
-            clientAnyHandlers.set(clientId, new Set());
-            fireServer('connect', clientId);
-            return {
-                id: clientId,
-                emit(event, payload) { fireServer(event, clientId, payload); },
-                on(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
-                    addHandler(map, event, handler);
-                } },
-                off(event, handler) { const map = clients.get(clientId); if (map !== undefined) {
-                    removeHandler(map, event, handler);
-                } },
-                onAny(handler) { var _a; (_a = clientAnyHandlers.get(clientId)) === null || _a === void 0 ? void 0 : _a.add(handler); },
-                disconnect() { clients.delete(clientId); clientAnyHandlers.delete(clientId); fireServer('disconnect', clientId); },
-            };
-        }
-        return { server, connect };
-    }
-    function createSocketioTransport(ioOrSocket, opts = {}) {
-        const room = opts.room;
-        let serverAdapter = null;
-        return {
-            get server() {
-                if (serverAdapter !== null) {
-                    return serverAdapter;
-                }
-                const io = ioOrSocket;
-                const handlers = new Map();
-                const anyHandlers = new Set();
-                const bucket = (event) => {
-                    let set = handlers.get(event);
-                    if (set === undefined) {
-                        handlers.set(event, set = new Set());
-                    }
-                    return set;
-                };
-                io.on('connection', (socket) => {
-                    var _a, _b;
-                    if (room !== undefined && ((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room) {
-                        return;
-                    }
-                    if (room !== undefined) {
-                        socket.join(room);
-                    }
-                    bucket('connect').forEach((fn) => fn(socket.id, undefined));
-                    socket.onAny((event, payload) => {
-                        var _a;
-                        (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, payload));
-                        anyHandlers.forEach((fn) => fn(event, socket.id, payload));
-                    });
-                    socket.on('disconnect', () => { var _a; return (_a = handlers.get('disconnect')) === null || _a === void 0 ? void 0 : _a.forEach((fn) => fn(socket.id, undefined)); });
-                });
-                const target = () => (room !== undefined ? io.to(room) : io);
-                serverAdapter = {
-                    on: (event, handler) => bucket(event).add(handler),
-                    off: (event, handler) => { var _a; return (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler); },
-                    emit: (event, payload) => target().emit(event, payload),
-                    to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
-                    onAny: (handler) => anyHandlers.add(handler),
-                };
-                return serverAdapter;
-            },
-            connect() {
-                const socket = ioOrSocket;
-                return {
-                    get id() { return socket.id; },
-                    emit: (event, payload) => socket.emit(event, payload),
-                    on: (event, handler) => socket.on(event, handler),
-                    off: (event, handler) => socket.off(event, handler),
-                    onAny: (handler) => socket.onAny(handler),
-                    disconnect: () => socket.disconnect(),
-                };
-            },
-        };
-    }
-    function bootRoot(unit) {
-        let current = unit;
-        while (current._.parent !== null && current._.parent !== Unit.rootUnit) {
-            current = current._.parent;
-        }
-        return current;
-    }
-    function getRootSocket(unit) {
-        const socket = bootRoot(unit)._.socket;
-        if (socket === null) {
-            throw new Error('no socket bound to this root; register a transport via xnew.sync.use(transport) before xnew.sync.boot.');
-        }
-        return socket;
-    }
-    const mirroredRoots = new WeakSet();
-    function mirrorRoot(root) {
-        if (mirroredRoots.has(root)) {
-            return;
-        }
-        mirroredRoots.add(root);
-        if (root._.mode === 'server') {
-            const socket = getRootSocket(root);
-            root.on('update', () => socket.emit('sync', captureStateTree(root)));
-        }
-        else if (root._.mode === 'client') {
-            const socket = getRootSocket(root);
-            const handler = (tree) => applyStateTree(root, tree);
-            socket.on('sync', handler);
-            root.on('finalize', () => socket.off('sync', handler));
-        }
-    }
-    const dispatchedRoots = new WeakSet();
-    function installSyncDispatch(root) {
-        if (dispatchedRoots.has(root)) {
-            return;
-        }
-        dispatchedRoots.add(root);
-        const socket = getRootSocket(root);
-        if (root._.mode === 'server') {
-            socket.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-            socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
-            socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
-        }
-        else if (root._.mode === 'client') {
-            socket.onAny((event, message) => dispatchSync(root, event, undefined, message));
-        }
-    }
-    function dispatchSync(root, event, id, message) {
-        if (root._.status === 'finalized') {
-            return;
-        }
-        const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
-        const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
-        const props = Object.assign({ id }, data);
-        const targets = Unit.type2units.get(event);
-        if (targets === undefined) {
-            return;
-        }
-        const sameComponent = event[0] === '-';
-        const syncId = isEnvelope ? message.syncId : undefined;
-        targets.forEach((unit) => {
-            var _a;
-            if (bootRoot(unit) !== root) {
-                return;
-            }
-            if (sameComponent && unit._.syncId !== syncId) {
-                return;
-            }
-            (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
-        });
-    }
-
     const xnew$1 = Object.assign((function (...args) {
         var _a, _b;
-        if (Unit.rootUnit === undefined)
+        if (Unit.engineRoot === undefined)
             Unit.reset();
         if (args[0] instanceof Unit) {
             const parent = args.shift();
             const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-            return Unit.scope(snapshot, () => new Unit(parent, ...args));
+            return Unit.scope(snapshot, () => new Unit(null, parent, ...args));
         }
         else {
             const parent = (_b = Unit.currentUnit) !== null && _b !== void 0 ? _b : null;
-            return new Unit(parent, ...args);
+            return new Unit(null, parent, ...args);
         }
     }), {
         nest(target) {
@@ -1529,17 +1525,15 @@
         sync: {
             state(initial = {}) {
                 const unit = Unit.currentUnit;
-                if (unit._.state === null) {
-                    unit._.state = {};
+                if (unit._.sync.state === null) {
+                    unit._.sync.state = {};
                 }
-                const injected = unit._.injected;
                 for (const key of Object.keys(initial)) {
-                    if (key in unit._.state) {
-                        console.warn(`xnew.sync.state: duplicate key "${key}" across declarations`);
+                    if ((key in unit._.sync.state) === false) {
+                        unit._.sync.state[key] = initial[key];
                     }
-                    unit._.state[key] = (injected !== null && key in injected) ? injected[key] : initial[key];
                 }
-                return unit._.state;
+                return unit._.sync.state;
             },
             register(components) {
                 try {
@@ -1565,12 +1559,6 @@
             socketio(ioOrSocket, opts) {
                 return createSocketioTransport(ioOrSocket, opts);
             },
-            use(transport) {
-                Unit.config.transport = transport;
-            },
-            mirror(root) {
-                mirrorRoot(root);
-            },
             get clientId() {
                 const unit = Unit.currentUnit;
                 if (unit === null) {
@@ -1583,32 +1571,25 @@
                 if (unit === null) {
                     throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
                 }
-                getRootSocket(unit).emit(event, { syncId: unit._.syncId, data: payload });
+                getRootSocket(unit).emit(event, { syncId: unit._.sync.id, data: payload });
             },
             boot(mode, ...args) {
-                if (Unit.rootUnit === undefined) {
+                if (Unit.engineRoot === undefined) {
                     Unit.reset();
                 }
-                const previous = Unit.config.mode;
-                Unit.config.mode = mode;
-                const transport = Unit.config.transport;
-                if (transport !== null) {
-                    Unit.socketSlot = mode === 'server' ? transport.server
+                const head = args[0];
+                const transport = (head !== null && typeof head === 'object' && 'server' in head && typeof head.connect === 'function')
+                    ? args.shift() : null;
+                const socket = transport === null ? null
+                    : mode === 'server' ? transport.server
                         : mode === 'client' ? transport.connect()
                             : null;
+                const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
+                if (transport !== null) {
+                    mirrorRoot(root);
+                    installSyncDispatch(root);
                 }
-                try {
-                    const root = xnew$1(...args);
-                    if (transport !== null) {
-                        mirrorRoot(root);
-                        installSyncDispatch(root);
-                    }
-                    return root;
-                }
-                finally {
-                    Unit.config.mode = previous;
-                    Unit.socketSlot = null;
-                }
+                return root;
             },
         },
     });

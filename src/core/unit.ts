@@ -370,7 +370,6 @@ export class Unit {
 
     static engineRoot: Unit;
     static currentUnit: Unit;
-    static transport: any = null;
     static syncIdCounter: number = 1;
 
     static reset(): void {

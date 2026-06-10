@@ -75,6 +75,11 @@ interface Snapshot {
 }
 type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
 type Mode = 'server' | 'client' | null;
+interface UnitOptions {
+    mode?: Mode;
+    state?: Record<string, any> | null;
+    socket?: any | null;
+}
 type ComponentFn<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
 type DefinesOf<C> = C extends (...args: any[]) => infer R ? ([R] extends [void] ? {} : Exclude<R, void | undefined>) : {};
 type PropsOf<C> = C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
@@ -111,16 +116,15 @@ declare class Unit {
         eventor: Eventor;
         key: any;
         mode: Mode;
-        state: Record<string, any> | null;
-        syncId: number | null;
-        injected: Record<string, any> | null;
-        syncRegistry: SyncRegistry | null;
-        socket: any | null;
+        sync: {
+            id: number | null;
+            state: Record<string, any> | null;
+            registry: SyncRegistry | null;
+        };
     };
-    constructor(parent: Unit | null, ...args: any[]);
+    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
     get element(): DomElement;
-    get key(): any;
     start(): void;
     stop(): void;
     finalize(): void;
@@ -133,15 +137,9 @@ declare class Unit {
     static stop(unit: Unit): void;
     static update(unit: Unit): void;
     static render(unit: Unit): void;
-    static rootUnit: Unit;
+    static engineRoot: Unit;
     static currentUnit: Unit;
-    static config: {
-        mode: Mode;
-        transport: any;
-    };
     static syncIdCounter: number;
-    static injectedSlot: Record<string, any> | null;
-    static socketSlot: any | null;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
@@ -455,11 +453,9 @@ declare const xnew: XnewBase & {
         socketio(ioOrSocket: any, opts?: {
             room?: string;
         }): Transport;
-        use(transport: Transport): void;
-        mirror(root: Unit): void;
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
-        boot(mode: Mode, ...args: any[]): any;
+        boot(mode: Mode, ...args: any[]): Unit;
     };
 } & {
     basics: {
