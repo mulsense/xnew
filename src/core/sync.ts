@@ -226,7 +226,8 @@ export function getRootSocket(unit: Unit): RootSocket {
  */
 export function bootSyncRoot(socket: RootSocket, parent: Unit | null, ...args: any[]): Unit {
     const mode = ('to' in socket) ? 'server' : 'client';
-    const root = new Unit({ mode, socket }, parent, ...args);
+    // socket は unit に保持せず、setup フックで syncRoots へ登録する（unit→sync.ts の依存を持たせない）。
+    const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, { socket }) }, parent, ...args);
 
     if (mode === 'server') {
         const server = socket as ServerSocket;

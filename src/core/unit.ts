@@ -18,7 +18,6 @@ import { MapSet, MapMap } from './map';
 import { Ticker, Timer } from './time';
 import { Eventor } from './event';
 import { isDomElement, DomElement } from './element';
-import { registerSyncRoot } from './sync';
 import type { SyncRegistry } from './sync';
 
 //----------------------------------------------------------------------------------------------------
@@ -40,12 +39,13 @@ export type Mode = 'server' | 'client' | null;
 // - mode   : サブツリールートのエンジンモード（親 mode が null のときの fallback）
 // - state  : 構築時に _.sync.state へプリシードする初期状態（apply/sync が渡すサーバー状態。
 //            xnew.sync.state は既存キーを尊重するので、宣言した initial より優先される）
-// - socket : boot ルート（mode 指定）にバインドする socket。unit には保持せず、構築時に
-//            core/sync.ts の syncRoots へ {socket} として登録する（socket.io 互換の口）
+// - setup  : unit 構築直後・body(extend)実行前に呼ばれる初期化フック。core/sync.ts への依存を
+//            unit から切り離すための口で、boot はここで registerSyncRoot を仕込む（socket は
+//            このクロージャが捕捉する。unit には保持しない）。
 export interface UnitOptions {
     mode?: Mode;
     state?: Record<string, any> | null;
-    socket?: any | null;
+    setup?: (unit: Unit) => void;
 }
 
 // ComponentFn: Unit を拡張し、任意で defines(公開 API オブジェクト)を返す関数の型。
@@ -187,12 +187,11 @@ export class Unit {
             },
         };
 
-        // boot ルート（options.mode 指定 = boot 経由で生成された unit）を同期ツリーのルートとして
-        // syncRoots へ登録する。socket などの関連情報はそこが保持し、子孫は findSyncRoot で解決する。
-        // body（Unit.extend）より前に登録するのは、ルート自身の body が xnew.sync.emit/clientId を
-        // 同期的に呼んでも socket を解決できるようにするため（旧 _.sync.root/socket と同タイミング）。
-        if (options?.mode !== undefined) {
-            registerSyncRoot(this, { socket: options?.socket ?? null });
+        // unit 構築直後・body（Unit.extend）実行前に呼ばれる初期化フック。core/sync.ts への依存を
+        // unit から切り離すための口で、boot はここで registerSyncRoot を仕込む。body より前に呼ぶのは、
+        // ルート自身の body が xnew.sync.emit/clientId を同期的に呼んでも socket を解決できるようにするため。
+        if (options?.setup !== undefined) {
+            options.setup(this);
         }
 
         // nest html element
