@@ -1,4 +1,5 @@
 import { Unit } from '../../../src/core/unit';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/core/xnew';
 import xsocket from '../../../src/addons/xsocket';
 
@@ -33,11 +34,11 @@ describe('loopback simulation (server/client blocks)', () => {
 
         cycle();
         const replicaMover = client._.children[0];
-        expect(replicaMover._.sync.state!.position).toBe(1);
+        expect(syncOf(replicaMover).state!.position).toBe(1);
         expect((replicaMover.element as HTMLElement).style.left).toBe('1px');   // client block render consumed synced state
 
         cycle();
-        expect(replicaMover._.sync.state!.position).toBe(2);
+        expect(syncOf(replicaMover).state!.position).toBe(2);
         expect((replicaMover.element as HTMLElement).style.left).toBe('2px');
         expect(client._.children.length).toBe(1);
     });
@@ -75,7 +76,7 @@ describe('loopback simulation (server/client blocks)', () => {
         const replicaMover = client._.children[0];
         expect(replicaMover).toBeDefined();
         expect(replicaMover._.mode).toBe('client');
-        expect(replicaMover._.sync.state!.position).toBe(1);
+        expect(syncOf(replicaMover).state!.position).toBe(1);
         expect(view.contains(replicaMover.element as Node)).toBe(true);
         expect((replicaMover.element as HTMLElement).style.left).toBe('1px');
     });

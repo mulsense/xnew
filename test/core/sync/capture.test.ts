@@ -1,4 +1,5 @@
 import { Unit } from '../../../src/core/unit';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/core/xnew';
 
 function Player() {}
@@ -50,7 +51,7 @@ describe('captureStateTree', () => {
     it('assigns stable ids and reflects mutated state on later captures', () => {
         const root = xnew(function Root() { xnew.sync.register({ Child }); xnew(Child); });
         const first = xnew.sync.capture(root)[0];
-        root._.children[0]._.sync.state!.position = 9;
+        syncOf(root._.children[0]).state!.position = 9;
         const second = xnew.sync.capture(root)[0];
         expect(second.id).toBe(first.id);
         expect(second.state).toEqual({ position: 9 });

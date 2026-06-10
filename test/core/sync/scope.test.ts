@@ -1,4 +1,5 @@
 import { Unit } from '../../../src/core/unit';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/core/xnew';
 import xsocket from '../../../src/addons/xsocket';
 
@@ -39,8 +40,8 @@ describe('scoped registry isolation', () => {
         const replicaB = client._.children.find(c => c._.Components.includes(ParentB))!;
         expect(replicaA._.children[0]._.Components.includes(ChildA)).toBe(true);
         expect(replicaB._.children[0]._.Components.includes(ChildB)).toBe(true);
-        expect(replicaA._.children[0]._.sync.state).toEqual({ kind: 'A' });
-        expect(replicaB._.children[0]._.sync.state).toEqual({ kind: 'B' });
+        expect(syncOf(replicaA._.children[0]).state).toEqual({ kind: 'A' });
+        expect(syncOf(replicaB._.children[0]).state).toEqual({ kind: 'B' });
     });
 
     it('a child not registered by its parent is omitted from capture', () => {

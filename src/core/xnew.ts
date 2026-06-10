@@ -26,7 +26,7 @@
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot } from './sync';
+import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot } from './sync';
 import type { RootSocket } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -433,19 +433,19 @@ export const xnew = Object.assign(
          */
         sync: {
             state(initial: Record<string, any> = {}): Record<string, any> {
-                const unit = Unit.currentUnit;
-                if (unit._.sync.state === null) {
-                    unit._.sync.state = {};
+                const data = syncOf(Unit.currentUnit);
+                if (data.state === null) {
+                    data.state = {};
                 }
                 // 既に値があるキーは尊重し、無いキーだけ initial で埋める。これにより
-                // (1) apply が options.state でプリシードしたサーバー状態、(2) 先行する宣言、
+                // (1) apply が setup でプリシードしたサーバー状態、(2) 先行する宣言、
                 // のどちらも後続の initial より優先される（base + extend 合成のマージ）。
                 for (const key of Object.keys(initial)) {
-                    if ((key in unit._.sync.state) === false) {
-                        unit._.sync.state[key] = initial[key];
+                    if ((key in data.state) === false) {
+                        data.state[key] = initial[key];
                     }
                 }
-                return unit._.sync.state;
+                return data.state;
             },
             register(components: Record<string, Function>): void {
                 try {
@@ -480,7 +480,7 @@ export const xnew = Object.assign(
                 // 接頭辞ルール: '+event' = 全コンポーネントへ / '-event' = 自身(同一 syncId)のみへ。
                 // 送信ユニットの syncId を載せて送る（受信側の '-' ルーティング用。'+' では無視される）。
                 // ペイロードは data に包む。id（送信元 clientId）は受信側の transport が付与する。
-                getRootSocket(unit).emit(event, { syncId: unit._.sync.id, data: payload });
+                getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
             },
 
             /**

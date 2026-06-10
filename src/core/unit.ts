@@ -18,7 +18,6 @@ import { MapSet, MapMap } from './map';
 import { Ticker, Timer } from './time';
 import { Eventor } from './event';
 import { isDomElement, DomElement } from './element';
-import type { SyncRegistry } from './sync';
 
 //----------------------------------------------------------------------------------------------------
 // definitions
@@ -37,14 +36,11 @@ export type Mode = 'server' | 'client' | null;
 // Unit 構築時の補助パラメータ。以前はグローバル slot（config.mode / injectedSlot / socketSlot）で
 // 渡していたものを、コンストラクタ第1引数として明示的に受け取る。
 // - mode   : サブツリールートのエンジンモード（親 mode が null のときの fallback）
-// - state  : 構築時に _.sync.state へプリシードする初期状態（apply/sync が渡すサーバー状態。
-//            xnew.sync.state は既存キーを尊重するので、宣言した initial より優先される）
 // - setup  : unit 構築直後・body(extend)実行前に呼ばれる初期化フック。core/sync.ts への依存を
-//            unit から切り離すための口で、boot はここで registerSyncRoot を仕込む（socket は
-//            このクロージャが捕捉する。unit には保持しない）。
+//            unit から切り離すための口で、boot は registerSyncRoot を、apply は同期 state の
+//            プリシードを、それぞれここで仕込む（socket / state は呼び出し側のクロージャが捕捉する）。
 export interface UnitOptions {
     mode?: Mode;
-    state?: Record<string, any> | null;
     setup?: (unit: Unit) => void;
 }
 
@@ -100,14 +96,6 @@ export class Unit {
 
         key: any;   // reserved prop for find(key) (global unique assumed)
         mode: Mode;   // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)。親から継承
-
-        // server→client 同期に関わる状態は sync 配下にまとめる（xnew.sync.* と core/sync.ts が読む）。
-        // ルート（boot root）に紐づく socket などの情報は core/sync.ts の syncRoots マップが保持する。
-        sync: {
-            id: number | null;   // 同期ノード id（capture 時に採番。SyncNode.id と対応）
-            state: Record<string, any> | null;   // synced state. xnew.sync.state で宣言、または options.state でプリシード（null until set）
-            registry: SyncRegistry | null;   // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
-        };
     };
 
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
@@ -174,22 +162,10 @@ export class Unit {
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
             key,
-            // engine root は null。それ以外は親 mode を継承し、親 mode が null のときだけ
-            // options.mode を fallback とする（= サブツリーのルートが options.mode を採用）。
-            // mode 値: 'server'（権威）/ 'client'（複製）/ null（スタンドアロン）
             mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
-            sync: {
-                id: null,
-                // apply/sync が渡したサーバー状態を初期値としてプリシード（無ければ null）。
-                // xnew.sync.state は既存キーを尊重するので、これが宣言の initial より優先される。
-                state: options?.state ? { ...options.state } : null,
-                registry: null,
-            },
         };
 
-        // unit 構築直後・body（Unit.extend）実行前に呼ばれる初期化フック。core/sync.ts への依存を
-        // unit から切り離すための口で、boot はここで registerSyncRoot を仕込む。body より前に呼ぶのは、
-        // ルート自身の body が xnew.sync.emit/clientId を同期的に呼んでも socket を解決できるようにするため。
+        // setup hook 
         if (options?.setup !== undefined) {
             options.setup(this);
         }

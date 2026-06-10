@@ -5,8 +5,9 @@
 // 差分適用(create/update/remove)する。実ネットワークは扱わず、捕捉物の生成と再構成のみを担う。
 //
 // 同期対象の型は「各コンポーネントが自分の直接の子として登録した型」だけ。登録は Unit 単位で
-// 保持し（_.sync.registry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
+// 保持し（syncOf(unit).registry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
 //
+// - SyncData / syncOf  : 旧 Unit._.sync（id/state/registry）を unit キーの WeakMap で保持する口（遅延生成・可変）
 // - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリ（BiMap）と追記
 // - captureStateTree   : server サブツリー → SyncNode[](全量)。同期可否・登録名は内部で解決
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
@@ -36,13 +37,41 @@ export type StateTree = SyncNode[];
 /** ユニット単位の同期レジストリ。name(left) ⇄ Component(right) の 1:1 双方向マップ。 */
 export type SyncRegistry = BiMap<string, Function>;
 
+//----------------------------------------------------------------------------------------------------
+// per-unit sync data（旧 Unit._.sync）
+//
+// id/state/registry を Unit クラスから切り離し、unit をキーにした WeakMap で保持する。Unit は sync を
+// 一切知らない。syncOf(unit) が遅延生成しつつ可変レコードを返すので、呼び出し側はそのフィールドを
+// 直接読み書きする（id の採番、state のプリシード/更新、registry への登録すべてここを経由する）。
+//----------------------------------------------------------------------------------------------------
+
+/** 1 unit 分の同期データ（旧 Unit._.sync 相当）。 */
+export interface SyncData {
+    id: number | null;                 // 同期ノード id（capture 時に採番。SyncNode.id と対応）
+    state: Record<string, any> | null; // synced state（xnew.sync.state で宣言、または apply がプリシード。null until set）
+    registry: SyncRegistry | null;     // このユニットが直接の同期子として許可する {name ⇄ Component}（未登録なら null）
+}
+
+/** unit をキーに同期データを保持する（Unit を汚染しないよう WeakMap）。 */
+const syncData: WeakMap<Unit, SyncData> = new WeakMap();
+
+/** unit の同期データを返す（無ければ遅延生成）。返り値は可変で、フィールドを直接読み書きしてよい。 */
+export function syncOf(unit: Unit): SyncData {
+    let data = syncData.get(unit);
+    if (data === undefined) {
+        syncData.set(unit, data = { id: null, state: null, registry: null });
+    }
+    return data;
+}
+
 /** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
 export function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
-    if (unit._.sync.registry === null) {
-        unit._.sync.registry = new BiMap<string, Function>();
+    const data = syncOf(unit);
+    if (data.registry === null) {
+        data.registry = new BiMap<string, Function>();
     }
     for (const [name, Component] of Object.entries(components)) {
-        unit._.sync.registry.set(name, Component);
+        data.registry.set(name, Component);
     }
 }
 
@@ -54,8 +83,9 @@ export function captureStateTree(root: Unit): StateTree {
     // インスタンス化した Component] の順なので、最も派生した（= 末尾側の）一致を採る（基底に化けない
     // / extend は最派生名で 1 SyncNode）。
     const syncName = (unit: Unit): string | undefined => {
-        const registry = unit._.parent?._.sync.registry;
-        if (registry === undefined || registry === null) {
+        const parent = unit._.parent;
+        const registry = parent ? syncOf(parent).registry : null;
+        if (registry === null) {
             return undefined;
         }
         for (let i = unit._.Components.length - 1; i >= 0; i--) {
@@ -69,18 +99,19 @@ export function captureStateTree(root: Unit): StateTree {
 
     const walk = (unit: Unit, nearestSyncedId: number | null): void => {
         let parentForChildren = nearestSyncedId;
+        const data = syncOf(unit);
         const name = syncName(unit);
         if (name !== undefined) {
-            if (unit._.sync.id === null) {
-                unit._.sync.id = Unit.syncIdCounter++;
+            if (data.id === null) {
+                data.id = Unit.syncIdCounter++;
             }
             nodes.push({
-                id: unit._.sync.id,
+                id: data.id,
                 name,
                 parentId: nearestSyncedId,
-                state: { ...(unit._.sync.state ?? {}) },
+                state: { ...(data.state ?? {}) },
             });
-            parentForChildren = unit._.sync.id;
+            parentForChildren = data.id;
         }
         unit._.children.forEach((child) => walk(child, parentForChildren));
     };
@@ -110,21 +141,22 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             // create
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
-            const Component = parent._.sync.registry?.getRight(node.name);
+            const Component = syncOf(parent).registry?.getRight(node.name);
             if (Component === undefined) { continue; }   // 親が許可していない型は無視
-            // サーバー状態を options.state で渡し、構築時に _.sync.state へプリシードする
-            // （状態を宣言しない型・欠落キーもこれで埋まる）。mode は親(client)を継承する。
-            const unit = new Unit({ state: node.state }, parent, Component);
-            unit._.sync.id = node.id;
+            // サーバー状態を setup フックで構築時に sync.state へプリシードする（body より前に走るので
+            // 状態を宣言しない型・欠落キーもこれで埋まる）。mode は親(client)を継承する。
+            const unit = new Unit({ setup: (u) => { syncOf(u).state = { ...node.state }; } }, parent, Component);
+            syncOf(unit).id = node.id;
             map.set(node.id, unit);
         } else {
             // update（変更フィールドのみ書き換え）
             // 不変条件: 一度入ったキーは削除されない。capture は全フィールドを毎回送るため、
             // サーバー側で state からキーを「消す」運用をすると client に残り続ける（v1 の割り切り）。
-            if (existing._.sync.state === null) { existing._.sync.state = {}; }
+            const data = syncOf(existing);
+            if (data.state === null) { data.state = {}; }
             for (const key of Object.keys(node.state)) {
-                if (existing._.sync.state[key] !== node.state[key]) {
-                    existing._.sync.state[key] = node.state[key];
+                if (data.state[key] !== node.state[key]) {
+                    data.state[key] = node.state[key];
                 }
             }
         }
@@ -272,7 +304,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
         if (findSyncRoot(unit) !== root) {
             return;   // 別ルート（別 client / server）の unit には配らない
         }
-        if (selfOnly && unit._.sync.id !== syncId) {
+        if (selfOnly && syncOf(unit).id !== syncId) {
             return;   // '-event' は同一 syncId のみ（'+event'・無印は素通り＝全体へ）
         }
         unit._.listeners.get(event)?.forEach((item) => item.execute(props));

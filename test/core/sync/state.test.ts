@@ -1,4 +1,5 @@
 import { Unit } from '../../../src/core/unit';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.sync.state', () => {
@@ -8,7 +9,7 @@ describe('xnew.sync.state', () => {
     it('registers synced state on the current unit and returns the same reference', () => {
         let state!: Record<string, any>;
         const unit = xnew((u: Unit) => { state = xnew.sync.state({ position: 0 }); });
-        expect(unit._.sync.state).toBe(state);
+        expect(syncOf(unit).state).toBe(state);
         expect(state.position).toBe(0);
     });
 

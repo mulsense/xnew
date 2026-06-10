@@ -1,7 +1,7 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 import xsocket from '../../../src/addons/xsocket';
-import { getRootSocket, ClientSocket } from '../../../src/core/sync';
+import { syncOf, getRootSocket, ClientSocket } from '../../../src/core/sync';
 
 //----------------------------------------------------------------------------------------------------
 // イベントチャンネル（socket.io 互換 transport: loopback / bind / emit / on）
@@ -193,8 +193,8 @@ describe('event channel (socket.io-compatible transport)', () => {
         expect(byClient.c2.x).toBeGreaterThanOrEqual(1);
 
         // 両 replica が 2 Player を持つ（World 直下に同期生成）
-        expect(client1._.children.filter((c: Unit) => c._.sync.state).length).toBe(2);
-        expect(client2._.children.filter((c: Unit) => c._.sync.state).length).toBe(2);
+        expect(client1._.children.filter((c: Unit) => syncOf(c).state).length).toBe(2);
+        expect(client2._.children.filter((c: Unit) => syncOf(c).state).length).toBe(2);
 
         // 切断 → 次フレームで despawn（boot が自動バインドした socket は getRootSocket で取得できる）
         (getRootSocket(client2) as ClientSocket).disconnect();
@@ -219,10 +219,10 @@ describe('event channel (socket.io-compatible transport)', () => {
         Unit.update(Unit.engineRoot);   // server Mover が x+=1、World(server) が 'sync' を broadcast → client が apply
         Unit.start(Unit.engineRoot);
 
-        const replica = client._.children.find((c: Unit) => c._.sync.state);
+        const replica = client._.children.find((c: Unit) => syncOf(c).state);
         expect(replica).toBeDefined();
-        expect(replica!._.sync.state!.x).toBe(xnew.sync.capture(server).find((n) => n.name === 'Mover')!.state.x);
-        expect(replica!._.sync.state!.x).toBeGreaterThanOrEqual(1);
+        expect(syncOf(replica!).state!.x).toBe(xnew.sync.capture(server).find((n) => n.name === 'Mover')!.state.x);
+        expect(syncOf(replica!).state!.x).toBeGreaterThanOrEqual(1);
     });
 
     it('socketio(): adapts a socket.io-like io to the server Transport (onAny → (clientId,payload))', () => {
@@ -302,7 +302,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         const hits: string[] = [];
         // server 側: syncId を持つ 2 ユニットが各々 on('-move') を登録。
         function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
-            unit._.sync.id = props.syncId ?? null;
+            syncOf(unit).id = props.syncId ?? null;
             xnew.server(() => { unit.on('-move', ({ vector }: any) => hits.push(`${props.tag}:${vector.x}`)); });
         }
         xnew.sync.boot(hub.server, function Server() {
@@ -312,7 +312,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         // client 側: syncId=10 のユニットから '-move' を送ると、同じ syncId の A だけに届く。
         xnew.sync.boot(hub.connect(), function Client(unit: Unit) {
             xnew.client(() => {
-                unit._.sync.id = 10;
+                syncOf(unit).id = 10;
                 xnew.sync.emit('-move', { vector: { x: 1 } });
             });
         });
@@ -324,7 +324,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         const hub = xsocket.loopback();
         const hits: string[] = [];
         function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
-            unit._.sync.id = props.syncId ?? null;
+            syncOf(unit).id = props.syncId ?? null;
             xnew.server(() => { unit.on('+ping', ({ n }: any) => hits.push(`${props.tag}:${n}`)); });
         }
         xnew.sync.boot(hub.server, function Server() {
@@ -332,7 +332,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         });
         // 送信ユニットの syncId に関係なく、'+ping' は両方のユニットへ届く（全体）。
         xnew.sync.boot(hub.connect(), function Client(unit: Unit) {
-            xnew.client(() => { unit._.sync.id = 10; xnew.sync.emit('+ping', { n: 1 }); });
+            xnew.client(() => { syncOf(unit).id = 10; xnew.sync.emit('+ping', { n: 1 }); });
         });
 
         expect(hits.sort()).toEqual(['A:1', 'B:1']);

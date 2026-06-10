@@ -1,7 +1,7 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 import xsocket from '../../../src/addons/xsocket';
-import { StateTree } from '../../../src/core/sync';
+import { syncOf, StateTree } from '../../../src/core/sync';
 
 function Box(unit: Unit) {
     xnew.sync.register({ Box });   // Box は自分を直接の同期子として許可（ネスト用）
@@ -25,9 +25,9 @@ describe('applyStateTree create', () => {
         xnew.sync.apply(view, tree);
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
-        expect(child._.sync.id).toBe(1);
+        expect(syncOf(child).id).toBe(1);
         expect(child._.mode).toBe('client');
-        expect(child._.sync.state).toEqual({ value: 7 });
+        expect(syncOf(child).state).toEqual({ value: 7 });
     });
 
     it('creates nested replica units honoring parentId', () => {
@@ -36,8 +36,8 @@ describe('applyStateTree create', () => {
             { id: 1, name: 'Box', parentId: null, state: { value: 1 } },
             { id: 2, name: 'Box', parentId: 1, state: { value: 2 } },
         ]);
-        expect(view._.children[0]._.sync.id).toBe(1);
-        expect(view._.children[0]._.children[0]._.sync.id).toBe(2);
+        expect(syncOf(view._.children[0]).id).toBe(1);
+        expect(syncOf(view._.children[0]._.children[0]).id).toBe(2);
     });
 });
 
@@ -79,7 +79,7 @@ describe('applyStateTree update', () => {
         const first = view._.children[0];
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: { value: 2 } }]);
         expect(view._.children[0]).toBe(first);
-        expect(first._.sync.state).toEqual({ value: 2 });
+        expect(syncOf(first).state).toEqual({ value: 2 });
         expect(view._.children.length).toBe(1);
     });
 });
@@ -97,10 +97,10 @@ describe('applyStateTree remove', () => {
             { id: 2, name: 'Box', parentId: null, state: {} },
         ]);
         expect(view._.children.length).toBe(2);
-        const removed = view._.children.find(c => c._.sync.id === 2)!;
+        const removed = view._.children.find(c => syncOf(c).id === 2)!;
         xnew.sync.apply(view, [{ id: 1, name: 'Box', parentId: null, state: {} }]);
         expect(view._.children.length).toBe(1);
-        expect(view._.children[0]._.sync.id).toBe(1);
+        expect(syncOf(view._.children[0]).id).toBe(1);
         expect(removed._.status).toBe('finalized');
     });
 });
