@@ -86,7 +86,7 @@ describe('composed synced state (base + extend)', () => {
         expect(tree[0].state).toEqual({ x: 0, y: 8, hp: 3 });
     });
 
-    // 6_state-sync サンプルの構成を再現: 基底 Actor(位置+描画) を Enemy が extend し hp を足す。
+    // base + extend の合成構成: 基底 Actor(位置+描画) を Enemy が extend し hp を足す。
     it('mirrors the example: extended base nests the element, both declarations sync and render', () => {
         // 基底: 位置 {x,y} を宣言し、client で要素を nest して位置を反映する
         function Actor(unit: Unit, props: any = {}) {
