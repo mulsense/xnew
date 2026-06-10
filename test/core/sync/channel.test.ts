@@ -319,4 +319,22 @@ describe('event channel (socket.io-compatible transport)', () => {
 
         expect(hits).toEqual(['A:1']);   // B(syncId=20) には届かない
     });
+
+    it("'+event' routes to all components under the root (regardless of syncId)", () => {
+        const hub = xsocket.loopback();
+        const hits: string[] = [];
+        function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
+            unit._.sync.id = props.syncId ?? null;
+            xnew.server(() => { unit.on('+ping', ({ n }: any) => hits.push(`${props.tag}:${n}`)); });
+        }
+        xnew.sync.boot(hub.server, function Server() {
+            xnew.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
+        });
+        // 送信ユニットの syncId に関係なく、'+ping' は両方のユニットへ届く（全体）。
+        xnew.sync.boot(hub.connect(), function Client(unit: Unit) {
+            xnew.client(() => { unit._.sync.id = 10; xnew.sync.emit('+ping', { n: 1 }); });
+        });
+
+        expect(hits.sort()).toEqual(['A:1', 'B:1']);
+    });
 });

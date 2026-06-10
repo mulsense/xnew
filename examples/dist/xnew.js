@@ -753,14 +753,15 @@
         if (targets === undefined) {
             return;
         }
-        const sameComponent = event[0] === '-';
+        const prefix = event[0];
+        const selfOnly = prefix === '-';
         const syncId = isEnvelope ? message.syncId : undefined;
         targets.forEach((unit) => {
             var _a;
             if (findSyncRoot(unit) !== root) {
                 return;
             }
-            if (sameComponent && unit._.sync.id !== syncId) {
+            if (selfOnly && unit._.sync.id !== syncId) {
                 return;
             }
             (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));

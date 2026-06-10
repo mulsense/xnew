@@ -423,7 +423,8 @@ export const xnew = Object.assign(
          * アドオン `@mulsense/xnew/addons/xsocket` に分離した（boot に socket を渡す）:
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
          * - emit     : イベント送信（client→server / server→client）。payload はオブジェクト。送信ユニットの
-         *              syncId を自動付与。プレフィックス '-'=同一コンポーネント(同一 syncId 宛て) / '+'・無印=全体
+         *              syncId を自動付与。プレフィックス **'+event'=全コンポーネント / '-event'=自身(同一 syncId 宛て)**
+         *              （無印は '+' と同じく全体）。リスナ名は接頭辞込みで一致: on('+event') ⇄ emit('+event')
          *   受信は xnew.sync.on ではなく **unit.on(event, ({ id, ...payload }) => …)** に統一（受信 unit を明示）。
          *   handler が受ける object は xnew の慣習どおり { type, id, ...payload }（type=イベント名, id=送信元 clientId）。
          *   socket→unit.on の橋渡しは boot が installSyncDispatch で配線する（'-' は同一 syncId のリスナだけ発火）。
@@ -476,7 +477,8 @@ export const xnew = Object.assign(
                 if (unit === null) {
                     throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
                 }
-                // 送信ユニットの syncId を載せて送る（受信側の '-'(同一コンポーネント)ルーティング用）。
+                // 接頭辞ルール: '+event' = 全コンポーネントへ / '-event' = 自身(同一 syncId)のみへ。
+                // 送信ユニットの syncId を載せて送る（受信側の '-' ルーティング用。'+' では無視される）。
                 // ペイロードは data に包む。id（送信元 clientId）は受信側の transport が付与する。
                 getRootSocket(unit).emit(event, { syncId: unit._.sync.id, data: payload });
             },

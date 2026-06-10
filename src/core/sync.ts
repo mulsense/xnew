@@ -267,14 +267,19 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
     if (targets === undefined) {
         return;
     }
-    const sameComponent = event[0] === '-';
+    // ルーティング規則（リスナ名は接頭辞込みで一致: on('+event') ⇄ emit('+event')）:
+    //   '+event' … root 配下で該当リスナを持つ全 unit へ（全コンポーネント）。
+    //   '-event' … 送信元と同一 syncId の unit のみへ（自身）。
+    //   無印      … connect/disconnect/join 等のライフサイクル/アプリイベント。'+' と同じく全体扱い。
+    const prefix = event[0];
+    const selfOnly = prefix === '-';   // '-' のみ自身(同一 syncId)に絞る。'+'・無印は全体
     const syncId = isEnvelope ? message.syncId : undefined;
     targets.forEach((unit) => {
         if (findSyncRoot(unit) !== root) {
             return;   // 別ルート（別 client / server）の unit には配らない
         }
-        if (sameComponent && unit._.sync.id !== syncId) {
-            return;   // '-' は同一 syncId のみ
+        if (selfOnly && unit._.sync.id !== syncId) {
+            return;   // '-event' は同一 syncId のみ（'+event'・無印は素通り＝全体へ）
         }
         unit._.listeners.get(event)?.forEach((item) => item.execute(props));
     });
