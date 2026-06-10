@@ -26,8 +26,8 @@
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot, installSyncDispatch } from './sync';
-import type { Transport, RootSocket } from './sync';
+import { registerOnUnit, captureStateTree, applyStateTree, getRootSocket, mirrorRoot, installSyncDispatch } from './sync';
+import type { RootSocket } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -419,9 +419,8 @@ export const xnew = Object.assign(
          * - capture  : capture a server subtree as a state tree（boot の自動 mirror を使わず、手動・任意レートで配信/検査したいとき用）
          * - apply    : reconcile a state tree into a client subtree（同上）
          *
-         * Event channel (socket.io 互換 transport, client→server / server→client):
-         * - loopback : インメモリ transport ハブ {server, connect(clientId?)} を生成
-         * - socketio : socket.io の io / socket を Transport 形へ橋渡し（実ネットワーク用。import 依存なし）
+         * Event channel (client→server / server→client)。transport（loopback / socketio）と Transport 形は
+         * アドオン `@mulsense/xnew/addons/xsocket` に分離した（boot に socket を渡す）:
          * - clientId : このルート(client)の自動発番された id（= socket.id）。server では undefined
          * - emit     : イベント送信（client→server / server→client）。payload はオブジェクト。送信ユニットの
          *              syncId を自動付与。プレフィックス '-'=同一コンポーネント(同一 syncId 宛て) / '+'・無印=全体
@@ -464,14 +463,6 @@ export const xnew = Object.assign(
             apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void {
                 applyStateTree(root, tree);
             },
-            loopback(): ReturnType<typeof createLoopback> {
-                return createLoopback();
-            },
-            socketio(ioOrSocket: any, opts?: { room?: string }): Transport {
-                // socket.io の io（server）/ socket（client）を Transport 形に橋渡しして返す。
-                // opts.room: server を 1 ルームに絞る（io.to(room) 配信 + query.room 受信フィルタ）。
-                return createSocketioTransport(ioOrSocket, opts);
-            },
             /** このルート(client)の自動発番された clientId（= socket.id）。server では undefined。 */
             get clientId(): string | undefined {
                 const unit = Unit.currentUnit;
@@ -500,7 +491,7 @@ export const xnew = Object.assign(
              *   xnew.sync.boot(transport.server, Main)      // server: socket バインド + 下り自動配線
              *   xnew.sync.boot(transport.connect(), Main)   // client: socket バインド + 下り自動配線
              * Binding always auto-wires the down-channel (capture→broadcast / on→apply) and the
-             * event dispatcher. For an in-process / non-networked setup use `xnew.sync.loopback()`.
+             * event dispatcher. transport（loopback / socketio）は addon `@mulsense/xnew/addons/xsocket` から。
              * @returns the Unit created by `xnew(...args)`
              */
             boot(socket: RootSocket, ...args: any[]): Unit {

@@ -11,6 +11,7 @@ append('addons/', 'xthree', 'xthree', { '@mulsense/xnew': 'xnew', 'three': 'THRE
 append('addons/', 'xmatter', 'xmatter', { '@mulsense/xnew': 'xnew', 'matter-js': 'Matter' });
 append('addons/', 'xrapier2d', 'xrapier2d', { '@mulsense/xnew': 'xnew', '@dimforge/rapier2d-compat': 'RAPIER' });
 append('addons/', 'xrapier3d', 'xrapier3d', { '@mulsense/xnew': 'xnew', '@dimforge/rapier3d-compat': 'RAPIER' });
+append('addons/', 'xsocket', 'xsocket', { '@mulsense/xnew': 'xnew' });
 
 function append(dir, src, name, globals = {}) {
     configs.push({

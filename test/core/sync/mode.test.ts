@@ -1,9 +1,10 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import xsocket from '../../../src/addons/xsocket';
 
 describe('mode inheritance', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('a booted top-level unit adopts the given mode', () => {
@@ -26,8 +27,8 @@ describe('mode inheritance', () => {
 });
 
 describe('xnew.sync.boot', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('creates the unit with the given mode and returns it', () => {

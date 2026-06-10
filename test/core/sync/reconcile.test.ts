@@ -1,5 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import xsocket from '../../../src/addons/xsocket';
 import { StateTree } from '../../../src/core/sync';
 
 function Box(unit: Unit) {
@@ -12,8 +13,8 @@ function Box(unit: Unit) {
 }
 
 describe('applyStateTree create', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Box }); }); }
@@ -46,8 +47,8 @@ describe('applyStateTree state injection (client inits from server state)', () =
         const state = xnew.sync.state({ value: 0, who: 'local' });
         observed = { ...state };   // 本体実行時点で見えている state のスナップショット
     }
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Probe }); }); }
 
@@ -67,8 +68,8 @@ describe('applyStateTree state injection (client inits from server state)', () =
 });
 
 describe('applyStateTree update', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Box }); }); }
 
@@ -84,8 +85,8 @@ describe('applyStateTree update', () => {
 });
 
 describe('applyStateTree remove', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Box }); }); }
 

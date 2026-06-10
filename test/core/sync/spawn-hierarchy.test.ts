@@ -1,5 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import xsocket from '../../../src/addons/xsocket';
 
 // 2 階層: Mover が server ブロック内で定期的に Enemy(synced 子) を spawn し、
 // 各 Enemy は所定方向へ移動して一定時間で消える。ブラウザ例 (index.js) と同じ構造の検証。
@@ -28,11 +29,11 @@ function Mover(unit: Unit) {
 }
 
 describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
+    let transport: ReturnType<typeof xsocket.loopback>;
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
         Unit.reset();
-        transport = xnew.sync.loopback();
+        transport = xsocket.loopback();
     });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 

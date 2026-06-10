@@ -1,5 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import xsocket from '../../../src/addons/xsocket';
 
 // 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ
 function Mover(unit: Unit) {
@@ -14,8 +15,8 @@ function Mover(unit: Unit) {
 }
 
 describe('loopback simulation (server/client blocks)', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {

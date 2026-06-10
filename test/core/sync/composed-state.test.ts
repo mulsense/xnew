@@ -1,5 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import xsocket from '../../../src/addons/xsocket';
 
 // Base: synced state を宣言する基底コンポーネント（最初の sync.state 宣言）
 function Base(unit: Unit) {
@@ -20,12 +21,12 @@ function Enemy(unit: Unit) {
 }
 
 describe('composed synced state (base + extend)', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
+    let transport: ReturnType<typeof xsocket.loopback>;
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
         Unit.reset();
         clientReadAtConstruction = {};
-        transport = xnew.sync.loopback();
+        transport = xsocket.loopback();
     });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 

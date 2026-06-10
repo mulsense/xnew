@@ -7,7 +7,10 @@
   <script src="/thirdparty/tailwindcss/playcdn.js"></script>
   <!-- xnew はサーバーが /xnew で配信するローカルビルドを使う（game.js は @mulsense/xnew を import） -->
   <script type="importmap">
-    { "imports": { "@mulsense/xnew": "/xnew/xnew.mjs" } }
+    { "imports": {
+        "@mulsense/xnew": "/xnew/xnew.mjs",
+        "@mulsense/xnew/addons/xsocket": "/xnew/addons/xsocket.mjs"
+    } }
   </script>
 </head>
 <body class="m-2 font-sans text-gray-600">

@@ -1,9 +1,10 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
+import xsocket from '../../../src/addons/xsocket';
 
 describe('xnew.server / xnew.client', () => {
-    let transport: ReturnType<typeof xnew.sync.loopback>;
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
+    let transport: ReturnType<typeof xsocket.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xsocket.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('server mode runs server block, skips client block', () => {

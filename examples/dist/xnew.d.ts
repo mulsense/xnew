@@ -205,12 +205,7 @@ interface ServerSocket {
     };
     onAny(handler: (event: string, clientId: string, payload: any) => void): void;
 }
-interface Transport {
-    server: ServerSocket;
-    connect(clientId?: string): ClientSocket;
-}
 type RootSocket = ClientSocket | ServerSocket;
-declare function createLoopback(): Transport;
 
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -450,10 +445,6 @@ declare const xnew: XnewBase & {
         register(components: Record<string, Function>): void;
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
-        loopback(): ReturnType<typeof createLoopback>;
-        socketio(ioOrSocket: any, opts?: {
-            room?: string;
-        }): Transport;
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
         boot(socket: RootSocket, ...args: any[]): Unit;
@@ -485,3 +476,4 @@ declare const xnew: XnewBase & {
 };
 
 export { xnew as default };
+export type { ClientSocket, RootSocket, ServerSocket };

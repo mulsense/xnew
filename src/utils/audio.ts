@@ -20,7 +20,10 @@ const DEFAULT_MASTER_GAIN = 0.1;
 const DEFAULT_BPM = 120;
 const RELEASE_CLEANUP_DELAY_MS = 2000;
 
-export const context: AudioContext = typeof window !== 'undefined' ? new window.AudioContext() : null as unknown as AudioContext;
+// AudioContext が無い環境（Node/SSR/jsdom や未対応ブラウザ）では null に落とす（import 時に落ちない）。
+const AudioContextCtor: typeof AudioContext | undefined =
+    typeof window !== 'undefined' ? (window.AudioContext ?? (window as any).webkitAudioContext) : undefined;
+export const context: AudioContext = typeof AudioContextCtor === 'function' ? new AudioContextCtor() : null as unknown as AudioContext;
 export const master: GainNode = context !== null ? context.createGain() : null as unknown as GainNode;
 
 if (context !== null && master !== null) {

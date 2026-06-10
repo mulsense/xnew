@@ -14,14 +14,13 @@
 //                        レジストリで解決し、create 時に new Unit の options.state でサーバー状態をプリシード
 //
 // イベントチャンネル（socket.io 互換の transport）。client が emit したイベントを server が on で受け取る。
-// transport はルート単位にバインドし、socket などのルート情報は syncRoots マップ（root unit をキー）が保持する。
+// socket はルート単位にバインドし、socket などのルート情報は syncRoots マップ（root unit をキー）が保持する。
 // emit/on は findSyncRoot でカレントユニットのルートを解決して引く。
-// createLoopback はインメモリ実装で、これを socket.io アダプタ（同じ {server, connect} / socket 形）に
-// 差し替えれば実ネットワークになる。state の下り（capture/apply）はそのまま。
+// 具体的な transport（loopback / socketio）と Transport 形は addons/xsocket.ts に移設した。core は socket
+// 契約（ClientSocket / ServerSocket の methods）だけを使う。state の下り（capture/apply）はそのまま。
 // on ハンドラは xnew の tick/scope の外で走る点に注意: その中で unit の生成/finalize はせず（spawn は
 // tick 内の update で行う）、closure で掴んだ state の書き換えなどプレーンなデータ更新に留める。
-// - createLoopback         : インメモリ transport ハブ {server, connect(clientId)} を生成
-// - createSocketioTransport: socket.io の io / socket を Transport 形へ橋渡し（duck-type。import 依存なし）
+// - ClientSocket / ServerSocket / RootSocket : boot が受け取る socket の契約（型のみ）
 // - registerSyncRoot       : boot ルートを syncRoots に登録（root → { socket } の関連情報）
 // - findSyncRoot           : unit から parent を辿り、属する同期ツリーのルート unit を解決
 // - getRootSocket          : ルートにバインド済みの socket を解決（boot が registerSyncRoot で登録する）
@@ -141,7 +140,10 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
 }
 
 //----------------------------------------------------------------------------------------------------
-// イベントチャンネル（socket.io 互換 transport）
+// socket 契約（boot が受け取り、mirror/dispatch が methods を使う）
+//
+// 具体的な transport（loopback / socketio）と Transport 形（{ server, connect }）は addons/xsocket.ts に
+// 移設した。core はこの socket 契約（methods）だけを使い、transport ファクトリには依存しない。
 //----------------------------------------------------------------------------------------------------
 
 /** socket.io の socket 相当（client 側）。emit で server へ送り、on で server からの push を受ける。 */
@@ -163,126 +165,8 @@ export interface ServerSocket {
     onAny(handler: (event: string, clientId: string, payload: any) => void): void;   // 全イベント受信（connect/disconnect は除く）
 }
 
-export interface Transport { server: ServerSocket; connect(clientId?: string): ClientSocket; }
-
 /** boot ルートにバインドされる socket（server なら ServerSocket / client なら ClientSocket）。 */
 export type RootSocket = ClientSocket | ServerSocket;
-
-/**
- * In-memory transport hub. client.emit を server の on ハンドラへ（clientId 付きで）同期配送し、
- * server.emit/to(clientId).emit を client の on ハンドラへ配送する。socket.io アダプタは同じ形を実装すればよい。
- * socket.io 同様、1 イベントに複数ハンドラを登録できる（例: Player ごとに on('move')）。
- */
-export function createLoopback(): Transport {
-    const serverHandlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
-    const clients = new Map<string, Map<string, Set<(payload: any) => void>>>();
-    const serverAnyHandlers = new Set<(event: string, clientId: string, payload: any) => void>();
-    const clientAnyHandlers = new Map<string, Set<(event: string, payload: any) => void>>();
-    let seq = 0;   // clientId 自動発番用（'c1', 'c2', ...）
-
-    const addHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
-        if (map.has(event) === false) { map.set(event, new Set()); }
-        map.get(event)!.add(handler);
-    };
-    const removeHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
-        map.get(event)?.delete(handler);
-    };
-    const fireServer = (event: string, clientId: string, payload?: any): void => {
-        serverHandlers.get(event)?.forEach((handler) => handler(clientId, payload));
-        // onAny は app イベントだけ（connect/disconnect は dispatcher が socket.on で別途受ける）。
-        if (event !== 'connect' && event !== 'disconnect') {
-            serverAnyHandlers.forEach((handler) => handler(event, clientId, payload));
-        }
-    };
-    const fireClient = (clientId: string, event: string, payload?: any): void => {
-        clients.get(clientId)?.get(event)?.forEach((handler) => handler(payload));
-        clientAnyHandlers.get(clientId)?.forEach((handler) => handler(event, payload));
-    };
-
-    const server: ServerSocket = {
-        on(event, handler) { addHandler(serverHandlers, event, handler); },
-        off(event, handler) { removeHandler(serverHandlers, event, handler); },
-        emit(event, payload) { for (const clientId of clients.keys()) { fireClient(clientId, event, payload); } },  // broadcast
-        to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
-        onAny(handler) { serverAnyHandlers.add(handler); },
-    };
-
-    function connect(clientId?: string): ClientSocket {
-        if (clientId === undefined) { clientId = 'c' + (++seq); }   // 未指定なら自動発番
-        clients.set(clientId, new Map());
-        clientAnyHandlers.set(clientId, new Set());
-        fireServer('connect', clientId);
-        return {
-            id: clientId,
-            emit(event, payload) { fireServer(event, clientId, payload); },
-            // disconnect 後（clients から削除済み）の on/off は no-op にする（実 socket.io の挙動に合わせる。
-            // boot の自動 mirror が finalize で off('sync') を呼ぶため、切断済みでも安全である必要がある）。
-            on(event, handler) { const map = clients.get(clientId); if (map !== undefined) { addHandler(map, event, handler); } },
-            off(event, handler) { const map = clients.get(clientId); if (map !== undefined) { removeHandler(map, event, handler); } },
-            onAny(handler) { clientAnyHandlers.get(clientId)?.add(handler); },
-            disconnect() { clients.delete(clientId); clientAnyHandlers.delete(clientId); fireServer('disconnect', clientId); },
-        };
-    }
-
-    return { server, connect };
-}
-
-/**
- * socket.io の io（server）/ socket（client）を Transport 形へ橋渡しするアダプタ。
- * 渡す側を間違えないこと: server プロセスは io を、client は socket を渡す（boot が mode で使う側を選ぶ）。
- * socket.io への import 依存は持たず、メソッド名（on/onAny/emit/to/disconnect）に duck-type で乗るだけ。
- */
-export function createSocketioTransport(ioOrSocket: any, opts: { room?: string } = {}): Transport {
-    const room = opts.room;
-    let serverAdapter: ServerSocket | null = null;
-    return {
-        // server 側: io.on('connection') ごとに onAny で全イベントを (clientId, payload) へ橋渡しする。
-        // room 指定時は「query.room が一致する socket だけ」を扱い、配信も io.to(room) に絞る（複数ルームが
-        // 1 つの io を共有するため）。
-        get server(): ServerSocket {
-            if (serverAdapter !== null) { return serverAdapter; }
-            const io = ioOrSocket;
-            const handlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
-            const anyHandlers = new Set<(event: string, clientId: string, payload: any) => void>();
-            const bucket = (event: string) => {
-                let set = handlers.get(event);
-                if (set === undefined) { handlers.set(event, set = new Set()); }
-                return set;
-            };
-            io.on('connection', (socket: any) => {
-                if (room !== undefined && socket.handshake?.query?.room !== room) { return; }   // 別ルームは無視
-                if (room !== undefined) { socket.join(room); }   // io.to(room) の宛先にする
-                bucket('connect').forEach((fn) => fn(socket.id, undefined));
-                socket.onAny((event: string, payload: any) => {
-                    handlers.get(event)?.forEach((fn) => fn(socket.id, payload));
-                    anyHandlers.forEach((fn) => fn(event, socket.id, payload));   // socket.io の onAny は connect/disconnect を含まない
-                });
-                socket.on('disconnect', () => handlers.get('disconnect')?.forEach((fn) => fn(socket.id, undefined)));
-            });
-            const target = () => (room !== undefined ? io.to(room) : io);   // broadcast 先（room 指定時はそのルームだけ）
-            serverAdapter = {
-                on: (event, handler) => bucket(event).add(handler),
-                off: (event, handler) => handlers.get(event)?.delete(handler),
-                emit: (event, payload) => target().emit(event, payload),
-                to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
-                onAny: (handler) => anyHandlers.add(handler),
-            };
-            return serverAdapter;
-        },
-        // client 側: socket をそのまま ClientSocket 形に薄くラップする。
-        connect(): ClientSocket {
-            const socket = ioOrSocket;
-            return {
-                get id() { return socket.id; },
-                emit: (event, payload) => socket.emit(event, payload),
-                on: (event, handler) => socket.on(event, handler),
-                off: (event, handler) => socket.off(event, handler),
-                onAny: (handler) => socket.onAny(handler),
-                disconnect: () => socket.disconnect(),
-            };
-        },
-    };
-}
 
 //----------------------------------------------------------------------------------------------------
 // 同期ツリーのルート情報（syncRoots）
