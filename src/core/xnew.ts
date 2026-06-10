@@ -24,9 +24,9 @@
 //   (server: transport.server / client: transport.connect()) + auto-wires the down-channel + dispatcher
 //----------------------------------------------------------------------------------------------------
 
-import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
+import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
-import { registerOnUnit, captureStateTree, applyStateTree, getRootSocket, wireSyncRoot } from './sync';
+import { registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot } from './sync';
 import type { RootSocket } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -427,7 +427,7 @@ export const xnew = Object.assign(
          *              （無印は '+' と同じく全体）。リスナ名は接頭辞込みで一致: on('+event') ⇄ emit('+event')
          *   受信は xnew.sync.on ではなく **unit.on(event, ({ id, ...payload }) => …)** に統一（受信 unit を明示）。
          *   handler が受ける object は xnew の慣習どおり { type, id, ...payload }（type=イベント名, id=送信元 clientId）。
-         *   socket→unit.on の橋渡しは boot が wireSyncRoot で配線する（'-' は同一 syncId のリスナだけ発火）。
+         *   socket→unit.on の橋渡しは boot が bootSyncRoot で配線する（'-' は同一 syncId のリスナだけ発火）。
          * - boot     : その mode(server/client) でルートを生成する唯一の公開手段。transport を渡すと
          *              socket 自動バインド + 状態の下り(capture/apply)の自動配線も行う
          */
@@ -497,18 +497,10 @@ export const xnew = Object.assign(
              * @returns the Unit created by `xnew(...args)`
              */
             boot(socket: RootSocket, ...args: any[]): Unit {
-                // boot ルートはエンジンルートの子として生成する。先にエンジンルートを確実に用意し、
-                // それを親（= Unit.currentUnit）として root を直接構築する。
                 if (Unit.engineRoot === undefined) { Unit.reset(); }
-                // socket のメンバから mode を判定する: ServerSocket は to() を持ち（権威=server）、
-                // ClientSocket は disconnect()/id を持つ（複製=client）。
-                const mode: Mode = ('to' in socket) ? 'server' : 'client';
-                // mode / socket を options で明示的に渡す。socket は unit には保持されず、構築時に
-                // boot ルートとして syncRoots へ登録される（子孫は findSyncRoot で解決する）。
-                const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
-                // 状態の下り（mirror）と socket→unit.on の橋渡し（dispatcher）を一括で自動配線する（冪等）。
-                wireSyncRoot(root);
-                return root;
+                // socket バインドのルートを生成し、mode 判定・syncRoots 登録・socket チャンネル配線
+                // （状態の下り mirror + dispatcher）まで bootSyncRoot に委譲する。
+                return bootSyncRoot(socket, Unit.currentUnit, ...args);
             },
         },
 

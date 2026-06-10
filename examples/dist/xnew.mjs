@@ -701,27 +701,24 @@ function getRootSocket(unit) {
     }
     return socket;
 }
-const wiredRoots = new WeakSet();
-function wireSyncRoot(root) {
-    if (wiredRoots.has(root)) {
-        return;
-    }
-    wiredRoots.add(root);
-    const socket = getRootSocket(root);
-    if (root._.mode === 'server') {
+function bootSyncRoot(socket, parent, ...args) {
+    const mode = ('to' in socket) ? 'server' : 'client';
+    const root = new Unit({ mode, socket }, parent, ...args);
+    if (mode === 'server') {
         const server = socket;
         root.on('update', () => server.emit('sync', captureStateTree(root)));
         server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
         server.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
         server.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
     }
-    else if (root._.mode === 'client') {
+    else {
         const client = socket;
         const handler = (tree) => applyStateTree(root, tree);
         client.on('sync', handler);
         root.on('finalize', () => client.off('sync', handler));
         client.onAny((event, message) => dispatchSync(root, event, undefined, message));
     }
+    return root;
 }
 function dispatchSync(root, event, id, message) {
     if (root._.status === 'finalized') {
@@ -1437,10 +1434,7 @@ const xnew$1 = Object.assign((function (...args) {
             if (Unit.engineRoot === undefined) {
                 Unit.reset();
             }
-            const mode = ('to' in socket) ? 'server' : 'client';
-            const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
-            wireSyncRoot(root);
-            return root;
+            return bootSyncRoot(socket, Unit.currentUnit, ...args);
         },
     },
 });
