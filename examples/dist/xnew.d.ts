@@ -19,23 +19,6 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1): boolean;
     delete(key1: Key1, key2: Key2): boolean;
 }
-declare class BiMap<Left, Right> {
-    private readonly forward;
-    private readonly backward;
-    get size(): number;
-    set(left: Left, right: Right): this;
-    getRight(left: Left): Right | undefined;
-    getLeft(right: Right): Left | undefined;
-    hasLeft(left: Left): boolean;
-    hasRight(right: Right): boolean;
-    deleteLeft(left: Left): boolean;
-    deleteRight(right: Right): boolean;
-    clear(): void;
-    lefts(): IterableIterator<Left>;
-    rights(): IterableIterator<Right>;
-    entries(): IterableIterator<[Left, Right]>;
-    [Symbol.iterator](): IterableIterator<[Left, Right]>;
-}
 
 declare class Eventor {
     private map;
@@ -77,8 +60,7 @@ type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' |
 type Mode = 'server' | 'client' | null;
 interface UnitOptions {
     mode?: Mode;
-    state?: Record<string, any> | null;
-    socket?: any | null;
+    setup?: (unit: Unit) => void;
 }
 type ComponentFn<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
 type DefinesOf<C> = C extends (...args: any[]) => infer R ? ([R] extends [void] ? {} : Exclude<R, void | undefined>) : {};
@@ -116,11 +98,6 @@ declare class Unit {
         eventor: Eventor;
         key: any;
         mode: Mode;
-        sync: {
-            id: number | null;
-            state: Record<string, any> | null;
-            registry: SyncRegistry | null;
-        };
     };
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
@@ -139,7 +116,6 @@ declare class Unit {
     static render(unit: Unit): void;
     static engineRoot: Unit;
     static currentUnit: Unit;
-    static syncIdCounter: number;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
@@ -185,7 +161,6 @@ interface SyncNode {
     state: Record<string, any>;
 }
 type StateTree = SyncNode[];
-type SyncRegistry = BiMap<string, Function>;
 declare function captureStateTree(root: Unit): StateTree;
 declare function applyStateTree(root: Unit, tree: StateTree): void;
 interface ClientSocket {
@@ -206,6 +181,21 @@ interface ServerSocket {
     onAny(handler: (event: string, clientId: string, payload: any) => void): void;
 }
 type RootSocket = ClientSocket | ServerSocket;
+interface Transport {
+    server: ServerSocket;
+    connect(clientId?: string): ClientSocket;
+}
+declare function loopback(): Transport;
+declare function socketio(ioOrSocket: any, opts?: {
+    room?: string;
+}): Transport;
+interface ServeRoomsOptions {
+    component: Function;
+    maxRooms?: number;
+    roomNameMax?: number;
+    graceMs?: number;
+}
+declare function serveRooms(io: any, options: ServeRoomsOptions): void;
 
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -448,6 +438,9 @@ declare const xnew: XnewBase & {
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
         boot(socket: RootSocket, ...args: any[]): Unit;
+        loopback: typeof loopback;
+        socketio: typeof socketio;
+        serveRooms: typeof serveRooms;
     };
 } & {
     basics: {
