@@ -1,6 +1,5 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { getSyncName } from '../../../src/core/sync';
 
 function Player() {}
 
@@ -10,19 +9,17 @@ describe('registry (scoped)', () => {
 
     it('a child is synced under the name its parent registered', () => {
         const root = xnew(function Root() { xnew.sync.register({ Player }); xnew(Player); });
-        const player = root._.children[0];
-        expect(getSyncName(player)).toBe('Player');
+        expect(xnew.sync.capture(root).map(n => n.name)).toContain('Player');
     });
 
     it('a child whose parent did not register it is not synced', () => {
         const root = xnew(function Root() { xnew(Player); });   // register していない
-        const player = root._.children[0];
-        expect(getSyncName(player)).toBeUndefined();
+        expect(xnew.sync.capture(root)).toHaveLength(0);
     });
 
-    it('a unit with no parent is not synced', () => {
+    it('a unit whose parent has no registry is not synced', () => {
         const unit = xnew((u: Unit) => {});
-        expect(getSyncName(unit)).toBeUndefined();
+        expect(xnew.sync.capture(unit)).toHaveLength(0);
     });
 });
 

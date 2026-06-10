@@ -8,8 +8,7 @@
 // 保持し（_.sync.registry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
 //
 // - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリ（BiMap）と追記
-// - getSyncName        : unit が同期対象なら、直接の親のレジストリ上の登録名(最派生一致)を返す
-// - captureStateTree   : server サブツリー → SyncNode[](全量)
+// - captureStateTree   : server サブツリー → SyncNode[](全量)。同期可否・登録名は内部で解決
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
 //                        レジストリで解決し、create 時に new Unit の options.state でサーバー状態をプリシード
 //
@@ -47,29 +46,30 @@ export function registerOnUnit(unit: Unit, components: Record<string, Function>)
     }
 }
 
-export function getSyncName(unit: Unit): string | undefined {
-    // 同期可否・登録名は「直接の親ユニットのレジストリ」で決まる。
-    // _.Components は [基底..., 実際にインスタンス化した Component] の順なので、最も派生した
-    // （= 末尾側の）一致を採る（基底に化けない / extend は最派生名で 1 SyncNode）。
-    const registry = unit._.parent?._.sync.registry;
-    if (registry === undefined || registry === null) {
-        return undefined;
-    }
-    for (let i = unit._.Components.length - 1; i >= 0; i--) {
-        const name = registry.getLeft(unit._.Components[i]);
-        if (name !== undefined) {
-            return name;
-        }
-    }
-    return undefined;
-}
-
 export function captureStateTree(root: Unit): StateTree {
     const nodes: StateTree = [];
 
+    // unit が同期対象なら、直接の親ユニットのレジストリ上の登録名（最派生一致）を返す（未登録なら undefined）。
+    // 同期可否・登録名は「直接の親ユニットのレジストリ」で決まる。_.Components は [基底..., 実際に
+    // インスタンス化した Component] の順なので、最も派生した（= 末尾側の）一致を採る（基底に化けない
+    // / extend は最派生名で 1 SyncNode）。
+    const syncName = (unit: Unit): string | undefined => {
+        const registry = unit._.parent?._.sync.registry;
+        if (registry === undefined || registry === null) {
+            return undefined;
+        }
+        for (let i = unit._.Components.length - 1; i >= 0; i--) {
+            const name = registry.getLeft(unit._.Components[i]);
+            if (name !== undefined) {
+                return name;
+            }
+        }
+        return undefined;
+    };
+
     const walk = (unit: Unit, nearestSyncedId: number | null): void => {
         let parentForChildren = nearestSyncedId;
-        const name = getSyncName(unit);
+        const name = syncName(unit);
         if (name !== undefined) {
             if (unit._.sync.id === null) {
                 unit._.sync.id = Unit.syncIdCounter++;

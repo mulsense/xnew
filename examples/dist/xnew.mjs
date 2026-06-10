@@ -603,26 +603,26 @@ function registerOnUnit(unit, components) {
         unit._.sync.registry.set(name, Component);
     }
 }
-function getSyncName(unit) {
-    var _a;
-    const registry = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.sync.registry;
-    if (registry === undefined || registry === null) {
-        return undefined;
-    }
-    for (let i = unit._.Components.length - 1; i >= 0; i--) {
-        const name = registry.getLeft(unit._.Components[i]);
-        if (name !== undefined) {
-            return name;
-        }
-    }
-    return undefined;
-}
 function captureStateTree(root) {
     const nodes = [];
+    const syncName = (unit) => {
+        var _a;
+        const registry = (_a = unit._.parent) === null || _a === void 0 ? void 0 : _a._.sync.registry;
+        if (registry === undefined || registry === null) {
+            return undefined;
+        }
+        for (let i = unit._.Components.length - 1; i >= 0; i--) {
+            const name = registry.getLeft(unit._.Components[i]);
+            if (name !== undefined) {
+                return name;
+            }
+        }
+        return undefined;
+    };
     const walk = (unit, nearestSyncedId) => {
         var _a;
         let parentForChildren = nearestSyncedId;
-        const name = getSyncName(unit);
+        const name = syncName(unit);
         if (name !== undefined) {
             if (unit._.sync.id === null) {
                 unit._.sync.id = Unit.syncIdCounter++;

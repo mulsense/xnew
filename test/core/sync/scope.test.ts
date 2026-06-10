@@ -1,7 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 import xsocket from '../../../src/addons/xsocket';
-import { getSyncName } from '../../../src/core/sync';
 
 describe('scoped registry isolation', () => {
     let transport: ReturnType<typeof xsocket.loopback>;
@@ -36,8 +35,8 @@ describe('scoped registry isolation', () => {
 
         xnew.sync.apply(client, xnew.sync.capture(server));
 
-        const replicaA = client._.children.find(c => getSyncName(c) === 'ParentA')!;
-        const replicaB = client._.children.find(c => getSyncName(c) === 'ParentB')!;
+        const replicaA = client._.children.find(c => c._.Components.includes(ParentA))!;
+        const replicaB = client._.children.find(c => c._.Components.includes(ParentB))!;
         expect(replicaA._.children[0]._.Components.includes(ChildA)).toBe(true);
         expect(replicaB._.children[0]._.Components.includes(ChildB)).toBe(true);
         expect(replicaA._.children[0]._.sync.state).toEqual({ kind: 'A' });
