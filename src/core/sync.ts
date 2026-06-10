@@ -24,8 +24,8 @@
 // - registerSyncRoot       : boot ルートを syncRoots に登録（root → { socket } の関連情報）
 // - findSyncRoot           : unit から parent を辿り、属する同期ツリーのルート unit を解決
 // - getRootSocket          : ルートにバインド済みの socket を解決（boot が registerSyncRoot で登録する）
-// - mirrorRoot             : 状態の下りを 1 呼び出しで配線（server=capture→emit('sync') / client=on('sync')→apply）
-// - installSyncDispatch    : socket で届いたイベントを対象 unit の unit.on(event) リスナへ橋渡し（'-'=同一 syncId / 他=全体）
+// - wireSyncRoot           : boot ルートの socket チャンネルを配線（状態の下り mirror ＋ socket→unit.on
+//                            ディスパッチャ。'-event'=同一 syncId / '+event'・無印=全体）
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
@@ -202,57 +202,48 @@ export function getRootSocket(unit: Unit): RootSocket {
     return socket;
 }
 
-/** 同一ルートへの二重配線を防ぐ冪等ガード。set に未登録のときだけ登録して fn を 1 度実行する。 */
-function wireOnce(set: WeakSet<Unit>, root: Unit, fn: () => void): void {
-    if (set.has(root) === false) {
-        set.add(root);
-        fn();
-    }
-}
-const mirroredRoots: WeakSet<Unit> = new WeakSet();
-const dispatchedRoots: WeakSet<Unit> = new WeakSet();
+/** 既に配線済みのルート（同一ルートへの二重配線を防ぐ冪等ガード）。 */
+const wiredRoots: WeakSet<Unit> = new WeakSet();
 
 /**
- * 状態の下り（server→client）を 1 呼び出しで配線する。socket がバインド済みのルートに対して呼ぶ。
+ * boot 済みルートの socket チャンネルを mode 別に配線する。socket がバインド済みのルートに対して呼ぶ。
+ * 次の 2 つを一括で設置する:
+ *
+ * (1) 状態の下り（mirror, server→client）:
  *   - server : 毎 update で capture → emit('sync')（全 client へ broadcast）
  *   - client : on('sync') → apply（自分のツリーへ反映。unit finalize で off）
- *   - null   : 何もしない（standalone）
- * capture/apply/emit/on の合成を隠蔽する薄いヘルパー。同一ルートに 2 度呼んでも 2 度目は no-op
- * （xnew.sync.boot が socket バインド時に自動で呼ぶため。細かい配信制御が要るときは capture/apply を手書きでよい）。
- */
-export function mirrorRoot(root: Unit): void {
-    wireOnce(mirroredRoots, root, () => {
-        if (root._.mode === 'server') {
-            const socket = getRootSocket(root) as ServerSocket;
-            root.on('update', () => socket.emit('sync', captureStateTree(root)));
-        } else if (root._.mode === 'client') {
-            const socket = getRootSocket(root) as ClientSocket;
-            const handler = (tree: StateTree) => applyStateTree(root, tree);
-            socket.on('sync', handler);
-            root.on('finalize', () => socket.off('sync', handler));
-        }
-    });
-}
-
-/**
- * socket で届いたイベントを、対象 unit の `unit.on(event)` リスナへ橋渡しするディスパッチャを設置する。
- * 受け手が xnew.sync.on ではなく unit.on に統一されるため、socket→unit のルーティングをここで担う。
- *   - '-event' … message.syncId と一致する syncId を持つ unit のリスナだけ発火（同一コンポーネント）。
+ *
+ * (2) socket→unit.on のディスパッチャ（受信イベントを対象 unit の `unit.on(event)` リスナへ橋渡し）:
+ *   - '-event' … 送信元と同一 syncId の unit のリスナだけ発火（自身）。
  *   - '+event' / 無印 … この root 配下で該当リスナを持つ全 unit を発火（全体）。
  *   - connect/disconnect（transport 由来）… 同名イベントとして全体配信。
- * handler へは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）を渡す。
+ *   handler へは単一オブジェクト { id, ...payload }（id=送信元 clientId, server のみ）を渡す。
+ *
+ * 同一ルートに 2 度呼んでも 2 度目は no-op（xnew.sync.boot が socket バインド時に自動で呼ぶ）。
  */
-export function installSyncDispatch(root: Unit): void {
-    wireOnce(dispatchedRoots, root, () => {
-        const socket = getRootSocket(root);
-        if (root._.mode === 'server') {
-            (socket as ServerSocket).onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-            socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
-            socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
-        } else if (root._.mode === 'client') {
-            (socket as ClientSocket).onAny((event, message) => dispatchSync(root, event, undefined, message));
-        }
-    });
+export function wireSyncRoot(root: Unit): void {
+    if (wiredRoots.has(root)) {
+        return;
+    }
+    wiredRoots.add(root);
+    const socket = getRootSocket(root);
+    if (root._.mode === 'server') {
+        const server = socket as ServerSocket;
+        // (1) 状態の下り: 毎 update で capture → broadcast
+        root.on('update', () => server.emit('sync', captureStateTree(root)));
+        // (2) ディスパッチャ: 受信イベントを対象 unit の on(event) へ
+        server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
+        server.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+        server.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+    } else if (root._.mode === 'client') {
+        const client = socket as ClientSocket;
+        // (1) 状態の下り: on('sync') → apply（finalize で解除）
+        const handler = (tree: StateTree) => applyStateTree(root, tree);
+        client.on('sync', handler);
+        root.on('finalize', () => client.off('sync', handler));
+        // (2) ディスパッチャ
+        client.onAny((event, message) => dispatchSync(root, event, undefined, message));
+    }
 }
 
 /** 1 つの受信イベントを、root 配下の該当 unit リスナへ配る。 */

@@ -707,40 +707,27 @@
         }
         return socket;
     }
-    function wireOnce(set, root, fn) {
-        if (set.has(root) === false) {
-            set.add(root);
-            fn();
+    const wiredRoots = new WeakSet();
+    function wireSyncRoot(root) {
+        if (wiredRoots.has(root)) {
+            return;
         }
-    }
-    const mirroredRoots = new WeakSet();
-    const dispatchedRoots = new WeakSet();
-    function mirrorRoot(root) {
-        wireOnce(mirroredRoots, root, () => {
-            if (root._.mode === 'server') {
-                const socket = getRootSocket(root);
-                root.on('update', () => socket.emit('sync', captureStateTree(root)));
-            }
-            else if (root._.mode === 'client') {
-                const socket = getRootSocket(root);
-                const handler = (tree) => applyStateTree(root, tree);
-                socket.on('sync', handler);
-                root.on('finalize', () => socket.off('sync', handler));
-            }
-        });
-    }
-    function installSyncDispatch(root) {
-        wireOnce(dispatchedRoots, root, () => {
-            const socket = getRootSocket(root);
-            if (root._.mode === 'server') {
-                socket.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-                socket.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
-                socket.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
-            }
-            else if (root._.mode === 'client') {
-                socket.onAny((event, message) => dispatchSync(root, event, undefined, message));
-            }
-        });
+        wiredRoots.add(root);
+        const socket = getRootSocket(root);
+        if (root._.mode === 'server') {
+            const server = socket;
+            root.on('update', () => server.emit('sync', captureStateTree(root)));
+            server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
+            server.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+            server.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
+        }
+        else if (root._.mode === 'client') {
+            const client = socket;
+            const handler = (tree) => applyStateTree(root, tree);
+            client.on('sync', handler);
+            root.on('finalize', () => client.off('sync', handler));
+            client.onAny((event, message) => dispatchSync(root, event, undefined, message));
+        }
     }
     function dispatchSync(root, event, id, message) {
         if (root._.status === 'finalized') {
@@ -1458,8 +1445,7 @@
                 }
                 const mode = ('to' in socket) ? 'server' : 'client';
                 const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
-                mirrorRoot(root);
-                installSyncDispatch(root);
+                wireSyncRoot(root);
                 return root;
             },
         },
