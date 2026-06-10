@@ -819,7 +819,7 @@
         const root = findSyncRoot(unit);
         const socket = root !== null ? syncRoots.get(root).socket : null;
         if (socket === null) {
-            throw new Error('no socket bound to this root; pass a transport to xnew.sync.boot(mode, transport, ...).');
+            throw new Error('no socket bound to this root; create it with xnew.sync.boot(socket, ...).');
         }
         return socket;
     }
@@ -1573,19 +1573,14 @@
                 }
                 getRootSocket(unit).emit(event, { syncId: unit._.sync.id, data: payload });
             },
-            boot(mode, transport, ...args) {
+            boot(socket, ...args) {
                 if (Unit.engineRoot === undefined) {
                     Unit.reset();
                 }
-                const socket = transport === null ? null
-                    : mode === 'server' ? transport.server
-                        : mode === 'client' ? transport.connect()
-                            : null;
+                const mode = ('to' in socket) ? 'server' : 'client';
                 const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
-                if (transport !== null) {
-                    mirrorRoot(root);
-                    installSyncDispatch(root);
-                }
+                mirrorRoot(root);
+                installSyncDispatch(root);
                 return root;
             },
         },

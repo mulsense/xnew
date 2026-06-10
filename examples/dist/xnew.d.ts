@@ -209,6 +209,7 @@ interface Transport {
     server: ServerSocket;
     connect(clientId?: string): ClientSocket;
 }
+type RootSocket = ClientSocket | ServerSocket;
 declare function createLoopback(): Transport;
 
 interface XnewBase {
@@ -455,7 +456,7 @@ declare const xnew: XnewBase & {
         }): Transport;
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
-        boot(mode: Mode, transport: Transport | null, ...args: any[]): Unit;
+        boot(socket: RootSocket, ...args: any[]): Unit;
     };
 } & {
     basics: {

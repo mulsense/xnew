@@ -20,16 +20,18 @@ function Enemy(unit: Unit) {
 }
 
 describe('composed synced state (base + extend)', () => {
+    let transport: ReturnType<typeof xnew.sync.loopback>;
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
         Unit.reset();
         clientReadAtConstruction = {};
+        transport = xnew.sync.loopback();
     });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('hydrates every sync.state declaration from injected server state at construction time', () => {
-        const server = xnew.sync.boot('server', null, function Server() { xnew.sync.register({ Enemy }); xnew(Enemy); });
-        const client = xnew.sync.boot('client', null, function ClientRoot() { xnew.sync.register({ Enemy }); });
+        const server = xnew.sync.boot(transport.server, function Server() { xnew.sync.register({ Enemy }); xnew(Enemy); });
+        const client = xnew.sync.boot(transport.connect(), function ClientRoot() { xnew.sync.register({ Enemy }); });
 
         Unit.start(Unit.engineRoot);
         Unit.update(Unit.engineRoot);                              // server Enemy: hp=101, x=3
@@ -59,8 +61,8 @@ describe('composed synced state (base + extend)', () => {
                 xnew(function Child() { childState = xnew.sync.state({ value: -1 }); });
             });
         }
-        const server = xnew.sync.boot('server', null, function Server() { xnew.sync.register({ Host }); xnew(Host); });
-        const client = xnew.sync.boot('client', null, function ClientRoot() { xnew.sync.register({ Host }); });
+        const server = xnew.sync.boot(transport.server, function Server() { xnew.sync.register({ Host }); xnew(Host); });
+        const client = xnew.sync.boot(transport.connect(), function ClientRoot() { xnew.sync.register({ Host }); });
 
         Unit.start(Unit.engineRoot);
         Unit.update(Unit.engineRoot);                              // server Host: value=5
@@ -76,7 +78,7 @@ describe('composed synced state (base + extend)', () => {
     it('syncs under the most-derived registered name even when the base is also registered', () => {
         function ActorBase(unit: Unit, props: any = {}) { xnew.sync.state({ x: 0, y: props.y ?? 0 }); }
         function EnemyDerived(unit: Unit, props: any = {}) { xnew.extend(ActorBase, props); xnew.sync.state({ hp: 3 }); }
-        const server = xnew.sync.boot('server', null, function S() { xnew.sync.register({ ActorBase, EnemyDerived }); xnew(EnemyDerived, { y: 8 }); });
+        const server = xnew.sync.boot(transport.server, function S() { xnew.sync.register({ ActorBase, EnemyDerived }); xnew(EnemyDerived, { y: 8 }); });
 
         const tree = xnew.sync.capture(server);
         expect(tree).toHaveLength(1);
@@ -104,8 +106,8 @@ describe('composed synced state (base + extend)', () => {
                 unit.on('render', () => { el.style.background = state.hp >= 2 ? 'red' : 'gray'; });
             });
         }
-        const server = xnew.sync.boot('server', null, function Server() { xnew.sync.register({ Sprite }); xnew(Sprite, { y: 8 }); });
-        const client = xnew.sync.boot('client', null, function ClientRoot() { xnew.sync.register({ Sprite }); });
+        const server = xnew.sync.boot(transport.server, function Server() { xnew.sync.register({ Sprite }); xnew(Sprite, { y: 8 }); });
+        const client = xnew.sync.boot(transport.connect(), function ClientRoot() { xnew.sync.register({ Sprite }); });
 
         Unit.start(Unit.engineRoot);
         Unit.update(Unit.engineRoot);                              // server Sprite: x=3, hp=2

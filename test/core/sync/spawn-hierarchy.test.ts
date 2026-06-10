@@ -28,9 +28,11 @@ function Mover(unit: Unit) {
 }
 
 describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
+    let transport: ReturnType<typeof xnew.sync.loopback>;
     beforeEach(() => {
         jest.useFakeTimers({ now: 0 });
         Unit.reset();
+        transport = xnew.sync.loopback();
     });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
@@ -39,8 +41,8 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     }
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
-        const server = xnew.sync.boot('server', null, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
-        const client = xnew.sync.boot('client', null, function ClientRoot() { xnew.sync.register({ Mover }); });
+        const server = xnew.sync.boot(transport.server, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const client = xnew.sync.boot(transport.connect(), function ClientRoot() { xnew.sync.register({ Mover }); });
 
         Unit.start(Unit.engineRoot);
         await jest.advanceTimersByTimeAsync(500);            // interval が 1 回発火 → Enemy spawn
@@ -65,8 +67,8 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     });
 
     it('despawns Enemy after its lifetime and removes that replica', async () => {
-        const server = xnew.sync.boot('server', null, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
-        const client = xnew.sync.boot('client', null, function ClientRoot() { xnew.sync.register({ Mover }); });
+        const server = xnew.sync.boot(transport.server, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const client = xnew.sync.boot(transport.connect(), function ClientRoot() { xnew.sync.register({ Mover }); });
 
         Unit.start(Unit.engineRoot);
         await jest.advanceTimersByTimeAsync(500);            // 最初の Enemy が spawn

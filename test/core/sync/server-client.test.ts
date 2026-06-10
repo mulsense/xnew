@@ -2,12 +2,13 @@ import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
 
 describe('xnew.server / xnew.client', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let transport: ReturnType<typeof xnew.sync.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('server mode runs server block, skips client block', () => {
         const serverRan = jest.fn(); const clientRan = jest.fn();
-        xnew.sync.boot('server', null, (u: Unit) => {
+        xnew.sync.boot(transport.server, (u: Unit) => {
             xnew.server(() => { serverRan(); });
             xnew.client(() => { clientRan(); });
         });
@@ -17,7 +18,7 @@ describe('xnew.server / xnew.client', () => {
 
     it('client mode runs client block, skips server block', () => {
         const serverRan = jest.fn(); const clientRan = jest.fn();
-        xnew.sync.boot('client', null, (u: Unit) => {
+        xnew.sync.boot(transport.connect(), (u: Unit) => {
             xnew.server(() => { serverRan(); });
             xnew.client(() => { clientRan(); });
         });
@@ -36,7 +37,7 @@ describe('xnew.server / xnew.client', () => {
     });
 
     it('merges defines returned by the executed block onto the unit', () => {
-        const unit = xnew.sync.boot('server', null, (u: Unit) => {
+        const unit = xnew.sync.boot(transport.server, (u: Unit) => {
             xnew.server(() => ({ greet: () => 'hi-from-server' }));
             xnew.client(() => ({ draw: () => 'should-not-exist' }));
         });
@@ -47,11 +48,11 @@ describe('xnew.server / xnew.client', () => {
 
     it('client block builds real DOM on client; not invoked on server', () => {
         let el: any;
-        xnew.sync.boot('client', null, (u: Unit) => { xnew.client(() => { el = xnew.nest('<div>'); }); });
+        xnew.sync.boot(transport.connect(), (u: Unit) => { xnew.client(() => { el = xnew.nest('<div>'); }); });
         expect(el.tagName).toBe('DIV');
 
         let el2: any = 'untouched';
-        xnew.sync.boot('server', null, (u: Unit) => { xnew.client(() => { el2 = xnew.nest('<div>'); }); });
+        xnew.sync.boot(transport.server, (u: Unit) => { xnew.client(() => { el2 = xnew.nest('<div>'); }); });
         expect(el2).toBe('untouched');   // client callback never ran, so nest never called
     });
 });

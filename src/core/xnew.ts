@@ -20,14 +20,14 @@
 // - xnew.protect                         : exclude current Unit from emit / find
 // - xnew.server / client                 : run a block only on server / client (extend-like)
 // - xnew.sync.state / register / capture / apply / emit / boot : server→client state sync (see core/sync.ts)
-//   xnew.sync.boot('server'|'client', transport|null, ...) : create a mode root; a transport binds
-//   its socket + auto-wires the down-channel (capture/apply) and event dispatcher (null = standalone)
+//   xnew.sync.boot(socket, ...) : create a root bound to socket; mode is derived from the socket
+//   (server: transport.server / client: transport.connect()) + auto-wires the down-channel + dispatcher
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './element';
 import { registerOnUnit, captureStateTree, applyStateTree, createLoopback, createSocketioTransport, getRootSocket, mirrorRoot, installSyncDispatch } from './sync';
-import type { Transport } from './sync';
+import type { Transport, RootSocket } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -491,36 +491,31 @@ export const xnew = Object.assign(
             },
 
             /**
-             * Creates a root Unit for `mode` (server / client / null). This is the only public way to
-             * select server / client mode. The created root adopts the mode and its descendants inherit it.
-             *
-             * `transport` is required as the second argument (`null` for standalone); the remaining
-             * arguments are forwarded to `xnew(...)`:
-             *   xnew.sync.boot('server', null, Main)            // standalone（networking なし）
-             *   xnew.sync.boot('server', transport, Main)       // socket バインド + 状態の下り自動配線
-             * When a transport is given, this binds the socket (server→server / client→connect()) and
-             * auto-wires the down-channel (capture→broadcast / on→apply) and the event dispatcher.
+             * Creates a root Unit bound to `socket`, deriving the engine mode from the socket itself
+             * (a `ServerSocket` has `to()` → server / a `ClientSocket` has `disconnect()` → client).
+             * This is the only public way to select server / client mode; the root adopts the mode and
+             * its descendants inherit it. Resolve the socket from a transport per side — server uses
+             * `transport.server`, client uses `transport.connect()`. The remaining arguments are
+             * forwarded to `xnew(...)`:
+             *   xnew.sync.boot(transport.server, Main)      // server: socket バインド + 下り自動配線
+             *   xnew.sync.boot(transport.connect(), Main)   // client: socket バインド + 下り自動配線
+             * Binding always auto-wires the down-channel (capture→broadcast / on→apply) and the
+             * event dispatcher. For an in-process / non-networked setup use `xnew.sync.loopback()`.
              * @returns the Unit created by `xnew(...args)`
              */
-            boot(mode: Mode, transport: Transport | null, ...args: any[]): Unit {
+            boot(socket: RootSocket, ...args: any[]): Unit {
                 // boot ルートはエンジンルートの子として生成する。先にエンジンルートを確実に用意し、
                 // それを親（= Unit.currentUnit）として root を直接構築する。
                 if (Unit.engineRoot === undefined) { Unit.reset(); }
-                // transport を渡すとこの boot ルートへ socket をバインドする
-                // （server→transport.server / client→transport.connect() で自動発番）。standalone は null。
-                const socket = transport === null ? null
-                    : mode === 'server' ? transport.server
-                    : mode === 'client' ? transport.connect()
-                    : null;
+                // socket のメンバから mode を判定する: ServerSocket は to() を持ち（権威=server）、
+                // ClientSocket は disconnect()/id を持つ（複製=client）。
+                const mode: Mode = ('to' in socket) ? 'server' : 'client';
                 // mode / socket を options で明示的に渡す。socket は unit には保持されず、構築時に
                 // boot ルートとして syncRoots へ登録される（子孫は findSyncRoot で解決する）。
                 const root = new Unit({ mode, socket }, Unit.currentUnit, ...args);
-                // transport がある＝socket バインド済みなら、状態の下り（mirror）と
-                // socket→unit.on の橋渡し（dispatcher）をここで自動配線する（どちらも冪等）。
-                if (transport !== null) {
-                    mirrorRoot(root);
-                    installSyncDispatch(root);
-                }
+                // 状態の下り（mirror）と socket→unit.on の橋渡し（dispatcher）を自動配線する（どちらも冪等）。
+                mirrorRoot(root);
+                installSyncDispatch(root);
                 return root;
             },
         },

@@ -27,7 +27,7 @@ const io = new IOServer(httpServer);
 
 // ★ 切り替えはここだけ: loopback の代わりに socket.io アダプタを boot へ渡す。
 const transport = xnew.sync.socketio(io);
-xnew.sync.boot('server', transport, World);   // World が接続管理・移動を行う。下り(capture→'sync' broadcast)は boot が自動配線
+xnew.sync.boot(transport.server, World);   // World が接続管理・移動を行う。下り(capture→'sync' broadcast)は boot が自動配線
 
 httpServer.listen(PORT, () => {
     console.log(`[multi-client] socket.io server on http://localhost:${PORT}/`);

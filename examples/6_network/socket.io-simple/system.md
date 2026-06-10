@@ -100,7 +100,7 @@ room.js    Room: 参加管理 + ループ駆動 ─▶   onJoin / onLeave / onIn
                                           共有コンポーネント: World / Player
 ```
 
-- **プラグインの契約**（`games/*.js` が export）：`id` / `name` / `create()` と、共有コンポーネント `World` / `Player`。`create()` は server ツリーを `xnew.sync.boot('server', null, World)` でブートし、`onJoin`（Player を spawn）/ `onInput`（入力 ref を更新）/ `onLeave`（finalize）/ `capture()`（`xnew.sync.capture`）/ `dispose()` を実装する。**ゲームを増やすのは `games/` にファイルを足すだけ**。
+- **プラグインの契約**（`games/*.js` が export）：`id` / `name` / `create()` と、共有コンポーネント `World` / `Player`。`create()` は server ツリーを `xnew.sync.boot(socket, World)` でブートし、`onJoin`（Player を spawn）/ `onInput`（入力 ref を更新）/ `onLeave`（finalize）/ `capture()`（`xnew.sync.capture`）/ `dispose()` を実装する。**ゲームを増やすのは `games/` にファイルを足すだけ**。
 - **共有コンポーネント**：`Player` は1つの関数で `xnew.server`（移動計算）と `xnew.client`（`<div>` アバター描画）を書き分ける。server は直接 import、ブラウザは `/games/<gameType>.js` を動的 import して同じ `Player` を `register` する（名前から復元するため両ランタイムで同名登録）。
 - **ループは xnew**：プレイヤー位置は server の Player unit がグローバルティッカーの `update` で自走する。`room.js` の `RoomLoop` は 30Hz に間引いて `game.capture()` をそのルームへ `sync` 配信するだけ。ブラウザは受信した state tree を `xnew.sync.apply(clientWorld, tree)` で差分反映する。
 - 最初のプラグイン `games/metaverse.js` がアバター移動（方向ベクトル → 位置計算）を実装している。

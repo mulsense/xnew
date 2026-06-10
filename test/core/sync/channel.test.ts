@@ -70,16 +70,16 @@ describe('event channel (socket.io-compatible transport)', () => {
         const transport = xnew.sync.loopback();   // boot に渡すと socket を自動バインド
 
         const received: Array<[string, any]> = [];
-        const server = xnew.sync.boot('server', transport, function Server(unit: Unit) {
+        const server = xnew.sync.boot(transport.server, function Server(unit: Unit) {
             xnew.server(() => { unit.on('move', ({ id, x }: any) => received.push([id, { x }])); });
         });
 
         let id1: string | undefined;
         let id2: string | undefined;
-        xnew.sync.boot('client', transport, function Client(unit: Unit) {
+        xnew.sync.boot(transport.connect(), function Client(unit: Unit) {
             xnew.client(() => { id1 = xnew.sync.clientId; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
         });
-        xnew.sync.boot('client', transport, function Client(unit: Unit) {
+        xnew.sync.boot(transport.connect(), function Client(unit: Unit) {
             xnew.client(() => { id2 = xnew.sync.clientId; });
         });
 
@@ -99,7 +99,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         (Unit as any).engineRoot = undefined;   // 「まだ何も生成されていない」状態を再現
         const transport = xnew.sync.loopback();
         let id: string | undefined;
-        xnew.sync.boot('client', transport, function Client() {
+        xnew.sync.boot(transport.connect(), function Client() {
             xnew.client(() => { id = xnew.sync.clientId; });
         });
         expect(id).toBe('c1');   // socket がバインドされ clientId が解決できる（throw しない）
@@ -108,7 +108,7 @@ describe('event channel (socket.io-compatible transport)', () => {
     it('updates state directly on message receipt (no polling) via closure', () => {
         const hub = xnew.sync.loopback();
         let state: Record<string, any> = {};
-        xnew.sync.boot('server', hub, function Server(unit: Unit) {
+        xnew.sync.boot(hub.server, function Server(unit: Unit) {
             xnew.server(() => {
                 state = xnew.sync.state({ x: 0 });
                 // 受信時に closure の state を直接更新（inbox 不要）。unit 生成等はしない。
@@ -164,9 +164,9 @@ describe('event channel (socket.io-compatible transport)', () => {
         const view1 = document.createElement('div');
         const view2 = document.createElement('div');
 
-        const server = xnew.sync.boot('server', hub, World);                  // on('connect') を登録
-        const client1 = xnew.sync.boot('client', hub, World, { view: view1 }); // connect → presence に c1
-        const client2 = xnew.sync.boot('client', hub, World, { view: view2 }); // connect → presence に c2
+        const server = xnew.sync.boot(hub.server, World);                  // on('connect') を登録
+        const client1 = xnew.sync.boot(hub.connect(), World, { view: view1 }); // connect → presence に c1
+        const client2 = xnew.sync.boot(hub.connect(), World, { view: view2 }); // connect → presence に c2
 
         const sync = () => {
             const tree = xnew.sync.capture(server);
@@ -211,8 +211,8 @@ describe('event channel (socket.io-compatible transport)', () => {
             xnew.server(() => { xnew(Mover); });
         }
         const transport = xnew.sync.loopback();
-        const server = xnew.sync.boot('server', transport, World);   // boot の自動 mirror が update で broadcast
-        const client = xnew.sync.boot('client', transport, World);   // boot の自動 mirror が on('sync') で apply
+        const server = xnew.sync.boot(transport.server, World);   // boot の自動 mirror が update で broadcast
+        const client = xnew.sync.boot(transport.connect(), World);   // boot の自動 mirror が on('sync') で apply
 
         Unit.start(Unit.engineRoot);
         Unit.update(Unit.engineRoot);   // server Mover が x+=1、World(server) が 'sync' を broadcast → client が apply
@@ -286,7 +286,7 @@ describe('event channel (socket.io-compatible transport)', () => {
             unit.on('join', ({ id }: any) => xnew(Child, { key: id, clientId: id }));
         }
         const transport = xnew.sync.loopback();
-        xnew.sync.boot('server', transport, World);
+        xnew.sync.boot(transport.server, World);
 
         // 同じ transport の client が join を送ると server の on('join') が発火する（id=clientId）。
         transport.connect('c1').emit('join');
@@ -304,12 +304,12 @@ describe('event channel (socket.io-compatible transport)', () => {
             unit._.sync.id = props.syncId ?? null;
             xnew.server(() => { unit.on('-move', ({ vector }: any) => hits.push(`${props.tag}:${vector.x}`)); });
         }
-        xnew.sync.boot('server', hub, function Server() {
+        xnew.sync.boot(hub.server, function Server() {
             xnew.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
         });
 
         // client 側: syncId=10 のユニットから '-move' を送ると、同じ syncId の A だけに届く。
-        xnew.sync.boot('client', hub, function Client(unit: Unit) {
+        xnew.sync.boot(hub.connect(), function Client(unit: Unit) {
             xnew.client(() => {
                 unit._.sync.id = 10;
                 xnew.sync.emit('-move', { vector: { x: 1 } });

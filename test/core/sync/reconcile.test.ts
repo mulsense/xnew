@@ -12,10 +12,11 @@ function Box(unit: Unit) {
 }
 
 describe('applyStateTree create', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let transport: ReturnType<typeof xnew.sync.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
-    function makeView() { return xnew.sync.boot('client', null, function View() { xnew.sync.register({ Box }); }); }
+    function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Box }); }); }
 
     it('creates client units under the reconcile root with state applied', () => {
         const view = makeView();
@@ -45,9 +46,10 @@ describe('applyStateTree state injection (client inits from server state)', () =
         const state = xnew.sync.state({ value: 0, who: 'local' });
         observed = { ...state };   // 本体実行時点で見えている state のスナップショット
     }
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; });
+    let transport: ReturnType<typeof xnew.sync.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; transport = xnew.sync.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
-    function makeView() { return xnew.sync.boot('client', null, function View() { xnew.sync.register({ Probe }); }); }
+    function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Probe }); }); }
 
     it('injects server state before the body runs so local initial is ignored', () => {
         const view = makeView();
@@ -65,9 +67,10 @@ describe('applyStateTree state injection (client inits from server state)', () =
 });
 
 describe('applyStateTree update', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let transport: ReturnType<typeof xnew.sync.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
-    function makeView() { return xnew.sync.boot('client', null, function View() { xnew.sync.register({ Box }); }); }
+    function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Box }); }); }
 
     it('updates existing unit in place without recreating it', () => {
         const view = makeView();
@@ -81,9 +84,10 @@ describe('applyStateTree update', () => {
 });
 
 describe('applyStateTree remove', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let transport: ReturnType<typeof xnew.sync.loopback>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); transport = xnew.sync.loopback(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
-    function makeView() { return xnew.sync.boot('client', null, function View() { xnew.sync.register({ Box }); }); }
+    function makeView() { return xnew.sync.boot(transport.connect(), function View() { xnew.sync.register({ Box }); }); }
 
     it('finalizes replica units whose id disappears from the tree', () => {
         const view = makeView();

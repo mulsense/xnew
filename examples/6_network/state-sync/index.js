@@ -78,18 +78,19 @@ function Main() {
     });
 }
 
-// ---- 起動: 同じ Main を mode を切り替えて 2 回生成（中で server/client に分岐） ----
-// xnew.sync.boot(mode, transport, ...args) … その mode で xnew(...args) を生成（transport 無しは null）。
-// ※ 本番では server / client は別プロセスで各自 mode を 1 回設定するだけ。この同居はデモ専用。
-const server = xnew.sync.boot('server', null, Main);   // 擬似サーバー（ロジック）
-const client = xnew.sync.boot('client', null, Main);   // ブラウザ表示
+// ---- 起動: 同じ Main を socket（mode）を切り替えて 2 回生成（中で server/client に分岐） ----
+// xnew.sync.boot(socket, ...args) … socket から mode を判定し xnew(...args) を生成。
+// loopback transport で server↔client をインメモリ接続し、下りの同期は boot が自動配線する。
+// ※ 本番では server / client は別プロセスで各自の socket を 1 回渡すだけ。この同居はデモ専用。
+const transport = xnew.sync.loopback();
+const server = xnew.sync.boot(transport.server, Main);   // 擬似サーバー（ロジック）。下りを broadcast
+xnew.sync.boot(transport.connect(), Main);               // ブラウザ表示。受信して apply（boot が自動配線）
 
-// ---- 毎フレーム capture → apply（実ネットワークの代わりにインメモリで反映） ----
+// ---- 毎フレーム server の state tree を撮影して表示（同期自体は auto-mirror が担う） ----
 const stateView = document.getElementById('state');
 xnew(function Driver(unit) {
     unit.on('update', () => {
         const tree = xnew.sync.capture(server);   // authoritative の state tree を取得
-        xnew.sync.apply(client, tree);            // replica ツリーへ差分反映
         stateView.textContent = JSON.stringify(tree, null, 2);  // 取得した state を画面に表示
     });
 });
