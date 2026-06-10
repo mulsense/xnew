@@ -455,7 +455,7 @@ declare const xnew: XnewBase & {
         }): Transport;
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
-        boot(mode: Mode, ...args: any[]): Unit;
+        boot(mode: Mode, transport: Transport | null, ...args: any[]): Unit;
     };
 } & {
     basics: {

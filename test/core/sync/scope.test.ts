@@ -25,12 +25,12 @@ describe('scoped registry isolation', () => {
     });
 
     it('apply re-creates each Child with the component its reconciled parent registered', () => {
-        const server = xnew.sync.boot('server', function Root() {
+        const server = xnew.sync.boot('server', null, function Root() {
             xnew.sync.register({ ParentA, ParentB });
             xnew(ParentA);
             xnew(ParentB);
         });
-        const client = xnew.sync.boot('client', function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
+        const client = xnew.sync.boot('client', null, function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
 
         xnew.sync.apply(client, xnew.sync.capture(server));
 

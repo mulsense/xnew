@@ -1573,13 +1573,10 @@
                 }
                 getRootSocket(unit).emit(event, { syncId: unit._.sync.id, data: payload });
             },
-            boot(mode, ...args) {
+            boot(mode, transport, ...args) {
                 if (Unit.engineRoot === undefined) {
                     Unit.reset();
                 }
-                const head = args[0];
-                const transport = (head !== null && typeof head === 'object' && 'server' in head && typeof head.connect === 'function')
-                    ? args.shift() : null;
                 const socket = transport === null ? null
                     : mode === 'server' ? transport.server
                         : mode === 'client' ? transport.connect()

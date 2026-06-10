@@ -74,7 +74,7 @@ npm test         # 移動計算 step() のユニットテスト（node --test）
 
 - **単一プロセス**: express の静的配信と socket.io が同じプロセス・同じポート(:3000)。
 - **論理ルーム**: ルームは socket.io の room。ゲーム接続は `socket.join(roomId)` でそのルームに入り、配信は `io.to(roomId).emit('sync', …)` でそのルームだけに届く。
-- **状態同期は xnew.sync**: ルームごとに server ツリー（`xnew.sync.boot('server', World)`）と client ツリー（ブラウザの `xnew.sync.boot('client', World)`）を持つ。`Player` は **server/client 共有の1コンポーネント**で、`xnew.server` ブロックが移動を計算し `xnew.client` ブロックが `<div>` アバターを描く。サーバーは `xnew.sync.capture(World)` した state tree を配り、ブラウザは `xnew.sync.apply(clientWorld, tree)` で差分反映する。
+- **状態同期は xnew.sync**: ルームごとに server ツリー（`xnew.sync.boot('server', null, World)`）と client ツリー（ブラウザの `xnew.sync.boot('client', null, World)`）を持つ。`Player` は **server/client 共有の1コンポーネント**で、`xnew.server` ブロックが移動を計算し `xnew.client` ブロックが `<div>` アバターを描く。サーバーは `xnew.sync.capture(World)` した state tree を配り、ブラウザは `xnew.sync.apply(clientWorld, tree)` で差分反映する。
 - **プラグイン方式**: ゲーム固有ロジックは `games/*.js` に分離（契約: `id`/`name`/`create()` → `onJoin/onLeave/onInput/capture/dispose/welcome`）。ネット層（`room.js`/`registry.js`/`index.js`）はゲーム非依存。共有モジュールは server が直接 import し、ブラウザは `/games/<gameType>.js` を動的 import する。ゲームを増やす＝`games/` にファイルを足すだけ。
 - **ループは xnew**: プレイヤーの位置更新は server の Player unit がグローバルティッカーの `update` で自走。`room.js` の `RoomLoop` は `BROADCAST_HZ`(30Hz) に間引いて `capture` → `sync` 配信するだけ。
 - **ルームは動的**: `room:create` で台帳に追加（その都度プラグインの `create()` を生成）、空室になったら破棄。

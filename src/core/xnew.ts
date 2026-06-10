@@ -20,8 +20,8 @@
 // - xnew.protect                         : exclude current Unit from emit / find
 // - xnew.server / client                 : run a block only on server / client (extend-like)
 // - xnew.sync.state / register / capture / apply / emit / boot : server→client state sync (see core/sync.ts)
-//   xnew.sync.boot('server'|'client', transport?, ...) : create a mode root, binding the optional
-//   transport's socket + auto-wiring the down-channel (capture/apply) and event dispatcher
+//   xnew.sync.boot('server'|'client', transport|null, ...) : create a mode root; a transport binds
+//   its socket + auto-wires the down-channel (capture/apply) and event dispatcher (null = standalone)
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer, Mode, ComponentFn, DefinesOf, PropsOf } from './unit';
@@ -492,28 +492,22 @@ export const xnew = Object.assign(
 
             /**
              * Creates a root Unit for `mode` (server / client / null). This is the only public way to
-             * select server / client mode — e.g. `const server = xnew.sync.boot('server', Main)`.
-             * The created root adopts the mode and its descendants inherit it.
+             * select server / client mode. The created root adopts the mode and its descendants inherit it.
              *
-             * An optional transport may be passed as the first argument after `mode`; the remaining
+             * `transport` is required as the second argument (`null` for standalone); the remaining
              * arguments are forwarded to `xnew(...)`:
-             *   xnew.sync.boot('server', Main)                  // standalone（transport なし）
+             *   xnew.sync.boot('server', null, Main)            // standalone（networking なし）
              *   xnew.sync.boot('server', transport, Main)       // socket バインド + 状態の下り自動配線
              * When a transport is given, this binds the socket (server→server / client→connect()) and
              * auto-wires the down-channel (capture→broadcast / on→apply) and the event dispatcher.
              * @returns the Unit created by `xnew(...args)`
              */
-            boot(mode: Mode, ...args: any[]): Unit {
+            boot(mode: Mode, transport: Transport | null, ...args: any[]): Unit {
                 // boot ルートはエンジンルートの子として生成する。先にエンジンルートを確実に用意し、
                 // それを親（= Unit.currentUnit）として root を直接構築する。
                 if (Unit.engineRoot === undefined) { Unit.reset(); }
-                // 先頭引数が transport（{ server, connect } を持つ）ならこの boot ルートへバインドする。
-                // それ以外（Component / target / content）はそのまま xnew(...) へ転送する。
-                // server getter を呼ばないよう `in` で存在チェックする（socketio の server は遅延生成）。
-                const head = args[0];
-                const transport: Transport | null =
-                    (head !== null && typeof head === 'object' && 'server' in head && typeof head.connect === 'function')
-                        ? args.shift() as Transport : null;
+                // transport を渡すとこの boot ルートへ socket をバインドする
+                // （server→transport.server / client→transport.connect() で自動発番）。standalone は null。
                 const socket = transport === null ? null
                     : mode === 'server' ? transport.server
                     : mode === 'client' ? transport.connect()

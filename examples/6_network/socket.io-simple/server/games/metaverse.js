@@ -145,7 +145,7 @@ export function World(unit, props = {}) {
 // ---- create: server World をブートし、room.js から呼ばれる GameInstance を返す ----
 // spawn / 入力 / 退出は World の defines（join / leave / input）に委譲する。
 export function create() {
-    const world = xnew.sync.boot('server', World);
+    const world = xnew.sync.boot('server', null, World);
 
     return {
         welcome() {
