@@ -64,6 +64,16 @@ export function syncOf(unit: Unit): SyncData {
     return data;
 }
 
+// 同期ノード id の採番カウンタ（旧 Unit.syncIdCounter）。capture が新規同期ノードへ連番を振る。
+// id はノードの identity であって順序保証は不要なので、エンジン reset 後に 1 へ戻す必要はない。
+// よって Unit.reset には依存させず、sync.ts の module スコープで単調増加させる。
+let syncIdCounter = 1;
+
+/** 新しい同期ノード id を 1 つ採番して返す（単調増加）。 */
+function nextSyncId(): number {
+    return syncIdCounter++;
+}
+
 /** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
 export function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
     const data = syncOf(unit);
@@ -103,7 +113,7 @@ export function captureStateTree(root: Unit): StateTree {
         const name = syncName(unit);
         if (name !== undefined) {
             if (data.id === null) {
-                data.id = Unit.syncIdCounter++;
+                data.id = nextSyncId();
             }
             nodes.push({
                 id: data.id,

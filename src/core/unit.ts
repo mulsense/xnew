@@ -345,10 +345,7 @@ export class Unit {
 
     static engineRoot: Unit;
     static currentUnit: Unit;
-    static syncIdCounter: number = 1;
-
     static reset(): void {
-        Unit.syncIdCounter = 1;
         Unit.engineRoot?.finalize();
         Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
         const ticker = new Ticker(() => {
