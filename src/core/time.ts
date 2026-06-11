@@ -1,14 +1,8 @@
 //----------------------------------------------------------------------------------------------------
-// time — runtime-agnostic tickers and timers
+// time — runtime-agnostic tickers and timers（browser は rAF / Node は setTimeout）
 //
-// xnew's root render loop and UnitTimer.timeout / interval / transition need a steady clock that
-// behaves the same in browser and Node. Ticker feature-detects requestAnimationFrame (browser) and
-// falls back to setTimeout (Node) so the rest of the package can stay runtime-agnostic. Timer
-// layers easing and visibility-aware pause on top, for use in transition primitives.
-//
-// - Ticker : callback at a target FPS — rAF in browser, setTimeout in Node
-// - Timer  : setTimeout-based timer with optional easing transition; auto-paused on document
-//            visibility change (browser only)
+// - Ticker : 目標 FPS でコールバック
+// - Timer  : easing 付き setTimeout タイマー。visibilitychange で自動 pause（browser のみ）
 //----------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------

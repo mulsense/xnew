@@ -995,8 +995,7 @@ function dispatchSync(root, event, id, message) {
     if (targets === undefined) {
         return;
     }
-    const prefix = event[0];
-    const selfOnly = prefix === '-';
+    const selfOnly = event[0] === '-';
     const syncId = isEnvelope ? message.syncId : undefined;
     targets.forEach((unit) => {
         var _a;

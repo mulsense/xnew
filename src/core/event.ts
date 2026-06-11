@@ -1,30 +1,18 @@
 //----------------------------------------------------------------------------------------------------
-// Eventor — DOM event binding for Units (thin pass-through + special-event dictionary)
+// Eventor — DOM event binding for Units（素通しコア + 特殊イベント辞書）
 //
-// By default a type is bound with a plain addEventListener and the listener receives `{ event }`;
-// prefixes `window.` / `document.` only switch the bind target. On top of that, this file defines
-// xnew-flavored special types via defineEvent(type, factory), so component authors get a unified
-// payload per family instead of raw DOM events. Mouse / touch types are intentionally NOT defined —
-// use pointer events (mouse* / touch* still work as plain `{ event }` bindings).
+// 既定では素の addEventListener で { event } を渡す（'window.' / 'document.' 接頭辞はバインド先の
+// 切替のみ）。特殊イベントは defineEvent(type, factory) の辞書で payload を正規化する。
+// mouse / touch は意図的に未定義（pointer に一本化。素の { event } としては動く）。
+// 登録は 1 tick 遅延し、コンポーネント初期化中に attach したリスナが同 tick で発火しない。
 //
-// Registration is deferred by one setTimeout tick so listeners attached during component init do
-// not fire on the same tick that created them.
+// - EventProps / defineEvent : factory が受ける束 / 辞書への登録
+// - listen                   : 遅延 addEventListener（finalizer を返す）
+// - Eventor                  : (type, listener) → finalize の管理。辞書 → 素通しの順に解決
 //
-// - EventProps  : the bundle a factory receives (element / type / listener / options)
-// - defineEvent : registers a custom event factory for one or more exact type strings
-// - listen      : deferred addEventListener; returns a finalizer
-// - Eventor     : keeps a (type, listener) → finalize map; add() consults the dictionary first,
-//                 then falls back to the plain binding
-//
-// Payload per family:
-// - change / input                                  : { event, value }   (checkbox → boolean, range/number → float)
-// - click / pointerdown|move|up|over|out            : { event, position: { x, y } }
-// - click.outside / pointerdown|move|up .outside    : { event, position } — fires when the target is outside the element
-// - wheel                                           : { event, delta: { x, y } }
-// - resize                                          : {}                 (ResizeObserver-backed)
-// - dragstart / dragmove / dragend                  : { event, position, delta }
-// - window.keydown / window.keyup                   : { event }          (key repeats filtered)
-// - window.keydown|keyup .arrow / .wasd             : { event, vector: { x, y } }
+// Payload: change|input:{event,value} / click|pointer*:{event,position} / *.outside: 要素の外で発火 /
+// wheel:{event,delta} / resize:{} / drag*:{event,position,delta} /
+// window.keydown|keyup:{event}(repeat 除去) / .arrow|.wasd:{event,vector}
 //----------------------------------------------------------------------------------------------------
 
 import { MapMap } from './map';

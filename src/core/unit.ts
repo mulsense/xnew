@@ -1,17 +1,14 @@
 //----------------------------------------------------------------------------------------------------
 // Unit — the lifecycle, ownership, and scoping primitive of xnew
 //
-// A Unit bundles a DOM element, a Component function that extends it, child units, event listeners,
-// timers, and registered promises into one entity, and drives the application through a state
-// machine: invoked → initialized → started ↔ stopped → finalizing → finalized.
+// Unit は DOM 要素・Component・子 unit・リスナ・promise を 1 つに束ね、状態機械
+// invoked → initialized → started ↔ stopped → finalizing → finalized で駆動する。
+// 遅延コールバック（DOM イベント・timer・promise 継続）は Snapshot 経由で Unit.scope に再入し、
+// 非同期を跨いでも元のコンポーネント内にいるかのように実行される。
 //
-// Deferred callbacks (DOM events, timers, promise continuations) re-enter Unit.scope using a
-// Snapshot of (unit, context, element, Component), so handlers always run as if still inside the
-// originating component, even after async hops.
-//
-// - Unit                   : core class — lifecycle, listeners, contexts, emit
-// - UnitPromise            : promise wrapper that resumes in the originating Unit scope
-// - UnitTimer              : queueable timer used by xnew.timeout / interval / transition
+// - Unit        : core class — lifecycle, listeners, contexts, emit
+// - UnitPromise : 元の Unit スコープで再開する promise ラッパー
+// - UnitTimer   : xnew.timeout / interval / transition が使うキュー式タイマー
 //----------------------------------------------------------------------------------------------------
 
 import { MapSet, MapMap } from './map';
@@ -33,29 +30,25 @@ export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finali
 // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
 export type Mode = 'server' | 'client' | null;
 
-// Unit 構築時の補助パラメータ。以前はグローバル slot（config.mode / injectedSlot / socketSlot）で
-// 渡していたものを、コンストラクタ第1引数として明示的に受け取る。
-// - mode   : サブツリールートのエンジンモード（親 mode が null のときの fallback）
-// - setup  : unit 構築直後・body(extend)実行前に呼ばれる初期化フック。core/sync.ts への依存を
-//            unit から切り離すための口で、boot は registerSyncRoot を、apply は同期 state の
-//            プリシードを、それぞれここで仕込む（socket / state は呼び出し側のクロージャが捕捉する）。
+// Unit 構築時の補助パラメータ。
+// - mode  : サブツリールートのエンジンモード（親 mode が null のときの fallback）
+// - setup : 構築直後・body 実行前に呼ばれるフック（sync.ts が boot 登録 / state プリシードに使う）
 export interface UnitOptions {
     mode?: Mode;
     setup?: (unit: Unit) => void;
 }
 
-// ComponentFn: Unit を拡張し、任意で defines(公開 API オブジェクト)を返す関数の型。
-// P = props 型、A = defines 型。defines は xnew(...) の戻り値に合成される(Unit & A)。
+// Component 関数の型。戻り値 defines は xnew(...) の戻り値に合成される(Unit & A)。
 export type ComponentFn<P extends object = any, A extends object = {}> =
     (unit: Unit, props: P) => A | void;
 
-// Component の defines(戻り値 API)を取り出す。void/undefined は defines 無しとして {} に落とす。
+// Component の defines 型を取り出す（void は {} に落とす）。
 export type DefinesOf<C> =
     C extends (...args: any[]) => infer R
         ? ([R] extends [void] ? {} : Exclude<R, void | undefined>)
         : {};
 
-// Component の props 型(第2引数)を取り出す。無い場合は {}。
+// Component の props 型を取り出す（無い場合は {}）。
 export type PropsOf<C> =
     C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
 
@@ -165,18 +158,15 @@ export class Unit {
             mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
         };
 
-        // setup hook 
         if (options?.setup !== undefined) {
             options.setup(this);
         }
 
-        // nest html element
         if (typeof target === 'string') {
-            Unit.nest(this, target); 
+            Unit.nest(this, target);
         }
 
-        // setup Component
-        Unit.extend(this, baseComponent, props); 
+        Unit.extend(this, baseComponent, props);
 
         if (this._.status === 'invoked') {
             this._.status = 'initialized';
@@ -396,14 +386,14 @@ export class Unit {
 
     static component2units: MapSet<Function, Unit> = new MapSet();
 
-    // parent 方向の祖先列（unit 自身は含まない）。
+    // 祖先列（unit 自身は含まない）。
     static ancestors(unit: Unit | null): Unit[] {
         const ancestors: Unit[] = [];
         for (let u = unit?._.parent ?? null; u !== null; u = u._.parent) ancestors.push(u);
         return ancestors;
     }
 
-    // from から parent 方向へ遡り、最初に見つかる protect 境界を返す（無ければ undefined）。
+    // from から遡って最初の protect 境界（無ければ undefined）。
     static protectBoundary(from: Unit | null): Unit | undefined {
         for (let u = from; u !== null; u = u._.parent) {
             if (u._.protected === true) return u;
@@ -411,7 +401,7 @@ export class Unit {
         return undefined;
     }
 
-    // protect 境界 boundary 内の対象が、current（とその祖先列 ancestors）から可視か。
+    // boundary 内の対象が current（とその祖先列）から可視か。
     static isVisible(boundary: Unit | undefined, current: Unit | null, ancestors: Unit[]): boolean {
         return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
     }
@@ -421,7 +411,7 @@ export class Unit {
         const ancestors = Unit.ancestors(current);
         return [...(Unit.component2units.get(Component) ?? [])].filter((unit) => {
             if (key !== undefined && unit._.key !== key) {
-                return false;   // key 指定時は一致するユニットだけ（key はグローバル一意の想定）
+                return false;
             }
             return Unit.isVisible(Unit.protectBoundary(unit._.parent), current, ancestors);
         });
@@ -540,7 +530,7 @@ export class UnitTimer {
     private static execute(timer: UnitTimer, timeout: Function | null, transition: Function | null, duration: number, easing: string | undefined, iterations: number) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
 
-        // Bind every timer parameter into the Component closure so nothing has to be carried as props.
+        // タイマーのパラメータはクロージャで捕捉し、props では渡さない。
         const Component = (unit: Unit) => {
             let counter = 0;
             let current = new Timer(onTimeout, onTransition, duration, easing);
