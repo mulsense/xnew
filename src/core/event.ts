@@ -6,9 +6,8 @@
 // mouse / touch は意図的に未定義（pointer に一本化。素の { event } としては動く）。
 // 登録は 1 tick 遅延し、コンポーネント初期化中に attach したリスナが同 tick で発火しない。
 //
-// - EventProps / defineEvent : factory が受ける束 / 辞書への登録
-// - listen                   : 遅延 addEventListener（finalizer を返す）
-// - Eventor                  : (type, listener) → finalize の管理。辞書 → 素通しの順に解決
+// - Eventor : 唯一の export。(type, listener) → finalize の管理。辞書 → 素通しの順に解決
+//   （defineEvent / listen / EventProps は内部実装）
 //
 // Payload: change|input:{event,value} / click|pointer*:{event,position} / *.outside: 要素の外で発火 /
 // wheel:{event,delta} / resize:{} / drag*:{event,position,delta} /
@@ -17,7 +16,7 @@
 
 import { MapMap } from './map';
 
-export interface EventProps {
+interface EventProps {
     element: HTMLElement | SVGElement;
     type: string;
     listener: Function;
@@ -25,16 +24,16 @@ export interface EventProps {
 }
 
 /** Builds the binding for one custom event type. Returns a finalizer that detaches everything. */
-export type EventFactory = (props: EventProps) => Function;
+type EventFactory = (props: EventProps) => Function;
 
 const factories = new Map<string, EventFactory>();
 
 /** Registers a custom event factory for one or more exact type strings (last registration wins). */
-export function defineEvent(types: string | string[], factory: EventFactory): void {
+function defineEvent(types: string | string[], factory: EventFactory): void {
     (Array.isArray(types) ? types : [types]).forEach((type) => factories.set(type, factory));
 }
 
-export function listen(
+function listen(
     target: Window | Document | HTMLElement | SVGElement,
     type: string,
     execute: EventListenerOrEventListenerObject,
