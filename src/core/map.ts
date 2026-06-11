@@ -7,14 +7,8 @@
 // the outer entry when the inner collection becomes empty, so callers do not have to
 // manage the nested structure by hand.
 //
-// BiMap is a 1:1 bidirectional map: every pair is unique on both sides, so either
-// element can be used as the key to look up the other. It keeps forward / backward
-// indexes in sync and preserves the bijection on overwrite (re-pairing one side
-// drops the conflicting old pairing). e.g. the sync registry's name ⇄ Component lookup.
-//
 // - MapSet<Key, Value>        : wraps Map<Key, Set<Value>>
 // - MapMap<Key1, Key2, Value> : wraps Map<Key1, Map<Key2, Value>>
-// - BiMap<Left, Right>        : 1:1 bidirectional map (look up by either side)
 //----------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------
@@ -203,113 +197,5 @@ export class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
                 return ret;
             }
         }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------
-// bi map
-//----------------------------------------------------------------------------------------------------
-
-export class BiMap<Left, Right> {
-
-    private readonly forward: Map<Left, Right> = new Map<Left, Right>();
-    private readonly backward: Map<Right, Left> = new Map<Right, Left>();
-
-    /** Number of pairs held (forward and backward are always equal in size). */
-    public get size(): number {
-        return this.forward.size;
-    }
-
-    /**
-     * Pairs left ⇄ right, preserving the 1:1 invariant.
-     * If either side is already paired with something else, that old pairing is
-     * dropped first, so a value never appears on the same side twice.
-     * @returns the BiMap itself, for chaining.
-     */
-    public set(left: Left, right: Right): this {
-        if (this.forward.has(left)) {
-            this.backward.delete(this.forward.get(left) as Right);
-        }
-        if (this.backward.has(right)) {
-            this.forward.delete(this.backward.get(right) as Left);
-        }
-        this.forward.set(left, right);
-        this.backward.set(right, left);
-        return this;
-    }
-
-    /**
-     * Looks up the right element paired with the given left element.
-     * @returns the paired right element, or undefined when the left element is absent.
-     */
-    public getRight(left: Left): Right | undefined {
-        return this.forward.get(left);
-    }
-
-    /**
-     * Looks up the left element paired with the given right element.
-     * @returns the paired left element, or undefined when the right element is absent.
-     */
-    public getLeft(right: Right): Left | undefined {
-        return this.backward.get(right);
-    }
-
-    /** @returns true if the given left element is present. */
-    public hasLeft(left: Left): boolean {
-        return this.forward.has(left);
-    }
-
-    /** @returns true if the given right element is present. */
-    public hasRight(right: Right): boolean {
-        return this.backward.has(right);
-    }
-
-    /**
-     * Removes the pair addressed by its left element.
-     * @returns true if a pair was removed, false when the left element was absent.
-     */
-    public deleteLeft(left: Left): boolean {
-        if (!this.forward.has(left)) {
-            return false;
-        }
-        this.backward.delete(this.forward.get(left) as Right);
-        return this.forward.delete(left);
-    }
-
-    /**
-     * Removes the pair addressed by its right element.
-     * @returns true if a pair was removed, false when the right element was absent.
-     */
-    public deleteRight(right: Right): boolean {
-        if (!this.backward.has(right)) {
-            return false;
-        }
-        this.forward.delete(this.backward.get(right) as Left);
-        return this.backward.delete(right);
-    }
-
-    /** Removes every pair. */
-    public clear(): void {
-        this.forward.clear();
-        this.backward.clear();
-    }
-
-    /** @returns an iterator over the left elements. */
-    public lefts(): IterableIterator<Left> {
-        return this.forward.keys();
-    }
-
-    /** @returns an iterator over the right elements. */
-    public rights(): IterableIterator<Right> {
-        return this.backward.keys();
-    }
-
-    /** @returns an iterator over [left, right] pairs. */
-    public entries(): IterableIterator<[Left, Right]> {
-        return this.forward.entries();
-    }
-
-    public [Symbol.iterator](): IterableIterator<[Left, Right]> {
-        return this.forward.entries();
     }
 }

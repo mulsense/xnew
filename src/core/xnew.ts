@@ -5,8 +5,8 @@
 // root Unit and render ticker on the first call). All the attached helpers operate on the implicit
 // Unit.currentUnit, so they are meant to be called from inside a Component function.
 //
-// This file is intentionally thin: each helper forwards to a static method on Unit, wrapped in a
-// try / catch that logs and re-throws so consumers see both a console message and the exception.
+// This file is intentionally thin: each helper forwards to a static method on Unit. Errors are
+// thrown as-is (guard clauses only); the stack trace identifies the failing helper.
 //
 // - xnew(...)                            : create a child Unit
 // - xnew.nest / extend                   : extend the current Unit during initialization
@@ -77,15 +77,10 @@ export const xnew = Object.assign(
          * div.textContent = 'Hello'
          */
         nest(target: DomElement | string): HTMLElement | SVGElement {
-            try {
-                if (Unit.currentUnit._.status !== 'invoked') {
-                    throw new Error('xnew.nest can not be called after initialized.');
-                }
-                return Unit.nest(Unit.currentUnit, target);
-            } catch (error: unknown) {
-                console.error('xnew.nest(target: DomElement | string): ', error);
-                throw error;
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.nest can not be called after initialized.');
             }
+            return Unit.nest(Unit.currentUnit, target);
         },
 
         /**
@@ -98,19 +93,13 @@ export const xnew = Object.assign(
          * const api = xnew.extend(BaseComponent, { data: {} })
          */
         extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C> {
-            try {
-                if (Unit.currentUnit._.status !== 'invoked') {
-                    throw new Error('xnew.extend can not be called after initialized.');
-                }
-                if (Unit.currentUnit._.Components.includes(Component) === true) {
-                    console.warn('Component is already extended in this unit:', Component);
-                }
-                const defines = Unit.extend(Unit.currentUnit, Component, props);
-                return defines as DefinesOf<C>;
-            } catch (error: unknown) {
-                console.error('xnew.extend(component: Function, props?: Object): ', error);
-                throw error;
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.extend can not be called after initialized.');
             }
+            if (Unit.currentUnit._.Components.includes(Component) === true) {
+                console.warn('Component is already extended in this unit:', Component);
+            }
+            return Unit.extend(Unit.currentUnit, Component, props) as DefinesOf<C>;
         },
 
         /**
@@ -125,12 +114,7 @@ export const xnew = Object.assign(
          * const parentUnit = xnew.context(A)
          */
         context(key: any): any {
-            try {
-                return Unit.getContext(Unit.currentUnit, key);
-            } catch (error: unknown) {
-                console.error('xnew.context(key: any): ', error);
-                throw error;
-            }
+            return Unit.getContext(Unit.currentUnit, key);
         },
             
         /**
@@ -141,21 +125,16 @@ export const xnew = Object.assign(
          * xnew.promise(fetchData()).then(data => console.log(data))
          */
         promise(promise: Function | Promise<any> | Unit): UnitPromise {
-            try {
-                let unitPromise: UnitPromise;
-                if (promise instanceof Unit) {
-                    unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
-                } else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise)
-                } else {
-                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)))
-                }
-                Unit.currentUnit._.promises.push(unitPromise);
-                return unitPromise;
-            } catch (error: unknown) {
-                console.error('xnew.promise(promise: Promise<any>): ', error);
-                throw error;
+            let unitPromise: UnitPromise;
+            if (promise instanceof Unit) {
+                unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
+            } else if (promise instanceof Promise) {
+                unitPromise = new UnitPromise(promise)
+            } else {
+                unitPromise = new UnitPromise(new Promise(xnew.scope(promise)))
             }
+            Unit.currentUnit._.promises.push(unitPromise);
+            return unitPromise;
         },
 
         /**
@@ -166,13 +145,8 @@ export const xnew = Object.assign(
          * xnew.then(results => console.log('All promises resolved', results))
          */
         then(callback: Function): UnitPromise {
-            try {
-                const currentUnit = Unit.currentUnit;
-                return UnitPromise.all(Unit.currentUnit._.promises).then(() => callback(currentUnit._.results));
-            } catch (error: unknown) {
-                console.error('xnew.then(callback: Function): ', error);
-                throw error;
-            }
+            const currentUnit = Unit.currentUnit;
+            return UnitPromise.all(currentUnit._.promises).then(() => callback(currentUnit._.results));
         },
 
         /**
@@ -183,13 +157,7 @@ export const xnew = Object.assign(
          * xnew.catch(error => console.error('Promise failed', error))
          */
         catch(callback: Function): UnitPromise {
-            try {
-                return UnitPromise.all(Unit.currentUnit._.promises)
-                .catch(callback);
-            } catch (error: unknown) {
-                console.error('xnew.catch(callback: Function): ', error);
-                throw error;
-            }
+            return UnitPromise.all(Unit.currentUnit._.promises).catch(callback);
         },
 
         /**
@@ -200,12 +168,7 @@ export const xnew = Object.assign(
          * xnew.finally(() => console.log('All promises settled'))
          */
         finally(callback: Function): UnitPromise {
-            try {
-                return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
-            } catch (error: unknown) {
-                console.error('xnew.finally(callback: Function): ', error);
-                throw error;
-            }
+            return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
         },
 
         /**
@@ -250,12 +213,7 @@ export const xnew = Object.assign(
          * xnew.collect({ data: 123});
          */
         collect(object?: Record<string, any>): void {
-            try {
-                Object.assign(Unit.currentUnit._.results, object);
-            } catch (error: unknown) {
-                console.error('xnew.collect(object?: Record<string, any>): ', error);
-                throw error;
-            }
+            Object.assign(Unit.currentUnit._.results, object);
         },
 
         /**
@@ -285,12 +243,7 @@ export const xnew = Object.assign(
          * const player = xnew.find(Player, { key: clientId })[0]
          */
         find(Component: Function, opts?: { key?: any }): Unit[] {
-            try {
-                return Unit.find(Component, opts?.key);
-            } catch (error: unknown) {
-                console.error('xnew.find(Component: Function, opts?): ', error);
-                throw error;
-            }
+            return Unit.find(Component, opts?.key);
         },
 
         /**
@@ -303,12 +256,7 @@ export const xnew = Object.assign(
          * xnew.emit('-localevent', { data: 123 }); // Local event
          */
         emit(type: string, ...args: any[]): void {
-            try {
-                return Unit.emit(type, ...args);
-            } catch (error: unknown) {
-                console.error('xnew.emit(type: string, ...args: any[]): ', error);
-                throw error;
-            }
+            return Unit.emit(type, ...args);
         },
 
         /**
@@ -376,18 +324,13 @@ export const xnew = Object.assign(
          * @returns defines returned by the callback, or {} when skipped
          */
         server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-            try {
-                if (Unit.currentUnit._.status !== 'invoked') {
-                    throw new Error('xnew.server can not be called after initialized.');
-                }
-                if (Unit.currentUnit._.mode === 'client') {
-                    return {};
-                }
-                return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
-            } catch (error: unknown) {
-                console.error('xnew.server(callback: Function, props?: Object): ', error);
-                throw error;
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.server can not be called after initialized.');
             }
+            if (Unit.currentUnit._.mode === 'client') {
+                return {};
+            }
+            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
         },
 
         /**
@@ -397,18 +340,13 @@ export const xnew = Object.assign(
          * @returns defines returned by the callback, or {} when skipped
          */
         client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-            try {
-                if (Unit.currentUnit._.status !== 'invoked') {
-                    throw new Error('xnew.client can not be called after initialized.');
-                }
-                if (Unit.currentUnit._.mode === 'server') {
-                    return {};
-                }
-                return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
-            } catch (error: unknown) {
-                console.error('xnew.client(callback: Function, props?: Object): ', error);
-                throw error;
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.client can not be called after initialized.');
             }
+            if (Unit.currentUnit._.mode === 'server') {
+                return {};
+            }
+            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
         },
 
         /**
@@ -448,15 +386,10 @@ export const xnew = Object.assign(
                 return data.state;
             },
             register(components: Record<string, Function>): void {
-                try {
-                    if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
-                        throw new Error('xnew.sync.register can not be called outside a component.');
-                    }
-                    registerOnUnit(Unit.currentUnit, components);
-                } catch (error: unknown) {
-                    console.error('xnew.sync.register(components: Object): ', error);
-                    throw error;
+                if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
+                    throw new Error('xnew.sync.register can not be called outside a component.');
                 }
+                registerOnUnit(Unit.currentUnit, components);
             },
             capture(root: Unit): ReturnType<typeof captureStateTree> {
                 return captureStateTree(root);

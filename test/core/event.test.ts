@@ -1,7 +1,7 @@
 import { Eventor } from '../../src/core/event';
 
 //----------------------------------------------------------------------------------------------------
-// Eventor — normalized DOM event binding.
+// Eventor — DOM event binding (thin pass-through core + special-event dictionary).
 //
 // Real public surface (verified against src/core/event.ts):
 //   new Eventor()                                   — no constructor args
@@ -13,8 +13,9 @@ import { Eventor } from '../../src/core/event';
 //
 // Normalized payload per family (the object the listener receives):
 //   basic / window.* / document.* / window.keydown|keyup : { event }
+//   (mouse* / touch* have no special handler — they bind as basic { event })
 //   change / input                                        : { event, value }
-//   click / pointer* / mouse* / touch* / *.outside        : { event, position: { x, y } }
+//   click / pointer* / *.outside                          : { event, position: { x, y } }
 //   wheel                                                 : { event, delta: { x, y } }
 //   window.keydown|keyup .arrow / .wasd                   : { event, vector: { x, y } }
 //   resize                                                : {}
@@ -76,7 +77,7 @@ describe('Eventor', () => {
         });
     });
 
-    describe('pointer / mouse / click position', () => {
+    describe('pointer / click position', () => {
         beforeEach(() => {
             jest.spyOn(element, 'getBoundingClientRect').mockReturnValue(RECT);
         });
@@ -93,7 +94,7 @@ describe('Eventor', () => {
             expect(listener).toHaveBeenCalledWith({ event, position: { x: 15, y: 25 } });
         });
 
-        it('passes { event, position } for a mousedown', () => {
+        it('binds mousedown as a basic { event } listener (no special handler)', () => {
             const listener = jest.fn();
             eventor.add(element, 'mousedown', listener);
             jest.runOnlyPendingTimers();
@@ -101,7 +102,7 @@ describe('Eventor', () => {
             const event = new MouseEvent('mousedown', { clientX: 30, clientY: 70, bubbles: true });
             element.dispatchEvent(event);
 
-            expect(listener).toHaveBeenCalledWith({ event, position: { x: 20, y: 50 } });
+            expect(listener).toHaveBeenCalledWith({ event });
         });
 
         it('passes { event, position } for a pointerdown', () => {
@@ -328,10 +329,6 @@ describe('Eventor', () => {
 
     // jsdom does not implement ResizeObserver, so the 'resize' element binding cannot be driven.
     it.todo('passes {} for a resize binding (jsdom: ResizeObserver not implemented)');
-
-    // jsdom has no real Touch/TouchEvent constructor usable for these bindings; the handler shape
-    // is identical to mouse/pointer ({ event, position }) but cannot be exercised reliably.
-    it.todo('passes { event, position } for a touchstart (jsdom: Touch/TouchEvent not implemented)');
 
     // dragstart/dragmove/dragend rely on real PointerEvent.pointerId capture + window pointermove/up
     // sequencing; jsdom PointerEvent does not carry pointerId, so the drag state machine cannot run.

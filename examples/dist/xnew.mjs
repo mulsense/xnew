@@ -106,68 +106,6 @@ class MapMap extends Map {
         }
     }
 }
-class BiMap {
-    constructor() {
-        this.forward = new Map();
-        this.backward = new Map();
-    }
-    get size() {
-        return this.forward.size;
-    }
-    set(left, right) {
-        if (this.forward.has(left)) {
-            this.backward.delete(this.forward.get(left));
-        }
-        if (this.backward.has(right)) {
-            this.forward.delete(this.backward.get(right));
-        }
-        this.forward.set(left, right);
-        this.backward.set(right, left);
-        return this;
-    }
-    getRight(left) {
-        return this.forward.get(left);
-    }
-    getLeft(right) {
-        return this.backward.get(right);
-    }
-    hasLeft(left) {
-        return this.forward.has(left);
-    }
-    hasRight(right) {
-        return this.backward.has(right);
-    }
-    deleteLeft(left) {
-        if (!this.forward.has(left)) {
-            return false;
-        }
-        this.backward.delete(this.forward.get(left));
-        return this.forward.delete(left);
-    }
-    deleteRight(right) {
-        if (!this.backward.has(right)) {
-            return false;
-        }
-        this.forward.delete(this.backward.get(right));
-        return this.backward.delete(right);
-    }
-    clear() {
-        this.forward.clear();
-        this.backward.clear();
-    }
-    lefts() {
-        return this.forward.keys();
-    }
-    rights() {
-        return this.backward.keys();
-    }
-    entries() {
-        return this.forward.entries();
-    }
-    [Symbol.iterator]() {
-        return this.forward.entries();
-    }
-}
 
 class Ticker {
     constructor(callback, fps = 60) {
@@ -280,6 +218,10 @@ class Timer {
     }
 }
 
+const factories = new Map();
+function defineEvent(types, factory) {
+    (Array.isArray(types) ? types : [types]).forEach((type) => factories.set(type, factory));
+}
 function listen(target, type, execute, options) {
     let initalized = false;
     const id = setTimeout(() => {
@@ -295,75 +237,27 @@ function listen(target, type, execute, options) {
         }
     };
 }
-function getPointerPosition(element, event) {
-    const rect = element.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-}
 class Eventor {
     constructor() {
         this.map = new MapMap();
     }
     add(element, type, listener, options) {
         const props = { element, type, listener, options };
+        const factory = factories.get(type);
         let finalize;
-        if (props.type.indexOf('window.') === 0) {
-            if (['window.keydown', 'window.keyup'].includes(props.type)) {
-                finalize = this.window_key(props);
-            }
-            else if (['window.keydown.arrow', 'window.keyup.arrow'].includes(props.type)) {
-                finalize = this.window_key_arrow(props);
-            }
-            else if (['window.keydown.wasd', 'window.keyup.wasd'].includes(props.type)) {
-                finalize = this.window_key_wasd(props);
-            }
-            else {
-                finalize = this.window_basic(props);
-            }
+        if (factory !== undefined) {
+            finalize = factory(props);
         }
-        else if (props.type.indexOf('document.') === 0) {
-            {
-                finalize = this.document_basic(props);
-            }
+        else if (type.startsWith('window.')) {
+            finalize = listen(window, type.substring('window.'.length), (event) => listener({ event }), options);
+        }
+        else if (type.startsWith('document.')) {
+            finalize = listen(document, type.substring('document.'.length), (event) => listener({ event }), options);
         }
         else {
-            if (props.type === 'resize') {
-                finalize = this.element_resize(props);
-            }
-            else if (props.type === 'change') {
-                finalize = this.element_change(props);
-            }
-            else if (props.type === 'input') {
-                finalize = this.element_input(props);
-            }
-            else if (props.type === 'wheel') {
-                finalize = this.element_wheel(props);
-            }
-            else if (props.type === 'click') {
-                finalize = this.element_click(props);
-            }
-            else if (props.type === 'click.outside') {
-                finalize = this.element_click_outside(props);
-            }
-            else if (['pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'].includes(props.type)) {
-                finalize = this.element_pointer(props);
-            }
-            else if (['pointerdown.outside', 'pointermove.outside', 'pointerup.outside'].includes(props.type)) {
-                finalize = this.element_pointer_outside(props);
-            }
-            else if (['mousedown', 'mousemove', 'mouseup', 'mouseover', 'mouseout'].includes(props.type)) {
-                finalize = this.element_mouse(props);
-            }
-            else if (['touchstart', 'touchmove', 'touchend', 'touchcancel'].includes(props.type)) {
-                finalize = this.element_touch(props);
-            }
-            else if (['dragstart', 'dragmove', 'dragend'].includes(props.type)) {
-                finalize = this.element_drag(props);
-            }
-            else {
-                finalize = this.element_basic(props);
-            }
+            finalize = listen(element, type, (event) => listener({ event }), options);
         }
-        this.map.set(props.type, props.listener, finalize);
+        this.map.set(type, listener, finalize);
     }
     remove(type, listener) {
         const finalize = this.map.get(type, listener);
@@ -372,224 +266,136 @@ class Eventor {
             this.map.delete(type, listener);
         }
     }
-    element_basic(props) {
-        return listen(props.element, props.type, (event) => {
-            props.listener({ event });
-        }, props.options);
-    }
-    element_resize(props) {
-        const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                props.listener({});
-                break;
-            }
-        });
-        observer.observe(props.element);
-        return () => {
-            observer.unobserve(props.element);
-        };
-    }
-    element_change(props) {
-        return listen(props.element, props.type, (event) => {
-            let value = null;
-            if (event.target.type === 'checkbox') {
-                value = event.target.checked;
-            }
-            else if (event.target.type === 'range' || event.target.type === 'number') {
-                value = parseFloat(event.target.value);
-            }
-            else {
-                value = event.target.value;
-            }
-            props.listener({ event, value });
-        }, props.options);
-    }
-    element_input(props) {
-        return listen(props.element, props.type, (event) => {
-            let value = null;
-            if (event.target.type === 'checkbox') {
-                value = event.target.checked;
-            }
-            else if (event.target.type === 'range' || event.target.type === 'number') {
-                value = parseFloat(event.target.value);
-            }
-            else {
-                value = event.target.value;
-            }
-            props.listener({ event, value });
-        }, props.options);
-    }
-    element_click(props) {
-        return listen(props.element, props.type, (event) => {
-            props.listener({ event, position: getPointerPosition(props.element, event) });
-        }, props.options);
-    }
-    element_click_outside(props) {
-        return listen(document, props.type.split('.')[0], (event) => {
-            if (props.element.contains(event.target) === false) {
-                props.listener({ event, position: getPointerPosition(props.element, event) });
-            }
-        }, props.options);
-    }
-    element_pointer(props) {
-        return listen(props.element, props.type, (event) => {
-            props.listener({ event, position: getPointerPosition(props.element, event) });
-        }, props.options);
-    }
-    element_mouse(props) {
-        return listen(props.element, props.type, (event) => {
-            props.listener({ event, position: getPointerPosition(props.element, event) });
-        }, props.options);
-    }
-    element_touch(props) {
-        return listen(props.element, props.type, (event) => {
-            props.listener({ event, position: getPointerPosition(props.element, event) });
-        }, props.options);
-    }
-    element_pointer_outside(props) {
-        return listen(document, props.type.split('.')[0], (event) => {
-            if (props.element.contains(event.target) === false) {
-                props.listener({ event, position: getPointerPosition(props.element, event) });
-            }
-        }, props.options);
-    }
-    element_wheel(props) {
-        return listen(props.element, props.type, (event) => {
-            props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
-        }, props.options);
-    }
-    element_drag(props) {
-        let pointermove = null;
-        let pointerup = null;
-        let pointercancel = null;
-        const pointerdown = listen(props.element, 'pointerdown', (event) => {
-            const id = event.pointerId;
-            const position = getPointerPosition(props.element, event);
-            let previous = position;
-            pointermove = listen(window, 'pointermove', (event) => {
-                if (event.pointerId === id) {
-                    const position = getPointerPosition(props.element, event);
-                    const delta = { x: position.x - previous.x, y: position.y - previous.y };
-                    if (props.type === 'dragmove') {
-                        props.listener({ event, position, delta });
-                    }
-                    previous = position;
-                }
-            }, props.options);
-            pointerup = listen(window, 'pointerup', (event) => {
-                if (event.pointerId === id) {
-                    const position = getPointerPosition(props.element, event);
-                    if (props.type === 'dragend') {
-                        props.listener({ event, position, delta: { x: 0, y: 0 } });
-                    }
-                    remove();
-                }
-            }, props.options);
-            pointercancel = listen(window, 'pointercancel', (event) => {
-                if (event.pointerId === id) {
-                    const position = getPointerPosition(props.element, event);
-                    if (props.type === 'dragend') {
-                        props.listener({ event, position, delta: { x: 0, y: 0 } });
-                    }
-                    remove();
-                }
-            }, props.options);
-            if (props.type === 'dragstart') {
-                props.listener({ event, position, delta: { x: 0, y: 0 } });
-            }
-        }, props.options);
-        function remove() {
-            pointermove === null || pointermove === void 0 ? void 0 : pointermove();
-            pointermove = null;
-            pointerup === null || pointerup === void 0 ? void 0 : pointerup();
-            pointerup = null;
-            pointercancel === null || pointercancel === void 0 ? void 0 : pointercancel();
-            pointercancel = null;
+}
+function getPointerPosition(element, event) {
+    const rect = element.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+defineEvent(['change', 'input'], (props) => {
+    return listen(props.element, props.type, (event) => {
+        let value = null;
+        if (event.target.type === 'checkbox') {
+            value = event.target.checked;
         }
-        return () => {
-            pointerdown();
-            remove();
+        else if (event.target.type === 'range' || event.target.type === 'number') {
+            value = parseFloat(event.target.value);
+        }
+        else {
+            value = event.target.value;
+        }
+        props.listener({ event, value });
+    }, props.options);
+});
+defineEvent(['click', 'pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'], (props) => {
+    return listen(props.element, props.type, (event) => {
+        props.listener({ event, position: getPointerPosition(props.element, event) });
+    }, props.options);
+});
+defineEvent(['click.outside', 'pointerdown.outside', 'pointermove.outside', 'pointerup.outside'], (props) => {
+    return listen(document, props.type.split('.')[0], (event) => {
+        if (props.element.contains(event.target) === false) {
+            props.listener({ event, position: getPointerPosition(props.element, event) });
+        }
+    }, props.options);
+});
+defineEvent('wheel', (props) => {
+    return listen(props.element, props.type, (event) => {
+        props.listener({ event, delta: { x: event.wheelDeltaX, y: event.wheelDeltaY } });
+    }, props.options);
+});
+defineEvent('resize', (props) => {
+    const observer = new ResizeObserver(() => props.listener({}));
+    observer.observe(props.element);
+    return () => observer.unobserve(props.element);
+});
+defineEvent(['window.keydown', 'window.keyup'], (props) => {
+    const type = props.type.substring('window.'.length);
+    return listen(window, type, (event) => {
+        if (event.repeat)
+            return;
+        props.listener({ event });
+    }, props.options);
+});
+defineEvent(['dragstart', 'dragmove', 'dragend'], (props) => {
+    let pointermove = null;
+    let pointerup = null;
+    let pointercancel = null;
+    const pointerdown = listen(props.element, 'pointerdown', (event) => {
+        const id = event.pointerId;
+        const position = getPointerPosition(props.element, event);
+        let previous = position;
+        pointermove = listen(window, 'pointermove', (event) => {
+            if (event.pointerId === id) {
+                const position = getPointerPosition(props.element, event);
+                const delta = { x: position.x - previous.x, y: position.y - previous.y };
+                if (props.type === 'dragmove') {
+                    props.listener({ event, position, delta });
+                }
+                previous = position;
+            }
+        }, props.options);
+        const finish = (event) => {
+            if (event.pointerId === id) {
+                const position = getPointerPosition(props.element, event);
+                if (props.type === 'dragend') {
+                    props.listener({ event, position, delta: { x: 0, y: 0 } });
+                }
+                remove();
+            }
         };
+        pointerup = listen(window, 'pointerup', finish, props.options);
+        pointercancel = listen(window, 'pointercancel', finish, props.options);
+        if (props.type === 'dragstart') {
+            props.listener({ event, position, delta: { x: 0, y: 0 } });
+        }
+    }, props.options);
+    function remove() {
+        pointermove === null || pointermove === void 0 ? void 0 : pointermove();
+        pointermove = null;
+        pointerup === null || pointerup === void 0 ? void 0 : pointerup();
+        pointerup = null;
+        pointercancel === null || pointercancel === void 0 ? void 0 : pointercancel();
+        pointercancel = null;
     }
-    window_basic(props) {
-        const type = props.type.substring('window.'.length);
-        return listen(window, type, (event) => {
-            props.listener({ event });
-        }, props.options);
-    }
-    window_key(props) {
-        const type = props.type.substring(props.type.indexOf('.') + 1);
-        return listen(window, type, (event) => {
-            if (event.repeat)
-                return;
-            props.listener({ event });
-        }, props.options);
-    }
-    window_key_arrow(props) {
+    return () => {
+        pointerdown();
+        remove();
+    };
+});
+function keyVectorEvent(variant, codes) {
+    return (props) => {
         const keymap = {};
+        const targets = [codes.left, codes.right, codes.up, codes.down];
+        const vector = () => ({
+            x: (keymap[codes.left] ? -1 : 0) + (keymap[codes.right] ? +1 : 0),
+            y: (keymap[codes.up] ? -1 : 0) + (keymap[codes.down] ? +1 : 0),
+        });
         const keydown = listen(window, 'keydown', (event) => {
             if (event.repeat)
                 return;
             keymap[event.code] = 1;
-            if (props.type === 'window.keydown.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                const vector = {
-                    x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
-                    y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
-                };
-                props.listener({ event, vector });
+            if (variant === 'keydown' && targets.includes(event.code)) {
+                props.listener({ event, vector: vector() });
             }
         }, props.options);
         const keyup = listen(window, 'keyup', (event) => {
             keymap[event.code] = 0;
-            if (props.type === 'window.keyup.arrow' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-                const vector = {
-                    x: (keymap['ArrowLeft'] ? -1 : 0) + (keymap['ArrowRight'] ? +1 : 0),
-                    y: (keymap['ArrowUp'] ? -1 : 0) + (keymap['ArrowDown'] ? +1 : 0)
-                };
-                props.listener({ event, vector });
+            if (variant === 'keyup' && targets.includes(event.code)) {
+                props.listener({ event, vector: vector() });
             }
         }, props.options);
         return () => {
             keydown();
             keyup();
         };
-    }
-    window_key_wasd(props) {
-        const keymap = {};
-        const finalize1 = listen(window, 'keydown', (event) => {
-            if (event.repeat)
-                return;
-            keymap[event.code] = 1;
-            if (props.type === 'window.keydown.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
-                const vector = {
-                    x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
-                    y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
-                };
-                props.listener({ event, vector });
-            }
-        }, props.options);
-        const finalize2 = listen(window, 'keyup', (event) => {
-            keymap[event.code] = 0;
-            if (props.type === 'window.keyup.wasd' && ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
-                const vector = {
-                    x: (keymap['KeyA'] ? -1 : 0) + (keymap['KeyD'] ? +1 : 0),
-                    y: (keymap['KeyW'] ? -1 : 0) + (keymap['KeyS'] ? +1 : 0)
-                };
-                props.listener({ event, vector });
-            }
-        }, props.options);
-        return () => {
-            finalize1();
-            finalize2();
-        };
-    }
-    document_basic(props) {
-        const type = props.type.substring('document.'.length);
-        return listen(document, type, (event) => {
-            props.listener({ event });
-        }, props.options);
-    }
+    };
 }
+const ARROW_CODES = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' };
+const WASD_CODES = { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS' };
+defineEvent('window.keydown.arrow', keyVectorEvent('keydown', ARROW_CODES));
+defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
+defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
+defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
 
 function isDomElement(value) {
     return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
@@ -1043,24 +849,22 @@ function nextSyncId() {
     return syncIdCounter++;
 }
 function registerOnUnit(unit, components) {
+    var _a;
     const data = syncOf(unit);
-    if (data.registry === null) {
-        data.registry = new BiMap();
-    }
-    for (const [name, Component] of Object.entries(components)) {
-        data.registry.set(name, Component);
-    }
+    data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, components);
 }
 function captureStateTree(root) {
     const nodes = [];
     const syncName = (unit) => {
+        var _a;
         const parent = unit._.parent;
         const registry = parent ? syncOf(parent).registry : null;
         if (registry === null) {
             return undefined;
         }
+        const entries = Object.entries(registry);
         for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const name = registry.getLeft(unit._.Components[i]);
+            const name = (_a = entries.find(([, Component]) => Component === unit._.Components[i])) === null || _a === void 0 ? void 0 : _a[0];
             if (name !== undefined) {
                 return name;
             }
@@ -1104,7 +908,7 @@ function applyStateTree(root, tree) {
             if (parent === undefined) {
                 continue;
             }
-            const Component = (_a = syncOf(parent).registry) === null || _a === void 0 ? void 0 : _a.getRight(node.name);
+            const Component = (_a = syncOf(parent).registry) === null || _a === void 0 ? void 0 : _a[node.name];
             if (Component === undefined) {
                 continue;
             }
@@ -1427,90 +1231,46 @@ const xnew$1 = Object.assign((function (...args) {
     }
 }), {
     nest(target) {
-        try {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.nest can not be called after initialized.');
-            }
-            return Unit.nest(Unit.currentUnit, target);
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.nest can not be called after initialized.');
         }
-        catch (error) {
-            console.error('xnew.nest(target: DomElement | string): ', error);
-            throw error;
-        }
+        return Unit.nest(Unit.currentUnit, target);
     },
     extend(Component, props) {
-        try {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.extend can not be called after initialized.');
-            }
-            if (Unit.currentUnit._.Components.includes(Component) === true) {
-                console.warn('Component is already extended in this unit:', Component);
-            }
-            const defines = Unit.extend(Unit.currentUnit, Component, props);
-            return defines;
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.extend can not be called after initialized.');
         }
-        catch (error) {
-            console.error('xnew.extend(component: Function, props?: Object): ', error);
-            throw error;
+        if (Unit.currentUnit._.Components.includes(Component) === true) {
+            console.warn('Component is already extended in this unit:', Component);
         }
+        return Unit.extend(Unit.currentUnit, Component, props);
     },
     context(key) {
-        try {
-            return Unit.getContext(Unit.currentUnit, key);
-        }
-        catch (error) {
-            console.error('xnew.context(key: any): ', error);
-            throw error;
-        }
+        return Unit.getContext(Unit.currentUnit, key);
     },
     promise(promise) {
-        try {
-            let unitPromise;
-            if (promise instanceof Unit) {
-                unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
-            }
-            else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise);
-            }
-            else {
-                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)));
-            }
-            Unit.currentUnit._.promises.push(unitPromise);
-            return unitPromise;
+        let unitPromise;
+        if (promise instanceof Unit) {
+            unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
         }
-        catch (error) {
-            console.error('xnew.promise(promise: Promise<any>): ', error);
-            throw error;
+        else if (promise instanceof Promise) {
+            unitPromise = new UnitPromise(promise);
         }
+        else {
+            unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)));
+        }
+        Unit.currentUnit._.promises.push(unitPromise);
+        return unitPromise;
     },
     then(callback) {
-        try {
-            const currentUnit = Unit.currentUnit;
-            return UnitPromise.all(Unit.currentUnit._.promises).then(() => callback(currentUnit._.results));
-        }
-        catch (error) {
-            console.error('xnew.then(callback: Function): ', error);
-            throw error;
-        }
+        const currentUnit = Unit.currentUnit;
+        return UnitPromise.all(currentUnit._.promises).then(() => callback(currentUnit._.results));
     },
     catch(callback) {
-        try {
-            return UnitPromise.all(Unit.currentUnit._.promises)
-                .catch(callback);
-        }
-        catch (error) {
-            console.error('xnew.catch(callback: Function): ', error);
-            throw error;
-        }
+        return UnitPromise.all(Unit.currentUnit._.promises).catch(callback);
     },
     finally(callback) {
-        try {
-            return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
-        }
-        catch (error) {
-            console.error('xnew.finally(callback: Function): ', error);
-            throw error;
-        }
+        return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
     },
     defer() {
         let settled = false;
@@ -1537,35 +1297,17 @@ const xnew$1 = Object.assign((function (...args) {
         };
     },
     collect(object) {
-        try {
-            Object.assign(Unit.currentUnit._.results, object);
-        }
-        catch (error) {
-            console.error('xnew.collect(object?: Record<string, any>): ', error);
-            throw error;
-        }
+        Object.assign(Unit.currentUnit._.results, object);
     },
     scope(callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
         return (...args) => Unit.scope(snapshot, callback, ...args);
     },
     find(Component, opts) {
-        try {
-            return Unit.find(Component, opts === null || opts === void 0 ? void 0 : opts.key);
-        }
-        catch (error) {
-            console.error('xnew.find(Component: Function, opts?): ', error);
-            throw error;
-        }
+        return Unit.find(Component, opts === null || opts === void 0 ? void 0 : opts.key);
     },
     emit(type, ...args) {
-        try {
-            return Unit.emit(type, ...args);
-        }
-        catch (error) {
-            console.error('xnew.emit(type: string, ...args: any[]): ', error);
-            throw error;
-        }
+        return Unit.emit(type, ...args);
     },
     timeout(callback, duration = 0) {
         return new UnitTimer().timeout(callback, duration);
@@ -1580,34 +1322,22 @@ const xnew$1 = Object.assign((function (...args) {
         Unit.currentUnit._.protected = true;
     },
     server(callback, props) {
-        try {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.server can not be called after initialized.');
-            }
-            if (Unit.currentUnit._.mode === 'client') {
-                return {};
-            }
-            return Unit.extend(Unit.currentUnit, callback, props);
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.server can not be called after initialized.');
         }
-        catch (error) {
-            console.error('xnew.server(callback: Function, props?: Object): ', error);
-            throw error;
+        if (Unit.currentUnit._.mode === 'client') {
+            return {};
         }
+        return Unit.extend(Unit.currentUnit, callback, props);
     },
     client(callback, props) {
-        try {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.client can not be called after initialized.');
-            }
-            if (Unit.currentUnit._.mode === 'server') {
-                return {};
-            }
-            return Unit.extend(Unit.currentUnit, callback, props);
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.client can not be called after initialized.');
         }
-        catch (error) {
-            console.error('xnew.client(callback: Function, props?: Object): ', error);
-            throw error;
+        if (Unit.currentUnit._.mode === 'server') {
+            return {};
         }
+        return Unit.extend(Unit.currentUnit, callback, props);
     },
     sync: {
         state(initial = {}) {
@@ -1623,16 +1353,10 @@ const xnew$1 = Object.assign((function (...args) {
             return data.state;
         },
         register(components) {
-            try {
-                if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
-                    throw new Error('xnew.sync.register can not be called outside a component.');
-                }
-                registerOnUnit(Unit.currentUnit, components);
+            if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.sync.register can not be called outside a component.');
             }
-            catch (error) {
-                console.error('xnew.sync.register(components: Object): ', error);
-                throw error;
-            }
+            registerOnUnit(Unit.currentUnit, components);
         },
         capture(root) {
             return captureStateTree(root);

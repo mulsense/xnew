@@ -8,7 +8,7 @@
 // 保持し（syncOf(unit).registry）、ある unit の同期可否・登録名は「直接の親ユニットのレジストリ」で解決する。
 //
 // - SyncData / syncOf  : 旧 Unit._.sync（id/state/registry）を unit キーの WeakMap で保持する口（遅延生成・可変）
-// - SyncRegistry / registerOnUnit : ユニット単位の {name ⇄ Component} レジストリ（BiMap）と追記
+// - SyncRegistry / registerOnUnit : ユニット単位の {name: Component} レジストリ（素の Record。逆引きは線形探索）と追記
 // - captureStateTree   : server サブツリー → SyncNode[](全量)。同期可否・登録名は内部で解決
 // - applyStateTree     : SyncNode[] → client サブツリーへ差分適用。node.name は親ユニットの
 //                        レジストリで解決し、create 時に new Unit の options.state でサーバー状態をプリシード
@@ -34,13 +34,12 @@
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from './unit';
-import { BiMap } from './map';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
 
-/** ユニット単位の同期レジストリ。name(left) ⇄ Component(right) の 1:1 双方向マップ。 */
-export type SyncRegistry = BiMap<string, Function>;
+/** ユニット単位の同期レジストリ。name → Component の素のマップ（Component → name の逆引きは線形探索で行う）。 */
+export type SyncRegistry = Record<string, Function>;
 
 //----------------------------------------------------------------------------------------------------
 // per-unit sync data（旧 Unit._.sync）
@@ -82,12 +81,7 @@ function nextSyncId(): number {
 /** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
 export function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
     const data = syncOf(unit);
-    if (data.registry === null) {
-        data.registry = new BiMap<string, Function>();
-    }
-    for (const [name, Component] of Object.entries(components)) {
-        data.registry.set(name, Component);
-    }
+    data.registry = Object.assign(data.registry ?? {}, components);
 }
 
 export function captureStateTree(root: Unit): StateTree {
@@ -103,8 +97,9 @@ export function captureStateTree(root: Unit): StateTree {
         if (registry === null) {
             return undefined;
         }
+        const entries = Object.entries(registry);
         for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const name = registry.getLeft(unit._.Components[i]);
+            const name = entries.find(([, Component]) => Component === unit._.Components[i])?.[0];
             if (name !== undefined) {
                 return name;
             }
@@ -156,7 +151,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
             // create
             const parent = node.parentId === null ? root : map.get(node.parentId);
             if (parent === undefined) { continue; }
-            const Component = syncOf(parent).registry?.getRight(node.name);
+            const Component = syncOf(parent).registry?.[node.name];
             if (Component === undefined) { continue; }   // 親が許可していない型は無視
             // サーバー状態を setup フックで構築時に sync.state へプリシードする（body より前に走るので
             // 状態を宣言しない型・欠落キーもこれで埋まる）。mode は親(client)を継承する。

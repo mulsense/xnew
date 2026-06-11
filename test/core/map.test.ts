@@ -1,4 +1,4 @@
-import { MapSet, MapMap, BiMap } from '../../src/core/map';
+import { MapSet, MapMap } from '../../src/core/map';
 
 describe('MapSet', () => {
     let mapSet: MapSet<string, number>;
@@ -166,90 +166,6 @@ describe('MapMap', () => {
         });
         it('yields an empty iterator for a missing key', () => {
             expect([...mapMap.keys('missing')]).toEqual([]);
-        });
-    });
-});
-
-describe('BiMap', () => {
-    let biMap: BiMap<string, number>;
-    beforeEach(() => { biMap = new BiMap<string, number>(); });
-
-    describe('set / get', () => {
-        it('looks up either side of a pair', () => {
-            biMap.set('a', 1);
-            expect(biMap.getRight('a')).toBe(1);
-            expect(biMap.getLeft(1)).toBe('a');
-        });
-        it('returns undefined for missing elements', () => {
-            biMap.set('a', 1);
-            expect(biMap.getRight('missing')).toBeUndefined();
-            expect(biMap.getLeft(99)).toBeUndefined();
-        });
-        it('returns itself for chaining', () => {
-            expect(biMap.set('a', 1)).toBe(biMap);
-        });
-    });
-
-    describe('1:1 invariant', () => {
-        it('drops the old right when a left is re-paired', () => {
-            biMap.set('a', 1); biMap.set('a', 2);
-            expect(biMap.getRight('a')).toBe(2);
-            expect(biMap.getLeft(1)).toBeUndefined();   // 1 は孤立しない
-            expect(biMap.size).toBe(1);
-        });
-        it('drops the old left when a right is re-paired', () => {
-            biMap.set('a', 1); biMap.set('b', 1);
-            expect(biMap.getLeft(1)).toBe('b');
-            expect(biMap.getRight('a')).toBeUndefined();   // a は孤立しない
-            expect(biMap.size).toBe(1);
-        });
-    });
-
-    describe('has', () => {
-        it('checks each side independently', () => {
-            biMap.set('a', 1);
-            expect(biMap.hasLeft('a')).toBe(true);
-            expect(biMap.hasRight(1)).toBe(true);
-            expect(biMap.hasLeft('missing')).toBe(false);
-            expect(biMap.hasRight(99)).toBe(false);
-        });
-    });
-
-    describe('delete', () => {
-        it('removes a pair by its left element, clearing both indexes', () => {
-            biMap.set('a', 1);
-            expect(biMap.deleteLeft('a')).toBe(true);
-            expect(biMap.hasLeft('a')).toBe(false);
-            expect(biMap.hasRight(1)).toBe(false);
-        });
-        it('removes a pair by its right element, clearing both indexes', () => {
-            biMap.set('a', 1);
-            expect(biMap.deleteRight(1)).toBe(true);
-            expect(biMap.hasLeft('a')).toBe(false);
-            expect(biMap.hasRight(1)).toBe(false);
-        });
-        it('returns false when nothing was removed', () => {
-            expect(biMap.deleteLeft('missing')).toBe(false);
-            expect(biMap.deleteRight(99)).toBe(false);
-        });
-        it('clear() empties both indexes', () => {
-            biMap.set('a', 1); biMap.set('b', 2);
-            biMap.clear();
-            expect(biMap.size).toBe(0);
-            expect(biMap.getLeft(1)).toBeUndefined();
-        });
-    });
-
-    describe('iteration', () => {
-        it('iterates lefts, rights, and pairs', () => {
-            biMap.set('a', 1); biMap.set('b', 2);
-            expect([...biMap.lefts()].sort()).toEqual(['a', 'b']);
-            expect([...biMap.rights()].sort()).toEqual([1, 2]);
-            expect([...biMap.entries()].sort()).toEqual([['a', 1], ['b', 2]]);
-        });
-        it('is iterable as [left, right] pairs', () => {
-            biMap.set('a', 1);
-            expect([...biMap]).toEqual([['a', 1]]);
         });
     });
 });
