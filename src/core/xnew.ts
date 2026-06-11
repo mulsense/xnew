@@ -15,7 +15,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
-import { DomElement } from './element';
+import { DomElement } from './dom';
 import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot, loopback, socketio, serveRooms } from './sync';
 import type { RootSocket } from './sync';
 

@@ -20,13 +20,12 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
+type DomElement = HTMLElement | SVGElement;
 declare class Eventor {
     private map;
-    add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    add(element: DomElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
 }
-
-type DomElement = HTMLElement | SVGElement;
 
 interface Context {
     previous: Context | null;

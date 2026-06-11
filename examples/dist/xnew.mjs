@@ -218,6 +218,9 @@ class Timer {
     }
 }
 
+function isDomElement(value) {
+    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
+}
 const factories = new Map();
 function defineEvent(types, factory) {
     (Array.isArray(types) ? types : [types]).forEach((type) => factories.set(type, factory));
@@ -396,10 +399,6 @@ defineEvent('window.keydown.arrow', keyVectorEvent('keydown', ARROW_CODES));
 defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
 defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
 defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
-
-function isDomElement(value) {
-    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
-}
 
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
 function isSystemEvent(type) {

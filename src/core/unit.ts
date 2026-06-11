@@ -13,8 +13,7 @@
 
 import { MapSet, MapMap } from './map';
 import { Ticker, Timer } from './time';
-import { Eventor } from './event';
-import { isDomElement, DomElement } from './element';
+import { Eventor, isDomElement, DomElement } from './dom';
 
 //----------------------------------------------------------------------------------------------------
 // definitions

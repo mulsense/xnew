@@ -1,12 +1,14 @@
 //----------------------------------------------------------------------------------------------------
-// Eventor — DOM event binding for Units（素通しコア + 特殊イベント辞書）
+// dom — DOM との境界（要素判定 + イベントバインド）
 //
-// 既定では素の addEventListener で { event } を渡す（'window.' / 'document.' 接頭辞はバインド先の
-// 切替のみ）。特殊イベントは defineEvent(type, factory) の辞書で payload を正規化する。
+// 何を DOM 要素とみなすか（SSR-safe な型ガード）と、Unit の DOM イベントバインドをここに集約する。
+// イベントは既定では素の addEventListener で { event } を渡し（'window.' / 'document.' 接頭辞は
+// バインド先の切替のみ）、特殊イベントは defineEvent(type, factory) の辞書で payload を正規化する。
 // mouse / touch は意図的に未定義（pointer に一本化。素の { event } としては動く）。
 // 登録は 1 tick 遅延し、コンポーネント初期化中に attach したリスナが同 tick で発火しない。
 //
-// - Eventor : 唯一の export。(type, listener) → finalize の管理。辞書 → 素通しの順に解決
+// - DomElement / isDomElement : xnew がホストできる要素型（HTML | SVG）とその型ガード
+// - Eventor : (type, listener) → finalize の管理。辞書 → 素通しの順に解決
 //   （defineEvent / listen / EventProps は内部実装）
 //
 // Payload: change|input:{event,value} / click|pointer*:{event,position} / *.outside: 要素の外で発火 /
@@ -16,8 +18,18 @@
 
 import { MapMap } from './map';
 
+export type DomElement = HTMLElement | SVGElement;
+
+export function isDomElement(value: unknown): value is DomElement {
+    return (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) || (typeof SVGElement !== 'undefined' && value instanceof SVGElement);
+}
+
+//----------------------------------------------------------------------------------------------------
+// eventor
+//----------------------------------------------------------------------------------------------------
+
 interface EventProps {
-    element: HTMLElement | SVGElement;
+    element: DomElement;
     type: string;
     listener: Function;
     options?: boolean | AddEventListenerOptions
@@ -34,7 +46,7 @@ function defineEvent(types: string | string[], factory: EventFactory): void {
 }
 
 function listen(
-    target: Window | Document | HTMLElement | SVGElement,
+    target: Window | Document | DomElement,
     type: string,
     execute: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
@@ -57,7 +69,7 @@ function listen(
 export class Eventor {
     private map = new MapMap<string, Function, Function>();
 
-    public add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
+    public add(element: DomElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const props: EventProps = { element, type, listener, options };
         const factory = factories.get(type);
 
@@ -88,7 +100,7 @@ export class Eventor {
 // special-event dictionary
 //----------------------------------------------------------------------------------------------------
 
-function getPointerPosition(element: HTMLElement | SVGElement, event: { clientX: number, clientY: number }): { x: number, y: number } {
+function getPointerPosition(element: DomElement, event: { clientX: number, clientY: number }): { x: number, y: number } {
     const rect = element.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
