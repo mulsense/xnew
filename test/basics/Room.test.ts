@@ -82,7 +82,7 @@ describe('Room', () => {
         expect(client._.mode).toBe('server');
         expect(client._.status).not.toBe('finalized');
 
-        scene.finalize();   // 現状の Room は socket.disconnect() を無条件に呼ぶため、ここで TypeError になる
+        scene.finalize();   // server 分岐は disconnect を呼ばず（ServerSocket に無い）booted root を畳むだけ
 
         expect(client._.status).toBe('finalized');
     });
