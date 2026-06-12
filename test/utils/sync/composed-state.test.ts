@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf } from '../../../src/core/sync';
-import { xnew } from '../../../src/core/xnew';
+import { syncOf } from '../../../src/utils/sync';
+import xnew from '../../../src/index';
 
 // Base: synced state を宣言する基底コンポーネント（最初の sync.state 宣言）
 function Base(unit: Unit) {

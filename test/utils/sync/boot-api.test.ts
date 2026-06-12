@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
-import { xnew } from '../../../src/core/xnew';
-import { loopbackHub } from '../../../src/core/sync';
+import xnew from '../../../src/index';
+import { loopbackHub } from '../../../src/utils/sync';
 
 describe('xnew.sync.boot({ mode }) — loopback (no socket)', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });

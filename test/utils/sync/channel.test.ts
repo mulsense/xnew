@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
-import { xnew } from '../../../src/core/xnew';
-import { syncOf, getRootSocket, ClientSocket, loopback, loopbackHub, socketio } from '../../../src/core/sync';
+import xnew from '../../../src/index';
+import { syncOf, getRootSocket, ClientSocket, loopback, loopbackHub, socketio } from '../../../src/utils/sync';
 
 //----------------------------------------------------------------------------------------------------
 // イベントチャンネル（socket.io 互換 transport: loopback / bind / emit / on）

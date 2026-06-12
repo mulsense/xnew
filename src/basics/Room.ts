@@ -22,13 +22,12 @@
 //   roomUnit.on('connect', ({ id }) => members.add(id));   // 空室掃除で roomUnit.finalize()
 //----------------------------------------------------------------------------------------------------
 
-import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { BootOptions } from '../core/sync';
+import { sync, BootOptions } from '../utils/sync';
 
 export function Room(unit: Unit, { mode, socket, room, name, component }: Pick<BootOptions, 'mode' | 'socket' | 'room' | 'name'> & { component: Function }) {
     // boot へ mode/socket/room/name を渡す（下りと基本イベントは boot が自動配線）。socket 省略時は loopback。
-    const client = xnew.sync.boot({ mode, socket, room, name }, component) as Unit & { select?: () => void };
+    const client = sync.boot({ mode, socket, room, name }, component) as Unit & { select?: () => void };
 
     if (mode === 'server') {
         // server: select / disconnect は無い。部屋掃除で booted root を畳むだけ。

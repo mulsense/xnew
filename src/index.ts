@@ -2,7 +2,7 @@ import { xnew as base } from './core/xnew';
 import { Unit, UnitTimer, ComponentFn, Mode as CoreMode, Status as CoreStatus } from './core/unit';
 
 // boot に渡す socket を型付けできるよう、socket 契約型を公開する。
-export type { ClientSocket, ServerSocket, RootSocket, BootOptions } from './core/sync';
+export type { ClientSocket, ServerSocket, RootSocket, BootOptions, ClientInfo } from './utils/sync';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { SVG, SVGText } from './basics/SVG';
@@ -16,6 +16,7 @@ import { VolumeController } from './basics/Volume';
 
 import { ImageData, ImageDataArgs } from './utils/image';
 import { master, AudioTrack, Synthesizer, SynthesizerOptions } from './utils/audio';
+import { sync } from './utils/sync';
 
 const basics = {
     SVG,
@@ -71,6 +72,6 @@ namespace xnew {
     }
 }
 
-const xnew = Object.assign(base, { basics, audio, image });
+const xnew = Object.assign(base, { basics, audio, image, sync });
 
 export default xnew;

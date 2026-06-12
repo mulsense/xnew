@@ -15,7 +15,7 @@
 // - Transport / loopback / socketio : transport 実装（in-memory ハブ / socket.io アダプタ）
 //----------------------------------------------------------------------------------------------------
 
-import { Unit } from './unit';
+import { Unit } from '../core/unit';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
@@ -483,3 +483,74 @@ export function socketio(ioOrSocket: any, opts: { room?: string } = {}): Transpo
         },
     };
 }
+
+//----------------------------------------------------------------------------------------------------
+// xnew.sync facade — index.ts が xnew へ attach する（audio / image と同じ後付けパターン）。
+// 各メソッドは暗黙の Unit.currentUnit に作用するため、Component 関数 / ハンドラの中から呼ぶ。
+//
+// - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
+// - capture / apply  : 手動同期用（boot の自動 mirror を使わない場合）
+// - emit / client / clients : イベント送信 / 自分の {id,name} / 同 room の全接続者
+// - boot             : socket をバインドしたルート生成（mode で server/client を指定）
+//----------------------------------------------------------------------------------------------------
+
+export const sync = {
+    state(initial: Record<string, any> = {}): Record<string, any> {
+        const data = syncOf(Unit.currentUnit);
+        if (data.state === null) {
+            data.state = {};
+        }
+        // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシードや先行宣言を優先）。
+        for (const key of Object.keys(initial)) {
+            if ((key in data.state) === false) {
+                data.state[key] = initial[key];
+            }
+        }
+        return data.state;
+    },
+    register(components: Record<string, Function>): void {
+        if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.sync.register can not be called outside a component.');
+        }
+        registerOnUnit(Unit.currentUnit, components);
+    },
+    capture(root: Unit): ReturnType<typeof captureStateTree> {
+        return captureStateTree(root);
+    },
+    apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void {
+        applyStateTree(root, tree);
+    },
+    /** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
+    get client(): ClientInfo {
+        const unit = Unit.currentUnit;
+        if (unit === null) {
+            throw new Error('xnew.sync.client can not be read outside a component.');
+        }
+        return getRootClient(unit);
+    },
+    /** 同じ room の全接続者（presence 名簿。name は入室時に boot / Room の name で設定）。 */
+    get clients(): ReadonlyArray<ClientInfo> {
+        const unit = Unit.currentUnit;
+        if (unit === null) {
+            throw new Error('xnew.sync.clients can not be read outside a component.');
+        }
+        return getRootClients(unit);
+    },
+    emit(event: string, payload: Record<string, any> = {}): void {
+        const unit = Unit.currentUnit;
+        if (unit === null) {
+            throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
+        }
+        // 送信ユニットの syncId を載せる（受信側の '-event' ルーティング用）。
+        getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
+    },
+    /**
+     * Creates a root Unit for `opts.mode`（'server'|'client'）。transport は opts.socket の有無で決まる
+     * （省略 = in-memory loopback / 指定 = socket.io。server は opts.room で接続を絞れる）。残りの引数は
+     * xnew(...) へ転送。下り mirror と dispatcher の配線は bootSyncRoot が行う。
+     */
+    boot(opts: BootOptions, ...args: any[]): Unit {
+        if (Unit.engineRoot === undefined) { Unit.reset(); }
+        return bootSyncRoot(opts, Unit.currentUnit, ...args);
+    },
+};
