@@ -115,7 +115,7 @@ describe('xnew promise helpers', () => {
     describe('xnew.defer', () => {
         it('settles the registered promise via resolve()', async () => {
             const done = jest.fn();
-            let defer!: { resolve: () => void; reject: () => void };
+            let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew(() => {
                 defer = xnew.defer();
                 xnew.then(done);
@@ -133,7 +133,7 @@ describe('xnew promise helpers', () => {
         it('ignores subsequent settle calls (idempotent)', async () => {
             const done = jest.fn();
             const caught = jest.fn();
-            let defer!: { resolve: () => void; reject: () => void };
+            let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew(() => {
                 defer = xnew.defer();
                 xnew.then(done);
