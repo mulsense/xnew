@@ -39,18 +39,18 @@
     }
 
     function Assets(unit) {
-      xnew.promise((resolve) => {
+      xnew.promise('data1', (resolve) => {
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
         xnew.context(Console).print(text);
-        xnew.collect({ data1: 1 });
+        return 1;
       });
 
-      xnew.promise((resolve) => {
+      xnew.promise('data2', (resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
         xnew.context(Console).print(text);
-        xnew.collect({ data2: 2 });
+        return 2;
       });
 
       xnew.then((results) => {

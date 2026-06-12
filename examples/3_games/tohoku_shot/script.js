@@ -79,7 +79,7 @@ function Baking(unit, { url }) {
   const model = xnew(Model, { url });
   const textures = [];
   let frameIndex = 0;
-  const { resolve } = xnew.defer();
+  const { resolve } = xnew.defer('textures');
 
   unit.on('render', () => {
     if (model.vrm === null) return;
@@ -112,8 +112,7 @@ function Baking(unit, { url }) {
     frameIndex += batch;
 
     if (frameIndex >= BAKE_FRAMES) {
-      xnew.collect({ textures });
-      resolve();
+      resolve(textures);
       unit.finalize();
     }
   });

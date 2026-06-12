@@ -36,7 +36,7 @@ function Contents(unit) {
 
 function BakedCharacters(unit) {
   for (const name of CHARACTER_FILES) {
-    xnew.promise(xnew(PreRender, { url: `../../assets/${name}` })).then((value) => xnew.collect({ [name]: value.textures }));
+    xnew.promise(name, xnew(PreRender, { url: `../../assets/${name}` })).then((value) => value.textures);
   }
 }
 
@@ -106,7 +106,7 @@ function PreRender(unit, { url }) {
   const textures = [];
   let frameIndex = 0;
 
-  const { resolve } = xnew.defer();
+  const { resolve } = xnew.defer('textures');
 
   unit.on('render', () => {
     if (model.vrm === null) return;
@@ -141,8 +141,7 @@ function PreRender(unit, { url }) {
     frameIndex += batch;
 
     if (frameIndex >= BAKE_FRAMES) {
-      xnew.collect({ textures });
-      resolve();
+      resolve(textures);
       unit.finalize();
     }
   });
