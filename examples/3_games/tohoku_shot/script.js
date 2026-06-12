@@ -106,7 +106,9 @@ function Baking(unit, { url, spin = true }) {
   unit.on('render', () => {
     if (model.vrm === null) return;
 
-    const BAKE_FRAMES = 600;
+    // t は 1 周期 [0, 3π) を BAKE_FRAMES 等分して張る。回転は t=3π で 2π の倍数に戻り、
+    // ボーンの sin(t×偶数) も t=3π で開始位相へ戻るため、フレーム列はシームレスにループする。
+    const BAKE_FRAMES = 360;
     const batch = 100; // Number of frames to bake per render
     for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
       const t = i * (Math.PI / BAKE_FRAMES * 3);
@@ -187,6 +189,7 @@ function GameScene(unit) {
   const scoreManager = xnew(ScoreManager);
   const waveManager = xnew(WaveManager);
   xnew(ScoreGauge);
+  xnew(ShotEnergy);
   xnew(Player);
   xnew(VolumeControl);
 
@@ -260,11 +263,16 @@ function WaveManager(unit) {
     tick++;
 
     const scene = xnew.context(xnew.basics.Scene);
-    scene.add(Enemy, { id: 0 }); // 一番弱い敵は常に出す
-    if (tick % 2 === 0) scene.add(Enemy, { id: 0 });
-    if (wave >= 2 && tick % 3 === 0) scene.add(Enemy, { id: 1 });
-    if (wave >= 3 && tick % 5 === 0) scene.add(Enemy, { id: 2 });
-    if (wave >= 4 && tick % 8 === 0) scene.add(Enemy, { id: 3 });
+    // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場する。
+    const id = Math.min(wave - 1, ENEMY_DATA.length - 1);
+    if (id === 0) {
+      // wave1 は分裂しないので多めに出す
+      scene.add(Enemy, { id: 0 });
+      if (tick % 2 === 0) scene.add(Enemy, { id: 0 });
+    } else {
+      // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
+      if (tick % (id + 1) === 0) scene.add(Enemy, { id });
+    }
   }, 200);
 
   unit.on('+gameover', () => spawn.clear());
@@ -660,6 +668,7 @@ function Player(unit) {
   unit.on('+move', ({ vector }) => velocity = vector);
   unit.on('+shot', () => {
     if (!alive) return;
+    if (!xnew.context(ShotEnergy).tryConsume()) return; // エネルギー不足なら撃てない
     xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y });
     xnew.context(SoundFX).shot();
   });
@@ -968,6 +977,55 @@ function CameraShake(unit) {
     }
   });
   unit.on('finalize', () => xpixi.scene.position.set(0, 0));
+}
+
+// ショットエネルギー：連射を抑制（満タンから2発、約2.4秒で全回復）。右下にサイバーな表示。
+function ShotEnergy(unit) {
+  const MAX = 100;
+  const COST = 50;            // 1発の消費（満タンから約2発）
+  const RECOVER = MAX / 144;  // 1フレームあたり（60fps で約2.4秒に全回復）。色はショットと同じ #22FFFF
+  let energy = MAX;
+
+  xnew.nest('<div class="absolute bottom-[2.5cqw] right-[27cqw] w-[24cqw] pointer-events-none" style="font-family: monospace;">');
+
+  // ラベル行（SHOT ENERGY + ステータス）
+  let statusEl;
+  xnew('<div class="flex justify-between items-end text-[1.4cqw] tracking-[0.2em] mb-[0.3cqw]" style="color:#22FFFF; text-shadow:0 0 0.5cqw rgba(34,255,255,0.6);">', () => {
+    xnew('<div>', '◣ SHOT ENERGY');
+    statusEl = xnew('<div class="text-[1.3cqw]">', 'READY');
+  });
+
+  // メーター本体（枠＋グロー＋セグメント＋走査＋目盛り）
+  let fill, scan;
+  xnew('<div class="relative w-full h-[2cqw] bg-black/55" style="outline:0.15cqw solid #22FFFF; box-shadow:0 0 1.2cqw rgba(34,255,255,0.45), inset 0 0 0.6cqw rgba(34,255,255,0.25);">', () => {
+    fill = xnew('<div class="absolute inset-y-0 left-0" style="width:100%; background:linear-gradient(180deg,#bdffff,#22FFFF 55%,#0aacac);">');
+    scan = xnew('<div class="absolute inset-y-0 w-[2cqw]" style="left:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent);">');
+    xnew('<div class="absolute inset-0" style="background:repeating-linear-gradient(90deg, transparent 0 2cqw, rgba(0,0,0,0.6) 2cqw 2.5cqw);">'); // セグメント隙間
+    xnew('<div class="absolute top-0 left-0 right-0 h-[0.4cqw]" style="background:repeating-linear-gradient(90deg, #22FFFF 0 0.15cqw, transparent 0.15cqw 1cqw); opacity:0.5;">'); // 上辺の目盛り
+  });
+
+  let t = 0;
+  unit.on('update', () => {
+    energy = Math.min(MAX, energy + RECOVER);
+    const pct = energy / MAX;
+    const ready = energy >= COST;
+    t++;
+
+    fill.element.style.width = `${pct * 100}%`;
+    fill.element.style.opacity = ready ? '1' : '0.45';
+    scan.element.style.left = `${(Math.sin(t * 0.05) * 0.5 + 0.5) * Math.max(0, pct * 100 - 8)}%`; // 充填内を走査
+    statusEl.element.textContent = ready ? 'READY' : 'CHARGE';
+    statusEl.element.style.color = ready ? '#22FFFF' : '#ff5577';
+    statusEl.element.style.opacity = ready ? '1' : `${Math.floor(t / 12) % 2 ? 1 : 0.3}`; // CHARGE 中は点滅
+  });
+
+  return {
+    tryConsume() {
+      if (energy < COST) return false;
+      energy -= COST;
+      return true;
+    },
+  };
 }
 
 // 効果音：ショット音と撃破音（ピン、というピアノ風のシンセ音）
