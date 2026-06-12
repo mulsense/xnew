@@ -173,13 +173,6 @@ declare function loopback(): Transport;
 declare function socketio(ioOrSocket: any, opts?: {
     room?: string;
 }): Transport;
-interface ServeRoomsOptions {
-    component: Function;
-    maxRooms?: number;
-    roomNameMax?: number;
-    graceMs?: number;
-}
-declare function serveRooms(io: any, options: ServeRoomsOptions): void;
 
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -291,7 +284,7 @@ declare function Scene(unit: Unit): {
 };
 
 declare function Room(unit: Unit, { socket, component }: {
-    socket: ClientSocket;
+    socket: RootSocket;
     component: Function;
 }): {
     readonly client: Unit;
@@ -434,7 +427,6 @@ declare const xnew: XnewBase & {
         boot(socket: RootSocket, ...args: any[]): Unit;
         loopback: typeof loopback;
         socketio: typeof socketio;
-        serveRooms: typeof serveRooms;
     };
 } & {
     basics: {

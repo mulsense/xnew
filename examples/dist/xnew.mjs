@@ -1136,96 +1136,6 @@ function socketio(ioOrSocket, opts = {}) {
         },
     };
 }
-function serveRooms(io, options) {
-    var _a, _b, _c;
-    const component = options.component;
-    const maxRooms = (_a = options.maxRooms) !== null && _a !== void 0 ? _a : 20;
-    const roomNameMax = (_b = options.roomNameMax) !== null && _b !== void 0 ? _b : 16;
-    const graceMs = (_c = options.graceMs) !== null && _c !== void 0 ? _c : 3000;
-    const rooms = new Map();
-    let nextRoomNum = 0;
-    const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.members.size }));
-    const notifyLobby = () => { io.to('lobby').emit('lobby:rooms', { rooms: roomList() }); };
-    function createRoom(rawName) {
-        if (rooms.size >= maxRooms) {
-            return { error: 'ルーム数が上限に達しています' };
-        }
-        const id = `r${++nextRoomNum}`;
-        const name = String(rawName || '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-        const transport = socketio(io, { room: id });
-        if (Unit.engineRoot === undefined) {
-            Unit.reset();
-        }
-        const root = bootSyncRoot(transport.server, Unit.currentUnit, component);
-        const room = { id, name, transport, root, members: new Set(), graceTimer: null };
-        const scheduleCleanup = () => {
-            if (room.graceTimer !== null) {
-                clearTimeout(room.graceTimer);
-            }
-            room.graceTimer = setTimeout(() => { if (room.members.size === 0) {
-                removeRoom(id);
-            } }, graceMs);
-        };
-        transport.server.on('connect', (clientId) => {
-            if (!rooms.has(id)) {
-                return;
-            }
-            if (room.graceTimer !== null) {
-                clearTimeout(room.graceTimer);
-            }
-            room.members.add(clientId);
-            notifyLobby();
-        });
-        transport.server.on('disconnect', (clientId) => {
-            if (!rooms.has(id)) {
-                return;
-            }
-            room.members.delete(clientId);
-            notifyLobby();
-            if (room.members.size === 0) {
-                scheduleCleanup();
-            }
-        });
-        scheduleCleanup();
-        rooms.set(id, room);
-        notifyLobby();
-        return { room };
-    }
-    function removeRoom(id) {
-        const room = rooms.get(id);
-        if (room === undefined) {
-            return;
-        }
-        if (room.graceTimer !== null) {
-            clearTimeout(room.graceTimer);
-        }
-        rooms.delete(id);
-        room.root.finalize();
-        notifyLobby();
-    }
-    io.on('connection', (socket) => {
-        var _a, _b;
-        const roomId = (_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room;
-        if (roomId) {
-            if (!rooms.has(roomId)) {
-                socket.emit('room:notfound', { roomId });
-                socket.disconnect(true);
-            }
-            return;
-        }
-        socket.join('lobby');
-        socket.emit('lobby:rooms', { rooms: roomList() });
-        socket.on('lobby:enter', () => socket.emit('lobby:rooms', { rooms: roomList() }));
-        socket.on('room:create', ({ name } = {}) => {
-            const { room, error } = createRoom(name !== null && name !== void 0 ? name : '');
-            if (error !== undefined) {
-                socket.emit('room:error', { message: error });
-                return;
-            }
-            socket.emit('room:created', { roomId: room.id });
-        });
-    });
-}
 
 const xnew$1 = Object.assign((function (...args) {
     var _a, _b;
@@ -1380,7 +1290,6 @@ const xnew$1 = Object.assign((function (...args) {
         },
         loopback,
         socketio,
-        serveRooms,
     },
 });
 
@@ -1760,11 +1669,13 @@ function Scene(unit) {
 function Room(unit, { socket, component }) {
     var _a;
     const client = xnew$1.sync.boot(socket, component);
-    (_a = client.select) === null || _a === void 0 ? void 0 : _a.call(client);
-    unit.on('finalize', () => {
-        client.finalize();
-        socket.disconnect();
-    });
+    if ('to' in socket) {
+        unit.on('finalize', () => client.finalize());
+    }
+    else {
+        (_a = client.select) === null || _a === void 0 ? void 0 : _a.call(client);
+        unit.on('finalize', () => { client.finalize(); socket.disconnect(); });
+    }
     return {
         get client() { return client; },
     };
