@@ -21,6 +21,11 @@ const PLAYER_FILE = 'usagi.vrm';
 const PANEL_W = 200;
 const PLAY_RIGHT = 800 - PANEL_W;
 
+// 各 wave のメインカラー（wave1:黄緑 / 2:明るいこげ茶 / 3:緑 / 4:白）。endless は最後の色。
+const WAVE_COLORS = [0x9BE53C, 0xC8923C, 0x3FD96B, 0xFFFFFF];
+const waveColor = (wave) => WAVE_COLORS[Math.min(wave - 1, WAVE_COLORS.length - 1)];
+const cssHex = (n) => '#' + n.toString(16).padStart(6, '0');
+
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
@@ -101,10 +106,10 @@ function Baking(unit, { url, spin = true }) {
   unit.on('render', () => {
     if (model.vrm === null) return;
 
-    const BAKE_FRAMES = 60;
-    const batch = 30; // Number of frames to bake per render
+    const BAKE_FRAMES = 600;
+    const batch = 100; // Number of frames to bake per render
     for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
-      const t = i * (Math.PI / BAKE_FRAMES * 0.3);
+      const t = i * (Math.PI / BAKE_FRAMES * 3);
 
       if (spin) {
         model.threeObject.rotation.y = t * 4 / 3;
@@ -225,19 +230,32 @@ const WAVE_THRESHOLDS = [0, 400, 1000, 2000];
 
 function WaveManager(unit) {
   let wave = 0;
+  let transitioning = false;
 
-  function advance() {
-    wave++;
+  function startWave(n) {
+    wave = n;
     xnew.emit('+wave', { wave });
-    xnew.context(xnew.basics.Scene).add(WaveBanner, { wave });
   }
-  advance(); // wave 1 スタート
+
+  function nextWave() {
+    transitioning = true;
+    const next = wave + 1;
+    // 現在の画面内の敵を一旦フェードアウト（得点は入らない）
+    for (const enemy of xnew.find(Enemy)) enemy.fadeOut();
+    // 警告 → 次 wave への切替表示
+    xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: next });
+    xnew.timeout(() => { startWave(next); transitioning = false; }, 2800);
+  }
+
+  startWave(1); // wave 1 スタート（切替演出なし）
 
   let tick = 0;
   const spawn = xnew.interval(() => {
+    if (transitioning) return;
     // スコアしきい値で次の wave へ（wave4 到達後はエンドレス）
     if (wave < 4 && xnew.context(ScoreManager).score >= WAVE_THRESHOLDS[wave]) {
-      advance();
+      nextWave();
+      return;
     }
     tick++;
 
@@ -254,28 +272,55 @@ function WaveManager(unit) {
   return { get wave() { return wave; } };
 }
 
-function WaveBanner(unit, { wave }) {
-  xnew.nest('<div class="absolute left-0 right-[25cqw] top-[38cqw] text-center text-cyan-300 font-bold">');
-  xnew(xnew.basics.SVGText, { text: `Wave ${wave}`, fontSize: '14cqw', stroke: '#003344', strokeWidth: '0.3cqw', className: 'inline-block' });
-  xnew.transition(({ value }) => {
-    unit.element.style.opacity = Math.sin(value * Math.PI);
-  }, 1400);
-  xnew.timeout(() => unit.finalize(), 1400);
+// wave 切替時の警告画面風の演出（プレイ領域中央）
+function WaveTransition(unit, { wave }) {
+  const color = cssHex(waveColor(wave));
+  xnew.nest('<div class="absolute left-0 right-[25cqw] top-0 bottom-0 flex flex-col items-center justify-center pointer-events-none">');
+
+  const flash = xnew('<div class="absolute inset-0">');
+  flash.element.style.background = color;
+
+  const stripe = `repeating-linear-gradient(45deg, ${color} 0, ${color} 1.2cqw, transparent 1.2cqw, transparent 2.4cqw)`;
+  const top = xnew('<div class="absolute top-0 left-0 right-0 h-[3cqw]" style="opacity:0.5;">');
+  const bottom = xnew('<div class="absolute bottom-0 left-0 right-0 h-[3cqw]" style="opacity:0.5;">');
+  top.element.style.background = stripe;
+  bottom.element.style.background = stripe;
+
+  const warn = xnew('<div class="text-[6cqw] font-bold tracking-[0.4em]">', '⚠ WARNING ⚠');
+  warn.element.style.color = color;
+  const label = xnew('<div class="text-[13cqw] font-bold">', `WAVE ${wave}`);
+  label.element.style.color = color;
+  label.element.style.textShadow = `0 0 2cqw ${color}`;
+
+  let t = 0;
+  unit.on('update', () => {
+    t++;
+    flash.element.style.opacity = `${(Math.sin(t * 0.08) * 0.5 + 0.5) * 0.12 + 0.02}`; // ゆったり明滅
+    warn.element.style.opacity = `${Math.floor(t / 22) % 2 ? 1 : 0.3}`;
+  });
+
+  xnew.transition(({ value }) => { unit.element.style.opacity = value; }, 450);
+  xnew.timeout(() => {
+    xnew.transition(({ value }) => { unit.element.style.opacity = 1 - value; }, 450).timeout(() => unit.finalize());
+  }, 2100);
 }
 
-// 右パネル上部の "Wave N" 表示
+// 右パネル上部の "Wave N" 表示（wave のメインカラーに追従）
 function WaveLabel(unit) {
-  xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center text-cyan-400 font-bold">');
-  const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#003344', strokeWidth: '0.2cqw', className: 'inline-block' });
-  unit.on('+wave', ({ wave }) => text.element.textContent = `Wave ${wave}`);
+  xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center font-bold text-lime-400">');
+  const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#102008', strokeWidth: '0.2cqw', className: 'inline-block' });
+  unit.on('+wave', ({ wave }) => {
+    text.element.textContent = `Wave ${wave}`;
+    unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
+  });
 }
 
-// 次の wave までのスコア進捗ゲージ（wave が変わると範囲が変わり自然にリセット）
+// 次の wave までのスコア進捗ゲージ（画面右上）。色は wave のメインカラー。
 function ScoreGauge(unit) {
-  // プレイ領域（右パネルを除いた左側）の上部中央に配置
-  xnew.nest('<div class="absolute top-[2cqw] left-0 right-[25cqw] flex justify-center pointer-events-none">');
-  xnew.nest('<div class="w-[40cqw] h-[2.2cqw] rounded-full bg-black/40 border-[0.3cqw] border-white/50 overflow-hidden">');
-  const fill = xnew('<div class="h-full rounded-full bg-cyan-400" style="width: 0%;">');
+  xnew.nest('<div class="absolute top-[2.4cqw] left-[12cqw] right-[40cqw] h-[2.2cqw] rounded-full bg-black/40 border-[0.3cqw] border-white/50 overflow-hidden">');
+  const fill = xnew('<div class="h-full rounded-full" style="width: 0%;">');
+  fill.element.style.background = cssHex(WAVE_COLORS[0]);
+  unit.on('+wave', ({ wave }) => { fill.element.style.background = cssHex(waveColor(wave)); });
 
   let shown = 0;
   unit.on('update', () => {
@@ -298,35 +343,120 @@ function ScoreGauge(unit) {
 
 // ---- Game Components ----
 
-// 右端のイラストパネル。上=Wave表示 / 中=その wave の敵キャラ / 下=中国うさぎ（敵数で表情切替）
+// 右端のイラストパネル。上=Wave / 中=駆逐対象(ターゲット表示) / 下=中国うさぎ（敵数で表情切替）
 function SidePanel(_unit) {
-  xnew(PanelBackdrop);     // pixi: パネル背景 + 区切り線
+  xnew(PanelBackdrop);     // pixi: 半透明パネル背景 + 区切り線
   xnew(WaveEnemyDisplay);  // pixi: その wave で登場する敵キャラ
+  xnew(TargetReticle);     // pixi: 敵キャラを囲うターゲットレティクル
   xnew(WaveLabel);         // html: 上部の "Wave N"
+  xnew(TargetInfo);        // html: "TARGET" + サイバーなパラメータ
   xnew(UsagiFace);         // html: 下部のうさぎ（敵数で表情クロスフェード）
 }
 
-function PanelBackdrop(_unit) {
-  const g = xpixi.nest(new PIXI.Graphics());
-  g.rect(PLAY_RIGHT, 0, PANEL_W, 600).fill(0x1A0610);
-  g.moveTo(PLAY_RIGHT, 0).lineTo(PLAY_RIGHT, 600).stroke({ color: 0x7A1530, width: 3, alpha: 0.6 });
+// 半透明（約50%）のパネル背景 + 区切り線（区切り線は wave のメインカラーに追従）
+function PanelBackdrop(unit) {
+  const container = xpixi.nest(new PIXI.Container());
+  container.addChild(new PIXI.Graphics().rect(PLAY_RIGHT, 0, PANEL_W, 600).fill({ color: 0x05121A, alpha: 0.5 }));
+
+  const divider = new PIXI.Graphics();
+  container.addChild(divider);
+  const drawDivider = (color) => {
+    divider.clear();
+    divider.moveTo(PLAY_RIGHT, 0).lineTo(PLAY_RIGHT, 600).stroke({ color, width: 2, alpha: 0.55 });
+  };
+  drawDivider(WAVE_COLORS[0]);
+  unit.on('+wave', ({ wave }) => drawDivider(waveColor(wave)));
 }
 
 // その wave で登場する敵キャラを表示（wave1:ずんだもん 2:きりたん 3:ずん子 4:イタコ）
+const TARGET_Y = 148; // ターゲット表示(敵キャラ+レティクル)の中心 y
+
 function WaveEnemyDisplay(unit) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: 200 } }));
+  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
   const tl = xnew.context(BakedCharacters).texturesList;
-  let sprite = null;
+  let current = null;
 
   unit.on('+wave', ({ wave }) => {
     const id = Math.min(wave - 1, tl.length - 1); // wave4 以降はイタコ固定
-    if (sprite) container.removeChild(sprite);
-    sprite = new PIXI.AnimatedSprite(tl[id]);
+    const sprite = new PIXI.AnimatedSprite(tl[id]);
     sprite.anchor.set(0.5);
-    sprite.scale.set(1.1);
+    sprite.scale.set(0.82);
     sprite.animationSpeed = 1;
     sprite.play();
+    sprite.alpha = 0;
     container.addChild(sprite);
+
+    const old = current;
+    current = sprite;
+    xnew.transition(({ value }) => {
+      sprite.alpha = value;
+      if (old) old.alpha = 1 - value;
+    }, 400).timeout(() => { if (old) container.removeChild(old); });
+  });
+}
+
+// 敵キャラを囲うターゲットレティクル（回転リング + コーナーブラケット + クロスヘア）。色は wave 連動。
+function TargetReticle(unit) {
+  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
+  const R = 44, b = 36, len = 11;
+
+  const ring = new PIXI.Graphics();
+  const brackets = new PIXI.Graphics();
+  const cross = new PIXI.Graphics();
+  container.addChild(ring, brackets, cross);
+
+  function draw(color) {
+    ring.clear();
+    ring.circle(0, 0, R).stroke({ color, width: 1.5, alpha: 0.6 });
+    for (let a = 0; a < 360; a += 30) {
+      const rad = a * Math.PI / 180;
+      ring.moveTo(Math.cos(rad) * (R - 5), Math.sin(rad) * (R - 5))
+          .lineTo(Math.cos(rad) * (R + 2), Math.sin(rad) * (R + 2));
+    }
+    ring.stroke({ color, width: 1.5, alpha: 0.6 });
+
+    brackets.clear();
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      brackets.moveTo(sx * b - sx * len, sy * b).lineTo(sx * b, sy * b).lineTo(sx * b, sy * b - sy * len);
+    }
+    brackets.stroke({ color, width: 2, alpha: 0.9 });
+
+    cross.clear();
+    cross.moveTo(-R - 4, 0).lineTo(-R + 9, 0).moveTo(R - 9, 0).lineTo(R + 4, 0)
+         .moveTo(0, -R - 4).lineTo(0, -R + 9).moveTo(0, R - 9).lineTo(0, R + 4)
+         .stroke({ color, width: 1.5, alpha: 0.5 });
+  }
+
+  draw(WAVE_COLORS[0]);
+  unit.on('+wave', ({ wave }) => draw(waveColor(wave)));
+  unit.on('update', () => { ring.rotation += 0.012; });
+}
+
+// "TARGET" ラベルと、円の脇に出すコンパクトなパラメータ（色は wave のメインカラーに追従）
+function TargetInfo(unit) {
+  xnew.nest('<div class="absolute right-0 top-0 bottom-0 w-[25cqw] pointer-events-none" style="font-family: monospace;">');
+
+  const label = xnew('<div class="absolute w-full text-center text-[2.2cqw] tracking-[0.4em]" style="top: 9cqw;">', '▶ TARGET ◀');
+
+  let refType, refScan, params;
+  params = xnew('<div class="absolute w-full flex flex-col items-center leading-tight text-[1.8cqw]" style="top: 24cqw;">', () => {
+    refType = xnew('<div>', 'ZD-0x01 ▮');
+    refScan = xnew('<div style="opacity: 0.8;">', 'SCAN 0000');
+  });
+
+  const codes = ['ZD-0x01', 'KT-0x02', 'ZK-0x03', 'IT-0x04'];
+  unit.on('+wave', ({ wave }) => {
+    const id = Math.min(wave - 1, codes.length - 1);
+    refType.element.textContent = `${codes[id]} ${'▮'.repeat(id + 1)}`;
+    const c = cssHex(waveColor(wave));
+    label.element.style.color = c;
+    params.element.style.color = c;
+  });
+
+  let t = 0;
+  unit.on('update', () => {
+    t++;
+    refScan.element.textContent = 'SCAN ' + String(Math.floor((Math.sin(t * 0.07) * 0.5 + 0.5) * 9999)).padStart(4, '0');
   });
 }
 
@@ -343,7 +473,7 @@ function UsagiFace(unit) {
     const fit = (s, t) => {
       s.texture = t;
       s.anchor.set(0.5, 1.0); // 下端中央
-      s.scale.set(Math.min((PANEL_W * 0.9) / t.width, 300 / t.height));
+      s.scale.set(Math.min((PANEL_W * 1.12) / t.width, 380 / t.height));
     };
     back = new PIXI.Sprite(); fit(back, textures[0]);
     front = new PIXI.Sprite(); fit(front, textures[0]);
@@ -454,8 +584,9 @@ function Controller(unit) {
 }
 
 function ScoreManager(unit) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[27cqw] text-right text-red-600 font-bold">');
-  const text = xnew(xnew.basics.SVGText, { text: 'score 0', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
+  // ゲージのすぐ右（画面右上）にスコアの数値を表示
+  xnew.nest('<div class="absolute top-[1.4cqw] right-[26cqw] text-right text-red-500 font-bold">');
+  const text = xnew(xnew.basics.SVGText, { text: '0', fontSize: '5cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let sum = 0;
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
   return {
@@ -464,7 +595,7 @@ function ScoreManager(unit) {
     add(score, id) {
       sum += score;
       if (id !== undefined) kills[id]++;
-      text.element.textContent = `score ${sum}`;
+      text.element.textContent = `${sum}`;
     }
   };
 }
@@ -577,6 +708,8 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   // 被弾時のノックバック（着弾点から弾け、徐々に減速）
   const kb = { x: knockback?.x ?? 0, y: knockback?.y ?? 0 };
 
+  let fading = false; // wave 切替で退場中（得点・当たり判定なし）
+
   unit.on('update', () => {
     sprite.scale.set(0.4 + id * 0.2 + object.y * 0.0008); // y座標に応じて少し大きく（遠近感）
 
@@ -591,7 +724,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
 
   return {
     get id() { return id; },
-    get isVulnerable() { return vulnerable; },
+    get isVulnerable() { return vulnerable && !fading; },
 
     distance(target) {
       const dx = target.x - object.x;
@@ -599,8 +732,17 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       return Math.sqrt(dx * dx + dy * dy);
     },
 
+    // wave 切替時：得点を入れずにフェードアウトして退場
+    fadeOut() {
+      if (fading) return;
+      fading = true;
+      vulnerable = false;
+      xnew.transition(({ value }) => { object.alpha = 1 - value; }, 500).timeout(() => unit.finalize());
+    },
+
     // direction: 当たった方向の単位ベクトル（弾の進行方向）。fromStar: 星チェーン由来か。
     clash(score, direction = { x: 0, y: -1 }, fromStar = false) {
+      if (fading) return; // 退場中は得点なし
       if (fromStar && !vulnerable) return; // 星チェーンは無敵中スキップ
 
       const data = ENEMY_DATA[id];
@@ -831,8 +973,8 @@ function SoundFX(_unit) {
 // ---- Result screen ----
 
 function ResultBackground(unit) {
-  xnew.nest(`<div class="relative size-full bg-linear-to-br from-rose-200 to-red-300">`);
-  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-rose-300">', 'Result');
+  xnew.nest(`<div class="relative size-full bg-linear-to-br from-slate-900 to-blue-950">`);
+  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-blue-800">', 'Result');
 
   // floating circle
   for (let i = 0; i < 20; i++) {
@@ -864,12 +1006,12 @@ function ResultImage(unit, { image }) {
 }
 
 function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0] }) {
-  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[38cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-  xnew('<div class="text-[3.5cqw] text-center text-red-400">', '🦠 駆逐した数 🦠');
+  xnew.nest('<div class="absolute bottom-[10cqw] right-[2cqw] w-[38cqw] bg-gray-100 px-[1.5cqw] py-[2.5cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+  xnew('<div class="text-[3.5cqw] text-center text-red-400 mb-[1.5cqw]">', '🦠 駆逐した数 🦠');
 
   // 敵キャラ別の撃破数（ベイク先頭フレーム＝正面のアイコン × 撃破数）を2列で
   const tl = xnew.context(BakedCharacters).texturesList;
-  xnew('<div class="grid grid-cols-2 gap-x-[1cqw] py-[0.5cqw]">', () => {
+  xnew('<div class="grid grid-cols-2 gap-x-[1cqw] gap-y-[1.5cqw]">', () => {
     for (let i = 0; i < tl.length; i++) {
       xnew('<div class="flex items-center justify-center gap-x-[1cqw]">', () => {
         const icon = xnew('<img class="w-[7cqw] h-[7cqw] object-contain">');
@@ -879,9 +1021,19 @@ function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0] }) {
     }
   });
 
-  xnew('<div class="mx-[1cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-cyan-600">');
-  xnew('<div class="text-[2.8cqw] text-center text-cyan-600">', `到達 Wave ${wave}`);
-  xnew('<div class="text-[3.4cqw] text-center text-yellow-500">', `⭐ スコア ${score} ⭐`);
+  xnew('<div class="mx-[1cqw] my-[2cqw] border-t-[0.4cqw] border-dashed border-cyan-600">');
+  xnew('<div class="text-[2.8cqw] text-center text-cyan-600 mb-[1cqw]">', `到達 Wave ${wave}`);
+  xnew('<div class="text-[3.4cqw] text-center text-yellow-500 mb-[1.5cqw]">', `⭐ スコア ${score} ⭐`);
+
+  // 凄さを言葉で（3択。スコアで強調を切替）
+  xnew('<div class="flex justify-center items-center gap-x-[2cqw]">', () => {
+    const tiers = [{ label: 'まだまだ', min: 0 }, { label: 'いいね', min: 400 }, { label: 'マスター', min: 1200 }];
+    let reached = 0;
+    tiers.forEach((tier, i) => { if (score >= tier.min) reached = i; });
+    tiers.forEach((tier, i) => {
+      xnew(i === reached ? '<div class="text-[3.2cqw] text-blue-500">' : '<div class="text-[2cqw] opacity-20">', tier.label);
+    });
+  });
 }
 
 function ResultFooter(unit) {
