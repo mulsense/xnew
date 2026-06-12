@@ -487,6 +487,9 @@ class Unit {
     get element() {
         return this._.currentElement;
     }
+    get promise() {
+        return UnitPromise.results(this._.promises);
+    }
     start() {
         this._.tostart = true;
     }
@@ -1290,15 +1293,6 @@ const xnew$1 = Object.assign((function (...args) {
         Unit.currentUnit._.promises.push(unitPromise);
         return unitPromise;
     }),
-    then(callback) {
-        return UnitPromise.results(Unit.currentUnit._.promises).then(callback);
-    },
-    catch(callback) {
-        return UnitPromise.all(Unit.currentUnit._.promises).catch(callback);
-    },
-    finally(callback) {
-        return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
-    },
     scope(callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
         return (...args) => Unit.scope(snapshot, callback, ...args);

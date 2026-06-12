@@ -160,7 +160,7 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
     loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
   }));
 
-  xnew.then(({ vrm, vrma }) => {
+  unit.promise.then(({ vrm, vrma }) => {
     vrm.scene.traverse((obj) => {
       if (obj.isMesh) {
         obj.castShadow = true;

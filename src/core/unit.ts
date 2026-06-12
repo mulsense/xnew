@@ -180,6 +180,12 @@ export class Unit {
         return this._.currentElement;
     }
 
+    // この unit に登録された全 promise を集約した UnitPromise。
+    // .then は keyed results で resolve / どれか reject で reject するので .catch・.finally もこれ 1 つで足りる。
+    public get promise(): UnitPromise {
+        return UnitPromise.results(this._.promises);
+    }
+
     public start(): void {
         this._.tostart = true;
     }

@@ -83,6 +83,7 @@ declare class Unit {
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
     get element(): DomElement;
+    get promise(): UnitPromise;
     start(): void;
     stop(): void;
     finalize(): void;
@@ -412,9 +413,6 @@ declare const xnew: XnewBase & {
         (promise: Function | Promise<any> | Unit): UnitPromise;
         (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
     };
-    then(callback: Function): UnitPromise;
-    catch(callback: Function): UnitPromise;
-    finally(callback: Function): UnitPromise;
     scope(callback: any): any;
     find(Component: Function, opts?: {
         key?: any;

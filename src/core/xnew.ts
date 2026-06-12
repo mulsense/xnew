@@ -7,7 +7,7 @@
 //
 // - xnew.nest / extend                   : 初期化中の Unit を拡張
 // - xnew.find / context                  : Component による検索 / 祖先コンテキスト解決
-// - xnew.promise / then / catch / finally : Unit に紐づく promise 管理
+// - xnew.promise                         : Unit に promise を登録（集約は unit.promise で .then/.catch/.finally）
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
 // - xnew.server / client                 : mode 限定の extend
@@ -105,21 +105,6 @@ export const xnew = Object.assign(
             (key: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             (promise: Function | Promise<any> | Unit): UnitPromise;
             (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
-        },
-
-        /** Runs callback(results) after all registered promises resolve（results はキー付き promise の最終値）。 */
-        then(callback: Function): UnitPromise {
-            return UnitPromise.results(Unit.currentUnit._.promises).then(callback);
-        },
-
-        /** Runs callback if any registered promise rejects. */
-        catch(callback: Function): UnitPromise {
-            return UnitPromise.all(Unit.currentUnit._.promises).catch(callback);
-        },
-
-        /** Runs callback after all registered promises settle. */
-        finally(callback: Function): UnitPromise {
-            return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
         },
 
         /** Wraps a callback so it later runs in the current unit scope（setTimeout 等の外部コールバック用）。 */

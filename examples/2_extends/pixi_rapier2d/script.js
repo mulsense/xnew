@@ -21,7 +21,7 @@ function Contents(unit) {
   xnew.extend(xnew.basics.Scene);
   xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 } });
 
-  xnew.then(() => {
+  unit.promise.then(() => {
     unit.on('render', () => {
       xrapier2d.world.timestep = 3 / 60;
       xrapier2d.world.step();

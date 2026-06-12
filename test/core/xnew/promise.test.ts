@@ -11,13 +11,13 @@ describe('xnew promise helpers', () => {
         jest.useRealTimers();
     });
 
-    describe('xnew.then', () => {
+    describe('unit.promise.then', () => {
         it('runs once after all registered promises resolve', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
                 xnew.promise(Promise.resolve(2));
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -27,10 +27,10 @@ describe('xnew promise helpers', () => {
 
         it('does not run until the slowest registered promise resolves', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.resolve('fast'));
                 xnew.promise(new Promise((resolve) => setTimeout(() => resolve('slow'), 100)));
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -42,9 +42,9 @@ describe('xnew promise helpers', () => {
 
         it('passes the unit results object to the callback', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -55,13 +55,13 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('xnew.catch', () => {
+    describe('unit.promise.catch', () => {
         it('runs with the rejection reason when a registered promise rejects', async () => {
             const caught = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.resolve('ok'));
                 xnew.promise(Promise.reject('boom'));
-                xnew.catch(caught);
+                unit.promise.catch(caught);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -72,10 +72,10 @@ describe('xnew promise helpers', () => {
 
         it('does not run when every registered promise resolves', async () => {
             const caught = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
                 xnew.promise(Promise.resolve(2));
-                xnew.catch(caught);
+                unit.promise.catch(caught);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -84,13 +84,13 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('xnew.finally', () => {
+    describe('unit.promise.finally', () => {
         it('runs after all registered promises resolve', async () => {
             const onFinally = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
                 xnew.promise(Promise.resolve(2));
-                xnew.finally(onFinally);
+                unit.promise.finally(onFinally);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -100,10 +100,10 @@ describe('xnew promise helpers', () => {
 
         it('runs after a registered promise rejects', async () => {
             const onFinally = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise(Promise.reject('boom'));
                 // attach a catch so the rejection is handled and never surfaces as unhandled
-                xnew.finally(onFinally).catch(() => {});
+                unit.promise.finally(onFinally).catch(() => {});
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -116,9 +116,9 @@ describe('xnew promise helpers', () => {
         it('returns a settle handle and resolves via resolve()', async () => {
             const done = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
-            xnew(() => {
+            xnew((unit) => {
                 defer = xnew.promise();
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -134,10 +134,10 @@ describe('xnew promise helpers', () => {
             const done = jest.fn();
             const caught = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
-            xnew(() => {
+            xnew((unit) => {
                 defer = xnew.promise();
-                xnew.then(done);
-                xnew.catch(caught);
+                unit.promise.then(done);
+                unit.promise.catch(caught);
             });
 
             defer.resolve();
@@ -152,9 +152,9 @@ describe('xnew promise helpers', () => {
         it('passes a keyed deferred value to then under its key', async () => {
             const done = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
-            xnew(() => {
+            xnew((unit) => {
                 defer = xnew.promise('ready');
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -169,9 +169,9 @@ describe('xnew promise helpers', () => {
         it('excludes a keyless deferred value from the results object', async () => {
             const done = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
-            xnew(() => {
+            xnew((unit) => {
                 defer = xnew.promise();
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             defer.resolve('ignored');
@@ -180,12 +180,12 @@ describe('xnew promise helpers', () => {
             expect(done).toHaveBeenCalledWith({});
         });
 
-        it('rejects via reject() and triggers xnew.catch', async () => {
+        it('rejects via reject() and triggers unit.promise.catch', async () => {
             const caught = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
-            xnew(() => {
+            xnew((unit) => {
                 defer = xnew.promise();
-                xnew.catch(caught);
+                unit.promise.catch(caught);
             });
 
             defer.reject('boom');
@@ -209,10 +209,10 @@ describe('xnew promise helpers', () => {
     describe('keyed xnew.promise', () => {
         it('passes keyed promise values to then under their key', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise('a', Promise.resolve(1));
                 xnew.promise('b', Promise.resolve(2));
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -222,10 +222,10 @@ describe('xnew promise helpers', () => {
 
         it('excludes keyless promises from the results object', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise('a', Promise.resolve(1));
                 xnew.promise(Promise.resolve('ignored'));
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -235,9 +235,9 @@ describe('xnew promise helpers', () => {
 
         it('binds the key to the final value of a then-chain', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise('a', Promise.resolve(1)).then((v: number) => v + 10).then((v: number) => v * 2);
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -247,10 +247,10 @@ describe('xnew promise helpers', () => {
 
         it('lets a later duplicate key win', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise('a', Promise.resolve('first'));
                 xnew.promise('a', Promise.resolve('second'));
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -260,12 +260,12 @@ describe('xnew promise helpers', () => {
 
         it('collects a child unit keyed results when registered with a key', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 const child = xnew(() => {
                     xnew.promise('x', Promise.resolve(7));
                 });
                 xnew.promise('child', child);
-                xnew.then(done);
+                unit.promise.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -273,13 +273,25 @@ describe('xnew promise helpers', () => {
             expect(done).toHaveBeenCalledWith({ child: { x: 7 } });
         });
 
+        it('can be awaited from outside the component via the returned unit', async () => {
+            const done = jest.fn();
+            const unit = xnew(() => {
+                xnew.promise('x', Promise.resolve(7));
+            });
+            unit.promise.then(done);
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ x: 7 });
+        });
+
         it('does not run the then callback when a keyed promise rejects', async () => {
             const done = jest.fn();
-            xnew(() => {
+            xnew((unit) => {
                 xnew.promise('a', Promise.reject('boom'));
                 // attach catch handlers so the rejection never surfaces as unhandled
-                xnew.then(done).catch(() => {});
-                xnew.catch(() => {});
+                unit.promise.then(done).catch(() => {});
+                unit.promise.catch(() => {});
             });
 
             await jest.advanceTimersByTimeAsync(0);

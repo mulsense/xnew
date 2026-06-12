@@ -25,7 +25,7 @@ function Main(unit) {
 
 function Contents(unit) {
   xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81, z: 0.0 } });
-  xnew.then(() => {
+  unit.promise.then(() => {
     unit.on('render', () => {
       xrapier3d.world.timestep = 3 / 60;
       xrapier3d.world.step();
