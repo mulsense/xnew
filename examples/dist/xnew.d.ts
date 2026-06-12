@@ -418,16 +418,6 @@ declare const xnew: XnewBase & {
     protect(): void;
     server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
     client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
-    sync: {
-        state(initial?: Record<string, any>): Record<string, any>;
-        register(components: Record<string, Function>): void;
-        capture(root: Unit): ReturnType<typeof captureStateTree>;
-        apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
-        readonly client: ClientInfo;
-        readonly clients: ReadonlyArray<ClientInfo>;
-        emit(event: string, payload?: Record<string, any>): void;
-        boot(opts: BootOptions, ...args: any[]): Unit;
-    };
 } & {
     basics: {
         SVG: typeof SVG;
@@ -453,7 +443,17 @@ declare const xnew: XnewBase & {
     image: {
         from(canvas: HTMLCanvasElement): ImageData;
     };
+    sync: {
+        state(initial?: Record<string, any>): Record<string, any>;
+        register(components: Record<string, Function>): void;
+        capture(root: Unit): ReturnType<typeof captureStateTree>;
+        apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
+        readonly client: ClientInfo;
+        readonly clients: ReadonlyArray<ClientInfo>;
+        emit(event: string, payload?: Record<string, any>): void;
+        boot(opts: BootOptions, ...args: any[]): Unit;
+    };
 };
 
 export { xnew as default };
-export type { BootOptions, ClientSocket, RootSocket, ServerSocket };
+export type { BootOptions, ClientInfo, ClientSocket, RootSocket, ServerSocket };
