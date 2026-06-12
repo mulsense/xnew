@@ -16,7 +16,7 @@
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './dom';
-import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot, loopback, socketio, serveRooms } from './sync';
+import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot, loopback, socketio } from './sync';
 import type { RootSocket } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -231,7 +231,6 @@ export const xnew = Object.assign(
             // transport（boot に渡す socket の供給元）
             loopback,    // in-memory ハブ（同一プロセスで server↔client。テスト/擬似用）
             socketio,    // socket.io を Transport 形へ橋渡し
-            serveRooms,  // ロビー + 動的ルームのサーバー配線（ルームごとに boot）
         },
 
     }
