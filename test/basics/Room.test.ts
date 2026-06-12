@@ -71,4 +71,19 @@ describe('Room', () => {
         expect(socket.disconnect).toHaveBeenCalledTimes(1);
         expect(client._.status).toBe('finalized');
     });
+
+    it('boots in server mode (to-socket) without disconnecting, and finalizes on finalize', () => {
+        const transport = xnew.sync.loopback();   // transport.server は 'to' を持つ ServerSocket
+        let client: any;
+        const scene = xnew(function Scene(_: Unit) {
+            ({ client } = xnew(Room, { socket: transport.server, component: World }) as any);
+        });
+
+        expect(client._.mode).toBe('server');
+        expect(client._.status).not.toBe('finalized');
+
+        scene.finalize();   // 現状の Room は socket.disconnect() を無条件に呼ぶため、ここで TypeError になる
+
+        expect(client._.status).toBe('finalized');
+    });
 });
