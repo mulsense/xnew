@@ -1,3 +1,14 @@
+//----------------------------------------------------------------------------------------------------
+// SVG — inline SVG container components
+//
+// Thin wrappers that nest an <svg> element with sensible defaults for stroke / fill / line caps
+// so callers can drop in <path> / <polygon> / <circle> children without re-specifying the same
+// presentation attributes on every shape.
+//
+// - SVG     : component({ viewBox, stroke, fill, ... }) — generic SVG root
+// - SVGText : component({ text, fontSize, ... }) — SVG-rendered text auto-fitted to its bbox
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 
@@ -80,18 +91,22 @@ export function SVGText(unit: Unit, {
     xnew.extend(SVG, { className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity });
     const svg = unit.element as SVGSVGElement;
 
-    xnew.nest(`<text x="0" y="0" font-size="${fontSize}">`);
+    xnew.nest(`<text x="0" y="0" font-size="${fontSize}" paint-order="stroke fill">`);
     unit.element.textContent = text;
 
-    const bbox = (unit.element as SVGGraphicsElement).getBBox();
-    const padding = 0;
-    svg.setAttribute('viewBox', `
-        ${bbox.x - padding}
-        ${bbox.y - padding}
-        ${bbox.width + padding * 2}
-        ${bbox.height + padding * 2}
-    `);
+    function resize() {
+        const bbox = (unit.element as SVGGraphicsElement).getBBox();
+        const padding = 0;
+        svg.setAttribute('viewBox', `
+            ${bbox.x - padding}
+            ${bbox.y - padding}
+            ${bbox.width + padding * 2}
+            ${bbox.height + padding * 2}
+        `);
 
-    svg.style.width = (bbox.width + padding * 2) + 'px';
+        svg.style.width = (bbox.width + padding * 2) + 'px';
+    }
+    resize();
+    unit.on('resize', resize);
     svg.style.overflow = 'visible';
 }

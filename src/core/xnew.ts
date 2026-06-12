@@ -1,337 +1,168 @@
-import { Unit, UnitArgs, UnitPromise, UnitTimer, UnitElement } from './unit';
+//----------------------------------------------------------------------------------------------------
+// xnew — public entry point of the library
+//
+// xnew(...) は現在アクティブな Unit の子として新しい Unit を生成する（初回呼び出しで root と
+// ticker を自動初期化）。各ヘルパーは暗黙の Unit.currentUnit に作用するため、Component 関数の
+// 中から呼ぶ。実装は Unit の static メソッドへの薄い転送のみ。
+//
+// - xnew.nest / extend                   : 初期化中の Unit を拡張
+// - xnew.find / context                  : Component による検索 / 祖先コンテキスト解決
+// - xnew.promise                         : Unit に promise を登録（集約は unit.promise で .then/.catch/.finally）
+// - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
+// - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
+// - xnew.server / client                 : mode 限定の extend
+//----------------------------------------------------------------------------------------------------
+
+import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
+import { DomElement } from './dom';
+
+// xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
+export interface XnewBase {
+    <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    <C extends ComponentFn<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    (target: DomElement | string, content?: string | number): Unit;
+    (content: string | number): Unit;
+    (parent: Unit | null, ...args: any[]): Unit;
+    (): Unit;
+}
 
 export const xnew = Object.assign(
-    /**
-     * creates a new Unit component
-     * xnew(Component?: Function | string, props?: Object): Unit;
-     * xnew(target: HTMLElement | SVGElement | string, Component?: Function | string, props?: Object): Unit;
-     * @param target - HTMLElement | SVGElement, or HTML tag for new element
-     * @param Component - component function
-     * @param props - properties for component function
-     * @returns a new Unit instance
-     * @example
-     * const unit = xnew(MyComponent, { data: 0 })
-     * const unit = xnew(element, MyComponent, { data: 0 })
-     * const unit = xnew('<div>', MyComponent, { data: 0 })
-     */
-    function(...args: UnitArgs): Unit {
-        if (Unit.rootUnit === undefined) Unit.reset();
-        return new Unit(Unit.currentUnit, ...args);
-    },
+    /** Creates a new Unit: xnew((target,) Component?, props?) — target は要素か '<div>' 等のタグ文字列。 */
+    (function(...args: any[]): Unit {
+        if (Unit.engineRoot === undefined) Unit.reset();
+
+        if (args[0] instanceof Unit) {
+            const parent = args.shift() as Unit;
+            const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
+            return Unit.scope(snapshot, () => new Unit(null, parent, ...args)) as Unit;
+        } else {
+            const parent = Unit.currentUnit ?? null;
+            return new Unit(null, parent, ...args);
+        }
+    }) as unknown as XnewBase,
     {
-        /**
-         * Creates a child HTML/SVG element inside the current component's element.
-         * Must be called during component initialization (before setup completes).
-         * @param target - An existing HTML/SVG element, or a tag string like `'<div>'`
-         * @returns The provided element, or the newly created element
-         * @throws Error if called after the component has finished initializing
-         * @example
-         * const div = xnew.nest('<div>')
-         * div.textContent = 'Hello'
-         */
-        nest(target: UnitElement | string): HTMLElement | SVGElement {
-            try {
-                if (Unit.currentUnit._.state !== 'invoked') {
-                    throw new Error('xnew.nest can not be called after initialized.');
-                } 
-                return Unit.nest(Unit.currentUnit, target);
-            } catch (error: unknown) {
-                console.error('xnew.nest(target: UnitElement | string): ', error);
-                throw error;
+        /** Nests a child element（既存要素 or '<div>' 等のタグ文字列）。初期化中のみ呼べる。 */
+        nest(target: DomElement | string): HTMLElement | SVGElement {
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.nest can not be called after initialized.');
             }
+            return Unit.nest(Unit.currentUnit, target);
         },
 
-        /**
-         * Extends the current component with another component's functionality
-         * @param Component - component function to extend with
-         * @param props - optional properties to pass to the extended component
-         * @returns defines returned by the extended component
-         * @throws Error if called after component initialization
-         * @example
-         * const api = xnew.extend(BaseComponent, { data: {} })
-         */
-        extend(Component: Function, props?: Object): { [key: string]: any } {
-            try {
-                if (Unit.currentUnit._.state !== 'invoked') {
-                    throw new Error('xnew.extend can not be called after initialized.');
-                }
-                if (Unit.currentUnit._.Components.includes(Component) === true) {
-                    console.warn('Component is already extended in this unit:', Component);
-                }
-                const defines = Unit.extend(Unit.currentUnit, Component, props);
-                return defines;
-            } catch (error: unknown) {
-                console.error('xnew.extend(component: Function, props?: Object): ', error);
-                throw error;
+        /** Extends the current unit with another component. 初期化中のみ呼べる。defines を返す。 */
+        extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C> {
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.extend can not be called after initialized.');
             }
+            if (Unit.currentUnit._.Components.includes(Component) === true) {
+                console.warn('Component is already extended in this unit:', Component);
+            }
+            return Unit.extend(Unit.currentUnit, Component, props) as DefinesOf<C>;
         },
 
-        append(parent: Unit | null, ...args: UnitArgs): void {
-            try {
-                if (parent === null) {
-                    new Unit(null, ...args);
-                } else {
-                    const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
-                    Unit.scope(snapshot, () => {
-                        new Unit(parent, ...args);
-                    });
-                }
-            } catch (error: unknown) {
-                console.error('xnew.append(parent: Unit, ...args: UnitArgs): ', error);
-                throw error;
-            }
-        },
-
-        /**
-         * Gets the Unit instance associated with the given component in the ancestor context chain
-         * @param key - component function used as context key
-         * @returns The Unit instance registered with the given component, or undefined if not found
-         * @example
-         * // Create parent unit with component A
-         * const parent = xnew(A);
-         *
-         * // Inside a child component, get the parent unit
-         * const parentUnit = xnew.context(A)
-         */
+        /** Returns the nearest unit associated with the given component in the ancestor context chain. */
         context(key: any): any {
-            try {
-                return Unit.getContext(Unit.currentUnit, key);
-            } catch (error: unknown) {
-                console.error('xnew.context(key: any): ', error);
-                throw error;
-            }
+            return Unit.getContext(Unit.currentUnit, key);
         },
             
-        /**
-         * Registers a promise with the current component for lifecycle management
-         * @param promise - A Promise, async function, or Unit to register
-         * @returns UnitPromise wrapper for chaining
-         * @example
-         * xnew.promise(fetchData()).then(data => console.log(data))
-         */
-        promise(promise: Function | Promise<any> | Unit): UnitPromise {
-            try {
-                let unitPromise: UnitPromise;
-                if (promise instanceof Unit) {
-                    unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
-                } else if (promise instanceof Promise) {
-                    unitPromise = new UnitPromise(promise)
-                } else {
-                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)))
-                }
+        /** Registers a promise to the current unit。第1引数が string ならキー。promise を渡さなければ deferred（{ resolve, reject }）。2 引数で promise が undefined は誤用として throw。 */
+        promise: (function (keyOrPromise?: any, maybePromise?: any): any {
+            const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
+            const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+            // 2 引数で呼ばれたのに promise が undefined → 登録のつもりで promise を渡し忘れた誤用。
+            // deferred は xnew.promise() / xnew.promise(key)（1 引数以下）でのみ成立させる。
+            if (arguments.length >= 2 && promise === undefined) {
+                throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
+            }
+            if (promise === undefined) {
+                let settled = false;
+                let resolve!: (value?: unknown) => void;
+                let reject!: (reason?: unknown) => void;
+                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
+                unitPromise.key = key;
                 Unit.currentUnit._.promises.push(unitPromise);
-                return unitPromise;
-            } catch (error: unknown) {
-                console.error('xnew.promise(promise: Promise<any>): ', error);
-                throw error;
+                return {
+                    resolve(value?: unknown) { if (settled) return; settled = true; resolve(value); },
+                    reject(reason?: unknown) { if (settled) return; settled = true; reject(reason); },
+                };
             }
-        },
-
-        /**
-         * Handles successful resolution of all registered promises in the current component
-         * @param callback - Function to call when all promises resolve
-         * @returns UnitPromise for chaining
-         * @example
-         * xnew.then(results => console.log('All promises resolved', results))
-         */
-        then(callback: Function): UnitPromise {
-            try {
-                const currentUnit = Unit.currentUnit;
-                return UnitPromise.all(Unit.currentUnit._.promises).then(() => callback(currentUnit._.results));
-            } catch (error: unknown) {
-                console.error('xnew.then(callback: Function): ', error);
-                throw error;
+            let unitPromise: UnitPromise;
+            if (promise instanceof Unit) {
+                unitPromise = UnitPromise.results(promise._.promises);
+            } else if (promise instanceof Promise) {
+                unitPromise = new UnitPromise(promise);
+            } else {
+                unitPromise = new UnitPromise(new Promise(xnew.scope(promise)));
             }
-        },
-
-        /**
-         * Handles rejection of any registered promise in the current component
-         * @param callback - Function to call if any promise rejects
-         * @returns UnitPromise for chaining
-         * @example
-         * xnew.catch(error => console.error('Promise failed', error))
-         */
-        catch(callback: Function): UnitPromise {
-            try {
-                return UnitPromise.all(Unit.currentUnit._.promises)
-                .catch(callback);
-            } catch (error: unknown) {
-                console.error('xnew.catch(callback: Function): ', error);
-                throw error;
-            }
-        },
-
-        /**
-         * Executes callback after all registered promises settle (resolve or reject)
-         * @param callback - Function to call after promises settle
-         * @returns UnitPromise for chaining
-         * @example
-         * xnew.finally(() => console.log('All promises settled'))
-         */
-        finally(callback: Function): UnitPromise {
-            try {
-                return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
-            } catch (error: unknown) {
-                console.error('xnew.finally(callback: Function): ', error);
-                throw error;
-            }
-        },
-
-        resolvers() {
-            let state: 'pending' | 'resolved' | 'rejected' | null = null;
-            let resolve: Function | null = null;
-            let reject: Function | null = null;
-
-            const unitPromise = new UnitPromise(new Promise((res, rej) => {
-                if (state === 'resolved') {
-                    res(null);
-                } else if (state === 'rejected') {
-                    rej();
-                } else {
-                    resolve = res;
-                    reject = rej;
-                    state = 'pending';
-                }
-            }))
+            unitPromise.key = key;
             Unit.currentUnit._.promises.push(unitPromise);
-
-            return {
-                resolve() {
-                    if (state === 'pending') {
-                        resolve?.(null);
-                    } 
-                    state = 'resolved';
-                },
-                reject() {
-                    if (state === 'pending') {
-                        reject?.();
-                    }
-                    state = 'rejected';
-                }
-            };
+            return unitPromise;
+        }) as {
+            (): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            (key: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            (promise: Function | Promise<any> | Unit): UnitPromise;
+            (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
         },
 
-        /**
-         * Outputs a value to the current unit's promise results
-         * @param object - object to output for the promise
-         * @returns void
-         * @example
-         * xnew.output({ data: 123});
-         */
-        output(object?: Record<string, any>): void {
-            try {
-                Object.assign(Unit.currentUnit._.results, object);
-            } catch (error: unknown) {
-                console.error('xnew.output(object?: Record<string, any>): ', error);
-                throw error;
-            }
-        },
-
-        /**
-         * Creates a scoped callback that captures the current component context
-         * @param callback - Function to wrap with current scope
-         * @returns Function that executes callback in the captured scope
-         * @example
-         * setTimeout(xnew.scope(() => {
-         *   console.log('This runs in the xnew component scope')
-         * }), 1000)
-         */
+        /** Wraps a callback so it later runs in the current unit scope（setTimeout 等の外部コールバック用）。 */
         scope(callback: any): any {
             const snapshot = Unit.snapshot(Unit.currentUnit);
             return (...args: any[]) => Unit.scope(snapshot, callback, ...args);
         },
 
-        /**
-         * Finds all instances of a component in the component tree
-         * @param Component - Component function to search for
-         * @returns Array of Unit instances matching the component
-         * @throws Error if component parameter is invalid
-         * @example
-         * const buttons = xnew.find(ButtonComponent)
-         * buttons.forEach(btn => btn.finalize())
-         */
-        find(Component: Function): Unit[] {
-            try {
-                return Unit.find(Component);
-            } catch (error: unknown) {
-                console.error('xnew.find(Component: Function): ', error);
-                throw error;
-            }
+        /** Finds units by component. opts.key で予約 prop `key` の一致に絞る（key はグローバル一意の想定）。 */
+        find(Component: Function, opts?: { key?: any }): Unit[] {
+            return Unit.find(Component, opts?.key);
         },
 
-        /**
-         * Emits a custom event to components
-         * @param type - Event type to emit (prefix with '+' for global events, '-' for local events)
-         * @param props - Event properties object to pass to listeners
-         * @returns void
-         * @example
-         * xnew.emit('+globalevent', { data: 123 }); // Global event
-         * xnew.emit('-localevent', { data: 123 }); // Local event
-         */
+        /** Emits a custom event（'+event' = 全体へ / '-event' = 自 unit のみ）。 */
         emit(type: string, ...args: any[]): void {
-            try {
-                return Unit.emit(type, ...args);
-            } catch (error: unknown) {
-                console.error('xnew.emit(type: string, ...args: any[]): ', error);
-                throw error;
-            }
+            return Unit.emit(type, ...args);
         },
 
-        /**
-         * Executes a callback once after a delay, managed by component lifecycle
-         * @param callback - Function to execute after duration
-         * @param duration - Duration in milliseconds
-         * @returns Object with clear() method to cancel the timeout
-         * @example
-         * const timer = xnew.timeout(() => console.log('Delayed'), 1000)
-         * // Cancel if needed: timer.clear()
-         */
+        /** Runs callback once after duration ms（unit のライフサイクルに従う。clear() で中止）。 */
         timeout(callback: Function, duration: number = 0): UnitTimer {
             return new UnitTimer().timeout(callback, duration);
         },
 
-        /**
-         * Executes a callback repeatedly at specified intervals, managed by component lifecycle
-         * @param callback - Function to execute at each duration
-         * @param duration - Duration in milliseconds
-         * @returns Object with clear() method to stop the interval
-         * @example
-         * const timer = xnew.interval(() => console.log('Tick'), 1000)
-         * // Stop when needed: timer.clear()
-         */
+        /** Runs callback every duration ms（iterations 回。0 は無限。clear() で停止）。 */
         interval(callback: Function, duration: number, iterations: number = 0): UnitTimer {
             return new UnitTimer().interval(callback, duration, iterations);
         },
 
-        /**
-         * Creates a transition animation with easing, executing callback with progress values
-         * @param callback - Function called with progress value (0.0 to 1.0)
-         * @param duration - Duration of transition in milliseconds
-         * @param easing - Easing function: 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out' (default: 'linear')
-         * @returns Object with clear() and next() methods for controlling transitions
-         * @example
-         * xnew.transition(p => {
-         *   element.style.opacity = p
-         * }, 500, 'ease-out').transition(p => {
-         *   element.style.transform = `scale(${p})`
-         * }, 300)
-         */
+        /** Runs transition({ value: 0→1 }) over duration ms（easing: 'linear'|'ease'|'ease-in'|'ease-out'|'ease-in-out'。チェーン可）。 */
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): UnitTimer {
             return new UnitTimer().transition(transition, duration, easing);
         },
 
         /**
-         * Call this method within a component function to enable protection.
-         * Protected components will not respond to global events emitted via xnew.emit,
-         * and will be excluded from xnew.find searches.
-         * @example
-         * function MyComponent(unit) {
-         *   xnew.protect();
-         *   // Component logic here
-         * }
+         * Marks the current unit as a protection boundary: 子孫はサブツリー外からの '+event' emit /
+         * find に映らなくなる（unit 自身は可視のまま。サブツリー内からの emit / find は通常どおり）。
          */
         protect(): void {
             Unit.currentUnit._.protected = true;
+        },
+
+        /** Extend 相当。ただし client では実行されない（server / standalone のみ。skip 時は {} を返す）。 */
+        server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.server can not be called after initialized.');
+            }
+            if (Unit.currentUnit._.mode === 'client') {
+                return {};
+            }
+            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
+        },
+
+        /** Extend 相当。ただし server では実行されない（client / standalone のみ。skip 時は {} を返す）。 */
+        client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
+            if (Unit.currentUnit._.status !== 'invoked') {
+                throw new Error('xnew.client can not be called after initialized.');
+            }
+            if (Unit.currentUnit._.mode === 'server') {
+                return {};
+            }
+            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
         },
 
     }

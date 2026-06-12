@@ -1,5 +1,8 @@
 import { xnew as base } from './core/xnew';
-import { Unit, UnitTimer } from './core/unit';
+import { Unit, UnitTimer, ComponentFn, Mode as CoreMode, Status as CoreStatus } from './core/unit';
+
+// boot に渡す socket を型付けできるよう、socket 契約型を公開する。
+export type { ClientSocket, ServerSocket, RootSocket, BootOptions, ClientInfo } from './utils/sync';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { SVG, SVGText } from './basics/SVG';
@@ -7,10 +10,13 @@ import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
 import { Scene } from './basics/Scene';
+import { Room } from './basics/Room';
+import { Selectable } from './basics/Selectable';
 import { VolumeController } from './basics/Volume';
 
-import { XImage, XImageArgs } from './utils/image';
-import { master, AudioFile, Synthesizer, SynthesizerOptions } from './utils/audio';
+import { ImageData, ImageDataArgs } from './utils/image';
+import { master, AudioTrack, Synthesizer, SynthesizerOptions } from './utils/audio';
+import { sync } from './utils/sync';
 
 const basics = {
     SVG,
@@ -23,27 +29,20 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    Room,
+    Selectable,
     VolumeController,
 };
 
 const audio = {
+    AudioTrack,
     load(path: string) {
-        const music = new AudioFile(path);
-        const object = {
-            play(options: { offset?: number, fade?: number, loop?: boolean } = {}) {
-                const unit = xnew();
-                if (music.start === null) {
-                    music.play(options);
-                    unit.on('finalize', () => music.pause({ fade: options.fade }));
-                }
-            },
-            pause(options: { fade?: number } = {}) {
-                music.pause(options);
-            }
-        }
-        return xnew.promise(music.promise).then(() => object);
+        const music = new AudioTrack(path);
+        xnew().on('finalize', () => music.pause({ fade: 500 }));
+
+        return xnew.promise(music.promise).then(() => music);
     },
-    
+
     synthesizer(props: SynthesizerOptions) {
         return new Synthesizer(props);
     },
@@ -57,16 +56,22 @@ const audio = {
 
 const image = {
 
-    from(canvas: HTMLCanvasElement): XImage {
-        return new XImage(canvas);
+    from(canvas: HTMLCanvasElement): ImageData {
+        return new ImageData(canvas);
     }
 }
 
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
     export type UnitTimer = InstanceType<typeof UnitTimer>;
+    export type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
+    export type Mode = CoreMode;
+    export type Status = CoreStatus;
+    export namespace audio {
+        export type AudioTrack = InstanceType<typeof AudioTrack>;
+    }
 }
 
-const xnew = Object.assign(base, { basics, audio, image });
+const xnew = Object.assign(base, { basics, audio, image, sync });
 
 export default xnew;

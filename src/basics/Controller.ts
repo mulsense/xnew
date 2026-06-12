@@ -1,3 +1,14 @@
+//----------------------------------------------------------------------------------------------------
+// Controller — virtual game-pad input components
+//
+// Drag-based on-screen inputs that translate pointer movement into a normalized vector (x / y in
+// [-1, 1]) and emit it through xnew.emit as '-down' / '-move' / '-up' so parent components can
+// react without touching DOM events directly.
+//
+// - AnalogStick : continuous radial vector; visual stick follows the pointer within a radius
+// - DPad        : quantized 4 or 8 way vector; highlights the active arrow segment
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { SVG } from '../basics/SVG';
@@ -7,8 +18,6 @@ import { Aspect } from '../basics/Aspect';
 // controller
 //----------------------------------------------------------------------------------------------------
 
-const svgTemplate = { viewBox: '0 0 64 64', style: "position: absolute; width: 100%; height: 100%;" };
-
 export function AnalogStick(unit: Unit,
     { stroke = 'currentColor', strokeOpacity = 0.8, strokeWidth = 1, fill = '#FFF', fillOpacity = 0.8 }:
     { stroke?: string, strokeOpacity?: number, strokeWidth?: number, fill?: string, fillOpacity?: number } = {}
@@ -17,7 +26,7 @@ export function AnalogStick(unit: Unit,
     xnew.nest(`<div style="width: 100%; height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; pointer-events: auto;">`);
 
     xnew((unit: Unit) => {
-        xnew.extend(SVG, { ...svgTemplate, stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
+        xnew.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
         xnew('<polygon points="32  7 27 13 37 13">');
         xnew('<polygon points="32 57 27 51 37 51">');
         xnew('<polygon points=" 7 32 13 27 13 37">');
@@ -25,7 +34,7 @@ export function AnalogStick(unit: Unit,
     });
 
     const target = xnew((unit: Unit) => {
-        xnew.extend(SVG, { ...svgTemplate, stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
+        xnew.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', stroke, strokeOpacity, strokeWidth, fill, fillOpacity });
         xnew('<circle cx="32" cy="32" r="14">');
     });
 
@@ -64,13 +73,13 @@ export function DPad(unit: Unit,
 
     const targets = polygons.map((polygon) => {
         return xnew((unit: Unit) => {
-            xnew.extend(SVG, { ...svgTemplate, fill, fillOpacity });
+            xnew.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', fill, fillOpacity });
             xnew(polygon);
         });
     });
 
     xnew((unit: Unit) => {
-        xnew.extend(SVG, { ...svgTemplate, stroke, strokeOpacity, strokeWidth });
+        xnew.extend(SVG, { style: 'position: absolute; width: 100%; height: 100%;', stroke, strokeOpacity, strokeWidth });
         xnew('<polyline points="23 23 23  4 24  3 40  3 41  4 41 23">');
         xnew('<polyline points="23 41 23 60 24 61 40 61 41 60 41 41">');
         xnew('<polyline points="23 23  4 23  3 24  3 40  4 41 23 41">');

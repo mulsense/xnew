@@ -1,34 +1,63 @@
-export const context: AudioContext = new window.AudioContext();
-export const master: GainNode = context.createGain();
-
 //----------------------------------------------------------------------------------------------------
-// master volume
+// audio — Web Audio primitives shared across the package
+//
+// A single AudioContext + master GainNode are created at module load so every audio source in the
+// package mixes through one bus. Callers (AudioTrack, Synthesizer, Volume controller) connect to
+// `master` rather than `context.destination` so the global volume is one writable value.
+//
+// Side effect on import: instantiates window.AudioContext and connects the master gain.
+//
+// - context, master : shared global AudioContext and its master GainNode
+// - AudioTrack      : decoded audio buffer with play / pause / resume / volume + fade in / out.
+//                     `promise` resolves when the buffer is ready and rejects on load failure;
+//                     `play()` / `resume()` throw if the buffer is not yet loaded.
+// - Synthesizer / SynthesizerOptions
+//                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
+//                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
 //----------------------------------------------------------------------------------------------------
 
-master.gain.value = 0.1;
-master.connect(context.destination);
+const DEFAULT_MASTER_GAIN = 0.1;
+const DEFAULT_BPM = 120;
+const RELEASE_CLEANUP_DELAY_MS = 2000;
+
+// AudioContext が無い環境（Node/SSR/jsdom や未対応ブラウザ）では null に落とす（import 時に落ちない）。
+const AudioContextCtor: typeof AudioContext | undefined =
+    typeof window !== 'undefined' ? (window.AudioContext ?? (window as any).webkitAudioContext) : undefined;
+export const context: AudioContext = typeof AudioContextCtor === 'function' ? new AudioContextCtor() : null as unknown as AudioContext;
+export const master: GainNode = context !== null ? context.createGain() : null as unknown as GainNode;
+
+if (context !== null && master !== null) {
+    master.gain.value = DEFAULT_MASTER_GAIN;
+    master.connect(context.destination);
+}
 
 //----------------------------------------------------------------------------------------------------
 // audio file
+//
+// `startedAt` is the (virtual) AudioContext time at which playback would have started from offset 0
+// — i.e. `currentTime - startedAt` is the position within the buffer. On pause, that position is
+// frozen into `pausedOffsetMs` so a subsequent `play()` (with no explicit offset) picks it up — i.e.
+// `play()` doubles as resume. `stop()` halts playback AND zeros `pausedOffsetMs`, so the next
+// `play()` starts from the beginning. `loop` is stored so `pause()` can mod the position by
+// buffer.duration only when looping.
 //----------------------------------------------------------------------------------------------------
 
-export class AudioFile {
+export class AudioTrack {
     private buffer?: AudioBuffer;
     private source: AudioBufferSourceNode | null;
     private amp: GainNode;
     private fade: GainNode;
+    private startedAt: number | null;
+    private pausedOffsetMs: number;
+    private loop: boolean;
 
     public promise: Promise<void>;
-    public start: number | null;
 
     constructor(path: string) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
             .then((response) => context.decodeAudioData(response))
-            .then((response) => { this.buffer = response })
-            .catch(() => {
-                console.warn(`"${path}" could not be loaded.`)
-            });
+            .then((response) => { this.buffer = response });
         this.amp = context.createGain();
         this.amp.gain.value = 1.0;
         this.amp.connect(master);
@@ -36,7 +65,17 @@ export class AudioFile {
         this.fade.gain.value = 1.0;
         this.fade.connect(this.amp);
         this.source = null;
-        this.start = null;
+        this.startedAt = null;
+        this.pausedOffsetMs = 0;
+        this.loop = false;
+    }
+
+    get isPlaying(): boolean {
+        return this.startedAt !== null;
+    }
+
+    get isLoaded(): boolean {
+        return this.buffer !== undefined;
     }
 
     set volume(value: number) {
@@ -47,58 +86,118 @@ export class AudioFile {
         return this.amp.gain.value;
     }
 
-    play({ offset = 0, fade = 0, loop = false }: { offset?: number, fade?: number, loop?: boolean } = {}) {
-        if (this.buffer !== undefined && this.start === null) {
-            this.source = context.createBufferSource();
-            this.source.buffer = this.buffer;
-            this.source.loop = loop;
-            this.source.connect(this.fade);
-
-            this.start = context.currentTime;
-            this.source.playbackRate.value = 1;
-            this.source.start(context.currentTime, offset / 1000);
-
-            // Apply fade-in effect if fade duration is specified
-            if (fade > 0) {
-                this.fade.gain.setValueAtTime(0, context.currentTime);
-                this.fade.gain.linearRampToValueAtTime(1.0, context.currentTime + fade / 1000);
-            }
-
-            this.source.onended = () => {
-                this.start = null;
-                this.source?.disconnect();
-                this.source = null;
-            };
+    // Plays from `offset` (ms). If `offset` is omitted, resumes from the position saved by the last
+    // pause() — which is 0 on a fresh track, so the first call plays from the beginning.
+    // `loop` defaults to the previously-set value, so resume keeps the original loop config.
+    play({ offset, fade = 0, loop }: { offset?: number, fade?: number, loop?: boolean } = {}) {
+        if (this.buffer === undefined) {
+            throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
         }
+        if (this.startedAt !== null) {
+            return;
+        }
+        if (loop !== undefined) {
+            this.loop = loop;
+        }
+        this.startSource(offset ?? this.pausedOffsetMs, fade);
     }
 
     pause({ fade = 0 }: { fade?: number } = {}) {
-        if (this.buffer !== undefined && this.start !== null) {
-            const elapsed = (context.currentTime - this.start) % this.buffer.duration * 1000;
-
-            // Apply fade-out effect if fade duration is specified
-            if (fade > 0) {
-                this.fade.gain.setValueAtTime(1.0, context.currentTime);
-                this.fade.gain.linearRampToValueAtTime(0, context.currentTime + fade / 1000);
-                this.source?.stop(context.currentTime + fade / 1000);
-            } else {
-                this.source?.stop(context.currentTime);
-            }
-
-            this.start = null;
-            return elapsed;
+        if (this.buffer === undefined || this.startedAt === null) {
+            return;
         }
+        const elapsedSec = context.currentTime - this.startedAt;
+        const positionSec = this.loop ? elapsedSec % this.buffer.duration : Math.min(elapsedSec, this.buffer.duration);
+        this.pausedOffsetMs = positionSec * 1000;
+
+        // Detach the current source before scheduling its stop. Its `onended` will fire after the
+        // fade-out completes (or immediately for fade=0); the guard inside `onended` checks
+        // `this.source === source` and, finding it false, skips state cleanup so pausedOffsetMs
+        // survives.
+        const source = this.source!;
+        this.source = null;
+        this.startedAt = null;
+        this.stopSource(source, fade);
+    }
+
+    // Stops playback (with optional fade-out) and resets the paused position to 0. After this,
+    // the next `play()` starts from the beginning.
+    stop({ fade = 0 }: { fade?: number } = {}) {
+        if (this.startedAt !== null) {
+            const source = this.source!;
+            this.source = null;
+            this.startedAt = null;
+            this.stopSource(source, fade);
+        }
+        this.pausedOffsetMs = 0;
     }
 
     clear() {
+        this.forceStop();
         this.amp.disconnect();
         this.fade.disconnect();
-        this.source?.disconnect();
+        this.pausedOffsetMs = 0;
+    }
+
+    // Hard-stops the source without triggering onended state cleanup. Caller is responsible for
+    // any further state reset (pausedOffsetMs, etc.).
+    private forceStop() {
+        if (this.source !== null) {
+            this.source.onended = null;
+            try {
+                this.source.stop();
+            } catch {
+                // Source was never started or already stopped — safe to ignore.
+            }
+            this.source.disconnect();
+            this.source = null;
+        }
+        this.startedAt = null;
+    }
+
+    private startSource(offsetMs: number, fadeMs: number) {
+        const source = context.createBufferSource();
+        this.source = source;
+        source.buffer = this.buffer!;
+        source.loop = this.loop;
+        source.connect(this.fade);
+
+        const now = context.currentTime;
+        this.startedAt = now - offsetMs / 1000;
+        source.start(now, offsetMs / 1000);
+
+        if (fadeMs > 0) {
+            this.fade.gain.setValueAtTime(0, now);
+            this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+        }
+
+        source.onended = () => {
+            source.disconnect();
+            // Only clear state if this is still the active source. `pause()` and `restart()`
+            // replace / null out `this.source`, so a stale onended firing after their fade-out
+            // must not clobber pausedOffsetMs.
+            if (this.source === source) {
+                this.source = null;
+                this.startedAt = null;
+                this.pausedOffsetMs = 0;
+            }
+        };
+    }
+
+    private stopSource(source: AudioBufferSourceNode, fadeMs: number) {
+        const now = context.currentTime;
+        if (fadeMs > 0) {
+            this.fade.gain.setValueAtTime(1.0, now);
+            this.fade.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
+            source.stop(now + fadeMs / 1000);
+        } else {
+            source.stop(now);
+        }
     }
 };
 
 //----------------------------------------------------------------------------------------------------
-// synthesizer
+// synthesizer — option types
 //----------------------------------------------------------------------------------------------------
 
 export type SynthesizerOptions = {
@@ -136,9 +235,13 @@ type Envelope = {
 
 type LFO = {
     amount: number;
-    type: OscillatorType; // lowpass, highpass, bandpass
+    type: OscillatorType;
     rate: number; // 1 ~ 128
 };
+
+//----------------------------------------------------------------------------------------------------
+// note tables — frequency in Hz / note-length as a beat multiplier
+//----------------------------------------------------------------------------------------------------
 
 const keymap: { [key: string]: number } = {
     'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
@@ -156,160 +259,203 @@ const notemap: { [key: string]: number } = {
     '1m': 4.000, '2n': 2.000, '4n': 1.000, '8n': 0.500, '16n': 0.250, '32n': 0.125,
 };
 
+//----------------------------------------------------------------------------------------------------
+// synthesizer — helpers
+//----------------------------------------------------------------------------------------------------
+
+function resolveFrequency(value: number | string): number {
+    if (typeof value === 'string') {
+        return keymap[value];
+    } else {
+        return value;
+    }
+}
+
+function resolveDurationSeconds(value: number | string | undefined, bpm: number): number {
+    if (typeof value === 'string') {
+        return notemap[value] * 60 / bpm;
+    } else if (typeof value === 'number') {
+        return value / 1000;
+    } else {
+        return 0;
+    }
+}
+
+// Frequency offset in Hz for a +amount semitone modulation of baseFreq.
+function semitoneOffset(baseFreq: number, amount: number): number {
+    return baseFreq * (Math.pow(2.0, amount / 12.0) - 1.0);
+}
+
+function scheduleAttackDecay(param: AudioParam, start: number, base: number, amount: number, ADSR: [number, number, number, number]): void {
+    const [a, d, s] = ADSR;
+    param.value = base;
+    param.setValueAtTime(base, start);
+    param.linearRampToValueAtTime(base + amount, start + a / 1000);
+    param.linearRampToValueAtTime(base + amount * s, start + (a + d) / 1000);
+}
+
+function scheduleRelease(param: AudioParam, start: number, dv: number, base: number, amount: number, ADSR: [number, number, number, number]): void {
+    const [a, d, s, r] = ADSR;
+    const end = dv > 0 ? dv : (context.currentTime - start);
+    const rate = a === 0 ? 1.0 : Math.min(end / (a / 1000), 1.0);
+    if (rate < 1.0) {
+        param.cancelScheduledValues(start);
+        param.setValueAtTime(base, start);
+        param.linearRampToValueAtTime(base + amount * rate, start + (a / 1000) * rate);
+        param.linearRampToValueAtTime(base + amount * rate * s, start + ((a + d) / 1000) * rate);
+    }
+    param.linearRampToValueAtTime(base + amount * rate * s, start + Math.max(((a + d) / 1000) * rate, dv));
+    param.linearRampToValueAtTime(base, start + Math.max(((a + d) / 1000) * rate, end) + r / 1000);
+}
+
+function createImpulseResponse(timeMs: number, decay = 2.0): AudioBuffer {
+    const length = context.sampleRate * timeMs / 1000;
+    const impulse = context.createBuffer(2, length, context.sampleRate);
+    const ch0 = impulse.getChannelData(0);
+    const ch1 = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+        const k = Math.pow(1 - i / length, decay);
+        ch0[i] = (2 * Math.random() - 1) * k;
+        ch1[i] = (2 * Math.random() - 1) * k;
+    }
+    return impulse;
+}
+
+type LFOAttachment = { oscillator: OscillatorNode; depth: GainNode };
+
+function attachLFO(target: OscillatorNode, baseFreq: number, lfo: LFO, start: number): LFOAttachment {
+    const oscillator = context.createOscillator();
+    const depth = context.createGain();
+    depth.gain.value = semitoneOffset(baseFreq, lfo.amount);
+    oscillator.type = lfo.type;
+    oscillator.frequency.value = lfo.rate;
+    oscillator.start(start);
+    oscillator.connect(depth);
+    depth.connect(target.frequency);
+    return { oscillator, depth };
+}
+
+type ReverbAttachment = { convolver: ConvolverNode; depth: GainNode };
+
+// Wet branch from `amp` to `master`. Also scales the dry-path `target` so wet+dry sums to ~1.
+function attachReverb(amp: GainNode, target: GainNode, reverb: ReverbOptions): ReverbAttachment {
+    const convolver = context.createConvolver();
+    convolver.buffer = createImpulseResponse(reverb.time);
+    const depth = context.createGain();
+    depth.gain.value = reverb.mix;
+    target.gain.value *= (1.0 - reverb.mix);
+
+    amp.connect(convolver);
+    convolver.connect(depth);
+    depth.connect(master);
+    return { convolver, depth };
+}
+
+//----------------------------------------------------------------------------------------------------
+// synthesizer
+//----------------------------------------------------------------------------------------------------
+
 export class Synthesizer {
     props: SynthesizerOptions;
     constructor(props: SynthesizerOptions) { this.props = props; }
-    
+
     press(frequency: number | string, duration?: number | string, wait?: number) {
         const props = this.props;
-        const fv: number = typeof frequency === 'string' ? keymap[frequency] : frequency;
-        const dv: number = typeof duration === 'string' ? (notemap[duration] * 60 / (props.bpm ?? 120)) : (typeof duration === 'number' ? (duration / 1000) : 0);
-
+        const freq = resolveFrequency(frequency);
+        const dv = resolveDurationSeconds(duration, props.bpm ?? DEFAULT_BPM);
         const start = context.currentTime + (wait ?? 0) / 1000;
 
-        const nodes = {} as {
-            oscillator: OscillatorNode,
-            amp: GainNode,
-            target: GainNode,
-            filter?: BiquadFilterNode,
-            convolver?: ConvolverNode,
-            convolverDepth?: GainNode,
-            oscillatorLFO?: OscillatorNode,
-            oscillatorLFODepth?: GainNode,
-        };
+        // Sound source.
+        const oscillator = context.createOscillator();
+        oscillator.type = props.oscillator.type;
+        oscillator.frequency.value = freq;
 
-        nodes.oscillator = context.createOscillator();
-        nodes.oscillator.type = props.oscillator.type;
-        nodes.oscillator.frequency.value = fv;
-      
-        if (props.oscillator.LFO) {
-            nodes.oscillatorLFO = context.createOscillator();
-            nodes.oscillatorLFODepth = context.createGain();
-            nodes.oscillatorLFODepth.gain.value = fv * (Math.pow(2.0, props.oscillator.LFO.amount / 12.0) - 1.0);
-            nodes.oscillatorLFO.type = props.oscillator.LFO.type;
-            nodes.oscillatorLFO.frequency.value = props.oscillator.LFO.rate;
-            nodes.oscillatorLFO.start(start);
+        const lfo = props.oscillator.LFO ? attachLFO(oscillator, freq, props.oscillator.LFO, start) : null;
 
-            nodes.oscillatorLFO.connect(nodes.oscillatorLFODepth);
-            nodes.oscillatorLFODepth.connect(nodes.oscillator.frequency);
-        }
+        // amp → target → master, with optional wet path from amp.
+        const amp = context.createGain();
+        amp.gain.value = 0.0;
+        const target = context.createGain();
+        target.gain.value = 1.0;
+        amp.connect(target);
+        target.connect(master);
 
-        nodes.amp = context.createGain();
-        nodes.amp.gain.value = 0.0;
-        nodes.target = context.createGain();
-        nodes.target.gain.value = 1.0;
-
-        nodes.amp.connect(nodes.target);
-        nodes.target.connect(master);
-
+        // Optional filter inserted between oscillator and amp.
+        let filter: BiquadFilterNode | null = null;
         if (props.filter) {
-            nodes.filter = context.createBiquadFilter();
-            nodes.filter.type = props.filter.type as BiquadFilterType;
-            nodes.filter.frequency.value = props.filter.cutoff;
-
-            nodes.oscillator.connect(nodes.filter);
-            nodes.filter.connect(nodes.amp);
+            filter = context.createBiquadFilter();
+            filter.type = props.filter.type;
+            filter.frequency.value = props.filter.cutoff;
+            oscillator.connect(filter);
+            filter.connect(amp);
         } else {
-            nodes.oscillator.connect(nodes.amp);
+            oscillator.connect(amp);
         }
 
-        if (props.reverb) {
-            nodes.convolver = context.createConvolver();
-            nodes.convolver.buffer = impulseResponse({ time: props.reverb.time });
-            nodes.convolverDepth = context.createGain();
-            nodes.convolverDepth.gain.value = 1.0;
-            nodes.convolverDepth.gain.value *= props.reverb.mix;
-            nodes.target.gain.value *= (1.0 - props.reverb.mix);
+        const reverb = props.reverb ? attachReverb(amp, target, props.reverb) : null;
 
-            nodes.amp.connect(nodes.convolver);
-            nodes.convolver.connect(nodes.convolverDepth);
-            nodes.convolverDepth.connect(master);
-        }
-
+        // Schedule attack/decay phase.
         if (props.oscillator.envelope) {
-            const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-            startEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
+            const amount = semitoneOffset(freq, props.oscillator.envelope.amount);
+            scheduleAttackDecay(oscillator.frequency, start, freq, amount, props.oscillator.envelope.ADSR);
         }
         if (props.amp.envelope) {
-            startEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+            scheduleAttackDecay(amp.gain, start, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
         }
 
-        nodes.oscillator.start(start);
+        oscillator.start(start);
 
-        if (dv > 0) {
-            release();
-        } else {
-            return { release }
+        // Collect nodes to stop / disconnect when the note ends.
+        const oscillators: OscillatorNode[] = [oscillator];
+        const nodesToDisconnect: AudioNode[] = [oscillator, amp, target];
+        if (lfo) {
+            oscillators.push(lfo.oscillator);
+            nodesToDisconnect.push(lfo.oscillator, lfo.depth);
         }
-        
-        function release() {
-            let stop: number | null = null;
+        if (filter) {
+            nodesToDisconnect.push(filter);
+        }
+        if (reverb) {
+            nodesToDisconnect.push(reverb.convolver, reverb.depth);
+        }
+
+        const release = () => {
             const end = dv > 0 ? dv : (context.currentTime - start);
+            let stop: number;
             if (props.amp.envelope) {
-                const ADSR = props.amp.envelope.ADSR;
-                const adsr = [ADSR[0] / 1000, ADSR[1] / 1000, ADSR[2], ADSR[3] / 1000];
-                const rate = adsr[0] === 0.0 ? 1.0 : Math.min(end / (adsr[0] + 0.001), 1.0);
-                stop = start + Math.max((adsr[0] + adsr[1]) * rate, end) + adsr[3];
+                const [a, d, , r] = props.amp.envelope.ADSR;
+                const aSec = a / 1000;
+                const dSec = d / 1000;
+                const rSec = r / 1000;
+                const rate = aSec === 0.0 ? 1.0 : Math.min(end / (aSec + 0.001), 1.0);
+                stop = start + Math.max((aSec + dSec) * rate, end) + rSec;
             } else {
                 stop = start + end;
             }
 
-            if (nodes.oscillatorLFO) {
-                nodes.oscillatorLFO.stop(stop);
-            }
-
             if (props.oscillator.envelope) {
-                const amount = fv * (Math.pow(2.0, props.oscillator.envelope.amount / 12.0) - 1.0);
-                stopEnvelope(nodes.oscillator.frequency, fv, amount, props.oscillator.envelope.ADSR);
+                const amount = semitoneOffset(freq, props.oscillator.envelope.amount);
+                scheduleRelease(oscillator.frequency, start, dv, freq, amount, props.oscillator.envelope.ADSR);
             }
             if (props.amp.envelope) {
-                stopEnvelope(nodes.amp.gain, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
+                scheduleRelease(amp.gain, start, dv, 0.0, props.amp.envelope.amount, props.amp.envelope.ADSR);
             }
 
-            nodes.oscillator.stop(stop);
+            for (const o of oscillators) {
+                o.stop(stop);
+            }
 
             setTimeout(() => {
-                nodes.oscillator.disconnect();
-                nodes.amp.disconnect();
-                nodes.target.disconnect();
-                nodes.oscillatorLFO?.disconnect();
-                nodes.oscillatorLFODepth?.disconnect();
-                nodes.filter?.disconnect();
-                nodes.convolver?.disconnect();
-                nodes.convolverDepth?.disconnect();
-            }, 2000);
-        }
+                for (const n of nodesToDisconnect) {
+                    n.disconnect();
+                }
+            }, RELEASE_CLEANUP_DELAY_MS);
+        };
 
-        function stopEnvelope(param: AudioParam, base: number, amount: number, ADSR: [number, number, number, number]) {
-            const end = dv > 0 ? dv : (context.currentTime - start);
-            const rate = ADSR[0] === 0.0 ? 1.0 : Math.min(end / (ADSR[0] / 1000), 1.0);
-            if (rate < 1.0) {
-                param.cancelScheduledValues(start);
-                param.setValueAtTime(base, start);
-                param.linearRampToValueAtTime(base + amount * rate, start + ADSR[0] / 1000 * rate);
-                param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000 * rate);
-            }
-            param.linearRampToValueAtTime(base + amount * rate * ADSR[2], start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, dv));
-            param.linearRampToValueAtTime(base, start + Math.max((ADSR[0] + ADSR[1]) / 1000 * rate, end) + ADSR[3] / 1000);
-        }
-
-        function startEnvelope(param: AudioParam, base: number, amount: number, ADSR: [number, number, number, number]) {
-            param.value = base;
-            param.setValueAtTime(base, start);
-            param.linearRampToValueAtTime(base + amount, start + ADSR[0] / 1000);
-            param.linearRampToValueAtTime(base + amount * ADSR[2], start + (ADSR[0] + ADSR[1]) / 1000);
-        }
-        function impulseResponse({ time, decay = 2.0 }: { time: number, decay?: number }): AudioBuffer {
-            const length = context.sampleRate * time / 1000;
-            const impulse = context.createBuffer(2, length, context.sampleRate);
-
-            const ch0 = impulse.getChannelData(0);
-            const ch1 = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                ch0[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-                ch1[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-            }
-            return impulse;
+        if (dv > 0) {
+            release();
+        } else {
+            return { release };
         }
     }
 }

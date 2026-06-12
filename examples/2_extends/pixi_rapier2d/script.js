@@ -14,14 +14,14 @@ function Main(unit) {
   unit.on('render', () => {
     xpixi.renderer.render(xpixi.scene);
   });
-
-  xnew(xnew.basics.Flow).next(Contents);
+  xnew(Contents);
 }
 
 function Contents(unit) {
+  xnew.extend(xnew.basics.Scene);
   xrapier2d.initialize({ gravity: { x: 0.0, y: 9.81 * 10 } });
 
-  xnew.then(() => {
+  unit.promise.then(() => {
     unit.on('render', () => {
       xrapier2d.world.timestep = 3 / 60;
       xrapier2d.world.step();
@@ -31,7 +31,7 @@ function Contents(unit) {
   });
 
   const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => xnew.context(xnew.basics.Flow).next(Contents));
+  button.on('click', () => unit.change(Contents));
 }
 
 function Rectangle(self, { x, y, w, h, color = 0xFFFFFF, dynamic = true, options = {} }) {

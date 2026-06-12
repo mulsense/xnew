@@ -1,3 +1,15 @@
+//----------------------------------------------------------------------------------------------------
+// Transition — open / close animation primitives
+//
+// OpenAndClose owns a 0..1 progress value driven by xnew.transition and exposes open / close /
+// toggle, broadcasting the value via '-transition' / '-opened' / '-closed' emits. Accordion and
+// Popup are presentation layers that pick up that progress value via xnew.context(OpenAndClose).
+//
+// - OpenAndClose : component returning { toggle, open, close }
+// - Accordion    : collapses height + opacity to follow the progress value
+// - Popup        : full-viewport overlay that opens on mount and finalizes when closed
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
 
@@ -11,35 +23,32 @@ export function OpenAndClose(unit: Unit,
     let sign: number = open ? +1 : -1;
     let timer = xnew.timeout(() => xnew.emit('-transition', { value }));
 
+    // animate `value` toward 1 (dir +1, open) or 0 (dir -1, close), scaling duration by remaining distance
+    function animate(dir: number) {
+        sign = dir;
+        const d = dir > 0 ? 1 - value : value;
+        const duration = (transition?.duration ?? 200) * d;
+        const easing = transition?.easing ?? 'ease';
+        timer?.clear();
+        timer = xnew.transition(({ value: x }: { value: number }) => {
+            const remaining = x < 1.0 ? (1 - x) * d : 0.0;
+            value = dir > 0 ? 1.0 - remaining : remaining;
+            xnew.emit('-transition', { value });
+        }, duration, easing)
+        .timeout(() => xnew.emit(dir > 0 ? '-opened' : '-closed'));
+    }
+
     return {
         toggle() {
-            sign < 0 ? unit.open() : unit.close();
+            animate(sign < 0 ? +1 : -1);
         },
         open() {
-            sign = +1;
-            const d = 1 - value;
-            const duration = (transition?.duration ?? 200) * d;
-            const easing = transition?.easing ?? 'ease';
-            timer?.clear();
-            timer = xnew.transition(({ value: x }: { value: number }) => {
-                value = 1.0 - (x < 1.0 ? (1 - x) * d : 0.0);
-                xnew.emit('-transition', { value });
-            }, duration, easing)
-            .timeout(() => xnew.emit('-opened'));
+            animate(+1);
         },
         close() {
-            sign = -1;
-            const d = value;
-            const duration = (transition?.duration ?? 200) * d;
-            const easing = transition?.easing ?? 'ease';
-            timer?.clear();
-            timer = xnew.transition(({ value: x }: { value: number }) => {
-                value = x < 1.0 ? (1 - x) * d : 0.0;
-                xnew.emit('-transition', { value });
-            }, duration, easing)
-            .timeout(() => xnew.emit('-closed'));
+            animate(-1);
         },
-    }
+    };
 }
 
 export function Accordion(unit: Unit) {

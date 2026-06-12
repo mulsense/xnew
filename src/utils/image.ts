@@ -1,12 +1,20 @@
+//----------------------------------------------------------------------------------------------------
+// image — Canvas wrapper for crop and download
+//
+// Lightweight wrapper around HTMLCanvasElement that adds the two operations the rest of the
+// package needs: pulling a rectangular sub-canvas (crop) and triggering a browser download as PNG.
+//
+// - ImageData / ImageDataArgs : wraps an existing canvas, or creates a new one at width × height
+//----------------------------------------------------------------------------------------------------
 
-export type XImageArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
+export type ImageDataArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
 
-export class XImage {
+export class ImageData {
     public canvas: HTMLCanvasElement;
 
     constructor(canvas: HTMLCanvasElement);
     constructor(width: number, height: number);
-    constructor(...args: XImageArgs) {
+    constructor(...args: ImageDataArgs) {
         if (args[0] instanceof HTMLCanvasElement) {
             this.canvas = args[0];
         } else {
@@ -22,7 +30,7 @@ export class XImage {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d')?.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-        return new XImage(canvas);
+        return new ImageData(canvas);
     }
 
     public download(filename: string) {

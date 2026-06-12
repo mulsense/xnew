@@ -1,3 +1,13 @@
+//----------------------------------------------------------------------------------------------------
+// xrapier2d — Rapier 2D (compat build) integration
+//
+// `initialize({ gravity })` mounts a Root Unit that awaits RAPIER.init() (the compat build loads
+// its WASM lazily) and then creates a RAPIER.World. Child components read the world through
+// xnew.context(Root); until initialization completes the getter returns null.
+//
+// - default : { initialize, world }
+//----------------------------------------------------------------------------------------------------
+
 import xnew from '@mulsense/xnew';
 import RAPIER from '@dimforge/rapier2d-compat';
 

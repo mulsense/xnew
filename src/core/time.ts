@@ -1,47 +1,47 @@
 //----------------------------------------------------------------------------------------------------
-// visibility change
+// time — runtime-agnostic tickers and timers（browser は rAF / Node は setTimeout）
+//
+// - Ticker : 目標 FPS でコールバック
+// - Timer  : easing 付き setTimeout タイマー。visibilitychange で自動 pause（browser のみ）
 //----------------------------------------------------------------------------------------------------
 
-class Visibility {
-    private listener: ((this: Document, event: Event) => any);
-
-    constructor(callback?: Function) {
-        this.listener = () => callback?.(document.hidden === false);
-        document.addEventListener('visibilitychange', this.listener);
-    }
-
-    clear(): void {
-        document.removeEventListener('visibilitychange', this.listener);
-    }
-}
-
 //----------------------------------------------------------------------------------------------------
-// animation ticker
+// ticker
 //----------------------------------------------------------------------------------------------------
 
-export class AnimationTicker {
-    private id: number | null;
+export class Ticker {
+    private cancel: (() => void) | null = null;
 
     constructor(callback: Function, fps: number = 60) {
-        const self = this;
-        this.id = null;
+        const interval = 1000 / fps;
+        const minDelta = interval * 0.9;
         let previous = 0;
 
-        function ticker() {
-            const delta = Date.now() - previous;
-            if (delta > (1000 / fps) * 0.9) {
+        const tick = (): void => {
+            if (typeof requestAnimationFrame !== 'undefined') {
+                // rAF fires at the display refresh rate, so throttle down to the target fps.
+                const delta = Date.now() - previous;
+                if (delta > minDelta) {
+                    callback();
+                    previous += delta;
+                }
+                const id = requestAnimationFrame(tick);
+                this.cancel = () => cancelAnimationFrame(id);
+            } else {
+                // setTimeout already fires at the target interval, so no throttling is needed.
                 callback();
-                previous += delta;
+                const id = setTimeout(tick, interval);
+                this.cancel = () => clearTimeout(id);
             }
-            self.id = requestAnimationFrame(ticker);
-        }
-        self.id = requestAnimationFrame(ticker);
+        };
+
+        tick();
     }
- 
+
     clear(): void {
-        if (this.id !== null) {
-            cancelAnimationFrame(this.id);
-            this.id = null;
+        if (this.cancel !== null) {
+            this.cancel();
+            this.cancel = null;
         }
     }
 }
@@ -50,50 +50,51 @@ export class AnimationTicker {
 // timer
 //----------------------------------------------------------------------------------------------------
 
-export interface TimerOptions {
-    timeout?: Function,
-    transition?: Function,
-    duration: number, 
-    easing?: string
+/**
+ * Maps a linear progress value in [0, 1] to an eased value, anchored at 0 and 1.
+ */
+function ease(p: number, easing?: string): number {
+    switch (easing) {
+        case 'ease-out':
+            return Math.pow(1.0 - Math.pow(1.0 - p, 2.0), 0.5);
+        case 'ease-in':
+            return Math.pow(1.0 - Math.pow(1.0 - p, 0.5), 2.0);
+        case 'ease':
+            return ((s) => s * s * (3 - 2 * s))(p ** 0.7);
+        case 'ease-in-out':
+            return p * p * (3 - 2 * p);
+        default:
+            return p;
+    }
 }
 
 export class Timer {
-    private options: TimerOptions;
+    private id: number | null = null;
+    private time: { start: number, processed: number } = { start: 0.0, processed: 0.0 };
+    private request: boolean = true;
+    private visibilityListener: () => void;
+    private ticker: Ticker;
 
-    private id: number | null;
+    constructor(
+        private timeout: Function | null,
+        private transition: Function | null,
+        private duration: number,
+        private easing?: string,
+    ) {
+        this.ticker = new Ticker(() => this.animation());
 
-    private time: { start: number, processed: number };
-    private request: boolean;
-    private visibility: Visibility;
-    private ticker: AnimationTicker;
+        this.visibilityListener = () => document.hidden === false ? this._start() : this._stop();
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', this.visibilityListener);
+        }
 
-    constructor(options: TimerOptions) {
-        this.options = options;
-
-        this.id = null;
-        this.time = { start: 0.0, processed: 0.0 };
-
-        this.request = true;
-        this.ticker = new AnimationTicker(() => this.animation());
-  
-        this.visibility = new Visibility((visible: boolean) => visible ? this._start() : this._stop());
-
-        this.options.transition?.(0.0);
+        this.transition?.(0.0);
         this.start();
     }
-    
+
     private animation(): void {
-        let p = Math.min(this.elapsed() / this.options.duration, 1.0);
-        if (this.options.easing === 'ease-out') {
-            p = Math.pow((1.0 - Math.pow((1.0 - p), 2.0)), 0.5);
-        } else if (this.options.easing === 'ease-in') {
-            p = Math.pow((1.0 - Math.pow((1.0 - p), 0.5)), 2.0);
-        } else if (this.options.easing === 'ease' || this.options.easing === 'ease-in-out') {
-            const bias = (this.options.easing === 'ease') ? 0.7 : 1.0;
-            const s = p ** bias;
-            p = s * s * (3 - 2 * s);
-        }
-        this.options.transition?.(p);
+        const p = Math.min(this.elapsed() / this.duration, 1.0);
+        this.transition?.(ease(p, this.easing));
     }
 
     public clear(): void {
@@ -101,7 +102,9 @@ export class Timer {
             clearTimeout(this.id);
             this.id = null;
         }
-        this.visibility.clear();
+        if (typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', this.visibilityListener);
+        }
         this.ticker.clear();
     }
 
@@ -125,11 +128,11 @@ export class Timer {
                 this.id = null;
                 this.time = { start: 0.0, processed: 0.0 };
 
-                this.options.transition?.(1.0);
-                this.options.timeout?.();
+                this.transition?.(1.0);
+                this.timeout?.();
 
                 this.clear();
-            }, this.options.duration - this.time.processed) as unknown as number; 
+            }, this.duration - this.time.processed) as unknown as number;
             this.time.start = Date.now();
         }
     }

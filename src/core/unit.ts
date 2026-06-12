@@ -1,59 +1,102 @@
+//----------------------------------------------------------------------------------------------------
+// Unit — the lifecycle, ownership, and scoping primitive of xnew
+//
+// Unit は DOM 要素・Component・子 unit・リスナ・promise を 1 つに束ね、状態機械
+// invoked → initialized → started ↔ stopped → finalizing → finalized で駆動する。
+// 遅延コールバック（DOM イベント・timer・promise 継続）は Snapshot 経由で Unit.scope に再入し、
+// 非同期を跨いでも元のコンポーネント内にいるかのように実行される。
+//
+// - Unit        : core class — lifecycle, listeners, contexts, emit
+// - UnitPromise : 元の Unit スコープで再開する promise ラッパー
+// - UnitTimer   : xnew.timeout / interval / transition が使うキュー式タイマー
+//----------------------------------------------------------------------------------------------------
+
 import { MapSet, MapMap } from './map';
-import { AnimationTicker, Timer, TimerOptions } from './time';
-import { Eventor } from './event';
+import { Ticker, Timer } from './time';
+import { Eventor, isDomElement, DomElement } from './dom';
 
 //----------------------------------------------------------------------------------------------------
 // definitions
 //----------------------------------------------------------------------------------------------------
 
-export type UnitElement = HTMLElement | SVGElement;
-
-export type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
-
 interface Context { previous: Context | null; key?: any; value?: any; }
 
-interface Snapshot { unit: Unit; context: Context; element: UnitElement; Component: Function | null; }
+interface Snapshot { unit: Unit; context: Context; element: DomElement; Component: Function | null; }
 
-const SYSTEM_EVENTS: string[] = ['start', 'update', 'render', 'stop', 'finalize'] as const;
+// lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
+export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
+
+// engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
+export type Mode = 'server' | 'client' | null;
+
+// Unit 構築時の補助パラメータ。
+// - mode  : サブツリールートのエンジンモード（親 mode が null のときの fallback）
+// - setup : 構築直後・body 実行前に呼ばれるフック（sync.ts が boot 登録 / state プリシードに使う）
+export interface UnitOptions {
+    mode?: Mode;
+    setup?: (unit: Unit) => void;
+}
+
+// Component 関数の型。戻り値 defines は xnew(...) の戻り値に合成される(Unit & A)。
+export type ComponentFn<P extends object = any, A extends object = {}> =
+    (unit: Unit, props: P) => A | void;
+
+// Component の defines 型を取り出す（void は {} に落とす）。
+export type DefinesOf<C> =
+    C extends (...args: any[]) => infer R
+        ? ([R] extends [void] ? {} : Exclude<R, void | undefined>)
+        : {};
+
+// Component の props 型を取り出す（無い場合は {}）。
+export type PropsOf<C> =
+    C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
+
+const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'] as const;
+type SystemEvent = typeof SYSTEM_EVENTS[number];
+function isSystemEvent(type: string): type is SystemEvent {
+    return (SYSTEM_EVENTS as readonly string[]).includes(type);
+}
 
 //----------------------------------------------------------------------------------------------------
 // unit
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
-    [key: string]: any;
 
     public _: {
         parent: Unit | null;
         children: Unit[];
 
-        state: string;
+        status: Status;
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
-        results: Record<string, any>;
         defines: Record<string, any>;
-        systems: Record<string, { listener: Function, execute: Function }[]>;
+        systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
 
-        currentElement: UnitElement;
+        currentElement: DomElement;
         currentContext: Context;
         currentComponent: Function | null;
 
         afterSnapshot: Snapshot | null;
 
-        nestElements: { element: UnitElement, owned: boolean }[];
+        nestElements: { element: DomElement, owned: boolean }[];
         Components: Function[];
-        listeners: MapMap<string, Function, { element: UnitElement, Component: Function | null, execute: Function }>;
+        listeners: MapMap<string, Function, { element: DomElement, Component: Function | null, execute: Function }>;
         eventor: Eventor;
+
+        key: any;   // reserved prop for find(key) (global unique assumed)
+        mode: Mode;   // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)。親から継承
     };
 
-    constructor(parent: Unit | null, ...args: UnitArgs) {
-        let target: UnitElement | string | null;
+    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
+        let target: DomElement | string | null;
         let Component: Function | string | number | undefined;
         let props: Object | undefined;
 
-        if (args[0] instanceof HTMLElement || args[0] instanceof SVGElement || typeof args[0] === 'string') {
-            target = args[0] as UnitElement | string;
+        // parse arguments: (target,) Component, props 
+        if (isDomElement(args[0]) || typeof args[0] === 'string') {
+            target = args[0] as DomElement | string;
             Component = args[1] as Function | string | number | undefined;
             props = args[2] as Object | undefined;
         } else {
@@ -67,13 +110,15 @@ export class Unit {
 
         parent?._.children.push(this);
 
-        let baseElement: UnitElement;
-        if (target instanceof HTMLElement || target instanceof SVGElement) {
+        let baseElement: DomElement;
+        if (isDomElement(target)) {
             baseElement = target;
         } else if (parent !== null) {
             baseElement = parent._.currentElement;
+        } else if (globalThis.document?.body) {
+            baseElement = globalThis.document.body;
         } else {
-            baseElement = document?.body ? document.body : null as unknown as UnitElement;
+            baseElement = null as unknown as DomElement;
         }
 
         let baseComponent: Function;
@@ -87,9 +132,11 @@ export class Unit {
 
         const baseContext = parent?._.currentContext ?? { previous: null };
 
+        const key = (props as any)?.key ?? null;
+     
         this._ = {
             parent,
-            state: 'invoked',
+            status: 'invoked',
             tostart: true,
             protected: false,
             currentElement: baseElement,
@@ -99,24 +146,27 @@ export class Unit {
             children: [],
             nestElements: [],
             promises: [],
-            results: {},
             Components: [],
             listeners: new MapMap(),
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
+            key,
+            mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
         };
 
-        // nest html element
-        if (typeof target === 'string') {
-            Unit.nest(this, target); 
+        if (options?.setup !== undefined) {
+            options.setup(this);
         }
 
-        // setup Component
-        Unit.extend(this, baseComponent, props); 
+        if (typeof target === 'string') {
+            Unit.nest(this, target);
+        }
 
-        if (this._.state === 'invoked') {
-            this._.state = 'initialized';
+        Unit.extend(this, baseComponent, props);
+
+        if (this._.status === 'invoked') {
+            this._.status = 'initialized';
         }
         this._.afterSnapshot = Unit.snapshot(this);
         Unit.currentUnit = backup;
@@ -126,8 +176,14 @@ export class Unit {
         return this._.parent;
     }
     
-    public get element(): UnitElement {
+    public get element(): DomElement {
         return this._.currentElement;
+    }
+
+    // この unit に登録された全 promise を集約した UnitPromise。
+    // .then は keyed results で resolve / どれか reject で reject するので .catch・.finally もこれ 1 つで足りる。
+    public get promise(): UnitPromise {
+        return UnitPromise.results(this._.promises);
     }
 
     public start(): void {
@@ -145,14 +201,14 @@ export class Unit {
     }
 
     static finalize(unit: Unit): void {
-        if (unit._.state !== 'finalized' && unit._.state !== 'finalizing') {
-            unit._.state = 'finalizing';
+        if (unit._.status !== 'finalized' && unit._.status !== 'finalizing') {
+            unit._.status = 'finalizing';
 
-            unit._.children.reverse().forEach((child: Unit) => child.finalize());
-            unit._.systems.finalize.reverse().forEach(({ execute }) => execute());
+            [...unit._.children].reverse().forEach((child: Unit) => child.finalize());
+            [...unit._.systems.finalize].reverse().forEach(({ execute }) => execute());
             unit.off();
 
-            unit._.nestElements.reverse().filter(item => item.owned).forEach(item => item.element.remove());
+            [...unit._.nestElements].reverse().filter(item => item.owned).forEach(item => item.element.remove());
             unit._.Components.forEach((Component) => Unit.component2units.delete(Component, unit));
             
             // remove contexts
@@ -176,7 +232,7 @@ export class Unit {
                 delete unit[key as keyof Unit];
             });
             unit._.defines = {};
-            unit._.state = 'finalized';
+            unit._.status = 'finalized';
 
             if (unit._.parent) {
                 unit._.parent._.children = unit._.parent._.children.filter((u: Unit) => u !== unit);
@@ -184,8 +240,8 @@ export class Unit {
         }
     }
 
-    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement {
-        if (target instanceof HTMLElement || target instanceof SVGElement) {
+    static nest(unit: Unit, target: DomElement | string, textContent?: string | number): DomElement {
+        if (isDomElement(target)) {
             unit._.nestElements.push({ element: target, owned: false });
             unit._.currentElement = target;
             return target;
@@ -193,7 +249,7 @@ export class Unit {
             const match = target.match(/<((\w+)[^>]*?)\/?>/);
             if (match !== null) {
                 unit._.currentElement.insertAdjacentHTML('beforeend', `<${match[1]}></${match[2]}>`);
-                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as UnitElement;
+                const element = unit._.currentElement.children[unit._.currentElement.children.length - 1] as DomElement;
                 unit._.currentElement = element;
                 if (textContent !== undefined) {
                     element.textContent = textContent.toString();
@@ -206,8 +262,6 @@ export class Unit {
         }
     }
 
-    static currentComponent: Function = () => {};
-   
     static extend(unit: Unit, Component: Function, props?: Object): { [key: string]: any } {
         const backupComponent = unit._.currentComponent;
         unit._.currentComponent = Component;
@@ -225,7 +279,7 @@ export class Unit {
         unit._.Components.push(Component);
 
         Object.keys(defines).forEach((key) => {
-            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
+            if ((unit as any)[key] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
@@ -251,53 +305,52 @@ export class Unit {
 
     static start(unit: Unit): void {
         if (unit._.tostart === false) return;
-        if (unit._.state === 'initialized' || unit._.state === 'stopped') {
-            unit._.state = 'started';
+        if (unit._.status === 'initialized' || unit._.status === 'stopped') {
+            unit._.status = 'started';
             unit._.children.forEach((child: Unit) => Unit.start(child));
             unit._.systems.start.forEach(({ execute }) => execute());
-        } else if (unit._.state === 'started') {
+        } else if (unit._.status === 'started') {
             unit._.children.forEach((child: Unit) => Unit.start(child));
         }
     }
 
     static stop(unit: Unit): void {
-        if (unit._.state === 'started') {
-            unit._.state = 'stopped';
+        if (unit._.status === 'started') {
+            unit._.status = 'stopped';
             unit._.children.forEach((child: Unit) => Unit.stop(child));
             unit._.systems.stop.forEach(({ execute }) => execute());
         }
     }
 
     static update(unit: Unit): void {
-        if (unit._.state === 'started') {
+        if (unit._.status === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child));
             unit._.systems.update.forEach(({ execute }) => execute());
         }
     }
 
     static render(unit: Unit): void {
-        if (unit._.state === 'started' || unit._.state === 'started' || unit._.state === 'stopped') {
+        if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child: Unit) => Unit.render(child));
             unit._.systems.render.forEach(({ execute }) => execute());
         }
     }
 
-    static rootUnit: Unit;
+    static engineRoot: Unit;
     static currentUnit: Unit;
-
     static reset(): void {
-        Unit.rootUnit?.finalize();
-        Unit.currentUnit = Unit.rootUnit = new Unit(null);
-        const ticker = new AnimationTicker(() => {
-            Unit.start(Unit.rootUnit);
-            Unit.update(Unit.rootUnit);
-            Unit.render(Unit.rootUnit);
+        Unit.engineRoot?.finalize();
+        Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
+        const ticker = new Ticker(() => {
+            Unit.start(Unit.engineRoot);
+            Unit.update(Unit.engineRoot);
+            Unit.render(Unit.engineRoot);
         });
-        Unit.rootUnit.on('finalize', () => ticker.clear());
+        Unit.engineRoot.on('finalize', () => ticker.clear());
     }
 
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any {
-        if (snapshot.unit._.state === 'finalized') {
+        if (snapshot.unit._.status === 'finalized') {
             return;
         } 
         const currentUnit = Unit.currentUnit;
@@ -308,8 +361,6 @@ export class Unit {
             snapshot.unit._.currentElement = snapshot.element;
             snapshot.unit._.currentComponent = snapshot.Component;
             return func(...args);
-        } catch (error) {
-            throw error;
         } finally {
             Unit.currentUnit = currentUnit;
             snapshot.unit._.currentContext = backup.context;
@@ -338,8 +389,35 @@ export class Unit {
 
     static component2units: MapSet<Function, Unit> = new MapSet();
 
-    static find(Component: Function): Unit[] {
-        return [...(Unit.component2units.get(Component) ?? [])];
+    // 祖先列（unit 自身は含まない）。
+    static ancestors(unit: Unit | null): Unit[] {
+        const ancestors: Unit[] = [];
+        for (let u = unit?._.parent ?? null; u !== null; u = u._.parent) ancestors.push(u);
+        return ancestors;
+    }
+
+    // from から遡って最初の protect 境界（無ければ undefined）。
+    static protectBoundary(from: Unit | null): Unit | undefined {
+        for (let u = from; u !== null; u = u._.parent) {
+            if (u._.protected === true) return u;
+        }
+        return undefined;
+    }
+
+    // boundary 内の対象が current（とその祖先列）から可視か。
+    static isVisible(boundary: Unit | undefined, current: Unit | null, ancestors: Unit[]): boolean {
+        return boundary === undefined || ancestors.includes(boundary) === true || current === boundary;
+    }
+
+    static find(Component: Function, key?: any): Unit[] {
+        const current = Unit.currentUnit;
+        const ancestors = Unit.ancestors(current);
+        return [...(Unit.component2units.get(Component) ?? [])].filter((unit) => {
+            if (key !== undefined && unit._.key !== key) {
+                return false;
+            }
+            return Unit.isVisible(Unit.protectBoundary(unit._.parent), current, ancestors);
+        });
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -365,20 +443,20 @@ export class Unit {
         const execute = (props: object) => {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         }
-        if (SYSTEM_EVENTS.includes(type)) {
+        if (isSystemEvent(type)) {
             unit._.systems[type].push({ listener, execute });
         }
         if (unit._.listeners.has(type, listener) === false) {
             unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
             Unit.type2units.add(type, unit);
-            if (/^[A-Za-z]/.test(type)) {
+            if (/^[A-Za-z]/.test(type) && unit.element !== null) {
                 unit._.eventor.add(unit.element, type, execute, options);
             }
         }
     }
 
     static off(unit: Unit, type: string, listener?: Function): void {
-        if (SYSTEM_EVENTS.includes(type)) {
+        if (isSystemEvent(type)) {
             unit._.systems[type] = unit._.systems[type].filter(({ listener: lis }) => listener ? lis !== listener : false);
         }
         (listener ? [listener] : [...unit._.listeners.keys(type)]).forEach((listener) => {
@@ -397,14 +475,9 @@ export class Unit {
     static emit(type: string, props: object = {}): void {
         const current = Unit.currentUnit;
         if (type[0] === '+') {
-            const ancestors: Unit[] = [];
-            for (let u = current._.parent; u !== null; u = u._.parent) ancestors.push(u);
+            const ancestors = Unit.ancestors(current);
             Unit.type2units.get(type)?.forEach((unit) => {
-                let find: Unit | undefined = undefined;
-                for (let u: Unit | null = unit; u !== null && find === undefined; u = u._.parent) {
-                    if (u._.protected === true) find = u;
-                }
-                if (find === undefined || ancestors.includes(find) === true || current === find) {
+                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
                     unit._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });
@@ -420,26 +493,40 @@ export class Unit {
 
 export class UnitPromise {
     private promise: Promise<any>;
-    constructor(promise: Promise<any>) { this.promise = promise; }
+    public key?: string;
+    constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
     public then(callback: Function): UnitPromise { return this.wrap('then', callback); }
     public catch(callback: Function): UnitPromise { return this.wrap('catch', callback); }
     public finally(callback: Function): UnitPromise { return this.wrap('finally', callback); }
-    
+
     public static all(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
     }
 
-    private wrap(key: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
+    // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
+    public static results(promises: UnitPromise[]): UnitPromise {
+        return new UnitPromise(
+            Promise.all(promises.map(p => p.promise)).then((values) => {
+                const out: Record<string, any> = {};
+                promises.forEach((p, i) => {
+                    if (p.key !== undefined) { out[p.key] = values[i]; }
+                });
+                return out;
+            })
+        );
+    }
+
+    private wrap(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = (this.promise[key] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
+        this.promise = (this.promise[method] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
 }
 
 export class UnitTimer {
     private unit: Unit | null = null;
-    private queue: Object[] = [];
+    private queue: Function[] = [];
 
     public clear() {
         this.queue = [];
@@ -448,53 +535,55 @@ export class UnitTimer {
     }
 
     public timeout(timeout: Function, duration: number = 0) {
-        return UnitTimer.execute(this, { timeout, duration }, 1)
+        return UnitTimer.execute(this, timeout, null, duration, undefined, 1);
     }
     public interval(timeout: Function, duration: number = 0, iterations: number = 0) {
-        return UnitTimer.execute(this, { timeout, duration }, iterations)
+        return UnitTimer.execute(this, timeout, null, duration, undefined, iterations);
     }
     public transition(transition: Function, duration: number = 0, easing?: string) {
-        return UnitTimer.execute(this, { transition, duration, easing }, 1)
+        return UnitTimer.execute(this, null, transition, duration, easing, 1);
     }
 
-    private static execute(timer: UnitTimer, options: TimerOptions, iterations: number) {
-        const props = { options, iterations, snapshot: Unit.snapshot(Unit.currentUnit) };
-        if (timer.unit === null || timer.unit._.state === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, props);
+    private static execute(timer: UnitTimer, timeout: Function | null, transition: Function | null, duration: number, easing: string | undefined, iterations: number) {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+
+        // タイマーのパラメータはクロージャで捕捉し、props では渡さない。
+        const Component = (unit: Unit) => {
+            let counter = 0;
+            let current = new Timer(onTimeout, onTransition, duration, easing);
+
+            function onTimeout() {
+                if (timeout) Unit.scope(snapshot, timeout);
+                if (iterations <= 0 || counter < iterations - 1) {
+                    current = new Timer(onTimeout, onTransition, duration, easing);
+                } else {
+                    unit.finalize();
+                }
+                counter++;
+            }
+            function onTransition(value: number) {
+                if (transition) Unit.scope(snapshot, transition, { value });
+            }
+
+            unit.on('finalize', () => current.clear());
+        };
+
+        if (timer.unit === null || timer.unit._.status === 'finalized') {
+            timer.unit = new Unit(null, Unit.currentUnit, Component);
         } else if (timer.queue.length === 0) {
-            timer.queue.push(props);
+            timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         } else {
-            timer.queue.push(props);  
+            timer.queue.push(Component);
         }
         return timer;
     }
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, UnitTimer.Component, timer.queue.shift());
+            timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
-    }
-
-    private static Component(unit: Unit, { options, iterations, snapshot }: { options: TimerOptions, iterations: number,snapshot: Snapshot }) {
-        let counter = 0;
-        let timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
-        
-        function timeout() {
-            if (options.timeout) Unit.scope(snapshot, options.timeout);
-            if (iterations <= 0 || counter < iterations - 1) {
-                timer = new Timer({ timeout, transition, duration: options.duration, easing: options.easing });
-            } else {
-                unit.finalize();
-            }
-            counter++;
-        }
-        function transition(value: number) {
-            if (options.transition) Unit.scope(snapshot, options.transition, { value });
-        }
-
-        unit.on('finalize', () => timer.clear());
     }
 }
 

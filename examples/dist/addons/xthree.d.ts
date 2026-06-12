@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 declare const _default: {
-    initialize({ canvas, camera }?: {
-        canvas?: HTMLCanvasElement | null;
+    initialize({ canvas, camera }: {
+        canvas: HTMLCanvasElement;
         camera?: THREE.Camera | null;
     }): void;
     nest(object: any): any;

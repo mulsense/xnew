@@ -58,13 +58,13 @@ function HtmlText(unit) {
 }
 
 function SVGText(unit) {
-  xnew.nest('<div class="absolute left-0 top-12">');
   xnew(xnew.basics.SVGText, {
+    className: 'absolute left-0 top-[10cqw]',
     text: 'This text is rendered by SVG',
     stroke: '#00FF00',
-    fontSize: 32
+    strokeWidth: '0.5cqw',
+    fontSize: '4cqw',
   });
-
 }
 
 function PixiText(unit) {

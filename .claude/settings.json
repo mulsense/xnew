@@ -10,5 +10,8 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }

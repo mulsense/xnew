@@ -24,7 +24,7 @@
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
     var xpixi = {
-        initialize({ canvas = null } = {}) {
+        initialize({ canvas }) {
             xnew.promise(xnew(Root, { canvas }));
         },
         nest(object) {

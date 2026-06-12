@@ -39,21 +39,21 @@
     }
 
     function Assets(unit) {
-      xnew.promise((resolve) => {
+      xnew.promise('data1', (resolve) => {
         xnew.timeout(() => resolve('Asset 1 loaded.'), 2000);
       }).then((text) => {
         xnew.context(Console).print(text);
-        xnew.output({ data1: 1 });
+        return 1;
       });
 
-      xnew.promise((resolve) => {
+      xnew.promise('data2', (resolve) => {
         xnew.timeout(() => resolve('Asset 2 loaded.'), 1000);
       }).then((text) => {
         xnew.context(Console).print(text);
-        xnew.output({ data2: 2 });
+        return 2;
       });
 
-      xnew.then((results) => {
+      unit.promise.then((results) => {
         xnew.context(Console).print('Assets Component Resolved.');
       });
     }
@@ -101,7 +101,7 @@
       xnew(Line, { x1: 300, y1: 175, x2: 300, y2: 195, arrow: true });
       xnew(Line, { x1: 120, y1: 175, x2: 120, y2: 286, arrow: true });
 
-      xnew(Node, { x: 230, y: 195, w: 140, h: 60, fill: '#f1f5f9', stroke: '#94a3b8', label: 'xnew.then()', color: '#334155', sub: '' });
+      xnew(Node, { x: 230, y: 195, w: 140, h: 60, fill: '#f1f5f9', stroke: '#94a3b8', label: 'unit.promise.then()', color: '#334155', sub: '' });
       xnew(Node, { x: 50, y: 286, w: 140, h: 60, fill: '#ede9fe', stroke: '#7c3aed', label: 'xnew.promise(assets)', color: '#4c1d95', sub: '.then() → show results' });
     }
 

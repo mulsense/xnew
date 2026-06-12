@@ -1,3 +1,13 @@
+//----------------------------------------------------------------------------------------------------
+// Aspect — fixed aspect-ratio container component
+//
+// Nests two flex / container-query wrappers so the component's element keeps the requested
+// aspect ratio inside any parent box, regardless of which axis is constraining. `fit: 'contain'`
+// shrinks to fit; `fit: 'cover'` grows to fill.
+//
+// - Aspect : component({ aspect, fit })
+//----------------------------------------------------------------------------------------------------
+
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 

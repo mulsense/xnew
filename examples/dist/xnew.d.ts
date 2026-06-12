@@ -20,31 +20,13 @@ declare class MapMap<Key1, Key2, Value> extends Map<Key1, Map<Key2, Value>> {
     delete(key1: Key1, key2: Key2): boolean;
 }
 
+type DomElement = HTMLElement | SVGElement;
 declare class Eventor {
     private map;
-    add(element: HTMLElement | SVGElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
+    add(element: DomElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     remove(type: string, listener: Function): void;
-    private element_basic;
-    private element_resize;
-    private element_change;
-    private element_input;
-    private element_click;
-    private element_click_outside;
-    private element_pointer;
-    private element_mouse;
-    private element_touch;
-    private element_pointer_outside;
-    private element_wheel;
-    private element_drag;
-    private window_basic;
-    private window_key;
-    private window_key_arrow;
-    private window_key_wasd;
-    private document_basic;
 }
 
-type UnitElement = HTMLElement | SVGElement;
-type UnitArgs = [Component?: Function | string, props?: Object] | [target: UnitElement | string, Component?: Function | string, props?: Object];
 interface Context {
     previous: Context | null;
     key?: any;
@@ -53,49 +35,60 @@ interface Context {
 interface Snapshot {
     unit: Unit;
     context: Context;
-    element: UnitElement;
+    element: DomElement;
     Component: Function | null;
 }
+type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
+type Mode = 'server' | 'client' | null;
+interface UnitOptions {
+    mode?: Mode;
+    setup?: (unit: Unit) => void;
+}
+type ComponentFn<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
+type DefinesOf<C> = C extends (...args: any[]) => infer R ? ([R] extends [void] ? {} : Exclude<R, void | undefined>) : {};
+type PropsOf<C> = C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
+declare const SYSTEM_EVENTS: readonly ["start", "update", "render", "stop", "finalize"];
+type SystemEvent = typeof SYSTEM_EVENTS[number];
 declare class Unit {
-    [key: string]: any;
     _: {
         parent: Unit | null;
         children: Unit[];
-        state: string;
+        status: Status;
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
-        results: Record<string, any>;
         defines: Record<string, any>;
-        systems: Record<string, {
+        systems: Record<SystemEvent, {
             listener: Function;
             execute: Function;
         }[]>;
-        currentElement: UnitElement;
+        currentElement: DomElement;
         currentContext: Context;
         currentComponent: Function | null;
         afterSnapshot: Snapshot | null;
         nestElements: {
-            element: UnitElement;
+            element: DomElement;
             owned: boolean;
         }[];
         Components: Function[];
         listeners: MapMap<string, Function, {
-            element: UnitElement;
+            element: DomElement;
             Component: Function | null;
             execute: Function;
         }>;
         eventor: Eventor;
+        key: any;
+        mode: Mode;
     };
-    constructor(parent: Unit | null, ...args: UnitArgs);
+    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
-    get element(): UnitElement;
+    get element(): DomElement;
+    get promise(): UnitPromise;
     start(): void;
     stop(): void;
     finalize(): void;
     static finalize(unit: Unit): void;
-    static nest(unit: Unit, target: UnitElement | string, textContent?: string | number): UnitElement;
-    static currentComponent: Function;
+    static nest(unit: Unit, target: DomElement | string, textContent?: string | number): DomElement;
     static extend(unit: Unit, Component: Function, props?: Object): {
         [key: string]: any;
     };
@@ -103,7 +96,7 @@ declare class Unit {
     static stop(unit: Unit): void;
     static update(unit: Unit): void;
     static render(unit: Unit): void;
-    static rootUnit: Unit;
+    static engineRoot: Unit;
     static currentUnit: Unit;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
@@ -112,7 +105,10 @@ declare class Unit {
     static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void;
     static getContext(unit: Unit, key: any): any;
     static component2units: MapSet<Function, Unit>;
-    static find(Component: Function): Unit[];
+    static ancestors(unit: Unit | null): Unit[];
+    static protectBoundary(from: Unit | null): Unit | undefined;
+    static isVisible(boundary: Unit | undefined, current: Unit | null, ancestors: Unit[]): boolean;
+    static find(Component: Function, key?: any): Unit[];
     static type2units: MapSet<string, Unit>;
     on(type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     off(type?: string, listener?: Function): void;
@@ -122,11 +118,13 @@ declare class Unit {
 }
 declare class UnitPromise {
     private promise;
-    constructor(promise: Promise<any>);
+    key?: string;
+    constructor(promise: Promise<any>, key?: string);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
     static all(promises: UnitPromise[]): UnitPromise;
+    static results(promises: UnitPromise[]): UnitPromise;
     private wrap;
 }
 declare class UnitTimer {
@@ -138,7 +136,53 @@ declare class UnitTimer {
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     private static execute;
     private static next;
-    private static Component;
+}
+
+interface SyncNode {
+    id: number;
+    name: string;
+    parentId: number | null;
+    state: Record<string, any>;
+}
+type StateTree = SyncNode[];
+declare function captureStateTree(root: Unit): StateTree;
+declare function applyStateTree(root: Unit, tree: StateTree): void;
+interface ClientSocket {
+    id: string;
+    emit(event: string, payload?: any): void;
+    on(event: string, handler: (payload: any) => void): void;
+    off(event: string, handler: (payload: any) => void): void;
+    onAny(handler: (event: string, payload: any) => void): void;
+    disconnect(): void;
+}
+interface ServerSocket {
+    on(event: string, handler: (clientId: string, payload: any) => void): void;
+    off(event: string, handler: (clientId: string, payload: any) => void): void;
+    emit(event: string, payload?: any): void;
+    to(clientId: string): {
+        emit(event: string, payload?: any): void;
+    };
+    onAny(handler: (event: string, clientId: string, payload: any) => void): void;
+}
+type RootSocket = ClientSocket | ServerSocket;
+interface ClientInfo {
+    id: string | undefined;
+    name: string | undefined;
+}
+interface BootOptions {
+    mode: 'server' | 'client';
+    socket?: any;
+    room?: string;
+    name?: string;
+}
+
+interface XnewBase {
+    <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    <C extends ComponentFn<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
+    (target: DomElement | string, content?: string | number): Unit;
+    (content: string | number): Unit;
+    (parent: Unit | null, ...args: any[]): Unit;
+    (): Unit;
 }
 
 interface TransitionOptions {
@@ -193,7 +237,7 @@ declare function Screen(unit: Unit, { width, height, fit }?: {
     height?: number;
     fit?: 'contain' | 'cover';
 }): {
-    readonly canvas: UnitElement;
+    readonly canvas: DomElement;
 };
 
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }?: {
@@ -237,23 +281,66 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
 };
 
 declare function Scene(unit: Unit): {
-    moveTo(Component: Function, props?: any): void;
-    nextScene(Component: Function, props?: any): void;
-    append(Component: Function, props?: any): void;
+    change(Component: Function, props?: any): void;
+    add(Component: Function, props?: any): void;
+};
+
+declare function Room(unit: Unit, { mode, socket, room, name, component }: Pick<BootOptions, 'mode' | 'socket' | 'room' | 'name'> & {
+    component: Function;
+}): {
+    readonly client: Unit;
+};
+
+declare function Selectable(unit: Unit, { selected }?: {
+    selected?: boolean;
+}): {
+    readonly selected: boolean;
+    select(): void;
+    deselect(): void;
 };
 
 declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
 
-declare class XImage {
+declare class ImageData {
     canvas: HTMLCanvasElement;
     constructor(canvas: HTMLCanvasElement);
     constructor(width: number, height: number);
-    crop(x: number, y: number, width: number, height: number): XImage;
+    crop(x: number, y: number, width: number, height: number): ImageData;
     download(filename: string): void;
 }
 
+declare class AudioTrack {
+    private buffer?;
+    private source;
+    private amp;
+    private fade;
+    private startedAt;
+    private pausedOffsetMs;
+    private loop;
+    promise: Promise<void>;
+    constructor(path: string);
+    get isPlaying(): boolean;
+    get isLoaded(): boolean;
+    set volume(value: number);
+    get volume(): number;
+    play({ offset, fade, loop }?: {
+        offset?: number;
+        fade?: number;
+        loop?: boolean;
+    }): void;
+    pause({ fade }?: {
+        fade?: number;
+    }): void;
+    stop({ fade }?: {
+        fade?: number;
+    }): void;
+    clear(): void;
+    private forceStop;
+    private startSource;
+    private stopSource;
+}
 type SynthesizerOptions = {
     oscillator: OscillatorOptions;
     amp: AmpOptions;
@@ -297,30 +384,40 @@ declare class Synthesizer {
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
+    type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
+    type Mode = Mode;
+    type Status = Status;
+    namespace audio {
+        type AudioTrack = InstanceType<typeof AudioTrack>;
+    }
 }
-declare const xnew: ((...args: UnitArgs) => Unit) & {
-    nest(target: UnitElement | string): HTMLElement | SVGElement;
-    extend(Component: Function, props?: Object): {
-        [key: string]: any;
-    };
-    append(parent: Unit | null, ...args: UnitArgs): void;
+declare const xnew: XnewBase & {
+    nest(target: DomElement | string): HTMLElement | SVGElement;
+    extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C>;
     context(key: any): any;
-    promise(promise: Function | Promise<any> | Unit): UnitPromise;
-    then(callback: Function): UnitPromise;
-    catch(callback: Function): UnitPromise;
-    finally(callback: Function): UnitPromise;
-    resolvers(): {
-        resolve(): void;
-        reject(): void;
+    promise: {
+        (): {
+            resolve: (value?: unknown) => void;
+            reject: (reason?: unknown) => void;
+        };
+        (key: string): {
+            resolve: (value?: unknown) => void;
+            reject: (reason?: unknown) => void;
+        };
+        (promise: Function | Promise<any> | Unit): UnitPromise;
+        (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
     };
-    output(object?: Record<string, any>): void;
     scope(callback: any): any;
-    find(Component: Function): Unit[];
+    find(Component: Function, opts?: {
+        key?: any;
+    }): Unit[];
     emit(type: string, ...args: any[]): void;
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
+    server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
+    client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
 } & {
     basics: {
         SVG: typeof SVG;
@@ -333,16 +430,30 @@ declare const xnew: ((...args: UnitArgs) => Unit) & {
         Accordion: typeof Accordion;
         Popup: typeof Popup;
         Scene: typeof Scene;
+        Room: typeof Room;
+        Selectable: typeof Selectable;
         VolumeController: typeof VolumeController;
     };
     audio: {
+        AudioTrack: typeof AudioTrack;
         load(path: string): UnitPromise;
         synthesizer(props: SynthesizerOptions): Synthesizer;
         volume: number;
     };
     image: {
-        from(canvas: HTMLCanvasElement): XImage;
+        from(canvas: HTMLCanvasElement): ImageData;
+    };
+    sync: {
+        state(initial?: Record<string, any>): Record<string, any>;
+        register(components: Record<string, Function>): void;
+        capture(root: Unit): ReturnType<typeof captureStateTree>;
+        apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
+        readonly client: ClientInfo;
+        readonly clients: ReadonlyArray<ClientInfo>;
+        emit(event: string, payload?: Record<string, any>): void;
+        boot(opts: BootOptions, ...args: any[]): Unit;
     };
 };
 
 export { xnew as default };
+export type { BootOptions, ClientInfo, ClientSocket, RootSocket, ServerSocket };
