@@ -68,10 +68,15 @@ export const xnew = Object.assign(
             return Unit.getContext(Unit.currentUnit, key);
         },
             
-        /** Registers a promise to the current unit。第1引数が string ならキー。promise を渡さなければ deferred（{ resolve, reject } を返す）。 */
+        /** Registers a promise to the current unit。第1引数が string ならキー。promise を渡さなければ deferred（{ resolve, reject }）。2 引数で promise が undefined は誤用として throw。 */
         promise: (function (keyOrPromise?: any, maybePromise?: any): any {
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
             const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+            // 2 引数で呼ばれたのに promise が undefined → 登録のつもりで promise を渡し忘れた誤用。
+            // deferred は xnew.promise() / xnew.promise(key)（1 引数以下）でのみ成立させる。
+            if (arguments.length >= 2 && promise === undefined) {
+                throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
+            }
             if (promise === undefined) {
                 let settled = false;
                 let resolve!: (value?: unknown) => void;

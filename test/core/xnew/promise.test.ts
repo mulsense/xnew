@@ -179,6 +179,21 @@ describe('xnew promise helpers', () => {
 
             expect(done).toHaveBeenCalledWith({});
         });
+
+        it('rejects via reject() and triggers xnew.catch', async () => {
+            const caught = jest.fn();
+            let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            xnew(() => {
+                defer = xnew.promise();
+                xnew.catch(caught);
+            });
+
+            defer.reject('boom');
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(caught).toHaveBeenCalledTimes(1);
+            expect(caught).toHaveBeenCalledWith('boom');
+        });
     });
 
     describe('keyed xnew.promise', () => {
