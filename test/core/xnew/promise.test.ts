@@ -194,6 +194,16 @@ describe('xnew promise helpers', () => {
             expect(caught).toHaveBeenCalledTimes(1);
             expect(caught).toHaveBeenCalledWith('boom');
         });
+
+        it('throws when called with two arguments but the promise is undefined (runtime misuse)', () => {
+            // The overloads reject this at compile time; cast to exercise the runtime guard
+            // for dynamic callers whose promise variable is undefined at runtime.
+            expect(() => {
+                xnew(() => {
+                    (xnew.promise as (key: string, promise: unknown) => unknown)('key', undefined);
+                });
+            }).toThrow();
+        });
     });
 
     describe('keyed xnew.promise', () => {
