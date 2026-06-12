@@ -3,6 +3,7 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
+import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -10,7 +11,10 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-const CHARACTER_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
+// id: 0=zundamon 1=kiritan 2=zunko 3=itako（ずんだ因子＝敵）
+const ENEMY_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
+// 自機は中国うさぎ（体内の免疫システム）。後ろ向きに表示する。
+const PLAYER_FILE = 'usagi.vrm';
 
 xnew(document.querySelector('#main'), Main);
 
@@ -25,30 +29,39 @@ function Main(unit) {
 
 function Contents(unit) {
   const assets = xnew(BakedCharacters);
-
   xnew.promise(assets).then(() => {
-    xnew(GameScene);
+    xnew(TitleScene);
   });
 }
 
+// ---- Character baking (VRM -> AnimatedSprite textures) ----
+
 function BakedCharacters(_unit) {
-  const texturesList = new Array(CHARACTER_FILES.length).fill(null);
+  const texturesList = new Array(ENEMY_FILES.length).fill(null);
+  let playerTextures = null;
+
+  const total = ENEMY_FILES.length + 1;
   let doneCount = 0;
   const { resolve } = xnew.promise();
 
-  for (let i = 0; i < CHARACTER_FILES.length; i++) {
-    const name = CHARACTER_FILES[i];
-    xnew.promise(xnew(Baking, { url: `../../assets/${name}` })).then((value) => {
+  for (let i = 0; i < ENEMY_FILES.length; i++) {
+    xnew.promise(xnew(Baking, { url: `../../assets/${ENEMY_FILES[i]}`, spin: true })).then((value) => {
       texturesList[i] = value.textures;
-      doneCount++;
-      if (doneCount === CHARACTER_FILES.length) resolve();
+      if (++doneCount === total) resolve();
     });
   }
+  xnew.promise(xnew(Baking, { url: `../../assets/${PLAYER_FILE}`, spin: false })).then((value) => {
+    playerTextures = value.textures;
+    if (++doneCount === total) resolve();
+  });
 
-  return { get texturesList() { return texturesList; } };
+  return {
+    get texturesList() { return texturesList; },
+    get playerTextures() { return playerTextures; },
+  };
 }
 
-function Baking(unit, { url }) {
+function Baking(unit, { url, spin = true }) {
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
   xthree.camera.position.set(0, -0.1, 2.5);
@@ -64,10 +77,9 @@ function Baking(unit, { url }) {
   ssaoPass.kernelRadius = 0.15;     // サンプリング半径
   ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
   ssaoPass.maxDistance = 0.02;    // 最大距離
-  // ssaoPass.output = SSAOPass.OUTPUT.Depth;  // 診断用
   composer.addPass(ssaoPass);
   composer.addPass(new OutputPass());
-  
+
   xnew(() => {
     xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
   });
@@ -84,13 +96,19 @@ function Baking(unit, { url }) {
   unit.on('render', () => {
     if (model.vrm === null) return;
 
-    const BAKE_FRAMES = 600;
+    const BAKE_FRAMES = 60;
     const batch = 30; // Number of frames to bake per render
     for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
-      const t = i * (Math.PI / BAKE_FRAMES * 3);
+      const t = i * (Math.PI / BAKE_FRAMES * 0.3);
 
-      model.threeObject.rotation.y = t * 4 / 3;
-      model.threeObject.rotation.z = t * 2 / 3;
+      if (spin) {
+        model.threeObject.rotation.y = t * 4 / 3;
+        model.threeObject.rotation.z = t * 2 / 3;
+      } else {
+        model.threeObject.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
+        model.threeObject.rotation.y = Math.PI; // 後ろ向き固定（自機）
+        model.threeObject.rotation.z = 0;
+      }
       const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
       g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
       g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
@@ -105,7 +123,6 @@ function Baking(unit, { url }) {
       g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
       model.vrm.update(t);
 
-      // xthree.renderer.render(xthree.scene, xthree.camera);
       composer.render();
       textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
     }
@@ -136,26 +153,12 @@ function Model(_unit, { url }) {
   return { get vrm() { return vrm; } };
 }
 
+// ---- Scenes ----
+
 function TitleScene(unit) {
   xnew.extend(xnew.basics.Scene);
 
-  const tl = xnew.context(BakedCharacters).texturesList;
-
-  xnew(() => {
-    xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x111111));
-  });
-
-  for (let i = 0; i < tl.length; i++) {
-    const x = 55 + i * 100;
-    xnew(() => {
-      const sprite = xpixi.nest(new PIXI.AnimatedSprite(tl[i]));
-      sprite.position.set(x, 280);
-      sprite.anchor.set(0.5);
-      sprite.animationSpeed = 1;
-      sprite.scale.set(1.2);
-      sprite.play();
-    });
-  }
+  xnew(Background);
 
   xnew(TitleText);
   xnew(TouchMessage);
@@ -167,106 +170,183 @@ function GameScene(unit) {
 
   xnew(Background);
   xnew(Controller);
-  xnew(ScoreManager);
+  const scoreManager = xnew(ScoreManager);
+  xnew(WaveIndicator);
+  const waveManager = xnew(WaveManager);
+  xnew(ScoreGauge);
   xnew(Player);
 
-  // 敵スポーン（時間経過でより強い敵が登場）
+  unit.on('+gameover', () => {
+    unit.off('+gameover');
+    const score = scoreManager.score;
+    const wave = waveManager.wave;
+    const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
+    xnew(GameOverText);
+    xnew.timeout(() => unit.change(ResultScene, { image, score, wave }), 2000);
+  });
+}
+
+function ResultScene(unit, { image, score, wave }) {
+  xnew.extend(xnew.basics.Scene);
+
+  // popup
+  xnew.nest(`<div class="absolute inset-0 size-full">`);
+  xnew.transition(({ value }) => {
+    Object.assign(unit.element.style, { opacity: value, transform: `scale(${0.8 + value * 0.2})` });
+  }, 500, 'ease');
+
+  xnew(ResultBackground);
+  xnew(ResultImage, { image });
+  xnew(ResultDetail, { score, wave });
+  xnew(ResultFooter);
+}
+
+// ---- Wave system ----
+
+// wave1..4 のスコアしきい値（index = wave-1。wave N から N+1 へ進むしきい値は THRESHOLDS[N]）
+const WAVE_THRESHOLDS = [0, 400, 1000, 2000];
+
+function WaveManager(unit) {
+  let wave = 0;
+
+  function advance() {
+    wave++;
+    xnew.emit('+wave', { wave });
+    xnew.context(xnew.basics.Scene).add(WaveBanner, { wave });
+  }
+  advance(); // wave 1 スタート
+
   let tick = 0;
   const spawn = xnew.interval(() => {
+    // スコアしきい値で次の wave へ（wave4 到達後はエンドレス）
+    if (wave < 4 && xnew.context(ScoreManager).score >= WAVE_THRESHOLDS[wave]) {
+      advance();
+    }
     tick++;
-    xnew(Enemy, { id: 0 }); // 常に一番弱い敵は出す
-    if (tick % 2  === 0) xnew(Enemy, { id: 0 });
-    if (tick % 4  === 0) xnew(Enemy, { id: 1 });
-    if (tick % 10 === 0) xnew(Enemy, { id: 2 });
-    if (tick % 20 === 0) xnew(Enemy, { id: 3 });
+
+    const scene = xnew.context(xnew.basics.Scene);
+    scene.add(Enemy, { id: 0 }); // 一番弱い敵は常に出す
+    if (tick % 2 === 0) scene.add(Enemy, { id: 0 });
+    if (wave >= 2 && tick % 3 === 0) scene.add(Enemy, { id: 1 });
+    if (wave >= 3 && tick % 5 === 0) scene.add(Enemy, { id: 2 });
+    if (wave >= 4 && tick % 8 === 0) scene.add(Enemy, { id: 3 });
   }, 200);
 
-  unit.on('+gameover', () => {
-    spawn.clear();
-    xnew(GameOverText);
-    xnew.timeout(() => {
-      unit.on('keydown pointerdown', () => unit.change(TitleScene));
-    }, 1000);
+  unit.on('+gameover', () => spawn.clear());
+
+  return { get wave() { return wave; } };
+}
+
+function WaveBanner(unit, { wave }) {
+  xnew.nest('<div class="absolute w-full top-[38cqw] text-center text-cyan-300 font-bold">');
+  xnew(xnew.basics.SVGText, { text: `Wave ${wave}`, fontSize: '14cqw', stroke: '#003344', strokeWidth: '0.3cqw', className: 'inline-block' });
+  xnew.transition(({ value }) => {
+    unit.element.style.opacity = Math.sin(value * Math.PI);
+  }, 1400);
+  xnew.timeout(() => unit.finalize(), 1400);
+}
+
+function WaveIndicator(unit) {
+  xnew.nest('<div class="absolute top-[1cqw] left-[2cqw] text-left text-cyan-400 font-bold">');
+  const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#003344', strokeWidth: '0.2cqw', className: 'inline-block' });
+  unit.on('+wave', ({ wave }) => text.element.textContent = `Wave ${wave}`);
+}
+
+// 次の wave までのスコア進捗ゲージ（wave が変わると範囲が変わり自然にリセット）
+function ScoreGauge(unit) {
+  xnew.nest('<div class="absolute top-[2cqw] left-1/2 -translate-x-1/2 w-[40cqw] h-[2.2cqw] rounded-full bg-black/40 border-[0.3cqw] border-white/50 overflow-hidden">');
+  const fill = xnew('<div class="h-full rounded-full bg-cyan-400" style="width: 0%;">');
+
+  let shown = 0;
+  unit.on('update', () => {
+    const score = xnew.context(ScoreManager).score;
+    const wave = xnew.context(WaveManager).wave;
+
+    let target;
+    if (wave >= WAVE_THRESHOLDS.length) {
+      target = 1; // 最終 wave 以降（エンドレス）は満タン表示
+    } else {
+      const start = WAVE_THRESHOLDS[wave - 1];
+      const next = WAVE_THRESHOLDS[wave];
+      target = Math.max(0, Math.min(1, (score - start) / (next - start)));
+    }
+
+    shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
+    fill.element.style.width = `${shown * 100}%`;
   });
 }
 
 // ---- Game Components ----
 
+// 王道STG背景: 深い赤紫ベース + 中央グロー/ビネット + 浮遊粒子（パララックス） + 薄い鼓動
 function Background(_unit) {
-  // 暗い赤紫の背景（体内感）
-  xnew(() => {
-    xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x120308));
-  });
-  xnew(BloodVessels);
-  for (let i = 0; i < 25; i++) xnew(BloodCell);
-  for (let i = 0; i < 60; i++) xnew(BodyParticle);
-  xnew(PulseOverlay);
+  xnew(BackgroundBase);
+  for (let i = 0; i < 80; i++) xnew(Mote);
+  xnew(PulseGlow);
 }
 
-function BloodVessels(_unit) {
-  const g = xpixi.nest(new PIXI.Graphics());
-  const vessels = [
-    [0, 120, 200, 60, 600, 180, 800, 100],
-    [0, 420, 250, 490, 550, 370, 800, 460],
-    [90, 0, 130, 180, 60, 420, 50, 600],
-    [700, 0, 730, 200, 670, 380, 720, 600],
-  ];
-  for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
-    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0x5A0818, width: 20, alpha: 0.55 });
-  }
-  for (const [x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2] of vessels) {
-    g.moveTo(x1, y1).bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2).stroke({ color: 0xA02040, width: 7, alpha: 0.3 });
-  }
+function BackgroundBase(_unit) {
+  const container = xpixi.nest(new PIXI.Container());
+
+  // 深い赤紫のベタ塗り
+  container.addChild(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x140309));
+
+  // Canvas2D の放射グラデで「中央グロー + 周辺減光」を一枚のテクスチャに
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 600;
+  const ctx = canvas.getContext('2d');
+
+  const glow = ctx.createRadialGradient(400, 300, 30, 400, 320, 470);
+  glow.addColorStop(0.0, 'rgba(130, 26, 50, 0.55)'); // 中央の暖かいグロー
+  glow.addColorStop(0.55, 'rgba(70, 12, 30, 0.25)');
+  glow.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 800, 600);
+
+  const vignette = ctx.createRadialGradient(400, 300, 210, 400, 300, 540);
+  vignette.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+  vignette.addColorStop(1.0, 'rgba(0, 0, 0, 0.6)'); // 周辺減光で視線を中央へ
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, 800, 600);
+
+  container.addChild(new PIXI.Sprite(PIXI.Texture.from(canvas)));
 }
 
-function BloodCell(unit) {
+// 奥行きのある浮遊粒子。下方向ドリフトで前進感、奥ほど小さく遅く暗い。
+function Mote(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(Math.random() * 800, Math.random() * 600);
-  const rx = 9 + Math.random() * 5;
-  const ry = rx * 0.55;
-  const g = new PIXI.Graphics();
-  g.ellipse(0, 0, rx, ry).fill({ color: 0xCC2035, alpha: 0.75 });
-  g.ellipse(0, 0, rx * 0.5, ry * 0.5).fill({ color: 0x880A1A, alpha: 0.6 });
-  object.addChild(g);
-  const speed = 0.25 + Math.random() * 0.45;
-  const angle = Math.random() * Math.PI * 2;
-  const vx = Math.cos(angle) * speed;
-  const vy = Math.sin(angle) * speed * 0.5 + 0.12;
+
+  const depth = Math.random(); // 0:奥 〜 1:手前
+  const size = 1 + depth * 4;
+  const baseAlpha = 0.08 + depth * 0.22;
+  const color = [0xFF6E8A, 0xFFA7B6, 0xE8506A, 0xFFC0CB][Math.floor(Math.random() * 4)];
+  object.addChild(new PIXI.Graphics().circle(0, 0, size).fill(color));
+
+  const vy = 0.2 + depth * 0.9;
+  const vx = (Math.random() - 0.5) * 0.3;
+  let phase = Math.random() * Math.PI * 2;
+
   unit.on('update', () => {
     object.x += vx;
     object.y += vy;
-    object.rotation += 0.003;
-    if (object.x < -20) object.x = 820;
-    if (object.x > 820) object.x = -20;
-    if (object.y > 620) object.position.set(Math.random() * 800, -20);
-  });
-}
+    phase += 0.03;
+    object.alpha = baseAlpha * (0.6 + 0.4 * Math.sin(phase)); // またたき
 
-function BodyParticle(unit) {
-  const object = xpixi.nest(new PIXI.Container());
-  object.position.set(Math.random() * 800, Math.random() * 600);
-  const size = 1.5 + Math.random() * 2.5;
-  const colors = [0xFF6688, 0xFF8855, 0xDD3355, 0xFF99AA, 0xCC2244];
-  const color = colors[Math.floor(Math.random() * colors.length)];
-  object.addChild(new PIXI.Graphics().circle(0, 0, size).fill({ color, alpha: 0.5 }));
-  const speed = 0.2 + Math.random() * 0.7;
-  const vx = (Math.random() - 0.5) * speed * 0.5;
-  const vy = speed * 0.6;
-  unit.on('update', () => {
-    object.x += vx;
-    object.y += vy;
-    if (object.y > 610) object.position.set(Math.random() * 800, -10);
+    if (object.y > 610) { object.y = -10; object.x = Math.random() * 800; }
     if (object.x < -10) object.x = 810;
     if (object.x > 810) object.x = -10;
   });
 }
 
-function PulseOverlay(unit) {
-  const g = xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0xFF1133));
+// ごく薄い鼓動グロー（体内感を残す）
+function PulseGlow(unit) {
+  const g = xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0xFF1733));
   let tick = 0;
   unit.on('update', () => {
     tick++;
-    g.alpha = (Math.max(0, Math.sin(tick * 0.06)) ** 6) * 0.1;
+    g.alpha = (Math.max(0, Math.sin(tick * 0.05)) ** 8) * 0.06;
   });
 }
 
@@ -287,42 +367,54 @@ function Controller(unit) {
 }
 
 function ScoreManager(unit) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-red-600 font-bold">');
-  const text = xnew(StrokeText, { text: 'score 0' });
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] text-right text-red-600 font-bold">');
+  const text = xnew(xnew.basics.SVGText, { text: 'score 0', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let sum = 0;
   return {
+    get score() { return sum; },
     add(score) {
       sum += score;
-      text.element.textContent = `score ${sum += score}`;
+      text.element.textContent = `score ${sum}`;
     }
-  }
+  };
 }
 
-function GameOverText(_unit) {
-  const object = xpixi.nest(new PIXI.Text({ text: 'game over', style: { fontSize: 48, fill: 0xFF4444 } }));
-  object.position.set(400, 300);
-  object.anchor.set(0.5);
+function GameOverText(unit) {
+  xnew.nest('<div class="absolute w-full text-center text-red-400 font-bold">');
+  xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
+  xnew.transition(({ value }) => {
+    Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
+  }, 1000, 'ease');
 }
 
 function Player(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(400, 500);
-  object.addChild(new PIXI.Graphics().poly([0, -20, -14, 14, 14, 14]).fill(0x00FFFF));
 
+  // 自機＝中国うさぎ（後ろ向きベイク）
+  const sprite = new PIXI.AnimatedSprite(xnew.context(BakedCharacters).playerTextures);
+  sprite.anchor.set(0.5);
+  sprite.scale.set(0.7);
+  sprite.animationSpeed = 1;
+  sprite.play();
+  object.addChild(sprite);
+
+  let alive = true;
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y }));
+  unit.on('+shot', () => { if (alive) xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y }); });
+  unit.on('+gameover', () => alive = false);
 
   unit.on('update', () => {
-    object.x = Math.min(Math.max(object.x + velocity.x * 3, 10), 790);
-    object.y = Math.min(Math.max(object.y + velocity.y * 3, 10), 590);
+    if (!alive) return;
+    object.x = Math.min(Math.max(object.x + velocity.x * 3, 30), 770);
+    object.y = Math.min(Math.max(object.y + velocity.y * 3, 30), 570);
 
     for (const enemy of xnew.find(Enemy)) {
-      // if (enemy.distance(object) < 30) {
-      //   xnew.emit('+gameover');
-      //   unit.finalize();
-      //   return;
-      // }
+      if (enemy.isVulnerable && enemy.distance(object) < 28) {
+        xnew.emit('+gameover');
+        return;
+      }
     }
   });
 }
@@ -350,7 +442,6 @@ function Shot(unit, { x, y }) {
 
 // ---- Enemy system ----
 
-// id: 0=zundamon 1=kiritan 2=zunko 3=itako
 // splitTo: 被弾時に分裂するキャラのid（nullなら分裂しない）
 const ENEMY_DATA = [
   { score: 1,  splitTo: null },
@@ -473,22 +564,121 @@ function ScorePopup(unit, { x, y, score }) {
   });
 }
 
+// ---- Result screen ----
+
+function ResultBackground(unit) {
+  xnew.nest(`<div class="relative size-full bg-linear-to-br from-rose-200 to-red-300">`);
+  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-rose-300">', 'Result');
+
+  // floating circle
+  for (let i = 0; i < 20; i++) {
+    const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
+    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
+    let p = 0;
+    circle.on('update', () => {
+      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
+      p += 0.02;
+    });
+  }
+  // twinkle circle
+  for (let i = 0; i < 30; i++) {
+    const [x, y] = [Math.random() * 100, Math.random() * 100];
+    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
+    let p = 0;
+    circle.on('update', () => {
+      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
+      p += 0.02;
+    });
+  }
+}
+
+function ResultImage(unit, { image }) {
+  xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] size-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
+  const img = xnew('<img class="absolute inset-0 size-full object-cover">');
+  image?.then((src) => img.element.src = src);
+}
+
+function ResultDetail(unit, { score, wave }) {
+  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+  xnew('<div class="text-[4cqw] text-center text-red-400">', '🦠 駆逐結果 🦠');
+  xnew('<div class="text-[3.5cqw] text-center text-cyan-600 py-[0.5cqw]">', `到達ウェーブ: Wave ${wave}`);
+
+  xnew('<div class="mx-[2cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-cyan-600">');
+  xnew('<div class="text-[4cqw] text-center text-yellow-500">', `⭐ スコア: ${score} ⭐`);
+  xnew('<div class="pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
+    const tiers = [{ label: 'まだまだ', min: 0 }, { label: 'いいね', min: 300 }, { label: '免疫マスター', min: 800 }];
+    let reached = 0;
+    tiers.forEach((tier, i) => { if (score >= tier.min) reached = i; });
+    tiers.forEach((tier, i) => {
+      if (i === reached) {
+        xnew('<div class="text-[3.5cqw] text-blue-500">', tier.label);
+      } else {
+        xnew('<div class="text-[2cqw] opacity-20">', tier.label);
+      }
+    });
+  });
+}
+
+function ResultFooter(unit) {
+  xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
+  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
+    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', Camera);
+    button.on('click', () => xnew(ScreenShot));
+    xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
+  });
+
+  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
+    xnew('<div class="text-[3cqw] font-bold">', '戻る');
+    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
+    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene));
+  });
+}
+
+function ScreenShot(unit) {
+  xnew.nest(xnew.context(Main).element);
+  const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white">');
+  xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
+  .timeout(() => {
+    html2canvas(unit.element, { scale: 2, logging: false, useCORS: true }).then((canvas) => {
+      xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
+    });
+    unit.finalize();
+  });
+}
+
 // ---- UI Helpers ----
 
 function TitleText(_unit) {
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-blue-600 font-bold">');
-  xnew(StrokeText, { text: 'とーほくショット' });
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-blue-600 font-bold">');
+  xnew(xnew.basics.SVGText, { text: 'とーほくショット', fontSize: '10cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
 }
 
 function TouchMessage(unit) {
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-blue-600 font-bold">');
-  xnew(StrokeText, { text: 'touch start' });
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
+  xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let count = 0;
   unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
-function StrokeText(unit, { text }) {
-  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
-  xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
-  unit.element.textContent = text;
+function Camera(unit) {
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
+    xnew('<circle cx="12" cy="12" r="11">');
+  });
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
+    xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
+    xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
+  });
+}
+
+function ArrowUturnLeft(unit) {
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
+    xnew('<circle cx="12" cy="12" r="11">');
+  });
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
+    xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
+  });
 }
