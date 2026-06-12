@@ -48,7 +48,12 @@ function Nest(unit, { object }) {
     const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.pixiObject) !== null && _b !== void 0 ? _b : root.scene;
     parent.addChild(object);
     unit.on('finalize', () => {
-        parent.removeChild(object);
+        if (object.destroyed === true)
+            return;
+        if (parent && parent.destroyed !== true) {
+            parent.removeChild(object);
+        }
+        object.destroy({ children: true });
     });
     return {
         get pixiObject() { return object; },

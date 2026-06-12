@@ -73,7 +73,7 @@ function BakedCharacters(_unit) {
 
 function Baking(unit, { url, spin = true }) {
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
-  xthree.initialize({ camera, canvas: new OffscreenCanvas(128, 128) });
+  xthree.initialize({ camera, canvas: new OffscreenCanvas(96, 96) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
   const composer = new EffectComposer(xthree.renderer);
