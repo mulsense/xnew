@@ -7,7 +7,7 @@
 //
 // - xnew.nest / extend                   : 初期化中の Unit を拡張
 // - xnew.find / context                  : Component による検索 / 祖先コンテキスト解決
-// - xnew.promise / then / catch / finally / defer / collect : Unit に紐づく promise 管理
+// - xnew.promise / then / catch / finally / defer : Unit に紐づく promise 管理
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
 // - xnew.server / client                 : mode 限定の extend
@@ -68,24 +68,29 @@ export const xnew = Object.assign(
             return Unit.getContext(Unit.currentUnit, key);
         },
             
-        /** Registers a promise（Promise / async 関数 / Unit）to the current unit. */
-        promise(promise: Function | Promise<any> | Unit): UnitPromise {
+        /** Registers a promise（Promise / async 関数 / Unit）to the current unit。第1引数が string ならキー。 */
+        promise(keyOrPromise: string | Function | Promise<any> | Unit, maybePromise?: Function | Promise<any> | Unit): UnitPromise {
+            if (typeof keyOrPromise === 'string' && maybePromise === undefined) {
+                throw new Error('xnew.promise(key, promise): promise is required when a key is given');
+            }
+            const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
+            const promise = (typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise)!;
             let unitPromise: UnitPromise;
             if (promise instanceof Unit) {
-                unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
+                unitPromise = UnitPromise.results(promise._.promises);
             } else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise)
+                unitPromise = new UnitPromise(promise);
             } else {
-                unitPromise = new UnitPromise(new Promise(xnew.scope(promise)))
+                unitPromise = new UnitPromise(new Promise(xnew.scope(promise)));
             }
+            unitPromise.key = key;
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
         },
 
-        /** Runs callback(results) after all registered promises resolve. */
+        /** Runs callback(results) after all registered promises resolve（results はキー付き promise の最終値）。 */
         then(callback: Function): UnitPromise {
-            const currentUnit = Unit.currentUnit;
-            return UnitPromise.all(currentUnit._.promises).then(() => callback(currentUnit._.results));
+            return UnitPromise.results(Unit.currentUnit._.promises).then(callback);
         },
 
         /** Runs callback if any registered promise rejects. */
@@ -98,8 +103,8 @@ export const xnew = Object.assign(
             return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
         },
 
-        /** Registers a deferred promise; 返り値の { resolve, reject } で外から settle する（2 回目以降は無視）。 */
-        defer(): { resolve: () => void; reject: () => void } {
+        /** Registers a deferred promise; key を付けると then 結果に入る。{ resolve, reject } で外から settle（2 回目以降は無視）。 */
+        defer(key?: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void } {
             let settled = false;
             let resolve!: (value?: unknown) => void;
             let reject!: (reason?: unknown) => void;
@@ -108,25 +113,21 @@ export const xnew = Object.assign(
                 resolve = res;
                 reject = rej;
             }));
+            unitPromise.key = key;
             Unit.currentUnit._.promises.push(unitPromise);
 
             return {
-                resolve() {
+                resolve(value?: unknown) {
                     if (settled) return;
                     settled = true;
-                    resolve();
+                    resolve(value);
                 },
-                reject() {
+                reject(reason?: unknown) {
                     if (settled) return;
                     settled = true;
-                    reject();
+                    reject(reason);
                 },
             };
-        },
-
-        /** Merges an object into the current unit's promise results（xnew.then の引数で受け取る）。 */
-        collect(object?: Record<string, any>): void {
-            Object.assign(Unit.currentUnit._.results, object);
         },
 
         /** Wraps a callback so it later runs in the current unit scope（setTimeout 等の外部コールバック用）。 */

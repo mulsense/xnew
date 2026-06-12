@@ -57,7 +57,6 @@ declare class Unit {
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
-        results: Record<string, any>;
         defines: Record<string, any>;
         systems: Record<SystemEvent, {
             listener: Function;
@@ -118,11 +117,13 @@ declare class Unit {
 }
 declare class UnitPromise {
     private promise;
-    constructor(promise: Promise<any>);
+    key?: string;
+    constructor(promise: Promise<any>, key?: string);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
     static all(promises: UnitPromise[]): UnitPromise;
+    static results(promises: UnitPromise[]): UnitPromise;
     private wrap;
 }
 declare class UnitTimer {
@@ -399,15 +400,14 @@ declare const xnew: XnewBase & {
     nest(target: DomElement | string): HTMLElement | SVGElement;
     extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C>;
     context(key: any): any;
-    promise(promise: Function | Promise<any> | Unit): UnitPromise;
+    promise(keyOrPromise: string | Function | Promise<any> | Unit, maybePromise?: Function | Promise<any> | Unit): UnitPromise;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
-    defer(): {
-        resolve: () => void;
-        reject: () => void;
+    defer(key?: string): {
+        resolve: (value?: unknown) => void;
+        reject: (reason?: unknown) => void;
     };
-    collect(object?: Record<string, any>): void;
     scope(callback: any): any;
     find(Component: Function, opts?: {
         key?: any;

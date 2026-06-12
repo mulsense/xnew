@@ -71,7 +71,6 @@ export class Unit {
         tostart: boolean;
         protected: boolean;
         promises: UnitPromise[];
-        results: Record<string, any>;
         defines: Record<string, any>;
         systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
 
@@ -147,7 +146,6 @@ export class Unit {
             children: [],
             nestElements: [],
             promises: [],
-            results: {},
             Components: [],
             listeners: new MapMap(),
             defines: {},
@@ -489,19 +487,33 @@ export class Unit {
 
 export class UnitPromise {
     private promise: Promise<any>;
-    constructor(promise: Promise<any>) { this.promise = promise; }
+    public key?: string;
+    constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
     public then(callback: Function): UnitPromise { return this.wrap('then', callback); }
     public catch(callback: Function): UnitPromise { return this.wrap('catch', callback); }
     public finally(callback: Function): UnitPromise { return this.wrap('finally', callback); }
-    
+
     public static all(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
     }
 
-    private wrap(key: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
+    // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
+    public static results(promises: UnitPromise[]): UnitPromise {
+        return new UnitPromise(
+            Promise.all(promises.map(p => p.promise)).then((values) => {
+                const out: Record<string, any> = {};
+                promises.forEach((p, i) => {
+                    if (p.key !== undefined) { out[p.key] = values[i]; }
+                });
+                return out;
+            })
+        );
+    }
+
+    private wrap(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = (this.promise[key] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
+        this.promise = (this.promise[method] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
 }

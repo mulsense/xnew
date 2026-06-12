@@ -132,7 +132,7 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
   object.position.set(position.x, position.y, position.z);
   object.scale.set(2, 2, 2);
 
-  xnew.promise(voxelkit.load(mogPath))
+  xnew.promise('vrm', voxelkit.load(mogPath))
   .then((composits) => {
     return voxelkit.convertVRM(composits[0]);
   })
@@ -152,17 +152,13 @@ function Model(unit, { mogPath, vrmaPath, position, rotation }) {
         console.error('Failed to load VRM:', error);
       });
     })
-  }).then((vrm) => {
-    xnew.collect({ vrm });
   });
 
-  xnew.promise(new Promise((resolve) => {
+  xnew.promise('vrma', new Promise((resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));  
     loader.load(vrmaPath, (gltf) => resolve(gltf.userData.vrmAnimations[0]));
-  })).then((vrma) => {
-    xnew.collect({ vrma });
-  });
+  }));
 
   xnew.then(({ vrm, vrma }) => {
     vrm.scene.traverse((obj) => {
