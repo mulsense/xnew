@@ -35,7 +35,7 @@ describe('Room', () => {
         const socket = mockSocket();
         const log: string[] = [];
         xnew(function Scene(unit: Unit) {
-            xnew.extend(Room, { socket, component: World });
+            xnew.extend(Room, { mode: 'client', socket, component: World });
             // host unit（Scene）= boot 親なので、基本イベントを自身の unit.on で受け取れる。
             unit.on('connect', () => log.push('connect'));
             unit.on('disconnect', () => log.push('disconnect'));
@@ -53,7 +53,7 @@ describe('Room', () => {
         const socket = mockSocket();
         let client: any;
         xnew(function Scene(_: Unit) {
-            ({ client } = xnew.extend(Room, { socket, component: World }) as any);
+            ({ client } = xnew.extend(Room, { mode: 'client', socket, component: World }) as any);
         });
         expect(client.selected).toBe(true);
     });
@@ -62,7 +62,7 @@ describe('Room', () => {
         const socket = mockSocket();
         let client: any;
         const scene = xnew(function Scene(_: Unit) {
-            ({ client } = xnew.extend(Room, { socket, component: World }) as any);
+            ({ client } = xnew.extend(Room, { mode: 'client', socket, component: World }) as any);
         });
 
         expect(client._.status).not.toBe('finalized');
@@ -72,11 +72,10 @@ describe('Room', () => {
         expect(client._.status).toBe('finalized');
     });
 
-    it('boots in server mode (to-socket) without disconnecting, and finalizes on finalize', () => {
-        const transport = xnew.sync.loopback();   // transport.server は 'to' を持つ ServerSocket
+    it('boots in server mode without disconnecting, and finalizes on finalize', () => {
         let client: any;
         const scene = xnew(function Scene(_: Unit) {
-            ({ client } = xnew(Room, { socket: transport.server, component: World }) as any);
+            ({ client } = xnew(Room, { mode: 'server', component: World }) as any);
         });
 
         expect(client._.mode).toBe('server');

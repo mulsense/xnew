@@ -16,8 +16,8 @@
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './dom';
-import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot, loopback, socketio } from './sync';
-import type { RootSocket } from './sync';
+import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot } from './sync';
+import type { BootOptions } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -219,18 +219,14 @@ export const xnew = Object.assign(
             },
 
             /**
-             * Creates a root Unit bound to `socket`（server: transport.server / client: transport.connect()。
-             * mode は socket の形から判定し子孫へ継承）。残りの引数は xnew(...) へ転送。
-             * 下り mirror（capture→broadcast / on→apply）と dispatcher の配線は bootSyncRoot が行う。
+             * Creates a root Unit for `opts.mode`（'server'|'client'）。transport は opts.socket の有無で決まる
+             * （省略 = in-memory loopback / 指定 = socket.io。server は opts.room で接続を絞れる）。残りの引数は
+             * xnew(...) へ転送。下り mirror と dispatcher の配線は bootSyncRoot が行う。
              */
-            boot(socket: RootSocket, ...args: any[]): Unit {
+            boot(opts: BootOptions, ...args: any[]): Unit {
                 if (Unit.engineRoot === undefined) { Unit.reset(); }
-                return bootSyncRoot(socket, Unit.currentUnit, ...args);
+                return bootSyncRoot(opts, Unit.currentUnit, ...args);
             },
-
-            // transport（boot に渡す socket の供給元）
-            loopback,    // in-memory ハブ（同一プロセスで server↔client。テスト/擬似用）
-            socketio,    // socket.io を Transport 形へ橋渡し
         },
 
     }

@@ -10,7 +10,7 @@
 // - captureStateTree / applyStateTree : server サブツリー → SyncNode[] → client へ差分適用
 // - ClientSocket / ServerSocket / RootSocket : socket 契約（socket.io 互換の duck-type。型のみ）
 // - registerSyncRoot / findSyncRoot / getRootSocket : boot ルートの登録と解決
-// - bootSyncRoot : socket バインドのルート生成 + 配線（下り mirror / dispatcher / 基本イベント）
+// - BootOptions / bootSyncRoot / loopbackHub : boot 入力・ルート生成 + 配線・共有 loopback hub
 // - Transport / loopback / socketio : transport 実装（in-memory ハブ / socket.io アダプタ）
 //----------------------------------------------------------------------------------------------------
 
@@ -210,21 +210,51 @@ export function getRootSocket(unit: Unit): RootSocket {
     const root = findSyncRoot(unit);
     const socket = root !== null ? syncRoots.get(root)!.socket : null;
     if (socket === null) {
-        throw new Error('no socket bound to this root; create it with xnew.sync.boot(socket, ...).');
+        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ mode }, ...).');
     }
     return socket;
 }
 
+/** xnew.sync.boot の入力。mode は必須、socket を渡すと socket.io 経由・省略で in-memory loopback。 */
+export interface BootOptions {
+    mode: 'server' | 'client';
+    socket?: any;        // socket.io の io（server）/ socket（client）。省略時は loopback。
+    room?: string;       // server + socket.io のときだけ意味を持つ（接続を query.room で絞る）。
+}
+
+// 同一 engineRoot 配下で socket 省略の boot が共有する in-memory hub。reset で engineRoot が変わると
+// WeakMap がミスして作り直されるので、明示リセットは不要（unit.ts は sync を一切知らないまま）。
+const loopbackHubs: WeakMap<Unit, Transport> = new WeakMap();
+
+/** 現在の engineRoot に紐づく共有 loopback hub を返す（無ければ生成）。テストが生 socket を得るのにも使う。 */
+export function loopbackHub(): Transport {
+    let hub = loopbackHubs.get(Unit.engineRoot);
+    if (hub === undefined) { loopbackHubs.set(Unit.engineRoot, hub = loopback()); }
+    return hub;
+}
+
+/** BootOptions を RootSocket へ解決する（socket 有り = socket.io / 無し = 共有 loopback）。 */
+function resolveRootSocket(opts: BootOptions): RootSocket {
+    if (opts.socket !== undefined) {
+        const transport = socketio(opts.socket, opts.room !== undefined ? { room: opts.room } : {});
+        return opts.mode === 'server' ? transport.server : transport.connect();
+    }
+    const hub = loopbackHub();
+    return opts.mode === 'server' ? hub.server : hub.connect();
+}
+
 /**
- * socket をバインドした boot ルートを生成し、mode 別に一括配線して返す。
- * mode は socket の形から判定（to() を持つ = server / それ以外 = client）。配線は 3 つ:
+ * BootOptions から boot ルートを生成し、mode 別に一括配線して返す。
+ * transport は opts.socket の有無で決まる（無し = 共有 loopback / 有り = socketio で socket.io をラップ）。
+ * 配線は 3 つ:
  * (1) 状態の下り mirror : server は毎 update で capture → broadcast、client は on('sync') → apply
  * (2) dispatcher        : 受信イベントを root 配下の unit.on(event) へ（'-event'=同一 syncId / '+'・無印=全体）
  * (3) 基本イベント       : connect / disconnect / room:notfound を boot を呼んだ親ユニットの unit.on へ
- *     （server では connect/disconnect を root 配下にも配る = spawn/despawn 用）
+ *     （server では connect/disconnect を root 配下にも配り、親へは { id: clientId } を渡す）
  */
-export function bootSyncRoot(socket: RootSocket, parent: Unit | null, ...args: any[]): Unit {
-    const mode = ('to' in socket) ? 'server' : 'client';
+export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: any[]): Unit {
+    const mode = opts.mode;
+    const socket = resolveRootSocket(opts);
     // socket は unit に保持せず、setup フックで syncRoots へ登録する。
     const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, { socket }) }, parent, ...args);
 
@@ -232,8 +262,8 @@ export function bootSyncRoot(socket: RootSocket, parent: Unit | null, ...args: a
         const server = socket as ServerSocket;
         root.on('update', () => server.emit('sync', captureStateTree(root)));
         server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-        server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect'); });
-        server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect'); });
+        server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect', { id: clientId }); });
+        server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect', { id: clientId }); });
     } else {
         const client = socket as ClientSocket;
         const handler = (tree: StateTree) => applyStateTree(root, tree);

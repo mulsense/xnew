@@ -165,14 +165,11 @@ interface ServerSocket {
     onAny(handler: (event: string, clientId: string, payload: any) => void): void;
 }
 type RootSocket = ClientSocket | ServerSocket;
-interface Transport {
-    server: ServerSocket;
-    connect(clientId?: string): ClientSocket;
-}
-declare function loopback(): Transport;
-declare function socketio(ioOrSocket: any, opts?: {
+interface BootOptions {
+    mode: 'server' | 'client';
+    socket?: any;
     room?: string;
-}): Transport;
+}
 
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -283,8 +280,7 @@ declare function Scene(unit: Unit): {
     add(Component: Function, props?: any): void;
 };
 
-declare function Room(unit: Unit, { socket, component }: {
-    socket: RootSocket;
+declare function Room(unit: Unit, { mode, socket, room, component }: Pick<BootOptions, 'mode' | 'socket' | 'room'> & {
     component: Function;
 }): {
     readonly client: Unit;
@@ -424,9 +420,7 @@ declare const xnew: XnewBase & {
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
         readonly clientId: string | undefined;
         emit(event: string, payload?: Record<string, any>): void;
-        boot(socket: RootSocket, ...args: any[]): Unit;
-        loopback: typeof loopback;
-        socketio: typeof socketio;
+        boot(opts: BootOptions, ...args: any[]): Unit;
     };
 } & {
     basics: {
@@ -456,4 +450,4 @@ declare const xnew: XnewBase & {
 };
 
 export { xnew as default };
-export type { ClientSocket, RootSocket, ServerSocket };
+export type { BootOptions, ClientSocket, RootSocket, ServerSocket };
