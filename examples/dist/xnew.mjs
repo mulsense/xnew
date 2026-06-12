@@ -460,7 +460,6 @@ class Unit {
             children: [],
             nestElements: [],
             promises: [],
-            results: {},
             Components: [],
             listeners: new MapMap(),
             defines: {},
@@ -760,16 +759,27 @@ Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
 class UnitPromise {
-    constructor(promise) { this.promise = promise; }
+    constructor(promise, key) { this.promise = promise; this.key = key; }
     then(callback) { return this.wrap('then', callback); }
     catch(callback) { return this.wrap('catch', callback); }
     finally(callback) { return this.wrap('finally', callback); }
     static all(promises) {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
     }
-    wrap(key, callback) {
+    static results(promises) {
+        return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {
+            const out = {};
+            promises.forEach((p, i) => {
+                if (p.key !== undefined) {
+                    out[p.key] = values[i];
+                }
+            });
+            return out;
+        }));
+    }
+    wrap(method, callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise[key]((...args) => Unit.scope(snapshot, callback, ...args));
+        this.promise = this.promise[method]((...args) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
 }
@@ -1246,10 +1256,15 @@ const xnew$1 = Object.assign((function (...args) {
     context(key) {
         return Unit.getContext(Unit.currentUnit, key);
     },
-    promise(promise) {
+    promise(keyOrPromise, maybePromise) {
+        if (typeof keyOrPromise === 'string' && maybePromise === undefined) {
+            throw new Error('xnew.promise(key, promise): promise is required when a key is given');
+        }
+        const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
+        const promise = (typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise);
         let unitPromise;
         if (promise instanceof Unit) {
-            unitPromise = UnitPromise.all(promise._.promises).then(() => promise._.results);
+            unitPromise = UnitPromise.results(promise._.promises);
         }
         else if (promise instanceof Promise) {
             unitPromise = new UnitPromise(promise);
@@ -1257,12 +1272,12 @@ const xnew$1 = Object.assign((function (...args) {
         else {
             unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)));
         }
+        unitPromise.key = key;
         Unit.currentUnit._.promises.push(unitPromise);
         return unitPromise;
     },
     then(callback) {
-        const currentUnit = Unit.currentUnit;
-        return UnitPromise.all(currentUnit._.promises).then(() => callback(currentUnit._.results));
+        return UnitPromise.results(Unit.currentUnit._.promises).then(callback);
     },
     catch(callback) {
         return UnitPromise.all(Unit.currentUnit._.promises).catch(callback);
@@ -1270,7 +1285,7 @@ const xnew$1 = Object.assign((function (...args) {
     finally(callback) {
         return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
     },
-    defer() {
+    defer(key) {
         let settled = false;
         let resolve;
         let reject;
@@ -1278,24 +1293,22 @@ const xnew$1 = Object.assign((function (...args) {
             resolve = res;
             reject = rej;
         }));
+        unitPromise.key = key;
         Unit.currentUnit._.promises.push(unitPromise);
         return {
-            resolve() {
+            resolve(value) {
                 if (settled)
                     return;
                 settled = true;
-                resolve();
+                resolve(value);
             },
-            reject() {
+            reject(reason) {
                 if (settled)
                     return;
                 settled = true;
-                reject();
+                reject(reason);
             },
         };
-    },
-    collect(object) {
-        Object.assign(Unit.currentUnit._.results, object);
     },
     scope(callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
