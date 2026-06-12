@@ -215,15 +215,6 @@ export function getRootSocket(unit: Unit): RootSocket {
     return socket;
 }
 
-/**
- * BootOptions から boot ルートを生成し、mode 別に一括配線して返す。
- * transport は opts.socket の有無で決まる（無し = 共有 loopback / 有り = socketio で socket.io をラップ）。
- * 配線は 3 つ:
- * (1) 状態の下り mirror : server は毎 update で capture → broadcast、client は on('sync') → apply
- * (2) dispatcher        : 受信イベントを root 配下の unit.on(event) へ（'-event'=同一 syncId / '+'・無印=全体）
- * (3) 基本イベント       : connect / disconnect / room:notfound を boot を呼んだ親ユニットの unit.on へ
- *     （server では connect/disconnect を root 配下にも配り、親へは { id: clientId } を渡す）
- */
 /** xnew.sync.boot の入力。mode は必須、socket を渡すと socket.io 経由・省略で in-memory loopback。 */
 export interface BootOptions {
     mode: 'server' | 'client';
@@ -252,6 +243,15 @@ function resolveRootSocket(opts: BootOptions): RootSocket {
     return opts.mode === 'server' ? hub.server : hub.connect();
 }
 
+/**
+ * BootOptions から boot ルートを生成し、mode 別に一括配線して返す。
+ * transport は opts.socket の有無で決まる（無し = 共有 loopback / 有り = socketio で socket.io をラップ）。
+ * 配線は 3 つ:
+ * (1) 状態の下り mirror : server は毎 update で capture → broadcast、client は on('sync') → apply
+ * (2) dispatcher        : 受信イベントを root 配下の unit.on(event) へ（'-event'=同一 syncId / '+'・無印=全体）
+ * (3) 基本イベント       : connect / disconnect / room:notfound を boot を呼んだ親ユニットの unit.on へ
+ *     （server では connect/disconnect を root 配下にも配り、親へは { id: clientId } を渡す）
+ */
 export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: any[]): Unit {
     const mode = opts.mode;
     const socket = resolveRootSocket(opts);
