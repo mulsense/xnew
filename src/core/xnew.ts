@@ -103,8 +103,8 @@ export const xnew = Object.assign(
             return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
         },
 
-        /** Registers a deferred promise; 返り値の { resolve, reject } で外から settle する（2 回目以降は無視）。 */
-        defer(): { resolve: () => void; reject: () => void } {
+        /** Registers a deferred promise; key を付けると then 結果に入る。{ resolve, reject } で外から settle（2 回目以降は無視）。 */
+        defer(key?: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void } {
             let settled = false;
             let resolve!: (value?: unknown) => void;
             let reject!: (reason?: unknown) => void;
@@ -113,18 +113,19 @@ export const xnew = Object.assign(
                 resolve = res;
                 reject = rej;
             }));
+            unitPromise.key = key;
             Unit.currentUnit._.promises.push(unitPromise);
 
             return {
-                resolve() {
+                resolve(value?: unknown) {
                     if (settled) return;
                     settled = true;
-                    resolve();
+                    resolve(value);
                 },
-                reject() {
+                reject(reason?: unknown) {
                     if (settled) return;
                     settled = true;
-                    reject();
+                    reject(reason);
                 },
             };
         },

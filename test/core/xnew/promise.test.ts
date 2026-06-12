@@ -148,6 +148,23 @@ describe('xnew promise helpers', () => {
             expect(done).toHaveBeenCalledTimes(1);
             expect(caught).not.toHaveBeenCalled();
         });
+
+        it('passes a keyed defer value to then under its key', async () => {
+            const done = jest.fn();
+            let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            xnew(() => {
+                defer = xnew.defer('ready');
+                xnew.then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+            expect(done).not.toHaveBeenCalled();
+
+            defer.resolve(42);
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ ready: 42 });
+        });
     });
 
     describe('keyed xnew.promise', () => {
