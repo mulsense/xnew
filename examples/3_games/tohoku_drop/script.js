@@ -149,20 +149,20 @@ function ThreeTexture(unit) {
 }
 
 function TitleText(unit) {
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-[10cqw] text-center text-green-600 font-bold">');
-  xnew(StrokeText, { text: 'とーほくドロップ' });
+  xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-green-600 font-bold">');
+  xnew(xnew.basics.SVGText, { text: 'とーほくドロップ', fontSize: '10cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
 }
 
 function TouchMessage(unit) {
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-[6cqw] text-center text-green-600 font-bold">');
-  xnew(StrokeText, { text: 'touch start' });
+  xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-green-600 font-bold">');
+  xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let count = 0;
   unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
 
 function ScoreText(unit) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-[6cqw] text-right text-green-600 font-bold">');
-  const text = xnew(StrokeText, { text: 'score 0' });
+  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-green-600 font-bold">');
+  const text = xnew(xnew.basics.SVGText, { text: 'score 0', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let sum = 0;
   unit.on('+scoreup', ({ score }) => {
     text.element.textContent = `score ${sum += Math.pow(2, score)}`;
@@ -171,8 +171,8 @@ function ScoreText(unit) {
 }
 
 function GameOverText(unit) {
-  xnew.nest('<div class="absolute w-full text-center text-[12cqw] text-red-400 font-bold">');
-  xnew(StrokeText, { text: 'Game Over' });
+  xnew.nest('<div class="absolute w-full text-center text-red-400 font-bold">');
+  xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   xnew.transition(({ value }) => {
     Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
   }, 1000, 'ease');
@@ -481,12 +481,6 @@ function Circle(unit, { x, y, radius, color = 0xFFFFFF, alpha = 1.0, options = {
 }
 
 // helpers
-function StrokeText(unit, { text }) {
-  const [sw, sc] = ['0.2cqw', '#EEEEEE'];
-  xnew.nest(`<div style="text-shadow: -${sw} -${sw} 1px ${sc}, ${sw} -${sw} 1px ${sc}, -${sw} ${sw} 1px ${sc}, ${sw} ${sw} 1px ${sc};">`);
-  unit.element.textContent = text;
-}
-
 function convert3d(x, y, z = 0) {
   return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }
