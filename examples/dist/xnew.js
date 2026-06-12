@@ -978,19 +978,36 @@
         const root = findSyncRoot(unit);
         const socket = root !== null ? syncRoots.get(root).socket : null;
         if (socket === null) {
-            throw new Error('no socket bound to this root; create it with xnew.sync.boot(socket, ...).');
+            throw new Error('no socket bound to this root; create it with xnew.sync.boot({ mode }, ...).');
         }
         return socket;
     }
-    function bootSyncRoot(socket, parent, ...args) {
-        const mode = ('to' in socket) ? 'server' : 'client';
+    const loopbackHubs = new WeakMap();
+    function loopbackHub() {
+        let hub = loopbackHubs.get(Unit.engineRoot);
+        if (hub === undefined) {
+            loopbackHubs.set(Unit.engineRoot, hub = loopback());
+        }
+        return hub;
+    }
+    function resolveRootSocket(opts) {
+        if (opts.socket !== undefined) {
+            const transport = socketio(opts.socket, opts.room !== undefined ? { room: opts.room } : {});
+            return opts.mode === 'server' ? transport.server : transport.connect();
+        }
+        const hub = loopbackHub();
+        return opts.mode === 'server' ? hub.server : hub.connect();
+    }
+    function bootSyncRoot(opts, parent, ...args) {
+        const mode = opts.mode;
+        const socket = resolveRootSocket(opts);
         const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, { socket }) }, parent, ...args);
         if (mode === 'server') {
             const server = socket;
             root.on('update', () => server.emit('sync', captureStateTree(root)));
             server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-            server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect'); });
-            server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect'); });
+            server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect', { id: clientId }); });
+            server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect', { id: clientId }); });
         }
         else {
             const client = socket;
@@ -1288,14 +1305,12 @@
                 }
                 getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
             },
-            boot(socket, ...args) {
+            boot(opts, ...args) {
                 if (Unit.engineRoot === undefined) {
                     Unit.reset();
                 }
-                return bootSyncRoot(socket, Unit.currentUnit, ...args);
+                return bootSyncRoot(opts, Unit.currentUnit, ...args);
             },
-            loopback,
-            socketio,
         },
     });
 
@@ -1672,15 +1687,15 @@
         };
     }
 
-    function Room(unit, { socket, component }) {
+    function Room(unit, { mode, socket, room, component }) {
         var _a;
-        const client = xnew$1.sync.boot(socket, component);
-        if ('to' in socket) {
+        const client = xnew$1.sync.boot({ mode, socket, room }, component);
+        if (mode === 'server') {
             unit.on('finalize', () => client.finalize());
         }
         else {
             (_a = client.select) === null || _a === void 0 ? void 0 : _a.call(client);
-            unit.on('finalize', () => { client.finalize(); socket.disconnect(); });
+            unit.on('finalize', () => { var _a; client.finalize(); (_a = socket === null || socket === void 0 ? void 0 : socket.disconnect) === null || _a === void 0 ? void 0 : _a.call(socket); });
         }
         return {
             get client() { return client; },
