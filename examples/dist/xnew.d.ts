@@ -165,10 +165,15 @@ interface ServerSocket {
     onAny(handler: (event: string, clientId: string, payload: any) => void): void;
 }
 type RootSocket = ClientSocket | ServerSocket;
+interface ClientInfo {
+    id: string | undefined;
+    name: string | undefined;
+}
 interface BootOptions {
     mode: 'server' | 'client';
     socket?: any;
     room?: string;
+    name?: string;
 }
 
 interface XnewBase {
@@ -280,7 +285,7 @@ declare function Scene(unit: Unit): {
     add(Component: Function, props?: any): void;
 };
 
-declare function Room(unit: Unit, { mode, socket, room, component }: Pick<BootOptions, 'mode' | 'socket' | 'room'> & {
+declare function Room(unit: Unit, { mode, socket, room, name, component }: Pick<BootOptions, 'mode' | 'socket' | 'room' | 'name'> & {
     component: Function;
 }): {
     readonly client: Unit;
@@ -418,7 +423,8 @@ declare const xnew: XnewBase & {
         register(components: Record<string, Function>): void;
         capture(root: Unit): ReturnType<typeof captureStateTree>;
         apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
-        readonly clientId: string | undefined;
+        readonly client: ClientInfo;
+        readonly clients: ReadonlyArray<ClientInfo>;
         emit(event: string, payload?: Record<string, any>): void;
         boot(opts: BootOptions, ...args: any[]): Unit;
     };

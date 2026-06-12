@@ -974,13 +974,23 @@
         }
         return null;
     }
-    function getRootSocket(unit) {
+    function rootInfoOf(unit) {
         const root = findSyncRoot(unit);
-        const socket = root !== null ? syncRoots.get(root).socket : null;
-        if (socket === null) {
+        const info = root !== null ? syncRoots.get(root) : undefined;
+        if (info === undefined || info.socket === null) {
             throw new Error('no socket bound to this root; create it with xnew.sync.boot({ mode }, ...).');
         }
-        return socket;
+        return info;
+    }
+    function getRootSocket(unit) {
+        return rootInfoOf(unit).socket;
+    }
+    function getRootClient(unit) {
+        const info = rootInfoOf(unit);
+        return { id: info.socket.id, name: info.name };
+    }
+    function getRootClients(unit) {
+        return [...rootInfoOf(unit).roster.values()];
     }
     const loopbackHubs = new WeakMap();
     function loopbackHub() {
@@ -1001,13 +1011,30 @@
     function bootSyncRoot(opts, parent, ...args) {
         const mode = opts.mode;
         const socket = resolveRootSocket(opts);
-        const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, { socket }) }, parent, ...args);
+        const info = { socket, name: opts.name, roster: new Map() };
+        const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, info) }, parent, ...args);
         if (mode === 'server') {
             const server = socket;
+            const broadcastRoster = () => server.emit('sync:roster', { clients: [...info.roster.values()] });
             root.on('update', () => server.emit('sync', captureStateTree(root)));
             server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-            server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect', { id: clientId }); });
-            server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect', { id: clientId }); });
+            server.on('connect', (clientId) => {
+                info.roster.set(clientId, { id: clientId, name: undefined });
+                broadcastRoster();
+                dispatchSync(root, 'connect', clientId, undefined);
+                dispatchBasicEvent(parent, 'connect', { id: clientId });
+            });
+            server.on('disconnect', (clientId) => {
+                info.roster.delete(clientId);
+                broadcastRoster();
+                dispatchSync(root, 'disconnect', clientId, undefined);
+                dispatchBasicEvent(parent, 'disconnect', { id: clientId });
+            });
+            server.on('sync:hello', (clientId, payload) => {
+                const name = (payload !== null && typeof payload === 'object') ? payload.name : undefined;
+                info.roster.set(clientId, { id: clientId, name });
+                broadcastRoster();
+            });
         }
         else {
             const client = socket;
@@ -1016,11 +1043,26 @@
             root.on('finalize', () => client.off('sync', handler));
             client.onAny((event, message) => dispatchSync(root, event, undefined, message));
             BASIC_EVENTS.forEach((event) => client.on(event, (payload) => dispatchBasicEvent(parent, event, payload)));
+            client.on('sync:roster', (payload) => {
+                info.roster.clear();
+                const list = (payload !== null && typeof payload === 'object' && Array.isArray(payload.clients)) ? payload.clients : [];
+                for (const c of list) {
+                    info.roster.set(c.id, { id: c.id, name: c.name });
+                }
+            });
+            const sendHello = () => client.emit('sync:hello', { name: info.name });
+            if (client.id) {
+                sendHello();
+            }
+            client.on('connect', sendHello);
         }
         return root;
     }
     function dispatchSync(root, event, id, message) {
         if (root._.status === 'finalized') {
+            return;
+        }
+        if (event.startsWith('sync:')) {
             return;
         }
         const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
@@ -1291,12 +1333,19 @@
             apply(root, tree) {
                 applyStateTree(root, tree);
             },
-            get clientId() {
+            get client() {
                 const unit = Unit.currentUnit;
                 if (unit === null) {
-                    throw new Error('xnew.sync.clientId can not be read outside a component.');
+                    throw new Error('xnew.sync.client can not be read outside a component.');
                 }
-                return getRootSocket(unit).id;
+                return getRootClient(unit);
+            },
+            get clients() {
+                const unit = Unit.currentUnit;
+                if (unit === null) {
+                    throw new Error('xnew.sync.clients can not be read outside a component.');
+                }
+                return getRootClients(unit);
             },
             emit(event, payload = {}) {
                 const unit = Unit.currentUnit;
@@ -1687,9 +1736,9 @@
         };
     }
 
-    function Room(unit, { mode, socket, room, component }) {
+    function Room(unit, { mode, socket, room, name, component }) {
         var _a;
-        const client = xnew$1.sync.boot({ mode, socket, room }, component);
+        const client = xnew$1.sync.boot({ mode, socket, room, name }, component);
         if (mode === 'server') {
             unit.on('finalize', () => client.finalize());
         }
