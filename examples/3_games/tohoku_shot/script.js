@@ -175,7 +175,184 @@ function TitleScene(unit) {
   xnew(TitleText);
   xnew(TouchMessage);
   xnew(VolumeControl);
-  unit.on('pointerdown', () => unit.change(GameScene));
+  unit.on('pointerdown', () => unit.change(StoryScene));
+}
+
+// ゲーム前の導入寸劇（2ページ）。タップで送り、最後のページからゲームへ。
+//  1: 中国うさぎがずんだアローに被弾（コミカル）
+//  2: 体内で増殖するずんだ因子（4キャラ）が蠢く
+function StoryScene(unit) {
+  xnew.extend(xnew.basics.Scene);
+
+  xnew(Background);   // 体内背景を流用（タイトル/ゲームと連続感）
+  xnew(CameraShake);  // 被弾時のシェイク演出用
+  xnew(VolumeControl);
+
+  const pages = [StoryPageHit, StoryPageSwarm];
+  let index = 0;
+  let page = xnew(pages[0]);
+  xnew(StoryOverlay, { total: pages.length });
+
+  let busy = false;
+  unit.on('pointerdown', () => {
+    if (busy) return;
+    busy = true;
+    const next = index + 1;
+    if (next >= pages.length) {
+      unit.change(GameScene);
+      return;
+    }
+    page.finalize();
+    index = next;
+    page = xnew(pages[index]);
+    xnew.emit('+story-page', { index });
+    xnew.timeout(() => { busy = false; }, 300); // 連打での飛ばし過ぎを防ぐ
+  });
+}
+
+// 下部のページドット + 「タップで進む」誘導（点滅）
+function StoryOverlay(unit, { total }) {
+  xnew.nest('<div class="absolute inset-0 pointer-events-none">');
+
+  let index = 0;
+  const dots = [];
+  xnew('<div class="absolute left-0 right-0 bottom-[7cqw] flex justify-center gap-[1.4cqw]">', () => {
+    for (let i = 0; i < total; i++) {
+      const d = xnew('<div class="w-[1.6cqw] h-[1.6cqw] rounded-full" style="background:#ffffff; box-shadow:0 0 0.6cqw rgba(0,0,0,0.6);">');
+      dots.push(d);
+    }
+  });
+
+  let hintWrap, hint;
+  hintWrap = xnew('<div class="absolute left-0 right-0 bottom-[2.5cqw] text-center text-white font-bold">', () => {
+    hint = xnew(xnew.basics.SVGText, { text: '▶ タップで次へ', fontSize: '3.4cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
+  });
+
+  function refresh() {
+    dots.forEach((d, i) => d.element.style.opacity = i === index ? '1' : '0.3');
+    hint.element.textContent = index === total - 1 ? '▶ タップでスタート' : '▶ タップで次へ';
+  }
+  refresh();
+  unit.on('+story-page', ({ index: i }) => { index = i; refresh(); });
+
+  let c = 0;
+  unit.on('update', () => { hintWrap.element.style.opacity = `${0.55 + Math.sin(c++ * 0.08) * 0.4}`; });
+}
+
+// ページ1: 中国うさぎがずんだアローに被弾する寸劇
+function StoryPageHit(unit) {
+  const CX = 420, CY = 400;          // 中国うさぎの中心
+  const impactX = CX - 70, impactY = CY - 30; // 矢の着弾点（体の少し左上）
+  const stage = xpixi.nest(new PIXI.Container());
+
+  // 着弾フラッシュ（シェイクで端が抜けないよう広め）
+  const flashG = new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0xFFFFFF);
+  flashG.alpha = 0;
+
+  let usagi = null, arrow = null;
+  xnew.promise(PIXI.Assets.load(['../../assets/usagi03.png', '../../assets/zunda_arrow.png'])).then((loaded) => {
+    usagi = new PIXI.Sprite(loaded['../../assets/usagi03.png']);
+    usagi.anchor.set(0.5);
+    usagi.scale.set(300 / usagi.texture.height);
+    usagi.position.set(CX, CY);
+
+    arrow = new PIXI.Sprite(loaded['../../assets/zunda_arrow.png']);
+    arrow.anchor.set(0.86, 0.5); // 先端（ずんだ玉）側を基準に
+    arrow.scale.set(200 / arrow.texture.width);
+    arrow.position.set(-220, impactY);
+
+    stage.addChild(usagi, arrow, flashG);
+  });
+
+  // 見出し（上段）。被弾の驚きをコミカルに。
+  xnew('<div class="absolute left-0 right-0 top-[5cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
+    xnew('<div>', () => { xnew(xnew.basics.SVGText, { text: '中国うさぎが、ずんだアローに', fontSize: '4.6cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
+    xnew('<div style="color:#FF8FA3;">', () => { xnew(xnew.basics.SVGText, { text: '当たってしまった！', fontSize: '6.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
+  });
+
+  // 補足（着弾後にフェードイン）
+  const sub = xnew('<div class="absolute left-0 right-0 top-[19cqw] text-center font-bold" style="color:#FCEFA0; opacity:0;">', () => {
+    xnew(xnew.basics.SVGText, { text: '（ずんだアローに当たると、ずんだ餅になってしまう…）', fontSize: '2.8cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
+  });
+
+  const FLY = 40; // 飛来フレーム数（約0.7秒）
+  let frame = 0, impacted = false, hitT = 0;
+  unit.on('update', () => {
+    if (arrow === null) return;
+    if (!impacted) {
+      frame++;
+      const p = Math.min(1, frame / FLY);
+      const e = p * p; // 加速して突き刺さる
+      arrow.x = -220 + (impactX + 220) * e;
+      if (p >= 1) {
+        impacted = true;
+        xnew.emit('+shake', { amount: 0.7 });
+        xnew(HitBurst, { x: impactX + 28, y: impactY, power: 2.4 });
+        flashG.alpha = 0.85;
+        xnew.transition(({ value }) => { sub.element.style.opacity = `${value}`; }, 500, 'ease');
+      }
+    } else {
+      hitT++;
+      flashG.alpha = Math.max(0, flashG.alpha - 0.08);
+      const damp = Math.exp(-hitT * 0.05);     // 揺れの減衰
+      const wob = Math.sin(hitT * 0.8) * damp;
+      usagi.rotation = wob * 0.16;              // ぷるぷる
+      usagi.x = CX + wob * 9;
+      arrow.x = impactX + wob * 9;              // 刺さったまま一緒に揺れる
+      arrow.rotation = wob * 0.08;
+    }
+  });
+}
+
+// ページ2: 体内で増殖するずんだ因子（4キャラ）が蠢く様子
+function StoryPageSwarm(_unit) {
+  const stage = xpixi.nest(new PIXI.Container());
+  const tl = xnew.context(BakedCharacters).texturesList;
+
+  // 少しずつ湧いて増えていく（増殖感）
+  let n = 0;
+  const MAX = 12;
+  const adder = xnew.interval(() => {
+    xnew(StoryFactor, { stage, tl });
+    if (++n >= MAX) adder.clear();
+  }, 200);
+
+  xnew('<div class="absolute left-0 right-0 top-[5cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
+    xnew('<div>', () => { xnew(xnew.basics.SVGText, { text: '体内の免疫を操作し、', fontSize: '5cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
+    xnew('<div style="color:#9BE53C;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだ因子の増殖を食い止めろ！', fontSize: '5.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
+  });
+}
+
+// 蠢くずんだ因子1体（ポップイン → 漂い + 拡縮ゆらぎ）
+function StoryFactor(unit, { stage, tl }) {
+  const id = Math.floor(Math.random() * tl.length);
+  const textures = tl[id];
+  const sprite = new PIXI.AnimatedSprite(textures);
+  sprite.anchor.set(0.5);
+  sprite.animationSpeed = 1;
+  sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
+
+  const baseScale = 0.5 + Math.random() * 0.5;
+  const bx = 90 + Math.random() * 620;  // テキスト下の領域に散らす
+  const by = 250 + Math.random() * 300;
+  sprite.position.set(bx, by);
+  sprite.scale.set(0);
+  stage.addChild(sprite);
+  // テクスチャは共有なので破棄しない（default destroy は texture を残す）
+  unit.on('finalize', () => { if (!sprite.destroyed) { stage.removeChild(sprite); sprite.destroy(); } });
+
+  const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
+  const sx = 0.5 + Math.random(), sy = 0.5 + Math.random();
+  let t = 0, pop = 0;
+  unit.on('update', () => {
+    t++;
+    pop = Math.min(1, pop + 0.08);                       // ポップイン
+    const squirm = 1 + Math.sin(t * 0.12 + phx) * 0.08;  // 蠢く拡縮
+    sprite.scale.set(baseScale * pop * squirm);
+    sprite.x = bx + Math.sin(t * 0.03 * sx + phx) * 16;
+    sprite.y = by + Math.sin(t * 0.035 * sy + phy) * 14;
+    sprite.rotation = Math.sin(t * 0.05 + phy) * 0.12;
+  });
 }
 
 function GameScene(unit) {
