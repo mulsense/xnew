@@ -16,6 +16,11 @@ const ENEMY_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
 // 自機は中国うさぎ（体内の免疫システム）。後ろ向きに表示する。
 const PLAYER_FILE = 'usagi.vrm';
 
+// 画面右端のイラスト用スペース幅(px)。ゲーム領域は x ∈ [0, PLAY_RIGHT]。
+// HTML 側の 25cqw（= 200/800）と一致させること。
+const PANEL_W = 200;
+const PLAY_RIGHT = 800 - PANEL_W;
+
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
@@ -170,9 +175,9 @@ function GameScene(unit) {
 
   xnew(Background);
   xnew(CameraShake);
+  xnew(SidePanel);
   xnew(Controller);
   const scoreManager = xnew(ScoreManager);
-  xnew(WaveIndicator);
   const waveManager = xnew(WaveManager);
   xnew(ScoreGauge);
   xnew(Player);
@@ -239,7 +244,7 @@ function WaveManager(unit) {
 }
 
 function WaveBanner(unit, { wave }) {
-  xnew.nest('<div class="absolute w-full top-[38cqw] text-center text-cyan-300 font-bold">');
+  xnew.nest('<div class="absolute left-0 right-[25cqw] top-[38cqw] text-center text-cyan-300 font-bold">');
   xnew(xnew.basics.SVGText, { text: `Wave ${wave}`, fontSize: '14cqw', stroke: '#003344', strokeWidth: '0.3cqw', className: 'inline-block' });
   xnew.transition(({ value }) => {
     unit.element.style.opacity = Math.sin(value * Math.PI);
@@ -247,15 +252,18 @@ function WaveBanner(unit, { wave }) {
   xnew.timeout(() => unit.finalize(), 1400);
 }
 
-function WaveIndicator(unit) {
-  xnew.nest('<div class="absolute top-[1cqw] left-[2cqw] text-left text-cyan-400 font-bold">');
+// 右パネル上部の "Wave N" 表示
+function WaveLabel(unit) {
+  xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center text-cyan-400 font-bold">');
   const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#003344', strokeWidth: '0.2cqw', className: 'inline-block' });
   unit.on('+wave', ({ wave }) => text.element.textContent = `Wave ${wave}`);
 }
 
 // 次の wave までのスコア進捗ゲージ（wave が変わると範囲が変わり自然にリセット）
 function ScoreGauge(unit) {
-  xnew.nest('<div class="absolute top-[2cqw] left-1/2 -translate-x-1/2 w-[40cqw] h-[2.2cqw] rounded-full bg-black/40 border-[0.3cqw] border-white/50 overflow-hidden">');
+  // プレイ領域（右パネルを除いた左側）の上部中央に配置
+  xnew.nest('<div class="absolute top-[2cqw] left-0 right-[25cqw] flex justify-center pointer-events-none">');
+  xnew.nest('<div class="w-[40cqw] h-[2.2cqw] rounded-full bg-black/40 border-[0.3cqw] border-white/50 overflow-hidden">');
   const fill = xnew('<div class="h-full rounded-full bg-cyan-400" style="width: 0%;">');
 
   let shown = 0;
@@ -278,6 +286,71 @@ function ScoreGauge(unit) {
 }
 
 // ---- Game Components ----
+
+// 右端のイラストパネル。上=Wave表示 / 中=その wave の敵キャラ / 下=中国うさぎ（敵数で表情切替）
+function SidePanel(_unit) {
+  xnew(PanelBackdrop);     // pixi: パネル背景 + 区切り線
+  xnew(WaveEnemyDisplay);  // pixi: その wave で登場する敵キャラ
+  xnew(WaveLabel);         // html: 上部の "Wave N"
+  xnew(UsagiFace);         // html: 下部のうさぎ（敵数で表情クロスフェード）
+}
+
+function PanelBackdrop(_unit) {
+  const g = xpixi.nest(new PIXI.Graphics());
+  g.rect(PLAY_RIGHT, 0, PANEL_W, 600).fill(0x1A0610);
+  g.moveTo(PLAY_RIGHT, 0).lineTo(PLAY_RIGHT, 600).stroke({ color: 0x7A1530, width: 3, alpha: 0.6 });
+}
+
+// その wave で登場する敵キャラを表示（wave1:ずんだもん 2:きりたん 3:ずん子 4:イタコ）
+function WaveEnemyDisplay(unit) {
+  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: 200 } }));
+  const tl = xnew.context(BakedCharacters).texturesList;
+  let sprite = null;
+
+  unit.on('+wave', ({ wave }) => {
+    const id = Math.min(wave - 1, tl.length - 1); // wave4 以降はイタコ固定
+    if (sprite) container.removeChild(sprite);
+    sprite = new PIXI.AnimatedSprite(tl[id]);
+    sprite.anchor.set(0.5);
+    sprite.scale.set(1.1);
+    sprite.animationSpeed = 1;
+    sprite.play();
+    container.addChild(sprite);
+  });
+}
+
+// パネル下部の中国うさぎ。画面内の敵数に応じて表情をクロスフェードで切り替える。
+// （pixi スプライトで描画＝リザルトのキャプチャにも含まれる）
+function UsagiFace(unit) {
+  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: 596 } }));
+  const urls = [0, 1, 2].map((i) => `../../assets/usagi0${i}.png`);
+
+  let back = null, front = null, current = 0;
+
+  xnew.promise(PIXI.Assets.load(urls)).then((loaded) => {
+    const textures = urls.map((u) => loaded[u]);
+    const fit = (s, t) => {
+      s.texture = t;
+      s.anchor.set(0.5, 1.0); // 下端中央
+      s.scale.set(Math.min((PANEL_W * 0.9) / t.width, 300 / t.height));
+    };
+    back = new PIXI.Sprite(); fit(back, textures[0]);
+    front = new PIXI.Sprite(); fit(front, textures[0]);
+    container.addChild(back, front);
+
+    // 0:余裕(〜20) 1:普通(〜40) 2:焦り(40〜)
+    unit.on('update', () => {
+      const count = xnew.find(Enemy).length;
+      const idx = count <= 20 ? 0 : (count <= 40 ? 1 : 2);
+      if (idx === current) return;
+
+      fit(back, textures[current]); back.alpha = 1;
+      fit(front, textures[idx]); front.alpha = 0;
+      current = idx;
+      xnew.transition(({ value }) => { front.alpha = value; }, 400, 'ease');
+    });
+  });
+}
 
 // 王道STG背景: 深い赤紫ベース + 中央グロー/ビネット + 浮遊粒子（パララックス） + 薄い鼓動
 function Background(_unit) {
@@ -368,7 +441,7 @@ function Controller(unit) {
 }
 
 function ScoreManager(unit) {
-  xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] text-right text-red-600 font-bold">');
+  xnew.nest('<div class="absolute top-[1cqw] right-[27cqw] text-right text-red-600 font-bold">');
   const text = xnew(xnew.basics.SVGText, { text: 'score 0', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let sum = 0;
   return {
@@ -381,7 +454,7 @@ function ScoreManager(unit) {
 }
 
 function GameOverText(unit) {
-  xnew.nest('<div class="absolute w-full text-center text-red-400 font-bold">');
+  xnew.nest('<div class="absolute left-0 right-[25cqw] text-center text-red-400 font-bold">');
   xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   xnew.transition(({ value }) => {
     Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
@@ -390,7 +463,7 @@ function GameOverText(unit) {
 
 function Player(unit) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(400, 500);
+  object.position.set(PLAY_RIGHT / 2, 500);
 
   // 自機＝中国うさぎ（後ろ向きベイク）
   const sprite = new PIXI.AnimatedSprite(xnew.context(BakedCharacters).playerTextures);
@@ -404,11 +477,16 @@ function Player(unit) {
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
   unit.on('+shot', () => { if (alive) xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y }); });
-  unit.on('+gameover', () => alive = false);
+  unit.on('+gameover', () => {
+    if (!alive) return;
+    alive = false;
+    sprite.visible = false; // 自機を消して
+    xnew.context(xnew.basics.Scene).add(PlayerExplosion, { x: object.x, y: object.y }); // 爆発
+  });
 
   unit.on('update', () => {
     if (!alive) return;
-    object.x = Math.min(Math.max(object.x + velocity.x * 3, 30), 770);
+    object.x = Math.min(Math.max(object.x + velocity.x * 3, 30), PLAY_RIGHT - 30);
     object.y = Math.min(Math.max(object.y + velocity.y * 3, 30), 570);
 
     for (const enemy of xnew.find(Enemy)) {
@@ -453,7 +531,7 @@ const ENEMY_DATA = [
 
 function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(x ?? (20 + Math.random() * 760), y ?? -20);
+  object.position.set(x ?? (20 + Math.random() * (PLAY_RIGHT - 40)), y ?? -20);
 
   // ベイクテクスチャでスプライト表示
   const tl = xnew.context(BakedCharacters).texturesList;
@@ -482,8 +560,8 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   unit.on('update', () => {
     sprite.scale.set(0.4 + id * 0.2 + object.y * 0.0008); // y座標に応じて少し大きく（遠近感）
 
-    if (object.x < 15)  vel.x =  Math.abs(vel.x);
-    if (object.x > 785) vel.x = -Math.abs(vel.x);
+    if (object.x < 15)             vel.x =  Math.abs(vel.x);
+    if (object.x > PLAY_RIGHT - 15) vel.x = -Math.abs(vel.x);
     if (object.y < 15)  vel.y =  Math.abs(vel.y);
     if (object.y > 585) vel.y = -Math.abs(vel.y);
     object.position.set(object.x + vel.x + kb.x, object.y + vel.y + kb.y);
@@ -620,6 +698,43 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   });
 }
 
+// 自機被弾時の爆発エフェクト：白フラッシュ + 広がるリング + 飛び散る破片
+function PlayerExplosion(unit, { x, y }) {
+  const container = xpixi.nest(new PIXI.Container({ position: { x, y } }));
+
+  const flash = new PIXI.Graphics().circle(0, 0, 30).fill({ color: 0xFFFFFF, alpha: 1 });
+  const ring = new PIXI.Graphics().circle(0, 0, 18).stroke({ color: 0x66E0FF, width: 6, alpha: 1 });
+  container.addChild(flash, ring);
+
+  const palette = [0x9CF0FF, 0xFFFFFF, 0x66E0FF, 0xCFFBFF];
+  const shards = [];
+  for (let i = 0; i < 18; i++) {
+    const g = new PIXI.Graphics().circle(0, 0, 3 + Math.random() * 4).fill(palette[Math.floor(Math.random() * palette.length)]);
+    container.addChild(g);
+    const a = Math.random() * Math.PI * 2;
+    const sp = 3 + Math.random() * 6;
+    shards.push({ g, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+  }
+
+  const DURATION = 36;
+  let count = 0;
+  unit.on('update', () => {
+    const p = count / DURATION;
+    flash.scale.set(1 + p * 1.5);
+    flash.alpha = Math.max(0, 1 - p * 2);
+    ring.scale.set(1 + p * 3.5);
+    ring.alpha = Math.max(0, 1 - p);
+    for (const s of shards) {
+      s.g.x += s.vx;
+      s.g.y += s.vy;
+      s.vx *= 0.92;
+      s.vy = s.vy * 0.92 + 0.15; // 減速 + 重力
+      s.g.alpha = Math.max(0, 1 - p);
+    }
+    if (++count >= DURATION) unit.finalize();
+  });
+}
+
 // 撃破時の衝撃エフェクト：白フラッシュ + 広がるシアンのリング
 function HitBurst(unit, { x, y, power = 1 }) {
   const container = xpixi.nest(new PIXI.Container({ position: { x, y } }));
@@ -686,7 +801,8 @@ function ResultBackground(unit) {
 }
 
 function ResultImage(unit, { image }) {
-  xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] size-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
+  // キャプチャは 800x600(4:3) なので、表示枠も 4:3 にして全体を表示する
+  xnew.nest('<div class="absolute bottom-[14cqw] left-[2cqw] w-[45cqw] aspect-4/3 rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
   const img = xnew('<img class="absolute inset-0 size-full object-cover">');
   image?.then((src) => img.element.src = src);
 }
