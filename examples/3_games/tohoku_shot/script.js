@@ -167,6 +167,7 @@ function TitleScene(unit) {
 
   xnew(TitleText);
   xnew(TouchMessage);
+  xnew(VolumeControl);
   unit.on('pointerdown', () => unit.change(GameScene));
 }
 
@@ -175,25 +176,35 @@ function GameScene(unit) {
 
   xnew(Background);
   xnew(CameraShake);
+  xnew(SoundFX);
   xnew(SidePanel);
   xnew(Controller);
   const scoreManager = xnew(ScoreManager);
   const waveManager = xnew(WaveManager);
   xnew(ScoreGauge);
   xnew(Player);
+  xnew(VolumeControl);
+
+  const bgm = xnew(() => {
+    xnew.audio.load('../../assets/maou_bgm_cyber31.mp3').then((music) => music.play({ fade: 1000, loop: true }));
+  });
 
   unit.on('+gameover', () => {
     unit.off('+gameover');
+    bgm.finalize(); // ゲームオーバーで BGM 停止
     const score = scoreManager.score;
     const wave = waveManager.wave;
+    const kills = [...scoreManager.kills];
     const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
     xnew(GameOverText);
-    xnew.timeout(() => unit.change(ResultScene, { image, score, wave }), 2000);
+    xnew.timeout(() => unit.change(ResultScene, { image, score, wave, kills }), 2000);
   });
 }
 
-function ResultScene(unit, { image, score, wave }) {
+function ResultScene(unit, { image, score, wave, kills }) {
   xnew.extend(xnew.basics.Scene);
+
+  xnew.audio.load('../../assets/st005.mp3').then((music) => music.play({ fade: 1, loop: true }));
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
@@ -203,7 +214,7 @@ function ResultScene(unit, { image, score, wave }) {
 
   xnew(ResultBackground);
   xnew(ResultImage, { image });
-  xnew(ResultDetail, { score, wave });
+  xnew(ResultDetail, { score, wave, kills });
   xnew(ResultFooter);
 }
 
@@ -341,7 +352,7 @@ function UsagiFace(unit) {
     // 0:余裕(〜20) 1:普通(〜40) 2:焦り(40〜)
     unit.on('update', () => {
       const count = xnew.find(Enemy).length;
-      const idx = count <= 20 ? 0 : (count <= 40 ? 1 : 2);
+      const idx = count <= 30 ? 0 : (count <= 60 ? 1 : 2);
       if (idx === current) return;
 
       fit(back, textures[current]); back.alpha = 1;
@@ -352,7 +363,7 @@ function UsagiFace(unit) {
   });
 }
 
-// 王道STG背景: 深い赤紫ベース + 中央グロー/ビネット + 浮遊粒子（パララックス） + 薄い鼓動
+// 背景: zunda_background.png をやや暗めに加工 + 浮遊粒子（パララックス） + 薄い鼓動
 function Background(_unit) {
   xnew(BackgroundBase);
   for (let i = 0; i < 80; i++) xnew(Mote);
@@ -362,29 +373,31 @@ function Background(_unit) {
 function BackgroundBase(_unit) {
   const container = xpixi.nest(new PIXI.Container());
 
-  // 深い赤紫のベタ塗り（カメラシェイクで端が露出しても黒く抜けないよう少し広めに）
-  container.addChild(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0x140309));
+  // 下地（カメラシェイクで端が露出しても黒く抜けないよう少し広めに）
+  container.addChild(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0x0A0306));
 
-  // Canvas2D の放射グラデで「中央グロー + 周辺減光」を一枚のテクスチャに
-  const canvas = document.createElement('canvas');
-  canvas.width = 800;
-  canvas.height = 600;
-  const ctx = canvas.getContext('2d');
+  xnew.promise(PIXI.Assets.load('../../assets/zunda_background.png')).then((texture) => {
+    const sprite = new PIXI.Sprite(texture);
+    sprite.scale.set(800 / texture.width, 600 / texture.height); // canvas にフィット
+    container.addChild(sprite);
 
-  const glow = ctx.createRadialGradient(400, 300, 30, 400, 320, 470);
-  glow.addColorStop(0.0, 'rgba(130, 26, 50, 0.55)'); // 中央の暖かいグロー
-  glow.addColorStop(0.55, 'rgba(70, 12, 30, 0.25)');
-  glow.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, 800, 600);
+    // やや暗め＆コントラスト緩和の暗幕 + 周辺減光を一枚のテクスチャに
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 600;
+    const ctx = canvas.getContext('2d');
 
-  const vignette = ctx.createRadialGradient(400, 300, 210, 400, 300, 540);
-  vignette.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-  vignette.addColorStop(1.0, 'rgba(0, 0, 0, 0.6)'); // 周辺減光で視線を中央へ
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, 800, 600);
+    ctx.fillStyle = 'rgba(8, 4, 10, 0.42)'; // 全体を暗くしてコントラストを抑える
+    ctx.fillRect(0, 0, 800, 600);
 
-  container.addChild(new PIXI.Sprite(PIXI.Texture.from(canvas)));
+    const vignette = ctx.createRadialGradient(400, 300, 210, 400, 300, 540);
+    vignette.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+    vignette.addColorStop(1.0, 'rgba(0, 0, 0, 0.55)'); // 周辺減光で視線を中央へ
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, 800, 600);
+
+    container.addChild(new PIXI.Sprite(PIXI.Texture.from(canvas)));
+  });
 }
 
 // 奥行きのある浮遊粒子。下方向ドリフトで前進感、奥ほど小さく遅く暗い。
@@ -444,10 +457,13 @@ function ScoreManager(unit) {
   xnew.nest('<div class="absolute top-[1cqw] right-[27cqw] text-right text-red-600 font-bold">');
   const text = xnew(xnew.basics.SVGText, { text: 'score 0', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   let sum = 0;
+  const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
   return {
     get score() { return sum; },
-    add(score) {
+    get kills() { return kills; },
+    add(score, id) {
       sum += score;
+      if (id !== undefined) kills[id]++;
       text.element.textContent = `score ${sum}`;
     }
   };
@@ -476,7 +492,11 @@ function Player(unit) {
   let alive = true;
   let velocity = { x: 0, y: 0 };
   unit.on('+move', ({ vector }) => velocity = vector);
-  unit.on('+shot', () => { if (alive) xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y }); });
+  unit.on('+shot', () => {
+    if (!alive) return;
+    xnew.context(xnew.basics.Scene).add(Shot, { x: object.x, y: object.y });
+    xnew.context(SoundFX).shot();
+  });
   unit.on('+gameover', () => {
     if (!alive) return;
     alive = false;
@@ -587,8 +607,9 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       const scene = xnew.context(xnew.basics.Scene);
       const baseAngle = Math.atan2(direction.y, direction.x); // 当たった方向
 
-      // 撃破エフェクト：衝撃バースト。カメラシェイクは自機ショット命中時のみ。
+      // 撃破エフェクト：衝撃バースト + 撃破音。カメラシェイクは自機ショット命中時のみ。
       scene.add(HitBurst, { x: object.x, y: object.y, power: 1 + id * 0.5 });
+      xnew.context(SoundFX).defeat(id);
       if (!fromStar) xnew.emit('+shake', { amount: 0.16 + id * 0.13 });
 
       // 倒された敵自身：半透明に薄れながら当たった方向へノックバックして消える
@@ -615,7 +636,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
         scene.add(Star, { x: object.x, y: object.y, score, angle });
       }
       scene.add(ScorePopup, { x: object.x, y: object.y, score });
-      xnew.context(ScoreManager).add(score);
+      xnew.context(ScoreManager).add(score, id);
       unit.finalize();
     },
   };
@@ -772,6 +793,41 @@ function CameraShake(unit) {
   unit.on('finalize', () => xpixi.scene.position.set(0, 0));
 }
 
+// 効果音：ショット音と撃破音（ピン、というピアノ風のシンセ音）
+function SoundFX(_unit) {
+  // ショット：高めで少し下がるピッ
+  const shotSynth = xnew.audio.synthesizer({
+    oscillator: { type: 'triangle', envelope: { amount: -7, ADSR: [0, 90, 0, 0] } },
+    filter: { type: 'lowpass', cutoff: 3500 },
+    amp: { envelope: { amount: 0.3, ADSR: [0, 110, 0, 0] } },
+  });
+  // 撃破：ピン（ピアノ風の余韻のある短い音）。敵 id ごとに音程を変える。
+  const pinSynth = xnew.audio.synthesizer({
+    oscillator: { type: 'triangle' },
+    filter: { type: 'lowpass', cutoff: 5000 },
+    amp: { envelope: { amount: 0.8, ADSR: [2, 350, 0, 0] } },
+    reverb: { time: 1000, mix: 0.25 },
+  });
+  const pinNotes = ['C5', 'E5', 'G5', 'C6'];
+
+  let lastShot = 0;
+  let lastDefeat = 0;
+  return {
+    shot() {
+      const now = Date.now();
+      if (now - lastShot < 60) return;
+      lastShot = now;
+      shotSynth.press('A5', 60);
+    },
+    defeat(id) {
+      const now = Date.now();
+      if (now - lastDefeat < 35) return; // 連鎖の音被りを軽減
+      lastDefeat = now;
+      pinSynth.press(pinNotes[Math.min(id, pinNotes.length - 1)], 200);
+    },
+  };
+}
+
 // ---- Result screen ----
 
 function ResultBackground(unit) {
@@ -802,30 +858,30 @@ function ResultBackground(unit) {
 
 function ResultImage(unit, { image }) {
   // キャプチャは 800x600(4:3) なので、表示枠も 4:3 にして全体を表示する
-  xnew.nest('<div class="absolute bottom-[14cqw] left-[2cqw] w-[45cqw] aspect-4/3 rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
+  xnew.nest('<div class="absolute bottom-[14cqw] left-[2cqw] w-[56cqw] aspect-4/3 rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
   const img = xnew('<img class="absolute inset-0 size-full object-cover">');
   image?.then((src) => img.element.src = src);
 }
 
-function ResultDetail(unit, { score, wave }) {
-  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[50cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
-  xnew('<div class="text-[4cqw] text-center text-red-400">', '🦠 駆逐結果 🦠');
-  xnew('<div class="text-[3.5cqw] text-center text-cyan-600 py-[0.5cqw]">', `到達ウェーブ: Wave ${wave}`);
+function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0] }) {
+  xnew.nest('<div class="absolute bottom-[12cqw] right-[2cqw] w-[38cqw] bg-gray-100 p-[1cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
+  xnew('<div class="text-[3.5cqw] text-center text-red-400">', '🦠 駆逐した数 🦠');
 
-  xnew('<div class="mx-[2cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-cyan-600">');
-  xnew('<div class="text-[4cqw] text-center text-yellow-500">', `⭐ スコア: ${score} ⭐`);
-  xnew('<div class="pt-[1.5cqw] px-[1cqw] flex justify-center items-center gap-x-[2cqw]">', () => {
-    const tiers = [{ label: 'まだまだ', min: 0 }, { label: 'いいね', min: 300 }, { label: '免疫マスター', min: 800 }];
-    let reached = 0;
-    tiers.forEach((tier, i) => { if (score >= tier.min) reached = i; });
-    tiers.forEach((tier, i) => {
-      if (i === reached) {
-        xnew('<div class="text-[3.5cqw] text-blue-500">', tier.label);
-      } else {
-        xnew('<div class="text-[2cqw] opacity-20">', tier.label);
-      }
-    });
+  // 敵キャラ別の撃破数（ベイク先頭フレーム＝正面のアイコン × 撃破数）を2列で
+  const tl = xnew.context(BakedCharacters).texturesList;
+  xnew('<div class="grid grid-cols-2 gap-x-[1cqw] py-[0.5cqw]">', () => {
+    for (let i = 0; i < tl.length; i++) {
+      xnew('<div class="flex items-center justify-center gap-x-[1cqw]">', () => {
+        const icon = xnew('<img class="w-[7cqw] h-[7cqw] object-contain">');
+        xpixi.renderer.extract.base64(new PIXI.Sprite(tl[i][0])).then((src) => icon.element.src = src);
+        xnew('<div class="text-[3.5cqw] text-cyan-700">', `× ${kills[i] ?? 0}`);
+      });
+    }
   });
+
+  xnew('<div class="mx-[1cqw] my-[1cqw] border-t-[0.4cqw] border-dashed border-cyan-600">');
+  xnew('<div class="text-[2.8cqw] text-center text-cyan-600">', `到達 Wave ${wave}`);
+  xnew('<div class="text-[3.4cqw] text-center text-yellow-500">', `⭐ スコア ${score} ⭐`);
 }
 
 function ResultFooter(unit) {
@@ -856,6 +912,11 @@ function ScreenShot(unit) {
 }
 
 // ---- UI Helpers ----
+
+function VolumeControl(_unit) {
+  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[6cqw] text-stone-300 z-10">',
+    xnew.basics.VolumeController, { anchor: 'left' });
+}
 
 function TitleText(_unit) {
   xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-blue-600 font-bold">');
