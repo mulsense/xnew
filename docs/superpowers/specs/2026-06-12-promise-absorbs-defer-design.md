@@ -35,7 +35,7 @@ const { resolve } = xnew.promise('textures');
 1. **`xnew.defer` を削除**。手動 settle は `xnew.promise()` / `xnew.promise(key)` が担う。
 2. **戻り型は引数で変わる（案A）**: promise 実引数があれば `UnitPromise`、無ければ `{ resolve, reject }`。`string` は `Function | Promise | Unit` に代入不可なので、deferred 系と登録系のオーバーロードは重ならない。
 3. **deferred の挙動は現 `defer` と同一**: unit に登録、キー付きなら settle 値が `xnew.then` 結果にそのキーで入る。`resolve(value?)` / `reject(reason?)` は値を取り、2回目以降の settle は無視（冪等）。
-4. **旧 throw ガードを撤去**: 現状 `xnew.promise('key')`（promise 無し）は「key 単独呼び出し」として例外を投げていたが、本変更ではこれが deferred の正規呼び出しになるため、ガードを削除する。
+4. **throw ガードを arity ベースに変更**: 旧ガードは `xnew.promise('key')`（promise 無し）を無条件に例外にしていたが、本変更ではこれが deferred の正規呼び出しになる。代わりに「**2 引数で呼ばれたのに promise が undefined**」(`arguments.length >= 2 && promise === undefined`、例: `xnew.promise('key', undefinedVar)`) だけを誤用として throw する。これは「登録のつもりで promise を渡し忘れて never-resolve な promise が静かに登録される」footgun を防ぐためで、`xnew.promise()` / `xnew.promise('key')`（1 引数以下）の deferred 正規呼び出しには当たらない。（実装中のコードレビューで追加した安全策。）
 5. **判別は `promise === undefined` で行う**: 正規化後 `promise`（= 実 promise 引数）が `undefined` なら deferred、そうでなければ登録。
 
 ## 実装（[src/core/xnew.ts](../../../src/core/xnew.ts)）
