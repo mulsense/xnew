@@ -8,7 +8,7 @@
 // socket の基本イベント（connect / disconnect / room:notfound）は boot が **boot を呼んだ親ユニット**の
 // `unit.on(event)` へ配るので、host 側でそのまま受け取れる。
 //
-// - Room(unit, { socket, component }) : 上記の配線を行い `{ client }`（boot ルート unit）を返す
+// - Room(unit, { mode, socket?, room?, component }) : 上記の配線を行い `{ client }`（boot ルート unit）を返す
 //
 // 使い分け: socket の生成・roomId 解決・ロビー / 部屋管理は利用側（client は Scene、server は io 配線）の責務。
 //
