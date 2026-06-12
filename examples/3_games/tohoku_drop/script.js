@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import voxelkit from 'voxelkit';
 import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
@@ -310,43 +311,46 @@ function Model(unit, { id = 0, position = null, rotation = null, scale }) {
   if (position) object.position.set(position.x, position.y, position.z);
   if (rotation) object.rotation.set(rotation.x, rotation.y, rotation.z);
 
-  const list = ['zundamon.vrm', 'usagi.vrm', 'kiritan.vrm', 'metan.vrm', 'zunko.vrm', 'sora.vrm', 'itako.vrm'];
+  const list = ['zundamon.mog', 'usagi.mog', 'kiritan.mog', 'metan.mog', 'zunko.mog', 'sora.mog', 'itako.mog'];
   const path = '../../assets/' + (id < 7 ? list[id] : list[0]);
 
-  xnew.promise(new Promise((resolve) => {
-    const loader = new GLTFLoader();
-    loader.register((parser) => new VRMLoaderPlugin(parser));
-    loader.load(path, (gltf) => resolve(gltf));
-  })).then((gltf) => {
-    const vrm = gltf.userData.vrm;
-    vrm.scene.traverse((object) => {
-      if (object.isMesh) object.castShadow = object.receiveShadow = true;
-    });
-    vrm.scene.position.y = -scale;
-    vrm.scene.scale.set(scale, scale, scale);
-    object.add(vrm.scene);
+  xnew.promise(voxelkit.load(path, { scale: 100 }))
+    .then((composits) => voxelkit.convertVRM(composits[0]))
+    .then((arrayBuffer) => new Promise((resolve) => {
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      loader.parse(arrayBuffer.buffer, '', (gltf) => resolve(gltf));
+    }))
+    .then((gltf) => {
+      const vrm = gltf.userData.vrm;
+      vrm.scene.traverse((object) => {
+        if (object.isMesh) object.castShadow = object.receiveShadow = true;
+      });
+      vrm.scene.position.y = -scale;
+      vrm.scene.scale.set(scale, scale, scale);
+      object.add(vrm.scene);
 
-    const random = Math.random() * 10;
+      const random = Math.random() * 10;
 
-    let count = 0;
-    unit.on('update', () => {
-      const t = (count + random) * 0.03;
-      const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
-      g('neck').rotation.x = Math.sin(t * 6) * +0.1;
-      g('chest').rotation.x = Math.sin(t * 12) * +0.1;
-      g('hips').position.z = Math.sin(t * 12) * 0.1;
-      g('leftUpperArm').rotation.z = Math.sin(t * 12 + random) * +0.7;
-      g('leftUpperArm').rotation.x = Math.sin(t * 6 + random) * +0.8;
-      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-      g('rightUpperArm').rotation.x = Math.sin(t * 6) * +0.8;
-      g('leftUpperLeg').rotation.z = Math.sin(t * 8) * +0.2;
-      g('leftUpperLeg').rotation.x = Math.sin(t * 12) * +0.7;
-      g('rightUpperLeg').rotation.z = Math.sin(t * 8) * -0.2;
-      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
-      vrm.update(t);
-      count++;
+      let count = 0;
+      unit.on('update', () => {
+        const t = (count + random) * 0.03;
+        const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
+        g('neck').rotation.x = Math.sin(t * 6) * +0.1;
+        g('chest').rotation.x = Math.sin(t * 12) * +0.1;
+        g('hips').position.z = Math.sin(t * 12) * 0.1;
+        g('leftUpperArm').rotation.z = Math.sin(t * 12 + random) * +0.7;
+        g('leftUpperArm').rotation.x = Math.sin(t * 6 + random) * +0.8;
+        g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+        g('rightUpperArm').rotation.x = Math.sin(t * 6) * +0.8;
+        g('leftUpperLeg').rotation.z = Math.sin(t * 8) * +0.2;
+        g('leftUpperLeg').rotation.x = Math.sin(t * 12) * +0.7;
+        g('rightUpperLeg').rotation.z = Math.sin(t * 8) * -0.2;
+        g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+        vrm.update(t);
+        count++;
+      });
     });
-  });
   return { 
     get id() { return id; },
   };
