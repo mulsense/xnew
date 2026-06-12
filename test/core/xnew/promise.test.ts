@@ -49,7 +49,7 @@ describe('xnew promise helpers', () => {
 
             await jest.advanceTimersByTimeAsync(0);
 
-            // then receives the current unit's results object (empty here, nothing collected)
+            // then receives an object of keyed results; nothing keyed here, so it is empty
             expect(done).toHaveBeenCalledTimes(1);
             expect(done).toHaveBeenCalledWith({});
         });
@@ -150,33 +150,71 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('xnew.collect', () => {
-        it('merges its output into the results passed to then', async () => {
+    describe('keyed xnew.promise', () => {
+        it('passes keyed promise values to then under their key', async () => {
             const done = jest.fn();
             xnew(() => {
-                xnew.collect({ data: 123 });
-                xnew.promise(Promise.resolve('ignored value'));
-                xnew.then(done);
-            });
-
-            await jest.advanceTimersByTimeAsync(0);
-
-            expect(done).toHaveBeenCalledTimes(1);
-            expect(done).toHaveBeenCalledWith({ data: 123 });
-        });
-
-        it('accumulates multiple collect calls', async () => {
-            const done = jest.fn();
-            xnew(() => {
-                xnew.collect({ a: 1 });
-                xnew.collect({ b: 2 });
-                xnew.promise(Promise.resolve(0));
+                xnew.promise('a', Promise.resolve(1));
+                xnew.promise('b', Promise.resolve(2));
                 xnew.then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
 
             expect(done).toHaveBeenCalledWith({ a: 1, b: 2 });
+        });
+
+        it('excludes keyless promises from the results object', async () => {
+            const done = jest.fn();
+            xnew(() => {
+                xnew.promise('a', Promise.resolve(1));
+                xnew.promise(Promise.resolve('ignored'));
+                xnew.then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ a: 1 });
+        });
+
+        it('binds the key to the final value of a then-chain', async () => {
+            const done = jest.fn();
+            xnew(() => {
+                xnew.promise('a', Promise.resolve(1)).then((v: number) => v + 10).then((v: number) => v * 2);
+                xnew.then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ a: 22 });
+        });
+
+        it('lets a later duplicate key win', async () => {
+            const done = jest.fn();
+            xnew(() => {
+                xnew.promise('a', Promise.resolve('first'));
+                xnew.promise('a', Promise.resolve('second'));
+                xnew.then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ a: 'second' });
+        });
+
+        it('collects a child unit keyed results when registered with a key', async () => {
+            const done = jest.fn();
+            xnew(() => {
+                const child = xnew(() => {
+                    xnew.promise('x', Promise.resolve(7));
+                });
+                xnew.promise('child', child);
+                xnew.then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ child: { x: 7 } });
         });
     });
 });
