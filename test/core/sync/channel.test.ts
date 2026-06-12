@@ -75,10 +75,10 @@ describe('event channel (socket.io-compatible transport)', () => {
         let id1: string | undefined;
         let id2: string | undefined;
         xnew.sync.boot({ mode: 'client' }, function Client(unit: Unit) {
-            xnew.client(() => { id1 = xnew.sync.clientId; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
+            xnew.client(() => { id1 = xnew.sync.client.id; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
         });
         xnew.sync.boot({ mode: 'client' }, function Client(unit: Unit) {
-            xnew.client(() => { id2 = xnew.sync.clientId; });
+            xnew.client(() => { id2 = xnew.sync.client.id; });
         });
 
         expect(id1).toBe('c1');   // 自動発番（手動 clientId 不要）
@@ -97,7 +97,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         (Unit as any).engineRoot = undefined;   // 「まだ何も生成されていない」状態を再現
         let id: string | undefined;
         xnew.sync.boot({ mode: 'client' }, function Client() {
-            xnew.client(() => { id = xnew.sync.clientId; });
+            xnew.client(() => { id = xnew.sync.client.id; });
         });
         expect(id).toBe('c1');   // socket がバインドされ clientId が解決できる（throw しない）
     });

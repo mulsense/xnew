@@ -9,7 +9,7 @@ import xnew from '@mulsense/xnew';
 //       client: ペインを生成し emit('-join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」だけを担う。
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。
 //       server: '-move'（同一コンポーネント宛て）で方向を vel に保持→update で積分。
-//       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.clientId。
+//       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.client.id。
 //   - sync イベント: 送信は xnew.sync.emit（payload はオブジェクト・syncId 自動付与）、受信は unit.on（受信 unit を明示）。
 //       handler は { id, ...payload }。プレフィックス '-'=同一コンポーネント(同じ syncId・replica↔server で一致) / '+'・無印=全体。
 //   - key: xnew(C, { key }) で同一性の目印を付け、xnew.find(C, { key }) で引ける（key はグローバル一意の想定）。
@@ -42,7 +42,7 @@ export function Player(unit, { clientId = '' } = {}) {
         unit.on('render', () => { el.style.left = `${state.x}px`; el.style.top = `${state.y}px`; });
 
         // 入力 → 移動はこの自機の動作。自機（このクライアント自身の Player）だけが入力を受ける。
-        if (state.clientId === xnew.sync.clientId) {
+        if (state.clientId === xnew.sync.client.id) {
             const pane = xnew.context(xnew.basics.Selectable);   // 所属する World の選択状態/イベント
             const stop = () => xnew.sync.emit('-move', { vector: { x: 0, y: 0 } });
             // 所属ペインが選択中のときだけ、方向ベクトルを emit('-move')（自機の入力の上り）。
