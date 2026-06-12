@@ -16,8 +16,8 @@
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './dom';
-import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, bootSyncRoot } from './sync';
-import type { BootOptions } from './sync';
+import { syncOf, registerOnUnit, captureStateTree, applyStateTree, getRootSocket, getRootClient, getRootClients, bootSyncRoot } from './sync';
+import type { BootOptions, ClientInfo } from './sync';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
 export interface XnewBase {
@@ -172,7 +172,7 @@ export const xnew = Object.assign(
          * State synchronization API（server→client 状態同期。詳細は core/sync.ts）。
          * - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
          * - capture / apply  : 手動同期用（boot の自動 mirror を使わない場合）
-         * - emit / clientId  : イベント送信（'+event'=全体 / '-event'=同一 syncId のみ。受信は unit.on）/ 自 client id
+         * - emit / client / clients : イベント送信（'+event'=全体 / '-event'=同一 syncId のみ。受信は unit.on）/ 自分の {id,name} / 同 room の全接続者
          * - boot             : socket をバインドしたルート生成（mode は socket から判定。下り mirror + dispatcher を自動配線）
          */
         sync: {
@@ -201,13 +201,21 @@ export const xnew = Object.assign(
             apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void {
                 applyStateTree(root, tree);
             },
-            /** この client の id（= socket.id）。server では undefined。 */
-            get clientId(): string | undefined {
+            /** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
+            get client(): ClientInfo {
                 const unit = Unit.currentUnit;
                 if (unit === null) {
-                    throw new Error('xnew.sync.clientId can not be read outside a component.');
+                    throw new Error('xnew.sync.client can not be read outside a component.');
                 }
-                return (getRootSocket(unit) as any).id;
+                return getRootClient(unit);
+            },
+            /** 同じ room の全接続者（presence 名簿。name は入室時に boot / Room の name で設定）。 */
+            get clients(): ReadonlyArray<ClientInfo> {
+                const unit = Unit.currentUnit;
+                if (unit === null) {
+                    throw new Error('xnew.sync.clients can not be read outside a component.');
+                }
+                return getRootClients(unit);
             },
             emit(event: string, payload: Record<string, any> = {}): void {
                 const unit = Unit.currentUnit;

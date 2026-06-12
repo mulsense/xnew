@@ -8,13 +8,13 @@
 // socket の基本イベント（connect / disconnect / room:notfound）は boot が **boot を呼んだ親ユニット**の
 // `unit.on(event)` へ配るので、host 側でそのまま受け取れる。
 //
-// - Room(unit, { mode, socket?, room?, component }) : 上記の配線を行い `{ client }`（boot ルート unit）を返す
+// - Room(unit, { mode, socket?, room?, name?, component }) : 上記の配線を行い `{ client }`（boot ルート unit）を返す
 //
 // 使い分け: socket の生成・roomId 解決・ロビー / 部屋管理は利用側（client は Scene、server は io 配線）の責務。
 //
 // Example (client):
 //   const socket = io({ query: { room: roomId }, forceNew: true });
-//   xnew.extend(xnew.basics.Room, { mode: 'client', socket, component: World });
+//   xnew.extend(xnew.basics.Room, { mode: 'client', socket, name: 'Alice', component: World });
 //   unit.on('connect', () => setStatus(`room ${roomId}: ${socket.id}`));
 //   unit.on('room:notfound', () => unit.change(LobbyScene));
 // Example (server):
@@ -26,9 +26,9 @@ import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { BootOptions } from '../core/sync';
 
-export function Room(unit: Unit, { mode, socket, room, component }: Pick<BootOptions, 'mode' | 'socket' | 'room'> & { component: Function }) {
-    // boot へ mode/socket/room を渡す（下りと基本イベントは boot が自動配線）。socket 省略時は loopback。
-    const client = xnew.sync.boot({ mode, socket, room }, component) as Unit & { select?: () => void };
+export function Room(unit: Unit, { mode, socket, room, name, component }: Pick<BootOptions, 'mode' | 'socket' | 'room' | 'name'> & { component: Function }) {
+    // boot へ mode/socket/room/name を渡す（下りと基本イベントは boot が自動配線）。socket 省略時は loopback。
+    const client = xnew.sync.boot({ mode, socket, room, name }, component) as Unit & { select?: () => void };
 
     if (mode === 'server') {
         // server: select / disconnect は無い。部屋掃除で booted root を畳むだけ。

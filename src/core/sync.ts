@@ -9,7 +9,8 @@
 // - SyncData / syncOf / SyncRegistry / registerOnUnit : unit 単位の同期データ（WeakMap）とレジストリ
 // - captureStateTree / applyStateTree : server サブツリー → SyncNode[] → client へ差分適用
 // - ClientSocket / ServerSocket / RootSocket : socket 契約（socket.io 互換の duck-type。型のみ）
-// - registerSyncRoot / findSyncRoot / getRootSocket : boot ルートの登録と解決
+// - findSyncRoot / getRootSocket / getRootClient / getRootClients : boot ルートの解決と client/presence 取得
+// - ClientInfo : 1 接続者の {id, name}（xnew.sync.client / clients が返す）
 // - BootOptions / bootSyncRoot / loopbackHub : boot 入力・ルート生成 + 配線・共有 loopback hub
 // - Transport / loopback / socketio : transport 実装（in-memory ハブ / socket.io アダプタ）
 //----------------------------------------------------------------------------------------------------
@@ -176,11 +177,24 @@ export type RootSocket = ClientSocket | ServerSocket;
 // 同期ツリーのルート情報（syncRoots）
 //----------------------------------------------------------------------------------------------------
 
-/** boot ルート → 関連情報（socket）。findSyncRoot / getRootSocket がこれを引く。 */
-const syncRoots: WeakMap<Unit, { socket: RootSocket | null }> = new WeakMap();
+/** 1 接続者の公開情報（presence のエントリ／自分自身）。 */
+export interface ClientInfo {
+    id: string | undefined;
+    name: string | undefined;
+}
 
-/** boot ルートを登録する（xnew.sync.boot から呼ぶ）。 */
-export function registerSyncRoot(root: Unit, info: { socket: RootSocket | null }): void {
+/** boot ルートに紐づく内部情報。socket・自分の name・presence 名簿を持つ。 */
+interface RootInfo {
+    socket: RootSocket | null;
+    name: string | undefined;            // この client 自身の name（server では undefined）
+    roster: Map<string, ClientInfo>;     // presence（server が権威、client は mirror）
+}
+
+/** boot ルート → 関連情報。findSyncRoot / getRootSocket / getRootClient(s) がこれを引く。 */
+const syncRoots: WeakMap<Unit, RootInfo> = new WeakMap();
+
+/** boot ルートを登録する（bootSyncRoot から呼ぶ。file 内部専用）。 */
+function registerSyncRoot(root: Unit, info: RootInfo): void {
     syncRoots.set(root, info);
 }
 
@@ -205,14 +219,30 @@ export function findSyncRoot(unit: Unit): Unit | null {
     return null;
 }
 
-/** Resolves the socket bound to the caller's sync-tree root（無ければ throw）. */
-export function getRootSocket(unit: Unit): RootSocket {
+/** caller の sync ルートの内部情報を返す（socket 未バインドなら throw）。 */
+function rootInfoOf(unit: Unit): RootInfo {
     const root = findSyncRoot(unit);
-    const socket = root !== null ? syncRoots.get(root)!.socket : null;
-    if (socket === null) {
+    const info = root !== null ? syncRoots.get(root) : undefined;
+    if (info === undefined || info.socket === null) {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ mode }, ...).');
     }
-    return socket;
+    return info;
+}
+
+/** Resolves the socket bound to the caller's sync-tree root（無ければ throw）. */
+export function getRootSocket(unit: Unit): RootSocket {
+    return rootInfoOf(unit).socket as RootSocket;
+}
+
+/** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
+export function getRootClient(unit: Unit): ClientInfo {
+    const info = rootInfoOf(unit);
+    return { id: (info.socket as any).id, name: info.name };
+}
+
+/** 同じ room の全接続者（presence 名簿のスナップショット）。 */
+export function getRootClients(unit: Unit): ClientInfo[] {
+    return [...rootInfoOf(unit).roster.values()];
 }
 
 /** xnew.sync.boot の入力。mode は必須、socket を渡すと socket.io 経由・省略で in-memory loopback。 */
@@ -220,6 +250,7 @@ export interface BootOptions {
     mode: 'server' | 'client';
     socket?: any;        // socket.io の io（server）/ socket（client）。省略時は loopback。
     room?: string;       // server + socket.io のときだけ意味を持つ（接続を query.room で絞る）。
+    name?: string;       // この client の表示名（presence に載り、xnew.sync.client.name で読める）。
 }
 
 // 同一 engineRoot 配下で socket 省略の boot が共有する in-memory hub。reset で engineRoot が変わると
@@ -255,15 +286,33 @@ function resolveRootSocket(opts: BootOptions): RootSocket {
 export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: any[]): Unit {
     const mode = opts.mode;
     const socket = resolveRootSocket(opts);
-    // socket は unit に保持せず、setup フックで syncRoots へ登録する。
-    const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, { socket }) }, parent, ...args);
+    // socket / name / roster は unit に保持せず、setup フックで syncRoots へ登録する。
+    const info: RootInfo = { socket, name: opts.name, roster: new Map() };
+    const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, info) }, parent, ...args);
 
     if (mode === 'server') {
         const server = socket as ServerSocket;
+        // presence: connect/disconnect/sync:hello で名簿を更新し、変化のたびに全員へ配る。
+        const broadcastRoster = () => server.emit('sync:roster', { clients: [...info.roster.values()] });
         root.on('update', () => server.emit('sync', captureStateTree(root)));
         server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-        server.on('connect', (clientId) => { dispatchSync(root, 'connect', clientId, undefined); dispatchBasicEvent(parent, 'connect', { id: clientId }); });
-        server.on('disconnect', (clientId) => { dispatchSync(root, 'disconnect', clientId, undefined); dispatchBasicEvent(parent, 'disconnect', { id: clientId }); });
+        server.on('connect', (clientId) => {
+            info.roster.set(clientId, { id: clientId, name: undefined });
+            broadcastRoster();
+            dispatchSync(root, 'connect', clientId, undefined);
+            dispatchBasicEvent(parent, 'connect', { id: clientId });
+        });
+        server.on('disconnect', (clientId) => {
+            info.roster.delete(clientId);
+            broadcastRoster();
+            dispatchSync(root, 'disconnect', clientId, undefined);
+            dispatchBasicEvent(parent, 'disconnect', { id: clientId });
+        });
+        server.on('sync:hello', (clientId, payload) => {
+            const name = (payload !== null && typeof payload === 'object') ? payload.name : undefined;
+            info.roster.set(clientId, { id: clientId, name });
+            broadcastRoster();
+        });
     } else {
         const client = socket as ClientSocket;
         const handler = (tree: StateTree) => applyStateTree(root, tree);
@@ -272,6 +321,17 @@ export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: an
         client.onAny((event, message) => dispatchSync(root, event, undefined, message));
         // socket.io の onAny は connect/disconnect を含まないため、基本イベントは明示的に拾う。
         BASIC_EVENTS.forEach((event) => client.on(event, (payload: any) => dispatchBasicEvent(parent, event, payload)));
+        // presence: 受け取った名簿を mirror し、自分の name を hello で申告する。
+        client.on('sync:roster', (payload: any) => {
+            info.roster.clear();
+            const list = (payload !== null && typeof payload === 'object' && Array.isArray(payload.clients)) ? payload.clients : [];
+            for (const c of list) { info.roster.set(c.id, { id: c.id, name: c.name }); }
+        });
+        // hello は roster ハンドラ登録後に送る。loopback では connect 時の初回 roster 配信が
+        // この登録より前に走るが、その hello への再配信で名簿が追いつく（前提: server を先に boot）。
+        const sendHello = () => client.emit('sync:hello', { name: info.name });
+        if ((client as any).id) { sendHello(); }   // 接続済み（loopback / 既接続 socket.io）なら即申告
+        client.on('connect', sendHello);           // socket.io の初回 / 再接続で申告
     }
     return root;
 }
@@ -280,6 +340,9 @@ export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: an
 function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
     if (root._.status === 'finalized') {
         return;
+    }
+    if (event.startsWith('sync:')) {
+        return;   // 'sync:hello' / 'sync:roster' などの予約イベントは app ユニットへ配らない
     }
     const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
     const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};

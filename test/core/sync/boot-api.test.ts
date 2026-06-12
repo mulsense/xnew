@@ -10,8 +10,8 @@ describe('xnew.sync.boot({ mode }) — loopback (no socket)', () => {
         xnew.sync.boot({ mode: 'server' }, function Server() {});
         let id1: string | undefined;
         let id2: string | undefined;
-        xnew.sync.boot({ mode: 'client' }, function C1() { xnew.client(() => { id1 = xnew.sync.clientId; }); });
-        xnew.sync.boot({ mode: 'client' }, function C2() { xnew.client(() => { id2 = xnew.sync.clientId; }); });
+        xnew.sync.boot({ mode: 'client' }, function C1() { xnew.client(() => { id1 = xnew.sync.client.id; }); });
+        xnew.sync.boot({ mode: 'client' }, function C2() { xnew.client(() => { id2 = xnew.sync.client.id; }); });
         expect(id1).toBe('c1');
         expect(id2).toBe('c2');
     });
