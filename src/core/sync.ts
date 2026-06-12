@@ -327,6 +327,8 @@ export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: an
             const list = (payload !== null && typeof payload === 'object' && Array.isArray(payload.clients)) ? payload.clients : [];
             for (const c of list) { info.roster.set(c.id, { id: c.id, name: c.name }); }
         });
+        // hello は roster ハンドラ登録後に送る。loopback では connect 時の初回 roster 配信が
+        // この登録より前に走るが、その hello への再配信で名簿が追いつく（前提: server を先に boot）。
         const sendHello = () => client.emit('sync:hello', { name: info.name });
         if ((client as any).id) { sendHello(); }   // 接続済み（loopback / 既接続 socket.io）なら即申告
         client.on('connect', sendHello);           // socket.io の初回 / 再接続で申告
