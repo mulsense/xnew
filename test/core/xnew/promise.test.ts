@@ -216,5 +216,19 @@ describe('xnew promise helpers', () => {
 
             expect(done).toHaveBeenCalledWith({ child: { x: 7 } });
         });
+
+        it('does not run the then callback when a keyed promise rejects', async () => {
+            const done = jest.fn();
+            xnew(() => {
+                xnew.promise('a', Promise.reject('boom'));
+                // attach catch handlers so the rejection never surfaces as unhandled
+                xnew.then(done).catch(() => {});
+                xnew.catch(() => {});
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).not.toHaveBeenCalled();
+        });
     });
 });

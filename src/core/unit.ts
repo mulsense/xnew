@@ -511,9 +511,9 @@ export class UnitPromise {
         );
     }
 
-    private wrap(key: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
+    private wrap(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = (this.promise[key] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
+        this.promise = (this.promise[method] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
         return this;
     }
 }

@@ -70,6 +70,9 @@ export const xnew = Object.assign(
             
         /** Registers a promise（Promise / async 関数 / Unit）to the current unit。第1引数が string ならキー。 */
         promise(keyOrPromise: string | Function | Promise<any> | Unit, maybePromise?: Function | Promise<any> | Unit): UnitPromise {
+            if (typeof keyOrPromise === 'string' && maybePromise === undefined) {
+                throw new Error('xnew.promise(key, promise): promise is required when a key is given');
+            }
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
             const promise = (typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise)!;
             let unitPromise: UnitPromise;
