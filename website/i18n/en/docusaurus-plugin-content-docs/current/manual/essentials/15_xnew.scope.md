@@ -22,7 +22,7 @@ xnew.scope(callback);
 
 ```js
 function Timer(unit) {
-  xnew.nest('<div>', 'Timer Component');
+  xnew.nest('<div>');
 
   setTimeout(xnew.scope(() => {
     // The Timer component scope is preserved in this callback
@@ -35,7 +35,8 @@ function Timer(unit) {
 
 ```js
 function Button(unit) {
-  const el = xnew.nest('<button>', 'Click me');
+  const el = xnew.nest('<button>');
+  el.textContent = 'Click me';
 
   el.addEventListener('click', xnew.scope(() => {
     // The Button component scope is preserved on click

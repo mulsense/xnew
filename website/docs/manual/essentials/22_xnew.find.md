@@ -5,14 +5,16 @@
 ## 使い方
 
 ```js
-const units = xnew.find(Component);
+const units = xnew.find(Component);          // 該当する unit をすべて取得
+const [unit] = xnew.find(Component, { key }); // 予約 prop `key` で 1 つに絞り込む
 ```
 
 **パラメータ:**
 - `Component`: 検索対象のコンポーネント関数
+- `opts.key` *(省略可)*: 予約 prop `key`（生成時に `xnew(Component, { key })` で付与）が一致する unit に絞り込みます
 
 **戻り値:**
-- 指定したコンポーネント関数で生成された unit の配列
+- 条件に一致する、現在アクティブな unit の配列
 
 ## 例
 

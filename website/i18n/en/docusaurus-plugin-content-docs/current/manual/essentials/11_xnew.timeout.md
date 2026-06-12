@@ -1,26 +1,25 @@
 # xnew.timeout
 
-`xnew.timeout` は xnew 用に拡張された `setTimeout` です。所属する unit が終了すると自動でキャンセルされ、ID を保持して `clearTimeout` を呼ぶ必要はありません。
+`xnew.timeout` is `setTimeout` extended for xnew. The timeout is automatically cancelled when the owning unit is destroyed, so you don't need to stash the ID and call `clearTimeout`. You can also chain timeouts and transitions to build multi-step sequences without nesting callbacks.
 
-## 使い方
+## Usage
 
 ```js
-const timeout = xnew.timeout(callback, interval);
+const timer = xnew.timeout(callback, duration);
 ```
 
-**パラメータ:**
-- `callback`: 遅延後に実行する関数
-- `duration`: 実行までの待機時間 (ミリ秒)
+**Parameters:**
+- `callback`: Function to execute after the delay
+- `duration`: Time in milliseconds before execution
 
-**戻り値:**
-- 次のプロパティを持つ transition オブジェクト:
-  - `clear()`: transition をキャンセル
-  - `timeout(callback, duration)`: 次の timeout を連鎖
-  - `transition(callback, duration, easing)`: 次の transition を連鎖
+**Returns:**
+- A timer object with:
+  - `clear()`: Cancel it
+  - `timeout(...)` / `interval(...)` / `transition(...)`: Chain another step
 
-## 例
+## Example
 
-### 遅延実行
+### Basic Delayed Execution
 
 ```js
 xnew('<div>', (unit) => {
@@ -36,7 +35,7 @@ xnew('<div>', (unit) => {
 });
 ```
 
-### timeout のキャンセル
+### Canceling a Timeout
 
 ```js
 xnew('<button>', (unit) => {
@@ -59,9 +58,9 @@ xnew('<button>', (unit) => {
 });
 ```
 
-## 自動クリーンアップ
+## Automatic Cleanup
 
-unit が finalize されると、その unit に紐づくすべての timeout が自動でキャンセルされます。
+When a unit is finalized, all its timeouts are automatically cleared:
 
 ```js
 const unit = xnew((unit) => {

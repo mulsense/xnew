@@ -1,23 +1,24 @@
 # xnew.interval
 
-`xnew.interval` は自動クリーンアップに対応した `setInterval` です。所属する unit が終了すると interval は自動停止します。ID を保持して `clearInterval` を呼ぶ必要はありません。
+`xnew.interval` is `setInterval` with automatic cleanup. The interval stops on its own when the owning unit is finalized — no need to stash the ID and call `clearInterval` manually.
 
-## 使い方
+## Usage
 
 ```js
-const interval = xnew.interval(callback, delay);
+const timer = xnew.interval(callback, duration, iterations);
 ```
 
-**パラメータ:**
-- `callback`: 各 interval で実行する関数
-- `duration`: 実行間隔 (ミリ秒)
+**Parameters:**
+- `callback`: Function to execute at each interval
+- `duration`: Time in milliseconds between executions
+- `iterations` *(optional)*: number of times to run. `0` (default) means unlimited
 
-**戻り値:**
-- `clear()` メソッドを持つ interval オブジェクト
+**Returns:**
+- A timer object with a `clear()` method to stop it
 
-## 例
+## Example
 
-### カウンター
+### Basic Counter
 
 ```js
 xnew('<div>', (unit) => {
@@ -31,7 +32,7 @@ xnew('<div>', (unit) => {
 });
 ```
 
-### interval のキャンセル
+### Canceling an Interval
 
 ```js
 xnew('<div>', (unit) => {
@@ -51,9 +52,9 @@ xnew('<div>', (unit) => {
 });
 ```
 
-## 自動クリーンアップ
+## Automatic Cleanup
 
-unit が finalize されると、その unit に紐づくすべての interval が自動でキャンセルされます。
+When a unit is finalized, all its intervals are automatically cleared:
 
 ```js
 const unit = xnew((unit) => {

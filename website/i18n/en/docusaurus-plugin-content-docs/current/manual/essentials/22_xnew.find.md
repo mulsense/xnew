@@ -5,14 +5,16 @@
 ## Usage
 
 ```js
-const units = xnew.find(Component);
+const units = xnew.find(Component);          // every matching unit
+const [unit] = xnew.find(Component, { key }); // narrow to one by the reserved `key` prop
 ```
 
 **Parameters:**
 - `Component`: The component function to search for
+- `opts.key` *(optional)*: narrow to the unit whose reserved `key` prop (set at creation via `xnew(Component, { key })`) matches
 
 **Returns:**
-- An array of all units created with the specified component function
+- An array of the currently active units that match
 
 ## Example
 

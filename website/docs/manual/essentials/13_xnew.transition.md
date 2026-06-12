@@ -7,7 +7,7 @@
 ## 使い方
 
 ```js
-const transition = xnew.transition(callback, interval, easing);
+const timer = xnew.transition(callback, duration, easing);
 ```
 
 **パラメータ:**
@@ -16,10 +16,9 @@ const transition = xnew.transition(callback, interval, easing);
 - `easing`: イージング関数名 (既定値: `'linear'`)
 
 **戻り値:**
-- 次のプロパティを持つ transition オブジェクト:
-  - `clear()`: transition をキャンセル
-  - `timeout(callback, interval)`: 次の timeout を連鎖
-  - `transition(callback, interval, easing)`: 次の transition を連鎖
+- 次のメソッドを持つ timer オブジェクト:
+  - `clear()`: キャンセル
+  - `timeout(...)` / `interval(...)` / `transition(...)`: 次の処理を連鎖
 
 ## イージング関数
 

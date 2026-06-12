@@ -7,19 +7,18 @@ It's also chainable: you can sequence timeouts and transitions without nesting c
 ## Usage
 
 ```js
-const transition = xnew.transition(callback, interval, easing);
+const timer = xnew.transition(callback, duration, easing);
 ```
 
 **Parameters:**
 - `callback({ value })`: Function called on each frame with progress value (0.0 to 1.0)
-- `duration`: Animation duration interval in milliseconds (default: 0)
+- `duration`: Animation duration in milliseconds (default: 0)
 - `easing`: Easing function name (default: 'linear')
 
 **Returns:**
-- A transition object with:
-  - `clear()`: Cancel the transition
-  - `timeout(callback, interval)`: Chain another timeout
-  - `transition(callback, interval, easing)`: Chain another transition
+- A timer object with:
+  - `clear()`: Cancel it
+  - `timeout(...)` / `interval(...)` / `transition(...)`: Chain another step
 
 ## Available Easing Functions
 

@@ -84,7 +84,7 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@0.8.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -119,7 +119,7 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@0.8.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -177,7 +177,7 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@0.8.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -229,6 +229,6 @@ unit.element; // Access the created DOM element
 
 これで xnew を使い始める準備は整いました。次は以下のページに進んでください。
 
-1. **[Basics — xnew](./basics/xnew)** — イベント・ライフサイクル・カスタムメソッドなどの API リファレンス
-2. **[Basics — xnew.timeout / interval / transition](./basics/xnew.timeout)** — 自動クリーンアップ付きのタイマーと連鎖可能なトランジション
+1. **[Essentials — xnew](./essentials/xnew)** — イベント・ライフサイクル・カスタムメソッドなどの API リファレンス
+2. **[Essentials — xnew.timeout / interval / transition](./essentials/xnew.timeout)** — 自動クリーンアップ付きのタイマーと連鎖可能なトランジション
 3. **[Addons — xpixi / xthree](./addons/xpixi)** — PixiJS / Three.js 連携

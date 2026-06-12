@@ -84,7 +84,7 @@ A minimal example that creates a single component and displays a message:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@0.8.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -119,7 +119,7 @@ This will generate:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@0.8.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -177,7 +177,7 @@ Click the box below to start and stop a CSS rotation animation.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/xnew@0.8.x/dist/xnew.js"></script>
+  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
 </head>
 <body>
   <script>
@@ -229,6 +229,6 @@ Click the box below to start and stop a CSS rotation animation.
 
 You now know everything to start building with xnew. Here's where to go next:
 
-1. **[Basics — xnew](./basics/xnew)** — full API reference: events, lifecycle, custom methods, and more
-2. **[Basics — xnew.timeout / interval / transition](./basics/xnew.timeout)** — timers with automatic cleanup and chainable transitions
+1. **[Essentials — xnew](./essentials/xnew)** — full API reference: events, lifecycle, custom methods, and more
+2. **[Essentials — xnew.timeout / interval / transition](./essentials/xnew.timeout)** — timers with automatic cleanup and chainable transitions
 3. **[Addons — xpixi / xthree](./addons/xpixi)** — drop-in PixiJS and Three.js integration
