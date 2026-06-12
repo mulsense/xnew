@@ -169,6 +169,7 @@ function GameScene(unit) {
   xnew.extend(xnew.basics.Scene);
 
   xnew(Background);
+  xnew(CameraShake);
   xnew(Controller);
   const scoreManager = xnew(ScoreManager);
   xnew(WaveIndicator);
@@ -288,8 +289,8 @@ function Background(_unit) {
 function BackgroundBase(_unit) {
   const container = xpixi.nest(new PIXI.Container());
 
-  // 深い赤紫のベタ塗り
-  container.addChild(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0x140309));
+  // 深い赤紫のベタ塗り（カメラシェイクで端が露出しても黒く抜けないよう少し広めに）
+  container.addChild(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0x140309));
 
   // Canvas2D の放射グラデで「中央グロー + 周辺減光」を一枚のテクスチャに
   const canvas = document.createElement('canvas');
@@ -430,7 +431,7 @@ function Shot(unit, { x, y }) {
 
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.distance(object) < 30) {
-        enemy.clash(ENEMY_DATA[enemy.id].score);
+        enemy.clash(ENEMY_DATA[enemy.id].score, { x: 0, y: -1 }); // ショットは上方向
         unit.finalize();
         return;
       }
@@ -450,7 +451,7 @@ const ENEMY_DATA = [
   { score: 8,  splitTo: 2   },
 ];
 
-function Enemy(unit, { id, x, y, invincible = false }) {
+function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x ?? (20 + Math.random() * 760), y ?? -20);
 
@@ -475,6 +476,9 @@ function Enemy(unit, { id, x, y, invincible = false }) {
   const angle = Math.PI * (0.25 + Math.random() * 0.5); // 45~135度（下向き）
   const vel = { x: Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1), y: Math.sin(angle) * speed };
 
+  // 被弾時のノックバック（着弾点から弾け、徐々に減速）
+  const kb = { x: knockback?.x ?? 0, y: knockback?.y ?? 0 };
+
   unit.on('update', () => {
     sprite.scale.set(0.4 + id * 0.2 + object.y * 0.0008); // y座標に応じて少し大きく（遠近感）
 
@@ -482,7 +486,9 @@ function Enemy(unit, { id, x, y, invincible = false }) {
     if (object.x > 785) vel.x = -Math.abs(vel.x);
     if (object.y < 15)  vel.y =  Math.abs(vel.y);
     if (object.y > 585) vel.y = -Math.abs(vel.y);
-    object.position.set(object.x + vel.x, object.y + vel.y);
+    object.position.set(object.x + vel.x + kb.x, object.y + vel.y + kb.y);
+    kb.x *= 0.82;
+    kb.y *= 0.82;
   });
 
   return {
@@ -495,28 +501,49 @@ function Enemy(unit, { id, x, y, invincible = false }) {
       return Math.sqrt(dx * dx + dy * dy);
     },
 
-    clash(score, fromStar = false) {
+    // direction: 当たった方向の単位ベクトル（弾の進行方向）。fromStar: 星チェーン由来か。
+    clash(score, direction = { x: 0, y: -1 }, fromStar = false) {
       if (fromStar && !vulnerable) return; // 星チェーンは無敵中スキップ
 
       const data = ENEMY_DATA[id];
-      // 分裂
+      const scene = xnew.context(xnew.basics.Scene);
+      const baseAngle = Math.atan2(direction.y, direction.x); // 当たった方向
+
+      // 撃破エフェクト：衝撃バースト。カメラシェイクは自機ショット命中時のみ。
+      scene.add(HitBurst, { x: object.x, y: object.y, power: 1 + id * 0.5 });
+      if (!fromStar) xnew.emit('+shake', { amount: 0.16 + id * 0.13 });
+
+      // 倒された敵自身：半透明に薄れながら当たった方向へノックバックして消える
+      scene.add(EnemyCorpse, {
+        id, x: object.x, y: object.y, scale: sprite.scale.x, frame: sprite.currentFrame,
+        direction, power: 6 + id * 1.5,
+      });
+
+      // 分裂（ノックバック方向を軸に小さくランダム微変動して弾ける）
       if (data.splitTo !== null) {
         for (let i = 0; i < 2; i++) {
-          xnew.context(xnew.basics.Scene).add(Enemy, { id: data.splitTo, x: object.x, y: object.y, invincible: true });
+          const dir = baseAngle + (Math.random() - 0.5) * 0.6;
+          const power = 7 + id * 2;
+          scene.add(Enemy, {
+            id: data.splitTo, x: object.x, y: object.y, invincible: true,
+            knockback: { x: Math.cos(dir) * power, y: Math.sin(dir) * power },
+          });
         }
       }
-      // 星（チェーンショット）
-      for (let i = 0; i < 2; i++) {
-        xnew.context(xnew.basics.Scene).add(Star, { x: object.x, y: object.y, score });
+      // 星（チェーンショット）— 当たった方向へ扇状に、敵が大きいほど多く
+      const starCount = 3 + id;
+      for (let i = 0; i < starCount; i++) {
+        const angle = baseAngle + (Math.random() - 0.5) * 1.4;
+        scene.add(Star, { x: object.x, y: object.y, score, angle });
       }
-      xnew.context(xnew.basics.Scene).add(ScorePopup, { x: object.x, y: object.y, score });
+      scene.add(ScorePopup, { x: object.x, y: object.y, score });
       xnew.context(ScoreManager).add(score);
       unit.finalize();
     },
   };
 }
 
-function Star(unit, { x, y, score }) {
+function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
 
@@ -524,7 +551,6 @@ function Star(unit, { x, y, score }) {
   const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB][Math.floor(Math.random() * 6)];
   object.addChild(new PIXI.Graphics().star(0, 0, 5, size, size * 0.45).fill(color));
 
-  const angle = Math.random() * Math.PI * 2;
   const speed = 2 + Math.random() * 3;
   let vx = Math.cos(angle) * speed;
   let vy = Math.sin(angle) * speed;
@@ -539,10 +565,11 @@ function Star(unit, { x, y, score }) {
     object.alpha = 1 - count / 60;
     count++;
 
-    // 別の敵に当たると得点倍増
+    // 別の敵に当たると得点倍増（星の進行方向にノックバック/分裂）
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.isVulnerable && enemy.distance(object) < 28) {
-        enemy.clash(score + 2, true);
+        const len = Math.hypot(vx, vy) || 1;
+        enemy.clash(score + 2, { x: vx / len, y: vy / len }, true);
         unit.finalize();
         return;
       }
@@ -562,6 +589,72 @@ function ScorePopup(unit, { x, y, score }) {
     object.alpha = 1 - count / 60;
     count++;
   });
+}
+
+// 倒された敵のノックバック表現：薄れながら当たった方向へ飛んで消える
+function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
+  const object = xpixi.nest(new PIXI.Container({ position: { x, y } }));
+
+  const tl = xnew.context(BakedCharacters).texturesList;
+  const sprite = new PIXI.AnimatedSprite(tl[id]);
+  sprite.anchor.set(0.5);
+  sprite.scale.set(scale);
+  sprite.currentFrame = Math.min(frame, tl[id].length - 1);
+  object.addChild(sprite);
+
+  const angle = Math.atan2(direction.y, direction.x);
+  let vx = Math.cos(angle) * power;
+  let vy = Math.sin(angle) * power;
+  const spin = (Math.random() - 0.5) * 0.3;
+
+  const DURATION = 26;
+  let count = 0;
+  unit.on('update', () => {
+    object.x += vx;
+    object.y += vy;
+    vx *= 0.86;
+    vy *= 0.86;
+    object.rotation += spin;
+    object.alpha = Math.max(0, 1 - count / DURATION); // 半透明に薄れる
+    if (++count >= DURATION) unit.finalize();
+  });
+}
+
+// 撃破時の衝撃エフェクト：白フラッシュ + 広がるシアンのリング
+function HitBurst(unit, { x, y, power = 1 }) {
+  const container = xpixi.nest(new PIXI.Container({ position: { x, y } }));
+
+  const flash = new PIXI.Graphics().circle(0, 0, 16 * power).fill({ color: 0xFFFFFF, alpha: 0.9 });
+  const ring = new PIXI.Graphics().circle(0, 0, 10 * power).stroke({ color: 0x66E0FF, width: 4, alpha: 0.9 });
+  container.addChild(flash, ring);
+
+  const DURATION = 16;
+  let count = 0;
+  unit.on('update', () => {
+    const p = count / DURATION;
+    flash.scale.set(1 + p * 0.6);
+    flash.alpha = 0.9 * (1 - p);
+    ring.scale.set(1 + p * 2.4);
+    ring.alpha = 0.9 * (1 - p);
+    if (++count >= DURATION) unit.finalize();
+  });
+}
+
+// カメラシェイク：トラウマ値を撃破時に加算し、二乗で減衰しながら scene を揺らす
+function CameraShake(unit) {
+  let trauma = 0;
+  unit.on('+shake', ({ amount = 0.3 }) => { trauma = Math.min(1, trauma + amount); });
+  unit.on('update', () => {
+    if (trauma > 0) {
+      const shake = trauma * trauma;
+      const max = 14;
+      xpixi.scene.position.set((Math.random() * 2 - 1) * max * shake, (Math.random() * 2 - 1) * max * shake);
+      trauma = Math.max(0, trauma - 0.06);
+    } else if (xpixi.scene.x !== 0 || xpixi.scene.y !== 0) {
+      xpixi.scene.position.set(0, 0);
+    }
+  });
+  unit.on('finalize', () => xpixi.scene.position.set(0, 0));
 }
 
 // ---- Result screen ----
