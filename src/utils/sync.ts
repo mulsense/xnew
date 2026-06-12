@@ -16,6 +16,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from '../core/unit';
+import { getOrCreate } from '../core/map';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
@@ -38,11 +39,7 @@ const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
 /** unit の同期データを返す（無ければ遅延生成。返り値は可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
-    let data = syncData.get(unit);
-    if (data === undefined) {
-        syncData.set(unit, data = { id: null, state: null, registry: null });
-    }
-    return data;
+    return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
 }
 
 // 同期ノード id の採番カウンタ。identity 用で順序保証は不要なので、reset を跨いで単調増加でよい。
@@ -107,8 +104,7 @@ const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
 /** Applies a state tree to a client subtree（create/update/remove の差分適用。tree は pre-order）。 */
 export function applyStateTree(root: Unit, tree: StateTree): void {
-    let map = reconcileMaps.get(root);
-    if (map === undefined) { reconcileMaps.set(root, map = new Map()); }
+    const map = getOrCreate(reconcileMaps, root, () => new Map<number, Unit>());
 
     const incoming = new Set<number>(tree.map((node) => node.id));
 
@@ -202,13 +198,18 @@ function registerSyncRoot(root: Unit, info: RootInfo): void {
 // unit.on(event) へ配る対象。
 const BASIC_EVENTS = ['connect', 'disconnect', 'room:notfound'] as const;
 
+/** unit のリスナへ props を配る（dispatchSync / dispatchBasicEvent 共通）。 */
+function deliver(unit: Unit, event: string, props: any): void {
+    unit._.listeners.get(event)?.forEach((item) => item.execute(props));
+}
+
 /** 基本イベントを boot ルートの「外」にいる親ユニット 1 つだけに配る。 */
 function dispatchBasicEvent(parent: Unit | null, event: string, payload?: any): void {
     if (parent === null || parent._.status === 'finalized') {
         return;
     }
     const props = (payload !== null && typeof payload === 'object') ? payload : {};
-    parent._.listeners.get(event)?.forEach((item) => item.execute(props));
+    deliver(parent, event, props);
 }
 
 /** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
@@ -259,9 +260,7 @@ const loopbackHubs: WeakMap<Unit, Transport> = new WeakMap();
 
 /** 現在の engineRoot に紐づく共有 loopback hub を返す（無ければ生成）。テストが生 socket を得るのにも使う。 */
 export function loopbackHub(): Transport {
-    let hub = loopbackHubs.get(Unit.engineRoot);
-    if (hub === undefined) { loopbackHubs.set(Unit.engineRoot, hub = loopback()); }
-    return hub;
+    return getOrCreate(loopbackHubs, Unit.engineRoot, () => loopback());
 }
 
 /** BootOptions を RootSocket へ解決する（socket 有り = socket.io / 無し = 共有 loopback）。 */
@@ -361,7 +360,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
         if (selfOnly && syncOf(unit).id !== syncId) {
             return;
         }
-        unit._.listeners.get(event)?.forEach((item) => item.execute(props));
+        deliver(unit, event, props);
     });
 }
 
@@ -376,54 +375,56 @@ export interface Transport {
     connect(clientId?: string): ClientSocket;
 }
 
+type BusHandler = (...args: any[]) => void;
+type BusAnyHandler = (event: string, ...args: any[]) => void;
+
+/** event→handler 群 + onAny の最小バス。loopback の server / 各 client と socketio の server が共有する。 */
+function eventBus() {
+    const handlers = new Map<string, Set<BusHandler>>();
+    const anyHandlers = new Set<BusAnyHandler>();
+    return {
+        on(event: string, handler: BusHandler): void { getOrCreate(handlers, event, () => new Set<BusHandler>()).add(handler); },
+        off(event: string, handler: BusHandler): void { handlers.get(event)?.delete(handler); },
+        onAny(handler: BusAnyHandler): void { anyHandlers.add(handler); },
+        // event のハンドラへ args を配る。withAny=true なら onAny にも (event, ...args) で配る。
+        fire(event: string, withAny: boolean, ...args: any[]): void {
+            handlers.get(event)?.forEach((handler) => handler(...args));
+            if (withAny) { anyHandlers.forEach((handler) => handler(event, ...args)); }
+        },
+    };
+}
+
+// 'connect' / 'disconnect' は onAny に配らない（socket.io の onAny の挙動に合わせる）。
+const isAppEvent = (event: string): boolean => event !== 'connect' && event !== 'disconnect';
+
 /** In-memory transport hub（同一プロセスで server↔client を同期配送。テスト/擬似用）。 */
 export function loopback(): Transport {
-    const serverHandlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
-    const clients = new Map<string, Map<string, Set<(payload: any) => void>>>();
-    const serverAnyHandlers = new Set<(event: string, clientId: string, payload: any) => void>();
-    const clientAnyHandlers = new Map<string, Set<(event: string, payload: any) => void>>();
+    const serverBus = eventBus();
+    const clients = new Map<string, ReturnType<typeof eventBus>>();   // clientId → その client の受信バス
     let seq = 0;   // clientId 自動発番用（'c1', 'c2', ...）
 
-    const addHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
-        if (map.has(event) === false) { map.set(event, new Set()); }
-        map.get(event)!.add(handler);
-    };
-    const removeHandler = <T>(map: Map<string, Set<T>>, event: string, handler: T): void => {
-        map.get(event)?.delete(handler);
-    };
-    const fireServer = (event: string, clientId: string, payload?: any): void => {
-        serverHandlers.get(event)?.forEach((handler) => handler(clientId, payload));
-        // onAny は app イベントだけ（socket.io の挙動に合わせる）。
-        if (event !== 'connect' && event !== 'disconnect') {
-            serverAnyHandlers.forEach((handler) => handler(event, clientId, payload));
-        }
-    };
-    const fireClient = (clientId: string, event: string, payload?: any): void => {
-        clients.get(clientId)?.get(event)?.forEach((handler) => handler(payload));
-        clientAnyHandlers.get(clientId)?.forEach((handler) => handler(event, payload));
-    };
-
+    // server: ハンドラは (clientId, payload) で受け、emit は全 client へ broadcast。
     const server: ServerSocket = {
-        on(event, handler) { addHandler(serverHandlers, event, handler); },
-        off(event, handler) { removeHandler(serverHandlers, event, handler); },
-        emit(event, payload) { for (const clientId of clients.keys()) { fireClient(clientId, event, payload); } },  // broadcast
-        to(clientId) { return { emit(event, payload) { fireClient(clientId, event, payload); } }; },
-        onAny(handler) { serverAnyHandlers.add(handler); },
+        on: serverBus.on,
+        off: serverBus.off,
+        emit(event, payload) { for (const bus of clients.values()) { bus.fire(event, true, payload); } },  // broadcast
+        to(clientId) { return { emit(event, payload) { clients.get(clientId)?.fire(event, true, payload); } }; },
+        onAny: serverBus.onAny,
     };
 
     function connect(clientId?: string): ClientSocket {
         if (clientId === undefined) { clientId = 'c' + (++seq); }   // 未指定なら自動発番
-        clients.set(clientId, new Map());
-        clientAnyHandlers.set(clientId, new Set());
-        fireServer('connect', clientId);
+        const bus = eventBus();
+        clients.set(clientId, bus);
+        serverBus.fire('connect', false, clientId, undefined);
         return {
             id: clientId,
-            emit(event, payload) { fireServer(event, clientId!, payload); },
-            // disconnect 後の on/off は no-op（finalize 時の off('sync') が切断済みでも安全なように）。
-            on(event, handler) { const map = clients.get(clientId!); if (map !== undefined) { addHandler(map, event, handler); } },
-            off(event, handler) { const map = clients.get(clientId!); if (map !== undefined) { removeHandler(map, event, handler); } },
-            onAny(handler) { clientAnyHandlers.get(clientId!)?.add(handler); },
-            disconnect() { clients.delete(clientId!); clientAnyHandlers.delete(clientId!); fireServer('disconnect', clientId!); },
+            emit(event, payload) { serverBus.fire(event, isAppEvent(event), clientId!, payload); },
+            // disconnect 後は bus を消すので on/off/onAny は ?. で no-op（finalize 時の off('sync') が切断済みでも安全）。
+            on(event, handler) { clients.get(clientId!)?.on(event, handler); },
+            off(event, handler) { clients.get(clientId!)?.off(event, handler); },
+            onAny(handler) { clients.get(clientId!)?.onAny(handler); },
+            disconnect() { clients.delete(clientId!); serverBus.fire('disconnect', false, clientId!, undefined); },
         };
     }
 
@@ -442,30 +443,21 @@ export function socketio(ioOrSocket: any, opts: { room?: string } = {}): Transpo
         get server(): ServerSocket {
             if (serverAdapter !== null) { return serverAdapter; }
             const io = ioOrSocket;
-            const handlers = new Map<string, Set<(clientId: string, payload: any) => void>>();
-            const anyHandlers = new Set<(event: string, clientId: string, payload: any) => void>();
-            const bucket = (event: string) => {
-                let set = handlers.get(event);
-                if (set === undefined) { handlers.set(event, set = new Set()); }
-                return set;
-            };
+            const bus = eventBus();
             io.on('connection', (socket: any) => {
                 if (room !== undefined && socket.handshake?.query?.room !== room) { return; }   // 別ルームは無視
                 if (room !== undefined) { socket.join(room); }
-                bucket('connect').forEach((fn) => fn(socket.id, undefined));
-                socket.onAny((event: string, payload: any) => {
-                    handlers.get(event)?.forEach((fn) => fn(socket.id, payload));
-                    anyHandlers.forEach((fn) => fn(event, socket.id, payload));
-                });
-                socket.on('disconnect', () => handlers.get('disconnect')?.forEach((fn) => fn(socket.id, undefined)));
+                bus.fire('connect', false, socket.id, undefined);
+                socket.onAny((event: string, payload: any) => bus.fire(event, true, socket.id, payload));
+                socket.on('disconnect', () => bus.fire('disconnect', false, socket.id, undefined));
             });
             const target = () => (room !== undefined ? io.to(room) : io);
             serverAdapter = {
-                on: (event, handler) => bucket(event).add(handler),
-                off: (event, handler) => handlers.get(event)?.delete(handler),
+                on: bus.on,
+                off: bus.off,
                 emit: (event, payload) => target().emit(event, payload),
                 to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
-                onAny: (handler) => anyHandlers.add(handler),
+                onAny: bus.onAny,
             };
             return serverAdapter;
         },
@@ -493,6 +485,14 @@ export function socketio(ioOrSocket: any, opts: { room?: string } = {}): Transpo
 // - emit / client / clients : イベント送信 / 自分の {id,name} / 同 room の全接続者
 // - boot             : socket をバインドしたルート生成（mode で server/client を指定）
 //----------------------------------------------------------------------------------------------------
+
+/** Component / ハンドラ内であることを保証して currentUnit を返す（外だと throw）。 */
+function activeUnit(api: string): Unit {
+    if (Unit.currentUnit === null) {
+        throw new Error(`xnew.sync.${api} can not be called outside a component.`);
+    }
+    return Unit.currentUnit;
+}
 
 export const sync = {
     state(initial: Record<string, any> = {}): Record<string, any> {
@@ -522,25 +522,14 @@ export const sync = {
     },
     /** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
     get client(): ClientInfo {
-        const unit = Unit.currentUnit;
-        if (unit === null) {
-            throw new Error('xnew.sync.client can not be read outside a component.');
-        }
-        return getRootClient(unit);
+        return getRootClient(activeUnit('client'));
     },
     /** 同じ room の全接続者（presence 名簿。name は入室時に boot / Room の name で設定）。 */
     get clients(): ReadonlyArray<ClientInfo> {
-        const unit = Unit.currentUnit;
-        if (unit === null) {
-            throw new Error('xnew.sync.clients can not be read outside a component.');
-        }
-        return getRootClients(unit);
+        return getRootClients(activeUnit('clients'));
     },
     emit(event: string, payload: Record<string, any> = {}): void {
-        const unit = Unit.currentUnit;
-        if (unit === null) {
-            throw new Error('xnew.sync.emit can not be called outside a component or its handlers.');
-        }
+        const unit = activeUnit('emit');
         // 送信ユニットの syncId を載せる（受信側の '-event' ルーティング用）。
         getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
     },
