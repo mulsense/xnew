@@ -7,7 +7,7 @@
 //
 // - xnew.nest / extend                   : 初期化中の Unit を拡張
 // - xnew.find / context                  : Component による検索 / 祖先コンテキスト解決
-// - xnew.promise / then / catch / finally / defer : Unit に紐づく promise 管理
+// - xnew.promise / then / catch / finally : Unit に紐づく promise 管理
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
 // - xnew.server / client                 : mode 限定の extend
@@ -68,13 +68,27 @@ export const xnew = Object.assign(
             return Unit.getContext(Unit.currentUnit, key);
         },
             
-        /** Registers a promise（Promise / async 関数 / Unit）to the current unit。第1引数が string ならキー。 */
-        promise(keyOrPromise: string | Function | Promise<any> | Unit, maybePromise?: Function | Promise<any> | Unit): UnitPromise {
-            if (typeof keyOrPromise === 'string' && maybePromise === undefined) {
-                throw new Error('xnew.promise(key, promise): promise is required when a key is given');
-            }
+        /** Registers a promise to the current unit。第1引数が string ならキー。promise を渡さなければ deferred（{ resolve, reject }）。2 引数で promise が undefined は誤用として throw。 */
+        promise: (function (keyOrPromise?: any, maybePromise?: any): any {
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
-            const promise = (typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise)!;
+            const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+            // 2 引数で呼ばれたのに promise が undefined → 登録のつもりで promise を渡し忘れた誤用。
+            // deferred は xnew.promise() / xnew.promise(key)（1 引数以下）でのみ成立させる。
+            if (arguments.length >= 2 && promise === undefined) {
+                throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
+            }
+            if (promise === undefined) {
+                let settled = false;
+                let resolve!: (value?: unknown) => void;
+                let reject!: (reason?: unknown) => void;
+                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
+                unitPromise.key = key;
+                Unit.currentUnit._.promises.push(unitPromise);
+                return {
+                    resolve(value?: unknown) { if (settled) return; settled = true; resolve(value); },
+                    reject(reason?: unknown) { if (settled) return; settled = true; reject(reason); },
+                };
+            }
             let unitPromise: UnitPromise;
             if (promise instanceof Unit) {
                 unitPromise = UnitPromise.results(promise._.promises);
@@ -86,6 +100,11 @@ export const xnew = Object.assign(
             unitPromise.key = key;
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
+        }) as {
+            (): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            (key: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            (promise: Function | Promise<any> | Unit): UnitPromise;
+            (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
         },
 
         /** Runs callback(results) after all registered promises resolve（results はキー付き promise の最終値）。 */
@@ -101,33 +120,6 @@ export const xnew = Object.assign(
         /** Runs callback after all registered promises settle. */
         finally(callback: Function): UnitPromise {
             return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
-        },
-
-        /** Registers a deferred promise; key を付けると then 結果に入る。{ resolve, reject } で外から settle（2 回目以降は無視）。 */
-        defer(key?: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void } {
-            let settled = false;
-            let resolve!: (value?: unknown) => void;
-            let reject!: (reason?: unknown) => void;
-
-            const unitPromise = new UnitPromise(new Promise((res, rej) => {
-                resolve = res;
-                reject = rej;
-            }));
-            unitPromise.key = key;
-            Unit.currentUnit._.promises.push(unitPromise);
-
-            return {
-                resolve(value?: unknown) {
-                    if (settled) return;
-                    settled = true;
-                    resolve(value);
-                },
-                reject(reason?: unknown) {
-                    if (settled) return;
-                    settled = true;
-                    reject(reason);
-                },
-            };
         },
 
         /** Wraps a callback so it later runs in the current unit scope（setTimeout 等の外部コールバック用）。 */

@@ -1262,12 +1262,26 @@
         context(key) {
             return Unit.getContext(Unit.currentUnit, key);
         },
-        promise(keyOrPromise, maybePromise) {
-            if (typeof keyOrPromise === 'string' && maybePromise === undefined) {
-                throw new Error('xnew.promise(key, promise): promise is required when a key is given');
-            }
+        promise: (function (keyOrPromise, maybePromise) {
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
-            const promise = (typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise);
+            const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+            if (arguments.length >= 2 && promise === undefined) {
+                throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
+            }
+            if (promise === undefined) {
+                let settled = false;
+                let resolve;
+                let reject;
+                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
+                unitPromise.key = key;
+                Unit.currentUnit._.promises.push(unitPromise);
+                return {
+                    resolve(value) { if (settled)
+                        return; settled = true; resolve(value); },
+                    reject(reason) { if (settled)
+                        return; settled = true; reject(reason); },
+                };
+            }
             let unitPromise;
             if (promise instanceof Unit) {
                 unitPromise = UnitPromise.results(promise._.promises);
@@ -1281,7 +1295,7 @@
             unitPromise.key = key;
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
-        },
+        }),
         then(callback) {
             return UnitPromise.results(Unit.currentUnit._.promises).then(callback);
         },
@@ -1290,31 +1304,6 @@
         },
         finally(callback) {
             return UnitPromise.all(Unit.currentUnit._.promises).finally(callback);
-        },
-        defer(key) {
-            let settled = false;
-            let resolve;
-            let reject;
-            const unitPromise = new UnitPromise(new Promise((res, rej) => {
-                resolve = res;
-                reject = rej;
-            }));
-            unitPromise.key = key;
-            Unit.currentUnit._.promises.push(unitPromise);
-            return {
-                resolve(value) {
-                    if (settled)
-                        return;
-                    settled = true;
-                    resolve(value);
-                },
-                reject(reason) {
-                    if (settled)
-                        return;
-                    settled = true;
-                    reject(reason);
-                },
-            };
         },
         scope(callback) {
             const snapshot = Unit.snapshot(Unit.currentUnit);

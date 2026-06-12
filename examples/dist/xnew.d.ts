@@ -400,14 +400,21 @@ declare const xnew: XnewBase & {
     nest(target: DomElement | string): HTMLElement | SVGElement;
     extend<C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): DefinesOf<C>;
     context(key: any): any;
-    promise(keyOrPromise: string | Function | Promise<any> | Unit, maybePromise?: Function | Promise<any> | Unit): UnitPromise;
+    promise: {
+        (): {
+            resolve: (value?: unknown) => void;
+            reject: (reason?: unknown) => void;
+        };
+        (key: string): {
+            resolve: (value?: unknown) => void;
+            reject: (reason?: unknown) => void;
+        };
+        (promise: Function | Promise<any> | Unit): UnitPromise;
+        (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
+    };
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
-    defer(key?: string): {
-        resolve: (value?: unknown) => void;
-        reject: (reason?: unknown) => void;
-    };
     scope(callback: any): any;
     find(Component: Function, opts?: {
         key?: any;
