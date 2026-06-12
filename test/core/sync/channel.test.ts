@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/core/xnew';
-import { syncOf, getRootSocket, ClientSocket } from '../../../src/core/sync';
+import { syncOf, getRootSocket, ClientSocket, loopback, loopbackHub, socketio } from '../../../src/core/sync';
 
 //----------------------------------------------------------------------------------------------------
 // イベントチャンネル（socket.io 互換 transport: loopback / bind / emit / on）
@@ -14,7 +14,7 @@ describe('event channel (socket.io-compatible transport)', () => {
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('loopback routes client.emit to server.on tagged with clientId', () => {
-        const hub = xnew.sync.loopback();
+        const hub = loopback();
         const received: Array<[string, any]> = [];
         hub.server.on('move', (clientId, payload) => { received.push([clientId, payload]); });
 
@@ -27,7 +27,7 @@ describe('event channel (socket.io-compatible transport)', () => {
     });
 
     it('loopback delivers server broadcast and per-client push to client.on', () => {
-        const hub = xnew.sync.loopback();
+        const hub = loopback();
         const c1seen: any[] = [];
         const c2seen: any[] = [];
         const c1 = hub.connect('c1');
@@ -43,7 +43,7 @@ describe('event channel (socket.io-compatible transport)', () => {
     });
 
     it('server fires connect/disconnect handlers', () => {
-        const hub = xnew.sync.loopback();
+        const hub = loopback();
         const log: string[] = [];
         hub.server.on('connect', (clientId) => log.push(`+${clientId}`));
         hub.server.on('disconnect', (clientId) => log.push(`-${clientId}`));
@@ -55,7 +55,7 @@ describe('event channel (socket.io-compatible transport)', () => {
     });
 
     it('supports multiple handlers per event (socket.io EventEmitter style)', () => {
-        const hub = xnew.sync.loopback();
+        const hub = loopback();
         const seenA: string[] = [];
         const seenB: string[] = [];
         hub.server.on('move', (clientId) => seenA.push(clientId));
@@ -66,20 +66,18 @@ describe('event channel (socket.io-compatible transport)', () => {
         expect(seenB).toEqual(['c1']);
     });
 
-    it('boot(transport): binds the socket and auto-generates clientId', () => {
-        const transport = xnew.sync.loopback();   // boot に渡すと socket を自動バインド
-
+    it('boot({ mode }): shares an in-memory hub and auto-generates clientId', () => {
         const received: Array<[string, any]> = [];
-        const server = xnew.sync.boot(transport.server, function Server(unit: Unit) {
+        const server = xnew.sync.boot({ mode: 'server' }, function Server(unit: Unit) {
             xnew.server(() => { unit.on('move', ({ id, x }: any) => received.push([id, { x }])); });
         });
 
         let id1: string | undefined;
         let id2: string | undefined;
-        xnew.sync.boot(transport.connect(), function Client(unit: Unit) {
+        xnew.sync.boot({ mode: 'client' }, function Client(unit: Unit) {
             xnew.client(() => { id1 = xnew.sync.clientId; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
         });
-        xnew.sync.boot(transport.connect(), function Client(unit: Unit) {
+        xnew.sync.boot({ mode: 'client' }, function Client(unit: Unit) {
             xnew.client(() => { id2 = xnew.sync.clientId; });
         });
 
@@ -93,22 +91,20 @@ describe('event channel (socket.io-compatible transport)', () => {
         expect(server).toBeDefined();
     });
 
-    it('boot(transport): binds the transport even on the very first call (engine root not yet created)', () => {
+    it('boot({ mode }): binds the transport even on the very first call (engine root not yet created)', () => {
         // 回帰: 初回 xnew で reset が走るとエンジンルートが socket を消費してしまっていた問題（node 起動時に発覚）。
-        // boot がルートを先に用意し、socket を options で boot ルートに直接渡すことで解消。
+        // boot がルートを先に用意し、共有 loopback hub を engineRoot に紐づけることで解消。
         (Unit as any).engineRoot = undefined;   // 「まだ何も生成されていない」状態を再現
-        const transport = xnew.sync.loopback();
         let id: string | undefined;
-        xnew.sync.boot(transport.connect(), function Client() {
+        xnew.sync.boot({ mode: 'client' }, function Client() {
             xnew.client(() => { id = xnew.sync.clientId; });
         });
         expect(id).toBe('c1');   // socket がバインドされ clientId が解決できる（throw しない）
     });
 
     it('updates state directly on message receipt (no polling) via closure', () => {
-        const hub = xnew.sync.loopback();
         let state: Record<string, any> = {};
-        xnew.sync.boot(hub.server, function Server(unit: Unit) {
+        xnew.sync.boot({ mode: 'server' }, function Server(unit: Unit) {
             xnew.server(() => {
                 state = xnew.sync.state({ x: 0 });
                 // 受信時に closure の state を直接更新（inbox 不要）。unit 生成等はしない。
@@ -116,7 +112,7 @@ describe('event channel (socket.io-compatible transport)', () => {
             });
         });
 
-        const socket = hub.connect();
+        const socket = loopbackHub().connect();   // boot と同じ engineRoot 共有 hub の生 client
         // 生 socket から送るときも xnew.sync.emit と同じ封筒 { syncId, data } で送る。
         socket.emit('move', { data: { dx: 5 } });
         socket.emit('move', { data: { dx: 2 } });
@@ -160,13 +156,12 @@ describe('event channel (socket.io-compatible transport)', () => {
             });
         }
 
-        const hub = xnew.sync.loopback();
         const view1 = document.createElement('div');
         const view2 = document.createElement('div');
 
-        const server = xnew.sync.boot(hub.server, World);                  // on('connect') を登録
-        const client1 = xnew.sync.boot(hub.connect(), World, { view: view1 }); // connect → presence に c1
-        const client2 = xnew.sync.boot(hub.connect(), World, { view: view2 }); // connect → presence に c2
+        const server = xnew.sync.boot({ mode: 'server' }, World);                  // on('connect') を登録
+        const client1 = xnew.sync.boot({ mode: 'client' }, World, { view: view1 }); // connect → presence に c1
+        const client2 = xnew.sync.boot({ mode: 'client' }, World, { view: view2 }); // connect → presence に c2
 
         const sync = () => {
             const tree = xnew.sync.capture(server);
@@ -210,9 +205,8 @@ describe('event channel (socket.io-compatible transport)', () => {
             xnew.sync.register({ Mover });   // 下りの配線（emit('sync')/on('sync')）は boot が自動で行う
             xnew.server(() => { xnew(Mover); });
         }
-        const transport = xnew.sync.loopback();
-        const server = xnew.sync.boot(transport.server, World);   // boot の自動 mirror が update で broadcast
-        const client = xnew.sync.boot(transport.connect(), World);   // boot の自動 mirror が on('sync') で apply
+        const server = xnew.sync.boot({ mode: 'server' }, World);   // boot の自動 mirror が update で broadcast
+        const client = xnew.sync.boot({ mode: 'client' }, World);   // boot の自動 mirror が on('sync') で apply
 
         Unit.start(Unit.engineRoot);
         Unit.update(Unit.engineRoot);   // server Mover が x+=1、World(server) が 'sync' を broadcast → client が apply
@@ -228,7 +222,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         // 最小の socket.io 風モック（io.on('connection') / socket.onAny / socket.on('disconnect') / io.emit）
         let connectionCb: ((s: any) => void) | null = null;
         const io = { on: (ev: string, cb: any) => { if (ev === 'connection') { connectionCb = cb; } }, emit: () => {}, to: () => ({ emit: () => {} }) };
-        const transport = xnew.sync.socketio(io);
+        const transport = socketio(io);
         const received: Array<[string, any]> = [];
         transport.server.on('move', (clientId, payload) => received.push([clientId, payload]));
 
@@ -251,7 +245,7 @@ describe('event channel (socket.io-compatible transport)', () => {
             to: (room: string) => ({ emit: (event: string, payload: any) => sent.push([room, event, payload]) }),
             emit: () => {},
         };
-        const transport = xnew.sync.socketio(io, { room: 'r1' });
+        const transport = socketio(io, { room: 'r1' });
         const got: Array<[string, any]> = [];
         transport.server.onAny((event, clientId, payload) => got.push([clientId, payload]));
 
@@ -285,11 +279,10 @@ describe('event channel (socket.io-compatible transport)', () => {
             // ハンドラ内で生成した Child は、登録元(World)の子として作られなければならない。
             unit.on('join', ({ id }: any) => xnew(Child, { key: id, clientId: id }));
         }
-        const transport = xnew.sync.loopback();
-        xnew.sync.boot(transport.server, World);
+        xnew.sync.boot({ mode: 'server' }, World);
 
-        // 同じ transport の client が join を送ると server の on('join') が発火する（id=clientId）。
-        transport.connect('c1').emit('join');
+        // 同じ engineRoot 共有 hub の生 client が join を送ると server の on('join') が発火する（id=clientId）。
+        loopbackHub().connect('c1').emit('join');
 
         const child = xnew.find(Child, { key: 'c1' })[0];
         expect(child).toBeDefined();
@@ -297,19 +290,18 @@ describe('event channel (socket.io-compatible transport)', () => {
     });
 
     it("'-event' routes only to the handler whose unit shares the emitter syncId (same component)", () => {
-        const hub = xnew.sync.loopback();
         const hits: string[] = [];
         // server 側: syncId を持つ 2 ユニットが各々 on('-move') を登録。
         function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
             syncOf(unit).id = props.syncId ?? null;
             xnew.server(() => { unit.on('-move', ({ vector }: any) => hits.push(`${props.tag}:${vector.x}`)); });
         }
-        xnew.sync.boot(hub.server, function Server() {
+        xnew.sync.boot({ mode: 'server' }, function Server() {
             xnew.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
         });
 
         // client 側: syncId=10 のユニットから '-move' を送ると、同じ syncId の A だけに届く。
-        xnew.sync.boot(hub.connect(), function Client(unit: Unit) {
+        xnew.sync.boot({ mode: 'client' }, function Client(unit: Unit) {
             xnew.client(() => {
                 syncOf(unit).id = 10;
                 xnew.sync.emit('-move', { vector: { x: 1 } });
@@ -320,17 +312,16 @@ describe('event channel (socket.io-compatible transport)', () => {
     });
 
     it("'+event' routes to all components under the root (regardless of syncId)", () => {
-        const hub = xnew.sync.loopback();
         const hits: string[] = [];
         function Tagged(unit: Unit, props: { tag?: string; syncId?: number } = {}) {
             syncOf(unit).id = props.syncId ?? null;
             xnew.server(() => { unit.on('+ping', ({ n }: any) => hits.push(`${props.tag}:${n}`)); });
         }
-        xnew.sync.boot(hub.server, function Server() {
+        xnew.sync.boot({ mode: 'server' }, function Server() {
             xnew.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
         });
         // 送信ユニットの syncId に関係なく、'+ping' は両方のユニットへ届く（全体）。
-        xnew.sync.boot(hub.connect(), function Client(unit: Unit) {
+        xnew.sync.boot({ mode: 'client' }, function Client(unit: Unit) {
             xnew.client(() => { syncOf(unit).id = 10; xnew.sync.emit('+ping', { n: 1 }); });
         });
 
@@ -353,7 +344,7 @@ describe('event channel (socket.io-compatible transport)', () => {
         const parentLog: string[] = [];
         const rootLog: string[] = [];
         xnew(function Parent(unit: Unit) {
-            xnew.sync.boot(socket, function Client(client: Unit) {
+            xnew.sync.boot({ mode: 'client', socket }, function Client(client: Unit) {
                 client.on('connect', () => rootLog.push('connect'));   // root 配下には届かない
             });
             unit.on('connect', () => parentLog.push('connect'));
