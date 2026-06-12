@@ -112,12 +112,12 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('xnew.defer', () => {
-        it('settles the registered promise via resolve()', async () => {
+    describe('xnew.promise (deferred mode)', () => {
+        it('returns a settle handle and resolves via resolve()', async () => {
             const done = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew(() => {
-                defer = xnew.defer();
+                defer = xnew.promise();
                 xnew.then(done);
             });
 
@@ -135,7 +135,7 @@ describe('xnew promise helpers', () => {
             const caught = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew(() => {
-                defer = xnew.defer();
+                defer = xnew.promise();
                 xnew.then(done);
                 xnew.catch(caught);
             });
@@ -149,11 +149,11 @@ describe('xnew promise helpers', () => {
             expect(caught).not.toHaveBeenCalled();
         });
 
-        it('passes a keyed defer value to then under its key', async () => {
+        it('passes a keyed deferred value to then under its key', async () => {
             const done = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew(() => {
-                defer = xnew.defer('ready');
+                defer = xnew.promise('ready');
                 xnew.then(done);
             });
 
@@ -164,6 +164,20 @@ describe('xnew promise helpers', () => {
             await jest.advanceTimersByTimeAsync(0);
 
             expect(done).toHaveBeenCalledWith({ ready: 42 });
+        });
+
+        it('excludes a keyless deferred value from the results object', async () => {
+            const done = jest.fn();
+            let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
+            xnew(() => {
+                defer = xnew.promise();
+                xnew.then(done);
+            });
+
+            defer.resolve('ignored');
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({});
         });
     });
 
