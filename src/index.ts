@@ -2,7 +2,7 @@ import { xnew as base } from './core/xnew';
 import { Unit, UnitTimer, ComponentFn, Mode as CoreMode, Status as CoreStatus } from './core/unit';
 
 // boot に渡す socket を型付けできるよう、socket 契約型を公開する。
-export type { ClientSocket, ServerSocket, RootSocket } from './core/sync';
+export type { ClientSocket, ServerSocket, RootSocket, BootOptions } from './core/sync';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { SVG, SVGText } from './basics/SVG';
