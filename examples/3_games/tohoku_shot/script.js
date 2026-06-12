@@ -315,14 +315,36 @@ function WaveLabel(unit) {
   });
 }
 
-// 次の wave までのスコア進捗ゲージ（画面右上）。色は wave のメインカラー。
+// 次の wave までの進捗を示す「解析メーター」（画面左上）。色は wave のメインカラー。
 function ScoreGauge(unit) {
-  xnew.nest('<div class="absolute top-[2.4cqw] left-[12cqw] right-[40cqw] h-[2.2cqw] rounded-full bg-black/40 border-[0.3cqw] border-white/50 overflow-hidden">');
-  const fill = xnew('<div class="h-full rounded-full" style="width: 0%;">');
-  fill.element.style.background = cssHex(WAVE_COLORS[0]);
-  unit.on('+wave', ({ wave }) => { fill.element.style.background = cssHex(waveColor(wave)); });
+  xnew.nest('<div class="absolute top-[2cqw] left-[2cqw] right-[44cqw]" style="font-family: monospace;">');
+
+  let labelEl, pctEl, fill, frame;
+  // 見出し行（ラベル + パーセント）
+  xnew('<div class="flex justify-between items-end mb-[0.4cqw] text-[1.5cqw] tracking-[0.2em]">', () => {
+    labelEl = xnew('<div>', 'ANALYSIS');
+    pctEl = xnew('<div>', '0%');
+  });
+  // メーター本体（セグメント風）
+  frame = xnew('<div class="relative w-full h-[2.4cqw] bg-black/50" style="border: 0.2cqw solid; overflow: hidden;">', () => {
+    fill = xnew('<div class="absolute inset-y-0 left-0" style="width: 0%;">');
+    // セグメントの隙間を上に重ねてブロック分割に見せる
+    xnew('<div class="absolute inset-0" style="background: repeating-linear-gradient(90deg, transparent 0 1.4cqw, rgba(0,0,0,0.6) 1.4cqw 1.8cqw);">');
+    // 走査ハイライト（うっすら左右に動く）
+    fill.scan = xnew('<div class="absolute inset-y-0 w-[3cqw]" style="left:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);">');
+  });
+
+  function applyColor(c) {
+    fill.element.style.background = c;
+    frame.element.style.borderColor = c;
+    labelEl.element.style.color = c;
+    pctEl.element.style.color = c;
+  }
+  applyColor(cssHex(WAVE_COLORS[0]));
+  unit.on('+wave', ({ wave }) => applyColor(cssHex(waveColor(wave))));
 
   let shown = 0;
+  let t = 0;
   unit.on('update', () => {
     const score = xnew.context(ScoreManager).score;
     const wave = xnew.context(WaveManager).wave;
@@ -338,6 +360,9 @@ function ScoreGauge(unit) {
 
     shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
     fill.element.style.width = `${shown * 100}%`;
+    pctEl.element.textContent = `${Math.round(shown * 100)}%`;
+    t++;
+    fill.scan.element.style.left = `${(Math.sin(t * 0.04) * 0.5 + 0.5) * Math.max(0, shown * 100 - 3)}%`;
   });
 }
 
@@ -584,9 +609,19 @@ function Controller(unit) {
 }
 
 function ScoreManager(unit) {
-  // ゲージのすぐ右（画面右上）にスコアの数値を表示
-  xnew.nest('<div class="absolute top-[1.4cqw] right-[26cqw] text-right text-red-500 font-bold">');
-  const text = xnew(xnew.basics.SVGText, { text: '0', fontSize: '5cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
+  // 画面右上にスコアをコンピュータの解析表示風（等幅・ゼロ埋め）で表示。色は wave 連動。
+  xnew.nest('<div class="absolute top-[1.6cqw] right-[26cqw] text-right" style="font-family: monospace;">');
+  const label = xnew('<div class="text-[1.5cqw] tracking-[0.3em]">', 'SCORE');
+  const text = xnew('<div class="text-[4.2cqw] leading-none font-bold">', '000000');
+
+  function applyColor(c) {
+    label.element.style.color = c;
+    text.element.style.color = c;
+    text.element.style.textShadow = `0 0 0.8cqw ${c}, 0 0.1cqw 0.1cqw rgba(0,0,0,0.6)`;
+  }
+  applyColor(cssHex(WAVE_COLORS[0]));
+  unit.on('+wave', ({ wave }) => applyColor(cssHex(waveColor(wave))));
+
   let sum = 0;
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
   return {
@@ -595,7 +630,7 @@ function ScoreManager(unit) {
     add(score, id) {
       sum += score;
       if (id !== undefined) kills[id]++;
-      text.element.textContent = `${sum}`;
+      text.element.textContent = String(sum).padStart(6, '0');
     }
   };
 }
