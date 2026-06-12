@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { xnew } from '../../../src/core/xnew';
+import xnew from '../../../src/index';
 
 describe('mode inheritance', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });

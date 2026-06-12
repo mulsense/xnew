@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf } from '../../../src/core/sync';
-import { xnew } from '../../../src/core/xnew';
+import { syncOf } from '../../../src/utils/sync';
+import xnew from '../../../src/index';
 
 // 2 階層: Mover が server ブロック内で定期的に Enemy(synced 子) を spawn し、
 // 各 Enemy は所定方向へ移動して一定時間で消える。ブラウザ例 (index.js) と同じ構造の検証。
