@@ -2115,6 +2115,17 @@
             (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
             return new ImageData(canvas);
         }
+        paste(source, x, y, width, height) {
+            const patch = source instanceof ImageData ? source.canvas : source;
+            const context = this.canvas.getContext('2d');
+            if (width !== undefined && height !== undefined) {
+                context === null || context === void 0 ? void 0 : context.drawImage(patch, x, y, width, height);
+            }
+            else {
+                context === null || context === void 0 ? void 0 : context.drawImage(patch, x, y);
+            }
+            return this;
+        }
         download(filename) {
             const link = document.createElement('a');
             link.download = filename;

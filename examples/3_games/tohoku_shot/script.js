@@ -186,8 +186,11 @@ function BakedCharacters(unit) {
 
   // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
   // 「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でスプライトのバッチ描画も効く）。
+  // 焼いたコマの貼り込みは xnew.image の ImageData#paste（crop の逆）で行う。
   const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
   const rows = Math.ceil(BAKE_FRAMES / cols);
+  // フレーム i のアトラス内左上座標。paste と PIXI sub-texture 切り出しで共有する。
+  const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
   let jobIndex = 0;
   let current = null; // 焼成中ジョブの状態（null = ロード待ち or 全完了）
@@ -207,9 +210,10 @@ function BakedCharacters(unit) {
       const wrapper = new THREE.Object3D(); // 旧 Model.threeObject 相当。回転はこれに当てる
       wrapper.add(vrm.scene);
       stage.add(wrapper);
-      const atlas = document.createElement('canvas');
-      [atlas.width, atlas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-      current = { job: jobs[jobIndex], vrm, wrapper, atlas, atlasContext: atlas.getContext('2d'), frameIndex: 0 };
+      const atlasCanvas = document.createElement('canvas');
+      [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
+      const atlas = xnew.image.from(atlasCanvas);
+      current = { job: jobs[jobIndex], vrm, wrapper, atlas, frameIndex: 0 };
     });
   }
 
@@ -217,7 +221,7 @@ function BakedCharacters(unit) {
 
   unit.on('render', () => {
     if (current === null) return;
-    const { job, vrm, wrapper, atlas, atlasContext } = current;
+    const { job, vrm, wrapper, atlas } = current;
 
     const batch = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
     for (let i = current.frameIndex; i < Math.min(current.frameIndex + batch, BAKE_FRAMES); i++) {
@@ -225,19 +229,19 @@ function BakedCharacters(unit) {
       poseFrame({ vrm, threeObject: wrapper }, t, job.spin);
 
       composer.render();
-      const bitmap = xthree.canvas.transferToImageBitmap();
-      atlasContext.drawImage(bitmap, (i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE);
-      bitmap.close(); // 中間 ImageBitmap は即解放
+      // OffscreenCanvas は CanvasImageSource なので、render 直後の canvas を直接アトラスへ貼り込む
+      // （中間 ImageBitmap を介さない）。
+      atlas.paste(xthree.canvas, ...framePos(i));
     }
     current.frameIndex += batch;
 
     if (current.frameIndex >= BAKE_FRAMES) {
       // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
-      const source = PIXI.Texture.from(atlas).source;
+      const source = PIXI.Texture.from(atlas.canvas).source;
       const textures = [];
       for (let i = 0; i < BAKE_FRAMES; i++) {
-        const frame = new PIXI.Rectangle((i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE);
-        textures.push(new PIXI.Texture({ source, frame }));
+        const [x, y] = framePos(i);
+        textures.push(new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
       }
       job.store(textures);
 

@@ -308,6 +308,7 @@ declare class ImageData {
     constructor(canvas: HTMLCanvasElement);
     constructor(width: number, height: number);
     crop(x: number, y: number, width: number, height: number): ImageData;
+    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
     download(filename: string): void;
 }
 
