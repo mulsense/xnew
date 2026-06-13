@@ -72,33 +72,81 @@ function Contents(unit) {
 }
 
 // ---- Character baking (VRM -> AnimatedSprite textures) ----
+//
+// 焼き機（WebGL コンテキスト + EffectComposer + SSAO + ライト + カメラ）は1セットだけ作り、
+// VRM を順に差し替えて逐次ベイクする。旧実装はキャラ1体ごとにこの一式を立てて5体を並列に
+// 焼いており、起動時にパイプラインが5本同時存在＝メモリ/GPU 圧迫の主因だった（DEVNOTES §5）。
+// 逐次化でピーク GPU は VRM 1体分に下がる（その代わり起動は数百ms 長くなる）。
 
-function BakedCharacters(_unit) {
-  const texturesList = new Array(ENEMY_FILES.length).fill(null);
-  let playerTextures = null;
-
-  const total = ENEMY_FILES.length + 1;
-  let doneCount = 0;
-  const { resolve } = xnew.promise();
-
-  for (let i = 0; i < ENEMY_FILES.length; i++) {
-    xnew.promise(xnew(Baking, { url: asset(ENEMY_FILES[i]), spin: true })).then((value) => {
-      texturesList[i] = value.textures;
-      if (++doneCount === total) resolve();
+// VRM を読み込むだけ（シーンには追加しない）。GPU アップロードはベイク時まで遅延させる。
+function loadVrm(url) {
+  return new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    loader.load(url, (gltf) => {
+      const vrm = gltf.userData.vrm;
+      vrm.scene.scale.set(0.8, 0.8, 0.8);
+      vrm.scene.position.y = -0.8;
+      vrm.scene.position.z = -0.4;
+      vrm.scene.rotation.x = +Math.PI * 20 / 180;
+      resolve(vrm);
     });
-  }
-  xnew.promise(xnew(Baking, { url: asset(PLAYER_FILE), spin: false })).then((value) => {
-    playerTextures = value.textures;
-    if (++doneCount === total) resolve();
   });
-
-  return {
-    get texturesList() { return texturesList; },
-    get playerTextures() { return playerTextures; },
-  };
 }
 
-function Baking(unit, { url, spin = true }) {
+// ベイク済み VRM の GPU リソース（geometry / material / texture）を解放する。
+// 次のキャラを焼く前に呼び、GPU 常駐を「同時に VRM 1体分」へ抑える。
+function disposeVrmObject(object) {
+  object.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.geometry?.dispose();
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of materials) {
+      if (!material) continue;
+      for (const key in material) {
+        const value = material[key];
+        if (value && value.isTexture) value.dispose();
+      }
+      material.dispose();
+    }
+  });
+}
+
+// 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。
+// spin=true: くるくる回る敵 / false: 後ろ向き固定の自機。
+// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分して張る。回転は t=3π で 2π の倍数に戻り、
+// ボーンの sin(t×偶数) も t=3π で開始位相へ戻るため、フレーム列はシームレスにループする。
+// （回転係数・ボーン係数を変えるなら t=3π で元へ戻るか必ず確認すること）
+function poseFrame(model, t, spin) {
+  if (spin) {
+    model.threeObject.rotation.y = t * 4 / 3;
+    model.threeObject.rotation.z = t * 2 / 3;
+  } else {
+    model.threeObject.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
+    model.threeObject.rotation.y = Math.PI; // 後ろ向き固定（自機）
+    model.threeObject.rotation.z = 0;
+  }
+  const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
+  g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+  g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+  g('hips').position.z          = Math.sin(t * 12) *  0.05;
+  g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+  g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+  g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+  g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+  g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+  g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+  g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+  g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+  model.vrm.update(t);
+}
+
+function BakedCharacters(unit) {
+  const texturesList = new Array(ENEMY_FILES.length).fill(null);
+  let playerTextures = null;
+  const { resolve } = xnew.promise();
+
+  // --- 焼き機（旧 Baking の共有部分）を1セットだけ構築する ---
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
   xthree.camera.position.set(0, -0.1, 2.5);
@@ -111,7 +159,7 @@ function Baking(unit, { url, spin = true }) {
   ssaoPass.ssaoMaterial.needsUpdate = true;
   ssaoPass.depthRenderMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
   ssaoPass.depthRenderMaterial.needsUpdate = true;
-  ssaoPass.kernelRadius = 0.15;     // サンプリング半径
+  ssaoPass.kernelRadius = 0.15;   // サンプリング半径
   ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
   ssaoPass.maxDistance = 0.02;    // 最大距離
   composer.addPass(ssaoPass);
@@ -125,59 +173,65 @@ function Baking(unit, { url, spin = true }) {
     dirLight.position.set(2, 5, 10);
   });
 
-  const model = xnew(Model, { url });
+  const stage = xthree.nest(new THREE.Object3D()); // VRM を差し替える土台
+
+  // 焼くジョブ: 敵4体（spin）→ 自機（固定）。store は焼き上がりの保存先。
+  const jobs = [
+    ...ENEMY_FILES.map((file, i) => ({ url: asset(file), spin: true, store: (textures) => { texturesList[i] = textures; } })),
+    { url: asset(PLAYER_FILE), spin: false, store: (textures) => { playerTextures = textures; } },
+  ];
+
+  // VRM は並列プリフェッチ（読み込みは CPU のみ。GPU 負荷はベイク時に逐次発生する）。
+  const loadings = jobs.map((job) => loadVrm(job.url));
 
   // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
-  // 「キャラ1体 = GPU テクスチャ1枚」にする（テクスチャ数 5×BAKE_FRAMES → 5枚。
-  // source 共有でスプライトのバッチ描画も効く）
+  // 「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でスプライトのバッチ描画も効く）。
   const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
   const rows = Math.ceil(BAKE_FRAMES / cols);
-  const atlas = document.createElement('canvas');
-  [atlas.width, atlas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-  const atlasContext = atlas.getContext('2d');
 
-  let frameIndex = 0;
-  const { resolve } = xnew.promise('textures');
+  let jobIndex = 0;
+  let current = null; // 焼成中ジョブの状態（null = ロード待ち or 全完了）
+
+  function startNextJob() {
+    if (jobIndex >= jobs.length) {
+      // 全キャラ完了 → 焼き機の WebGL コンテキストと GPU リソースを明示的に解放する
+      // （xthree の finalize は renderer を dispose しないため、ここでやらないと残留する）
+      composer.dispose();
+      ssaoPass.dispose();
+      xthree.renderer.dispose();
+      xthree.renderer.forceContextLoss();
+      resolve();
+      return;
+    }
+    loadings[jobIndex].then((vrm) => {
+      const wrapper = new THREE.Object3D(); // 旧 Model.threeObject 相当。回転はこれに当てる
+      wrapper.add(vrm.scene);
+      stage.add(wrapper);
+      const atlas = document.createElement('canvas');
+      [atlas.width, atlas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
+      current = { job: jobs[jobIndex], vrm, wrapper, atlas, atlasContext: atlas.getContext('2d'), frameIndex: 0 };
+    });
+  }
+
+  startNextJob();
 
   unit.on('render', () => {
-    if (model.vrm === null) return;
+    if (current === null) return;
+    const { job, vrm, wrapper, atlas, atlasContext } = current;
 
-    // t は 1 周期 [0, 3π) を BAKE_FRAMES 等分して張る。回転は t=3π で 2π の倍数に戻り、
-    // ボーンの sin(t×偶数) も t=3π で開始位相へ戻るため、フレーム列はシームレスにループする。
-    const batch = 20; // Number of frames to bake per render
-    for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
+    const batch = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
+    for (let i = current.frameIndex; i < Math.min(current.frameIndex + batch, BAKE_FRAMES); i++) {
       const t = i * (Math.PI / BAKE_FRAMES * 3);
-
-      if (spin) {
-        model.threeObject.rotation.y = t * 4 / 3;
-        model.threeObject.rotation.z = t * 2 / 3;
-      } else {
-        model.threeObject.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
-        model.threeObject.rotation.y = Math.PI; // 後ろ向き固定（自機）
-        model.threeObject.rotation.z = 0;
-      }
-      const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
-      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
-      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-      g('hips').position.z          = Math.sin(t * 12) *  0.05;
-      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
-      model.vrm.update(t);
+      poseFrame({ vrm, threeObject: wrapper }, t, job.spin);
 
       composer.render();
       const bitmap = xthree.canvas.transferToImageBitmap();
       atlasContext.drawImage(bitmap, (i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE);
-      bitmap.close(); // 中間 ImageBitmap は即解放（以前はテクスチャ元として全フレーム分保持していた）
+      bitmap.close(); // 中間 ImageBitmap は即解放
     }
-    frameIndex += batch;
+    current.frameIndex += batch;
 
-    if (frameIndex >= BAKE_FRAMES) {
+    if (current.frameIndex >= BAKE_FRAMES) {
       // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
       const source = PIXI.Texture.from(atlas).source;
       const textures = [];
@@ -185,38 +239,22 @@ function Baking(unit, { url, spin = true }) {
         const frame = new PIXI.Rectangle((i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE);
         textures.push(new PIXI.Texture({ source, frame }));
       }
+      job.store(textures);
 
-      // ベイク専用の WebGL コンテキストと GPU リソースを明示的に解放する
-      // （xthree の finalize は renderer を dispose しないため、ここでやらないと
-      //   コンテキスト5本 + VRM テクスチャが GPU に残留し続ける）
-      composer.dispose();
-      ssaoPass.dispose();
-      xthree.renderer.dispose();
-      xthree.renderer.forceContextLoss();
+      // このキャラを舞台から外し GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
+      stage.remove(wrapper);
+      disposeVrmObject(vrm.scene);
 
-      resolve(textures);
-      unit.finalize();
+      current = null;
+      jobIndex++;
+      startNextJob();
     }
   });
-}
 
-function Model(_unit, { url }) {
-  const object = xthree.nest(new THREE.Object3D());
-  const { resolve } = xnew.promise();
-
-  let vrm = null;
-  const loader = new GLTFLoader();
-  loader.register((parser) => new VRMLoaderPlugin(parser));
-  loader.load(url, (gltf) => {
-    vrm = gltf.userData.vrm;
-    vrm.scene.scale.set(0.8, 0.8, 0.8);
-    vrm.scene.position.y = -0.8;
-    vrm.scene.position.z = -0.4;
-    vrm.scene.rotation.x = +Math.PI * 20 / 180;
-    object.add(vrm.scene);
-    resolve();
-  });
-  return { get vrm() { return vrm; } };
+  return {
+    get texturesList() { return texturesList; },
+    get playerTextures() { return playerTextures; },
+  };
 }
 
 // ---- Scenes ----
