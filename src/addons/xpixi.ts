@@ -63,7 +63,15 @@ function Nest(unit: xnew.Unit, { object }: { object: any }) {
 
     parent.addChild(object);
     unit.on('finalize', () => {
-        parent.removeChild(object);
+        // 親から外したうえで GPU リソースを解放する。
+        // children: true で addChild した子（Graphics 等）も破棄。texture は既定（false）で
+        // 温存するため、共有テクスチャ（ベイク済み AnimatedSprite 等）は壊れない。
+        // destroyed ガードで、親の destroy({ children: true }) との二重破棄を防ぐ。
+        if (object.destroyed === true) return;
+        if (parent && parent.destroyed !== true) {
+            parent.removeChild(object);
+        }
+        object.destroy({ children: true });
     });
 
     return {
