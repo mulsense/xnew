@@ -16,15 +16,42 @@ const ENEMY_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
 // 自機は中国うさぎ（体内の免疫システム）。後ろ向きに表示する。
 const PLAYER_FILE = 'usagi.vrm';
 
+// このサンプルのアセットは examples/assets/ 配下（importmap と同じ相対基準）。
+const asset = (name) => `../../assets/${name}`;
+
+// その wave で主役になる敵 id（wave1→0 … wave4 以降はイタコ=3 で頭打ち）。
+const enemyIdForWave = (wave) => Math.min(wave - 1, ENEMY_FILES.length - 1);
+
+// 縁取り付きテキスト（SVGText）の薄いラッパー。className は常に inline-block。
+// stroke / strokeWidth は見出しごとに変わるので引数で受ける。
+const svgText = (text, fontSize, stroke = '#EEEEEE', strokeWidth = '0.2cqw') =>
+  xnew(xnew.basics.SVGText, { text, fontSize, stroke, strokeWidth, className: 'inline-block' });
+
+// ベイク設定。フレーム数を減らすほど GPU 常駐テクスチャと起動時負荷が減る（その分コマが粗くなる）。
+// 再生周期は 360 枚時代（60fps で約6秒/ループ）を保つよう BAKE_ANIMATION_SPEED で補正する。
+const BAKE_FRAMES = 120;
+const BAKE_ANIMATION_SPEED = BAKE_FRAMES / 360;
+const BAKE_FRAME_SIZE = 96; // ベイク1フレームの解像度(px)
+
 // 画面右端のイラスト用スペース幅(px)。ゲーム領域は x ∈ [0, PLAY_RIGHT]。
 // HTML 側の 25cqw（= 200/800）と一致させること。
 const PANEL_W = 200;
 const PLAY_RIGHT = 800 - PANEL_W;
 
+// 自機⇄敵の当たり判定半径。中心間距離 < PLAYER_HIT_R + ENEMY_HIT_R で被弾。
+// それぞれの半径でうっすら円を描き、円が重なる＝被弾と分かるようにする。
+const PLAYER_HIT_R = 14;
+const ENEMY_HIT_R = 10;
+
 // 各 wave のメインカラー（wave1:黄緑 / 2:明るいこげ茶 / 3:緑 / 4:白）。endless は最後の色。
 const WAVE_COLORS = [0x9BE53C, 0xC8923C, 0x3FD96B, 0xFFFFFF];
 const waveColor = (wave) => WAVE_COLORS[Math.min(wave - 1, WAVE_COLORS.length - 1)];
 const cssHex = (n) => '#' + n.toString(16).padStart(6, '0');
+
+// 敵 id ごとのサイバーな識別コード（ターゲット表示／警告画面の「謎文字」に使う）
+const ENEMY_CODES = ['ZD-0x01', 'KT-0x02', 'ZK-0x03', 'IT-0x04'];
+// ランダムな16進文字列（len 桁）。解析中っぽい流れる数字に使う。
+const randHex = (len) => Math.floor(Math.random() * 16 ** len).toString(16).toUpperCase().padStart(len, '0');
 
 xnew(document.querySelector('#main'), Main);
 
@@ -55,12 +82,12 @@ function BakedCharacters(_unit) {
   const { resolve } = xnew.promise();
 
   for (let i = 0; i < ENEMY_FILES.length; i++) {
-    xnew.promise(xnew(Baking, { url: `../../assets/${ENEMY_FILES[i]}`, spin: true })).then((value) => {
+    xnew.promise(xnew(Baking, { url: asset(ENEMY_FILES[i]), spin: true })).then((value) => {
       texturesList[i] = value.textures;
       if (++doneCount === total) resolve();
     });
   }
-  xnew.promise(xnew(Baking, { url: `../../assets/${PLAYER_FILE}`, spin: false })).then((value) => {
+  xnew.promise(xnew(Baking, { url: asset(PLAYER_FILE), spin: false })).then((value) => {
     playerTextures = value.textures;
     if (++doneCount === total) resolve();
   });
@@ -73,7 +100,7 @@ function BakedCharacters(_unit) {
 
 function Baking(unit, { url, spin = true }) {
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
-  xthree.initialize({ camera, canvas: new OffscreenCanvas(96, 96) });
+  xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
   const composer = new EffectComposer(xthree.renderer);
@@ -99,7 +126,16 @@ function Baking(unit, { url, spin = true }) {
   });
 
   const model = xnew(Model, { url });
-  const textures = [];
+
+  // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
+  // 「キャラ1体 = GPU テクスチャ1枚」にする（テクスチャ数 5×BAKE_FRAMES → 5枚。
+  // source 共有でスプライトのバッチ描画も効く）
+  const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
+  const rows = Math.ceil(BAKE_FRAMES / cols);
+  const atlas = document.createElement('canvas');
+  [atlas.width, atlas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
+  const atlasContext = atlas.getContext('2d');
+
   let frameIndex = 0;
   const { resolve } = xnew.promise('textures');
 
@@ -108,8 +144,7 @@ function Baking(unit, { url, spin = true }) {
 
     // t は 1 周期 [0, 3π) を BAKE_FRAMES 等分して張る。回転は t=3π で 2π の倍数に戻り、
     // ボーンの sin(t×偶数) も t=3π で開始位相へ戻るため、フレーム列はシームレスにループする。
-    const BAKE_FRAMES = 360;
-    const batch = 100; // Number of frames to bake per render
+    const batch = 20; // Number of frames to bake per render
     for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
       const t = i * (Math.PI / BAKE_FRAMES * 3);
 
@@ -136,11 +171,29 @@ function Baking(unit, { url, spin = true }) {
       model.vrm.update(t);
 
       composer.render();
-      textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
+      const bitmap = xthree.canvas.transferToImageBitmap();
+      atlasContext.drawImage(bitmap, (i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE);
+      bitmap.close(); // 中間 ImageBitmap は即解放（以前はテクスチャ元として全フレーム分保持していた）
     }
     frameIndex += batch;
 
     if (frameIndex >= BAKE_FRAMES) {
+      // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
+      const source = PIXI.Texture.from(atlas).source;
+      const textures = [];
+      for (let i = 0; i < BAKE_FRAMES; i++) {
+        const frame = new PIXI.Rectangle((i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE);
+        textures.push(new PIXI.Texture({ source, frame }));
+      }
+
+      // ベイク専用の WebGL コンテキストと GPU リソースを明示的に解放する
+      // （xthree の finalize は renderer を dispose しないため、ここでやらないと
+      //   コンテキスト5本 + VRM テクスチャが GPU に残留し続ける）
+      composer.dispose();
+      ssaoPass.dispose();
+      xthree.renderer.dispose();
+      xthree.renderer.forceContextLoss();
+
       resolve(textures);
       unit.finalize();
     }
@@ -157,7 +210,8 @@ function Model(_unit, { url }) {
   loader.load(url, (gltf) => {
     vrm = gltf.userData.vrm;
     vrm.scene.scale.set(0.8, 0.8, 0.8);
-    vrm.scene.position.y = -1;
+    vrm.scene.position.y = -0.8;
+    vrm.scene.position.z = -0.4;
     vrm.scene.rotation.x = +Math.PI * 20 / 180;
     object.add(vrm.scene);
     resolve();
@@ -167,15 +221,73 @@ function Model(_unit, { url }) {
 
 // ---- Scenes ----
 
-function TitleScene(unit) {
+// skipStory: リザルトから戻ってきたときは true。ストーリーを飛ばして直接ゲームへ。
+function TitleScene(unit, { skipStory = false } = {}) {
   xnew.extend(xnew.basics.Scene);
 
   xnew(Background);
+  xnew(TitleCharacters); // 中央のうさぎ + 周囲で蠢く敵4キャラ（背景の上・HTMLテキストの下）
 
   xnew(TitleText);
   xnew(TouchMessage);
   xnew(VolumeControl);
-  unit.on('pointerdown', () => unit.change(StoryScene));
+
+  const advance = () => unit.change(skipStory ? GameScene : StoryScene);
+  unit.on('pointerdown', advance);
+  unit.on('window.keydown', ({ event }) => {
+    if (event.code === 'Space' && !event.repeat) { event.preventDefault(); advance(); }
+  });
+}
+
+// タイトル画面の主役表示：中央に中国うさぎ（usagi03、下1/3は画面外）、その周囲で敵4キャラが蠢く。
+function TitleCharacters(_unit) {
+  const stage = xpixi.nest(new PIXI.Container());
+  const tl = xnew.context(BakedCharacters).texturesList;
+
+  // 周囲の敵4キャラ（id 0..3）。うさぎより先に追加して背面に置く。
+  const spots = [
+    { id: 1, x: 300, y: 360, s: 0.85 }, // 左上
+    { id: 2, x: 500, y: 380, s: 0.90 }, // 右上
+    { id: 0, x: 250, y: 490, s: 1.00 }, // 左
+    { id: 3, x: 555, y: 475, s: 1.05 }, // 右
+  ];
+  for (const spot of spots) xnew(TitleFactor, { stage, tl, ...spot });
+
+  // 中央の中国うさぎ（下1/3が画面下に隠れるよう中心を下げる）
+  xnew.promise(PIXI.Assets.load(asset('usagi03.png'))).then((texture) => {
+    const usagi = new PIXI.Sprite(texture);
+    usagi.anchor.set(0.5);
+    const H = 456;                               // 表示する高さ(px)（元の 380 の約1.2倍）
+    usagi.scale.set(H / texture.height);
+    usagi.position.set(400, 600 - H / 6);        // 下1/3 (=H/3) が y=600 より下に出る
+    stage.addChild(usagi);
+  });
+}
+
+// タイトル用：定位置の周りで蠢く敵1体（ポップイン → 漂い + 拡縮ゆらぎ + 回転）。StoryFactor の定位置版。
+function TitleFactor(unit, { stage, tl, id, x, y, s }) {
+  const textures = tl[id];
+  const sprite = new PIXI.AnimatedSprite(textures);
+  sprite.anchor.set(0.5);
+  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
+  sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
+  sprite.position.set(x, y);
+  sprite.scale.set(0);
+  stage.addChild(sprite);
+  // テクスチャは共有なので破棄しない（default destroy は texture を残す）
+  unit.on('finalize', () => { if (!sprite.destroyed) { stage.removeChild(sprite); sprite.destroy(); } });
+
+  const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
+  let t = 0, pop = 0;
+  unit.on('update', () => {
+    t++;
+    pop = Math.min(1, pop + 0.05);                       // ポップイン
+    const squirm = 1 + Math.sin(t * 0.09 + phx) * 0.1;   // 蠢く拡縮
+    sprite.scale.set(s * pop * squirm);
+    sprite.x = x + Math.sin(t * 0.02 + phx) * 22;
+    sprite.y = y + Math.sin(t * 0.025 + phy) * 18;
+    sprite.rotation = Math.sin(t * 0.04 + phy) * 0.12;
+  });
 }
 
 // ゲーム前の導入寸劇（2ページ）。タップで送り、最後のページからゲームへ。
@@ -187,14 +299,14 @@ function StoryScene(unit) {
   xnew(Background);   // 体内背景を流用（タイトル/ゲームと連続感）
   xnew(CameraShake);  // 被弾時のシェイク演出用
   xnew(VolumeControl);
+  xnew(StoryTheater); // 下部の黒帯（セリフはこの上に表示）。pages より先に作り、テキストの背面に置く
 
   const pages = [StoryPageHit, StoryPageSwarm];
   let index = 0;
   let page = xnew(pages[0]);
-  xnew(StoryOverlay, { total: pages.length });
 
   let busy = false;
-  unit.on('pointerdown', () => {
+  const advance = () => {
     if (busy) return;
     busy = true;
     const next = index + 1;
@@ -205,44 +317,73 @@ function StoryScene(unit) {
     page.finalize();
     index = next;
     page = xnew(pages[index]);
-    xnew.emit('+story-page', { index });
     xnew.timeout(() => { busy = false; }, 300); // 連打での飛ばし過ぎを防ぐ
+  };
+  unit.on('pointerdown', advance);
+  unit.on('window.keydown', ({ event }) => {
+    if (event.code === 'Space' && !event.repeat) { event.preventDefault(); advance(); }
   });
 }
 
-// 下部のページドット + 「タップで進む」誘導（点滅）
-function StoryOverlay(unit, { total }) {
+// 下部の黒帯（シアターモード風）。ストーリーのセリフはこの帯の上に載せて読ませる。
+// 高さ 26cqw（≒208px）。上端は短いグラデでぼかし、細いピンクのアクセントラインを引く。
+function StoryTheater(_unit) {
   xnew.nest('<div class="absolute inset-0 pointer-events-none">');
+  // 帯の上にせり出すフェザー（境界をやわらかく、キャラの足元と馴染ませる）
+  xnew('<div class="absolute left-0 right-0 bottom-[26cqw] h-[7cqw]" style="background: linear-gradient(to top, rgba(4,3,7,0.9), rgba(4,3,7,0));">');
+  // 黒帯本体
+  xnew('<div class="absolute left-0 right-0 bottom-0 h-[26cqw]" style="background: rgba(4,3,7,0.9);">');
+  // CRT 走査線（サイバーな質感）
+  xnew('<div class="absolute left-0 right-0 bottom-0 h-[26cqw]" style="background: repeating-linear-gradient(0deg, transparent 0 0.4cqw, rgba(0,0,0,0.22) 0.4cqw 0.8cqw);">');
+  // 上端のアクセントライン（うっすら発光）
+  xnew('<div class="absolute left-0 right-0 bottom-[26cqw] h-[0.28cqw]" style="background: linear-gradient(90deg, transparent, rgba(255,143,163,0.75) 18%, rgba(255,143,163,0.75) 82%, transparent); box-shadow: 0 0 1.4cqw rgba(255,143,163,0.55);">');
+}
 
-  let index = 0;
-  const dots = [];
-  xnew('<div class="absolute left-0 right-0 bottom-[7cqw] flex justify-center gap-[1.4cqw]">', () => {
-    for (let i = 0; i < total; i++) {
-      const d = xnew('<div class="w-[1.6cqw] h-[1.6cqw] rounded-full" style="background:#ffffff; box-shadow:0 0 0.6cqw rgba(0,0,0,0.6);">');
-      dots.push(d);
-    }
+// ストーリーのセリフをサイバーな字幕フレームで表示する（黒帯の上に重ねる）。
+// build でテキスト本文（svgText 群）を構築。accent=アクセント色 / tag=見出しラベル / bottomCqw=下端位置。
+// ヘッダー（点滅 ● ＋ ▶TAG ＋ 流れる hex ＋ 装飾ライン）／四隅ブラケット＋発光／流れる解析フッター を付与。
+function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
+  xnew.nest(`<div class="absolute left-0 right-0 flex flex-col items-center pointer-events-none" style="bottom:${bottomCqw}cqw; font-family: monospace;">`);
+
+  // ヘッダー: [線] ● ▶ TAG [線]
+  let blink;
+  xnew('<div class="flex items-center mb-[1cqw] font-bold tracking-[0.3em]" style="font-size:1.8cqw;">', () => {
+    const lineL = xnew('<div class="mr-[1cqw]" style="width:6cqw; height:0.18cqw;">');
+    lineL.element.style.background = `linear-gradient(90deg, transparent, ${accent})`;
+    blink = xnew('<div class="mr-[0.8cqw]">', '●');
+    const lbl = xnew('<div class="mr-[1cqw]">', `▶ ${tag}`);
+    const lineR = xnew('<div style="width:6cqw; height:0.18cqw;">');
+    lineR.element.style.background = `linear-gradient(90deg, ${accent}, transparent)`;
+    for (const e of [blink, lbl]) e.element.style.color = accent;
   });
 
-  let hintWrap, hint;
-  hintWrap = xnew('<div class="absolute left-0 right-0 bottom-[2.5cqw] text-center text-white font-bold">', () => {
-    hint = xnew(xnew.basics.SVGText, { text: '▶ タップで次へ', fontSize: '3.4cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
+  // 本文（四隅ブラケットで囲む。drop-shadow でうっすら発光）
+  const wrap = xnew('<div class="relative px-[4cqw] py-[0.6cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
+    build();
   });
-
-  function refresh() {
-    dots.forEach((d, i) => d.element.style.opacity = i === index ? '1' : '0.3');
-    hint.element.textContent = index === total - 1 ? '▶ タップでスタート' : '▶ タップで次へ';
+  wrap.element.style.filter = `drop-shadow(0 0 0.7cqw ${accent}88)`;
+  for (const [pos, css] of [
+    ['top-0 left-0', 'border-top:0.25cqw solid; border-left:0.25cqw solid;'],
+    ['top-0 right-0', 'border-top:0.25cqw solid; border-right:0.25cqw solid;'],
+    ['bottom-0 left-0', 'border-bottom:0.25cqw solid; border-left:0.25cqw solid;'],
+    ['bottom-0 right-0', 'border-bottom:0.25cqw solid; border-right:0.25cqw solid;'],
+  ]) {
+    const b = xnew(`<div class="absolute ${pos} w-[2.2cqw] h-[2.2cqw]" style="${css} opacity:0.85;">`);
+    b.element.style.color = accent; // border は currentColor
   }
-  refresh();
-  unit.on('+story-page', ({ index: i }) => { index = i; refresh(); });
 
-  let c = 0;
-  unit.on('update', () => { hintWrap.element.style.opacity = `${0.55 + Math.sin(c++ * 0.08) * 0.4}`; });
+  // ● の点滅のみ（読みやすさ優先で、流れる謎文字は出さない）
+  let t = 0;
+  unit.on('update', () => {
+    t++;
+    blink.element.style.opacity = Math.floor(t / 16) % 2 ? '1' : '0.2';
+  });
 }
 
 // ページ1: 中国うさぎがずんだアローに被弾する寸劇
 function StoryPageHit(unit) {
-  const CX = 420, CY = 400;          // 中国うさぎの中心
-  const impactX = CX - 70, impactY = CY - 30; // 矢の着弾点（体の少し左上）
+  const CX = 400, CY = 215;          // 中国うさぎの中心（黒帯の上・画面中央寄りに配置）
+  const impactX = CX, impactY = CY - 30; // 矢の着弾点（体の中央やや上）
   const stage = xpixi.nest(new PIXI.Container());
 
   // 着弾フラッシュ（シェイクで端が抜けないよう広め）
@@ -250,13 +391,14 @@ function StoryPageHit(unit) {
   flashG.alpha = 0;
 
   let usagi = null, arrow = null;
-  xnew.promise(PIXI.Assets.load(['../../assets/usagi03.png', '../../assets/zunda_arrow.png'])).then((loaded) => {
-    usagi = new PIXI.Sprite(loaded['../../assets/usagi03.png']);
+  const usagiUrl = asset('usagi03.png'), arrowUrl = asset('zunda_arrow.png');
+  xnew.promise(PIXI.Assets.load([usagiUrl, arrowUrl])).then((loaded) => {
+    usagi = new PIXI.Sprite(loaded[usagiUrl]);
     usagi.anchor.set(0.5);
-    usagi.scale.set(300 / usagi.texture.height);
+    usagi.scale.set(340 / usagi.texture.height); // やや大きめに
     usagi.position.set(CX, CY);
 
-    arrow = new PIXI.Sprite(loaded['../../assets/zunda_arrow.png']);
+    arrow = new PIXI.Sprite(loaded[arrowUrl]);
     arrow.anchor.set(0.86, 0.5); // 先端（ずんだ玉）側を基準に
     arrow.scale.set(200 / arrow.texture.width);
     arrow.position.set(-220, impactY);
@@ -264,16 +406,14 @@ function StoryPageHit(unit) {
     stage.addChild(usagi, arrow, flashG);
   });
 
-  // 見出し（上段）。被弾の驚きをコミカルに。
-  xnew('<div class="absolute left-0 right-0 top-[5cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
-    xnew('<div>', () => { xnew(xnew.basics.SVGText, { text: '中国うさぎが、ずんだアローに', fontSize: '4.6cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
-    xnew('<div style="color:#FF8FA3;">', () => { xnew(xnew.basics.SVGText, { text: '当たってしまった！', fontSize: '6.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
-  });
-
-  // 補足（着弾後にフェードイン）
-  const sub = xnew('<div class="absolute left-0 right-0 top-[19cqw] text-center font-bold" style="color:#FCEFA0; opacity:0;">', () => {
-    xnew(xnew.basics.SVGText, { text: '（ずんだアローに当たると、ずんだ餅になってしまう…）', fontSize: '2.8cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
-  });
+  // セリフ（黒帯の中・サイバー字幕）。被弾の驚きをコミカルに。補足は着弾後にフェードイン。
+  let sub;
+  xnew(StoryDialog, { accent: '#FF8FA3', tag: 'ALERT', bottomCqw: 4.5, build: () => {
+    xnew('<div style="color:#FF8FA3;">', () => { svgText('ずんだアローに当たってしまった！', '5.2cqw', '#0a1830', '0.25cqw'); });
+    sub = xnew('<div class="mt-[0.6cqw]" style="color:#FCEFA0; opacity:0;">', () => {
+      svgText('（ずんだアローに当たると、ずんだ餅にされてしまう…）', '2.5cqw', '#0a1830');
+    });
+  } });
 
   const FLY = 40; // 飛来フレーム数（約0.7秒）
   let frame = 0, impacted = false, hitT = 0;
@@ -317,10 +457,10 @@ function StoryPageSwarm(_unit) {
     if (++n >= MAX) adder.clear();
   }, 200);
 
-  xnew('<div class="absolute left-0 right-0 top-[5cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
-    xnew('<div>', () => { xnew(xnew.basics.SVGText, { text: '体内の免疫を操作し、', fontSize: '5cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
-    xnew('<div style="color:#9BE53C;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだ因子の増殖を食い止めろ！', fontSize: '5.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
-  });
+  xnew(StoryDialog, { accent: '#9BE53C', tag: 'MISSION', bottomCqw: 5, build: () => {
+    xnew('<div class="mb-[0.6cqw]">', () => { svgText('体内の免疫キャラを操作し、', '4cqw', '#0a1830', '0.22cqw'); });
+    xnew('<div style="color:#9BE53C;">', () => { svgText('ずんだ因子の増殖を食い止めろ！', '4.4cqw', '#0a1830', '0.25cqw'); });
+  } });
 }
 
 // 蠢くずんだ因子1体（ポップイン → 漂い + 拡縮ゆらぎ）
@@ -329,12 +469,12 @@ function StoryFactor(unit, { stage, tl }) {
   const textures = tl[id];
   const sprite = new PIXI.AnimatedSprite(textures);
   sprite.anchor.set(0.5);
-  sprite.animationSpeed = 1;
+  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
   sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
 
   const baseScale = 0.5 + Math.random() * 0.5;
-  const bx = 90 + Math.random() * 620;  // テキスト下の領域に散らす
-  const by = 250 + Math.random() * 300;
+  const bx = 90 + Math.random() * 620;  // 黒帯より上（テキスト帯に被らない領域）に散らす
+  const by = 90 + Math.random() * 270;
   sprite.position.set(bx, by);
   sprite.scale.set(0);
   stage.addChild(sprite);
@@ -371,7 +511,7 @@ function GameScene(unit) {
   xnew(VolumeControl);
 
   const bgm = xnew(() => {
-    xnew.audio.load('../../assets/maou_bgm_cyber31.mp3').then((music) => music.play({ fade: 1000, loop: true }));
+    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).then((music) => music.play({ fade: 1000, loop: true }));
   });
 
   unit.on('+gameover', () => {
@@ -380,16 +520,18 @@ function GameScene(unit) {
     const score = scoreManager.score;
     const wave = waveManager.wave;
     const kills = [...scoreManager.kills];
+    // 最終 wave(4) のゲージを 100% 到達済みなら「クリア」扱い（wave4 は次へ進まないので waveScore で判定）
+    const cleared = wave >= WAVE_GOALS.length && scoreManager.waveScore >= WAVE_GOALS[WAVE_GOALS.length - 1];
     const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
     xnew(GameOverText);
-    xnew.timeout(() => unit.change(ResultScene, { image, score, wave, kills }), 2000);
+    xnew.timeout(() => unit.change(ResultScene, { image, score, wave, kills, cleared }), 2000);
   });
 }
 
-function ResultScene(unit, { image, score, wave, kills }) {
+function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew.extend(xnew.basics.Scene);
 
-  xnew.audio.load('../../assets/st005.mp3').then((music) => music.play({ fade: 1, loop: true }));
+  xnew.audio.load(asset('st005.mp3')).then((music) => music.play({ fade: 1, loop: true }));
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
@@ -399,14 +541,20 @@ function ResultScene(unit, { image, score, wave, kills }) {
 
   xnew(ResultBackground);
   xnew(ResultImage, { image });
-  xnew(ResultDetail, { score, wave, kills });
+  xnew(ResultDetail, { score, wave, kills, cleared });
   xnew(ResultFooter);
+
+  // スペースキーでもタイトルへ戻る（戻った先はストーリーを飛ばす）
+  unit.on('window.keydown', ({ event }) => {
+    if (event.code === 'Space' && !event.repeat) { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); }
+  });
 }
 
 // ---- Wave system ----
 
-// wave1..4 のスコアしきい値（index = wave-1。wave N から N+1 へ進むしきい値は THRESHOLDS[N]）
-const WAVE_THRESHOLDS = [0, 400, 1000, 2000];
+// wave1..4 の「その wave 内」で稼ぐ目標スコア（index = wave-1）。各 wave は 0 から貯め、
+// waveScore がこの値に達すると次 wave へ。wave4 はゲージは満タンになるが次へは進まない（エンドレス）。
+const WAVE_GOALS = [1024, 2048, 3072, 4096];
 
 function WaveManager(unit) {
   let wave = 0;
@@ -427,13 +575,19 @@ function WaveManager(unit) {
     xnew.timeout(() => { startWave(next); transitioning = false; }, 2800);
   }
 
-  startWave(1); // wave 1 スタート（切替演出なし）
+  // wave 1 も警告画面（WaveTransition）を出してから開始する（初回も同じ導入演出にする）。
+  // wave は即 1 にする（0 のままだと ScoreGauge のしきい値計算が NaN になり恒久的に壊れる）。
+  // 敵の湧きは transitioning フラグで演出が終わるまで止める。
+  startWave(1);
+  transitioning = true;
+  xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: 1 });
+  xnew.timeout(() => { transitioning = false; }, 2800);
 
   let tick = 0;
   const spawn = xnew.interval(() => {
     if (transitioning) return;
-    // スコアしきい値で次の wave へ（wave4 到達後はエンドレス）
-    if (wave < 4 && xnew.context(ScoreManager).score >= WAVE_THRESHOLDS[wave]) {
+    // その wave の目標スコアに達したら次の wave へ（wave4 は到達してもエンドレスで移行しない）
+    if (wave < 4 && xnew.context(ScoreManager).waveScore >= WAVE_GOALS[wave - 1]) {
       nextWave();
       return;
     }
@@ -441,7 +595,7 @@ function WaveManager(unit) {
 
     const scene = xnew.context(xnew.basics.Scene);
     // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場する。
-    const id = Math.min(wave - 1, ENEMY_DATA.length - 1);
+    const id = enemyIdForWave(wave);
     if (id === 0) {
       // wave1 は分裂しないので多めに出す
       scene.add(Enemy, { id: 0 });
@@ -457,31 +611,97 @@ function WaveManager(unit) {
   return { get wave() { return wave; } };
 }
 
-// wave 切替時の警告画面風の演出（プレイ領域中央）
+// wave 切替時のサイバーな警告画面（プレイ領域）。HUDフレーム + グリッチした WAVE 表示 +
+// 流れる謎文字（hex）+ 脅威解析バー で「敵を検知して解析している」感を出す。
 function WaveTransition(unit, { wave }) {
   const color = cssHex(waveColor(wave));
-  xnew.nest('<div class="absolute left-0 right-[25cqw] top-0 bottom-0 flex flex-col items-center justify-center pointer-events-none">');
+  const code = ENEMY_CODES[enemyIdForWave(wave)];
+  xnew.nest('<div class="absolute left-0 right-[25cqw] top-0 bottom-0 overflow-hidden pointer-events-none" style="font-family: monospace;">');
+  unit.element.style.color = color; // 文字はすべて wave 色を継承
 
+  // 暗幕 + 色フラッシュ + 走査線オーバーレイ
   const flash = xnew('<div class="absolute inset-0">');
   flash.element.style.background = color;
+  xnew('<div class="absolute inset-0" style="background: rgba(2,4,8,0.4);">');
+  xnew('<div class="absolute inset-0" style="background: repeating-linear-gradient(0deg, transparent 0 0.35cqw, rgba(0,0,0,0.28) 0.35cqw 0.7cqw);">');
 
-  const stripe = `repeating-linear-gradient(45deg, ${color} 0, ${color} 1.2cqw, transparent 1.2cqw, transparent 2.4cqw)`;
-  const top = xnew('<div class="absolute top-0 left-0 right-0 h-[3cqw]" style="opacity:0.5;">');
-  const bottom = xnew('<div class="absolute bottom-0 left-0 right-0 h-[3cqw]" style="opacity:0.5;">');
-  top.element.style.background = stripe;
-  bottom.element.style.background = stripe;
+  // 斜めの警告ストライプ（上下）
+  const stripe = `repeating-linear-gradient(45deg, ${color} 0, ${color} 1cqw, transparent 1cqw, transparent 2.2cqw)`;
+  for (const edge of ['top-0', 'bottom-0']) {
+    const s = xnew(`<div class="absolute ${edge} left-0 right-0 h-[2.4cqw]" style="opacity:0.45;">`);
+    s.element.style.background = stripe;
+  }
 
-  const warn = xnew('<div class="text-[6cqw] font-bold tracking-[0.4em]">', '⚠ WARNING ⚠');
-  warn.element.style.color = color;
-  const label = xnew('<div class="text-[13cqw] font-bold">', `WAVE ${wave}`);
-  label.element.style.color = color;
-  label.element.style.textShadow = `0 0 2cqw ${color}`;
+  // HUD コーナーブラケット（四隅）
+  const corners = [
+    ['top-[2cqw] left-[2cqw]', 'border-top:0.4cqw solid; border-left:0.4cqw solid;'],
+    ['top-[2cqw] right-[2cqw]', 'border-top:0.4cqw solid; border-right:0.4cqw solid;'],
+    ['bottom-[2cqw] left-[2cqw]', 'border-bottom:0.4cqw solid; border-left:0.4cqw solid;'],
+    ['bottom-[2cqw] right-[2cqw]', 'border-bottom:0.4cqw solid; border-right:0.4cqw solid;'],
+  ];
+  for (const [pos, border] of corners) {
+    xnew(`<div class="absolute ${pos} w-[5cqw] h-[5cqw]" style="${border} opacity:0.8;">`);
+  }
 
+  // 縦に流れる走査ライン
+  const scan = xnew('<div class="absolute left-0 right-0 h-[0.35cqw]" style="top:0;">');
+  scan.element.style.background = color;
+  scan.element.style.boxShadow = `0 0 1.6cqw ${color}`;
+
+  // 上部の謎文字（左：システムアラート / 右：流れる hex）
+  xnew('<div class="absolute left-[3.5cqw] top-[5.5cqw] text-[1.9cqw] tracking-[0.3em] font-bold">', '▚ SYSTEM ALERT ▚');
+  const hexTop = xnew('<div class="absolute right-[3.5cqw] top-[5.8cqw] text-[1.5cqw] tracking-[0.2em]" style="opacity:0.7;">', '');
+
+  // 中央：WARNING（点滅）+ WAVE N（グリッチ）+ 脅威情報
+  let warn, label;
+  xnew('<div class="absolute inset-0 flex flex-col items-center justify-center text-center">', () => {
+    warn = xnew('<div class="text-[5.5cqw] font-bold tracking-[0.4em]">', '⚠ WARNING ⚠');
+    label = xnew('<div class="text-[13cqw] font-bold leading-none">', `WAVE ${wave}`);
+    xnew('<div class="text-[2.2cqw] tracking-[0.25em] mt-[1.2cqw]" style="opacity:0.9;">', `THREAT Lv.${wave}　ENTITY ${code}`);
+  });
+
+  // 下部：脅威解析バー + 流れる hex
+  let pctEl, bar, streamEl;
+  xnew('<div class="absolute left-[3.5cqw] right-[3.5cqw] bottom-[5cqw]">', () => {
+    xnew('<div class="flex justify-between text-[1.5cqw] tracking-[0.2em] mb-[0.5cqw]" style="opacity:0.9;">', () => {
+      xnew('<div>', '▶ ANALYZING THREAT');
+      pctEl = xnew('<div>', '0%');
+    });
+    xnew('<div class="relative w-full h-[1.5cqw]" style="border:0.15cqw solid; box-shadow:0 0 1cqw currentColor;">', () => {
+      bar = xnew('<div class="absolute inset-y-0 left-0" style="width:0%;">');
+      bar.element.style.background = color;
+    });
+    streamEl = xnew('<div class="text-[1.2cqw] mt-[0.6cqw] tracking-[0.15em] whitespace-nowrap overflow-hidden" style="opacity:0.6;">', '');
+  });
+
+  const streamChars = '0123456789ABCDEF<>/\\|=+*#░▒▓';
+  const VISIBLE = 126; // フェード前のおおよそのフレーム数（解析バーをこの間にちょうど満たす）
   let t = 0;
   unit.on('update', () => {
     t++;
-    flash.element.style.opacity = `${(Math.sin(t * 0.08) * 0.5 + 0.5) * 0.12 + 0.02}`; // ゆったり明滅
-    warn.element.style.opacity = `${Math.floor(t / 22) % 2 ? 1 : 0.3}`;
+    flash.element.style.opacity = `${(Math.sin(t * 0.08) * 0.5 + 0.5) * 0.1 + 0.03}`; // ゆったり明滅
+    warn.element.style.opacity = `${Math.floor(t / 18) % 2 ? 1 : 0.25}`;
+
+    // WAVE N グリッチ：たまに横ズレ + 色収差シャドウ
+    const jump = Math.random() < 0.12 ? (Math.random() * 2 - 1) * 0.7 : 0;
+    label.element.style.transform = `translateX(${jump}cqw)`;
+    label.element.style.textShadow = `0 0 2cqw ${color}, ${0.25 + jump}cqw 0 rgba(255,40,90,0.55), ${-0.25}cqw 0 rgba(40,200,255,0.55)`;
+
+    // 縦走査ライン（上→下を繰り返す）
+    scan.element.style.top = `${(t * 1.1) % 100}%`;
+
+    // 流れる謎文字
+    if (t % 4 === 0) {
+      hexTop.element.textContent = Array.from({ length: 6 }, () => randHex(2)).join(' ');
+    }
+    if (t % 2 === 0) {
+      streamEl.element.textContent = '> ' + Array.from({ length: 40 }, () => streamChars[Math.floor(Math.random() * streamChars.length)]).join('');
+    }
+
+    // 脅威解析バー（0→100% を VISIBLE フレームで満たす）
+    const p = Math.min(1, t / VISIBLE);
+    bar.element.style.width = `${p * 100}%`;
+    pctEl.element.textContent = `${Math.round(p * 100)}%`;
   });
 
   xnew.transition(({ value }) => { unit.element.style.opacity = value; }, 450);
@@ -493,7 +713,7 @@ function WaveTransition(unit, { wave }) {
 // 右パネル上部の "Wave N" 表示（wave のメインカラーに追従）
 function WaveLabel(unit) {
   xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center font-bold text-lime-400">');
-  const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#102008', strokeWidth: '0.2cqw', className: 'inline-block' });
+  const text = svgText('Wave 1', '6cqw', '#102008');
   unit.on('+wave', ({ wave }) => {
     text.element.textContent = `Wave ${wave}`;
     unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
@@ -531,18 +751,14 @@ function ScoreGauge(unit) {
   let shown = 0;
   let t = 0;
   unit.on('update', () => {
-    const score = xnew.context(ScoreManager).score;
     const wave = xnew.context(WaveManager).wave;
+    const waveScore = xnew.context(ScoreManager).waveScore;
 
-    let target;
-    if (wave >= WAVE_THRESHOLDS.length) {
-      target = 1; // 最終 wave 以降（エンドレス）は満タン表示
-    } else {
-      const start = WAVE_THRESHOLDS[wave - 1];
-      const next = WAVE_THRESHOLDS[wave];
-      target = Math.max(0, Math.min(1, (score - start) / (next - start)));
-    }
+    // その wave の目標スコアに対する達成率（0..1）。wave4 以降も同様に貯まり、満タンで頭打ち。
+    const goal = WAVE_GOALS[Math.min(Math.max(wave, 1), WAVE_GOALS.length) - 1];
+    const target = wave < 1 ? 0 : Math.max(0, Math.min(1, waveScore / goal));
 
+    if (!Number.isFinite(shown)) shown = 0; // NaN に陥っても自己回復する保険
     shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
     fill.element.style.width = `${shown * 100}%`;
     pctEl.element.textContent = `${Math.round(shown * 100)}%`;
@@ -587,11 +803,11 @@ function WaveEnemyDisplay(unit) {
   let current = null;
 
   unit.on('+wave', ({ wave }) => {
-    const id = Math.min(wave - 1, tl.length - 1); // wave4 以降はイタコ固定
+    const id = enemyIdForWave(wave); // wave4 以降はイタコ固定
     const sprite = new PIXI.AnimatedSprite(tl[id]);
     sprite.anchor.set(0.5);
     sprite.scale.set(0.82);
-    sprite.animationSpeed = 1;
+    sprite.animationSpeed = BAKE_ANIMATION_SPEED;
     sprite.play();
     sprite.alpha = 0;
     container.addChild(sprite);
@@ -605,68 +821,183 @@ function WaveEnemyDisplay(unit) {
   });
 }
 
-// 敵キャラを囲うターゲットレティクル（回転リング + コーナーブラケット + クロスヘア）。色は wave 連動。
+// 敵キャラを囲うサイバーなターゲットレティクル。色は wave 連動。
+// 多重リング（逆回転）+ 回転するレーダー掃引 + 呼吸するロックオンブラケット +
+// 周回する解析ブリップ で「ロックして解析している」感を出す。
 function TargetReticle(unit) {
   const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
-  const R = 44, b = 36, len = 11;
+  const R = 46;
 
-  const ring = new PIXI.Graphics();
-  const brackets = new PIXI.Graphics();
+  // 独立回転させる層（container の子に直接 rotation を持たせる）
+  const outer = new PIXI.Container();   // 外周リング（CW）
+  const mid = new PIXI.Container();     // 中アーク（CCW）
+  const sweepC = new PIXI.Container();  // レーダー掃引（速い CW）
+  const blips = new PIXI.Container();   // 周回ブリップ
+  const brackets = new PIXI.Graphics(); // ロックオンブラケット（呼吸）
   const cross = new PIXI.Graphics();
-  container.addChild(ring, brackets, cross);
+  const outerG = new PIXI.Graphics(); outer.addChild(outerG);
+  const midG = new PIXI.Graphics(); mid.addChild(midG);
+  const sweepG = new PIXI.Graphics(); sweepC.addChild(sweepG);
+  container.addChild(sweepC, outer, mid, cross, brackets, blips);
 
-  function draw(color) {
-    ring.clear();
-    ring.circle(0, 0, R).stroke({ color, width: 1.5, alpha: 0.6 });
-    for (let a = 0; a < 360; a += 30) {
+  // 周回ブリップ（ランダムな半径/角速度）
+  const dots = [];
+  for (let i = 0; i < 6; i++) {
+    const g = new PIXI.Graphics();
+    blips.addChild(g);
+    dots.push({ g, radius: 24 + Math.random() * 26, ang: Math.random() * Math.PI * 2, spd: (0.01 + Math.random() * 0.03) * (Math.random() < 0.5 ? 1 : -1), size: 1.1 + Math.random() * 1.4 });
+  }
+
+  let color = WAVE_COLORS[0];
+
+  function draw(c) {
+    color = c;
+
+    // 外周リング + 目盛り（15°刻み、45°ごとに長い）
+    outerG.clear();
+    outerG.circle(0, 0, R).stroke({ color: c, width: 1.5, alpha: 0.5 });
+    for (let a = 0; a < 360; a += 15) {
       const rad = a * Math.PI / 180;
-      ring.moveTo(Math.cos(rad) * (R - 5), Math.sin(rad) * (R - 5))
-          .lineTo(Math.cos(rad) * (R + 2), Math.sin(rad) * (R + 2));
+      const long = a % 45 === 0;
+      outerG.moveTo(Math.cos(rad) * (R - (long ? 7 : 4)), Math.sin(rad) * (R - (long ? 7 : 4)))
+            .lineTo(Math.cos(rad) * (R + 2), Math.sin(rad) * (R + 2));
     }
-    ring.stroke({ color, width: 1.5, alpha: 0.6 });
+    outerG.stroke({ color: c, width: 1, alpha: 0.45 });
 
-    brackets.clear();
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      brackets.moveTo(sx * b - sx * len, sy * b).lineTo(sx * b, sy * b).lineTo(sx * b, sy * b - sy * len);
+    // 中アーク（4本の90°弧に隙間）+ 内側の細い円
+    midG.clear();
+    const rM = 36;
+    for (let k = 0; k < 4; k++) {
+      const a0 = k * Math.PI / 2 + 0.2, a1 = (k + 1) * Math.PI / 2 - 0.2;
+      midG.moveTo(Math.cos(a0) * rM, Math.sin(a0) * rM).arc(0, 0, rM, a0, a1); // moveTo で弧同士をつなぐ弦を防ぐ
     }
-    brackets.stroke({ color, width: 2, alpha: 0.9 });
+    midG.stroke({ color: c, width: 2, alpha: 0.8 });
+    midG.circle(0, 0, 27).stroke({ color: c, width: 1, alpha: 0.3 });
 
+    // レーダー掃引（先端へ向かって濃くなる扇）
+    sweepG.clear();
+    const SEG = 16, SPAN = 1.0;
+    for (let i = 0; i < SEG; i++) {
+      const a0 = -(i / SEG) * SPAN, a1 = -((i + 1) / SEG) * SPAN;
+      sweepG.moveTo(0, 0).lineTo(Math.cos(a0) * R, Math.sin(a0) * R).lineTo(Math.cos(a1) * R, Math.sin(a1) * R).lineTo(0, 0)
+            .fill({ color: c, alpha: (1 - i / SEG) * 0.16 });
+    }
+    sweepG.moveTo(0, 0).lineTo(R, 0).stroke({ color: c, width: 1.5, alpha: 0.7 }); // 先端ライン
+
+    // クロスヘア + 中心点
     cross.clear();
-    cross.moveTo(-R - 4, 0).lineTo(-R + 9, 0).moveTo(R - 9, 0).lineTo(R + 4, 0)
-         .moveTo(0, -R - 4).lineTo(0, -R + 9).moveTo(0, R - 9).lineTo(0, R + 4)
-         .stroke({ color, width: 1.5, alpha: 0.5 });
+    cross.moveTo(-R - 5, 0).lineTo(-R + 11, 0).moveTo(R - 11, 0).lineTo(R + 5, 0)
+         .moveTo(0, -R - 5).lineTo(0, -R + 11).moveTo(0, R - 11).lineTo(0, R + 5)
+         .stroke({ color: c, width: 1, alpha: 0.45 });
+    cross.circle(0, 0, 2).fill({ color: c, alpha: 0.85 });
+
+    // ブリップの点を原点に描いておく（位置は update で動かす）
+    for (const d of dots) {
+      d.g.clear();
+      d.g.circle(0, 0, d.size).fill({ color: c, alpha: 0.85 });
+    }
   }
 
   draw(WAVE_COLORS[0]);
   unit.on('+wave', ({ wave }) => draw(waveColor(wave)));
-  unit.on('update', () => { ring.rotation += 0.012; });
-}
-
-// "TARGET" ラベルと、円の脇に出すコンパクトなパラメータ（色は wave のメインカラーに追従）
-function TargetInfo(unit) {
-  xnew.nest('<div class="absolute right-0 top-0 bottom-0 w-[25cqw] pointer-events-none" style="font-family: monospace;">');
-
-  const label = xnew('<div class="absolute w-full text-center text-[2.2cqw] tracking-[0.4em]" style="top: 9cqw;">', '▶ TARGET ◀');
-
-  let refType, refScan, params;
-  params = xnew('<div class="absolute w-full flex flex-col items-center leading-tight text-[1.8cqw]" style="top: 24cqw;">', () => {
-    refType = xnew('<div>', 'ZD-0x01 ▮');
-    refScan = xnew('<div style="opacity: 0.8;">', 'SCAN 0000');
-  });
-
-  const codes = ['ZD-0x01', 'KT-0x02', 'ZK-0x03', 'IT-0x04'];
-  unit.on('+wave', ({ wave }) => {
-    const id = Math.min(wave - 1, codes.length - 1);
-    refType.element.textContent = `${codes[id]} ${'▮'.repeat(id + 1)}`;
-    const c = cssHex(waveColor(wave));
-    label.element.style.color = c;
-    params.element.style.color = c;
-  });
 
   let t = 0;
   unit.on('update', () => {
     t++;
-    refScan.element.textContent = 'SCAN ' + String(Math.floor((Math.sin(t * 0.07) * 0.5 + 0.5) * 9999)).padStart(4, '0');
+    outer.rotation += 0.006;
+    mid.rotation -= 0.014;
+    sweepC.rotation = t * 0.05;
+
+    // ロックオンブラケット：呼吸（拡縮）+ うっすら明滅
+    const breathe = 40 * (1 + Math.sin(t * 0.06) * 0.06);
+    const len = 13;
+    brackets.clear();
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      brackets.moveTo(sx * breathe - sx * len, sy * breathe).lineTo(sx * breathe, sy * breathe).lineTo(sx * breathe, sy * breathe - sy * len);
+    }
+    brackets.stroke({ color, width: 2, alpha: 0.7 + 0.25 * Math.sin(t * 0.1) });
+
+    // 周回ブリップ
+    for (const d of dots) {
+      d.ang += d.spd;
+      d.g.position.set(Math.cos(d.ang) * d.radius, Math.sin(d.ang) * d.radius);
+      d.g.alpha = 0.4 + 0.5 * Math.abs(Math.sin(t * 0.08 + d.ang));
+    }
+  });
+}
+
+// レティクル周辺に「解析中っぽい」謎文字をごちゃごちゃ表示する HUD。色は wave 連動。
+// ヘッダー / 四隅の座標ラベル / 円の左右を流れる hex レール / 下部の解析リードアウト。
+function TargetInfo(unit) {
+  xnew.nest('<div class="absolute right-0 top-0 bottom-0 w-[25cqw] pointer-events-none" style="font-family: monospace; color:#9BE53C;">');
+
+  // ヘッダー
+  xnew('<div class="absolute w-full text-center text-[2cqw] tracking-[0.35em] font-bold" style="top: 8cqw;">', '◤ TARGET ◢');
+
+  // レティクル四隅の微小ラベル（座標・ロック状態っぽい謎文字）
+  const cTL = xnew('<div class="absolute text-[1.15cqw]" style="top: 11.5cqw; left: 2cqw; opacity:0.65;">', 'LAT +00.0');
+  const cTR = xnew('<div class="absolute text-[1.15cqw] text-right" style="top: 11.5cqw; right: 2cqw; opacity:0.65;">', 'LON +00.0');
+  const cBL = xnew('<div class="absolute text-[1.15cqw]" style="top: 23cqw; left: 2cqw; opacity:0.65;">', 'LOCK ▮');
+  const cBR = xnew('<div class="absolute text-[1.15cqw] text-right" style="top: 23cqw; right: 2cqw; opacity:0.65;">', '0x0000');
+
+  // 円の左右を縦に流れる hex レール（解析ダンプ）
+  const leftRail = [];
+  xnew('<div class="absolute flex flex-col gap-[0.25cqw] text-[1.1cqw] leading-none" style="top: 14cqw; left: 1.4cqw; opacity:0.5;">', () => {
+    for (let i = 0; i < 6; i++) leftRail.push(xnew('<div>', randHex(2)));
+  });
+  const rightRail = [];
+  xnew('<div class="absolute flex flex-col items-end gap-[0.25cqw] text-[1.1cqw] leading-none" style="top: 14cqw; right: 1.4cqw; opacity:0.5;">', () => {
+    for (let i = 0; i < 6; i++) rightRail.push(xnew('<div>', '··'));
+  });
+
+  // 下部の解析リードアウト（自機の上に薄い暗幕を敷いて読ませる）
+  let idLine, syncBar, syncPct, stream;
+  xnew('<div class="absolute left-[1.5cqw] right-[1.5cqw] flex flex-col items-center leading-tight gap-[0.3cqw] py-[0.6cqw] rounded-[0.6cqw]" style="top: 25cqw; background: rgba(2,8,4,0.4);">', () => {
+    idLine = xnew('<div class="text-[1.6cqw]">', 'ID ZD-0x01 ▮');
+    xnew('<div class="flex items-center gap-[0.5cqw] text-[1.4cqw]">', () => {
+      xnew('<div style="opacity:0.7;">', 'SYNC');
+      syncBar = xnew('<div>', '▰▰▰▱▱');
+      syncPct = xnew('<div>', '60%');
+    });
+    stream = xnew('<div class="text-[1.2cqw] tracking-[0.1em]" style="opacity:0.7;">', '> 8A F2 1C 04');
+  });
+
+  function applyWave(wave) {
+    const id = enemyIdForWave(wave);
+    idLine.element.textContent = `ID ${ENEMY_CODES[id]} ${'▮'.repeat(id + 1)}`;
+    unit.element.style.color = cssHex(waveColor(wave)); // 全テキストが継承
+  }
+  unit.on('+wave', ({ wave }) => applyWave(wave));
+
+  const streamChars = '0123456789ABCDEF<>/\\|=+*░▒▓';
+  const rightTokens = ['OK', '!!', 'ACK', '▮▮', '·▮·', 'SYN'];
+  let t = 0;
+  unit.on('update', () => {
+    t++;
+
+    // hex レールを数フレームごとに1行スクロール（流れる解析ダンプ）
+    if (t % 5 === 0) {
+      for (let i = 0; i < leftRail.length - 1; i++) leftRail[i].element.textContent = leftRail[i + 1].element.textContent;
+      leftRail[leftRail.length - 1].element.textContent = randHex(2);
+      for (let i = 0; i < rightRail.length - 1; i++) rightRail[i].element.textContent = rightRail[i + 1].element.textContent;
+      rightRail[rightRail.length - 1].element.textContent = Math.random() < 0.5 ? `${Math.floor(Math.random() * 100)}%` : rightTokens[Math.floor(Math.random() * rightTokens.length)];
+    }
+
+    // 四隅ラベル
+    cTL.element.textContent = 'LAT ' + (Math.sin(t * 0.03) * 45).toFixed(1).padStart(5, '+');
+    cTR.element.textContent = 'LON ' + (Math.cos(t * 0.027) * 90).toFixed(1).padStart(5, '+');
+    cBL.element.textContent = 'LOCK ' + (Math.floor(t / 15) % 2 ? '▮' : '▯');
+    cBR.element.textContent = '0x' + randHex(4);
+
+    // SYNC バー
+    const s = Math.floor((Math.sin(t * 0.05) * 0.5 + 0.5) * 5);
+    syncBar.element.textContent = '▰'.repeat(s) + '▱'.repeat(5 - s);
+    syncPct.element.textContent = `${Math.floor((Math.sin(t * 0.05) * 0.5 + 0.5) * 99)}%`;
+
+    // データストリーム
+    if (t % 3 === 0) {
+      stream.element.textContent = '> ' + Array.from({ length: 9 }, () => streamChars[Math.floor(Math.random() * streamChars.length)]).join('');
+    }
   });
 }
 
@@ -674,7 +1005,7 @@ function TargetInfo(unit) {
 // （pixi スプライトで描画＝リザルトのキャプチャにも含まれる）
 function UsagiFace(unit) {
   const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: 596 } }));
-  const urls = [0, 1, 2].map((i) => `../../assets/usagi0${i}.png`);
+  const urls = [0, 1, 2].map((i) => asset(`usagi0${i}.png`));
 
   let back = null, front = null, current = 0;
 
@@ -716,7 +1047,7 @@ function BackgroundBase(_unit) {
   // 下地（カメラシェイクで端が露出しても黒く抜けないよう少し広めに）
   container.addChild(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0x0A0306));
 
-  xnew.promise(PIXI.Assets.load('../../assets/zunda_background.png')).then((texture) => {
+  xnew.promise(PIXI.Assets.load(asset('zunda_background.png'))).then((texture) => {
     const sprite = new PIXI.Sprite(texture);
     sprite.scale.set(800 / texture.width, 600 / texture.height); // canvas にフィット
     container.addChild(sprite);
@@ -804,16 +1135,20 @@ function ScoreManager(unit) {
     text.element.style.color = c;
     text.element.style.textShadow = `0 0 0.8cqw ${c}, 0 0.1cqw 0.1cqw rgba(0,0,0,0.6)`;
   }
-  applyColor(cssHex(WAVE_COLORS[0]));
-  unit.on('+wave', ({ wave }) => applyColor(cssHex(waveColor(wave))));
-
-  let sum = 0;
+  let sum = 0;        // 合計スコア（リザルト表示用）
+  let waveScore = 0;  // 現在の wave 内で稼いだスコア（wave 開始ごとに 0 リセット）
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
+
+  applyColor(cssHex(WAVE_COLORS[0]));
+  unit.on('+wave', ({ wave }) => { applyColor(cssHex(waveColor(wave))); waveScore = 0; });
+
   return {
     get score() { return sum; },
+    get waveScore() { return waveScore; },
     get kills() { return kills; },
     add(score, id) {
       sum += score;
+      waveScore += score;
       if (id !== undefined) kills[id]++;
       text.element.textContent = String(sum).padStart(6, '0');
     }
@@ -822,7 +1157,7 @@ function ScoreManager(unit) {
 
 function GameOverText(unit) {
   xnew.nest('<div class="absolute left-0 right-[25cqw] text-center text-red-400 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
+  svgText('Game Over', '12cqw');
   xnew.transition(({ value }) => {
     Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
   }, 1000, 'ease');
@@ -836,9 +1171,15 @@ function Player(unit) {
   const sprite = new PIXI.AnimatedSprite(xnew.context(BakedCharacters).playerTextures);
   sprite.anchor.set(0.5);
   sprite.scale.set(0.7);
-  sprite.animationSpeed = 1;
+  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
   sprite.play();
   object.addChild(sprite);
+
+  // 当たり判定を可視化する円（キャラの上に重ねて表示）
+  const hitRing = new PIXI.Graphics()
+    .circle(0, 0, PLAYER_HIT_R).fill({ color: 0x33FFFF, alpha: 0.18 })
+    .circle(0, 0, PLAYER_HIT_R).stroke({ color: 0x33FFFF, width: 2.5, alpha: 0.9 });
+  object.addChild(hitRing);
 
   let alive = true;
   let velocity = { x: 0, y: 0 };
@@ -853,16 +1194,20 @@ function Player(unit) {
     if (!alive) return;
     alive = false;
     sprite.visible = false; // 自機を消して
+    hitRing.visible = false;
     xnew.context(xnew.basics.Scene).add(PlayerExplosion, { x: object.x, y: object.y }); // 爆発
   });
 
+  let t = 0;
   unit.on('update', () => {
     if (!alive) return;
     object.x = Math.min(Math.max(object.x + velocity.x * 3, 30), PLAY_RIGHT - 30);
     object.y = Math.min(Math.max(object.y + velocity.y * 3, 30), 570);
 
+    hitRing.alpha = 0.7 + 0.3 * Math.sin(t++ * 0.1); // うっすら明滅
+
     for (const enemy of xnew.find(Enemy)) {
-      if (enemy.isVulnerable && enemy.distance(object) < 28) {
+      if (enemy.isVulnerable && enemy.distance(object) < PLAYER_HIT_R + ENEMY_HIT_R) {
         xnew.emit('+gameover');
         return;
       }
@@ -870,13 +1215,53 @@ function Player(unit) {
   });
 }
 
+// 星のテクスチャ（白）を一度だけ生成してキャッシュする。
+// 「くっきりした不透明の星」＋「少しのブラーをかけた淡いグロー」で、形がはっきり読めてコントラストの高い見た目に
+// （以前の加算合成オンリーは形が滲んで分かりにくかった）。各星は同一テクスチャ + tint の Sprite なのでバッチ描画が効く。
+const STAR_TEX_R = 13; // テクスチャ内の星の基準半径。スケールは wantR / STAR_TEX_R。
+let _starTexture = null;
+function starTexture() {
+  if (_starTexture === null) {
+    const c = new PIXI.Container();
+    // 下：少しブラーをかけた淡いグロー
+    const glow = new PIXI.Graphics().star(0, 0, 5, STAR_TEX_R * 1.2, STAR_TEX_R * 0.55).fill({ color: 0xFFFFFF, alpha: 0.55 });
+    glow.filters = [new PIXI.BlurFilter({ strength: 4 })];
+    // 上：くっきりした不透明の星（元のデザインと同じ 5 角・内半径 0.45）＋ コントラスト用の縁取り
+    const body = new PIXI.Graphics()
+      .star(0, 0, 5, STAR_TEX_R, STAR_TEX_R * 0.45).fill({ color: 0xFFFFFF })
+      .star(0, 0, 5, STAR_TEX_R, STAR_TEX_R * 0.45).stroke({ color: 0x3A2A12, width: 1.5 });
+    c.addChild(glow, body);
+    _starTexture = xpixi.renderer.generateTexture({ target: c, resolution: 2, antialias: true });
+    c.destroy();
+  }
+  return _starTexture;
+}
+// 星スプライト（tint で色付け、通常合成で形をくっきり出す）。共有テクスチャなので破棄時に texture を消さないこと。
+function starSprite(color) {
+  const s = new PIXI.Sprite(starTexture());
+  s.anchor.set(0.5);
+  s.tint = color;
+  return s;
+}
+
 function Shot(unit, { x, y }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
-  object.addChild(new PIXI.Graphics().ellipse(0, 0, 4, 24).fill(0x22FFFF));
 
+  const color = 0x66FFFF;
+  const baseR = 18;
+
+  // くっきりした星（回転 + 脈動）
+  const star = starSprite(color);
+  object.addChild(star);
+
+  let t = 0;
   unit.on('update', () => {
-    object.y -= 12;
+    object.y -= 8;
+    t++;
+    star.rotation += 0.15;
+    star.scale.set((baseR / STAR_TEX_R) * (1 + Math.sin(t * 0.6) * 0.12)); // キラッと脈動
+
     if (object.y < 0) { unit.finalize(); return; }
 
     for (const enemy of xnew.find(Enemy)) {
@@ -903,16 +1288,29 @@ const ENEMY_DATA = [
 
 function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   const object = xpixi.nest(new PIXI.Container());
-  object.position.set(x ?? (20 + Math.random() * (PLAY_RIGHT - 40)), y ?? -20);
+  // 自動出現は画面上部 20%（y ∈ [20,120]）のエリアに湧く。分裂はその場（x,y 指定）に出す。
+  object.position.set(x ?? (20 + Math.random() * (PLAY_RIGHT - 40)), y ?? (20 + Math.random() * 100));
 
   // ベイクテクスチャでスプライト表示
   const tl = xnew.context(BakedCharacters).texturesList;
   const sprite = new PIXI.AnimatedSprite(tl[id]);
   sprite.anchor.set(0.5);
-  sprite.scale.set(0.55 + id * 0.2);
+  sprite.scale.set(0); // スケール0から pop-in（下の update で 0→1 に拡大）
+  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
   sprite.play();
   sprite.currentFrame = Math.floor(Math.random() * tl[id].length);
   object.addChild(sprite);
+
+  // 当たり判定を可視化する円（キャラの上に重ねる・スケール変動の影響を受けない object 直下）
+  const hitRing = new PIXI.Graphics()
+    .circle(0, 0, ENEMY_HIT_R).fill({ color: 0xFF3355, alpha: 0.2 })
+    .circle(0, 0, ENEMY_HIT_R).stroke({ color: 0xFF3355, width: 2, alpha: 0.85 });
+  object.addChild(hitRing);
+
+  // 出現時の pop-in（0→1 に拡大）＋ スケールの時間変動（生きている＝蠢く感じ）。
+  // どちらもストーリー2ページ目の StoryFactor と同じ手法。
+  const squirmPhase = Math.random() * Math.PI * 2;
+  let pop = 0;
 
   // 無敵時間（分裂直後は半透明）
   let vulnerable = !invincible;
@@ -922,7 +1320,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   }
 
   // ランダムな速度（下向き成分を持つ）
-  const speed = 1 + Math.random() * 2;
+  const speed = 0.7 + Math.random() * 1.4;
   const angle = Math.PI * (0.25 + Math.random() * 0.5); // 45~135度（下向き）
   const vel = { x: Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1), y: Math.sin(angle) * speed };
 
@@ -931,8 +1329,12 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
 
   let fading = false; // wave 切替で退場中（得点・当たり判定なし）
 
+  let t = 0;
   unit.on('update', () => {
-    sprite.scale.set(0.4 + id * 0.2 + object.y * 0.0008); // y座標に応じて少し大きく（遠近感）
+    // pop-in（0→1）× y座標に応じた遠近感 × 時間で蠢く拡縮
+    pop = Math.min(1, pop + 0.08);
+    const squirm = 1 + Math.sin(t++ * 0.12 + squirmPhase) * 0.08;
+    sprite.scale.set((0.4 + id * 0.2 + object.y * 0.0008) * squirm * pop);
 
     if (object.x < 15)             vel.x =  Math.abs(vel.x);
     if (object.x > PLAY_RIGHT - 15) vel.x = -Math.abs(vel.x);
@@ -1009,13 +1411,15 @@ function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
 
-  const size = 10 + Math.random() * 8;
-  const color = [0xFFFF00, 0xFFD700, 0xFFA500, 0xFFFFFF, 0xFF69B4, 0x87CEEB][Math.floor(Math.random() * 6)];
-  object.addChild(new PIXI.Graphics().star(0, 0, 5, size, size * 0.45).fill(color));
+  const baseR = (9 + Math.random() * 7) * 1.5;
+  const color = [0xFFF066, 0xFFD700, 0xFFA53C, 0xFFFFFF, 0xFF8FD0, 0x9BE5FF][Math.floor(Math.random() * 6)];
+  const star = starSprite(color);
+  object.addChild(star);
 
   const speed = 2 + Math.random() * 3;
   let vx = Math.cos(angle) * speed;
   let vy = Math.sin(angle) * speed;
+  const spin = (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.2);
 
   xnew.timeout(() => unit.finalize(), 900);
 
@@ -1023,8 +1427,11 @@ function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
   unit.on('update', () => {
     object.x += vx;
     object.y += vy;
-    object.rotation += 0.15;
-    object.alpha = 1 - count / 60;
+    const p = count / 60;
+    star.rotation += spin;
+    object.alpha = 1 - p;
+    const twinkle = 1 + Math.sin(count * 0.5) * 0.22;          // キラキラ点滅
+    star.scale.set((baseR / STAR_TEX_R) * (1 - p * 0.35) * twinkle); // 縮みながら瞬く
     count++;
 
     // 別の敵に当たると得点倍増（星の進行方向にノックバック/分裂）
@@ -1246,26 +1653,19 @@ function ResultBackground(unit) {
   xnew.nest(`<div class="relative size-full bg-linear-to-br from-slate-900 to-blue-950">`);
   xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-blue-800">', 'Result');
 
-  // floating circle
-  for (let i = 0; i < 20; i++) {
-    const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
-    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
-    let p = 0;
-    circle.on('update', () => {
-      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
-      p += 0.02;
-    });
-  }
-  // twinkle circle
-  for (let i = 0; i < 30; i++) {
+  // ランダム配置した白丸を sin で明滅させる。transform は種類ごとに変える（浮遊 / きらめき）。
+  function floatingCircle(sizeCqw, transform) {
     const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
+    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${sizeCqw}cqw; height: ${sizeCqw}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
     let p = 0;
     circle.on('update', () => {
-      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
+      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: transform(p) });
       p += 0.02;
     });
   }
+
+  for (let i = 0; i < 20; i++) floatingCircle(Math.random() * 2 + 2, (p) => `translateY(${Math.sin(p) * 20}px)`);
+  for (let i = 0; i < 30; i++) floatingCircle(1, (p) => `scale(${1 + Math.sin(p) * 0.1})`);
 }
 
 function ResultImage(unit, { image }) {
@@ -1275,7 +1675,7 @@ function ResultImage(unit, { image }) {
   image?.then((src) => img.element.src = src);
 }
 
-function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0] }) {
+function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0], cleared = false }) {
   xnew.nest('<div class="absolute bottom-[10cqw] right-[2cqw] w-[38cqw] bg-gray-100 px-[1.5cqw] py-[2.5cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
   xnew('<div class="text-[3.5cqw] text-center text-red-400 mb-[1.5cqw]">', '🦠 駆逐した数 🦠');
 
@@ -1292,12 +1692,16 @@ function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0] }) {
   });
 
   xnew('<div class="mx-[1cqw] my-[2cqw] border-t-[0.4cqw] border-dashed border-cyan-600">');
-  xnew('<div class="text-[2.8cqw] text-center text-cyan-600 mb-[1cqw]">', `到達 Wave ${wave}`);
+  if (cleared) {
+    xnew('<div class="text-[3.2cqw] text-center text-amber-500 mb-[1cqw]">', '🏆 達成 Wave 4 CLEAR 🏆');
+  } else {
+    xnew('<div class="text-[2.8cqw] text-center text-cyan-600 mb-[1cqw]">', `到達 Wave ${wave}`);
+  }
   xnew('<div class="text-[3.4cqw] text-center text-yellow-500 mb-[1.5cqw]">', `⭐ スコア ${score} ⭐`);
 
   // 凄さを言葉で（3択。スコアで強調を切替）
   xnew('<div class="flex justify-center items-center gap-x-[2cqw]">', () => {
-    const tiers = [{ label: 'まだまだ', min: 0 }, { label: 'いいね', min: 400 }, { label: 'マスター', min: 1200 }];
+    const tiers = [{ label: 'まだ弱い', min: 0 }, { label: 'ふつう', min: 1024 * 3 }, { label: 'すごい', min: 1024 * 6 }];
     let reached = 0;
     tiers.forEach((tier, i) => { if (score >= tier.min) reached = i; });
     tiers.forEach((tier, i) => {
@@ -1317,7 +1721,7 @@ function ResultFooter(unit) {
   xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
     xnew('<div class="text-[3cqw] font-bold">', '戻る');
     const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
-    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene));
+    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene, { skipStory: true }));
   });
 }
 
@@ -1342,12 +1746,12 @@ function VolumeControl(_unit) {
 
 function TitleText(_unit) {
   xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-blue-600 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'とーほくショット', fontSize: '10cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
+  svgText('とーほくショット', '10cqw');
 }
 
 function TouchMessage(unit) {
   xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
+  svgText('touch start', '6cqw');
   let count = 0;
   unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
 }
