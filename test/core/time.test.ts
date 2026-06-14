@@ -30,6 +30,19 @@ describe('Ticker', () => {
         expect(cb).toHaveBeenCalledTimes(callsBeforeClear);
     });
 
+    it('passes a per-frame delta (ms), never an epoch-scale value', () => {
+        const cb = jest.fn();
+        new Ticker(cb);
+        jest.advanceTimersByTime(100);
+        const deltas = cb.mock.calls.map((c) => c[0] as number);
+        expect(deltas.length).toBeGreaterThan(0);
+        for (const d of deltas) {
+            expect(typeof d).toBe('number');
+            expect(d).toBeGreaterThan(0);
+            expect(d).toBeLessThan(1000); // 初回 delta が Date.now()（epoch）に化ける回帰を防ぐ
+        }
+    });
+
     it('falls back to setTimeout when requestAnimationFrame is unavailable', () => {
         const raf = global.requestAnimationFrame;
         (global as any).requestAnimationFrame = undefined;

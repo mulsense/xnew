@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------------------------------
 // time — runtime-agnostic tickers and timers（browser は rAF / Node は setTimeout）
 //
-// - Ticker : 目標 FPS でコールバック
+// - Ticker : 目標 FPS でコールバック（前フレームからの経過 ms = delta を引数で渡す）
 // - Timer  : easing 付き setTimeout タイマー。visibilitychange で自動 pause（browser のみ）
 //----------------------------------------------------------------------------------------------------
 
@@ -20,16 +20,23 @@ export class Ticker {
         const tick = (): void => {
             if (typeof requestAnimationFrame !== 'undefined') {
                 // rAF fires at the display refresh rate, so throttle down to the target fps.
-                const delta = Date.now() - previous;
-                if (delta > minDelta) {
-                    callback();
-                    previous += delta;
+                const now = Date.now();
+                if (previous === 0) {
+                    // 初回は開始時刻を記録するだけ（callback は次フレームから）。これがないと delta が
+                    // Date.now()（epoch 由来の巨大値）になり、かつ構築時に同期発火してしまう。
+                    previous = now;
+                } else {
+                    const delta = now - previous;
+                    if (delta > minDelta) {
+                        callback(delta); // 経過 ms をコールバックへ（update / render の delta になる）
+                        previous += delta;
+                    }
                 }
                 const id = requestAnimationFrame(tick);
                 this.cancel = () => cancelAnimationFrame(id);
             } else {
                 // setTimeout already fires at the target interval, so no throttling is needed.
-                callback();
+                callback(interval);
                 const id = setTimeout(tick, interval);
                 this.cancel = () => clearTimeout(id);
             }

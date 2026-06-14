@@ -56,6 +56,8 @@ declare class Unit {
         status: Status;
         tostart: boolean;
         protected: boolean;
+        updateCount: number;
+        renderCount: number;
         promises: UnitPromise[];
         defines: Record<string, any>;
         systems: Record<SystemEvent, {
@@ -94,8 +96,8 @@ declare class Unit {
     };
     static start(unit: Unit): void;
     static stop(unit: Unit): void;
-    static update(unit: Unit): void;
-    static render(unit: Unit): void;
+    static update(unit: Unit, delta?: number): void;
+    static render(unit: Unit, delta?: number): void;
     static engineRoot: Unit;
     static currentUnit: Unit;
     static reset(): void;

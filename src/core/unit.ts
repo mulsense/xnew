@@ -70,6 +70,8 @@ export class Unit {
         status: Status;
         tostart: boolean;
         protected: boolean;
+        updateCount: number;   // この unit が受け取った update tick 数（update リスナの count として渡す）
+        renderCount: number;   // 同上（render 側）
         promises: UnitPromise[];
         defines: Record<string, any>;
         systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
@@ -139,6 +141,8 @@ export class Unit {
             status: 'invoked',
             tostart: true,
             protected: false,
+            updateCount: 0,
+            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -323,17 +327,21 @@ export class Unit {
         }
     }
 
-    static update(unit: Unit): void {
+    // count = この unit の update tick 数（起動後 0 始まり）, delta = 前フレームからの経過 ms。
+    // リスナは ({ count, delta }) で受け取れる（同 tick 内の同 unit のリスナは同じ count）。
+    static update(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.update(child));
-            unit._.systems.update.forEach(({ execute }) => execute());
+            unit._.children.forEach((child: Unit) => Unit.update(child, delta));
+            const count = unit._.updateCount++;
+            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
         }
     }
 
-    static render(unit: Unit): void {
+    static render(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
-            unit._.children.forEach((child: Unit) => Unit.render(child));
-            unit._.systems.render.forEach(({ execute }) => execute());
+            unit._.children.forEach((child: Unit) => Unit.render(child, delta));
+            const count = unit._.renderCount++;
+            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
         }
     }
 
@@ -342,10 +350,10 @@ export class Unit {
     static reset(): void {
         Unit.engineRoot?.finalize();
         Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
-        const ticker = new Ticker(() => {
+        const ticker = new Ticker((delta: number) => {
             Unit.start(Unit.engineRoot);
-            Unit.update(Unit.engineRoot);
-            Unit.render(Unit.engineRoot);
+            Unit.update(Unit.engineRoot, delta);
+            Unit.render(Unit.engineRoot, delta);
         });
         Unit.engineRoot.on('finalize', () => ticker.clear());
     }
@@ -441,7 +449,7 @@ export class Unit {
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (props: object) => {
+        const execute = (props: object = {}) => {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         }
         if (isSystemEvent(type)) {

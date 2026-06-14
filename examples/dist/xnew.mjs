@@ -122,16 +122,22 @@ class Ticker {
         let previous = 0;
         const tick = () => {
             if (typeof requestAnimationFrame !== 'undefined') {
-                const delta = Date.now() - previous;
-                if (delta > minDelta) {
-                    callback();
-                    previous += delta;
+                const now = Date.now();
+                if (previous === 0) {
+                    previous = now;
+                }
+                else {
+                    const delta = now - previous;
+                    if (delta > minDelta) {
+                        callback(delta);
+                        previous += delta;
+                    }
                 }
                 const id = requestAnimationFrame(tick);
                 this.cancel = () => cancelAnimationFrame(id);
             }
             else {
-                callback();
+                callback(interval);
                 const id = setTimeout(tick, interval);
                 this.cancel = () => clearTimeout(id);
             }
@@ -252,8 +258,9 @@ class Eventor {
         this.map = new MapMap();
     }
     add(element, type, listener, options) {
+        var _a;
         const props = { element, type, listener, options };
-        const factory = factories.get(type);
+        const factory = (_a = factories.get(type)) !== null && _a !== void 0 ? _a : keyboardFactory(type);
         let finalize;
         if (factory !== undefined) {
             finalize = factory(props);
@@ -406,6 +413,35 @@ defineEvent('window.keydown.arrow', keyVectorEvent('keydown', ARROW_CODES));
 defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
 defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
 defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
+const KEY_ALIASES = {
+    space: 'Space', enter: 'Enter', escape: 'Escape', esc: 'Escape', tab: 'Tab',
+    up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
+};
+function matchKey(name, event) {
+    var _a, _b;
+    if (KEY_ALIASES[name] !== undefined)
+        return event.code === KEY_ALIASES[name];
+    if (/^[a-z]$/.test(name))
+        return event.code === 'Key' + name.toUpperCase();
+    if (/^[0-9]$/.test(name))
+        return event.code === 'Digit' + name;
+    return ((_a = event.code) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === name || ((_b = event.key) === null || _b === void 0 ? void 0 : _b.toLowerCase()) === name;
+}
+function keyboardFactory(type) {
+    const matched = type.match(/^(window|document)\.(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
+    if (matched === null)
+        return undefined;
+    const [, scope, variant, rawKey, repeat] = matched;
+    const key = rawKey.toLowerCase();
+    const allowRepeat = repeat !== undefined;
+    const target = scope === 'window' ? window : document;
+    return (props) => listen(target, variant, (event) => {
+        if (allowRepeat === false && event.repeat)
+            return;
+        if (matchKey(key, event))
+            props.listener({ event });
+    }, props.options);
+}
 
 const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
 function isSystemEvent(type) {
@@ -460,6 +496,8 @@ class Unit {
             status: 'invoked',
             tostart: true,
             protected: false,
+            updateCount: 0,
+            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -621,26 +659,28 @@ class Unit {
             unit._.systems.stop.forEach(({ execute }) => execute());
         }
     }
-    static update(unit) {
+    static update(unit, delta = 0) {
         if (unit._.status === 'started') {
-            unit._.children.forEach((child) => Unit.update(child));
-            unit._.systems.update.forEach(({ execute }) => execute());
+            unit._.children.forEach((child) => Unit.update(child, delta));
+            const count = unit._.updateCount++;
+            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
         }
     }
-    static render(unit) {
+    static render(unit, delta = 0) {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
-            unit._.children.forEach((child) => Unit.render(child));
-            unit._.systems.render.forEach(({ execute }) => execute());
+            unit._.children.forEach((child) => Unit.render(child, delta));
+            const count = unit._.renderCount++;
+            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
         }
     }
     static reset() {
         var _a;
         (_a = Unit.engineRoot) === null || _a === void 0 ? void 0 : _a.finalize();
         Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
-        const ticker = new Ticker(() => {
+        const ticker = new Ticker((delta) => {
             Unit.start(Unit.engineRoot);
-            Unit.update(Unit.engineRoot);
-            Unit.render(Unit.engineRoot);
+            Unit.update(Unit.engineRoot, delta);
+            Unit.render(Unit.engineRoot, delta);
         });
         Unit.engineRoot.on('finalize', () => ticker.clear());
     }
@@ -717,7 +757,7 @@ class Unit {
     }
     static on(unit, type, listener, options) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (props) => {
+        const execute = (props = {}) => {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         };
         if (isSystemEvent(type)) {

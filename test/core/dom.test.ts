@@ -325,6 +325,49 @@ describe('Eventor', () => {
             window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', repeat: true }));
             expect(listener).not.toHaveBeenCalled();
         });
+
+        it('fires a named-key binding only for the matching key', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'window.keydown.space', listener);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
+            expect(listener).not.toHaveBeenCalled();
+
+            const space = new KeyboardEvent('keydown', { code: 'Space' });
+            window.dispatchEvent(space);
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith({ event: space });
+        });
+
+        it('resolves letter / arrow aliases for named keys', () => {
+            const onA = jest.fn();
+            const onUp = jest.fn();
+            eventor.add(element, 'window.keydown.a', onA);
+            eventor.add(element, 'window.keyup.up', onUp);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
+            window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowUp' }));
+            expect(onA).toHaveBeenCalledTimes(1);
+            expect(onUp).toHaveBeenCalledTimes(1);
+        });
+
+        it('strips repeat on named keys by default, but .repeat opts in', () => {
+            const strict = jest.fn();
+            const repeating = jest.fn();
+            eventor.add(element, 'window.keydown.space', strict);
+            eventor.add(element, 'window.keydown.space.repeat', repeating);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', repeat: true }));
+            expect(strict).not.toHaveBeenCalled();
+            expect(repeating).toHaveBeenCalledTimes(1);
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', repeat: false }));
+            expect(strict).toHaveBeenCalledTimes(1);
+            expect(repeating).toHaveBeenCalledTimes(2);
+        });
     });
 
     // jsdom does not implement ResizeObserver, so the 'resize' element binding cannot be driven.
