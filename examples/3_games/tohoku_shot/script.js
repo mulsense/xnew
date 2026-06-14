@@ -52,6 +52,31 @@ const cssHex = (n) => '#' + n.toString(16).padStart(6, '0');
 const ENEMY_CODES = ['ZD-0x01', 'KT-0x02', 'ZK-0x03', 'IT-0x04'];
 // ランダムな16進文字列（len 桁）。解析中っぽい流れる数字に使う。
 const randHex = (len) => Math.floor(Math.random() * 16 ** len).toString(16).toUpperCase().padStart(len, '0');
+// chars からランダムに n 文字。流れる解析ストリームの中身に使う。
+const randStream = (chars, n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+
+// wave 色を初期適用し、以降 +wave で追従させる。apply は wave 番号を受け取り自前で色を引く（waveColor(1) === WAVE_COLORS[0]）。
+const followWave = (unit, apply) => { apply(1); unit.on('+wave', ({ wave }) => apply(wave)); };
+
+// ベイク済みテクスチャの AnimatedSprite を共通設定で生成（再生開始・scale は呼び出し側）。
+const bakedSprite = (textures) => {
+  const sprite = new PIXI.AnimatedSprite(textures);
+  sprite.anchor.set(0.5);
+  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
+  return sprite;
+};
+
+// 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。
+const RingIcon = (paths) => () => {
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
+    xnew('<circle cx="12" cy="12" r="11">');
+  });
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
+    for (const d of paths) xnew(`<path d="${d}">`);
+  });
+};
 
 xnew(document.querySelector('#main'), Main);
 
@@ -73,10 +98,9 @@ function Contents(unit) {
 
 // ---- Character baking (VRM -> AnimatedSprite textures) ----
 //
-// 焼き機（WebGL コンテキスト + EffectComposer + SSAO + ライト + カメラ）は1セットだけ作り、
-// VRM を順に差し替えて逐次ベイクする。旧実装はキャラ1体ごとにこの一式を立てて5体を並列に
-// 焼いており、起動時にパイプラインが5本同時存在＝メモリ/GPU 圧迫の主因だった（DEVNOTES §5）。
-// 逐次化でピーク GPU は VRM 1体分に下がる（その代わり起動は数百ms 長くなる）。
+// 焼き機（WebGL + EffectComposer + SSAO + ライト + カメラ）を1セットだけ作り、VRM を順に差し替えて
+// 逐次ベイクする。キャラ毎に焼き機を立てて並列に焼く旧実装は GPU 圧迫の主因だった（DEVNOTES §5）。
+// 逐次化でピーク GPU を VRM 1体分に抑える（起動は数百ms 長くなる）。
 
 // VRM を読み込むだけ（シーンには追加しない）。GPU アップロードはベイク時まで遅延させる。
 function loadVrm(url) {
@@ -94,11 +118,9 @@ function loadVrm(url) {
   });
 }
 
-// 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。
-// spin=true: くるくる回る敵 / false: 後ろ向き固定の自機。
-// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分して張る。回転は t=3π で 2π の倍数に戻り、
-// ボーンの sin(t×偶数) も t=3π で開始位相へ戻るため、フレーム列はシームレスにループする。
-// （回転係数・ボーン係数を変えるなら t=3π で元へ戻るか必ず確認すること）
+// 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。spin=true: 回る敵 / false: 後ろ向き固定の自機。
+// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの sin(t×偶数) は t=3π で開始位相へ戻りシームレスに
+// ループする（回転/ボーン係数を変えるなら t=3π で元に戻るか要確認）。
 function poseFrame(model, t, spin) {
   if (spin) {
     model.threeObject.rotation.y = t * 4 / 3;
@@ -126,13 +148,12 @@ function poseFrame(model, t, spin) {
 function BakedCharacters(unit) {
   // --- 焼き機（共有部分）を1セットだけ構築する ---
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
-  const offscreen = new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE);
-  xthree.initialize({ camera, canvas: offscreen });
+  xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
   xthree.camera.position.set(0, -0.1, 2.5);
 
   const composer = new EffectComposer(xthree.renderer);
   composer.addPass(new RenderPass(xthree.scene, xthree.camera));
-  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, offscreen.width, offscreen.height);
+  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
   // OrthographicCamera 用: シェーダーのデフォルト PERSPECTIVE_CAMERA=1 を両マテリアルで上書き
   for (const material of [ssaoPass.ssaoMaterial, ssaoPass.depthRenderMaterial]) {
     material.defines['PERSPECTIVE_CAMERA'] = 0;
@@ -163,12 +184,11 @@ function BakedCharacters(unit) {
   const rows = Math.ceil(BAKE_FRAMES / cols);
   const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
-  // unit.promise.then の callback に注入される。
+  // 各 VRM のロードを登録（解決値は下の then の vrms に入る）。
   jobs.forEach((job) => xnew.promise('vrms[]', loadVrm(job.url)));
 
-  // 全 VRM ロード後にベイクする。unit.promise.then の callback は登録済み promise（= 上のロード）の
-  // 解決後に unit scope 内で走る（中で xthree.add / remove が効く）。内部で xnew.promise を立て、全キャラ
-  // 焼き終わったら resolve() で完了通知する。この完了は unit に畳み込まれるので Contents は焼き上がりまで待つ。
+  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。内部で xnew.promise を立て、全キャラ
+  // 焼き終えたら resolve()。この完了は unit に畳まれ、Contents は焼き上がりまで待つ。
   unit.promise.then(({ vrms }) => {
     const { resolve } = xnew.promise();
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
@@ -179,11 +199,10 @@ function BakedCharacters(unit) {
     let frameIndex = 0;
     let atlas = null;
 
-    // 次のキャラの焼成準備（VRM を wrapper にマウントし貼り込み先アトラスを用意）。
-    // 全キャラ終わったら焼き機の GPU リソースを解放して完了通知する。
+    // 次キャラの焼成準備（VRM を wrapper にマウントし貼り込み先アトラスを用意）。全キャラ終了後は GPU を解放。
     function startJob() {
       if (jobIndex >= jobs.length) {
-        // 例所有の後段処理を解放し、xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
+        // 後段パスを解放し、xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
         composer.dispose();
         ssaoPass.dispose();
         xthree.finalize();
@@ -198,9 +217,7 @@ function BakedCharacters(unit) {
     }
     startJob();
 
-    // 旧実装はキャラ毎に焼き機一式を立てて5体を並列に焼いており、起動時にパイプラインが5本同時
-    // 存在＝GPU 圧迫の主因だった（DEVNOTES §5）。1台の焼き機で VRM を差し替えつつ render tick
-    // ごとに少しずつ焼くことで、ピーク GPU を VRM 1体分に抑える。
+    // 1台の焼き機で VRM を差し替えつつ render tick ごとに少しずつ焼く（ピーク GPU を 1体分に保つ）。
     unit.on('render', () => {
       if (jobIndex >= jobs.length) return;
       const job = jobs[jobIndex];
@@ -210,7 +227,7 @@ function BakedCharacters(unit) {
         poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
         composer.render();
         // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap なし）
-        atlas.paste(offscreen, ...framePos(f));
+        atlas.paste(xthree.canvas, ...framePos(f));
       }
       frameIndex += BATCH;
       if (frameIndex < BAKE_FRAMES) return;
@@ -250,9 +267,7 @@ function TitleScene(unit, { skipStory = false } = {}) {
 
   const advance = () => unit.change(skipStory ? GameScene : StoryScene);
   unit.on('pointerdown', advance);
-  unit.on('window.keydown', ({ event }) => {
-    if (event.code === 'Space' && !event.repeat) { event.preventDefault(); advance(); }
-  });
+  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); advance(); });
 }
 
 // タイトル画面の主役表示：中央に中国うさぎ（usagi03、下1/3は画面外）、その周囲で敵4キャラが蠢く。
@@ -267,7 +282,7 @@ function TitleCharacters(_unit) {
     { id: 0, x: 250, y: 490, s: 1.00 }, // 左
     { id: 3, x: 555, y: 475, s: 1.05 }, // 右
   ];
-  for (const spot of spots) xnew(TitleFactor, { stage, tl, ...spot });
+  for (const spot of spots) xnew(TitleFactor, { tl, ...spot });
 
   // 中央の中国うさぎ（下1/3が画面下に隠れるよう中心を下げる）
   xpixi.load(asset('usagi03.png')).then((texture) => {
@@ -281,22 +296,18 @@ function TitleCharacters(_unit) {
 }
 
 // タイトル用：定位置の周りで蠢く敵1体（ポップイン → 漂い + 拡縮ゆらぎ + 回転）。StoryFactor の定位置版。
-function TitleFactor(unit, { stage, tl, id, x, y, s }) {
+function TitleFactor(unit, { tl, id, x, y, s }) {
+  xpixi.nest(new PIXI.Container()); // 自前のコンテナを enclosing nest に積む（finalize で自動破棄＝後始末不要）
   const textures = tl[id];
-  const sprite = new PIXI.AnimatedSprite(textures);
-  sprite.anchor.set(0.5);
-  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
+  const sprite = bakedSprite(textures);
   sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
   sprite.position.set(x, y);
   sprite.scale.set(0);
-  stage.addChild(sprite);
-  // テクスチャは共有なので破棄しない（default destroy は texture を残す）
-  unit.on('finalize', () => { if (!sprite.destroyed) { stage.removeChild(sprite); sprite.destroy(); } });
+  xpixi.add(sprite); // テクスチャは共有なので温存（xpixi の remove は children のみ破棄）
 
   const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
-  let t = 0, pop = 0;
-  unit.on('update', () => {
-    t++;
+  let pop = 0;
+  unit.on('update', ({ count: t }) => {
     pop = Math.min(1, pop + 0.05);                       // ポップイン
     const squirm = 1 + Math.sin(t * 0.09 + phx) * 0.1;   // 蠢く拡縮
     sprite.scale.set(s * pop * squirm);
@@ -336,9 +347,7 @@ function StoryScene(unit) {
     xnew.timeout(() => { busy = false; }, 300); // 連打での飛ばし過ぎを防ぐ
   };
   unit.on('pointerdown', advance);
-  unit.on('window.keydown', ({ event }) => {
-    if (event.code === 'Space' && !event.repeat) { event.preventDefault(); advance(); }
-  });
+  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); advance(); });
 }
 
 // 下部の黒帯（シアターモード風）。ストーリーのセリフはこの帯の上に載せて読ませる。
@@ -389,9 +398,7 @@ function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
   }
 
   // ● の点滅のみ（読みやすさ優先で、流れる謎文字は出さない）
-  let t = 0;
-  unit.on('update', () => {
-    t++;
+  unit.on('update', ({ count: t }) => {
     blink.element.style.opacity = Math.floor(t / 16) % 2 ? '1' : '0.2';
   });
 }
@@ -462,14 +469,14 @@ function StoryPageHit(unit) {
 
 // ページ2: 体内で増殖するずんだ因子（4キャラ）が蠢く様子
 function StoryPageSwarm(_unit) {
-  const stage = xpixi.nest(new PIXI.Container());
+  xpixi.nest(new PIXI.Container());
   const tl = xnew.context(BakedCharacters).texturesList;
 
   // 少しずつ湧いて増えていく（増殖感）
   let n = 0;
   const MAX = 12;
   const adder = xnew.interval(() => {
-    xnew(StoryFactor, { stage, tl });
+    xnew(StoryFactor, { tl });
     if (++n >= MAX) adder.clear();
   }, 200);
 
@@ -480,12 +487,11 @@ function StoryPageSwarm(_unit) {
 }
 
 // 蠢くずんだ因子1体（ポップイン → 漂い + 拡縮ゆらぎ）
-function StoryFactor(unit, { stage, tl }) {
+function StoryFactor(unit, { tl }) {
+  xpixi.nest(new PIXI.Container()); // 自前のコンテナ（finalize で自動破棄＝後始末不要）
   const id = Math.floor(Math.random() * tl.length);
   const textures = tl[id];
-  const sprite = new PIXI.AnimatedSprite(textures);
-  sprite.anchor.set(0.5);
-  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
+  const sprite = bakedSprite(textures);
   sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
 
   const baseScale = 0.5 + Math.random() * 0.5;
@@ -493,15 +499,12 @@ function StoryFactor(unit, { stage, tl }) {
   const by = 90 + Math.random() * 270;
   sprite.position.set(bx, by);
   sprite.scale.set(0);
-  stage.addChild(sprite);
-  // テクスチャは共有なので破棄しない（default destroy は texture を残す）
-  unit.on('finalize', () => { if (!sprite.destroyed) { stage.removeChild(sprite); sprite.destroy(); } });
+  xpixi.add(sprite); // テクスチャ共有のため温存（xpixi の remove は children のみ破棄）
 
   const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
   const sx = 0.5 + Math.random(), sy = 0.5 + Math.random();
-  let t = 0, pop = 0;
-  unit.on('update', () => {
-    t++;
+  let pop = 0;
+  unit.on('update', ({ count: t }) => {
     pop = Math.min(1, pop + 0.08);                       // ポップイン
     const squirm = 1 + Math.sin(t * 0.12 + phx) * 0.08;  // 蠢く拡縮
     sprite.scale.set(baseScale * pop * squirm);
@@ -561,9 +564,7 @@ function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew(ResultFooter);
 
   // スペースキーでもタイトルへ戻る（戻った先はストーリーを飛ばす）
-  unit.on('window.keydown', ({ event }) => {
-    if (event.code === 'Space' && !event.repeat) { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); }
-  });
+  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); });
 }
 
 // ---- Wave system ----
@@ -692,9 +693,7 @@ function WaveTransition(unit, { wave }) {
 
   const streamChars = '0123456789ABCDEF<>/\\|=+*#░▒▓';
   const VISIBLE = 126; // フェード前のおおよそのフレーム数（解析バーをこの間にちょうど満たす）
-  let t = 0;
-  unit.on('update', () => {
-    t++;
+  unit.on('update', ({ count: t }) => {
     flash.element.style.opacity = `${(Math.sin(t * 0.08) * 0.5 + 0.5) * 0.1 + 0.03}`; // ゆったり明滅
     warn.element.style.opacity = `${Math.floor(t / 18) % 2 ? 1 : 0.25}`;
 
@@ -711,7 +710,7 @@ function WaveTransition(unit, { wave }) {
       hexTop.element.textContent = Array.from({ length: 6 }, () => randHex(2)).join(' ');
     }
     if (t % 2 === 0) {
-      streamEl.element.textContent = '> ' + Array.from({ length: 40 }, () => streamChars[Math.floor(Math.random() * streamChars.length)]).join('');
+      streamEl.element.textContent = '> ' + randStream(streamChars, 40);
     }
 
     // 脅威解析バー（0→100% を VISIBLE フレームで満たす）
@@ -730,7 +729,7 @@ function WaveTransition(unit, { wave }) {
 function WaveLabel(unit) {
   xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center font-bold text-lime-400">');
   const text = svgText('Wave 1', '6cqw', '#102008');
-  unit.on('+wave', ({ wave }) => {
+  followWave(unit, (wave) => {
     text.element.textContent = `Wave ${wave}`;
     unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
   });
@@ -761,12 +760,10 @@ function ScoreGauge(unit) {
     labelEl.element.style.color = c;
     pctEl.element.style.color = c;
   }
-  applyColor(cssHex(WAVE_COLORS[0]));
-  unit.on('+wave', ({ wave }) => applyColor(cssHex(waveColor(wave))));
+  followWave(unit, (wave) => applyColor(cssHex(waveColor(wave))));
 
   let shown = 0;
-  let t = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count: t }) => {
     const wave = xnew.context(WaveManager).wave;
     const waveScore = xnew.context(ScoreManager).waveScore;
 
@@ -778,7 +775,6 @@ function ScoreGauge(unit) {
     shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
     fill.element.style.width = `${shown * 100}%`;
     pctEl.element.textContent = `${Math.round(shown * 100)}%`;
-    t++;
     fill.scan.element.style.left = `${(Math.sin(t * 0.04) * 0.5 + 0.5) * Math.max(0, shown * 100 - 3)}%`;
   });
 }
@@ -806,8 +802,7 @@ function PanelBackdrop(unit) {
     divider.clear();
     divider.moveTo(PLAY_RIGHT, 0).lineTo(PLAY_RIGHT, 600).stroke({ color, width: 2, alpha: 0.55 });
   };
-  drawDivider(WAVE_COLORS[0]);
-  unit.on('+wave', ({ wave }) => drawDivider(waveColor(wave)));
+  followWave(unit, (wave) => drawDivider(waveColor(wave)));
 }
 
 // その wave で登場する敵キャラを表示（wave1:ずんだもん 2:きりたん 3:ずん子 4:イタコ）
@@ -820,10 +815,8 @@ function WaveEnemyDisplay(unit) {
 
   unit.on('+wave', ({ wave }) => {
     const id = enemyIdForWave(wave); // wave4 以降はイタコ固定
-    const sprite = new PIXI.AnimatedSprite(tl[id]);
-    sprite.anchor.set(0.5);
+    const sprite = bakedSprite(tl[id]);
     sprite.scale.set(0.82);
-    sprite.animationSpeed = BAKE_ANIMATION_SPEED;
     sprite.play();
     sprite.alpha = 0;
     container.addChild(sprite);
@@ -914,12 +907,9 @@ function TargetReticle(unit) {
     }
   }
 
-  draw(WAVE_COLORS[0]);
-  unit.on('+wave', ({ wave }) => draw(waveColor(wave)));
+  followWave(unit, (wave) => draw(waveColor(wave)));
 
-  let t = 0;
-  unit.on('update', () => {
-    t++;
+  unit.on('update', ({ count: t }) => {
     outer.rotation += 0.006;
     mid.rotation -= 0.014;
     sweepC.rotation = t * 0.05;
@@ -983,14 +973,11 @@ function TargetInfo(unit) {
     idLine.element.textContent = `ID ${ENEMY_CODES[id]} ${'▮'.repeat(id + 1)}`;
     unit.element.style.color = cssHex(waveColor(wave)); // 全テキストが継承
   }
-  unit.on('+wave', ({ wave }) => applyWave(wave));
+  followWave(unit, applyWave);
 
   const streamChars = '0123456789ABCDEF<>/\\|=+*░▒▓';
   const rightTokens = ['OK', '!!', 'ACK', '▮▮', '·▮·', 'SYN'];
-  let t = 0;
-  unit.on('update', () => {
-    t++;
-
+  unit.on('update', ({ count: t }) => {
     // hex レールを数フレームごとに1行スクロール（流れる解析ダンプ）
     if (t % 5 === 0) {
       for (let i = 0; i < leftRail.length - 1; i++) leftRail[i].element.textContent = leftRail[i + 1].element.textContent;
@@ -1012,7 +999,7 @@ function TargetInfo(unit) {
 
     // データストリーム
     if (t % 3 === 0) {
-      stream.element.textContent = '> ' + Array.from({ length: 9 }, () => streamChars[Math.floor(Math.random() * streamChars.length)]).join('');
+      stream.element.textContent = '> ' + randStream(streamChars, 9);
     }
   });
 }
@@ -1117,9 +1104,7 @@ function Mote(unit) {
 // ごく薄い鼓動グロー（体内感を残す）
 function PulseGlow(unit) {
   const g = xpixi.nest(new PIXI.Graphics().rect(0, 0, 800, 600).fill(0xFF1733));
-  let tick = 0;
-  unit.on('update', () => {
-    tick++;
+  unit.on('update', ({ count: tick }) => {
     g.alpha = (Math.max(0, Math.sin(tick * 0.05)) ** 8) * 0.06;
   });
 }
@@ -1137,7 +1122,7 @@ function Controller(unit) {
 
   unit.on('pointerdown', () => xnew.emit('+shot'));
   unit.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
-  unit.on('window.keydown', ({ event }) => { if (event.code === 'Space') xnew.emit('+shot'); });
+  unit.on('window.keydown.space', () => xnew.emit('+shot'));
 }
 
 function ScoreManager(unit) {
@@ -1155,8 +1140,8 @@ function ScoreManager(unit) {
   let waveScore = 0;  // 現在の wave 内で稼いだスコア（wave 開始ごとに 0 リセット）
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
 
-  applyColor(cssHex(WAVE_COLORS[0]));
-  unit.on('+wave', ({ wave }) => { applyColor(cssHex(waveColor(wave))); waveScore = 0; });
+  followWave(unit, (wave) => applyColor(cssHex(waveColor(wave))));
+  unit.on('+wave', () => { waveScore = 0; }); // wave 開始ごとに wave 内スコアをリセット
 
   return {
     get score() { return sum; },
@@ -1184,10 +1169,8 @@ function Player(unit) {
   object.position.set(PLAY_RIGHT / 2, 500);
 
   // 自機＝中国うさぎ（後ろ向きベイク）
-  const sprite = new PIXI.AnimatedSprite(xnew.context(BakedCharacters).playerTextures);
-  sprite.anchor.set(0.5);
+  const sprite = bakedSprite(xnew.context(BakedCharacters).playerTextures);
   sprite.scale.set(0.7);
-  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
   sprite.play();
   object.addChild(sprite);
 
@@ -1214,13 +1197,12 @@ function Player(unit) {
     xnew.context(xnew.basics.Scene).add(PlayerExplosion, { x: object.x, y: object.y }); // 爆発
   });
 
-  let t = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     if (!alive) return;
     object.x = Math.min(Math.max(object.x + velocity.x * 3, 30), PLAY_RIGHT - 30);
     object.y = Math.min(Math.max(object.y + velocity.y * 3, 30), 570);
 
-    hitRing.alpha = 0.7 + 0.3 * Math.sin(t++ * 0.1); // うっすら明滅
+    hitRing.alpha = 0.7 + 0.3 * Math.sin(count * 0.1); // うっすら明滅
 
     for (const enemy of xnew.find(Enemy)) {
       if (enemy.isVulnerable && enemy.distance(object) < PLAYER_HIT_R + ENEMY_HIT_R) {
@@ -1271,10 +1253,8 @@ function Shot(unit, { x, y }) {
   const star = starSprite(color);
   object.addChild(star);
 
-  let t = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count: t }) => {
     object.y -= 8;
-    t++;
     star.rotation += 0.15;
     star.scale.set((baseR / STAR_TEX_R) * (1 + Math.sin(t * 0.6) * 0.12)); // キラッと脈動
 
@@ -1309,10 +1289,8 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
 
   // ベイクテクスチャでスプライト表示
   const tl = xnew.context(BakedCharacters).texturesList;
-  const sprite = new PIXI.AnimatedSprite(tl[id]);
-  sprite.anchor.set(0.5);
+  const sprite = bakedSprite(tl[id]);
   sprite.scale.set(0); // スケール0から pop-in（下の update で 0→1 に拡大）
-  sprite.animationSpeed = BAKE_ANIMATION_SPEED;
   sprite.play();
   sprite.currentFrame = Math.floor(Math.random() * tl[id].length);
   object.addChild(sprite);
@@ -1345,11 +1323,10 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
 
   let fading = false; // wave 切替で退場中（得点・当たり判定なし）
 
-  let t = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     // pop-in（0→1）× y座標に応じた遠近感 × 時間で蠢く拡縮
     pop = Math.min(1, pop + 0.08);
-    const squirm = 1 + Math.sin(t++ * 0.12 + squirmPhase) * 0.08;
+    const squirm = 1 + Math.sin(count * 0.12 + squirmPhase) * 0.08;
     sprite.scale.set((0.4 + id * 0.2 + object.y * 0.0008) * squirm * pop);
 
     if (object.x < 15)             vel.x =  Math.abs(vel.x);
@@ -1439,8 +1416,7 @@ function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
 
   xnew.timeout(() => unit.finalize(), 900);
 
-  let count = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     object.x += vx;
     object.y += vy;
     const p = count / 60;
@@ -1448,7 +1424,6 @@ function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
     object.alpha = 1 - p;
     const twinkle = 1 + Math.sin(count * 0.5) * 0.22;          // キラキラ点滅
     star.scale.set((baseR / STAR_TEX_R) * (1 - p * 0.35) * twinkle); // 縮みながら瞬く
-    count++;
 
     // 別の敵に当たると得点倍増（星の進行方向にノックバック/分裂）
     for (const enemy of xnew.find(Enemy)) {
@@ -1468,11 +1443,9 @@ function ScorePopup(unit, { x, y, score }) {
   object.anchor.set(0.5);
 
   xnew.timeout(() => unit.finalize(), 900);
-  let count = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     object.y = y - 40 * (count / 60);
     object.alpha = 1 - count / 60;
-    count++;
   });
 }
 
@@ -1481,8 +1454,7 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   const object = xpixi.nest(new PIXI.Container({ position: { x, y } }));
 
   const tl = xnew.context(BakedCharacters).texturesList;
-  const sprite = new PIXI.AnimatedSprite(tl[id]);
-  sprite.anchor.set(0.5);
+  const sprite = bakedSprite(tl[id]); // コープスは再生せず1フレーム固定
   sprite.scale.set(scale);
   sprite.currentFrame = Math.min(frame, tl[id].length - 1);
   object.addChild(sprite);
@@ -1493,15 +1465,14 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   const spin = (Math.random() - 0.5) * 0.3;
 
   const DURATION = 26;
-  let count = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     object.x += vx;
     object.y += vy;
     vx *= 0.86;
     vy *= 0.86;
     object.rotation += spin;
     object.alpha = Math.max(0, 1 - count / DURATION); // 半透明に薄れる
-    if (++count >= DURATION) unit.finalize();
+    if (count >= DURATION - 1) unit.finalize();
   });
 }
 
@@ -1524,8 +1495,7 @@ function PlayerExplosion(unit, { x, y }) {
   }
 
   const DURATION = 36;
-  let count = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     const p = count / DURATION;
     flash.scale.set(1 + p * 1.5);
     flash.alpha = Math.max(0, 1 - p * 2);
@@ -1538,7 +1508,7 @@ function PlayerExplosion(unit, { x, y }) {
       s.vy = s.vy * 0.92 + 0.15; // 減速 + 重力
       s.g.alpha = Math.max(0, 1 - p);
     }
-    if (++count >= DURATION) unit.finalize();
+    if (count >= DURATION - 1) unit.finalize();
   });
 }
 
@@ -1551,14 +1521,13 @@ function HitBurst(unit, { x, y, power = 1 }) {
   container.addChild(flash, ring);
 
   const DURATION = 16;
-  let count = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count }) => {
     const p = count / DURATION;
     flash.scale.set(1 + p * 0.6);
     flash.alpha = 0.9 * (1 - p);
     ring.scale.set(1 + p * 2.4);
     ring.alpha = 0.9 * (1 - p);
-    if (++count >= DURATION) unit.finalize();
+    if (count >= DURATION - 1) unit.finalize();
   });
 }
 
@@ -1604,12 +1573,10 @@ function ShotEnergy(unit) {
     xnew('<div class="absolute top-0 left-0 right-0 h-[0.4cqw]" style="background:repeating-linear-gradient(90deg, #22FFFF 0 0.15cqw, transparent 0.15cqw 1cqw); opacity:0.5;">'); // 上辺の目盛り
   });
 
-  let t = 0;
-  unit.on('update', () => {
+  unit.on('update', ({ count: t }) => {
     energy = Math.min(MAX, energy + RECOVER);
     const pct = energy / MAX;
     const ready = energy >= COST;
-    t++;
 
     fill.element.style.width = `${pct * 100}%`;
     fill.element.style.opacity = ready ? '1' : '0.45';
@@ -1673,10 +1640,9 @@ function ResultBackground(unit) {
   function floatingCircle(sizeCqw, transform) {
     const [x, y] = [Math.random() * 100, Math.random() * 100];
     const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${sizeCqw}cqw; height: ${sizeCqw}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
-    let p = 0;
-    circle.on('update', () => {
+    circle.on('update', ({ count }) => {
+      const p = count * 0.02;
       Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: transform(p) });
-      p += 0.02;
     });
   }
 
@@ -1768,29 +1734,12 @@ function TitleText(_unit) {
 function TouchMessage(unit) {
   xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
   svgText('touch start', '6cqw');
-  let count = 0;
-  unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
+  unit.on('update', ({ count }) => unit.element.style.opacity = 0.6 + Math.sin(count * 0.08) * 0.4);
 }
 
-function Camera(unit) {
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
-    xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
-    xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
-  });
-}
+const Camera = RingIcon([
+  'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z',
+  'M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z',
+]);
 
-function ArrowUturnLeft(unit) {
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
-    xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
-  });
-}
+const ArrowUturnLeft = RingIcon(['M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3']);
