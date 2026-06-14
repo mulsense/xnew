@@ -70,6 +70,8 @@ export class Unit {
         status: Status;
         tostart: boolean;
         protected: boolean;
+        updateCount: number;   // この unit が受け取った update tick 数（update リスナの count として渡す）
+        renderCount: number;   // 同上（render 側）
         promises: UnitPromise[];
         defines: Record<string, any>;
         systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
@@ -139,6 +141,8 @@ export class Unit {
             status: 'invoked',
             tostart: true,
             protected: false,
+            updateCount: 0,
+            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -180,10 +184,11 @@ export class Unit {
         return this._.currentElement;
     }
 
-    // この unit に登録された全 promise を集約した UnitPromise。
-    // .then は keyed results で resolve / どれか reject で reject するので .catch・.finally もこれ 1 つで足りる。
+    // この unit に登録された全 promise を集約した UnitPromise（ルート集約）。
+    // .then は「直列ステージ登録」（callback の完了 — 内部 xnew.promise 含む — を unit へ畳み込む）。
+    // .catch / .finally は keyed results / reject に対する純粋観測。
     public get promise(): UnitPromise {
-        return UnitPromise.results(this._.promises);
+        return UnitPromise.root(this);
     }
 
     public start(): void {
@@ -322,17 +327,21 @@ export class Unit {
         }
     }
 
-    static update(unit: Unit): void {
+    // count = この unit の update tick 数（起動後 0 始まり）, delta = 前フレームからの経過 ms。
+    // リスナは ({ count, delta }) で受け取れる（同 tick 内の同 unit のリスナは同じ count）。
+    static update(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started') {
-            unit._.children.forEach((child: Unit) => Unit.update(child));
-            unit._.systems.update.forEach(({ execute }) => execute());
+            unit._.children.forEach((child: Unit) => Unit.update(child, delta));
+            const count = unit._.updateCount++;
+            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
         }
     }
 
-    static render(unit: Unit): void {
+    static render(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
-            unit._.children.forEach((child: Unit) => Unit.render(child));
-            unit._.systems.render.forEach(({ execute }) => execute());
+            unit._.children.forEach((child: Unit) => Unit.render(child, delta));
+            const count = unit._.renderCount++;
+            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
         }
     }
 
@@ -341,10 +350,10 @@ export class Unit {
     static reset(): void {
         Unit.engineRoot?.finalize();
         Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
-        const ticker = new Ticker(() => {
+        const ticker = new Ticker((delta: number) => {
             Unit.start(Unit.engineRoot);
-            Unit.update(Unit.engineRoot);
-            Unit.render(Unit.engineRoot);
+            Unit.update(Unit.engineRoot, delta);
+            Unit.render(Unit.engineRoot, delta);
         });
         Unit.engineRoot.on('finalize', () => ticker.clear());
     }
@@ -440,7 +449,7 @@ export class Unit {
     
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        const execute = (props: object) => {
+        const execute = (props: object = {}) => {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         }
         if (isSystemEvent(type)) {
@@ -494,33 +503,95 @@ export class Unit {
 export class UnitPromise {
     private promise: Promise<any>;
     public key?: string;
+    // unit.promise が返すルート集約だけに付く。これが立っていると .then は「ステージ登録」になる
+    // （汎用 UnitPromise の .then は従来どおりのチェーン）。
+    private rootUnit?: Unit;
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
-    public then(callback: Function): UnitPromise { return this.wrap('then', callback); }
-    public catch(callback: Function): UnitPromise { return this.wrap('catch', callback); }
-    public finally(callback: Function): UnitPromise { return this.wrap('finally', callback); }
+    public then(callback: Function): UnitPromise {
+        // ルート集約に対する .then は、完了を unit へ畳み込む直列ステージにする。
+        if (this.rootUnit !== undefined) {
+            return UnitPromise.stage(this.rootUnit, this, callback);
+        }
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.then((...args: any[]) => {
+            const result = Unit.scope(snapshot, callback, ...args);
+            return result instanceof UnitPromise ? result.promise : result;
+        });
+        return this;
+    }
+    public catch(callback: Function): UnitPromise {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.catch((...args: any[]) => {
+            const result = Unit.scope(snapshot, callback, ...args);
+            return result instanceof UnitPromise ? result.promise : result;
+        });
+        return this;
+    }
+    public finally(callback: Function): UnitPromise {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.finally(() => {
+            const result = Unit.scope(snapshot, callback);
+            return result instanceof UnitPromise ? result.promise : result;
+        });
+        return this;
+    }
 
     public static all(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
     }
 
+    // unit.promise が返すルート集約。.then だけがステージ動作（rootUnit で分岐）。.catch / .finally は純粋観測。
+    public static root(unit: Unit): UnitPromise {
+        const root = UnitPromise.results(unit._.promises);
+        root.rootUnit = unit;
+        return root;
+    }
+
+    // 直列ステージ: trigger（ルート集約 = ここまでの登録）が解決したら callback を unit scope で実行し、
+    // その完了（callback の戻り promise ＋ callback 内で同期登録した xnew.promise）を unit に同期登録する。
+    // 完了が _.promises に入るので、次の unit.promise.then や外部の観測はこのステージを待つ。
+    private static stage(unit: Unit, trigger: UnitPromise, callback: Function): UnitPromise {
+        const scope = Unit.snapshot(unit);
+        const completion = new UnitPromise(
+            trigger.promise.then((results: any) => Unit.scope(scope, () => {
+                const before = unit._.promises.length;
+                const returned = callback(results);
+                // callback 実行中に同期登録された promise（= 内部の xnew.promise）を畳み込む。
+                const registered = unit._.promises.slice(before);
+                const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
+                return Promise.all([tail, ...registered.map((p) => p.promise)]);
+            }))
+        );
+        unit._.promises.push(completion);
+        return completion;
+    }
+
     // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
+    // キーが `name[]` 形式なら out[name] を配列にして登録順に push する。
     public static results(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(
             Promise.all(promises.map(p => p.promise)).then((values) => {
                 const out: Record<string, any> = {};
                 promises.forEach((p, i) => {
-                    if (p.key !== undefined) { out[p.key] = values[i]; }
+                    if (p.key !== undefined) { UnitPromise.assignKey(out, p.key, values[i]); }
                 });
                 return out;
             })
         );
     }
 
-    private wrap(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = (this.promise[method] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
-        return this;
+    // キーを集約オブジェクトへ代入する。`name[]` はその name を配列にして登録順に push し、
+    // それ以外はフラットなキーとして代入する。
+    private static assignKey(out: Record<string, any>, key: string, value: any): void {
+        const matched = key.match(/^(.+)\[\]$/);
+        if (matched !== null) {
+            const name = matched[1];
+            if (Array.isArray(out[name]) === false) { out[name] = []; }
+            out[name].push(value);
+        } else {
+            out[key] = value;
+        }
     }
 }
 

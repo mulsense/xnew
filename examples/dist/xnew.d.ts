@@ -56,6 +56,8 @@ declare class Unit {
         status: Status;
         tostart: boolean;
         protected: boolean;
+        updateCount: number;
+        renderCount: number;
         promises: UnitPromise[];
         defines: Record<string, any>;
         systems: Record<SystemEvent, {
@@ -94,8 +96,8 @@ declare class Unit {
     };
     static start(unit: Unit): void;
     static stop(unit: Unit): void;
-    static update(unit: Unit): void;
-    static render(unit: Unit): void;
+    static update(unit: Unit, delta?: number): void;
+    static render(unit: Unit, delta?: number): void;
     static engineRoot: Unit;
     static currentUnit: Unit;
     static reset(): void;
@@ -119,13 +121,16 @@ declare class Unit {
 declare class UnitPromise {
     private promise;
     key?: string;
+    private rootUnit?;
     constructor(promise: Promise<any>, key?: string);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
     static all(promises: UnitPromise[]): UnitPromise;
+    static root(unit: Unit): UnitPromise;
+    private static stage;
     static results(promises: UnitPromise[]): UnitPromise;
-    private wrap;
+    private static assignKey;
 }
 declare class UnitTimer {
     private unit;
@@ -308,6 +313,7 @@ declare class ImageData {
     constructor(canvas: HTMLCanvasElement);
     constructor(width: number, height: number);
     crop(x: number, y: number, width: number, height: number): ImageData;
+    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
     download(filename: string): void;
 }
 

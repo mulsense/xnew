@@ -128,16 +128,22 @@
             let previous = 0;
             const tick = () => {
                 if (typeof requestAnimationFrame !== 'undefined') {
-                    const delta = Date.now() - previous;
-                    if (delta > minDelta) {
-                        callback();
-                        previous += delta;
+                    const now = Date.now();
+                    if (previous === 0) {
+                        previous = now;
+                    }
+                    else {
+                        const delta = now - previous;
+                        if (delta > minDelta) {
+                            callback(delta);
+                            previous += delta;
+                        }
                     }
                     const id = requestAnimationFrame(tick);
                     this.cancel = () => cancelAnimationFrame(id);
                 }
                 else {
-                    callback();
+                    callback(interval);
                     const id = setTimeout(tick, interval);
                     this.cancel = () => clearTimeout(id);
                 }
@@ -258,8 +264,9 @@
             this.map = new MapMap();
         }
         add(element, type, listener, options) {
+            var _a;
             const props = { element, type, listener, options };
-            const factory = factories.get(type);
+            const factory = (_a = factories.get(type)) !== null && _a !== void 0 ? _a : keyboardFactory(type);
             let finalize;
             if (factory !== undefined) {
                 finalize = factory(props);
@@ -412,6 +419,35 @@
     defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
     defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
     defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
+    const KEY_ALIASES = {
+        space: 'Space', enter: 'Enter', escape: 'Escape', esc: 'Escape', tab: 'Tab',
+        up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
+    };
+    function matchKey(name, event) {
+        var _a, _b;
+        if (KEY_ALIASES[name] !== undefined)
+            return event.code === KEY_ALIASES[name];
+        if (/^[a-z]$/.test(name))
+            return event.code === 'Key' + name.toUpperCase();
+        if (/^[0-9]$/.test(name))
+            return event.code === 'Digit' + name;
+        return ((_a = event.code) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === name || ((_b = event.key) === null || _b === void 0 ? void 0 : _b.toLowerCase()) === name;
+    }
+    function keyboardFactory(type) {
+        const matched = type.match(/^(window|document)\.(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
+        if (matched === null)
+            return undefined;
+        const [, scope, variant, rawKey, repeat] = matched;
+        const key = rawKey.toLowerCase();
+        const allowRepeat = repeat !== undefined;
+        const target = scope === 'window' ? window : document;
+        return (props) => listen(target, variant, (event) => {
+            if (allowRepeat === false && event.repeat)
+                return;
+            if (matchKey(key, event))
+                props.listener({ event });
+        }, props.options);
+    }
 
     const SYSTEM_EVENTS = ['start', 'update', 'render', 'stop', 'finalize'];
     function isSystemEvent(type) {
@@ -466,6 +502,8 @@
                 status: 'invoked',
                 tostart: true,
                 protected: false,
+                updateCount: 0,
+                renderCount: 0,
                 currentElement: baseElement,
                 currentContext: baseContext,
                 currentComponent: null,
@@ -501,7 +539,7 @@
             return this._.currentElement;
         }
         get promise() {
-            return UnitPromise.results(this._.promises);
+            return UnitPromise.root(this);
         }
         start() {
             this._.tostart = true;
@@ -627,26 +665,28 @@
                 unit._.systems.stop.forEach(({ execute }) => execute());
             }
         }
-        static update(unit) {
+        static update(unit, delta = 0) {
             if (unit._.status === 'started') {
-                unit._.children.forEach((child) => Unit.update(child));
-                unit._.systems.update.forEach(({ execute }) => execute());
+                unit._.children.forEach((child) => Unit.update(child, delta));
+                const count = unit._.updateCount++;
+                unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
             }
         }
-        static render(unit) {
+        static render(unit, delta = 0) {
             if (unit._.status === 'started' || unit._.status === 'stopped') {
-                unit._.children.forEach((child) => Unit.render(child));
-                unit._.systems.render.forEach(({ execute }) => execute());
+                unit._.children.forEach((child) => Unit.render(child, delta));
+                const count = unit._.renderCount++;
+                unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
             }
         }
         static reset() {
             var _a;
             (_a = Unit.engineRoot) === null || _a === void 0 ? void 0 : _a.finalize();
             Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
-            const ticker = new Ticker(() => {
+            const ticker = new Ticker((delta) => {
                 Unit.start(Unit.engineRoot);
-                Unit.update(Unit.engineRoot);
-                Unit.render(Unit.engineRoot);
+                Unit.update(Unit.engineRoot, delta);
+                Unit.render(Unit.engineRoot, delta);
             });
             Unit.engineRoot.on('finalize', () => ticker.clear());
         }
@@ -723,7 +763,7 @@
         }
         static on(unit, type, listener, options) {
             const snapshot = Unit.snapshot(Unit.currentUnit);
-            const execute = (props) => {
+            const execute = (props = {}) => {
                 Unit.scope(snapshot, listener, Object.assign({ type }, props));
             };
             if (isSystemEvent(type)) {
@@ -776,27 +816,76 @@
     Unit.type2units = new MapSet();
     class UnitPromise {
         constructor(promise, key) { this.promise = promise; this.key = key; }
-        then(callback) { return this.wrap('then', callback); }
-        catch(callback) { return this.wrap('catch', callback); }
-        finally(callback) { return this.wrap('finally', callback); }
+        then(callback) {
+            if (this.rootUnit !== undefined) {
+                return UnitPromise.stage(this.rootUnit, this, callback);
+            }
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.then((...args) => {
+                const result = Unit.scope(snapshot, callback, ...args);
+                return result instanceof UnitPromise ? result.promise : result;
+            });
+            return this;
+        }
+        catch(callback) {
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.catch((...args) => {
+                const result = Unit.scope(snapshot, callback, ...args);
+                return result instanceof UnitPromise ? result.promise : result;
+            });
+            return this;
+        }
+        finally(callback) {
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.finally(() => {
+                const result = Unit.scope(snapshot, callback);
+                return result instanceof UnitPromise ? result.promise : result;
+            });
+            return this;
+        }
         static all(promises) {
             return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+        }
+        static root(unit) {
+            const root = UnitPromise.results(unit._.promises);
+            root.rootUnit = unit;
+            return root;
+        }
+        static stage(unit, trigger, callback) {
+            const scope = Unit.snapshot(unit);
+            const completion = new UnitPromise(trigger.promise.then((results) => Unit.scope(scope, () => {
+                const before = unit._.promises.length;
+                const returned = callback(results);
+                const registered = unit._.promises.slice(before);
+                const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
+                return Promise.all([tail, ...registered.map((p) => p.promise)]);
+            })));
+            unit._.promises.push(completion);
+            return completion;
         }
         static results(promises) {
             return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {
                 const out = {};
                 promises.forEach((p, i) => {
                     if (p.key !== undefined) {
-                        out[p.key] = values[i];
+                        UnitPromise.assignKey(out, p.key, values[i]);
                     }
                 });
                 return out;
             }));
         }
-        wrap(method, callback) {
-            const snapshot = Unit.snapshot(Unit.currentUnit);
-            this.promise = this.promise[method]((...args) => Unit.scope(snapshot, callback, ...args));
-            return this;
+        static assignKey(out, key, value) {
+            const matched = key.match(/^(.+)\[\]$/);
+            if (matched !== null) {
+                const name = matched[1];
+                if (Array.isArray(out[name]) === false) {
+                    out[name] = [];
+                }
+                out[name].push(value);
+            }
+            else {
+                out[key] = value;
+            }
         }
     }
     class UnitTimer {
@@ -896,6 +985,9 @@
         promise: (function (keyOrPromise, maybePromise) {
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
             const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+            if (key !== undefined && /^.+\[\d+\]$/.test(key)) {
+                throw new Error(`xnew.promise: indexed key "${key}" is no longer supported; use "${key.replace(/\[\d+\]$/, '[]')}" to append in registration order`);
+            }
             if (arguments.length >= 2 && promise === undefined) {
                 throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
             }
@@ -2114,6 +2206,17 @@
             canvas.height = height;
             (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
             return new ImageData(canvas);
+        }
+        paste(source, x, y, width, height) {
+            const patch = source instanceof ImageData ? source.canvas : source;
+            const context = this.canvas.getContext('2d');
+            if (width !== undefined && height !== undefined) {
+                context === null || context === void 0 ? void 0 : context.drawImage(patch, x, y, width, height);
+            }
+            else {
+                context === null || context === void 0 ? void 0 : context.drawImage(patch, x, y);
+            }
+            return this;
         }
         download(filename) {
             const link = document.createElement('a');

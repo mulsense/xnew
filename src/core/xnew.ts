@@ -69,6 +69,10 @@ export const xnew = Object.assign(
         promise: (function (keyOrPromise?: any, maybePromise?: any): any {
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
             const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+            // 旧仕様 `name[index]`（数値添字）は廃止。登録順に push する `name[]` に誘導する。
+            if (key !== undefined && /^.+\[\d+\]$/.test(key)) {
+                throw new Error(`xnew.promise: indexed key "${key}" is no longer supported; use "${key.replace(/\[\d+\]$/, '[]')}" to append in registration order`);
+            }
             // 2 引数で呼ばれたのに promise が undefined → 登録のつもりで promise を渡し忘れた誤用。
             // deferred は xnew.promise() / xnew.promise(key)（1 引数以下）でのみ成立させる。
             if (arguments.length >= 2 && promise === undefined) {

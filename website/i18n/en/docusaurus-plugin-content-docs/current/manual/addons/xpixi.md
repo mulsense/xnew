@@ -61,7 +61,9 @@ function Main(unit) {
 
 ### `xpixi.nest(pixiObject)`
 
-Analogous to `xnew.nest` but for PixiJS objects. Adds `pixiObject` to the current parent container and returns it. When the unit is destroyed, the object is removed from the scene automatically.
+Analogous to `xnew.nest` but for PixiJS objects. Adds `pixiObject` to the current parent container (the root `scene`, or the nearest enclosing nest) and returns it. When the unit is destroyed, the object is removed from the scene automatically.
+
+In addition, `nest` **makes `pixiObject` the current parent**. Anything `nest`-ed or `add`-ed in descendant units therefore goes inside this `pixiObject` (use it to build a container you move or toggle as a whole).
 
 ```js
 function Enemy(unit) {
@@ -76,4 +78,29 @@ function Enemy(unit) {
     if (object.y > 600) unit.finalize(); // auto-cleanup when off screen
   });
 }
+```
+
+:::note
+Because `nest` switches the current parent, **calling `nest` twice in the same unit nests the second object inside the first**. If you just want several objects under the same parent, use `add`.
+:::
+
+### `xpixi.add(pixiObject)`
+
+Adds `pixiObject` as a child of the current parent container and returns it. Unlike `nest`, it **does not change the current parent**. Use it to place several objects as siblings under the same parent. Automatic removal on unit destroy works the same as `nest`.
+
+```js
+function Hud(unit) {
+  // both added as siblings under the current parent (e.g. scene)
+  xpixi.add(new PIXI.Graphics().rect(0, 0, 800, 40).fill(0x000000));
+  const label = xpixi.add(new PIXI.Container());
+  label.position.set(16, 8);
+}
+```
+
+### `xpixi.remove(pixiObject)`
+
+Detaches `pixiObject` from its current parent and destroys it with `destroy({ children: true })` — the same cleanup `nest` / `add` run on unit destroy, performed on demand. Textures are preserved (the default), so shared textures stay intact.
+
+```js
+xpixi.remove(sprite); // detach from parent and destroy
 ```

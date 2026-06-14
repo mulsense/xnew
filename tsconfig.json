@@ -2,6 +2,10 @@
     "compilerOptions": {
         "moduleResolution": "bundler",
         "module": "ESNext",
+        "baseUrl": ".",
+        // addons が import する '@mulsense/xnew'（公開パッケージ）を型チェックでもソースへ解決する。
+        // jest.config.js の moduleNameMapper（実行時）と揃え、公開版の型ドリフトに左右されないようにする。
+        "paths": { "@mulsense/xnew": ["./src/index.ts"] },
         "rootDir": "./src",
         "target": "ES2017",
         "strict": true,

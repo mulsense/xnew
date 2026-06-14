@@ -13,7 +13,8 @@
 //
 // Payload: change|input:{event,value} / click|pointer*:{event,position} / *.outside: 要素の外で発火 /
 // wheel:{event,delta} / resize:{} / drag*:{event,position,delta} /
-// window.keydown|keyup:{event}(repeat 除去) / .arrow|.wasd:{event,vector}
+// window.keydown|keyup:{event}(repeat 除去) / .arrow|.wasd:{event,vector} /
+// (window|document).keydown|keyup.<key>(.repeat)?:{event}（名前付きキー絞り込み。既定 repeat 除去）
 //----------------------------------------------------------------------------------------------------
 
 import { MapMap } from './map';
@@ -71,7 +72,7 @@ export class Eventor {
 
     public add(element: DomElement, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void {
         const props: EventProps = { element, type, listener, options };
-        const factory = factories.get(type);
+        const factory = factories.get(type) ?? keyboardFactory(type);
 
         let finalize: Function;
         if (factory !== undefined) {
@@ -240,3 +241,39 @@ defineEvent('window.keydown.arrow', keyVectorEvent('keydown', ARROW_CODES));
 defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
 defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
 defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
+
+//----------------------------------------------------------------------------------------------------
+// named-key filter — (window|document).(keydown|keyup).<key>(.repeat)?
+//
+// 末尾のキー名で絞り込んだ keydown / keyup を { event } で通知する（event.code 判定を不要にする）。
+// <key>: space / enter / escape(esc) / tab / up|down|left|right / a–z / 0–9。その他は code|key 名で照合。
+// 既定で auto-repeat を除去（plain window.keydown と同じ）。`.repeat` を付けると押しっぱなしの連続発火も通す。
+// 例: unit.on('window.keydown.space', ({ event }) => ...) / 'window.keydown.a.repeat'
+//----------------------------------------------------------------------------------------------------
+
+const KEY_ALIASES: Record<string, string> = {
+    space: 'Space', enter: 'Enter', escape: 'Escape', esc: 'Escape', tab: 'Tab',
+    up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
+};
+
+function matchKey(name: string, event: KeyboardEvent): boolean {
+    if (KEY_ALIASES[name] !== undefined) return event.code === KEY_ALIASES[name];
+    if (/^[a-z]$/.test(name)) return event.code === 'Key' + name.toUpperCase();
+    if (/^[0-9]$/.test(name)) return event.code === 'Digit' + name;
+    return event.code?.toLowerCase() === name || event.key?.toLowerCase() === name;
+}
+
+// 一致すれば EventFactory、しなければ undefined（呼び出し側が別解決）。.arrow / .wasd は先に
+// 完全一致 factory が解決するためここには来ない。
+function keyboardFactory(type: string): EventFactory | undefined {
+    const matched = type.match(/^(window|document)\.(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
+    if (matched === null) return undefined;
+    const [, scope, variant, rawKey, repeat] = matched;
+    const key = rawKey.toLowerCase();
+    const allowRepeat = repeat !== undefined;
+    const target = scope === 'window' ? window : document;
+    return (props: EventProps) => listen(target, variant, (event: any) => {
+        if (allowRepeat === false && event.repeat) return;
+        if (matchKey(key, event)) props.listener({ event });
+    }, props.options);
+}
