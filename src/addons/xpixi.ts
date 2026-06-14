@@ -38,7 +38,6 @@ export default {
     },
     remove(object: any) {
         removeObject(object);
-        return object;
     },
     load(source: string | string[]): any {
         return xnew.promise(PIXI.Assets.load(source));
