@@ -40,7 +40,7 @@ function Contents(unit) {
   xnew(Rectangle, { x: 400, y: 400, w: 800, h: 20, color: 0x888888, options: { isStatic: true } });
   
   const button = xnew('<button class="absolute top-0 h-8 m-2 px-2 border rounded-lg cursor-pointer hover:bg-gray-200">', 'reset');
-  button.on('click', () => unit.moveTo(Contents));
+  button.on('click', () => unit.change(Contents));
 }
 
 function Rectangle(unit, { x, y, w, h, color, options = {} }) {
