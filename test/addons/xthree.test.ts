@@ -7,6 +7,7 @@ jest.spyOn(THREE, 'WebGLRenderer').mockImplementation(() => ({
     domElement: { width: 100, height: 100 },
     render() {},
     dispose() {},
+    forceContextLoss() {},
 }));
 
 import xnew from '../../src/index';
@@ -106,6 +107,36 @@ test('finalize: ユニット破棄で親から外れる', () => {
     expect(obj.parent).toBe(scene);
     child.finalize();
     expect(obj.parent).toBe(null);
+});
+
+test('finalize: xthree.finalize で renderer が dispose / forceContextLoss される', () => {
+    const canvas = setup();
+    let disposeSpy;
+    let lossSpy;
+
+    xnew(() => {
+        xthree.initialize({ canvas });
+        const renderer = xthree.renderer;
+        disposeSpy = jest.spyOn(renderer, 'dispose');
+        lossSpy = jest.spyOn(renderer, 'forceContextLoss');
+        xthree.finalize();
+    });
+
+    expect(disposeSpy).toHaveBeenCalled();
+    expect(lossSpy).toHaveBeenCalled();
+});
+
+test('finalize: ユニット破棄でも renderer が dispose される（自動解放）', () => {
+    const canvas = setup();
+    let disposeSpy;
+
+    const root = xnew(() => {
+        xthree.initialize({ canvas });
+        disposeSpy = jest.spyOn(xthree.renderer, 'dispose');
+    });
+    root.finalize();
+
+    expect(disposeSpy).toHaveBeenCalled();
 });
 
 test('remove: その時点の親から外して配下の geometry/material/texture を dispose する', () => {

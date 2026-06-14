@@ -130,13 +130,9 @@ function BakedCharacters(unit) {
   xthree.initialize({ camera, canvas: offscreen });
   xthree.camera.position.set(0, -0.1, 2.5);
 
-  // RenderPass / SSAOPass・末尾の解放用に renderer / scene を掴んでおく（同期セットアップ）。
-  const renderer = xthree.renderer;
-  const scene = xthree.scene;
-
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, xthree.camera));
-  const ssaoPass = new SSAOPass(scene, xthree.camera, offscreen.width, offscreen.height);
+  const composer = new EffectComposer(xthree.renderer);
+  composer.addPass(new RenderPass(xthree.scene, xthree.camera));
+  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, offscreen.width, offscreen.height);
   // OrthographicCamera 用: シェーダーのデフォルト PERSPECTIVE_CAMERA=1 を両マテリアルで上書き
   for (const material of [ssaoPass.ssaoMaterial, ssaoPass.depthRenderMaterial]) {
     material.defines['PERSPECTIVE_CAMERA'] = 0;
@@ -190,11 +186,10 @@ function BakedCharacters(unit) {
     // 全キャラ終わったら焼き機の GPU リソースを解放して完了通知する。
     function startJob() {
       if (jobIndex >= jobs.length) {
-        // xthree の finalize は renderer を dispose しないため、ここで明示的に解放する
+        // 例所有の後段処理を解放し、xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
         composer.dispose();
         ssaoPass.dispose();
-        renderer.dispose();
-        renderer.forceContextLoss();
+        xthree.finalize();
         resolve();
         return;
       }

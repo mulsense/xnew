@@ -13,7 +13,10 @@
 // Caveat: `nest` is stateful — two `nest` calls in the same unit produce two nesting levels.
 // Reach for `add` when you just want several objects under the same parent.
 //
-// - default : { initialize, nest, add, remove, renderer, camera, scene, canvas }
+// `finalize()` tears down the Root Unit, releasing the renderer (dispose + forceContextLoss). The same
+// release also runs on normal tree teardown, so the WebGL context is never leaked.
+//
+// - default : { initialize, nest, add, remove, finalize, renderer, camera, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
 import xnew from '@mulsense/xnew';
@@ -38,6 +41,10 @@ export default {
         object.parent?.remove(object);
         disposeObject(object);
     },
+    // Root unit を畳んで保持リソース（renderer + WebGL コンテキスト）を解放する。
+    finalize() {
+        xnew.context(Root)?.release();
+    },
     get renderer() {
         return xnew.context(Root)?.renderer;
     },
@@ -59,11 +66,18 @@ function Root(unit: xnew.Unit, { canvas, camera }: any) {
     camera = camera ?? new THREE.PerspectiveCamera(45, renderer.domElement.width / renderer.domElement.height);
     const scene = new THREE.Scene();
 
+    // unit 破棄（明示的な xthree.finalize / 通常のツリー破棄の両方）で GPU リソースを解放する。
+    unit.on('finalize', () => {
+        renderer.dispose();
+        renderer.forceContextLoss?.();
+    });
+
     return {
         get canvas() { return canvas; },
         get camera() { return camera; },
         get renderer() { return renderer; },
         get scene() { return scene; },
+        release: () => unit.finalize(),
     }
 }
 

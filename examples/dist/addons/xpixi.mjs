@@ -15,10 +15,13 @@ var xpixi = {
     },
     remove(object) {
         removeObject(object);
-        return object;
     },
     load(source) {
         return xnew.promise(PIXI.Assets.load(source));
+    },
+    finalize() {
+        var _a;
+        (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.release();
     },
     get renderer() {
         var _a;
@@ -42,10 +45,14 @@ function Root(unit, { canvas }) {
         renderer = value;
     });
     const scene = new PIXI.Container();
+    unit.on('finalize', () => {
+        renderer === null || renderer === void 0 ? void 0 : renderer.destroy();
+    });
     return {
         get renderer() { return renderer; },
         get scene() { return scene; },
         get canvas() { return canvas; },
+        release: () => unit.finalize(),
     };
 }
 function removeObject(object) {

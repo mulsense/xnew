@@ -8,12 +8,17 @@ jest.mock('pixi.js', () => {
         removeChild(o) { o.parent = null; this.children = this.children.filter((c) => c !== o); return o; }
         destroy() { this.destroyed = true; }
     }
+    const renderer = { render() {}, destroy() {} };
     return {
         Container,
         Assets: { load: () => Promise.resolve({}) },
-        autoDetectRenderer: () => Promise.resolve({ render() {}, destroy() {} }),
+        autoDetectRenderer: () => Promise.resolve(renderer),
+        __renderer: renderer, // finalize テストで destroy を spy するため共有 renderer を公開
     };
 });
+
+// renderer は autoDetectRenderer の非同期解決後に Root へ入るため、マイクロタスクを流す。
+const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 import * as PIXI from 'pixi.js';
 import xnew from '../../src/index';
@@ -110,6 +115,32 @@ test('finalize: ユニット破棄で親から外れる', () => {
     expect(obj.parent).toBe(scene);
     child.finalize();
     expect(obj.parent).toBe(null);
+});
+
+test('finalize: xpixi.finalize で renderer が destroy される', async () => {
+    const canvas = setup();
+    const destroySpy = jest.spyOn(PIXI.__renderer, 'destroy');
+
+    xnew((u) => {
+        xpixi.initialize({ canvas });
+        u.promise.then(() => { xpixi.finalize(); }); // renderer 解決後に scope 内で finalize
+    });
+    await flush();
+
+    expect(destroySpy).toHaveBeenCalled();
+    destroySpy.mockRestore();
+});
+
+test('finalize: ユニット破棄でも renderer が destroy される（自動解放）', async () => {
+    const canvas = setup();
+    const destroySpy = jest.spyOn(PIXI.__renderer, 'destroy');
+
+    const root = xnew(() => { xpixi.initialize({ canvas }); });
+    await flush(); // renderer 解決を待つ
+    root.finalize();
+
+    expect(destroySpy).toHaveBeenCalled();
+    destroySpy.mockRestore();
 });
 
 test('remove: その時点の親から外して destroy する', () => {

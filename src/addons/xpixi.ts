@@ -15,7 +15,10 @@
 // Caveat: `nest` is stateful — two `nest` calls in the same unit produce two nesting levels.
 // Reach for `add` when you just want several objects under the same parent.
 //
-// - default : { initialize, nest, add, remove, load, renderer, scene, canvas }
+// `finalize()` tears down the Root Unit, releasing the renderer (destroy). The same release also runs
+// on normal tree teardown, so the renderer is never leaked.
+//
+// - default : { initialize, nest, add, remove, load, finalize, renderer, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
 import xnew from '@mulsense/xnew';
@@ -42,6 +45,10 @@ export default {
     load(source: string | string[]): any {
         return xnew.promise(PIXI.Assets.load(source));
     },
+    // Root unit を畳んで保持リソース（renderer）を解放する。
+    finalize() {
+        xnew.context(Root)?.release();
+    },
     get renderer() {
         return xnew.context(Root)?.renderer;
     },
@@ -64,10 +71,17 @@ function Root(unit: xnew.Unit, { canvas }: { canvas: HTMLCanvasElement }) {
 
     const scene = new PIXI.Container();
 
+    // unit 破棄（明示的な xpixi.finalize / 通常のツリー破棄の両方）で renderer を解放する
+    // （renderer は非同期生成のため null ガード）。
+    unit.on('finalize', () => {
+        renderer?.destroy();
+    });
+
     return {
         get renderer() { return renderer; },
         get scene() { return scene; },
         get canvas() { return canvas; },
+        release: () => unit.finalize(),
     }
 }
 
