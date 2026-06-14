@@ -381,12 +381,12 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('xnew.promise — array-index keys (name[index])', () => {
-        it('aggregates name[index] keys into an array under name', async () => {
+    describe('xnew.promise — append keys (name[])', () => {
+        it('aggregates name[] keys into an array in registration order', async () => {
             const got = jest.fn();
             xnew((u) => {
-                xnew.promise('vrms[0]', Promise.resolve('a'));
-                xnew.promise('vrms[1]', Promise.resolve('b'));
+                xnew.promise('vrms[]', Promise.resolve('a'));
+                xnew.promise('vrms[]', Promise.resolve('b'));
                 u.promise.then(got);
             });
 
@@ -395,26 +395,26 @@ describe('xnew promise helpers', () => {
             expect(got).toHaveBeenCalledWith({ vrms: ['a', 'b'] });
         });
 
-        it('creates a sparse array when only a higher index is set', async () => {
+        it('orders by registration, not by resolution timing', async () => {
             const got = jest.fn();
+            let resolveFirst!: (v: unknown) => void;
             xnew((u) => {
-                xnew.promise('vrms[1]', Promise.resolve('b'));
+                xnew.promise('vrms[]', new Promise((res) => { resolveFirst = res; }));
+                xnew.promise('vrms[]', Promise.resolve('b'));
                 u.promise.then(got);
             });
 
             await jest.advanceTimersByTimeAsync(0);
+            resolveFirst('a'); // 後から解決しても 0 番目に入る
+            await jest.advanceTimersByTimeAsync(0);
 
-            const arg = got.mock.calls[0][0];
-            expect(Array.isArray(arg.vrms)).toBe(true);
-            expect(arg.vrms.length).toBe(2);
-            expect(arg.vrms[1]).toBe('b');
-            expect(0 in arg.vrms).toBe(false); // index 0 は穴
+            expect(got).toHaveBeenCalledWith({ vrms: ['a', 'b'] });
         });
 
-        it('keeps plain keys flat alongside array-index keys', async () => {
+        it('keeps plain keys flat alongside append keys', async () => {
             const got = jest.fn();
             xnew((u) => {
-                xnew.promise('vrms[0]', Promise.resolve('a'));
+                xnew.promise('vrms[]', Promise.resolve('a'));
                 xnew.promise('ready', Promise.resolve(1));
                 u.promise.then(got);
             });
@@ -422,6 +422,14 @@ describe('xnew promise helpers', () => {
             await jest.advanceTimersByTimeAsync(0);
 
             expect(got).toHaveBeenCalledWith({ vrms: ['a'], ready: 1 });
+        });
+
+        it('rejects the old indexed key form (name[index])', () => {
+            expect(() => {
+                xnew(() => {
+                    xnew.promise('vrms[0]', Promise.resolve('a'));
+                });
+            }).toThrow(/vrms\[\]/);
         });
     });
 });

@@ -829,14 +829,13 @@ class UnitPromise {
         }));
     }
     static assignKey(out, key, value) {
-        const matched = key.match(/^(.+)\[(\d+)\]$/);
+        const matched = key.match(/^(.+)\[\]$/);
         if (matched !== null) {
             const name = matched[1];
-            const index = Number(matched[2]);
             if (Array.isArray(out[name]) === false) {
                 out[name] = [];
             }
-            out[name][index] = value;
+            out[name].push(value);
         }
         else {
             out[key] = value;
@@ -940,6 +939,9 @@ const xnew$1 = Object.assign((function (...args) {
     promise: (function (keyOrPromise, maybePromise) {
         const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
         const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
+        if (key !== undefined && /^.+\[\d+\]$/.test(key)) {
+            throw new Error(`xnew.promise: indexed key "${key}" is no longer supported; use "${key.replace(/\[\d+\]$/, '[]')}" to append in registration order`);
+        }
         if (arguments.length >= 2 && promise === undefined) {
             throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
         }

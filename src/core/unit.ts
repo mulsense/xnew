@@ -560,7 +560,7 @@ export class UnitPromise {
     }
 
     // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
-    // キーが `name[index]` 形式なら out[name] を配列にして index 要素へ格納する（穴は許容 = sparse）。
+    // キーが `name[]` 形式なら out[name] を配列にして登録順に push する。
     public static results(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(
             Promise.all(promises.map(p => p.promise)).then((values) => {
@@ -573,15 +573,14 @@ export class UnitPromise {
         );
     }
 
-    // キーを集約オブジェクトへ代入する。`name[index]`（配列1段）はその name を配列にして格納し、
+    // キーを集約オブジェクトへ代入する。`name[]` はその name を配列にして登録順に push し、
     // それ以外はフラットなキーとして代入する。
     private static assignKey(out: Record<string, any>, key: string, value: any): void {
-        const matched = key.match(/^(.+)\[(\d+)\]$/);
+        const matched = key.match(/^(.+)\[\]$/);
         if (matched !== null) {
             const name = matched[1];
-            const index = Number(matched[2]);
             if (Array.isArray(out[name]) === false) { out[name] = []; }
-            out[name][index] = value;
+            out[name].push(value);
         } else {
             out[key] = value;
         }
