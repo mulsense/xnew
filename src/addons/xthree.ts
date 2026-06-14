@@ -37,7 +37,6 @@ export default {
     remove(object: any) {
         object.parent?.remove(object);
         disposeObject(object);
-        return object;
     },
     get renderer() {
         return xnew.context(Root)?.renderer;
