@@ -29,12 +29,14 @@
         },
         nest(object) {
             xnew(Nest, { object });
-            xnew.extend(() => {
-                return {
-                    get pixiObject() { return object; }
-                };
-            });
             return object;
+        },
+        add(object) {
+            xnew(Add, { object });
+            return object;
+        },
+        load(source) {
+            return xnew.promise(PIXI__namespace.Assets.load(source));
         },
         get renderer() {
             var _a;
@@ -64,7 +66,7 @@
             get canvas() { return canvas; },
         };
     }
-    function Nest(unit, { object }) {
+    function attach(unit, object) {
         var _a, _b;
         const root = xnew.context(Root);
         const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.pixiObject) !== null && _b !== void 0 ? _b : root.scene;
@@ -77,9 +79,15 @@
             }
             object.destroy({ children: true });
         });
+    }
+    function Nest(unit, { object }) {
+        attach(unit, object);
         return {
             get pixiObject() { return object; },
         };
+    }
+    function Add(unit, { object }) {
+        attach(unit, object);
     }
 
     return xpixi;

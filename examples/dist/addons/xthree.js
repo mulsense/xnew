@@ -29,11 +29,10 @@
         },
         nest(object) {
             xnew(Nest, { object });
-            xnew.extend(() => {
-                return {
-                    get threeObject() { return object; }
-                };
-            });
+            return object;
+        },
+        add(object) {
+            xnew(Add, { object });
             return object;
         },
         get renderer() {
@@ -65,7 +64,7 @@
             get scene() { return scene; },
         };
     }
-    function Nest(unit, { object }) {
+    function attach(unit, object) {
         var _a, _b;
         const root = xnew.context(Root);
         const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.threeObject) !== null && _b !== void 0 ? _b : root.scene;
@@ -84,9 +83,15 @@
                 }
             });
         });
+    }
+    function Nest(unit, { object }) {
+        attach(unit, object);
         return {
-            get threeObject() { return object; },
+            get threeObject() { return object; }
         };
+    }
+    function Add(unit, { object }) {
+        attach(unit, object);
     }
 
     return xthree;

@@ -142,122 +142,109 @@ function poseFrame(model, t, spin) {
 }
 
 function BakedCharacters(unit) {
-  const texturesList = new Array(ENEMY_FILES.length).fill(null);
-  let playerTextures = null;
   const { resolve } = xnew.promise();
 
-  // --- 焼き機（旧 Baking の共有部分）を1セットだけ構築する ---
+  // --- 焼き機（共有部分）を1セットだけ構築する ---
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
-  xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
+  const offscreen = new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE);
+  xthree.initialize({ camera, canvas: offscreen });
   xthree.camera.position.set(0, -0.1, 2.5);
 
-  const composer = new EffectComposer(xthree.renderer);
+  // xthree.* ゲッターは xnew.context(Root)（= Unit.currentUnit）に依存するため、await を跨ぐ
+  // 焼成ループ内からは解決できない。レンダラと描画先 canvas は同期的に掴んでおく。
+  const renderer = xthree.renderer;
+
+  const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(xthree.scene, xthree.camera));
   const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
-  // OrthographicCamera 用: シェーダーのデフォルトは PERSPECTIVE_CAMERA=1 のため明示的に上書き
-  ssaoPass.ssaoMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
-  ssaoPass.ssaoMaterial.needsUpdate = true;
-  ssaoPass.depthRenderMaterial.defines['PERSPECTIVE_CAMERA'] = 0;
-  ssaoPass.depthRenderMaterial.needsUpdate = true;
+  // OrthographicCamera 用: シェーダーのデフォルト PERSPECTIVE_CAMERA=1 を両マテリアルで上書き
+  for (const material of [ssaoPass.ssaoMaterial, ssaoPass.depthRenderMaterial]) {
+    material.defines['PERSPECTIVE_CAMERA'] = 0;
+    material.needsUpdate = true;
+  }
   ssaoPass.kernelRadius = 0.15;   // サンプリング半径
   ssaoPass.minDistance = 0.001;   // 最小距離（linearized depth 0〜1 スケール）
   ssaoPass.maxDistance = 0.02;    // 最大距離
   composer.addPass(ssaoPass);
   composer.addPass(new OutputPass());
 
-  xnew(() => {
-    xthree.nest(new THREE.AmbientLight(0xFFFFFF, 1.2));
-  });
-  xnew(() => {
-    const dirLight = xthree.nest(new THREE.DirectionalLight(0xFFFFFF, 1.7));
-    dirLight.position.set(2, 5, 10);
-  });
+  // ライトと土台は scene 直下に兄弟として並べる（nest だと2回目以降が前のオブジェクト配下に
+  // 入れ子になってしまうため add を使う）。
+  xthree.add(new THREE.AmbientLight(0xFFFFFF, 1.2));
+  const dirLight = xthree.add(new THREE.DirectionalLight(0xFFFFFF, 1.7));
+  dirLight.position.set(2, 5, 10);
 
-  const stage = xthree.nest(new THREE.Object3D()); // VRM を差し替える土台
+  const stage = xthree.add(new THREE.Object3D()); // VRM を差し替える土台
 
-  // 焼くジョブ: 敵4体（spin）→ 自機（固定）。store は焼き上がりの保存先。
-  const jobs = [
-    ...ENEMY_FILES.map((file, i) => ({ url: asset(file), spin: true, store: (textures) => { texturesList[i] = textures; } })),
-    { url: asset(PLAYER_FILE), spin: false, store: (textures) => { playerTextures = textures; } },
-  ];
-
+  // 焼くジョブ: 敵4体（spin）→ 自機（固定）。
   // VRM は並列プリフェッチ（読み込みは CPU のみ。GPU 負荷はベイク時に逐次発生する）。
-  const loadings = jobs.map((job) => loadVrm(job.url));
+  const jobs = [
+    ...ENEMY_FILES.map((file) => ({ url: asset(file), spin: true })),
+    { url: asset(PLAYER_FILE), spin: false },
+  ];
+  for (const job of jobs) { job.loading = loadVrm(job.url); }
 
   // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
   // 「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でスプライトのバッチ描画も効く）。
-  // 焼いたコマの貼り込みは xnew.image の ImageData#paste（crop の逆）で行う。
+  // フレーム i のアトラス内左上座標は paste と PIXI sub-texture 切り出しで共有する。
   const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
   const rows = Math.ceil(BAKE_FRAMES / cols);
-  // フレーム i のアトラス内左上座標。paste と PIXI sub-texture 切り出しで共有する。
   const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
-  let jobIndex = 0;
-  let current = null; // 焼成中ジョブの状態（null = ロード待ち or 全完了）
+  // 焼成を毎フレーム少しずつ進めるための「次の render tick まで待つ」プリミティブ。
+  let resumeRender = null;
+  unit.on('render', () => { const resume = resumeRender; resumeRender = null; resume?.(); });
+  const nextRenderTick = () => new Promise((r) => { resumeRender = r; });
 
-  function startNextJob() {
-    if (jobIndex >= jobs.length) {
-      // 全キャラ完了 → 焼き機の WebGL コンテキストと GPU リソースを明示的に解放する
-      // （xthree の finalize は renderer を dispose しないため、ここでやらないと残留する）
-      composer.dispose();
-      ssaoPass.dispose();
-      xthree.renderer.dispose();
-      xthree.renderer.forceContextLoss();
-      resolve();
-      return;
-    }
-    loadings[jobIndex].then((vrm) => {
-      const wrapper = new THREE.Object3D(); // 旧 Model.threeObject 相当。回転はこれに当てる
+  // VRM を順に差し替えて逐次ベイクする。旧実装はキャラ毎にこの一式を立てて5体を並列に焼いており、
+  // 起動時にパイプラインが5本同時存在＝GPU 圧迫の主因だった（DEVNOTES §5）。逐次化でピーク GPU は
+  // VRM 1体分に下がる（その代わり起動は数百ms 長くなる）。
+  (async () => {
+    const BATCH = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
+    for (const job of jobs) {
+      const vrm = await job.loading;
+      const wrapper = new THREE.Object3D(); // 回転はこれに当てる（旧 Model.threeObject 相当）
       wrapper.add(vrm.scene);
       stage.add(wrapper);
+
       const atlasCanvas = document.createElement('canvas');
       [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
       const atlas = xnew.image.from(atlasCanvas);
-      current = { job: jobs[jobIndex], vrm, wrapper, atlas, frameIndex: 0 };
-    });
-  }
 
-  startNextJob();
+      for (let i = 0; i < BAKE_FRAMES; i += BATCH) {
+        await nextRenderTick();
+        for (let f = i; f < Math.min(i + BATCH, BAKE_FRAMES); f++) {
+          poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
+          composer.render();
+          // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap なし）
+          atlas.paste(offscreen, ...framePos(f));
+        }
+      }
 
-  unit.on('render', () => {
-    if (current === null) return;
-    const { job, vrm, wrapper, atlas } = current;
-
-    const batch = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
-    for (let i = current.frameIndex; i < Math.min(current.frameIndex + batch, BAKE_FRAMES); i++) {
-      const t = i * (Math.PI / BAKE_FRAMES * 3);
-      poseFrame({ vrm, threeObject: wrapper }, t, job.spin);
-
-      composer.render();
-      // OffscreenCanvas は CanvasImageSource なので、render 直後の canvas を直接アトラスへ貼り込む
-      // （中間 ImageBitmap を介さない）。
-      atlas.paste(xthree.canvas, ...framePos(i));
-    }
-    current.frameIndex += batch;
-
-    if (current.frameIndex >= BAKE_FRAMES) {
       // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
       const source = PIXI.Texture.from(atlas.canvas).source;
-      const textures = [];
-      for (let i = 0; i < BAKE_FRAMES; i++) {
-        const [x, y] = framePos(i);
-        textures.push(new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
-      }
-      job.store(textures);
+      job.textures = Array.from({ length: BAKE_FRAMES }, (_, f) => {
+        const [x, y] = framePos(f);
+        return new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
+      });
 
-      // このキャラを舞台から外し GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
+      // 舞台から外し GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
       stage.remove(wrapper);
       disposeVrmObject(vrm.scene);
-
-      current = null;
-      jobIndex++;
-      startNextJob();
     }
-  });
+
+    // 全キャラ完了 → 焼き機の WebGL コンテキストと GPU リソースを明示的に解放する
+    // （xthree の finalize は renderer を dispose しないため、ここでやらないと残留する）
+    composer.dispose();
+    ssaoPass.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
+    resolve();
+  })();
 
   return {
-    get texturesList() { return texturesList; },
-    get playerTextures() { return playerTextures; },
+    get texturesList() { return jobs.slice(0, ENEMY_FILES.length).map((job) => job.textures); },
+    get playerTextures() { return jobs[jobs.length - 1].textures; },
   };
 }
 
@@ -296,7 +283,7 @@ function TitleCharacters(_unit) {
   for (const spot of spots) xnew(TitleFactor, { stage, tl, ...spot });
 
   // 中央の中国うさぎ（下1/3が画面下に隠れるよう中心を下げる）
-  xnew.promise(PIXI.Assets.load(asset('usagi03.png'))).then((texture) => {
+  xpixi.load(asset('usagi03.png')).then((texture) => {
     const usagi = new PIXI.Sprite(texture);
     usagi.anchor.set(0.5);
     const H = 456;                               // 表示する高さ(px)（元の 380 の約1.2倍）

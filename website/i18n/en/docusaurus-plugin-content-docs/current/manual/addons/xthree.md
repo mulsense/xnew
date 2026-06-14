@@ -67,19 +67,39 @@ function Main(unit) {
 
 ### `xthree.nest(threeObject)`
 
-Adds `threeObject` as a child of the current Three.js parent and returns it. When the unit is destroyed, the object is removed from the scene automatically.
+Adds `threeObject` as a child of the current Three.js parent (the root `scene`, or the nearest enclosing nest) and returns it. When the unit is destroyed, the object is removed from the scene automatically.
+
+In addition, `nest` **makes `threeObject` the current parent**. Anything `nest`-ed or `add`-ed in descendant units therefore goes inside this `threeObject`. Use it to build a container (an `Object3D` / `Group` you want to move or rotate as a whole).
 
 ```js
-function Box(unit) {
-  const object = xthree.nest(new THREE.Object3D());
-  object.position.set(0, 0, 0);
+function Scene(unit) {
+  const group = xthree.nest(new THREE.Object3D()); // group becomes the current parent
+  xnew(Box); // whatever Box nests goes inside group
 
-  const mesh = new THREE.Mesh(
+  unit.on('update', () => group.rotation.y += 0.01); // the whole group rotates
+}
+
+function Box(unit) {
+  const object = xthree.nest(new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0x4488ff })
-  );
-  object.add(mesh);
+  ));
+}
+```
 
-  unit.on('update', () => object.rotation.y += 0.01);
+:::note
+Because `nest` switches the current parent, **calling `nest` twice in the same unit nests the second object inside the first**. If you just want several objects under the same parent, use `add`.
+:::
+
+### `xthree.add(threeObject)`
+
+Adds `threeObject` as a child of the current Three.js parent and returns it. Unlike `nest`, it **does not change the current parent**. Use it to place several objects as siblings under the same parent. Automatic removal on unit destroy works the same as `nest`.
+
+```js
+function Lights(unit) {
+  // all added as siblings directly under scene (not nested into each other)
+  xthree.add(new THREE.AmbientLight(0xffffff, 1.0));
+  const dir = xthree.add(new THREE.DirectionalLight(0xffffff, 1.5));
+  dir.position.set(2, 5, 10);
 }
 ```

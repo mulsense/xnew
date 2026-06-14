@@ -67,19 +67,39 @@ function Main(unit) {
 
 ### `xthree.nest(threeObject)`
 
-`threeObject` を現在の Three.js 親オブジェクトの子として追加し、そのまま返します。unit が破棄されると、対象オブジェクトはシーンから自動的に取り除かれます。
+`threeObject` を現在の Three.js 親オブジェクト（ルートの `scene`、または最も近い enclosing nest）の子として追加し、そのまま返します。unit が破棄されると、対象オブジェクトはシーンから自動的に取り除かれます。
+
+さらに `nest` は **現在の親オブジェクトを `threeObject` に切り替えます**。そのため、子孫の unit で `nest` / `add` したものはこの `threeObject` の中に入ります。コンテナ（まとめて移動・回転させたい `Object3D` / `Group`）を作るときに使います。
 
 ```js
-function Box(unit) {
-  const object = xthree.nest(new THREE.Object3D());
-  object.position.set(0, 0, 0);
+function Scene(unit) {
+  const group = xthree.nest(new THREE.Object3D()); // 以降この group が親になる
+  xnew(Box); // Box の中で nest したものは group の子になる
 
-  const mesh = new THREE.Mesh(
+  unit.on('update', () => group.rotation.y += 0.01); // group ごと回る
+}
+
+function Box(unit) {
+  const object = xthree.nest(new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0x4488ff })
-  );
-  object.add(mesh);
+  ));
+}
+```
 
-  unit.on('update', () => object.rotation.y += 0.01);
+:::note
+`nest` は親を切り替えるため、**同じ unit 内で `nest` を2回呼ぶと、2回目は1回目の子として入れ子になります**。同じ親の下に複数のオブジェクトを並べたいだけなら `add` を使ってください。
+:::
+
+### `xthree.add(threeObject)`
+
+`threeObject` を現在の Three.js 親オブジェクトの子として追加し、そのまま返します。`nest` と違い **現在の親オブジェクトは変えません**。複数のオブジェクトを同じ親の下に兄弟として並べたいときに使います。unit 破棄時の自動除去は `nest` と同じです。
+
+```js
+function Lights(unit) {
+  // どれも scene 直下の兄弟として追加される（互いに入れ子にならない）
+  xthree.add(new THREE.AmbientLight(0xffffff, 1.0));
+  const dir = xthree.add(new THREE.DirectionalLight(0xffffff, 1.5));
+  dir.position.set(2, 5, 10);
 }
 ```
