@@ -937,11 +937,6 @@ const xnew$1 = Object.assign((function (...args) {
         Unit.currentUnit._.promises.push(unitPromise);
         return unitPromise;
     }),
-    then(callback) {
-        const completion = UnitPromise.all([...Unit.currentUnit._.promises]).then(callback);
-        Unit.currentUnit._.promises.push(completion);
-        return completion;
-    },
     scope(callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
         return (...args) => Unit.scope(snapshot, callback, ...args);

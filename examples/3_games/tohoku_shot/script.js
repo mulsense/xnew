@@ -169,16 +169,18 @@ function BakedCharacters(unit) {
 
   // VRM を並列プリフェッチ。各ロードを xnew.promise で登録し、結果を vrms に溜める（読み込みは CPU のみ）。
   const vrms = [];
-  jobs.forEach((job, i) => {
-    xnew.promise(loadVrm(job.url).then((vrm) => { vrms[i] = vrm; }));
+  const loads = jobs.map((job, i) => {
+    const load = loadVrm(job.url).then((vrm) => { vrms[i] = vrm; });
+    xnew.promise(load);
+    return load;
   });
 
-  // 全 VRM ロード後（xnew.then は登録済み=ロードだけを待つ）に、unit scope 内でベイクする
-  // （xnew.promise の executor は xnew.scope で包まれるので中で xthree.add / remove が効く）。
-  // 返した xnew.promise の resolve が「全キャラ焼き終わった」の合図で、xnew.then がこれを待って
-  // unit の完了とするので Contents は焼き上がりまで待つ（戻り値の UnitPromise は内側 promise に
-  // unwrap されて flatten される）。
-  xnew.then(() => xnew.promise((resolve) => {
+  // 焼き上がりを表す deferred。init 時に同期登録するので Contents はこれを待つ（unit の完了に含まれる）。
+  const baked = xnew.promise();
+
+  // 全 VRM ロード後に unit scope 内でベイクする。xnew.scope で unit scope を張り直してから焼き機を
+  // 起動する（中で xthree.add / remove が効く）。全キャラ焼き終わったら baked.resolve() で完了通知する。
+  Promise.all(loads).then(xnew.scope(() => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
     const wrapper = xthree.add(new THREE.Object3D());
 
@@ -196,7 +198,7 @@ function BakedCharacters(unit) {
         ssaoPass.dispose();
         renderer.dispose();
         renderer.forceContextLoss();
-        resolve();
+        baked.resolve();
         return;
       }
       wrapper.add(vrms[jobIndex].scene);
