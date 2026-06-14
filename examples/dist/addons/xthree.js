@@ -29,6 +29,11 @@
         },
         nest(object) {
             xnew(Nest, { object });
+            xnew.extend(() => {
+                return {
+                    get threeObject() { return object; }
+                };
+            });
             return object;
         },
         add(object) {
