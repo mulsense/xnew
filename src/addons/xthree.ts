@@ -7,12 +7,13 @@
 //                        descendant units (and later nests in the same unit) go *inside* it.
 //   - `add(object3D)`  : attach only; does NOT change the current parent (use to place siblings).
 // Both remove the object from its parent on Unit finalize and traverse descendants disposing
-// geometry / material to release GPU resources.
+// geometry / material to release GPU resources. `remove(object3D)` does that same detach + dispose
+// on demand (e.g. swapping a model out of a bake rig before its Unit finalizes).
 //
 // Caveat: `nest` is stateful — two `nest` calls in the same unit produce two nesting levels.
 // Reach for `add` when you just want several objects under the same parent.
 //
-// - default : { initialize, nest, add, renderer, camera, scene, canvas }
+// - default : { initialize, nest, add, remove, renderer, camera, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
 import xnew from '@mulsense/xnew';
@@ -31,6 +32,11 @@ export default {
     },
     add(object: any) {
         xnew(Add, { object });
+        return object;
+    },
+    remove(object: any) {
+        object.parent?.remove(object);
+        disposeObject(object);
         return object;
     },
     get renderer() {
@@ -62,6 +68,24 @@ function Root(unit: xnew.Unit, { canvas, camera }: any) {
     }
 }
 
+// object 配下の geometry / material / texture を辿って dispose し、GPU リソースを解放する。
+function disposeObject(object: any): void {
+    object.traverse((obj: any) => {
+        if (!obj.isMesh) return;
+        obj.geometry?.dispose();
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const material of materials) {
+            if (!material) continue;
+            // material が参照する texture も解放する
+            for (const key in material) {
+                const value = material[key];
+                if (value && value.isTexture) value.dispose();
+            }
+            material.dispose();
+        }
+    });
+}
+
 // 現在の THREE 親（root scene か最も近い enclosing nest）へ object を追加し、finalize 時に
 // 親から外して配下の geometry / material を dispose する。nest / add の共有処理。
 function attach(unit: xnew.Unit, object: any): void {
@@ -71,17 +95,7 @@ function attach(unit: xnew.Unit, object: any): void {
     parent.add(object);
     unit.on('finalize', () => {
         parent.remove(object);
-
-        object.traverse((obj: any) => {
-            if (obj.isMesh) {
-                obj.geometry.dispose();
-                if (Array.isArray(obj.material)) {
-                    obj.material.forEach((mat: any) => mat.dispose());
-                } else {
-                    obj.material.dispose();
-                }
-            }
-        });
+        disposeObject(object);
     });
 }
 

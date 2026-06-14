@@ -94,24 +94,6 @@ function loadVrm(url) {
   });
 }
 
-// ベイク済み VRM の GPU リソース（geometry / material / texture）を解放する。
-// 次のキャラを焼く前に呼び、GPU 常駐を「同時に VRM 1体分」へ抑える。
-function disposeVrmObject(object) {
-  object.traverse((obj) => {
-    if (!obj.isMesh) return;
-    obj.geometry?.dispose();
-    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const material of materials) {
-      if (!material) continue;
-      for (const key in material) {
-        const value = material[key];
-        if (value && value.isTexture) value.dispose();
-      }
-      material.dispose();
-    }
-  });
-}
-
 // 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。
 // spin=true: くるくる回る敵 / false: 後ろ向き固定の自機。
 // t は 1 周期 [0, 3π) を BAKE_FRAMES 等分して張る。回転は t=3π で 2π の倍数に戻り、
@@ -142,21 +124,19 @@ function poseFrame(model, t, spin) {
 }
 
 function BakedCharacters(unit) {
-  const { resolve } = xnew.promise();
-
   // --- 焼き機（共有部分）を1セットだけ構築する ---
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   const offscreen = new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE);
   xthree.initialize({ camera, canvas: offscreen });
   xthree.camera.position.set(0, -0.1, 2.5);
 
-  // xthree.* ゲッターは xnew.context(Root)（= Unit.currentUnit）に依存するため、await を跨ぐ
-  // 焼成ループ内からは解決できない。レンダラと描画先 canvas は同期的に掴んでおく。
+  // RenderPass / SSAOPass・末尾の解放用に renderer / scene を掴んでおく（同期セットアップ）。
   const renderer = xthree.renderer;
+  const scene = xthree.scene;
 
   const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(xthree.scene, xthree.camera));
-  const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
+  composer.addPass(new RenderPass(scene, xthree.camera));
+  const ssaoPass = new SSAOPass(scene, xthree.camera, offscreen.width, offscreen.height);
   // OrthographicCamera 用: シェーダーのデフォルト PERSPECTIVE_CAMERA=1 を両マテリアルで上書き
   for (const material of [ssaoPass.ssaoMaterial, ssaoPass.depthRenderMaterial]) {
     material.defines['PERSPECTIVE_CAMERA'] = 0;
@@ -168,21 +148,17 @@ function BakedCharacters(unit) {
   composer.addPass(ssaoPass);
   composer.addPass(new OutputPass());
 
-  // ライトと土台は scene 直下に兄弟として並べる（nest だと2回目以降が前のオブジェクト配下に
-  // 入れ子になってしまうため add を使う）。
+  // ライトは scene 直下に兄弟として並べる（nest だと2個目が前のオブジェクト配下に入れ子に
+  // なってしまうため add を使う）。
   xthree.add(new THREE.AmbientLight(0xFFFFFF, 1.2));
   const dirLight = xthree.add(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   dirLight.position.set(2, 5, 10);
 
-  const stage = xthree.add(new THREE.Object3D()); // VRM を差し替える土台
-
   // 焼くジョブ: 敵4体（spin）→ 自機（固定）。
-  // VRM は並列プリフェッチ（読み込みは CPU のみ。GPU 負荷はベイク時に逐次発生する）。
   const jobs = [
     ...ENEMY_FILES.map((file) => ({ url: asset(file), spin: true })),
     { url: asset(PLAYER_FILE), spin: false },
   ];
-  for (const job of jobs) { job.loading = loadVrm(job.url); }
 
   // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
   // 「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でスプライトのバッチ描画も効く）。
@@ -191,35 +167,62 @@ function BakedCharacters(unit) {
   const rows = Math.ceil(BAKE_FRAMES / cols);
   const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
-  // 焼成を毎フレーム少しずつ進めるための「次の render tick まで待つ」プリミティブ。
-  let resumeRender = null;
-  unit.on('render', () => { const resume = resumeRender; resumeRender = null; resume?.(); });
-  const nextRenderTick = () => new Promise((r) => { resumeRender = r; });
+  // VRM を並列プリフェッチ。各ロードを xnew.promise で登録し、結果を vrms に溜める（読み込みは CPU のみ）。
+  const vrms = [];
+  jobs.forEach((job, i) => {
+    xnew.promise(loadVrm(job.url).then((vrm) => { vrms[i] = vrm; }));
+  });
 
-  // VRM を順に差し替えて逐次ベイクする。旧実装はキャラ毎にこの一式を立てて5体を並列に焼いており、
-  // 起動時にパイプラインが5本同時存在＝GPU 圧迫の主因だった（DEVNOTES §5）。逐次化でピーク GPU は
-  // VRM 1体分に下がる（その代わり起動は数百ms 長くなる）。
-  (async () => {
+  // 全 VRM ロード後（xnew.then は登録済み=ロードだけを待つ）に、unit scope 内でベイクする
+  // （xnew.promise の executor は xnew.scope で包まれるので中で xthree.add / remove が効く）。
+  // 返した xnew.promise の resolve が「全キャラ焼き終わった」の合図で、xnew.then がこれを待って
+  // unit の完了とするので Contents は焼き上がりまで待つ（戻り値の UnitPromise は内側 promise に
+  // unwrap されて flatten される）。
+  xnew.then(() => xnew.promise((resolve) => {
+    // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
+    const wrapper = xthree.add(new THREE.Object3D());
+
     const BATCH = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
-    for (const job of jobs) {
-      const vrm = await job.loading;
-      const wrapper = new THREE.Object3D(); // 回転はこれに当てる（旧 Model.threeObject 相当）
-      wrapper.add(vrm.scene);
-      stage.add(wrapper);
+    let jobIndex = 0;
+    let frameIndex = 0;
+    let atlas = null;
 
+    // 次のキャラの焼成準備（VRM を wrapper にマウントし貼り込み先アトラスを用意）。
+    // 全キャラ終わったら焼き機の GPU リソースを解放して完了通知する。
+    function startJob() {
+      if (jobIndex >= jobs.length) {
+        // xthree の finalize は renderer を dispose しないため、ここで明示的に解放する
+        composer.dispose();
+        ssaoPass.dispose();
+        renderer.dispose();
+        renderer.forceContextLoss();
+        resolve();
+        return;
+      }
+      wrapper.add(vrms[jobIndex].scene);
       const atlasCanvas = document.createElement('canvas');
       [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-      const atlas = xnew.image.from(atlasCanvas);
+      atlas = xnew.image.from(atlasCanvas);
+      frameIndex = 0;
+    }
+    startJob();
 
-      for (let i = 0; i < BAKE_FRAMES; i += BATCH) {
-        await nextRenderTick();
-        for (let f = i; f < Math.min(i + BATCH, BAKE_FRAMES); f++) {
-          poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
-          composer.render();
-          // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap なし）
-          atlas.paste(offscreen, ...framePos(f));
-        }
+    // 旧実装はキャラ毎に焼き機一式を立てて5体を並列に焼いており、起動時にパイプラインが5本同時
+    // 存在＝GPU 圧迫の主因だった（DEVNOTES §5）。1台の焼き機で VRM を差し替えつつ render tick
+    // ごとに少しずつ焼くことで、ピーク GPU を VRM 1体分に抑える。
+    unit.on('render', () => {
+      if (jobIndex >= jobs.length) return;
+      const job = jobs[jobIndex];
+      const vrm = vrms[jobIndex];
+
+      for (let f = frameIndex; f < Math.min(frameIndex + BATCH, BAKE_FRAMES); f++) {
+        poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
+        composer.render();
+        // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap なし）
+        atlas.paste(offscreen, ...framePos(f));
       }
+      frameIndex += BATCH;
+      if (frameIndex < BAKE_FRAMES) return;
 
       // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
       const source = PIXI.Texture.from(atlas.canvas).source;
@@ -228,19 +231,12 @@ function BakedCharacters(unit) {
         return new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
       });
 
-      // 舞台から外し GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
-      stage.remove(wrapper);
-      disposeVrmObject(vrm.scene);
-    }
-
-    // 全キャラ完了 → 焼き機の WebGL コンテキストと GPU リソースを明示的に解放する
-    // （xthree の finalize は renderer を dispose しないため、ここでやらないと残留する）
-    composer.dispose();
-    ssaoPass.dispose();
-    renderer.dispose();
-    renderer.forceContextLoss();
-    resolve();
-  })();
+      // wrapper から外して GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
+      xthree.remove(vrm.scene);
+      jobIndex++;
+      startJob();
+    });
+  }));
 
   return {
     get texturesList() { return jobs.slice(0, ENEMY_FILES.length).map((job) => job.textures); },

@@ -125,7 +125,6 @@ declare class UnitPromise {
     finally(callback: Function): UnitPromise;
     static all(promises: UnitPromise[]): UnitPromise;
     static results(promises: UnitPromise[]): UnitPromise;
-    private wrap;
 }
 declare class UnitTimer {
     private unit;
@@ -408,6 +407,7 @@ declare const xnew: XnewBase & {
         (promise: Function | Promise<any> | Unit): UnitPromise;
         (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
     };
+    then(callback: Function): UnitPromise;
     scope(callback: any): any;
     find(Component: Function, opts?: {
         key?: any;

@@ -107,3 +107,24 @@ test('finalize: ユニット破棄で親から外れる', () => {
     child.finalize();
     expect(obj.parent).toBe(null);
 });
+
+test('remove: その時点の親から外して配下の geometry/material/texture を dispose する', () => {
+    const canvas = setup();
+    const rig = new THREE.Object3D();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    rig.add(mesh); // rig は scene へ、mesh は rig の子（焼成リグ相当）
+
+    const geoSpy = jest.spyOn(mesh.geometry, 'dispose');
+    const matSpy = jest.spyOn(mesh.material, 'dispose');
+
+    xnew(() => {
+        xthree.initialize({ canvas });
+        xthree.add(rig);
+        xthree.remove(mesh); // 親(rig)から外して dispose
+    });
+
+    expect(mesh.parent).toBe(null);
+    expect(rig.children).not.toContain(mesh);
+    expect(geoSpy).toHaveBeenCalled();
+    expect(matSpy).toHaveBeenCalled();
+});

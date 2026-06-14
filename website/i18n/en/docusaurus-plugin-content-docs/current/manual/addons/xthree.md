@@ -103,3 +103,14 @@ function Lights(unit) {
   dir.position.set(2, 5, 10);
 }
 ```
+
+### `xthree.remove(threeObject)`
+
+Detaches `threeObject` from its current parent and disposes the geometry / material / texture of its descendants to free GPU resources — the same cleanup `nest` / `add` run on unit destroy, performed on demand. Useful when swapping models through a single rig: call it before mounting the next model.
+
+```js
+// bake several VRMs through one rig
+rig.add(vrm.scene);
+// …render / bake…
+xthree.remove(vrm.scene); // detach from the rig and free GPU resources
+```

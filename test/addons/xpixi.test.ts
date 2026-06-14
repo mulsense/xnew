@@ -111,3 +111,20 @@ test('finalize: ユニット破棄で親から外れる', () => {
     child.finalize();
     expect(obj.parent).toBe(null);
 });
+
+test('remove: その時点の親から外して destroy する', () => {
+    const canvas = setup();
+    const obj = new PIXI.Container();
+    let scene;
+
+    xnew(() => {
+        xpixi.initialize({ canvas });
+        scene = xpixi.scene;
+        xpixi.add(obj);
+        xpixi.remove(obj);
+    });
+
+    expect(scene.children).not.toContain(obj);
+    expect(obj.parent).toBe(null);
+    expect(obj.destroyed).toBe(true);
+});

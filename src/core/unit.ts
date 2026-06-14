@@ -496,9 +496,30 @@ export class UnitPromise {
     public key?: string;
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
-    public then(callback: Function): UnitPromise { return this.wrap('then', callback); }
-    public catch(callback: Function): UnitPromise { return this.wrap('catch', callback); }
-    public finally(callback: Function): UnitPromise { return this.wrap('finally', callback); }
+    public then(callback: Function): UnitPromise {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.then((...args: any[]) => {
+            const result = Unit.scope(snapshot, callback, ...args);
+            return result instanceof UnitPromise ? result.promise : result;
+        });
+        return this;
+    }
+    public catch(callback: Function): UnitPromise {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.catch((...args: any[]) => {
+            const result = Unit.scope(snapshot, callback, ...args);
+            return result instanceof UnitPromise ? result.promise : result;
+        });
+        return this;
+    }
+    public finally(callback: Function): UnitPromise {
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.finally(() => {
+            const result = Unit.scope(snapshot, callback);
+            return result instanceof UnitPromise ? result.promise : result;
+        });
+        return this;
+    }
 
     public static all(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
@@ -515,12 +536,6 @@ export class UnitPromise {
                 return out;
             })
         );
-    }
-
-    private wrap(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = (this.promise[method] as Function)((...args: any[]) => Unit.scope(snapshot, callback, ...args));
-        return this;
     }
 }
 

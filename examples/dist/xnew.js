@@ -776,9 +776,30 @@
     Unit.type2units = new MapSet();
     class UnitPromise {
         constructor(promise, key) { this.promise = promise; this.key = key; }
-        then(callback) { return this.wrap('then', callback); }
-        catch(callback) { return this.wrap('catch', callback); }
-        finally(callback) { return this.wrap('finally', callback); }
+        then(callback) {
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.then((...args) => {
+                const result = Unit.scope(snapshot, callback, ...args);
+                return result instanceof UnitPromise ? result.promise : result;
+            });
+            return this;
+        }
+        catch(callback) {
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.catch((...args) => {
+                const result = Unit.scope(snapshot, callback, ...args);
+                return result instanceof UnitPromise ? result.promise : result;
+            });
+            return this;
+        }
+        finally(callback) {
+            const snapshot = Unit.snapshot(Unit.currentUnit);
+            this.promise = this.promise.finally(() => {
+                const result = Unit.scope(snapshot, callback);
+                return result instanceof UnitPromise ? result.promise : result;
+            });
+            return this;
+        }
         static all(promises) {
             return new UnitPromise(Promise.all(promises.map(p => p.promise)));
         }
@@ -792,11 +813,6 @@
                 });
                 return out;
             }));
-        }
-        wrap(method, callback) {
-            const snapshot = Unit.snapshot(Unit.currentUnit);
-            this.promise = this.promise[method]((...args) => Unit.scope(snapshot, callback, ...args));
-            return this;
         }
     }
     class UnitTimer {
@@ -927,6 +943,11 @@
             Unit.currentUnit._.promises.push(unitPromise);
             return unitPromise;
         }),
+        then(callback) {
+            const completion = UnitPromise.all([...Unit.currentUnit._.promises]).then(callback);
+            Unit.currentUnit._.promises.push(completion);
+            return completion;
+        },
         scope(callback) {
             const snapshot = Unit.snapshot(Unit.currentUnit);
             return (...args) => Unit.scope(snapshot, callback, ...args);

@@ -13,6 +13,10 @@ var xpixi = {
         xnew(Add, { object });
         return object;
     },
+    remove(object) {
+        removeObject(object);
+        return object;
+    },
     load(source) {
         return xnew.promise(PIXI.Assets.load(source));
     },
@@ -44,19 +48,21 @@ function Root(unit, { canvas }) {
         get canvas() { return canvas; },
     };
 }
+function removeObject(object) {
+    if (object.destroyed === true)
+        return;
+    const parent = object.parent;
+    if (parent && parent.destroyed !== true) {
+        parent.removeChild(object);
+    }
+    object.destroy({ children: true });
+}
 function attach(unit, object) {
     var _a, _b;
     const root = xnew.context(Root);
     const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.pixiObject) !== null && _b !== void 0 ? _b : root.scene;
     parent.addChild(object);
-    unit.on('finalize', () => {
-        if (object.destroyed === true)
-            return;
-        if (parent && parent.destroyed !== true) {
-            parent.removeChild(object);
-        }
-        object.destroy({ children: true });
-    });
+    unit.on('finalize', () => removeObject(object));
 }
 function Nest(unit, { object }) {
     attach(unit, object);

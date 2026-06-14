@@ -7,6 +7,7 @@ declare const _default: {
     }): void;
     nest(object: any): any;
     add(object: any): any;
+    remove(object: any): any;
     readonly renderer: any;
     readonly camera: THREE.Camera;
     readonly scene: THREE.Scene;

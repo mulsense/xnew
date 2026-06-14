@@ -6,6 +6,7 @@ declare const _default: {
     }): void;
     nest(object: any): any;
     add(object: any): any;
+    remove(object: any): any;
     load(source: string | string[]): any;
     readonly renderer: any;
     readonly scene: PIXI.Container;

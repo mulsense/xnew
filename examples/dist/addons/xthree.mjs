@@ -13,6 +13,12 @@ var xthree = {
         xnew(Add, { object });
         return object;
     },
+    remove(object) {
+        var _a;
+        (_a = object.parent) === null || _a === void 0 ? void 0 : _a.remove(object);
+        disposeObject(object);
+        return object;
+    },
     get renderer() {
         var _a;
         return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.renderer;
@@ -42,6 +48,25 @@ function Root(unit, { canvas, camera }) {
         get scene() { return scene; },
     };
 }
+function disposeObject(object) {
+    object.traverse((obj) => {
+        var _a;
+        if (!obj.isMesh)
+            return;
+        (_a = obj.geometry) === null || _a === void 0 ? void 0 : _a.dispose();
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const material of materials) {
+            if (!material)
+                continue;
+            for (const key in material) {
+                const value = material[key];
+                if (value && value.isTexture)
+                    value.dispose();
+            }
+            material.dispose();
+        }
+    });
+}
 function attach(unit, object) {
     var _a, _b;
     const root = xnew.context(Root);
@@ -49,17 +74,7 @@ function attach(unit, object) {
     parent.add(object);
     unit.on('finalize', () => {
         parent.remove(object);
-        object.traverse((obj) => {
-            if (obj.isMesh) {
-                obj.geometry.dispose();
-                if (Array.isArray(obj.material)) {
-                    obj.material.forEach((mat) => mat.dispose());
-                }
-                else {
-                    obj.material.dispose();
-                }
-            }
-        });
+        disposeObject(object);
     });
 }
 function Nest(unit, { object }) {

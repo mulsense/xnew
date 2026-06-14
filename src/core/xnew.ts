@@ -104,6 +104,20 @@ export const xnew = Object.assign(
             (key: string, promise: Function | Promise<any> | Unit): UnitPromise;
         },
 
+        /**
+         * 直列ステップ。呼び出し時点で登録済みの promise（= ここまでに xnew.promise したもの）が解決
+         * したら callback を unit scope 内で実行する。トリガーはスナップショットなので、これ以降に登録
+         * した promise は待たない（後から完了通知を足してもデッドロックしない）。
+         * 返り値の UnitPromise は unit に登録されるため、unit.promise は callback の完了（callback が
+         * promise を返した場合はその解決）まで待つ。これにより `xnew.then(() => new Promise(...))` の形で
+         * 「ロード後に走り、その完了を unit の完了に含める」非同期ステップが書ける。
+         */
+        then(callback: Function): UnitPromise {
+            const completion = UnitPromise.all([...Unit.currentUnit._.promises]).then(callback);
+            Unit.currentUnit._.promises.push(completion);
+            return completion;
+        },
+
         /** Wraps a callback so it later runs in the current unit scope（setTimeout 等の外部コールバック用）。 */
         scope(callback: any): any {
             const snapshot = Unit.snapshot(Unit.currentUnit);

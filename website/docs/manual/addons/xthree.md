@@ -103,3 +103,14 @@ function Lights(unit) {
   dir.position.set(2, 5, 10);
 }
 ```
+
+### `xthree.remove(threeObject)`
+
+`threeObject` をその時点の親オブジェクトから外し、配下の geometry / material / texture を dispose して GPU リソースを解放します（`nest` / `add` した unit が破棄されるときの処理を、任意のタイミングで手動で行うもの）。同じリグにモデルを差し替えながら使うようなケースで、次のモデルを載せる前に呼びます。
+
+```js
+// 1台のリグに VRM を載せ替えながら順に焼く例
+rig.add(vrm.scene);
+// …描画・ベイク…
+xthree.remove(vrm.scene); // リグから外して GPU リソースを解放
+```
