@@ -560,16 +560,31 @@ export class UnitPromise {
     }
 
     // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
+    // キーが `name[index]` 形式なら out[name] を配列にして index 要素へ格納する（穴は許容 = sparse）。
     public static results(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(
             Promise.all(promises.map(p => p.promise)).then((values) => {
                 const out: Record<string, any> = {};
                 promises.forEach((p, i) => {
-                    if (p.key !== undefined) { out[p.key] = values[i]; }
+                    if (p.key !== undefined) { UnitPromise.assignKey(out, p.key, values[i]); }
                 });
                 return out;
             })
         );
+    }
+
+    // キーを集約オブジェクトへ代入する。`name[index]`（配列1段）はその name を配列にして格納し、
+    // それ以外はフラットなキーとして代入する。
+    private static assignKey(out: Record<string, any>, key: string, value: any): void {
+        const matched = key.match(/^(.+)\[(\d+)\]$/);
+        if (matched !== null) {
+            const name = matched[1];
+            const index = Number(matched[2]);
+            if (Array.isArray(out[name]) === false) { out[name] = []; }
+            out[name][index] = value;
+        } else {
+            out[key] = value;
+        }
     }
 }
 

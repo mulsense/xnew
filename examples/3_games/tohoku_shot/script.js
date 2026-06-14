@@ -167,16 +167,16 @@ function BakedCharacters(unit) {
   const rows = Math.ceil(BAKE_FRAMES / cols);
   const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
-  // VRM を並列プリフェッチ。各ロードを xnew.promise で登録し、結果を vrms に溜める（読み込みは CPU のみ）。
-  const vrms = [];
+  // VRM を並列プリフェッチ（読み込みは CPU のみ）。'vrms[i]' キーで登録すると、結果が配列 vrms として
+  // unit.promise.then の callback に注入される。
   jobs.forEach((job, i) => {
-    xnew.promise(loadVrm(job.url).then((vrm) => { vrms[i] = vrm; }));
+    xnew.promise(`vrms[${i}]`, loadVrm(job.url));
   });
 
   // 全 VRM ロード後にベイクする。unit.promise.then の callback は登録済み promise（= 上のロード）の
   // 解決後に unit scope 内で走る（中で xthree.add / remove が効く）。内部で xnew.promise を立て、全キャラ
   // 焼き終わったら resolve() で完了通知する。この完了は unit に畳み込まれるので Contents は焼き上がりまで待つ。
-  unit.promise.then(() => {
+  unit.promise.then(({ vrms }) => {
     const { resolve } = xnew.promise();
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
     const wrapper = xthree.add(new THREE.Object3D());

@@ -380,4 +380,48 @@ describe('xnew promise helpers', () => {
             expect(done).not.toHaveBeenCalled();
         });
     });
+
+    describe('xnew.promise — array-index keys (name[index])', () => {
+        it('aggregates name[index] keys into an array under name', async () => {
+            const got = jest.fn();
+            xnew((u) => {
+                xnew.promise('vrms[0]', Promise.resolve('a'));
+                xnew.promise('vrms[1]', Promise.resolve('b'));
+                u.promise.then(got);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(got).toHaveBeenCalledWith({ vrms: ['a', 'b'] });
+        });
+
+        it('creates a sparse array when only a higher index is set', async () => {
+            const got = jest.fn();
+            xnew((u) => {
+                xnew.promise('vrms[1]', Promise.resolve('b'));
+                u.promise.then(got);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            const arg = got.mock.calls[0][0];
+            expect(Array.isArray(arg.vrms)).toBe(true);
+            expect(arg.vrms.length).toBe(2);
+            expect(arg.vrms[1]).toBe('b');
+            expect(0 in arg.vrms).toBe(false); // index 0 は穴
+        });
+
+        it('keeps plain keys flat alongside array-index keys', async () => {
+            const got = jest.fn();
+            xnew((u) => {
+                xnew.promise('vrms[0]', Promise.resolve('a'));
+                xnew.promise('ready', Promise.resolve(1));
+                u.promise.then(got);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(got).toHaveBeenCalledWith({ vrms: ['a'], ready: 1 });
+        });
+    });
 });

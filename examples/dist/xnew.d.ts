@@ -128,6 +128,7 @@ declare class UnitPromise {
     static root(unit: Unit): UnitPromise;
     private static stage;
     static results(promises: UnitPromise[]): UnitPromise;
+    private static assignKey;
 }
 declare class UnitTimer {
     private unit;

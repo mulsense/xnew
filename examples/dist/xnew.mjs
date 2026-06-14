@@ -822,11 +822,25 @@ class UnitPromise {
             const out = {};
             promises.forEach((p, i) => {
                 if (p.key !== undefined) {
-                    out[p.key] = values[i];
+                    UnitPromise.assignKey(out, p.key, values[i]);
                 }
             });
             return out;
         }));
+    }
+    static assignKey(out, key, value) {
+        const matched = key.match(/^(.+)\[(\d+)\]$/);
+        if (matched !== null) {
+            const name = matched[1];
+            const index = Number(matched[2]);
+            if (Array.isArray(out[name]) === false) {
+                out[name] = [];
+            }
+            out[name][index] = value;
+        }
+        else {
+            out[key] = value;
+        }
     }
 }
 class UnitTimer {
