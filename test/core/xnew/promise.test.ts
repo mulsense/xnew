@@ -55,6 +55,87 @@ describe('xnew promise helpers', () => {
         });
     });
 
+    describe('unit.promise.then — staging', () => {
+        it('folds an xnew.promise registered inside the callback into the .then completion', async () => {
+            // unit.promise.then の callback 内で xnew.promise を登録すると、その解決まで
+            // .then の完了が待たれる（cb の return ではなく内部登録の解決が完了を意味する）。
+            const onDone = jest.fn();
+            let release!: () => void;
+            const unit = xnew((u) => {
+                xnew.promise(Promise.resolve(1));
+                u.promise.then(() => {
+                    const { resolve } = xnew.promise();
+                    release = () => resolve();
+                });
+            });
+            // 外から完了を観測（このスナップショットに「.then の完了」が同期登録されている前提）。
+            unit.promise.then(onDone);
+
+            await jest.advanceTimersByTimeAsync(0);
+            expect(onDone).not.toHaveBeenCalled(); // 内部 xnew.promise が未解決 → 完了しない
+
+            release();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(onDone).toHaveBeenCalledTimes(1);
+        });
+
+        it('serializes: a later unit.promise.then waits for an earlier one to settle', async () => {
+            const order: string[] = [];
+            let releaseFirst!: () => void;
+            xnew((u) => {
+                u.promise.then(() => {
+                    const { resolve } = xnew.promise();
+                    releaseFirst = () => { order.push('first'); resolve(); };
+                });
+                u.promise.then(() => { order.push('second'); });
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+            expect(order).toEqual([]); // first がまだ解決していない → second も走らない
+
+            releaseFirst();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(order).toEqual(['first', 'second']);
+        });
+
+        it('completes when the callback returns if it registers no inner promise', async () => {
+            const onDone = jest.fn();
+            const unit = xnew((u) => {
+                xnew.promise(Promise.resolve(1));
+                u.promise.then(() => { /* 内部登録なし → cb 終了が完了 */ });
+            });
+            unit.promise.then(onDone);
+
+            await jest.advanceTimersByTimeAsync(0);
+            expect(onDone).toHaveBeenCalledTimes(1);
+        });
+
+        it('a parent waiting on the child (xnew.promise(child)) waits for a deferred staged inside the child', async () => {
+            // tohoku_shot のパターン: 子の unit.promise.then 内で立てた deferred を、親が xnew.promise(child)
+            // 経由で待つ。staged 完了が子の _.promises に同期登録されるため、親のスナップショットに含まれる。
+            const parentDone = jest.fn();
+            let release!: () => void;
+            function Child(u: Unit) {
+                xnew.promise(Promise.resolve(1)); // load
+                u.promise.then(() => {            // stage: bake
+                    const { resolve } = xnew.promise();
+                    release = () => resolve();
+                });
+            }
+            xnew((p) => {
+                xnew.promise(xnew(Child)); // 親は子 unit の完了を待つ
+                p.promise.then(parentDone);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+            expect(parentDone).not.toHaveBeenCalled(); // 子の bake 未完 → 親も未完
+
+            release();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(parentDone).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('unit.promise.catch', () => {
         it('runs with the rejection reason when a registered promise rejects', async () => {
             const caught = jest.fn();

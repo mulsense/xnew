@@ -495,7 +495,7 @@ class Unit {
         return this._.currentElement;
     }
     get promise() {
-        return UnitPromise.results(this._.promises);
+        return UnitPromise.root(this);
     }
     start() {
         this._.tostart = true;
@@ -771,6 +771,9 @@ Unit.type2units = new MapSet();
 class UnitPromise {
     constructor(promise, key) { this.promise = promise; this.key = key; }
     then(callback) {
+        if (this.rootUnit !== undefined) {
+            return UnitPromise.stage(this.rootUnit, this, callback);
+        }
         const snapshot = Unit.snapshot(Unit.currentUnit);
         this.promise = this.promise.then((...args) => {
             const result = Unit.scope(snapshot, callback, ...args);
@@ -796,6 +799,23 @@ class UnitPromise {
     }
     static all(promises) {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+    }
+    static root(unit) {
+        const root = UnitPromise.results(unit._.promises);
+        root.rootUnit = unit;
+        return root;
+    }
+    static stage(unit, trigger, callback) {
+        const scope = Unit.snapshot(unit);
+        const completion = new UnitPromise(trigger.promise.then((results) => Unit.scope(scope, () => {
+            const before = unit._.promises.length;
+            const returned = callback(results);
+            const registered = unit._.promises.slice(before);
+            const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
+            return Promise.all([tail, ...registered.map((p) => p.promise)]);
+        })));
+        unit._.promises.push(completion);
+        return completion;
     }
     static results(promises) {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {

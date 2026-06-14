@@ -119,11 +119,14 @@ declare class Unit {
 declare class UnitPromise {
     private promise;
     key?: string;
+    private rootUnit?;
     constructor(promise: Promise<any>, key?: string);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
     static all(promises: UnitPromise[]): UnitPromise;
+    static root(unit: Unit): UnitPromise;
+    private static stage;
     static results(promises: UnitPromise[]): UnitPromise;
 }
 declare class UnitTimer {

@@ -180,10 +180,11 @@ export class Unit {
         return this._.currentElement;
     }
 
-    // この unit に登録された全 promise を集約した UnitPromise。
-    // .then は keyed results で resolve / どれか reject で reject するので .catch・.finally もこれ 1 つで足りる。
+    // この unit に登録された全 promise を集約した UnitPromise（ルート集約）。
+    // .then は「直列ステージ登録」（callback の完了 — 内部 xnew.promise 含む — を unit へ畳み込む）。
+    // .catch / .finally は keyed results / reject に対する純粋観測。
     public get promise(): UnitPromise {
-        return UnitPromise.results(this._.promises);
+        return UnitPromise.root(this);
     }
 
     public start(): void {
@@ -494,9 +495,16 @@ export class Unit {
 export class UnitPromise {
     private promise: Promise<any>;
     public key?: string;
+    // unit.promise が返すルート集約だけに付く。これが立っていると .then は「ステージ登録」になる
+    // （汎用 UnitPromise の .then は従来どおりのチェーン）。
+    private rootUnit?: Unit;
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
     public then(callback: Function): UnitPromise {
+        // ルート集約に対する .then は、完了を unit へ畳み込む直列ステージにする。
+        if (this.rootUnit !== undefined) {
+            return UnitPromise.stage(this.rootUnit, this, callback);
+        }
         const snapshot = Unit.snapshot(Unit.currentUnit);
         this.promise = this.promise.then((...args: any[]) => {
             const result = Unit.scope(snapshot, callback, ...args);
@@ -523,6 +531,32 @@ export class UnitPromise {
 
     public static all(promises: UnitPromise[]): UnitPromise {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+    }
+
+    // unit.promise が返すルート集約。.then だけがステージ動作（rootUnit で分岐）。.catch / .finally は純粋観測。
+    public static root(unit: Unit): UnitPromise {
+        const root = UnitPromise.results(unit._.promises);
+        root.rootUnit = unit;
+        return root;
+    }
+
+    // 直列ステージ: trigger（ルート集約 = ここまでの登録）が解決したら callback を unit scope で実行し、
+    // その完了（callback の戻り promise ＋ callback 内で同期登録した xnew.promise）を unit に同期登録する。
+    // 完了が _.promises に入るので、次の unit.promise.then や外部の観測はこのステージを待つ。
+    private static stage(unit: Unit, trigger: UnitPromise, callback: Function): UnitPromise {
+        const scope = Unit.snapshot(unit);
+        const completion = new UnitPromise(
+            trigger.promise.then((results: any) => Unit.scope(scope, () => {
+                const before = unit._.promises.length;
+                const returned = callback(results);
+                // callback 実行中に同期登録された promise（= 内部の xnew.promise）を畳み込む。
+                const registered = unit._.promises.slice(before);
+                const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
+                return Promise.all([tail, ...registered.map((p) => p.promise)]);
+            }))
+        );
+        unit._.promises.push(completion);
+        return completion;
     }
 
     // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
