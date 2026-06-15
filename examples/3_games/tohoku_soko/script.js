@@ -400,7 +400,7 @@ function Box(box, { x, y }) {
   });
   let random = { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 };
   const offset = { x: 0, y: 0 };
-  box.promise.then(() => {
+  xnew.promise(box).then(() => {
     box.on('update', () => {
       const position = convert3d(x - offset.x, y - offset.y, boxSize / 2);
       object.position.set(position.x + random.x, position.y + random.y, position.z);
@@ -529,7 +529,7 @@ function Model(unit, { id = 0, scale }) {
   });
 
   const offset = Math.random() * 10;
-  unit.promise.then(() => {
+  xnew.promise(unit).then(() => {
     let count = 0;
     unit.on('update', () => {
       const neck = vrm.humanoid.getNormalizedBoneNode('neck');

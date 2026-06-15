@@ -11,13 +11,13 @@ describe('xnew promise helpers', () => {
         jest.useRealTimers();
     });
 
-    describe('unit.promise.then', () => {
+    describe('xnew.promise(unit).then', () => {
         it('runs once after all registered promises resolve', async () => {
             const done = jest.fn();
             xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
                 xnew.promise(Promise.resolve(2));
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -30,7 +30,7 @@ describe('xnew promise helpers', () => {
             xnew((unit) => {
                 xnew.promise(Promise.resolve('fast'));
                 xnew.promise(new Promise((resolve) => setTimeout(() => resolve('slow'), 100)));
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -44,7 +44,7 @@ describe('xnew promise helpers', () => {
             const done = jest.fn();
             xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -55,21 +55,21 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('unit.promise.then — staging', () => {
+    describe('xnew.promise(unit).then — staging', () => {
         it('folds an xnew.promise registered inside the callback into the .then completion', async () => {
-            // unit.promise.then の callback 内で xnew.promise を登録すると、その解決まで
+            // xnew.promise(unit).then の callback 内で xnew.promise を登録すると、その解決まで
             // .then の完了が待たれる（cb の return ではなく内部登録の解決が完了を意味する）。
             const onDone = jest.fn();
             let release!: () => void;
             const unit = xnew((u) => {
                 xnew.promise(Promise.resolve(1));
-                u.promise.then(() => {
+                xnew.promise(u).then(() => {
                     const { resolve } = xnew.promise();
                     release = () => resolve();
                 });
             });
             // 外から完了を観測（このスナップショットに「.then の完了」が同期登録されている前提）。
-            unit.promise.then(onDone);
+            xnew.promise(unit).then(onDone);
 
             await jest.advanceTimersByTimeAsync(0);
             expect(onDone).not.toHaveBeenCalled(); // 内部 xnew.promise が未解決 → 完了しない
@@ -79,15 +79,15 @@ describe('xnew promise helpers', () => {
             expect(onDone).toHaveBeenCalledTimes(1);
         });
 
-        it('serializes: a later unit.promise.then waits for an earlier one to settle', async () => {
+        it('serializes: a later xnew.promise(unit).then waits for an earlier one to settle', async () => {
             const order: string[] = [];
             let releaseFirst!: () => void;
             xnew((u) => {
-                u.promise.then(() => {
+                xnew.promise(u).then(() => {
                     const { resolve } = xnew.promise();
                     releaseFirst = () => { order.push('first'); resolve(); };
                 });
-                u.promise.then(() => { order.push('second'); });
+                xnew.promise(u).then(() => { order.push('second'); });
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -102,29 +102,29 @@ describe('xnew promise helpers', () => {
             const onDone = jest.fn();
             const unit = xnew((u) => {
                 xnew.promise(Promise.resolve(1));
-                u.promise.then(() => { /* 内部登録なし → cb 終了が完了 */ });
+                xnew.promise(u).then(() => { /* 内部登録なし → cb 終了が完了 */ });
             });
-            unit.promise.then(onDone);
+            xnew.promise(unit).then(onDone);
 
             await jest.advanceTimersByTimeAsync(0);
             expect(onDone).toHaveBeenCalledTimes(1);
         });
 
         it('a parent waiting on the child (xnew.promise(child)) waits for a deferred staged inside the child', async () => {
-            // tohoku_shot のパターン: 子の unit.promise.then 内で立てた deferred を、親が xnew.promise(child)
+            // tohoku_shot のパターン: 子の xnew.promise(unit).then 内で立てた deferred を、親が xnew.promise(child)
             // 経由で待つ。staged 完了が子の _.promises に同期登録されるため、親のスナップショットに含まれる。
             const parentDone = jest.fn();
             let release!: () => void;
             function Child(u: Unit) {
                 xnew.promise(Promise.resolve(1)); // load
-                u.promise.then(() => {            // stage: bake
+                xnew.promise(u).then(() => {            // stage: bake
                     const { resolve } = xnew.promise();
                     release = () => resolve();
                 });
             }
             xnew((p) => {
                 xnew.promise(xnew(Child)); // 親は子 unit の完了を待つ
-                p.promise.then(parentDone);
+                xnew.promise(p).then(parentDone);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -136,13 +136,13 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('unit.promise.catch', () => {
+    describe('xnew.promise(unit).catch', () => {
         it('runs with the rejection reason when a registered promise rejects', async () => {
             const caught = jest.fn();
             xnew((unit) => {
                 xnew.promise(Promise.resolve('ok'));
                 xnew.promise(Promise.reject('boom'));
-                unit.promise.catch(caught);
+                xnew.promise(unit).catch(caught);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -156,7 +156,7 @@ describe('xnew promise helpers', () => {
             xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
                 xnew.promise(Promise.resolve(2));
-                unit.promise.catch(caught);
+                xnew.promise(unit).catch(caught);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -165,13 +165,13 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('unit.promise.finally', () => {
+    describe('xnew.promise(unit).finally', () => {
         it('runs after all registered promises resolve', async () => {
             const onFinally = jest.fn();
             xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
                 xnew.promise(Promise.resolve(2));
-                unit.promise.finally(onFinally);
+                xnew.promise(unit).finally(onFinally);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -184,7 +184,7 @@ describe('xnew promise helpers', () => {
             xnew((unit) => {
                 xnew.promise(Promise.reject('boom'));
                 // attach a catch so the rejection is handled and never surfaces as unhandled
-                unit.promise.finally(onFinally).catch(() => {});
+                xnew.promise(unit).finally(onFinally).catch(() => {});
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -199,7 +199,7 @@ describe('xnew promise helpers', () => {
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew((unit) => {
                 defer = xnew.promise();
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -217,8 +217,8 @@ describe('xnew promise helpers', () => {
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew((unit) => {
                 defer = xnew.promise();
-                unit.promise.then(done);
-                unit.promise.catch(caught);
+                xnew.promise(unit).then(done);
+                xnew.promise(unit).catch(caught);
             });
 
             defer.resolve();
@@ -235,7 +235,7 @@ describe('xnew promise helpers', () => {
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew((unit) => {
                 defer = xnew.promise('ready');
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -252,7 +252,7 @@ describe('xnew promise helpers', () => {
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew((unit) => {
                 defer = xnew.promise();
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             defer.resolve('ignored');
@@ -261,12 +261,12 @@ describe('xnew promise helpers', () => {
             expect(done).toHaveBeenCalledWith({});
         });
 
-        it('rejects via reject() and triggers unit.promise.catch', async () => {
+        it('rejects via reject() and triggers xnew.promise(unit).catch', async () => {
             const caught = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew((unit) => {
                 defer = xnew.promise();
-                unit.promise.catch(caught);
+                xnew.promise(unit).catch(caught);
             });
 
             defer.reject('boom');
@@ -287,13 +287,50 @@ describe('xnew promise helpers', () => {
         });
     });
 
+    describe('promise-rules.md trace (A〜E)', () => {
+        it('C waits for A,B; E waits for A,B,C,D; E runs in the parent scope', async () => {
+            const order: string[] = [];
+            let releaseA!: () => void;
+            let releaseB!: () => void;
+            let releaseD!: () => void;
+
+            function Child(unit: Unit) {
+                const a = xnew.promise('key1'); releaseA = () => a.resolve(1); // A
+                const b = xnew.promise('key2'); releaseB = () => b.resolve(2); // B
+                xnew.promise('key3', unit).then(({ key1, key2 }: any) => {     // C
+                    order.push(`C:${key1},${key2}`);
+                    const d = xnew.promise(); // D（return しない、cb 内で同期登録）
+                    releaseD = () => d.resolve();
+                });
+            }
+            xnew((parent: Unit) => {
+                const child = xnew(Child);
+                xnew.promise(child).then(({ key1, key2 }: any) => {            // E
+                    order.push(`E:${key1},${key2},parentScope=${Unit.currentUnit === parent}`);
+                });
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+            expect(order).toEqual([]); // A,B 未解決 → C も E も走らない
+
+            releaseA();
+            releaseB();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(order).toEqual(['C:1,2']); // C 開始。E は D 待ちでまだ
+
+            releaseD();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(order).toEqual(['C:1,2', 'E:1,2,parentScope=true']); // E 開始（Parent スコープ）
+        });
+    });
+
     describe('keyed xnew.promise', () => {
         it('passes keyed promise values to then under their key', async () => {
             const done = jest.fn();
             xnew((unit) => {
                 xnew.promise('a', Promise.resolve(1));
                 xnew.promise('b', Promise.resolve(2));
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -306,7 +343,7 @@ describe('xnew promise helpers', () => {
             xnew((unit) => {
                 xnew.promise('a', Promise.resolve(1));
                 xnew.promise(Promise.resolve('ignored'));
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -318,7 +355,7 @@ describe('xnew promise helpers', () => {
             const done = jest.fn();
             xnew((unit) => {
                 xnew.promise('a', Promise.resolve(1)).then((v: number) => v + 10).then((v: number) => v * 2);
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -331,7 +368,7 @@ describe('xnew promise helpers', () => {
             xnew((unit) => {
                 xnew.promise('a', Promise.resolve('first'));
                 xnew.promise('a', Promise.resolve('second'));
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -346,7 +383,7 @@ describe('xnew promise helpers', () => {
                     xnew.promise('x', Promise.resolve(7));
                 });
                 xnew.promise('child', child);
-                unit.promise.then(done);
+                xnew.promise(unit).then(done);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -359,7 +396,7 @@ describe('xnew promise helpers', () => {
             const unit = xnew(() => {
                 xnew.promise('x', Promise.resolve(7));
             });
-            unit.promise.then(done);
+            xnew.promise(unit).then(done);
 
             await jest.advanceTimersByTimeAsync(0);
 
@@ -371,8 +408,8 @@ describe('xnew promise helpers', () => {
             xnew((unit) => {
                 xnew.promise('a', Promise.reject('boom'));
                 // attach catch handlers so the rejection never surfaces as unhandled
-                unit.promise.then(done).catch(() => {});
-                unit.promise.catch(() => {});
+                xnew.promise(unit).then(done).catch(() => {});
+                xnew.promise(unit).catch(() => {});
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -387,7 +424,7 @@ describe('xnew promise helpers', () => {
             xnew((u) => {
                 xnew.promise('vrms[]', Promise.resolve('a'));
                 xnew.promise('vrms[]', Promise.resolve('b'));
-                u.promise.then(got);
+                xnew.promise(u).then(got);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -401,7 +438,7 @@ describe('xnew promise helpers', () => {
             xnew((u) => {
                 xnew.promise('vrms[]', new Promise((res) => { resolveFirst = res; }));
                 xnew.promise('vrms[]', Promise.resolve('b'));
-                u.promise.then(got);
+                xnew.promise(u).then(got);
             });
 
             await jest.advanceTimersByTimeAsync(0);
@@ -416,7 +453,7 @@ describe('xnew promise helpers', () => {
             xnew((u) => {
                 xnew.promise('vrms[]', Promise.resolve('a'));
                 xnew.promise('ready', Promise.resolve(1));
-                u.promise.then(got);
+                xnew.promise(u).then(got);
             });
 
             await jest.advanceTimersByTimeAsync(0);

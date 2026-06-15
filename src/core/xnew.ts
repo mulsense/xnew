@@ -7,7 +7,7 @@
 //
 // - xnew.nest / extend                   : 初期化中の Unit を拡張
 // - xnew.find / context                  : Component による検索 / 祖先コンテキスト解決
-// - xnew.promise                         : Unit に promise を登録（集約は unit.promise で .then/.catch/.finally）
+// - xnew.promise                         : Unit に promise を登録（集約リザルトは xnew.promise(unit) で取得し .then/.catch/.finally）
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
 // - xnew.server / client                 : mode 限定の extend

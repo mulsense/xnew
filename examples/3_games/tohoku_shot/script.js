@@ -189,7 +189,7 @@ function BakedCharacters(unit) {
 
   // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。内部で xnew.promise を立て、全キャラ
   // 焼き終えたら resolve()。この完了は unit に畳まれ、Contents は焼き上がりまで待つ。
-  unit.promise.then(({ vrms }) => {
+  xnew.promise(unit).then(({ vrms }) => {
     const { resolve } = xnew.promise();
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
     const wrapper = xthree.add(new THREE.Object3D());
