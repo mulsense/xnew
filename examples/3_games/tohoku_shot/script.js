@@ -261,7 +261,7 @@ function TitleScene(unit, { skipStory = false } = {}) {
   xnew(TouchMessage, { color: 'text-blue-600' });
   xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
-  unit.on('pointerdown window.keydown.space', ({ event }) => {
+  unit.on('pointerdown keydown.space', ({ event }) => {
     event.preventDefault();
     unit.change(skipStory ? GameScene : StoryScene);
   });
@@ -340,7 +340,7 @@ function StoryScene(unit) {
 
   let busy = false;
 
-  unit.on('pointerdown window.keydown.space', ({ event }) => {
+  unit.on('pointerdown keydown.space', ({ event }) => {
     event.preventDefault();
     if (busy) return;
     busy = true;
@@ -544,7 +544,7 @@ function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew(ResultDetail, { score, wave, kills, cleared });
   xnew(ResultFooter, { onBack: () => unit.change(TitleScene, { skipStory: true }) });
 
-  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); });
+  unit.on('keydown.space', ({ event }) => { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); });
 }
 
 // ---- Wave system ----
@@ -1101,7 +1101,7 @@ function PulseGlow(unit) {
 }
 
 function Controller(unit) {
-  unit.on('touchstart contextmenu wheel window.keydown', (e) => e.event?.preventDefault());
+  unit.on('touchstart contextmenu wheel keydown', (e) => e.event?.preventDefault());
 
   xnew(() => {
     xnew.nest('<div class="absolute left-0 right-0 bottom-0 w-full h-[30%] pointer-events-none" style="container-type: size;">');
@@ -1111,8 +1111,8 @@ function Controller(unit) {
     dpad.on('pointerdown', ({ event }) => event.stopPropagation());
   });
 
-  unit.on('pointerdown window.keydown.space', () => xnew.emit('+shot'));
-  unit.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
+  unit.on('pointerdown keydown.space', () => xnew.emit('+shot'));
+  unit.on('keydown.arrow keyup.arrow keydown.wasd keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
 }
 
 function ScoreManager(unit) {
