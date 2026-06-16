@@ -3,13 +3,13 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
-import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ResultBackground, ResultImage, ResultFooter, TitleText, TouchMessage, GameOverText, VolumeControl } from '../utils/ui.js';
 
 // id: 0=zundamon 1=kiritan 2=zunko 3=itako（ずんだ因子＝敵）
 const ENEMY_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
@@ -257,9 +257,9 @@ function TitleScene(unit, { skipStory = false } = {}) {
   xnew(Background);
   xnew(TitleCharacters); // 中央のうさぎ + 周囲で蠢く敵4キャラ（背景の上・HTMLテキストの下）
 
-  xnew(TitleText);
-  xnew(TouchMessage);
-  xnew(VolumeControl);
+  xnew(TitleText, { text: 'とーほくショット', color: 'text-blue-600' });
+  xnew(TouchMessage, { color: 'text-blue-600' });
+  xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
   unit.on('pointerdown window.keydown.space', ({ event }) => {
     event.preventDefault();
@@ -331,7 +331,7 @@ function StoryScene(unit) {
 
   xnew(Background);   // 体内背景を流用（タイトル/ゲームと連続感）
   xnew(CameraShake);  // 被弾時のシェイク演出用
-  xnew(VolumeControl);
+  xnew(VolumeControl, { className: 'text-stone-300 z-10' });
   xnew(StoryTheater); // 下部の黒帯（セリフはこの上に表示）。pages より先に作り、テキストの背面に置く
 
   const pages = [StoryPageHit, StoryPageSwarm];
@@ -508,7 +508,7 @@ function GameScene(unit) {
   xnew(ScoreGauge);
   xnew(ShotEnergy);
   xnew(Player);
-  xnew(VolumeControl);
+  xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
   const bgm = xnew(() => {
     xnew.audio.load(asset('maou_bgm_cyber31.mp3')).then((music) => music.play({ fade: 1000, loop: true }));
@@ -523,7 +523,7 @@ function GameScene(unit) {
     // 最終 wave(4) のゲージを 100% 到達済みなら「クリア」扱い（wave4 は次へ進まないので waveScore で判定）
     const cleared = wave >= WAVE_GOALS.length && scoreManager.waveScore >= WAVE_GOALS[WAVE_GOALS.length - 1];
     const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
-    xnew(GameOverText);
+    xnew(GameOverText, { className: 'left-0 right-[25cqw]' });
     xnew.timeout(() => unit.change(ResultScene, { image, score, wave, kills, cleared }), 2000);
   });
 }
@@ -539,10 +539,10 @@ function ResultScene(unit, { image, score, wave, kills, cleared }) {
     Object.assign(unit.element.style, { opacity: value, transform: `scale(${0.8 + value * 0.2})` });
   }, 500, 'ease');
 
-  xnew(ResultBackground);
-  xnew(ResultImage, { image });
+  xnew(ResultBackground, { gradient: 'from-slate-900 to-blue-950', textColor: 'text-blue-800' });
+  xnew(ResultImage, { image, boxClass: 'bottom-[14cqw] left-[2cqw] w-[56cqw] aspect-4/3' });
   xnew(ResultDetail, { score, wave, kills, cleared });
-  xnew(ResultFooter);
+  xnew(ResultFooter, { onBack: () => unit.change(TitleScene, { skipStory: true }) });
 
   unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); });
 }
@@ -1146,14 +1146,6 @@ function ScoreManager(unit) {
   };
 }
 
-function GameOverText(unit) {
-  xnew.nest('<div class="absolute left-0 right-[25cqw] text-center text-red-400 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
-  xnew.transition(({ value }) => {
-    Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
-  }, 1000, 'ease');
-}
-
 function Player(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(PLAY_RIGHT / 2, 500);
@@ -1627,31 +1619,6 @@ function SoundFX(unit) {
 
 // ---- Result screen ----
 
-function ResultBackground(unit) {
-  xnew.nest(`<div class="relative size-full bg-linear-to-br from-slate-900 to-blue-950">`);
-  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-blue-800">', 'Result');
-
-  // ランダム配置した白丸を sin で明滅させる。transform は種類ごとに変える（浮遊 / きらめき）。
-  function floatingCircle(sizeCqw, transform) {
-    const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${sizeCqw}cqw; height: ${sizeCqw}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
-    circle.on('update', ({ count }) => {
-      const p = count * 0.02;
-      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: transform(p) });
-    });
-  }
-
-  for (let i = 0; i < 20; i++) floatingCircle(Math.random() * 2 + 2, (p) => `translateY(${Math.sin(p) * 20}px)`);
-  for (let i = 0; i < 30; i++) floatingCircle(1, (p) => `scale(${1 + Math.sin(p) * 0.1})`);
-}
-
-function ResultImage(unit, { image }) {
-  // キャプチャは 800x600(4:3) なので、表示枠も 4:3 にして全体を表示する
-  xnew.nest('<div class="absolute bottom-[14cqw] left-[2cqw] w-[56cqw] aspect-4/3 rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
-  const img = xnew('<img class="absolute inset-0 size-full object-cover">');
-  image?.then((src) => img.element.src = src);
-}
-
 function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0], cleared = false }) {
   xnew.nest('<div class="absolute bottom-[10cqw] right-[2cqw] w-[38cqw] bg-gray-100 px-[1.5cqw] py-[2.5cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
   xnew('<div class="text-[3.5cqw] text-center text-red-400 mb-[1.5cqw]">', '🦠 駆逐した数 🦠');
@@ -1687,70 +1654,3 @@ function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0], cleared = false
   });
 }
 
-function ResultFooter(unit) {
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', Camera);
-    button.on('click', () => xnew(ScreenShot));
-    xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
-  });
-
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    xnew('<div class="text-[3cqw] font-bold">', '戻る');
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
-    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene, { skipStory: true }));
-  });
-}
-
-function ScreenShot(unit) {
-  xnew.nest(xnew.context(Main).element);
-  const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white">');
-  xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
-  .timeout(() => {
-    html2canvas(unit.element, { scale: 2, logging: false, useCORS: true }).then((canvas) => {
-      xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
-    });
-    unit.finalize();
-  });
-}
-
-// ---- UI Helpers ----
-
-function VolumeControl(unit) {
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[6cqw] text-stone-300 z-10">',
-    xnew.basics.VolumeController, { anchor: 'left' });
-}
-
-function TitleText(unit) {
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-blue-600 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'とーほくショット', fontSize: '10cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
-}
-
-function TouchMessage(unit) {
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
-  unit.on('update', ({ count }) => unit.element.style.opacity = 0.6 + Math.sin(count * 0.08) * 0.4);
-}
-
-// 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。
-function RingIcon(unit, { paths }) {
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
-    for (const d of paths) xnew(`<path d="${d}">`);
-  });
-}
-
-function Camera(unit) {
-  xnew.extend(RingIcon, { paths: [
-    'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z',
-    'M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z',
-  ] });
-}
-
-function ArrowUturnLeft(unit) {
-  xnew.extend(RingIcon, { paths: ['M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3'] });
-}

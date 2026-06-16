@@ -1,7 +1,6 @@
 import * as PIXI from 'pixi.js';
 import Matter from 'matter-js';
 import * as THREE from 'three';
-import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import voxelkit from 'voxelkit';
@@ -9,6 +8,7 @@ import xnew from '@mulsense/xnew';
 import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import xmatter from '@mulsense/xnew/addons/xmatter';
+import { ResultBackground, ResultImage, ResultFooter, TitleText, TouchMessage, GameOverText, VolumeControl } from '../utils/ui.js';
 
 xnew(document.querySelector('#main'), Main);
 
@@ -69,10 +69,9 @@ function TitleScene(unit) {
   xnew(ThreeTexture); // render three.js canvas as pixi texture
   unit.on('pointerdown', () => unit.change(GameScene));
 
-  xnew(TitleText);
-  xnew(TouchMessage);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[6cqw] text-stone-500">', 
-    xnew.basics.VolumeController, { anchor: 'left' });
+  xnew(TitleText, { text: 'とーほくドロップ', color: 'text-green-600' });
+  xnew(TouchMessage, { color: 'text-green-600' });
+  xnew(VolumeControl, { className: 'text-stone-500' });
 }
 
 function GameScene(unit) {
@@ -93,8 +92,7 @@ function GameScene(unit) {
   xnew(Queue);
   xnew(ThreeTexture); // render three.js canvas as pixi texture
   xnew(ScoreText);
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[6cqw] text-stone-500">', 
-    xnew.basics.VolumeController, { anchor: 'left' });
+  xnew(VolumeControl, { className: 'text-stone-500' });
 
   const playing = xnew((unit) => {
     xnew(Controller);
@@ -128,10 +126,10 @@ function ResultScene(unit, { image }) {
     Object.assign(unit.element.style, { opacity: value, transform: `scale(${0.8 + value * 0.2})` });
   }, 500, 'ease');
 
-  xnew(ResultBackground);
-  xnew(ResultImage, { image });
+  xnew(ResultBackground, { gradient: 'from-stone-300 to-stone-400', textColor: 'text-stone-400' });
+  xnew(ResultImage, { image, boxClass: 'bottom-[12cqw] left-[2cqw] size-[45cqw]' });
   xnew(ResultDetail);
-  xnew(ResultFooter);
+  xnew(ResultFooter, { onBack: () => unit.change(TitleScene) });
 }
 
 function Background(unit) {
@@ -148,18 +146,6 @@ function ThreeTexture(unit) {
   const object = xpixi.nest(new PIXI.Sprite(texture));
 }
 
-function TitleText(unit) {
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-green-600 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'とーほくドロップ', fontSize: '10cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
-}
-
-function TouchMessage(unit) {
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-green-600 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
-  let count = 0;
-  unit.on('update', () => unit.element.style.opacity = 0.6 + Math.sin(count++ * 0.08) * 0.4);
-}
-
 function ScoreText(unit) {
   xnew.nest('<div class="absolute top-[1cqw] right-[2cqw] w-full text-right text-green-600 font-bold">');
   const text = xnew(xnew.basics.SVGText, { text: 'score 0', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
@@ -168,46 +154,6 @@ function ScoreText(unit) {
     text.element.textContent = `score ${sum += Math.pow(2, score)}`;
     xnew.context(GameData).scores[score]++;
   });
-}
-
-function GameOverText(unit) {
-  xnew.nest('<div class="absolute w-full text-center text-red-400 font-bold">');
-  xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
-  xnew.transition(({ value }) => {
-    Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
-  }, 1000, 'ease');
-}
-
-function ResultImage(unit, { image }) {
-  xnew.nest('<div class="absolute bottom-[12cqw] left-[2cqw] size-[45cqw] rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
-  const img = xnew('<img class="absolute inset-0 size-full object-cover">');
-  image?.then((src) => img.element.src = src);
-}
-
-function ResultBackground(unit) {
-  xnew.nest(`<div class="relative size-full bg-linear-to-br from-stone-300 to-stone-400">`);
-  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-stone-400">', 'Result');
-  
-  // floating circle
-  for (let i = 0; i < 20; i++) {
-    const [x, y, size] = [Math.random() * 100, Math.random() * 100, Math.random() * 2 + 2];
-    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${size}cqw; height: ${size}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
-    let p = 0;
-    circle.on('update', () => {
-      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `translateY(${Math.sin(p) * 20}px)` });
-      p += 0.02;
-    });
-  }
-  // twinkle circle
-  for (let i = 0; i < 30; i++) {
-    const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: 1cqw; height: 1cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
-    let p = 0;
-    circle.on('update', () => {
-      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: `scale(${1 + Math.sin(p) * 0.1})` });
-      p += 0.02;
-    });
-  }
 }
 
 function ResultDetail(unit) {
@@ -232,21 +178,6 @@ function ResultDetail(unit) {
         xnew('<div class="text-[2cqw] opacity-20">', text);
       }
     });
-  });
-}
-
-function ResultFooter(unit) {
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', Camera);
-    button.on('click', () => xnew(ScreenShot));
-    xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
-  });
-
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    xnew('<div class="text-[3cqw] font-bold">', '戻る');
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
-    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene));
   });
 }
 
@@ -485,37 +416,3 @@ function convert3d(x, y, z = 0) {
   return { x: (x - xpixi.canvas.width / 2) / 70, y: - (y - xpixi.canvas.height / 2) / 70, z: z };
 }
 
-function ScreenShot(unit) {
-  xnew.nest(xnew.context(Main).element);
-  const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white">');
-  xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
-  .timeout(() => {
-    html2canvas(unit.element, { scale: 2,  logging: false, useCORS: true }).then((canvas) => {
-      xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
-    });
-    unit.finalize();
-  });
-}
-
-function Camera(unit){
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
-    xnew('<path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z" />');
-    xnew('<path d="M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z" />');
-  });
-}
-
-function ArrowUturnLeft(unit){
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', (unit) => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5, });
-    xnew('<path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" />');
-  });
-}
