@@ -370,6 +370,45 @@ describe('Eventor', () => {
         });
     });
 
+    describe('keyboard without the window. prefix (defaults to window)', () => {
+        it('passes { event } for bare keydown on the window and filters repeat', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'keydown', listener);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', repeat: true }));
+            expect(listener).not.toHaveBeenCalled();
+
+            const fresh = new KeyboardEvent('keydown', { code: 'KeyX', repeat: false });
+            window.dispatchEvent(fresh);
+            expect(listener).toHaveBeenCalledWith({ event: fresh });
+        });
+
+        it('accumulates a vector for bare keydown.arrow', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'keydown.arrow', listener);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp' }));
+            expect(listener).toHaveBeenLastCalledWith(
+                expect.objectContaining({ vector: { x: 0, y: -1 } }),
+            );
+        });
+
+        it('fires a bare named-key binding (keydown.space) on the window', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'keydown.space', listener);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
+            expect(listener).not.toHaveBeenCalled();
+
+            const space = new KeyboardEvent('keydown', { code: 'Space' });
+            window.dispatchEvent(space);
+            expect(listener).toHaveBeenCalledWith({ event: space });
+        });
+    });
+
     // jsdom does not implement ResizeObserver, so the 'resize' element binding cannot be driven.
     it.todo('passes {} for a resize binding (jsdom: ResizeObserver not implemented)');
 
