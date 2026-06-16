@@ -22,11 +22,6 @@ const asset = (name) => `../../assets/${name}`;
 // その wave で主役になる敵 id（wave1→0 … wave4 以降はイタコ=3 で頭打ち）。
 const enemyIdForWave = (wave) => Math.min(wave - 1, ENEMY_FILES.length - 1);
 
-// 縁取り付きテキスト（SVGText）の薄いラッパー。className は常に inline-block。
-// stroke / strokeWidth は見出しごとに変わるので引数で受ける。
-const svgText = (text, fontSize, stroke = '#EEEEEE', strokeWidth = '0.2cqw') =>
-  xnew(xnew.basics.SVGText, { text, fontSize, stroke, strokeWidth, className: 'inline-block' });
-
 // ベイク設定。フレーム数を減らすほど GPU 常駐テクスチャと起動時負荷が減る（その分コマが粗くなる）。
 // 再生周期は 360 枚時代（60fps で約6秒/ループ）を保つよう BAKE_ANIMATION_SPEED で補正する。
 const BAKE_FRAMES = 120;
@@ -67,7 +62,7 @@ const bakedSprite = (textures) => {
 };
 
 // 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。
-const RingIcon = (paths) => () => {
+function RingIcon(_unit, { paths }) {
   xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', () => {
     xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
     xnew('<circle cx="12" cy="12" r="11">');
@@ -76,7 +71,7 @@ const RingIcon = (paths) => () => {
     xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
     for (const d of paths) xnew(`<path d="${d}">`);
   });
-};
+}
 
 xnew(document.querySelector('#main'), Main);
 
@@ -265,9 +260,10 @@ function TitleScene(unit, { skipStory = false } = {}) {
   xnew(TouchMessage);
   xnew(VolumeControl);
 
-  const advance = () => unit.change(skipStory ? GameScene : StoryScene);
-  unit.on('pointerdown', advance);
-  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); advance(); });
+  unit.on('pointerdown window.keydown.space', ({ event }) => {
+    event.preventDefault();
+    unit.change(skipStory ? GameScene : StoryScene);
+  });
 }
 
 // タイトル画面の主役表示：中央に中国うさぎ（usagi03、下1/3は画面外）、その周囲で敵4キャラが蠢く。
@@ -365,7 +361,7 @@ function StoryTheater(_unit) {
 }
 
 // ストーリーのセリフをサイバーな字幕フレームで表示する（黒帯の上に重ねる）。
-// build でテキスト本文（svgText 群）を構築。accent=アクセント色 / tag=見出しラベル / bottomCqw=下端位置。
+// build でテキスト本文（SVGText 群）を構築。accent=アクセント色 / tag=見出しラベル / bottomCqw=下端位置。
 // ヘッダー（点滅 ● ＋ ▶TAG ＋ 流れる hex ＋ 装飾ライン）／四隅ブラケット＋発光／流れる解析フッター を付与。
 function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
   xnew.nest(`<div class="absolute left-0 right-0 flex flex-col items-center pointer-events-none" style="bottom:${bottomCqw}cqw; font-family: monospace;">`);
@@ -432,9 +428,9 @@ function StoryPageHit(unit) {
   // セリフ（黒帯の中・サイバー字幕）。被弾の驚きをコミカルに。補足は着弾後にフェードイン。
   let sub;
   xnew(StoryDialog, { accent: '#FF8FA3', tag: 'ALERT', bottomCqw: 4.5, build: () => {
-    xnew('<div style="color:#FF8FA3;">', () => { svgText('ずんだアローに当たってしまった！', '5.2cqw', '#0a1830', '0.25cqw'); });
+    xnew('<div style="color:#FF8FA3;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだアローに当たってしまった！', fontSize: '5.2cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
     sub = xnew('<div class="mt-[0.6cqw]" style="color:#FCEFA0; opacity:0;">', () => {
-      svgText('（ずんだアローに当たると、ずんだ餅にされてしまう…）', '2.5cqw', '#0a1830');
+      xnew(xnew.basics.SVGText, { text: '（ずんだアローに当たると、ずんだ餅にされてしまう…）', fontSize: '2.5cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
     });
   } });
 
@@ -481,8 +477,8 @@ function StoryPageSwarm(_unit) {
   }, 200);
 
   xnew(StoryDialog, { accent: '#9BE53C', tag: 'MISSION', bottomCqw: 5, build: () => {
-    xnew('<div class="mb-[0.6cqw]">', () => { svgText('体内の免疫キャラを操作し、', '4cqw', '#0a1830', '0.22cqw'); });
-    xnew('<div style="color:#9BE53C;">', () => { svgText('ずんだ因子の増殖を食い止めろ！', '4.4cqw', '#0a1830', '0.25cqw'); });
+    xnew('<div class="mb-[0.6cqw]">', () => { xnew(xnew.basics.SVGText, { text: '体内の免疫キャラを操作し、', fontSize: '4cqw', stroke: '#0a1830', strokeWidth: '0.22cqw', className: 'inline-block' }); });
+    xnew('<div style="color:#9BE53C;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだ因子の増殖を食い止めろ！', fontSize: '4.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
   } });
 }
 
@@ -728,7 +724,7 @@ function WaveTransition(unit, { wave }) {
 // 右パネル上部の "Wave N" 表示（wave のメインカラーに追従）
 function WaveLabel(unit) {
   xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center font-bold text-lime-400">');
-  const text = svgText('Wave 1', '6cqw', '#102008');
+  const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#102008', strokeWidth: '0.2cqw', className: 'inline-block' });
   followWave(unit, (wave) => {
     text.element.textContent = `Wave ${wave}`;
     unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
@@ -1158,7 +1154,7 @@ function ScoreManager(unit) {
 
 function GameOverText(unit) {
   xnew.nest('<div class="absolute left-0 right-[25cqw] text-center text-red-400 font-bold">');
-  svgText('Game Over', '12cqw');
+  xnew(xnew.basics.SVGText, { text: 'Game Over', fontSize: '12cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   xnew.transition(({ value }) => {
     Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
   }, 1000, 'ease');
@@ -1728,18 +1724,22 @@ function VolumeControl(_unit) {
 
 function TitleText(_unit) {
   xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-blue-600 font-bold">');
-  svgText('とーほくショット', '10cqw');
+  xnew(xnew.basics.SVGText, { text: 'とーほくショット', fontSize: '10cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
 }
 
 function TouchMessage(unit) {
   xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
-  svgText('touch start', '6cqw');
+  xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   unit.on('update', ({ count }) => unit.element.style.opacity = 0.6 + Math.sin(count * 0.08) * 0.4);
 }
 
-const Camera = RingIcon([
-  'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z',
-  'M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z',
-]);
+function Camera(_unit) {
+  xnew.extend(RingIcon, { paths: [
+    'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z',
+    'M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z',
+  ] });
+}
 
-const ArrowUturnLeft = RingIcon(['M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3']);
+function ArrowUturnLeft(_unit) {
+  xnew.extend(RingIcon, { paths: ['M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3'] });
+}
