@@ -82,25 +82,24 @@ export const xnew = Object.assign(
                 let settled = false;
                 let resolve!: (value?: unknown) => void;
                 let reject!: (reason?: unknown) => void;
-                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
-                unitPromise.key = key;
+                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }), key);
                 Unit.currentUnit._.promises.push(unitPromise);
                 return {
                     resolve(value?: unknown) { if (settled) return; settled = true; resolve(value); },
                     reject(reason?: unknown) { if (settled) return; settled = true; reject(reason); },
                 };
-            }
-            let unitPromise: UnitPromise;
-            if (promise instanceof Unit) {
-                unitPromise = UnitPromise.results(promise._.promises);
-            } else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise);
             } else {
-                unitPromise = new UnitPromise(new Promise(xnew.scope(promise)));
+                let unitPromise: UnitPromise;
+                if (promise instanceof Unit) {
+                    unitPromise = UnitPromise.results(promise._.promises, key);
+                } else if (promise instanceof Promise) {
+                    unitPromise = new UnitPromise(promise, key);
+                } else {
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), key);
+                }
+                Unit.currentUnit._.promises.push(unitPromise);
+                return unitPromise;
             }
-            unitPromise.key = key;
-            Unit.currentUnit._.promises.push(unitPromise);
-            return unitPromise;
         }) as {
             (): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             (key: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };

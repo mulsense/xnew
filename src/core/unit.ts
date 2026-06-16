@@ -532,7 +532,7 @@ export class UnitPromise {
 
     // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
     // キーが `name[]` 形式なら out[name] を配列にして登録順に push する。
-    public static results(promises: UnitPromise[]): UnitPromise {
+    public static results(promises: UnitPromise[], key?: string): UnitPromise {
         return new UnitPromise(
             Promise.all(promises.map(p => p.promise)).then((values) => {
                 const out: Record<string, any> = {};
@@ -540,7 +540,8 @@ export class UnitPromise {
                     if (p.key !== undefined) { UnitPromise.assignKey(out, p.key, values[i]); }
                 });
                 return out;
-            })
+            }),
+            key
         );
     }
 
