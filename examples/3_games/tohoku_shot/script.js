@@ -76,18 +76,6 @@ function cornerBrackets({ offset = 0, size, borderW, opacity, color }) {
   }
 }
 
-// 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。
-function RingIcon(unit, { paths }) {
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
-    for (const d of paths) xnew(`<path d="${d}">`);
-  });
-}
-
 xnew(document.querySelector('#main'), Main);
 
 function Main(unit) {
@@ -175,8 +163,6 @@ function BakedCharacters(unit) {
   composer.addPass(ssaoPass);
   composer.addPass(new OutputPass());
 
-  // ライトは scene 直下に兄弟として並べる（nest だと2個目が前のオブジェクト配下に入れ子に
-  // なってしまうため add を使う）。
   xthree.add(new THREE.AmbientLight(0xFFFFFF, 1.2));
   const dirLight = xthree.add(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   dirLight.position.set(2, 5, 10);
@@ -1744,6 +1730,18 @@ function TouchMessage(unit) {
   xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
   xnew(xnew.basics.SVGText, { text: 'touch start', fontSize: '6cqw', stroke: '#EEEEEE', strokeWidth: '0.2cqw', className: 'inline-block' });
   unit.on('update', ({ count }) => unit.element.style.opacity = 0.6 + Math.sin(count * 0.08) * 0.4);
+}
+
+// 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。
+function RingIcon(unit, { paths }) {
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
+    xnew('<circle cx="12" cy="12" r="11">');
+  });
+  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
+    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
+    for (const d of paths) xnew(`<path d="${d}">`);
+  });
 }
 
 function Camera(unit) {
