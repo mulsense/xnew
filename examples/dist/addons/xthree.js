@@ -43,6 +43,10 @@
         remove(object) {
             var _a;
             (_a = object.parent) === null || _a === void 0 ? void 0 : _a.remove(object);
+        },
+        dispose(object) {
+            var _a;
+            (_a = object.parent) === null || _a === void 0 ? void 0 : _a.remove(object);
             disposeObject(object);
         },
         finalize() {
@@ -110,7 +114,6 @@
         parent.add(object);
         unit.on('finalize', () => {
             parent.remove(object);
-            disposeObject(object);
         });
     }
     function Nest(unit, { object }) {

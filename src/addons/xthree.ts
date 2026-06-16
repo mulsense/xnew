@@ -6,9 +6,10 @@
 //   - `nest(object3D)` : attach AND make this object the current parent — subsequent nests in
 //                        descendant units (and later nests in the same unit) go *inside* it.
 //   - `add(object3D)`  : attach only; does NOT change the current parent (use to place siblings).
-// Both remove the object from its parent on Unit finalize and traverse descendants disposing
-// geometry / material to release GPU resources. `remove(object3D)` does that same detach + dispose
-// on demand (e.g. swapping a model out of a bake rig before its Unit finalizes).
+// Both only *detach* the object from its parent on Unit finalize — they do NOT dispose geometry /
+// material / texture, because those resources may be shared across models or cached by the app.
+// `remove(object3D)` likewise detaches only. To release GPU resources, call `dispose(object3D)`
+// explicitly: it detaches AND disposes the object's geometry / material / texture.
 //
 // Caveat: `nest` is stateful — two `nest` calls in the same unit produce two nesting levels.
 // Reach for `add` when you just want several objects under the same parent.
@@ -16,7 +17,7 @@
 // `finalize()` tears down the Root Unit, releasing the renderer (dispose + forceContextLoss). The same
 // release also runs on normal tree teardown, so the WebGL context is never leaked.
 //
-// - default : { initialize, nest, add, remove, finalize, renderer, camera, scene, canvas }
+// - default : { initialize, nest, add, remove, dispose, finalize, renderer, camera, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
 import xnew from '@mulsense/xnew';
@@ -42,7 +43,14 @@ export default {
         xnew(Add, { object });
         return object;
     },
+    // 親から外すだけ。GPU リソース（geometry / material / texture）は解放しない。
+    // 共有・キャッシュされている可能性があるため、解放は明示的な dispose に委ねる。
     remove(object: any) {
+        object.parent?.remove(object);
+    },
+    // 親から外したうえで、配下の geometry / material / texture を辿って dispose し、
+    // GPU リソースを明示的に全解放する。テクスチャ等を他で共有していないことが前提。
+    dispose(object: any) {
         object.parent?.remove(object);
         disposeObject(object);
     },
@@ -105,7 +113,7 @@ function disposeObject(object: any): void {
 }
 
 // 現在の THREE 親（root scene か最も近い enclosing nest）へ object を追加し、finalize 時に
-// 親から外して配下の geometry / material を dispose する。nest / add の共有処理。
+// 親から外す（detach のみ）。GPU リソースは共有の可能性があるため dispose しない。nest / add の共有処理。
 function attach(unit: xnew.Unit, object: any): void {
     const root = xnew.context(Root);
     const parent = xnew.context(Nest)?.threeObject ?? root.scene;
@@ -113,7 +121,6 @@ function attach(unit: xnew.Unit, object: any): void {
     parent.add(object);
     unit.on('finalize', () => {
         parent.remove(object);
-        disposeObject(object);
     });
 }
 
