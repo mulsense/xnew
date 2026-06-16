@@ -1194,18 +1194,23 @@ function Player(unit) {
   });
 }
 
-// 星のテクスチャ（白）を一度だけ生成してキャッシュする。
-// 「くっきりした不透明の星」＋「少しのブラーをかけた淡いグロー」で、形がはっきり読めてコントラストの高い見た目に
-// （以前の加算合成オンリーは形が滲んで分かりにくかった）。各星は同一テクスチャ + tint の Sprite なのでバッチ描画が効く。
-const STAR_TEX_R = 13; // テクスチャ内の星の基準半径。スケールは wantR / STAR_TEX_R。
 let _starTexture = null;
-function starTexture() {
+
+// 星ビジュアル component：共有テクスチャ + tint の Sprite を 1 枚持ち、回転と
+// スケール変動（脈動 twinkle + 寿命に応じた縮み shrink）を内部で計算する。テクスチャ生成も
+// 内包し、初回だけ「くっきりした不透明の星 + 淡いグロー」を焼いてキャッシュへ格納する。
+// 移動・フェード・当たり判定は呼び出し側の責務。共有テクスチャなので破棄時に texture を消さないこと。
+function StarSprite(unit, { color, baseR, spin = 0.15, shrink = 0, twinkleAmp = 0, twinkleFreq = 0.6, life = 60 }) {
+  // 星の共有テクスチャ（白）。初回の StarSprite 生成時に一度だけ焼き、以降は使い回す
+  // （各星は同一テクスチャ + tint の Sprite なのでバッチ描画が効く）。
+  const STAR_TEX_R = 13; // テクスチャ内の星の基準半径。スケールは baseR / STAR_TEX_R。
+ 
   if (_starTexture === null) {
     const c = new PIXI.Container();
     // 下：少しブラーをかけた淡いグロー
     const glow = new PIXI.Graphics().star(0, 0, 5, STAR_TEX_R * 1.2, STAR_TEX_R * 0.55).fill({ color: 0xFFFFFF, alpha: 0.55 });
     glow.filters = [new PIXI.BlurFilter({ strength: 4 })];
-    // 上：くっきりした不透明の星（元のデザインと同じ 5 角・内半径 0.45）＋ コントラスト用の縁取り
+    // 上：くっきりした不透明の星（5 角・内半径 0.45）＋ コントラスト用の縁取り
     const body = new PIXI.Graphics()
       .star(0, 0, 5, STAR_TEX_R, STAR_TEX_R * 0.45).fill({ color: 0xFFFFFF })
       .star(0, 0, 5, STAR_TEX_R, STAR_TEX_R * 0.45).stroke({ color: 0x3A2A12, width: 1.5 });
@@ -1213,31 +1218,28 @@ function starTexture() {
     _starTexture = xpixi.renderer.generateTexture({ target: c, resolution: 2, antialias: true });
     c.destroy();
   }
-  return _starTexture;
-}
-// 星スプライト（tint で色付け、通常合成で形をくっきり出す）。共有テクスチャなので破棄時に texture を消さないこと。
-function starSprite(color) {
-  const s = new PIXI.Sprite(starTexture());
-  s.anchor.set(0.5);
-  s.tint = color;
-  return s;
+
+  const sprite = xpixi.add(new PIXI.Sprite(_starTexture));
+  sprite.anchor.set(0.5);
+  sprite.tint = color;
+
+  unit.on('update', ({ count }) => {
+    sprite.rotation += spin;
+    const p = count / life;
+    const twinkle = 1 + Math.sin(count * twinkleFreq) * twinkleAmp;
+    sprite.scale.set((baseR / STAR_TEX_R) * (1 - p * shrink) * twinkle);
+  });
 }
 
 function Shot(unit, { x, y }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
 
-  const color = 0x66FFFF;
-  const baseR = 18;
-
   // くっきりした星（回転 + 脈動）
-  const star = starSprite(color);
-  xpixi.add(star);
+  xnew(StarSprite, { color: 0x66FFFF, baseR: 18, spin: 0.15, twinkleAmp: 0.12, twinkleFreq: 0.6 });
 
-  unit.on('update', ({ count: t }) => {
+  unit.on('update', () => {
     object.y -= 8;
-    star.rotation += 0.15;
-    star.scale.set((baseR / STAR_TEX_R) * (1 + Math.sin(t * 0.6) * 0.12)); // キラッと脈動
 
     if (object.y < 0) { unit.finalize(); return; }
 
@@ -1386,24 +1388,20 @@ function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
 
   const baseR = (9 + Math.random() * 7) * 1.5;
   const color = [0xFFF066, 0xFFD700, 0xFFA53C, 0xFFFFFF, 0xFF8FD0, 0x9BE5FF][Math.floor(Math.random() * 6)];
-  const star = starSprite(color);
-  xpixi.add(star);
+  const spin = (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.2);
+  // 縮みながら瞬く星（回転・スケール変動は component 内部で計算）
+  xnew(StarSprite, { color, baseR, spin, shrink: 0.35, twinkleAmp: 0.22, twinkleFreq: 0.5 });
 
   const speed = 2 + Math.random() * 3;
   let vx = Math.cos(angle) * speed;
   let vy = Math.sin(angle) * speed;
-  const spin = (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.2);
 
   xnew.timeout(() => unit.finalize(), 900);
 
   unit.on('update', ({ count }) => {
     object.x += vx;
     object.y += vy;
-    const p = count / 60;
-    star.rotation += spin;
-    object.alpha = 1 - p;
-    const twinkle = 1 + Math.sin(count * 0.5) * 0.22;          // キラキラ点滅
-    star.scale.set((baseR / STAR_TEX_R) * (1 - p * 0.35) * twinkle); // 縮みながら瞬く
+    object.alpha = 1 - count / 60; // フェードは呼び出し側（コンテナ全体）で行う
 
     // 別の敵に当たると得点倍増（星の進行方向にノックバック/分裂）
     for (const enemy of xnew.find(Enemy)) {
