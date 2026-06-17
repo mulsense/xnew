@@ -52,16 +52,34 @@ const STREAM_CHARS = '0123456789ABCDEF<>/\\|=+*#░▒▓';
 // chars からランダムに n 文字。流れる解析ストリームの中身に使う。
 const randStream = (n, chars = STREAM_CHARS) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 
-// wave 色を初期適用し、以降 +wave で追従させる。apply は wave 番号を受け取り自前で色を引く（waveColor(1) === WAVE_COLORS[0]）。
-const followWave = (unit, apply) => { apply(1); unit.on('+wave', ({ wave }) => apply(wave)); };
+// wave 色などを wave 番号に追従させるコンポーネント。生成時に apply(1) を即適用し、以降 +wave で apply(wave) を呼ぶ。
+// apply は wave 番号を受け取り自前で色を引く（waveColor(1) === WAVE_COLORS[0]）。
+function FollowWave(unit, { apply }) {
+  apply(1);
+  unit.on('+wave', ({ wave }) => apply(wave));
+}
 
-// ベイク済みテクスチャの AnimatedSprite を共通設定で生成（再生開始・scale は呼び出し側）。
-const bakedSprite = (textures) => {
-  const sprite = new PIXI.AnimatedSprite(textures);
+// ベイク済みテクスチャの AnimatedSprite を生成し、現在の nest 直下に配置するコンポーネント。
+// textures を直接渡すか id で BakedCharacters.texturesList[id] を引く。scale / frame / 再生有無を
+// props で受け、生成した sprite を公開する（位置・alpha・visible 等の細かな制御は呼び出し側が .sprite で行う）。
+// frame: 'random' で開始コマをランダム化、数値で固定（length-1 にクランプ）。
+function BakedSprite(_unit, { textures, id, scale = 1, frame, play = true } = {}) {
+  const tex = textures ?? xnew.context(BakedCharacters).texturesList[id];
+  const sprite = new PIXI.AnimatedSprite(tex);
   sprite.anchor.set(0.5);
   sprite.animationSpeed = BAKE_ANIMATION_SPEED;
-  return sprite;
-};
+  sprite.scale.set(scale);
+  if (frame === 'random') {
+    sprite.currentFrame = Math.floor(Math.random() * tex.length);
+  } else if (frame !== undefined) {
+    sprite.currentFrame = Math.min(frame, tex.length - 1);
+  }
+  if (play) {
+    sprite.play();
+  }
+  xpixi.add(sprite);
+  return { get sprite() { return sprite; } };
+}
 
 // HUD 風の四隅 L 字ブラケット（現在の nest 直下に絶対配置で4つ生成）。StoryDialog / WaveTransition で共有。
 // color 省略時は currentColor を継承（border は currentColor）。offset/size/borderW は cqw 単位。
@@ -295,12 +313,8 @@ function TitleCharacters(unit) {
 // テクスチャは共有なので温存される（xpixi の remove は children のみ破棄）。
 function DriftingFactor(unit, { id, x, y, scale, driftX, driftY, driftSpeedX, driftSpeedY, rotSpeed, popSpeed, squirmAmp, squirmSpeed }) {
   xpixi.nest(new PIXI.Container());
-  const textures = xnew.context(BakedCharacters).texturesList[id];
-  const sprite = bakedSprite(textures);
-  sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
+  const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
   sprite.position.set(x, y);
-  sprite.scale.set(0);
-  xpixi.add(sprite);
 
   const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
   let pop = 0;
@@ -445,7 +459,11 @@ function StoryPageHit(unit) {
       if (p >= 1) {
         impacted = true;
         xnew.emit('+shake', { amount: 0.7 });
-        xnew(HitBurst, { x: impactX + 28, y: impactY, power: 2.4 });
+        xnew(ExpandingBurst, {
+          x: impactX + 28, y: impactY, duration: 16,
+          flash: { r: 16 * 2.4, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) },
+          ring: { r: 10 * 2.4, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) },
+        });
         flashG.alpha = 0.85;
         xnew.transition(({ value }) => { sub.element.style.opacity = `${value}`; }, 500, 'ease');
       }
@@ -700,10 +718,10 @@ function WaveTransition(unit, { wave }) {
 function WaveLabel(unit) {
   xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center font-bold text-lime-400">');
   const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#102008', strokeWidth: '0.2cqw', className: 'inline-block' });
-  followWave(unit, (wave) => {
+  xnew(FollowWave, { apply: (wave) => {
     text.element.textContent = `Wave ${wave}`;
     unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
-  });
+  } });
 }
 
 // セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査ハイライト）を生成して要素を返す。
@@ -755,7 +773,7 @@ function ScoreGauge(unit) {
     labelEl.element.style.color = c;
     pctEl.element.style.color = c;
   }
-  followWave(unit, (wave) => applyColor(cssHex(waveColor(wave))));
+  xnew(FollowWave, { apply: (wave) => applyColor(cssHex(waveColor(wave))) });
 
   let shown = 0;
   unit.on('update', ({ count: t }) => {
@@ -787,7 +805,7 @@ function SidePanel(unit) {
 }
 
 // 半透明（約50%）のパネル背景 + 区切り線（区切り線は wave のメインカラーに追従）
-function PanelBackdrop(unit) {
+function PanelBackdrop(_unit) {
   xpixi.nest(new PIXI.Container());
   xpixi.add(new PIXI.Graphics().rect(PLAY_RIGHT, 0, PANEL_W, 600).fill({ color: 0x05121A, alpha: 0.5 }));
 
@@ -796,31 +814,27 @@ function PanelBackdrop(unit) {
     divider.clear();
     divider.moveTo(PLAY_RIGHT, 0).lineTo(PLAY_RIGHT, 600).stroke({ color, width: 2, alpha: 0.55 });
   };
-  followWave(unit, (wave) => drawDivider(waveColor(wave)));
+  xnew(FollowWave, { apply: (wave) => drawDivider(waveColor(wave)) });
 }
 
 // その wave で登場する敵キャラを表示（wave1:ずんだもん 2:きりたん 3:ずん子 4:イタコ）
 const TARGET_Y = 148; // ターゲット表示(敵キャラ+レティクル)の中心 y
 
 function WaveEnemyDisplay(unit) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
-  const tl = xnew.context(BakedCharacters).texturesList;
-  let current = null;
+  xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
+  let current = null; // 現在表示中の BakedSprite unit（クロスフェードで差し替える）
 
   unit.on('+wave', ({ wave }) => {
     const id = enemyIdForWave(wave); // wave4 以降はイタコ固定
-    const sprite = bakedSprite(tl[id]);
-    sprite.scale.set(0.82);
-    sprite.play();
-    sprite.alpha = 0;
-    container.addChild(sprite);
+    const next = xnew(BakedSprite, { id, scale: 0.82 });
+    next.sprite.alpha = 0;
 
     const old = current;
-    current = sprite;
+    current = next;
     xnew.transition(({ value }) => {
-      sprite.alpha = value;
-      if (old) old.alpha = 1 - value;
-    }, 400).timeout(() => { if (old) container.removeChild(old); });
+      next.sprite.alpha = value;
+      if (old) old.sprite.alpha = 1 - value;
+    }, 400).timeout(() => { if (old) old.finalize(); });
   });
 }
 
@@ -901,7 +915,7 @@ function TargetReticle(unit) {
     }
   }
 
-  followWave(unit, (wave) => draw(waveColor(wave)));
+  xnew(FollowWave, { apply: (wave) => draw(waveColor(wave)) });
 
   unit.on('update', ({ count: t }) => {
     outer.rotation += 0.006;
@@ -967,7 +981,7 @@ function TargetInfo(unit) {
     idLine.element.textContent = `ID ${ENEMY_CODES[id]} ${'▮'.repeat(id + 1)}`;
     unit.element.style.color = cssHex(waveColor(wave)); // 全テキストが継承
   }
-  followWave(unit, applyWave);
+  xnew(FollowWave, { apply: applyWave });
 
   const rightTokens = ['OK', '!!', 'ACK', '▮▮', '·▮·', 'SYN'];
   unit.on('update', ({ count: t }) => {
@@ -1130,7 +1144,7 @@ function ScoreManager(unit) {
   let waveScore = 0;  // 現在の wave 内で稼いだスコア（wave 開始ごとに 0 リセット）
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
 
-  followWave(unit, (wave) => applyColor(cssHex(waveColor(wave))));
+  xnew(FollowWave, { apply: (wave) => applyColor(cssHex(waveColor(wave))) });
   unit.on('+wave', () => { waveScore = 0; }); // wave 開始ごとに wave 内スコアをリセット
 
   return {
@@ -1151,10 +1165,7 @@ function Player(unit) {
   object.position.set(PLAY_RIGHT / 2, 500);
 
   // 自機＝中国うさぎ（後ろ向きベイク）
-  const sprite = bakedSprite(xnew.context(BakedCharacters).playerTextures);
-  sprite.scale.set(0.7);
-  sprite.play();
-  xpixi.add(sprite);
+  const sprite = xnew(BakedSprite, { textures: xnew.context(BakedCharacters).playerTextures, scale: 0.7 }).sprite;
 
   // 当たり判定を可視化する円（キャラの上に重ねて表示）
   const hitRing = xpixi.add(new PIXI.Graphics()
@@ -1270,13 +1281,8 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   // 自動出現は画面上部 20%（y ∈ [20,120]）のエリアに湧く。分裂はその場（x,y 指定）に出す。
   object.position.set(x ?? (20 + Math.random() * (PLAY_RIGHT - 40)), y ?? (20 + Math.random() * 100));
 
-  // ベイクテクスチャでスプライト表示
-  const tl = xnew.context(BakedCharacters).texturesList;
-  const sprite = bakedSprite(tl[id]);
-  sprite.scale.set(0); // スケール0から pop-in（下の update で 0→1 に拡大）
-  sprite.play();
-  sprite.currentFrame = Math.floor(Math.random() * tl[id].length);
-  xpixi.add(sprite);
+  // ベイクテクスチャでスプライト表示。scale 0 から pop-in（下の update で 0→1 に拡大）。
+  const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
 
   // 当たり判定を可視化する円（キャラの上に重ねる・スケール変動の影響を受けない object 直下）
   xpixi.add(new PIXI.Graphics()
@@ -1348,7 +1354,13 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       const baseAngle = Math.atan2(direction.y, direction.x); // 当たった方向
 
       // 撃破エフェクト：衝撃バースト + 撃破音。カメラシェイクは自機ショット命中時のみ。
-      scene.add(HitBurst, { x: object.x, y: object.y, power: 1 + id * 0.5 });
+      // バーストは敵が大きい(id 大)ほど強く。
+      const burstPower = 1 + id * 0.5;
+      scene.add(ExpandingBurst, {
+        x: object.x, y: object.y, duration: 16,
+        flash: { r: 16 * burstPower, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) },
+        ring: { r: 10 * burstPower, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) },
+      });
       xnew.context(SoundFX).defeat(id);
       if (!fromStar) xnew.emit('+shake', { amount: 0.16 + id * 0.13 });
 
@@ -1431,11 +1443,7 @@ function ScorePopup(unit, { x, y, score }) {
 function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   const object = xpixi.nest(new PIXI.Container({ position: { x, y } }));
 
-  const tl = xnew.context(BakedCharacters).texturesList;
-  const sprite = bakedSprite(tl[id]); // コープスは再生せず1フレーム固定
-  sprite.scale.set(scale);
-  sprite.currentFrame = Math.min(frame, tl[id].length - 1);
-  xpixi.add(sprite);
+  xnew(BakedSprite, { id, scale, frame, play: false }); // コープスは再生せず1フレーム固定
 
   const angle = Math.atan2(direction.y, direction.x);
   let vx = Math.cos(angle) * power;
@@ -1454,11 +1462,11 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   });
 }
 
-// 着弾点で白フラッシュ円 + 拡大リングが膨らみながら消える共通バースト。
-// 現在の nest 直下に flash/ring を追加し、duration フレーム後に unit を finalize する。
-// flash/ring の { r, alpha, grow, fade(p) } と ring.width を引数で受ける。
-// HitBurst（小）/ PlayerExplosion（大・破片付き）が定数を変えて共有する。
-function expandingBurst(unit, { duration, flash, ring }) {
+// 広がるフラッシュ + リングのバースト演出。(x,y) に自前でコンテナを nest し、duration フレーム
+// 再生し終えたら unit を finalize する（scene.add で直接置けば自身を、xnew.extend で宿主に適用
+// すれば宿主ごと畳む）。flash/ring は { r, alpha, grow, fade(p) } で形状と減衰、ring.width で線幅を指定。
+function ExpandingBurst(unit, { x, y, duration, flash, ring }) {
+  xpixi.nest(new PIXI.Container({ position: { x, y } }));
   const flashG = xpixi.add(new PIXI.Graphics().circle(0, 0, flash.r).fill({ color: 0xFFFFFF, alpha: flash.alpha }));
   const ringG = xpixi.add(new PIXI.Graphics().circle(0, 0, ring.r).stroke({ color: 0x66E0FF, width: ring.width, alpha: ring.alpha }));
   unit.on('update', ({ count }) => {
@@ -1475,9 +1483,10 @@ function expandingBurst(unit, { duration, flash, ring }) {
 
 // 自機被弾時の爆発エフェクト：白フラッシュ + 広がるリング + 飛び散る破片
 function PlayerExplosion(unit, { x, y }) {
-  xpixi.nest(new PIXI.Container({ position: { x, y } }));
   const DURATION = 36;
-  expandingBurst(unit, {
+  // ExpandingBurst が (x,y) にコンテナを nest する。以降の破片もその nest 直下に積まれる。
+  xnew.extend(ExpandingBurst, {
+    x, y,
     duration: DURATION,
     flash: { r: 30, alpha: 1, grow: 1.5, fade: (p) => Math.max(0, 1 - p * 2) },
     ring: { r: 18, width: 6, alpha: 1, grow: 3.5, fade: (p) => Math.max(0, 1 - p) },
@@ -1501,16 +1510,6 @@ function PlayerExplosion(unit, { x, y }) {
       s.vy = s.vy * 0.92 + 0.15; // 減速 + 重力
       s.g.alpha = Math.max(0, 1 - p);
     }
-  });
-}
-
-// 撃破時の衝撃エフェクト：白フラッシュ + 広がるシアンのリング
-function HitBurst(unit, { x, y, power = 1 }) {
-  xpixi.nest(new PIXI.Container({ position: { x, y } }));
-  expandingBurst(unit, {
-    duration: 16,
-    flash: { r: 16 * power, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) },
-    ring: { r: 10 * power, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) },
   });
 }
 
