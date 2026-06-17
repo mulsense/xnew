@@ -156,33 +156,6 @@ function VRMLoader(unit, { url }) {
   });
 }
 
-// 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。spin=true: 回る敵 / false: 後ろ向き固定の自機。
-// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの sin(t×偶数) は t=3π で開始位相へ戻りシームレスにループ
-// する（回転/ボーン係数を変えるなら t=3π で元に戻るか要確認）。
-function poseFrame(model, t, spin) {
-  if (spin) {
-    model.threeObject.rotation.y = t * 4 / 3;
-    model.threeObject.rotation.z = t * 2 / 3;
-  } else {
-    model.threeObject.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
-    model.threeObject.rotation.y = Math.PI; // 後ろ向き固定（自機）
-    model.threeObject.rotation.z = 0;
-  }
-  const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
-  g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
-  g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-  g('hips').position.z          = Math.sin(t * 12) *  0.05;
-  g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-  g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-  g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-  g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-  g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-  g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-  g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-  g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
-  model.vrm.update(t);
-}
-
 function BakedCharacters(unit) {
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
@@ -219,64 +192,75 @@ function BakedCharacters(unit) {
   // 各 VRM ローダーを子 unit として登録（集約結果 { model } が下の then の vrms に登録順で入る）。
   jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
 
-  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。全キャラ焼き終えたら resolve()。
-  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ。
-  xnew.promise(unit).then(({ vrms }) => new Promise((resolve) => {
+  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。全キャラ焼き終えたら最終 dispose。
+  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（chunk の UnitPromise を return して直列化）。
+  xnew.promise(unit).then(({ vrms }) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
-    const wrapper = xthree.add(new THREE.Object3D());
+    let atlas;
+    let source; // アトラス canvas を共有する唯一の GPU テクスチャ source（各フレームはこの sub-texture）
 
-    const BATCH = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
-    let jobIndex = 0;
-    let frameIndex = 0;
-    let atlas = null;
+    // 全キャラ × 各 BAKE_FRAMES をフラットな単一 chunk に畳む。キャラ境界は index 演算で判定。
+    // 時間予算（既定 8ms）で毎フレーム自動的に分散するため GPU スパイクを抑えられる。
+    return xnew.chunk(({ index }) => {
+      const j = Math.floor(index / BAKE_FRAMES); // どのキャラ
+      const f = index % BAKE_FRAMES;             // そのキャラの何フレーム目
+      const job = jobs[j];
+      const vrm = vrms[j].model;
 
-    // 次キャラの焼成準備（VRM を wrapper にマウントし貼り込み先アトラスを用意）。全キャラ終了後は GPU を解放。
-    function startJob() {
-      if (jobIndex >= jobs.length) {
-        // 後段パスを解放し xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
-        composer.dispose();
-        ssaoPass.dispose();
-        xthree.finalize();
-        resolve();
-        return;
+      if (f === 0) {
+        // startJob 相当: VRM をマウントし、貼り込み先アトラスと共有 source を用意。
+        xthree.add(vrm.scene);
+        const atlasCanvas = document.createElement('canvas');
+        [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
+        atlas = xnew.image.from(atlasCanvas);
+        source = PIXI.Texture.from(atlas.canvas).source;
+        job.textures = [];
       }
-      wrapper.add(vrms[jobIndex].model.scene);
-      const atlasCanvas = document.createElement('canvas');
-      [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-      atlas = xnew.image.from(atlasCanvas);
-      // source は焼成前に1回だけ生成。GPU アップロードは遅延されるため全 paste 後に source.update() で確定させる。
-      jobs[jobIndex].textures = [];
-      frameIndex = 0;
-    }
-    startJob();
 
-    // 1台の焼き機で VRM を差し替えつつ render tick ごとに少しずつ焼く（ピーク GPU を 1体分に保つ）。
-    unit.on('render', () => {
-      if (jobIndex >= jobs.length) return;
-      const job = jobs[jobIndex];
-      const vrm = vrms[jobIndex].model;
-      const atlasSource = PIXI.Texture.from(atlas.canvas).source;
-
-      for (let f = frameIndex; f < Math.min(frameIndex + BATCH, BAKE_FRAMES); f++) {
-        poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
-        composer.render();
-        // フレーム f のアトラス内左上座標。OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
-        const [x, y] = [(f % cols) * BAKE_FRAME_SIZE, Math.floor(f / cols) * BAKE_FRAME_SIZE];
-        atlas.paste(xthree.canvas, x, y);
-        job.textures.push(new PIXI.Texture({ source: atlasSource, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
+      // 1フレームぶんのポーズを当てる。t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの
+      // sin(t×偶数) は t=3π で開始位相へ戻りシームレスにループする（係数を変えるなら t=3π で元に戻るか要確認）。
+      // job.spin=true: 回る敵 / false: 後ろ向き固定の自機。
+      const t = f * (Math.PI / BAKE_FRAMES * 3);
+      if (job.spin) {
+        xthree.scene.rotation.y = t * 4 / 3;
+        xthree.scene.rotation.z = t * 2 / 3;
+      } else {
+        xthree.scene.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
+        xthree.scene.rotation.y = Math.PI; // 後ろ向き固定（自機）
+        xthree.scene.rotation.z = 0;
       }
-      frameIndex += BATCH;
-      if (frameIndex < BAKE_FRAMES) return;
+      const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
+      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+      g('hips').position.z          = Math.sin(t * 12) *  0.05;
+      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+      vrm.update(t);
+      composer.render();
+      // フレーム f のアトラス内左上座標。OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
+      const [x, y] = [(f % cols) * BAKE_FRAME_SIZE, Math.floor(f / cols) * BAKE_FRAME_SIZE];
+      atlas.paste(xthree.canvas, x, y);
+      // 貼り込みと同じ座標で source 共有の sub-texture を切り出す（ピクセルコピーではなく矩形ビュー）
+      job.textures.push(new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
 
-      // 全 paste 完了。アトラス canvas の現在の中身を GPU へ確定アップロードする
-      atlasSource.update();
-
-      // wrapper から外して GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
-      xthree.remove(vrm.scene);
-      jobIndex++;
-      startJob();
+      if (f === BAKE_FRAMES - 1) {
+        // endJob 相当: アトラスを GPU へ確定アップロードし、wrapper から外して GPU を解放。
+        source.update();
+        xthree.remove(vrm.scene);
+      }
+    }, jobs.length * BAKE_FRAMES).then(() => {
+      // 後段パスを解放し xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
+      composer.dispose();
+      ssaoPass.dispose();
+      xthree.finalize();
     });
-  }));
+  });
 
   return {
     get texturesList() { return jobs.slice(0, ENEMY_FILES.length).map((job) => job.textures); },

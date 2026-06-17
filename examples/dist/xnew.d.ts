@@ -124,6 +124,11 @@ declare class UnitPromise {
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
+    static defer(key?: string): {
+        unitPromise: UnitPromise;
+        resolve: (value?: unknown) => void;
+        reject: (reason?: unknown) => void;
+    };
     static results(promises: UnitPromise[], key?: string): UnitPromise;
     private static assignKey;
 }
@@ -416,6 +421,11 @@ declare const xnew: XnewBase & {
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
+    chunk(callback: (arg: {
+        index: number;
+    }) => void, max: number, options?: {
+        budgetMs?: number;
+    }): UnitPromise;
     protect(): void;
     server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
     client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};

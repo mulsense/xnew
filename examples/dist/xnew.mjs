@@ -831,6 +831,21 @@ class UnitPromise {
         });
         return this;
     }
+    static defer(key) {
+        let settled = false;
+        let resolve;
+        let reject;
+        const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }), key);
+        return {
+            unitPromise,
+            resolve(value) { if (settled) {
+                return;
+            } settled = true; resolve(value); },
+            reject(reason) { if (settled) {
+                return;
+            } settled = true; reject(reason); },
+        };
+    }
     static results(promises, key) {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {
             const out = { results: [] };
@@ -963,17 +978,9 @@ const xnew$1 = Object.assign((function (...args) {
             throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
         }
         if (promise === undefined) {
-            let settled = false;
-            let resolve;
-            let reject;
-            const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }), key);
+            const { unitPromise, resolve, reject } = UnitPromise.defer(key);
             Unit.currentUnit._.promises.push(unitPromise);
-            return {
-                resolve(value) { if (settled)
-                    return; settled = true; resolve(value); },
-                reject(reason) { if (settled)
-                    return; settled = true; reject(reason); },
-            };
+            return { resolve, reject };
         }
         else {
             let unitPromise;
@@ -1009,6 +1016,42 @@ const xnew$1 = Object.assign((function (...args) {
     },
     transition(transition, duration = 0, easing = 'linear') {
         return new UnitTimer().transition(transition, duration, easing);
+    },
+    chunk(callback, max, options = {}) {
+        var _a;
+        if (!Number.isInteger(max) || max < 0) {
+            throw new Error('xnew.chunk: max must be a non-negative integer');
+        }
+        const unit = Unit.currentUnit;
+        if (!unit) {
+            throw new Error('xnew.chunk must be called within a unit scope');
+        }
+        const budgetMs = (_a = options.budgetMs) !== null && _a !== void 0 ? _a : 8;
+        const { unitPromise, resolve, reject } = UnitPromise.defer();
+        if (max === 0) {
+            resolve();
+            return unitPromise;
+        }
+        let index = 0;
+        const handler = () => {
+            const t0 = Date.now();
+            try {
+                do {
+                    callback({ index: index++ });
+                } while (index < max && Date.now() - t0 < budgetMs);
+            }
+            catch (error) {
+                unit.off('update', handler);
+                reject(error);
+                return;
+            }
+            if (index >= max) {
+                unit.off('update', handler);
+                resolve();
+            }
+        };
+        unit.on('update', handler);
+        return unitPromise;
     },
     protect() {
         Unit.currentUnit._.protected = true;
