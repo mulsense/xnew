@@ -213,10 +213,8 @@ function BakedCharacters(unit) {
   ];
 
   // 全フレームを1枚のアトラス canvas に敷き詰め「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でバッチ描画も効く）。
-  // framePos: フレーム i のアトラス内左上座標（paste と PIXI sub-texture 切り出しで共有）。
   const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
   const rows = Math.ceil(BAKE_FRAMES / cols);
-  const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
   // 各 VRM ローダーを子 unit として登録（集約結果 { model } が下の then の vrms に登録順で入る）。
   jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
@@ -246,6 +244,8 @@ function BakedCharacters(unit) {
       const atlasCanvas = document.createElement('canvas');
       [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
       atlas = xnew.image.from(atlasCanvas);
+      // source は焼成前に1回だけ生成。GPU アップロードは遅延されるため全 paste 後に source.update() で確定させる。
+      jobs[jobIndex].textures = [];
       frameIndex = 0;
     }
     startJob();
@@ -255,22 +255,21 @@ function BakedCharacters(unit) {
       if (jobIndex >= jobs.length) return;
       const job = jobs[jobIndex];
       const vrm = vrms[jobIndex].model;
+      const atlasSource = PIXI.Texture.from(atlas.canvas).source;
 
       for (let f = frameIndex; f < Math.min(frameIndex + BATCH, BAKE_FRAMES); f++) {
         poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
         composer.render();
-        // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
-        atlas.paste(xthree.canvas, ...framePos(f));
+        // フレーム f のアトラス内左上座標。OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
+        const [x, y] = [(f % cols) * BAKE_FRAME_SIZE, Math.floor(f / cols) * BAKE_FRAME_SIZE];
+        atlas.paste(xthree.canvas, x, y);
+        job.textures.push(new PIXI.Texture({ source: atlasSource, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
       }
       frameIndex += BATCH;
       if (frameIndex < BAKE_FRAMES) return;
 
-      // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
-      const source = PIXI.Texture.from(atlas.canvas).source;
-      job.textures = Array.from({ length: BAKE_FRAMES }, (_, f) => {
-        const [x, y] = framePos(f);
-        return new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
-      });
+      // 全 paste 完了。アトラス canvas の現在の中身を GPU へ確定アップロードする
+      atlasSource.update();
 
       // wrapper から外して GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
       xthree.remove(vrm.scene);
