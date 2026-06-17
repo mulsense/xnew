@@ -119,8 +119,10 @@ function Contents(unit) {
 // 逐次化でピーク GPU を VRM 1体分に抑える（起動は数百ms 長くなる）。
 
 // VRM を読み込むだけ（シーンには追加しない）。GPU アップロードはベイク時まで遅延させる。
-function loadVrm(url) {
-  return new Promise((resolve) => {
+// 読み込んだ vrm は xnew.promise('model', ...) で登録するので、xnew.promise('vrms[]', xnew(VRMLoader, …))
+// で集約すると { model: vrm, results: [] } として受け取れる。
+function VRMLoader(unit, { url }) {
+  xnew.promise('model', new Promise((resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.load(url, (gltf) => {
@@ -131,7 +133,7 @@ function loadVrm(url) {
       vrm.scene.rotation.x = +Math.PI * 20 / 180;
       resolve(vrm);
     });
-  });
+  }));
 }
 
 // 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。spin=true: 回る敵 / false: 後ろ向き固定の自機。
@@ -198,8 +200,8 @@ function BakedCharacters(unit) {
   const rows = Math.ceil(BAKE_FRAMES / cols);
   const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
-  // 各 VRM のロードを登録（解決値は下の then の vrms に入る）。
-  jobs.forEach((job) => xnew.promise('vrms[]', loadVrm(job.url)));
+  // 各 VRM ローダーを子 unit として登録（集約結果 { model } が下の then の vrms に登録順で入る）。
+  jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
 
   // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。then は Promise を返し、全キャラ
   // 焼き終えたら resolve()。Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ。
@@ -222,7 +224,7 @@ function BakedCharacters(unit) {
         resolve();
         return;
       }
-      wrapper.add(vrms[jobIndex].scene);
+      wrapper.add(vrms[jobIndex].model.scene);
       const atlasCanvas = document.createElement('canvas');
       [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
       atlas = xnew.image.from(atlasCanvas);
@@ -234,7 +236,7 @@ function BakedCharacters(unit) {
     unit.on('render', () => {
       if (jobIndex >= jobs.length) return;
       const job = jobs[jobIndex];
-      const vrm = vrms[jobIndex];
+      const vrm = vrms[jobIndex].model;
 
       for (let f = frameIndex; f < Math.min(frameIndex + BATCH, BAKE_FRAMES); f++) {
         poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
