@@ -40,7 +40,7 @@ describe('xnew promise helpers', () => {
             expect(done).toHaveBeenCalledTimes(1);
         });
 
-        it('passes the unit results object to the callback', async () => {
+        it('passes a results array to the callback when nothing is keyed', async () => {
             const done = jest.fn();
             xnew((unit) => {
                 xnew.promise(Promise.resolve(1));
@@ -49,9 +49,9 @@ describe('xnew promise helpers', () => {
 
             await jest.advanceTimersByTimeAsync(0);
 
-            // then receives an object of keyed results; nothing keyed here, so it is empty
+            // then receives an array of results in registration order when nothing is keyed
             expect(done).toHaveBeenCalledTimes(1);
-            expect(done).toHaveBeenCalledWith({});
+            expect(done).toHaveBeenCalledWith([1]);
         });
     });
 
@@ -240,7 +240,7 @@ describe('xnew promise helpers', () => {
             expect(done).toHaveBeenCalledWith({ ready: 42 });
         });
 
-        it('excludes a keyless deferred value from the results object', async () => {
+        it('includes a keyless deferred value in the results array', async () => {
             const done = jest.fn();
             let defer!: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             xnew((unit) => {
@@ -248,10 +248,10 @@ describe('xnew promise helpers', () => {
                 xnew.promise(unit).then(done);
             });
 
-            defer.resolve('ignored');
+            defer.resolve('kept');
             await jest.advanceTimersByTimeAsync(0);
 
-            expect(done).toHaveBeenCalledWith({});
+            expect(done).toHaveBeenCalledWith(['kept']);
         });
 
         it('rejects via reject() and triggers xnew.promise(unit).catch', async () => {
@@ -318,6 +318,76 @@ describe('xnew promise helpers', () => {
             // E 開始: key3 = C の戻り値、key1/key2 は集約で消費済みなので E には入らない、Parent スコープ。
             expect(order).toEqual(['C:1,2', 'E:key3=done,hasKey1=false,parentScope=true']);
             expect(seen[0]).toEqual({ key3: 'done' });
+        });
+    });
+
+    describe('xnew.promise — results shape (array when keyless)', () => {
+        it('returns an array of values in registration order when nothing is keyed', async () => {
+            const done = jest.fn();
+            xnew((unit) => {
+                xnew.promise(Promise.resolve('a'));
+                xnew.promise(Promise.resolve('b'));
+                xnew.promise(unit).then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith(['a', 'b']);
+        });
+
+        it('orders the array by registration, not by resolution timing', async () => {
+            const done = jest.fn();
+            let resolveFirst!: (v: unknown) => void;
+            xnew((unit) => {
+                xnew.promise(new Promise((res) => { resolveFirst = res; }));
+                xnew.promise(Promise.resolve('b'));
+                xnew.promise(unit).then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+            resolveFirst('a'); // 後から解決しても 0 番目に入る
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith(['a', 'b']);
+        });
+
+        it('returns a keyed object (keyless excluded) when at least one promise is keyed', async () => {
+            const done = jest.fn();
+            xnew((unit) => {
+                xnew.promise('a', Promise.resolve(1));
+                xnew.promise(Promise.resolve('ignored'));
+                xnew.promise(unit).then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ a: 1 });
+        });
+
+        it('returns an empty array when the unit has no registered promises', async () => {
+            const done = jest.fn();
+            const unit = xnew(() => {});
+            xnew.promise(unit).then(done);
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith([]);
+        });
+
+        it('nests a keyless child aggregate as an array under its key', async () => {
+            const done = jest.fn();
+            xnew((unit) => {
+                const child = xnew(() => {
+                    xnew.promise(Promise.resolve(1));
+                    xnew.promise(Promise.resolve(2));
+                });
+                xnew.promise('child', child);
+                xnew.promise(unit).then(done);
+            });
+
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(done).toHaveBeenCalledWith({ child: [1, 2] });
         });
     });
 
