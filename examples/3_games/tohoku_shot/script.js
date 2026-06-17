@@ -83,10 +83,8 @@ function FollowWave(unit, { apply }) {
   unit.on('+wave', ({ wave }) => apply(wave));
 }
 
-// ベイク済みテクスチャの AnimatedSprite を生成し、現在の nest 直下に配置するコンポーネント。
-// textures を直接渡すか id で BakedCharacters.texturesList[id] を引く。scale / frame / 再生有無を
-// props で受け、生成した sprite を公開する（位置・alpha・visible 等の細かな制御は呼び出し側が .sprite で行う）。
-// frame: 'random' で開始コマをランダム化、数値で固定（length-1 にクランプ）。
+// ベイク済みテクスチャの AnimatedSprite を nest 直下に配置。textures 直指定か id で texturesList[id] を引く。
+// frame: 'random' で開始コマをランダム化 / 数値で固定（length-1 にクランプ）。位置等は .sprite で制御。
 function BakedSprite(_unit, { textures, id, scale = 1, frame, play = true } = {}) {
   const tex = textures ?? xnew.context(BakedCharacters).texturesList[id];
   const sprite = new PIXI.AnimatedSprite(tex);
@@ -105,8 +103,8 @@ function BakedSprite(_unit, { textures, id, scale = 1, frame, play = true } = {}
   return { get sprite() { return sprite; } };
 }
 
-// HUD 風の四隅 L 字ブラケット（現在の nest 直下に絶対配置で4つ生成）。StoryDialog / WaveTransition で共有。
-// color 省略時は currentColor を継承（border は currentColor）。offset/size/borderW は cqw 単位。
+// HUD 風の四隅 L 字ブラケット（nest 直下に絶対配置で4つ）。StoryDialog / WaveTransition で共有。
+// color 省略時は currentColor 継承。offset/size/borderW は cqw 単位。
 function cornerBrackets({ offset = 0, size, borderW, opacity, color }) {
   for (const vside of ['top', 'bottom']) {
     for (const hside of ['left', 'right']) {
@@ -138,13 +136,11 @@ function Contents(unit) {
 
 // ---- Character baking (VRM -> AnimatedSprite textures) ----
 //
-// 焼き機（WebGL + EffectComposer + SSAO + ライト + カメラ）を1セットだけ作り、VRM を順に差し替えて
-// 逐次ベイクする。キャラ毎に焼き機を立てて並列に焼く旧実装は GPU 圧迫の主因だった（DEVNOTES §5）。
-// 逐次化でピーク GPU を VRM 1体分に抑える（起動は数百ms 長くなる）。
+// 焼き機（WebGL + EffectComposer + SSAO + ライト + カメラ）を1セットだけ作り、VRM を順に差し替えて逐次ベイク。
+// 逐次化でピーク GPU を VRM 1体分に抑える（並列に焼く旧実装は GPU 圧迫の主因だった。DEVNOTES §5。起動は数百ms 長くなる）。
 
-// VRM を読み込むだけ（シーンには追加しない）。GPU アップロードはベイク時まで遅延させる。
-// 読み込んだ vrm は xnew.promise('model', ...) で登録するので、xnew.promise('vrms[]', xnew(VRMLoader, …))
-// で集約すると { model: vrm, results: [] } として受け取れる。
+// VRM を読み込むだけ（シーンには追加しない。GPU アップロードはベイク時まで遅延）。
+// xnew.promise('model', ...) で登録 → xnew.promise('vrms[]', xnew(VRMLoader, …)) で { model } として集約できる。
 function VRMLoader(unit, { url }) {
   xnew.promise('model', (resolve) => {
     const loader = new GLTFLoader();
@@ -161,8 +157,8 @@ function VRMLoader(unit, { url }) {
 }
 
 // 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。spin=true: 回る敵 / false: 後ろ向き固定の自機。
-// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの sin(t×偶数) は t=3π で開始位相へ戻りシームレスに
-// ループする（回転/ボーン係数を変えるなら t=3π で元に戻るか要確認）。
+// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの sin(t×偶数) は t=3π で開始位相へ戻りシームレスにループ
+// する（回転/ボーン係数を変えるなら t=3π で元に戻るか要確認）。
 function poseFrame(model, t, spin) {
   if (spin) {
     model.threeObject.rotation.y = t * 4 / 3;
@@ -195,7 +191,7 @@ function BakedCharacters(unit) {
   const composer = new EffectComposer(xthree.renderer);
   composer.addPass(new RenderPass(xthree.scene, xthree.camera));
   const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
-  // OrthographicCamera 用: シェーダーのデフォルト PERSPECTIVE_CAMERA=1 を両マテリアルで上書き
+  // OrthographicCamera 用: シェーダーの PERSPECTIVE_CAMERA=1 を両マテリアルで 0 に上書き
   for (const material of [ssaoPass.ssaoMaterial, ssaoPass.depthRenderMaterial]) {
     material.defines['PERSPECTIVE_CAMERA'] = 0;
     material.needsUpdate = true;
@@ -216,9 +212,8 @@ function BakedCharacters(unit) {
     { url: asset(PLAYER_FILE), spin: false },
   ];
 
-  // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
-  // 「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でスプライトのバッチ描画も効く）。
-  // フレーム i のアトラス内左上座標は paste と PIXI sub-texture 切り出しで共有する。
+  // 全フレームを1枚のアトラス canvas に敷き詰め「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でバッチ描画も効く）。
+  // framePos: フレーム i のアトラス内左上座標（paste と PIXI sub-texture 切り出しで共有）。
   const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
   const rows = Math.ceil(BAKE_FRAMES / cols);
   const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
@@ -226,8 +221,8 @@ function BakedCharacters(unit) {
   // 各 VRM ローダーを子 unit として登録（集約結果 { model } が下の then の vrms に登録順で入る）。
   jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
 
-  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。then は Promise を返し、全キャラ
-  // 焼き終えたら resolve()。Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ。
+  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。全キャラ焼き終えたら resolve()。
+  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ。
   xnew.promise(unit).then(({ vrms }) => new Promise((resolve) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
     const wrapper = xthree.add(new THREE.Object3D());
@@ -240,7 +235,7 @@ function BakedCharacters(unit) {
     // 次キャラの焼成準備（VRM を wrapper にマウントし貼り込み先アトラスを用意）。全キャラ終了後は GPU を解放。
     function startJob() {
       if (jobIndex >= jobs.length) {
-        // 後段パスを解放し、xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
+        // 後段パスを解放し xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
         composer.dispose();
         ssaoPass.dispose();
         xthree.finalize();
@@ -264,7 +259,7 @@ function BakedCharacters(unit) {
       for (let f = frameIndex; f < Math.min(frameIndex + BATCH, BAKE_FRAMES); f++) {
         poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
         composer.render();
-        // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap なし）
+        // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
         atlas.paste(xthree.canvas, ...framePos(f));
       }
       frameIndex += BATCH;
@@ -333,8 +328,7 @@ function TitleCharacters(unit) {
 }
 
 // 漂うベイクスプライト1体（ポップイン → 蠢く拡縮 + 漂い + 回転）。
-// タイトル（定位置）/ 寸劇（ランダム湧き）が位置・スケール・揺れ方を変えて共有する。
-// テクスチャは共有なので温存される（xpixi の remove は children のみ破棄）。
+// タイトル（定位置）/ 寸劇（ランダム湧き）が位置・スケール・揺れ方を変えて共有。テクスチャは共有なので温存される。
 function DriftingFactor(unit, { id, x, y, scale, driftX, driftY, driftSpeedX, driftSpeedY, rotSpeed, popSpeed, squirmAmp, squirmSpeed }) {
   xpixi.nest(new PIXI.Container());
   const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
@@ -393,8 +387,7 @@ function StoryScene(unit) {
   });
 }
 
-// 下部の黒帯（シアターモード風）。ストーリーのセリフはこの帯の上に載せて読ませる。
-// 高さ 26cqw（≒208px）。上端は短いグラデでぼかし、細いピンクのアクセントラインを引く。
+// 下部の黒帯（シアターモード風）。セリフはこの帯の上に載せて読ませる。高さ 26cqw（≒208px）。
 function StoryTheater(unit) {
   xnew.nest('<div class="absolute inset-0 pointer-events-none">');
   // 帯の上にせり出すフェザー（境界をやわらかく、キャラの足元と馴染ませる）
@@ -407,9 +400,8 @@ function StoryTheater(unit) {
   xnew('<div class="absolute left-0 right-0 bottom-[26cqw] h-[0.28cqw]" style="background: linear-gradient(90deg, transparent, rgba(255,143,163,0.75) 18%, rgba(255,143,163,0.75) 82%, transparent); box-shadow: 0 0 1.4cqw rgba(255,143,163,0.55);">');
 }
 
-// ストーリーのセリフをサイバーな字幕フレームで表示する（黒帯の上に重ねる）。
-// build でテキスト本文（SVGText 群）を構築。accent=アクセント色 / tag=見出しラベル / bottomCqw=下端位置。
-// ヘッダー（点滅 ● ＋ ▶TAG ＋ 流れる hex ＋ 装飾ライン）／四隅ブラケット＋発光／流れる解析フッター を付与。
+// ストーリーのセリフをサイバーな字幕フレームで黒帯の上に重ねる。build=本文(SVGText 群) / accent=アクセント色 /
+// tag=見出しラベル / bottomCqw=下端位置。ヘッダー(点滅● + ▶TAG) と四隅ブラケット＋発光を付与。
 function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
   xnew.nest(`<div class="absolute left-0 right-0 flex flex-col items-center pointer-events-none" style="bottom:${bottomCqw}cqw; font-family: monospace;">`);
 
@@ -602,16 +594,15 @@ function WaveManager(unit) {
   function nextWave() {
     transitioning = true;
     const next = wave + 1;
-    // 現在の画面内の敵を一旦フェードアウト（得点は入らない）
+    // 画面内の敵を一旦フェードアウト（得点は入らない）
     for (const enemy of xnew.find(Enemy)) enemy.fadeOut();
     // 警告 → 次 wave への切替表示
     xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: next });
     xnew.timeout(() => { startWave(next); transitioning = false; }, 2800);
   }
 
-  // wave 1 も警告画面（WaveTransition）を出してから開始する（初回も同じ導入演出にする）。
+  // wave1 も警告画面を出してから開始（初回も同じ導入演出）。湧きは transitioning で演出終了まで止める。
   // wave は即 1 にする（0 のままだと ScoreGauge のしきい値計算が NaN になり恒久的に壊れる）。
-  // 敵の湧きは transitioning フラグで演出が終わるまで止める。
   startWave(1);
   transitioning = true;
   xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: 1 });
@@ -628,7 +619,7 @@ function WaveManager(unit) {
     tick++;
 
     const scene = xnew.context(xnew.basics.Scene);
-    // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場する。
+    // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場。
     const id = enemyIdForWave(wave);
     if (id === 0) {
       // wave1 は分裂しないので多めに出す
@@ -645,8 +636,7 @@ function WaveManager(unit) {
   return { get wave() { return wave; } };
 }
 
-// wave 切替時のサイバーな警告画面（プレイ領域）。HUDフレーム + グリッチした WAVE 表示 +
-// 流れる謎文字（hex）+ 脅威解析バー で「敵を検知して解析している」感を出す。
+// wave 切替時のサイバーな警告画面（プレイ領域）。HUDフレーム + グリッチ WAVE 表示 + 流れる hex + 脅威解析バー。
 function WaveTransition(unit, { wave }) {
   const color = waveCss(wave);
   const code = ENEMY_CODES[enemyIdForWave(wave)];
@@ -743,10 +733,8 @@ function WaveLabel(unit) {
   } });
 }
 
-// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査ハイライト）を生成して要素を返す。
-// 値の駆動（width/色/テキスト）は呼び出し側が行う。ScoreGauge / ShotEnergy で共有。
-// segment=[隙間開始, 隙間終了]cqw。scanOnTop=true で走査をセグメントの上（最前面）に置く。
-// extra() を渡すと箱の最後に追加要素（目盛り等）を積める。
+// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査）を生成し要素を返す。値の駆動は呼び出し側（ScoreGauge / ShotEnergy で共有）。
+// segment=[隙間開始, 隙間終了]cqw。scanOnTop=true で走査をセグメントの上（最前面）に。extra() で箱末尾に追加要素（目盛り等）。
 function cyberBar({ boxClass, boxStyle, fillWidth, fillStyle = '', segment, scanW, scanAlpha, scanOnTop = true, extra }) {
   let frame, fill, scan;
   const addSegment = () => xnew(`<div class="absolute inset-0" style="background: repeating-linear-gradient(90deg, transparent 0 ${segment[0]}cqw, rgba(0,0,0,0.6) ${segment[0]}cqw ${segment[1]}cqw);">`);
@@ -857,9 +845,8 @@ function WaveEnemyDisplay(unit) {
   });
 }
 
-// 敵キャラを囲うサイバーなターゲットレティクル。色は wave 連動。
-// 多重リング（逆回転）+ 回転するレーダー掃引 + 呼吸するロックオンブラケット +
-// 周回する解析ブリップ で「ロックして解析している」感を出す。
+// 敵キャラを囲うサイバーなターゲットレティクル（色は wave 連動）。
+// 多重リング（逆回転）+ レーダー掃引 + 呼吸するロックオンブラケット + 周回する解析ブリップ。
 function TargetReticle(unit) {
   xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
   const R = 46;
@@ -867,9 +854,9 @@ function TargetReticle(unit) {
   // 独立回転させる層（container の子に直接 rotation を持たせる）
   const outer = xpixi.add(new PIXI.Container());   // 外周リング（CW）
   const mid = xpixi.add(new PIXI.Container());     // 中アーク（CCW）
-  const sweepC = xpixi.add(new PIXI.Container());  // レーダー掃引（速い CW）
+  const sweepC = xpixi.add(new PIXI.Container());  // レーダー掃引（CW）
   const blips = xpixi.add(new PIXI.Container());   // 周回ブリップ
-  const brackets = xpixi.add(new PIXI.Graphics()); // ロックオンブラケット（呼吸）
+  const brackets = xpixi.add(new PIXI.Graphics()); // ロックオンブラケット
   const cross = xpixi.add(new PIXI.Graphics());
   
   const outerG = new PIXI.Graphics(); outer.addChild(outerG);
@@ -959,7 +946,7 @@ function TargetReticle(unit) {
   });
 }
 
-// レティクル周辺に「解析中っぽい」謎文字をごちゃごちゃ表示する HUD。色は wave 連動。
+// レティクル周辺に「解析中っぽい」謎文字を表示する HUD（色は wave 連動）。
 // ヘッダー / 四隅の座標ラベル / 円の左右を流れる hex レール / 下部の解析リードアウト。
 function TargetInfo(unit) {
   xnew.nest('<div class="absolute right-0 top-0 bottom-0 w-[25cqw] pointer-events-none" style="font-family: monospace; color:#9BE53C;">');
@@ -1220,13 +1207,10 @@ function Player(unit) {
 
 let _starTexture = null;
 
-// 星ビジュアル component：共有テクスチャ + tint の Sprite を 1 枚持ち、回転と
-// スケール変動（脈動 twinkle + 寿命に応じた縮み shrink）を内部で計算する。テクスチャ生成も
-// 内包し、初回だけ「くっきりした不透明の星 + 淡いグロー」を焼いてキャッシュへ格納する。
-// 移動・フェード・当たり判定は呼び出し側の責務。共有テクスチャなので破棄時に texture を消さないこと。
+// 星ビジュアル component：共有テクスチャ + tint の Sprite を 1 枚持ち、回転とスケール変動（脈動 twinkle + 寿命に応じた縮み shrink）を内部計算。
+// テクスチャは初回だけ焼いてキャッシュ。移動・フェード・当たり判定は呼び出し側の責務。共有テクスチャなので破棄時に texture を消さないこと。
 function StarSprite(unit, { color, baseR, spin = 0.15, shrink = 0, twinkleAmp = 0, twinkleFreq = 0.6, life = 60 }) {
-  // 星の共有テクスチャ（白）。初回の StarSprite 生成時に一度だけ焼き、以降は使い回す
-  // （各星は同一テクスチャ + tint の Sprite なのでバッチ描画が効く）。
+  // 星の共有テクスチャ（白）。初回に一度だけ焼き、以降は使い回す（同一テクスチャ + tint なのでバッチ描画が効く）。
   const STAR_TEX_R = 13; // テクスチャ内の星の基準半径。スケールは baseR / STAR_TEX_R。
  
   if (_starTexture === null) {
@@ -1297,8 +1281,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   // 当たり判定を可視化する円（object 直下なのでスケール変動の影響を受けない）
   xpixi.add(hitCircle(ENEMY_HIT_R, 0xFF3355, 0.2, 2, 0.85));
 
-  // 出現時の pop-in（0→1 に拡大）＋ スケールの時間変動（生きている＝蠢く感じ）。
-  // どちらもストーリー2ページ目の StoryFactor と同じ手法。
+  // 出現時の pop-in（0→1）＋ スケールの時間変動（蠢く感）。StoryFactor と同じ手法。
   const squirmPhase = randAngle();
   let pop = 0;
 
@@ -1460,7 +1443,7 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   });
 }
 
-// 広がるフラッシュ + リングのバースト演出。(x,y) にコンテナを nest し、duration フレーム後に finalize。
+// 広がるフラッシュ + リングのバースト演出。(x,y) にコンテナを nest し duration フレーム後に finalize。
 // flash/ring は { r, alpha, grow, fade(p) }（ring.width=線幅）。省略時は power から標準の撃破バーストを作る。
 function ExpandingBurst(unit, { x, y, duration = 16, power = 1, flash, ring }) {
   flash = flash ?? { r: 16 * power, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) };
@@ -1483,7 +1466,7 @@ function ExpandingBurst(unit, { x, y, duration = 16, power = 1, flash, ring }) {
 // 自機被弾時の爆発エフェクト：白フラッシュ + 広がるリング + 飛び散る破片
 function PlayerExplosion(unit, { x, y }) {
   const DURATION = 36;
-  // ExpandingBurst が (x,y) にコンテナを nest する。以降の破片もその nest 直下に積まれる。
+  // ExpandingBurst が (x,y) にコンテナを nest する（以降の破片もその nest 直下）。
   xnew.extend(ExpandingBurst, {
     x, y,
     duration: DURATION,
