@@ -7,9 +7,10 @@
 // 非同期を跨いでも元のコンポーネント内にいるかのように実行される。
 //
 // - Unit        : core class — lifecycle, listeners, contexts, emit
-// - UnitPromise : 元の Unit スコープで再開する promise ラッパー。.then は staging（callback 内で
-//                 同期登録した xnew.promise を完了に畳む）。.catch / .finally は畳まず純粋観測。
-//                 集約リザルトは xnew.promise(unit) で取得。
+// - UnitPromise : 元の Unit スコープで再開する promise ラッパー。.then / .catch / .finally は
+//                 捕捉スコープで callback を実行し、戻り値をチェーン値にする素のチェーン
+//                 （非同期継続は return new Promise で表す）。集約リザルトは xnew.promise(unit)
+//                 で取得し、集約時に対象 unit のプールを消費（リセット）する。
 // - UnitTimer   : xnew.timeout / interval / transition が使うキュー式タイマー
 //----------------------------------------------------------------------------------------------------
 
@@ -501,16 +502,11 @@ export class UnitPromise {
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
     public then(callback: Function): UnitPromise {
-        const unit = Unit.currentUnit;
-        const snapshot = Unit.snapshot(unit);
-        this.promise = this.promise.then((...args: any[]) => Unit.scope(snapshot, () => {
-            const before = unit._.promises.length;
-            const returned = callback(...args);
-            const registered = unit._.promises.slice(before);
-            const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
-            // チェーン値は callback の戻り値(tail)を保持しつつ、内部登録(registered = D)の解決も待つ。
-            return Promise.all([tail, ...registered.map((p) => p.promise)]).then(([t]) => t);
-        }));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.then((...args: any[]) => {
+            const returned = Unit.scope(snapshot, callback, ...args);
+            return returned instanceof UnitPromise ? returned.promise : returned;
+        });
         return this;
     }
     public catch(callback: Function): UnitPromise {
