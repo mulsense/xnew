@@ -42,15 +42,39 @@ const ENEMY_HIT_R = 10;
 const WAVE_COLORS = [0x9BE53C, 0xC8923C, 0x3FD96B, 0xFFFFFF];
 const waveColor = (wave) => WAVE_COLORS[Math.min(wave - 1, WAVE_COLORS.length - 1)];
 const cssHex = (n) => '#' + n.toString(16).padStart(6, '0');
+const waveCss = (wave) => cssHex(waveColor(wave)); // wave のメインカラー(css hex)
+
+// 乱数ユーティリティ。いずれも Math.random() を1回だけ呼ぶ。
+const randInt = (n) => Math.floor(Math.random() * n);   // 0..n-1
+const pick = (arr) => arr[randInt(arr.length)];         // 配列/文字列から1つ
+const randSign = () => (Math.random() < 0.5 ? 1 : -1);  // ±1
+const randAngle = () => Math.random() * Math.PI * 2;    // 0..2π
+const randRange = (min, max) => min + Math.random() * (max - min);
+
+// 当たり判定の可視化円（塗り＋枠の二重描き）。
+const hitCircle = (r, color, fillAlpha, strokeW, strokeAlpha) => new PIXI.Graphics()
+  .circle(0, 0, r).fill({ color, alpha: fillAlpha })
+  .circle(0, 0, r).stroke({ color, width: strokeW, alpha: strokeAlpha });
+
+// 蠢く拡縮係数（生きてる感）: 1 ± amp で揺れる。
+const squirmFactor = (t, phase, amp, freq) => 1 + Math.sin(t * freq + phase) * amp;
+
+// object に半径 r 以内で最初に重なる敵へ hit(enemy) を呼ぶ（当たれば true）。vulnOnly=無敵中の敵を除外。
+const hitNearestEnemy = (object, r, hit, vulnOnly = false) => {
+  for (const enemy of xnew.find(Enemy)) {
+    if (vulnOnly && !enemy.isVulnerable) continue;
+    if (enemy.distance(object) < r) { hit(enemy); return true; }
+  }
+  return false;
+};
 
 // 敵 id ごとのサイバーな識別コード（ターゲット表示／警告画面の「謎文字」に使う）
 const ENEMY_CODES = ['ZD-0x01', 'KT-0x02', 'ZK-0x03', 'IT-0x04'];
-// ランダムな16進文字列（len 桁）。解析中っぽい流れる数字に使う。
-const randHex = (len) => Math.floor(Math.random() * 16 ** len).toString(16).toUpperCase().padStart(len, '0');
-// 解析ストリーム/警告画面で流す「謎文字」の文字集合。
+// ランダムな16進文字列（len 桁）。流れる解析数字に使う。
+const randHex = (len) => randInt(16 ** len).toString(16).toUpperCase().padStart(len, '0');
+// 解析ストリーム/警告画面で流す「謎文字」の文字集合と、そこから n 文字。
 const STREAM_CHARS = '0123456789ABCDEF<>/\\|=+*#░▒▓';
-// chars からランダムに n 文字。流れる解析ストリームの中身に使う。
-const randStream = (n, chars = STREAM_CHARS) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+const randStream = (n, chars = STREAM_CHARS) => Array.from({ length: n }, () => pick(chars)).join('');
 
 // wave 色などを wave 番号に追従させるコンポーネント。生成時に apply(1) を即適用し、以降 +wave で apply(wave) を呼ぶ。
 // apply は wave 番号を受け取り自前で色を引く（waveColor(1) === WAVE_COLORS[0]）。
@@ -70,7 +94,7 @@ function BakedSprite(_unit, { textures, id, scale = 1, frame, play = true } = {}
   sprite.animationSpeed = BAKE_ANIMATION_SPEED;
   sprite.scale.set(scale);
   if (frame === 'random') {
-    sprite.currentFrame = Math.floor(Math.random() * tex.length);
+    sprite.currentFrame = randInt(tex.length);
   } else if (frame !== undefined) {
     sprite.currentFrame = Math.min(frame, tex.length - 1);
   }
@@ -122,7 +146,7 @@ function Contents(unit) {
 // 読み込んだ vrm は xnew.promise('model', ...) で登録するので、xnew.promise('vrms[]', xnew(VRMLoader, …))
 // で集約すると { model: vrm, results: [] } として受け取れる。
 function VRMLoader(unit, { url }) {
-  xnew.promise('model', new Promise((resolve) => {
+  xnew.promise('model', (resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.load(url, (gltf) => {
@@ -133,7 +157,7 @@ function VRMLoader(unit, { url }) {
       vrm.scene.rotation.x = +Math.PI * 20 / 180;
       resolve(vrm);
     });
-  }));
+  });
 }
 
 // 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。spin=true: 回る敵 / false: 後ろ向き固定の自機。
@@ -164,7 +188,6 @@ function poseFrame(model, t, spin) {
 }
 
 function BakedCharacters(unit) {
-  // --- 焼き機（共有部分）を1セットだけ構築する ---
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
   xthree.camera.position.set(0, -0.1, 2.5);
@@ -317,12 +340,11 @@ function DriftingFactor(unit, { id, x, y, scale, driftX, driftY, driftSpeedX, dr
   const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
   sprite.position.set(x, y);
 
-  const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
+  const phx = randAngle(), phy = randAngle();
   let pop = 0;
   unit.on('update', ({ count: t }) => {
-    pop = Math.min(1, pop + popSpeed);                              // ポップイン
-    const squirm = 1 + Math.sin(t * squirmSpeed + phx) * squirmAmp; // 蠢く拡縮
-    sprite.scale.set(scale * pop * squirm);
+    pop = Math.min(1, pop + popSpeed); // ポップイン
+    sprite.scale.set(scale * pop * squirmFactor(t, phx, squirmAmp, squirmSpeed));
     sprite.x = x + Math.sin(t * driftSpeedX + phx) * driftX;
     sprite.y = y + Math.sin(t * driftSpeedY + phy) * driftY;
     sprite.rotation = Math.sin(t * rotSpeed + phy) * 0.12;
@@ -460,11 +482,7 @@ function StoryPageHit(unit) {
       if (p >= 1) {
         impacted = true;
         xnew.emit('+shake', { amount: 0.7 });
-        xnew(ExpandingBurst, {
-          x: impactX + 28, y: impactY, duration: 16,
-          flash: { r: 16 * 2.4, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) },
-          ring: { r: 10 * 2.4, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) },
-        });
+        xnew(ExpandingBurst, { x: impactX + 28, y: impactY, power: 2.4 });
         flashG.alpha = 0.85;
         xnew.transition(({ value }) => { sub.element.style.opacity = `${value}`; }, 500, 'ease');
       }
@@ -502,14 +520,14 @@ function StoryPageSwarm(unit) {
 // 蠢くずんだ因子1体（ランダム湧き）。DriftingFactor のランダムプリセット。
 // 黒帯より上（テキスト帯に被らない領域）に散らし、漂い速度も個体ごとにばらつかせる。
 function StoryFactor(_unit) {
-  const id = Math.floor(Math.random() * xnew.context(BakedCharacters).texturesList.length);
+  const id = randInt(xnew.context(BakedCharacters).texturesList.length);
   xnew.extend(DriftingFactor, {
     id,
-    x: 90 + Math.random() * 620,
-    y: 90 + Math.random() * 270,
-    scale: 0.5 + Math.random() * 0.5,
+    x: randRange(90, 710),
+    y: randRange(90, 360),
+    scale: randRange(0.5, 1.0),
     driftX: 16, driftY: 14,
-    driftSpeedX: 0.03 * (0.5 + Math.random()), driftSpeedY: 0.035 * (0.5 + Math.random()),
+    driftSpeedX: 0.03 * randRange(0.5, 1.5), driftSpeedY: 0.035 * randRange(0.5, 1.5),
     rotSpeed: 0.05, popSpeed: 0.08, squirmAmp: 0.08, squirmSpeed: 0.12,
   });
 }
@@ -630,7 +648,7 @@ function WaveManager(unit) {
 // wave 切替時のサイバーな警告画面（プレイ領域）。HUDフレーム + グリッチした WAVE 表示 +
 // 流れる謎文字（hex）+ 脅威解析バー で「敵を検知して解析している」感を出す。
 function WaveTransition(unit, { wave }) {
-  const color = cssHex(waveColor(wave));
+  const color = waveCss(wave);
   const code = ENEMY_CODES[enemyIdForWave(wave)];
   xnew.nest('<div class="absolute left-0 right-[25cqw] top-0 bottom-0 overflow-hidden pointer-events-none" style="font-family: monospace;">');
   unit.element.style.color = color; // 文字はすべて wave 色を継承
@@ -721,7 +739,7 @@ function WaveLabel(unit) {
   const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#102008', strokeWidth: '0.2cqw', className: 'inline-block' });
   xnew(FollowWave, { apply: (wave) => {
     text.element.textContent = `Wave ${wave}`;
-    unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
+    unit.element.style.color = waveCss(wave); // SVGText の fill=currentColor が追従
   } });
 }
 
@@ -774,7 +792,7 @@ function ScoreGauge(unit) {
     labelEl.element.style.color = c;
     pctEl.element.style.color = c;
   }
-  xnew(FollowWave, { apply: (wave) => applyColor(cssHex(waveColor(wave))) });
+  xnew(FollowWave, { apply: (wave) => applyColor(waveCss(wave)) });
 
   let shown = 0;
   unit.on('update', ({ count: t }) => {
@@ -843,27 +861,27 @@ function WaveEnemyDisplay(unit) {
 // 多重リング（逆回転）+ 回転するレーダー掃引 + 呼吸するロックオンブラケット +
 // 周回する解析ブリップ で「ロックして解析している」感を出す。
 function TargetReticle(unit) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
+  xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
   const R = 46;
 
   // 独立回転させる層（container の子に直接 rotation を持たせる）
-  const outer = new PIXI.Container();   // 外周リング（CW）
-  const mid = new PIXI.Container();     // 中アーク（CCW）
-  const sweepC = new PIXI.Container();  // レーダー掃引（速い CW）
-  const blips = new PIXI.Container();   // 周回ブリップ
-  const brackets = new PIXI.Graphics(); // ロックオンブラケット（呼吸）
-  const cross = new PIXI.Graphics();
+  const outer = xpixi.add(new PIXI.Container());   // 外周リング（CW）
+  const mid = xpixi.add(new PIXI.Container());     // 中アーク（CCW）
+  const sweepC = xpixi.add(new PIXI.Container());  // レーダー掃引（速い CW）
+  const blips = xpixi.add(new PIXI.Container());   // 周回ブリップ
+  const brackets = xpixi.add(new PIXI.Graphics()); // ロックオンブラケット（呼吸）
+  const cross = xpixi.add(new PIXI.Graphics());
+  
   const outerG = new PIXI.Graphics(); outer.addChild(outerG);
   const midG = new PIXI.Graphics(); mid.addChild(midG);
   const sweepG = new PIXI.Graphics(); sweepC.addChild(sweepG);
-  container.addChild(sweepC, outer, mid, cross, brackets, blips);
 
   // 周回ブリップ（ランダムな半径/角速度）
   const dots = [];
   for (let i = 0; i < 6; i++) {
     const g = new PIXI.Graphics();
     blips.addChild(g);
-    dots.push({ g, radius: 24 + Math.random() * 26, ang: Math.random() * Math.PI * 2, spd: (0.01 + Math.random() * 0.03) * (Math.random() < 0.5 ? 1 : -1), size: 1.1 + Math.random() * 1.4 });
+    dots.push({ g, radius: randRange(24, 50), ang: randAngle(), spd: randRange(0.01, 0.04) * randSign(), size: randRange(1.1, 2.5) });
   }
 
   let color = WAVE_COLORS[0];
@@ -980,7 +998,7 @@ function TargetInfo(unit) {
   function applyWave(wave) {
     const id = enemyIdForWave(wave);
     idLine.element.textContent = `ID ${ENEMY_CODES[id]} ${'▮'.repeat(id + 1)}`;
-    unit.element.style.color = cssHex(waveColor(wave)); // 全テキストが継承
+    unit.element.style.color = waveCss(wave); // 全テキストが継承
   }
   xnew(FollowWave, { apply: applyWave });
 
@@ -991,7 +1009,7 @@ function TargetInfo(unit) {
       for (let i = 0; i < leftRail.length - 1; i++) leftRail[i].element.textContent = leftRail[i + 1].element.textContent;
       leftRail[leftRail.length - 1].element.textContent = randHex(2);
       for (let i = 0; i < rightRail.length - 1; i++) rightRail[i].element.textContent = rightRail[i + 1].element.textContent;
-      rightRail[rightRail.length - 1].element.textContent = Math.random() < 0.5 ? `${Math.floor(Math.random() * 100)}%` : rightTokens[Math.floor(Math.random() * rightTokens.length)];
+      rightRail[rightRail.length - 1].element.textContent = Math.random() < 0.5 ? `${randInt(100)}%` : pick(rightTokens);
     }
 
     // 四隅ラベル
@@ -1088,12 +1106,12 @@ function Mote(unit) {
   const depth = Math.random(); // 0:奥 〜 1:手前
   const size = 1 + depth * 4;
   const baseAlpha = 0.08 + depth * 0.22;
-  const color = [0xFF6E8A, 0xFFA7B6, 0xE8506A, 0xFFC0CB][Math.floor(Math.random() * 4)];
+  const color = pick([0xFF6E8A, 0xFFA7B6, 0xE8506A, 0xFFC0CB]);
   xpixi.add(new PIXI.Graphics().circle(0, 0, size).fill(color));
 
   const vy = 0.2 + depth * 0.9;
-  const vx = (Math.random() - 0.5) * 0.3;
-  let phase = Math.random() * Math.PI * 2;
+  const vx = randRange(-0.15, 0.15);
+  let phase = randAngle();
 
   unit.on('update', () => {
     object.x += vx;
@@ -1145,7 +1163,7 @@ function ScoreManager(unit) {
   let waveScore = 0;  // 現在の wave 内で稼いだスコア（wave 開始ごとに 0 リセット）
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
 
-  xnew(FollowWave, { apply: (wave) => applyColor(cssHex(waveColor(wave))) });
+  xnew(FollowWave, { apply: (wave) => applyColor(waveCss(wave)) });
   unit.on('+wave', () => { waveScore = 0; }); // wave 開始ごとに wave 内スコアをリセット
 
   return {
@@ -1169,9 +1187,7 @@ function Player(unit) {
   const sprite = xnew(BakedSprite, { textures: xnew.context(BakedCharacters).playerTextures, scale: 0.7 }).sprite;
 
   // 当たり判定を可視化する円（キャラの上に重ねて表示）
-  const hitRing = xpixi.add(new PIXI.Graphics()
-    .circle(0, 0, PLAYER_HIT_R).fill({ color: 0x33FFFF, alpha: 0.18 })
-    .circle(0, 0, PLAYER_HIT_R).stroke({ color: 0x33FFFF, width: 2.5, alpha: 0.9 }));
+  const hitRing = xpixi.add(hitCircle(PLAYER_HIT_R, 0x33FFFF, 0.18, 2.5, 0.9));
 
   let alive = true;
   let velocity = { x: 0, y: 0 };
@@ -1197,12 +1213,8 @@ function Player(unit) {
 
     hitRing.alpha = 0.7 + 0.3 * Math.sin(count * 0.1); // うっすら明滅
 
-    for (const enemy of xnew.find(Enemy)) {
-      if (enemy.isVulnerable && enemy.distance(object) < PLAYER_HIT_R + ENEMY_HIT_R) {
-        xnew.emit('+gameover');
-        return;
-      }
-    }
+    // 無敵でない敵に触れたらゲームオーバー
+    hitNearestEnemy(object, PLAYER_HIT_R + ENEMY_HIT_R, () => xnew.emit('+gameover'), true);
   });
 }
 
@@ -1255,12 +1267,9 @@ function Shot(unit, { x, y }) {
 
     if (object.y < 0) { unit.finalize(); return; }
 
-    for (const enemy of xnew.find(Enemy)) {
-      if (enemy.distance(object) < 30) {
-        enemy.clash(ENEMY_DATA[enemy.id].score, { x: 0, y: -1 }); // ショットは上方向
-        unit.finalize();
-        return;
-      }
+    // ショットは上方向。当たった敵を撃破して自身を消す。
+    if (hitNearestEnemy(object, 30, (e) => e.clash(ENEMY_DATA[e.id].score, { x: 0, y: -1 }))) {
+      unit.finalize();
     }
   });
 
@@ -1285,14 +1294,12 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   // ベイクテクスチャでスプライト表示。scale 0 から pop-in（下の update で 0→1 に拡大）。
   const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
 
-  // 当たり判定を可視化する円（キャラの上に重ねる・スケール変動の影響を受けない object 直下）
-  xpixi.add(new PIXI.Graphics()
-    .circle(0, 0, ENEMY_HIT_R).fill({ color: 0xFF3355, alpha: 0.2 })
-    .circle(0, 0, ENEMY_HIT_R).stroke({ color: 0xFF3355, width: 2, alpha: 0.85 }));
+  // 当たり判定を可視化する円（object 直下なのでスケール変動の影響を受けない）
+  xpixi.add(hitCircle(ENEMY_HIT_R, 0xFF3355, 0.2, 2, 0.85));
 
   // 出現時の pop-in（0→1 に拡大）＋ スケールの時間変動（生きている＝蠢く感じ）。
   // どちらもストーリー2ページ目の StoryFactor と同じ手法。
-  const squirmPhase = Math.random() * Math.PI * 2;
+  const squirmPhase = randAngle();
   let pop = 0;
 
   // 無敵時間（分裂直後は半透明）
@@ -1302,10 +1309,10 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
     xnew.timeout(() => { vulnerable = true; object.alpha = 1.0; }, 500);
   }
 
-  // ランダムな速度（下向き成分を持つ）
-  const speed = 0.7 + Math.random() * 1.4;
-  const angle = Math.PI * (0.25 + Math.random() * 0.5); // 45~135度（下向き）
-  const vel = { x: Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1), y: Math.sin(angle) * speed };
+  // ランダムな速度（下向き成分を持つ。45~135度）
+  const speed = randRange(0.7, 2.1);
+  const angle = Math.PI * randRange(0.25, 0.75);
+  const vel = { x: Math.cos(angle) * speed * randSign(), y: Math.sin(angle) * speed };
 
   // 被弾時のノックバック（着弾点から弾け、徐々に減速）
   const kb = { x: knockback?.x ?? 0, y: knockback?.y ?? 0 };
@@ -1313,10 +1320,9 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   let fading = false; // wave 切替で退場中（得点・当たり判定なし）
 
   unit.on('update', ({ count }) => {
-    // pop-in（0→1）× y座標に応じた遠近感 × 時間で蠢く拡縮
+    // pop-in（0→1）× y座標に応じた遠近感 × 蠢く拡縮
     pop = Math.min(1, pop + 0.08);
-    const squirm = 1 + Math.sin(count * 0.12 + squirmPhase) * 0.08;
-    sprite.scale.set((0.4 + id * 0.2 + object.y * 0.0008) * squirm * pop);
+    sprite.scale.set((0.4 + id * 0.2 + object.y * 0.0008) * squirmFactor(count, squirmPhase, 0.08, 0.12) * pop);
 
     if (object.x < 15)             vel.x =  Math.abs(vel.x);
     if (object.x > PLAY_RIGHT - 15) vel.x = -Math.abs(vel.x);
@@ -1354,14 +1360,8 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       const scene = xnew.context(xnew.basics.Scene);
       const baseAngle = Math.atan2(direction.y, direction.x); // 当たった方向
 
-      // 撃破エフェクト：衝撃バースト + 撃破音。カメラシェイクは自機ショット命中時のみ。
-      // バーストは敵が大きい(id 大)ほど強く。
-      const burstPower = 1 + id * 0.5;
-      scene.add(ExpandingBurst, {
-        x: object.x, y: object.y, duration: 16,
-        flash: { r: 16 * burstPower, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) },
-        ring: { r: 10 * burstPower, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) },
-      });
+      // 撃破エフェクト：衝撃バースト（敵が大きい id ほど強く）+ 撃破音。シェイクは自機ショット命中時のみ。
+      scene.add(ExpandingBurst, { x: object.x, y: object.y, power: 1 + id * 0.5 });
       xnew.context(SoundFX).defeat(id);
       if (!fromStar) xnew.emit('+shake', { amount: 0.16 + id * 0.13 });
 
@@ -1374,7 +1374,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       // 分裂（ノックバック方向を軸に小さくランダム微変動して弾ける）
       if (data.splitTo !== null) {
         for (let i = 0; i < 2; i++) {
-          const dir = baseAngle + (Math.random() - 0.5) * 0.6;
+          const dir = baseAngle + randRange(-0.3, 0.3);
           const power = 7 + id * 2;
           scene.add(Enemy, {
             id: data.splitTo, x: object.x, y: object.y, invincible: true,
@@ -1385,7 +1385,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       // 星（チェーンショット）— 当たった方向へ扇状に、敵が大きいほど多く
       const starCount = 3 + id;
       for (let i = 0; i < starCount; i++) {
-        const angle = baseAngle + (Math.random() - 0.5) * 1.4;
+        const angle = baseAngle + randRange(-0.7, 0.7);
         scene.add(Star, { x: object.x, y: object.y, score, angle });
       }
       scene.add(ScorePopup, { x: object.x, y: object.y, score });
@@ -1395,17 +1395,17 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   };
 }
 
-function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
+function Star(unit, { x, y, score, angle = randAngle() }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
 
-  const baseR = (9 + Math.random() * 7) * 1.5;
-  const color = [0xFFF066, 0xFFD700, 0xFFA53C, 0xFFFFFF, 0xFF8FD0, 0x9BE5FF][Math.floor(Math.random() * 6)];
-  const spin = (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.2);
+  const baseR = randRange(9, 16) * 1.5;
+  const color = pick([0xFFF066, 0xFFD700, 0xFFA53C, 0xFFFFFF, 0xFF8FD0, 0x9BE5FF]);
+  const spin = randSign() * randRange(0.12, 0.32);
   // 縮みながら瞬く星（回転・スケール変動は component 内部で計算）
   xnew(StarSprite, { color, baseR, spin, shrink: 0.35, twinkleAmp: 0.22, twinkleFreq: 0.5 });
 
-  const speed = 2 + Math.random() * 3;
+  const speed = randRange(2, 5);
   let vx = Math.cos(angle) * speed;
   let vy = Math.sin(angle) * speed;
 
@@ -1417,14 +1417,11 @@ function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
     object.alpha = 1 - count / 60; // フェードは呼び出し側（コンテナ全体）で行う
 
     // 別の敵に当たると得点倍増（星の進行方向にノックバック/分裂）
-    for (const enemy of xnew.find(Enemy)) {
-      if (enemy.isVulnerable && enemy.distance(object) < 28) {
-        const len = Math.hypot(vx, vy) || 1;
-        enemy.clash(score + 2, { x: vx / len, y: vy / len }, true);
-        unit.finalize();
-        return;
-      }
-    }
+    const hit = hitNearestEnemy(object, 28, (e) => {
+      const len = Math.hypot(vx, vy) || 1;
+      e.clash(score + 2, { x: vx / len, y: vy / len }, true);
+    }, true);
+    if (hit) unit.finalize();
   });
 }
 
@@ -1449,7 +1446,7 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   const angle = Math.atan2(direction.y, direction.x);
   let vx = Math.cos(angle) * power;
   let vy = Math.sin(angle) * power;
-  const spin = (Math.random() - 0.5) * 0.3;
+  const spin = randRange(-0.15, 0.15);
 
   const DURATION = 26;
   unit.on('update', ({ count }) => {
@@ -1463,10 +1460,11 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   });
 }
 
-// 広がるフラッシュ + リングのバースト演出。(x,y) に自前でコンテナを nest し、duration フレーム
-// 再生し終えたら unit を finalize する（scene.add で直接置けば自身を、xnew.extend で宿主に適用
-// すれば宿主ごと畳む）。flash/ring は { r, alpha, grow, fade(p) } で形状と減衰、ring.width で線幅を指定。
-function ExpandingBurst(unit, { x, y, duration, flash, ring }) {
+// 広がるフラッシュ + リングのバースト演出。(x,y) にコンテナを nest し、duration フレーム後に finalize。
+// flash/ring は { r, alpha, grow, fade(p) }（ring.width=線幅）。省略時は power から標準の撃破バーストを作る。
+function ExpandingBurst(unit, { x, y, duration = 16, power = 1, flash, ring }) {
+  flash = flash ?? { r: 16 * power, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) };
+  ring = ring ?? { r: 10 * power, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) };
   xpixi.nest(new PIXI.Container({ position: { x, y } }));
   const flashG = xpixi.add(new PIXI.Graphics().circle(0, 0, flash.r).fill({ color: 0xFFFFFF, alpha: flash.alpha }));
   const ringG = xpixi.add(new PIXI.Graphics().circle(0, 0, ring.r).stroke({ color: 0x66E0FF, width: ring.width, alpha: ring.alpha }));
@@ -1497,9 +1495,9 @@ function PlayerExplosion(unit, { x, y }) {
   const palette = [0x9CF0FF, 0xFFFFFF, 0x66E0FF, 0xCFFBFF];
   const shards = [];
   for (let i = 0; i < 18; i++) {
-    const g = xpixi.add(new PIXI.Graphics().circle(0, 0, 3 + Math.random() * 4).fill(palette[Math.floor(Math.random() * palette.length)]));
-    const a = Math.random() * Math.PI * 2;
-    const sp = 3 + Math.random() * 6;
+    const g = xpixi.add(new PIXI.Graphics().circle(0, 0, randRange(3, 7)).fill(pick(palette)));
+    const a = randAngle();
+    const sp = randRange(3, 9);
     shards.push({ g, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
   }
   unit.on('update', ({ count }) => {
