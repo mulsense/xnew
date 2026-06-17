@@ -55,24 +55,20 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('xnew.promise(unit).then — staging', () => {
-        it('folds an xnew.promise registered inside the callback into the .then completion', async () => {
-            // xnew.promise(unit).then の callback 内で xnew.promise を登録すると、その解決まで
-            // .then の完了が待たれる（cb の return ではなく内部登録の解決が完了を意味する）。
+    describe('xnew.promise(unit).then — returned promise', () => {
+        it('waits for a promise returned from the callback before completing', async () => {
+            // .then の callback が return した promise の解決まで、後続 / 親の完了が待たれる。
             const onDone = jest.fn();
             let release!: () => void;
             const unit = xnew((u) => {
                 xnew.promise(Promise.resolve(1));
-                xnew.promise(u).then(() => {
-                    const { resolve } = xnew.promise();
-                    release = () => resolve();
-                });
+                xnew.promise(u).then(() => new Promise<void>((resolve) => { release = resolve; }));
             });
             // 外から完了を観測（このスナップショットに「.then の完了」が同期登録されている前提）。
             xnew.promise(unit).then(onDone);
 
             await jest.advanceTimersByTimeAsync(0);
-            expect(onDone).not.toHaveBeenCalled(); // 内部 xnew.promise が未解決 → 完了しない
+            expect(onDone).not.toHaveBeenCalled(); // return した promise が未解決 → 完了しない
 
             release();
             await jest.advanceTimersByTimeAsync(0);
@@ -83,10 +79,9 @@ describe('xnew promise helpers', () => {
             const order: string[] = [];
             let releaseFirst!: () => void;
             xnew((u) => {
-                xnew.promise(u).then(() => {
-                    const { resolve } = xnew.promise();
+                xnew.promise(u).then(() => new Promise<void>((resolve) => {
                     releaseFirst = () => { order.push('first'); resolve(); };
-                });
+                }));
                 xnew.promise(u).then(() => { order.push('second'); });
             });
 
@@ -98,11 +93,11 @@ describe('xnew promise helpers', () => {
             expect(order).toEqual(['first', 'second']);
         });
 
-        it('completes when the callback returns if it registers no inner promise', async () => {
+        it('completes when the callback returns a non-promise value', async () => {
             const onDone = jest.fn();
             const unit = xnew((u) => {
                 xnew.promise(Promise.resolve(1));
-                xnew.promise(u).then(() => { /* 内部登録なし → cb 終了が完了 */ });
+                xnew.promise(u).then(() => { /* 非 promise を返す → cb 終了が完了 */ });
             });
             xnew.promise(unit).then(onDone);
 
@@ -110,17 +105,15 @@ describe('xnew promise helpers', () => {
             expect(onDone).toHaveBeenCalledTimes(1);
         });
 
-        it('a parent waiting on the child (xnew.promise(child)) waits for a deferred staged inside the child', async () => {
-            // tohoku_shot のパターン: 子の xnew.promise(unit).then 内で立てた deferred を、親が xnew.promise(child)
-            // 経由で待つ。staged 完了が子の _.promises に同期登録されるため、親のスナップショットに含まれる。
+        it('a parent waiting on the child (xnew.promise(child)) waits for a promise returned inside the child', async () => {
+            // tohoku_shot のパターン: 子の xnew.promise(unit).then が return した promise（bake）を、
+            // 親が xnew.promise(child) 経由で待つ。.then が書き換えたハンドルが子の _.promises に
+            // 同期登録されているため、親のスナップショットに含まれる。
             const parentDone = jest.fn();
             let release!: () => void;
             function Child(u: Unit) {
                 xnew.promise(Promise.resolve(1)); // load
-                xnew.promise(u).then(() => {            // stage: bake
-                    const { resolve } = xnew.promise();
-                    release = () => resolve();
-                });
+                xnew.promise(u).then(() => new Promise<void>((resolve) => { release = resolve; })); // bake
             }
             xnew((p) => {
                 xnew.promise(xnew(Child)); // 親は子 unit の完了を待つ
@@ -287,8 +280,8 @@ describe('xnew promise helpers', () => {
         });
     });
 
-    describe('promise-rules.md trace (A〜E)', () => {
-        it('C waits for A,B; E waits for A,B,C,D; E runs in the parent scope', async () => {
+    describe('promise-rules.md trace (A〜E, case 1 new)', () => {
+        it('C waits for A,B; E waits for A,B,C(returned); E receives only key3 in the parent scope', async () => {
             const order: string[] = [];
             let releaseA!: () => void;
             let releaseB!: () => void;
@@ -299,14 +292,16 @@ describe('xnew promise helpers', () => {
                 const b = xnew.promise('key2'); releaseB = () => b.resolve(2); // B
                 xnew.promise('key3', unit).then(({ key1, key2 }: any) => {     // C
                     order.push(`C:${key1},${key2}`);
-                    const d = xnew.promise(); // D（return しない、cb 内で同期登録）
-                    releaseD = () => d.resolve();
+                    // D は return した promise として表す（同期登録は NG）。
+                    return new Promise<string>((resolve) => { releaseD = () => resolve('done'); });
                 });
             }
+            const seen: any[] = [];
             xnew((parent: Unit) => {
                 const child = xnew(Child);
-                xnew.promise(child).then(({ key1, key2 }: any) => {            // E
-                    order.push(`E:${key1},${key2},parentScope=${Unit.currentUnit === parent}`);
+                xnew.promise(child).then((results: any) => {                    // E
+                    seen.push(results);
+                    order.push(`E:key3=${results.key3},hasKey1=${'key1' in results},parentScope=${Unit.currentUnit === parent}`);
                 });
             });
 
@@ -316,11 +311,13 @@ describe('xnew promise helpers', () => {
             releaseA();
             releaseB();
             await jest.advanceTimersByTimeAsync(0);
-            expect(order).toEqual(['C:1,2']); // C 開始。E は D 待ちでまだ
+            expect(order).toEqual(['C:1,2']); // C 開始。E は C の return 待ちでまだ
 
             releaseD();
             await jest.advanceTimersByTimeAsync(0);
-            expect(order).toEqual(['C:1,2', 'E:1,2,parentScope=true']); // E 開始（Parent スコープ）
+            // E 開始: key3 = C の戻り値、key1/key2 は集約で消費済みなので E には入らない、Parent スコープ。
+            expect(order).toEqual(['C:1,2', 'E:key3=done,hasKey1=false,parentScope=true']);
+            expect(seen[0]).toEqual({ key3: 'done' });
         });
     });
 
