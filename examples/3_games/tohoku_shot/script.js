@@ -201,10 +201,9 @@ function BakedCharacters(unit) {
   // 各 VRM のロードを登録（解決値は下の then の vrms に入る）。
   jobs.forEach((job) => xnew.promise('vrms[]', loadVrm(job.url)));
 
-  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。内部で xnew.promise を立て、全キャラ
-  // 焼き終えたら resolve()。この完了は unit に畳まれ、Contents は焼き上がりまで待つ。
-  xnew.promise(unit).then(({ vrms }) => {
-    const { resolve } = xnew.promise();
+  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。then は Promise を返し、全キャラ
+  // 焼き終えたら resolve()。Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ。
+  xnew.promise(unit).then(({ vrms }) => new Promise((resolve) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
     const wrapper = xthree.add(new THREE.Object3D());
 
@@ -258,7 +257,7 @@ function BakedCharacters(unit) {
       jobIndex++;
       startJob();
     });
-  });
+  }));
 
   return {
     get texturesList() { return jobs.slice(0, ENEMY_FILES.length).map((job) => job.textures); },
