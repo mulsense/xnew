@@ -808,15 +808,11 @@ Unit.type2units = new MapSet();
 class UnitPromise {
     constructor(promise, key) { this.promise = promise; this.key = key; }
     then(callback) {
-        const unit = Unit.currentUnit;
-        const snapshot = Unit.snapshot(unit);
-        this.promise = this.promise.then((...args) => Unit.scope(snapshot, () => {
-            const before = unit._.promises.length;
-            const returned = callback(...args);
-            const registered = unit._.promises.slice(before);
-            const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
-            return Promise.all([tail, ...registered.map((p) => p.promise)]).then(([t]) => t);
-        }));
+        const snapshot = Unit.snapshot(Unit.currentUnit);
+        this.promise = this.promise.then((...args) => {
+            const returned = Unit.scope(snapshot, callback, ...args);
+            return returned instanceof UnitPromise ? returned.promise : returned;
+        });
         return this;
     }
     catch(callback) {
@@ -835,7 +831,7 @@ class UnitPromise {
         });
         return this;
     }
-    static results(promises) {
+    static results(promises, key) {
         return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {
             const out = {};
             promises.forEach((p, i) => {
@@ -844,7 +840,7 @@ class UnitPromise {
                 }
             });
             return out;
-        }));
+        }), key);
     }
     static assignKey(out, key, value) {
         const matched = key.match(/^(.+)\[\]$/);
@@ -967,8 +963,7 @@ const xnew$1 = Object.assign((function (...args) {
             let settled = false;
             let resolve;
             let reject;
-            const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
-            unitPromise.key = key;
+            const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }), key);
             Unit.currentUnit._.promises.push(unitPromise);
             return {
                 resolve(value) { if (settled)
@@ -977,19 +972,21 @@ const xnew$1 = Object.assign((function (...args) {
                     return; settled = true; reject(reason); },
             };
         }
-        let unitPromise;
-        if (promise instanceof Unit) {
-            unitPromise = UnitPromise.results(promise._.promises);
-        }
-        else if (promise instanceof Promise) {
-            unitPromise = new UnitPromise(promise);
-        }
         else {
-            unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)));
+            let unitPromise;
+            if (promise instanceof Unit) {
+                unitPromise = UnitPromise.results(promise._.promises, key);
+                promise._.promises = [];
+            }
+            else if (promise instanceof Promise) {
+                unitPromise = new UnitPromise(promise, key);
+            }
+            else {
+                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), key);
+            }
+            Unit.currentUnit._.promises.push(unitPromise);
+            return unitPromise;
         }
-        unitPromise.key = key;
-        Unit.currentUnit._.promises.push(unitPromise);
-        return unitPromise;
     }),
     scope(callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);

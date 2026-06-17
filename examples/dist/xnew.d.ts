@@ -124,7 +124,7 @@ declare class UnitPromise {
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
-    static results(promises: UnitPromise[]): UnitPromise;
+    static results(promises: UnitPromise[], key?: string): UnitPromise;
     private static assignKey;
 }
 declare class UnitTimer {
