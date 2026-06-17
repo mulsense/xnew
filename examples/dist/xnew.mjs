@@ -832,15 +832,14 @@ class UnitPromise {
         return this;
     }
     static results(promises, key) {
-        const hasKey = promises.some((p) => p.key !== undefined);
         return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {
-            if (hasKey === false) {
-                return values;
-            }
-            const out = {};
+            const out = { results: [] };
             promises.forEach((p, i) => {
                 if (p.key !== undefined) {
                     UnitPromise.assignKey(out, p.key, values[i]);
+                }
+                else {
+                    out.results.push(values[i]);
                 }
             });
             return out;

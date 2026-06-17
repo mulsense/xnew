@@ -92,9 +92,18 @@ function Child(unit) {
 C: A,Bが解決したらスタート
 E: A,B,Cが解決したらスタート
 
-A, Bの様に、keyなしでしている場合、Cで受け取るときは、keyを持つオブジェクトではなく、リザルトの配列になる。A,Bのどちらかで、key指定されている場合、そのkeyだけを持つオブジェクトが、Cを受け取る仕様。
+集約結果は常にオブジェクト。key付きはそのkeyのプロパティ、keyなしは results 配列（登録順）にまとめる。混在可。
+results キーは常に存在する（keyなしが無ければ []）。
+- 全てkeyなし → { results: [v1, v2] }
+- 混在        → { key1, ..., results: [keyなしの値] }
+- 全てkey付き → { key1, ..., results: [] }
 
-xnew.promise(unit)で、unitのpromiseを集約すると、上記のリザルトはリセットされる。この例では、xnew.promise(unit)ではkey指定はしていないので、以降、xnew.promise(unit).thenで得られる情報はリザルトの配列となる
+A, B のように key なしで登録した値は、C で受け取るとき results 配列に入る。A,B のどちらかで key 指定がある場合、
+その key はオブジェクトのプロパティに、key なしは results に入る。
+
+xnew.promise(unit)で、unitのpromiseを集約すると、上記のリザルトはリセットされる。
+
+注意: 予約キー results をユーザーキー（xnew.promise('results', ...)）に使うと衝突する。
 
 
 ## case 2 - key付き集約のネスト
@@ -124,7 +133,9 @@ G: A,B が解決したらスタート。results は { child: { key1, key2 } }。
 
 ・孫→子→親と多段にネストできる（Child で xnew.promise('grand', grand)、Parent で
   xnew.promise('child', child) → { child: { grand: { x } } }）。
-・ネスト集約も case 2 の shape ルールに従う（子側が全 key なしなら、その値は配列になる）。
+・ネスト集約も case 2 の shape ルールに従う（子側が全 key なしなら { child: { results: [...] } }）。
+・どの集約オブジェクトにも results キーは必ず付く（上の例では簡潔さのため省略している。
+  実際は { child: { key1, key2, results: [] }, results: [] } のようになる）。
 
 
 ### case 1（then の return 継続）と組み合わせたとき

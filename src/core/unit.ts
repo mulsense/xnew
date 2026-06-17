@@ -526,18 +526,20 @@ export class UnitPromise {
         return this;
     }
 
-    // promise 群を集約した UnitPromise を返す。
-    // - 1 つでもキー付きがあれば { key: 最終チェーン値 } のオブジェクト（キー無しは除外）。
-    //   キーが `name[]` 形式なら out[name] を配列にして登録順に push する。
-    // - 全てキー無しなら、登録順の値の配列（empty なら []）。
+    // promise 群を集約した UnitPromise を返す（常にオブジェクト）。
+    // - キー付きは { key: 最終チェーン値 }（キーが `name[]` 形式なら out[name] を配列にして登録順 push）。
+    // - キー無しは out.results 配列に登録順でまとめる。results は常に存在する（無ければ []）。
+    // 注意: 予約キー `results` をユーザーキーに使うと衝突する。
     public static results(promises: UnitPromise[], key?: string): UnitPromise {
-        const hasKey = promises.some((p) => p.key !== undefined);
         return new UnitPromise(
             Promise.all(promises.map(p => p.promise)).then((values) => {
-                if (hasKey === false) { return values; }
-                const out: Record<string, any> = {};
+                const out: Record<string, any> = { results: [] };
                 promises.forEach((p, i) => {
-                    if (p.key !== undefined) { UnitPromise.assignKey(out, p.key, values[i]); }
+                    if (p.key !== undefined) {
+                        UnitPromise.assignKey(out, p.key, values[i]);
+                    } else {
+                        out.results.push(values[i]);
+                    }
                 });
                 return out;
             }),
