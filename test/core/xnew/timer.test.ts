@@ -13,6 +13,7 @@ describe('xnew timer helpers', () => {
             expect(cb).not.toHaveBeenCalled();
             jest.advanceTimersByTime(1);
             expect(cb).toHaveBeenCalledTimes(1);
+            expect(cb).toHaveBeenCalledWith({ count: 1 });
         });
         it('clear() cancels a scheduled callback', () => {
             const cb = jest.fn();
@@ -36,6 +37,14 @@ describe('xnew timer helpers', () => {
             xnew(() => { xnew.interval(cb, 50, 0); });
             jest.advanceTimersByTime(50 * 5);
             expect(cb).toHaveBeenCalledTimes(5);
+        });
+        it('passes the 1-based call count to the callback', () => {
+            const cb = jest.fn();
+            xnew(() => { xnew.interval(cb, 50, 0); });
+            jest.advanceTimersByTime(50 * 3);
+            expect(cb).toHaveBeenNthCalledWith(1, { count: 1 });
+            expect(cb).toHaveBeenNthCalledWith(2, { count: 2 });
+            expect(cb).toHaveBeenNthCalledWith(3, { count: 3 });
         });
     });
 

@@ -907,7 +907,7 @@
                 let current = new Timer(onTimeout, onTransition, duration, easing);
                 function onTimeout() {
                     if (timeout)
-                        Unit.scope(snapshot, timeout);
+                        Unit.scope(snapshot, timeout, { count: counter + 1 });
                     if (iterations <= 0 || counter < iterations - 1) {
                         current = new Timer(onTimeout, onTransition, duration, easing);
                     }

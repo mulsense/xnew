@@ -9,7 +9,7 @@ const timer = xnew.interval(callback, duration, iterations);
 ```
 
 **パラメータ:**
-- `callback`: 各 interval で実行する関数
+- `callback`: 各 interval で実行する関数。`{ count }` を受け取る（`count` は 1 始まりの呼び出し回数）
 - `duration`: 実行間隔 (ミリ秒)
 - `iterations` *(省略可)*: 実行回数。`0`（既定）で無制限
 
@@ -36,11 +36,9 @@ xnew('<div>', (unit) => {
 
 ```js
 xnew('<div>', (unit) => {
-  let count = 0;
   unit.element.textContent = 'Starting countdown...';
 
-  const interval = xnew.interval(() => {
-    count++;
+  const interval = xnew.interval(({ count }) => {
     unit.element.textContent = `Count: ${count}`;
 
     // Stop after 10 iterations
