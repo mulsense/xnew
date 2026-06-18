@@ -455,7 +455,7 @@ function LeftBlock(unit, { id }) {
     xnew(BlockBUtton, { text: '帰'} ).on('click', () => xnew.emit('+main', TitleScene));
   });
 
-  unit.on('keydown.arrow', ({ event, vector }) => {
+  unit.on('window.keydown.arrow', ({ event, vector }) => {
     event.preventDefault();
     move(vector);
   });

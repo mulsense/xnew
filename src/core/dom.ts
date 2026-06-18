@@ -13,9 +13,10 @@
 //
 // Payload: change|input:{event,value} / click|pointer*:{event,position} / *.outside: 要素の外で発火 /
 // wheel:{event,delta} / resize:{} / drag*:{event,position,delta} /
-// keydown|keyup:{event}(repeat 除去) / .arrow|.wasd:{event,vector} /
-// keydown|keyup.<key>(.repeat)?:{event}（名前付きキー絞り込み。既定 repeat 除去）
-// キーボード系は既定で window にバインドし、'window.' 接頭辞は任意（後方互換）。'document.' で document へ。
+// window.keydown|keyup:{event}(repeat 除去) / window.keydown|keyup.arrow|wasd:{event,vector} /
+// (window|document).keydown|keyup.<key>(.repeat)?:{event}（名前付きキー絞り込み。既定 repeat 除去）
+// キーボードを window/document にバインドするには 'window.' / 'document.' 接頭辞が必須。
+// 接頭辞なしの 'keydown' 等は通常イベントとして unit 自身の要素にバインドされる。
 //----------------------------------------------------------------------------------------------------
 
 import { MapMap } from './map';
@@ -147,9 +148,9 @@ defineEvent('resize', (props: EventProps) => {
     return () => observer.unobserve(props.element);
 });
 
-// 既定で window にバインドする。'window.' 接頭辞は任意（後方互換のため両方受け付ける）。
-defineEvent(['keydown', 'keyup', 'window.keydown', 'window.keyup'], (props: EventProps) => {
-    const type = props.type.startsWith('window.') ? props.type.substring('window.'.length) : props.type;
+// window へバインドする keydown/keyup（auto-repeat は除去）。'window.' 接頭辞が必須。
+defineEvent(['window.keydown', 'window.keyup'], (props: EventProps) => {
+    const type = props.type.substring('window.'.length);
     return listen(window, type, (event: any) => {
         if (event.repeat) return;
         props.listener({ event });
@@ -239,20 +240,20 @@ function keyVectorEvent(variant: 'keydown' | 'keyup', codes: { left: string, rig
 const ARROW_CODES = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' };
 const WASD_CODES = { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS' };
 
-// 'window.' 接頭辞は任意（vector 系は常に window で押下状態を集約する）。
-defineEvent(['keydown.arrow', 'window.keydown.arrow'], keyVectorEvent('keydown', ARROW_CODES));
-defineEvent(['keyup.arrow', 'window.keyup.arrow'], keyVectorEvent('keyup', ARROW_CODES));
-defineEvent(['keydown.wasd', 'window.keydown.wasd'], keyVectorEvent('keydown', WASD_CODES));
-defineEvent(['keyup.wasd', 'window.keyup.wasd'], keyVectorEvent('keyup', WASD_CODES));
+// vector 系は常に window で押下状態を集約する（'window.' 接頭辞が必須）。
+defineEvent('window.keydown.arrow', keyVectorEvent('keydown', ARROW_CODES));
+defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
+defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
+defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
 
 //----------------------------------------------------------------------------------------------------
-// named-key filter — (window.|document.)?(keydown|keyup).<key>(.repeat)?
+// named-key filter — (window|document).(keydown|keyup).<key>(.repeat)?
 //
 // 末尾のキー名で絞り込んだ keydown / keyup を { event } で通知する（event.code 判定を不要にする）。
 // <key>: space / enter / escape(esc) / tab / up|down|left|right / a–z / 0–9。その他は code|key 名で照合。
 // 既定で auto-repeat を除去（plain keydown と同じ）。`.repeat` を付けると押しっぱなしの連続発火も通す。
-// 接頭辞は任意で既定 window（'document.' のみ document）。
-// 例: unit.on('keydown.space', ({ event }) => ...) / 'keydown.a.repeat' / 'window.keydown.space'（旧来）
+// 'window.' / 'document.' 接頭辞が必須（どこにバインドするかを明示する）。接頭辞なしは named-key として扱わない。
+// 例: unit.on('window.keydown.space', ({ event }) => ...) / 'window.keydown.a.repeat' / 'document.keyup.escape'
 //----------------------------------------------------------------------------------------------------
 
 const KEY_ALIASES: Record<string, string> = {
@@ -270,12 +271,12 @@ function matchKey(name: string, event: KeyboardEvent): boolean {
 // 一致すれば EventFactory、しなければ undefined（呼び出し側が別解決）。.arrow / .wasd は先に
 // 完全一致 factory が解決するためここには来ない。
 function keyboardFactory(type: string): EventFactory | undefined {
-    const matched = type.match(/^(?:(window|document)\.)?(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
+    const matched = type.match(/^(window|document)\.(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
     if (matched === null) return undefined;
     const [, scope, variant, rawKey, repeat] = matched;
     const key = rawKey.toLowerCase();
     const allowRepeat = repeat !== undefined;
-    const target = scope === 'document' ? document : window; // 接頭辞なし / 'window.' は window、'document.' のみ document
+    const target = scope === 'document' ? document : window; // 'window.' は window、'document.' は document（接頭辞必須）
     return (props: EventProps) => listen(target, variant, (event: any) => {
         if (allowRepeat === false && event.repeat) return;
         if (matchKey(key, event)) props.listener({ event });

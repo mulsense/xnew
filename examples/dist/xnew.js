@@ -331,8 +331,8 @@
         observer.observe(props.element);
         return () => observer.unobserve(props.element);
     });
-    defineEvent(['keydown', 'keyup', 'window.keydown', 'window.keyup'], (props) => {
-        const type = props.type.startsWith('window.') ? props.type.substring('window.'.length) : props.type;
+    defineEvent(['window.keydown', 'window.keyup'], (props) => {
+        const type = props.type.substring('window.'.length);
         return listen(window, type, (event) => {
             if (event.repeat)
                 return;
@@ -415,10 +415,10 @@
     }
     const ARROW_CODES = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' };
     const WASD_CODES = { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS' };
-    defineEvent(['keydown.arrow', 'window.keydown.arrow'], keyVectorEvent('keydown', ARROW_CODES));
-    defineEvent(['keyup.arrow', 'window.keyup.arrow'], keyVectorEvent('keyup', ARROW_CODES));
-    defineEvent(['keydown.wasd', 'window.keydown.wasd'], keyVectorEvent('keydown', WASD_CODES));
-    defineEvent(['keyup.wasd', 'window.keyup.wasd'], keyVectorEvent('keyup', WASD_CODES));
+    defineEvent('window.keydown.arrow', keyVectorEvent('keydown', ARROW_CODES));
+    defineEvent('window.keyup.arrow', keyVectorEvent('keyup', ARROW_CODES));
+    defineEvent('window.keydown.wasd', keyVectorEvent('keydown', WASD_CODES));
+    defineEvent('window.keyup.wasd', keyVectorEvent('keyup', WASD_CODES));
     const KEY_ALIASES = {
         space: 'Space', enter: 'Enter', escape: 'Escape', esc: 'Escape', tab: 'Tab',
         up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
@@ -434,7 +434,7 @@
         return ((_a = event.code) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === name || ((_b = event.key) === null || _b === void 0 ? void 0 : _b.toLowerCase()) === name;
     }
     function keyboardFactory(type) {
-        const matched = type.match(/^(?:(window|document)\.)?(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
+        const matched = type.match(/^(window|document)\.(keydown|keyup)\.([A-Za-z0-9]+)(\.repeat)?$/);
         if (matched === null)
             return undefined;
         const [, scope, variant, rawKey, repeat] = matched;

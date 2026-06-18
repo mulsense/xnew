@@ -370,42 +370,38 @@ describe('Eventor', () => {
         });
     });
 
-    describe('keyboard without the window. prefix (defaults to window)', () => {
-        it('passes { event } for bare keydown on the window and filters repeat', () => {
+    describe('keyboard without the window. prefix (binds to the element, not the window)', () => {
+        it('binds bare keydown to the element as a normal event (no window binding)', () => {
             const listener = jest.fn();
             eventor.add(element, 'keydown', listener);
             jest.runOnlyPendingTimers();
 
-            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', repeat: true }));
+            // window へ送っても要素のリスナには届かない（window ではなく要素にバインドされるため）
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX' }));
             expect(listener).not.toHaveBeenCalled();
 
-            const fresh = new KeyboardEvent('keydown', { code: 'KeyX', repeat: false });
-            window.dispatchEvent(fresh);
+            // 要素へ送れば通常の DOM イベントとして発火する
+            const fresh = new KeyboardEvent('keydown', { code: 'KeyX' });
+            element.dispatchEvent(fresh);
             expect(listener).toHaveBeenCalledWith({ event: fresh });
         });
 
-        it('accumulates a vector for bare keydown.arrow', () => {
+        it('does not treat bare keydown.arrow as a window vector binding', () => {
             const listener = jest.fn();
             eventor.add(element, 'keydown.arrow', listener);
             jest.runOnlyPendingTimers();
 
             window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp' }));
-            expect(listener).toHaveBeenLastCalledWith(
-                expect.objectContaining({ vector: { x: 0, y: -1 } }),
-            );
+            expect(listener).not.toHaveBeenCalled();
         });
 
-        it('fires a bare named-key binding (keydown.space) on the window', () => {
+        it('does not treat bare keydown.space as a window named-key binding', () => {
             const listener = jest.fn();
             eventor.add(element, 'keydown.space', listener);
             jest.runOnlyPendingTimers();
 
-            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
             expect(listener).not.toHaveBeenCalled();
-
-            const space = new KeyboardEvent('keydown', { code: 'Space' });
-            window.dispatchEvent(space);
-            expect(listener).toHaveBeenCalledWith({ event: space });
         });
     });
 

@@ -124,9 +124,9 @@ function Player(unit, { x, y, z }) {
     velocity.x = vector.x * speed;
     velocity.z = vector.y * speed;
   });
-  direct.on('keydown', ({ code }) => {
+  direct.on('window.keydown', ({ event }) => {
     // jump
-    if (code === 'Space' && characterController.computedGrounded()) {
+    if (event.code === 'Space' && characterController.computedGrounded()) {
       velocity.y = jumpForce;
     }
   });
