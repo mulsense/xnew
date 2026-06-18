@@ -444,12 +444,11 @@ function StoryPageHit(unit) {
   });
 
   const FLY = 40; // 飛来フレーム数（約0.7秒）
-  let frame = 0, impacted = false, hitT = 0;
-  unit.on('update', () => {
+  let impacted = false, hitT = 0;
+  unit.on('update', ({ count }) => {
     if (arrow === null) return;
     if (!impacted) {
-      frame++;
-      const p = Math.min(1, frame / FLY);
+      const p = Math.min(1, count / FLY);
       const e = p * p; // 加速して突き刺さる
       arrow.x = -220 + (impactX + 220) * e;
       if (p >= 1) {
