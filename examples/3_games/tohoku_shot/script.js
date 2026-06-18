@@ -293,12 +293,12 @@ function TitleCharacters(unit) {
 
   // 周囲の敵4キャラ（id 0..3）。うさぎより先に追加して背面に置く。
   const spots = [
-    { id: 1, x: 300, y: 360, s: 0.85 }, // 左上
-    { id: 2, x: 500, y: 380, s: 0.90 }, // 右上
-    { id: 0, x: 250, y: 490, s: 1.00 }, // 左
-    { id: 3, x: 555, y: 475, s: 1.05 }, // 右
+    { id: 1, x: 300, y: 360, scale: 0.85 }, // 左上
+    { id: 2, x: 500, y: 380, scale: 0.90 }, // 右上
+    { id: 0, x: 250, y: 490, scale: 1.00 }, // 左
+    { id: 3, x: 555, y: 475, scale: 1.05 }, // 右
   ];
-  for (const spot of spots) xnew(TitleFactor, { ...spot });
+  for (const spot of spots) xnew(DriftingFactor, spot);
 
   // 中央の中国うさぎ（下1/3が画面下に隠れるよう中心を下げる）
   xpixi.load(asset('usagi03.png')).then((texture) => {
@@ -311,8 +311,12 @@ function TitleCharacters(unit) {
 }
 
 // 漂うベイクスプライト1体（ポップイン → 蠢く拡縮 + 漂い + 回転）。
-// タイトル（定位置）/ 寸劇（ランダム湧き）が位置・スケール・揺れ方を変えて共有。テクスチャは共有なので温存される。
-function DriftingFactor(unit, { id, x, y, scale, driftX, driftY, driftSpeedX, driftSpeedY, rotSpeed, popSpeed, squirmAmp, squirmSpeed }) {
+// タイトル（定位置）/ 寸劇（ランダム湧き）が位置・スケールだけ変えて共有（揺れ方は固定、個体差は phx/phy の位相で出る）。テクスチャは共有なので温存される。
+function DriftingFactor(unit, { id, x, y, scale }) {
+  // 漂い/蠢きの細かいパラメータは両呼び出し元で共通の固定値。
+  const driftX = 22, driftY = 18, driftSpeedX = 0.02, driftSpeedY = 0.025;
+  const rotSpeed = 0.04, popSpeed = 0.05, squirmAmp = 0.1, squirmSpeed = 0.09;
+
   xpixi.nest(new PIXI.Container());
   const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
   sprite.position.set(x, y);
@@ -325,15 +329,6 @@ function DriftingFactor(unit, { id, x, y, scale, driftX, driftY, driftSpeedX, dr
     sprite.x = x + Math.sin(t * driftSpeedX + phx) * driftX;
     sprite.y = y + Math.sin(t * driftSpeedY + phy) * driftY;
     sprite.rotation = Math.sin(t * rotSpeed + phy) * 0.12;
-  });
-}
-
-// タイトル用：定位置の周りで蠢く敵1体。DriftingFactor の定位置プリセット。
-function TitleFactor(_unit, { id, x, y, s }) {
-  xnew.extend(DriftingFactor, {
-    id, x, y, scale: s,
-    driftX: 22, driftY: 18, driftSpeedX: 0.02, driftSpeedY: 0.025,
-    rotSpeed: 0.04, popSpeed: 0.05, squirmAmp: 0.1, squirmSpeed: 0.09,
   });
 }
 
@@ -481,9 +476,14 @@ function StoryPageHit(unit) {
 function StoryPageSwarm(unit) {
   xpixi.nest(new PIXI.Container());
 
-  // 少しずつ湧いて増えていく（増殖感）
+  // 少しずつ湧いて増えていく（増殖感）。黒帯より上（テキスト帯に被らない領域）に位置・スケールをランダムに散らす。
   xnew.interval(({ timer, count }) => {
-    xnew(StoryFactor);
+    xnew(DriftingFactor, {
+      id: randInt(xnew.context(BakedCharacters).texturesList.length),
+      x: randRange(90, 710),
+      y: randRange(90, 360),
+      scale: randRange(0.5, 1.0),
+    });
     if (count >= 64) timer.clear();
   }, 200);
 
@@ -492,21 +492,6 @@ function StoryPageSwarm(unit) {
 
     xnew('<div class="mb-[0.6cqw]">', () => { xnew(xnew.basics.SVGText, { text: '体内の免疫キャラを操作し、', fontSize: '4cqw', stroke: '#0a1830', strokeWidth: '0.22cqw', className: 'inline-block' }); });
     xnew('<div style="color:#9BE53C;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだ因子の増殖を食い止めろ！', fontSize: '4.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
-  });
-}
-
-// 蠢くずんだ因子1体（ランダム湧き）。DriftingFactor のランダムプリセット。
-// 黒帯より上（テキスト帯に被らない領域）に散らし、漂い速度も個体ごとにばらつかせる。
-function StoryFactor(_unit) {
-  const id = randInt(xnew.context(BakedCharacters).texturesList.length);
-  xnew.extend(DriftingFactor, {
-    id,
-    x: randRange(90, 710),
-    y: randRange(90, 360),
-    scale: randRange(0.5, 1.0),
-    driftX: 16, driftY: 14,
-    driftSpeedX: 0.03 * randRange(0.5, 1.5), driftSpeedY: 0.035 * randRange(0.5, 1.5),
-    rotSpeed: 0.05, popSpeed: 0.08, squirmAmp: 0.08, squirmSpeed: 0.12,
   });
 }
 
@@ -1273,7 +1258,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   // 当たり判定を可視化する円（object 直下なのでスケール変動の影響を受けない）
   xpixi.add(hitCircle(ENEMY_HIT_R, 0xFF3355, 0.2, 2, 0.85));
 
-  // 出現時の pop-in（0→1）＋ スケールの時間変動（蠢く感）。StoryFactor と同じ手法。
+  // 出現時の pop-in（0→1）＋ スケールの時間変動（蠢く感）。DriftingFactor と同じ手法。
   const squirmPhase = randAngle();
   let pop = 0;
 
