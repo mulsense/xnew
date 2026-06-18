@@ -7,7 +7,10 @@
 // 非同期を跨いでも元のコンポーネント内にいるかのように実行される。
 //
 // - Unit        : core class — lifecycle, listeners, contexts, emit
-// - UnitPromise : 元の Unit スコープで再開する promise ラッパー
+// - UnitPromise : 元の Unit スコープで再開する promise ラッパー。.then / .catch / .finally は
+//                 捕捉スコープで callback を実行し、戻り値をチェーン値にする素のチェーン
+//                 （非同期継続は return new Promise で表す）。集約リザルトは xnew.promise(unit)
+//                 で取得し、集約時に対象 unit のプールを消費（リセット）する。
 // - UnitTimer   : xnew.timeout / interval / transition が使うキュー式タイマー
 //----------------------------------------------------------------------------------------------------
 
@@ -182,13 +185,6 @@ export class Unit {
     
     public get element(): DomElement {
         return this._.currentElement;
-    }
-
-    // この unit に登録された全 promise を集約した UnitPromise（ルート集約）。
-    // .then は「直列ステージ登録」（callback の完了 — 内部 xnew.promise 含む — を unit へ畳み込む）。
-    // .catch / .finally は keyed results / reject に対する純粋観測。
-    public get promise(): UnitPromise {
-        return UnitPromise.root(this);
     }
 
     public start(): void {
@@ -503,20 +499,13 @@ export class Unit {
 export class UnitPromise {
     private promise: Promise<any>;
     public key?: string;
-    // unit.promise が返すルート集約だけに付く。これが立っていると .then は「ステージ登録」になる
-    // （汎用 UnitPromise の .then は従来どおりのチェーン）。
-    private rootUnit?: Unit;
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
     public then(callback: Function): UnitPromise {
-        // ルート集約に対する .then は、完了を unit へ畳み込む直列ステージにする。
-        if (this.rootUnit !== undefined) {
-            return UnitPromise.stage(this.rootUnit, this, callback);
-        }
         const snapshot = Unit.snapshot(Unit.currentUnit);
         this.promise = this.promise.then((...args: any[]) => {
-            const result = Unit.scope(snapshot, callback, ...args);
-            return result instanceof UnitPromise ? result.promise : result;
+            const returned = Unit.scope(snapshot, callback, ...args);
+            return returned instanceof UnitPromise ? returned.promise : returned;
         });
         return this;
     }
@@ -537,47 +526,43 @@ export class UnitPromise {
         return this;
     }
 
-    public static all(promises: UnitPromise[]): UnitPromise {
-        return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+    // deferred な UnitPromise を生成し、settled ガード付きの resolve / reject と共に返す。
+    // xnew.promise() の deferred 形と xnew.chunk が共有する（Promise 構築と executor からの
+    // resolve / reject 取り出しの重複を排除する）。
+    public static defer(key?: string): {
+        unitPromise: UnitPromise;
+        resolve: (value?: unknown) => void;
+        reject: (reason?: unknown) => void;
+    } {
+        let settled = false;
+        let resolve!: (value?: unknown) => void;
+        let reject!: (reason?: unknown) => void;
+        const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }), key);
+        return {
+            unitPromise,
+            resolve(value?: unknown) { if (settled) { return; } settled = true; resolve(value); },
+            reject(reason?: unknown) { if (settled) { return; } settled = true; reject(reason); },
+        };
     }
 
-    // unit.promise が返すルート集約。.then だけがステージ動作（rootUnit で分岐）。.catch / .finally は純粋観測。
-    public static root(unit: Unit): UnitPromise {
-        const root = UnitPromise.results(unit._.promises);
-        root.rootUnit = unit;
-        return root;
-    }
-
-    // 直列ステージ: trigger（ルート集約 = ここまでの登録）が解決したら callback を unit scope で実行し、
-    // その完了（callback の戻り promise ＋ callback 内で同期登録した xnew.promise）を unit に同期登録する。
-    // 完了が _.promises に入るので、次の unit.promise.then や外部の観測はこのステージを待つ。
-    private static stage(unit: Unit, trigger: UnitPromise, callback: Function): UnitPromise {
-        const scope = Unit.snapshot(unit);
-        const completion = new UnitPromise(
-            trigger.promise.then((results: any) => Unit.scope(scope, () => {
-                const before = unit._.promises.length;
-                const returned = callback(results);
-                // callback 実行中に同期登録された promise（= 内部の xnew.promise）を畳み込む。
-                const registered = unit._.promises.slice(before);
-                const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
-                return Promise.all([tail, ...registered.map((p) => p.promise)]);
-            }))
-        );
-        unit._.promises.push(completion);
-        return completion;
-    }
-
-    // キー付き promise だけを { key: 最終チェーン値 } に集約した UnitPromise を返す。
-    // キーが `name[]` 形式なら out[name] を配列にして登録順に push する。
-    public static results(promises: UnitPromise[]): UnitPromise {
+    // promise 群を集約した UnitPromise を返す（常にオブジェクト）。
+    // - キー付きは { key: 最終チェーン値 }（キーが `name[]` 形式なら out[name] を配列にして登録順 push）。
+    // - キー無しは out.results 配列に登録順でまとめる。results は常に存在する（無ければ []）。
+    // 注意: 予約キー `results` をユーザーキーに使うと衝突する。
+    public static results(promises: UnitPromise[], key?: string): UnitPromise {
         return new UnitPromise(
             Promise.all(promises.map(p => p.promise)).then((values) => {
-                const out: Record<string, any> = {};
+                const out: Record<string, any> = { results: [] };
                 promises.forEach((p, i) => {
-                    if (p.key !== undefined) { UnitPromise.assignKey(out, p.key, values[i]); }
+                    if (p.key !== undefined) {
+                        UnitPromise.assignKey(out, p.key, values[i]);
+                    } else {
+                        out.results.push(values[i]);
+                    }
                 });
                 return out;
-            })
+            }),
+            key
         );
     }
 
@@ -624,7 +609,9 @@ export class UnitTimer {
             let current = new Timer(onTimeout, onTransition, duration, easing);
 
             function onTimeout() {
-                if (timeout) Unit.scope(snapshot, timeout);
+                if (timeout) Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                // コールバック内で timer.clear() された場合は unit が finalize 済みなので再スケジュールしない。
+                if (unit._.status === 'finalized') { return; }
                 if (iterations <= 0 || counter < iterations - 1) {
                     current = new Timer(onTimeout, onTransition, duration, easing);
                 } else {
@@ -633,7 +620,7 @@ export class UnitTimer {
                 counter++;
             }
             function onTransition(value: number) {
-                if (transition) Unit.scope(snapshot, transition, { value });
+                if (transition) Unit.scope(snapshot, transition, { value, timer });
             }
 
             unit.on('finalize', () => current.clear());

@@ -33,7 +33,7 @@ function Contents(unit) {
  
   xnew.promise(xnew(Model, { url: './Xbot.glb' }));
 
-  unit.promise.then(() => {
+  xnew.promise(unit).then(() => {
     xnew(Panel);
   });
 }

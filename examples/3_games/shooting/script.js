@@ -50,7 +50,7 @@ function TitleScene(unit) {
   xnew.extend(xnew.basics.Scene);
 
   xnew(TitleText);
-  unit.on('keydown pointerdown', () => unit.change(GameScene));
+  unit.on('window.keydown pointerdown', () => unit.change(GameScene));
 }
 
 function TitleText(unit) {
@@ -71,7 +71,7 @@ function GameScene(unit) {
     interval.clear();
     xnew(GameOverText);
     xnew.timeout(() => {
-      unit.on('keydown pointerdown', () => unit.change(TitleScene));
+      unit.on('window.keydown pointerdown', () => unit.change(TitleScene));
     }, 1000);
   });
 }

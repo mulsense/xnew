@@ -3,13 +3,13 @@ import xpixi from '@mulsense/xnew/addons/xpixi';
 import xthree from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
-import html2canvas from 'html2canvas-pro';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ResultBackground, ResultImage, ResultFooter, TitleText, TouchMessage, GameOverText, VolumeControl } from '../utils/ui.js';
 
 // id: 0=zundamon 1=kiritan 2=zunko 3=itako（ずんだ因子＝敵）
 const ENEMY_FILES = ['zundamon.vrm', 'kiritan.vrm', 'zunko.vrm', 'itako.vrm'];
@@ -21,11 +21,6 @@ const asset = (name) => `../../assets/${name}`;
 
 // その wave で主役になる敵 id（wave1→0 … wave4 以降はイタコ=3 で頭打ち）。
 const enemyIdForWave = (wave) => Math.min(wave - 1, ENEMY_FILES.length - 1);
-
-// 縁取り付きテキスト（SVGText）の薄いラッパー。className は常に inline-block。
-// stroke / strokeWidth は見出しごとに変わるので引数で受ける。
-const svgText = (text, fontSize, stroke = '#EEEEEE', strokeWidth = '0.2cqw') =>
-  xnew(xnew.basics.SVGText, { text, fontSize, stroke, strokeWidth, className: 'inline-block' });
 
 // ベイク設定。フレーム数を減らすほど GPU 常駐テクスチャと起動時負荷が減る（その分コマが粗くなる）。
 // 再生周期は 360 枚時代（60fps で約6秒/ループ）を保つよう BAKE_ANIMATION_SPEED で補正する。
@@ -47,36 +42,79 @@ const ENEMY_HIT_R = 10;
 const WAVE_COLORS = [0x9BE53C, 0xC8923C, 0x3FD96B, 0xFFFFFF];
 const waveColor = (wave) => WAVE_COLORS[Math.min(wave - 1, WAVE_COLORS.length - 1)];
 const cssHex = (n) => '#' + n.toString(16).padStart(6, '0');
+const waveCss = (wave) => cssHex(waveColor(wave)); // wave のメインカラー(css hex)
+
+// 乱数ユーティリティ。いずれも Math.random() を1回だけ呼ぶ。
+const randInt = (n) => Math.floor(Math.random() * n);   // 0..n-1
+const pick = (arr) => arr[randInt(arr.length)];         // 配列/文字列から1つ
+const randSign = () => (Math.random() < 0.5 ? 1 : -1);  // ±1
+const randAngle = () => Math.random() * Math.PI * 2;    // 0..2π
+const randRange = (min, max) => min + Math.random() * (max - min);
+
+// 当たり判定の可視化円（塗り＋枠の二重描き）。
+const hitCircle = (r, color, fillAlpha, strokeW, strokeAlpha) => new PIXI.Graphics()
+  .circle(0, 0, r).fill({ color, alpha: fillAlpha })
+  .circle(0, 0, r).stroke({ color, width: strokeW, alpha: strokeAlpha });
+
+// 蠢く拡縮係数（生きてる感）: 1 ± amp で揺れる。
+const squirmFactor = (t, phase, amp, freq) => 1 + Math.sin(t * freq + phase) * amp;
+
+// object に半径 r 以内で最初に重なる敵へ hit(enemy) を呼ぶ（当たれば true）。vulnOnly=無敵中の敵を除外。
+const hitNearestEnemy = (object, r, hit, vulnOnly = false) => {
+  for (const enemy of xnew.find(Enemy)) {
+    if (vulnOnly && !enemy.isVulnerable) continue;
+    if (enemy.distance(object) < r) { hit(enemy); return true; }
+  }
+  return false;
+};
 
 // 敵 id ごとのサイバーな識別コード（ターゲット表示／警告画面の「謎文字」に使う）
 const ENEMY_CODES = ['ZD-0x01', 'KT-0x02', 'ZK-0x03', 'IT-0x04'];
-// ランダムな16進文字列（len 桁）。解析中っぽい流れる数字に使う。
-const randHex = (len) => Math.floor(Math.random() * 16 ** len).toString(16).toUpperCase().padStart(len, '0');
-// chars からランダムに n 文字。流れる解析ストリームの中身に使う。
-const randStream = (chars, n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+// ランダムな16進文字列（len 桁）。流れる解析数字に使う。
+const randHex = (len) => randInt(16 ** len).toString(16).toUpperCase().padStart(len, '0');
+// 解析ストリーム/警告画面で流す「謎文字」の文字集合と、そこから n 文字。
+const STREAM_CHARS = '0123456789ABCDEF<>/\\|=+*#░▒▓';
+const randStream = (n, chars = STREAM_CHARS) => Array.from({ length: n }, () => pick(chars)).join('');
 
-// wave 色を初期適用し、以降 +wave で追従させる。apply は wave 番号を受け取り自前で色を引く（waveColor(1) === WAVE_COLORS[0]）。
-const followWave = (unit, apply) => { apply(1); unit.on('+wave', ({ wave }) => apply(wave)); };
+// wave 色などを wave 番号に追従させるコンポーネント。生成時に apply(1) を即適用し、以降 +wave で apply(wave) を呼ぶ。
+// apply は wave 番号を受け取り自前で色を引く（waveColor(1) === WAVE_COLORS[0]）。
+function FollowWave(unit, { apply }) {
+  apply(1);
+  unit.on('+wave', ({ wave }) => apply(wave));
+}
 
-// ベイク済みテクスチャの AnimatedSprite を共通設定で生成（再生開始・scale は呼び出し側）。
-const bakedSprite = (textures) => {
-  const sprite = new PIXI.AnimatedSprite(textures);
+// ベイク済みテクスチャの AnimatedSprite を nest 直下に配置。textures 直指定か id で texturesList[id] を引く。
+// frame: 'random' で開始コマをランダム化 / 数値で固定（length-1 にクランプ）。位置等は .sprite で制御。
+function BakedSprite(_unit, { textures, id, scale = 1, frame, play = true } = {}) {
+  const tex = textures ?? xnew.context(BakedCharacters).texturesList[id];
+  const sprite = new PIXI.AnimatedSprite(tex);
   sprite.anchor.set(0.5);
   sprite.animationSpeed = BAKE_ANIMATION_SPEED;
-  return sprite;
-};
+  sprite.scale.set(scale);
+  if (frame === 'random') {
+    sprite.currentFrame = randInt(tex.length);
+  } else if (frame !== undefined) {
+    sprite.currentFrame = Math.min(frame, tex.length - 1);
+  }
+  if (play) {
+    sprite.play();
+  }
+  xpixi.add(sprite);
+  return { get sprite() { return sprite; } };
+}
 
-// 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。
-const RingIcon = (paths) => () => {
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 100%; height: 100%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor' });
-    xnew('<circle cx="12" cy="12" r="11">');
-  });
-  xnew('<div style="position: absolute; inset: 0; margin: auto; width: 70%; height: 70%;">', () => {
-    xnew.extend(xnew.basics.SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
-    for (const d of paths) xnew(`<path d="${d}">`);
-  });
-};
+// HUD 風の四隅 L 字ブラケット（nest 直下に絶対配置で4つ）。StoryDialog / WaveTransition で共有。
+// color 省略時は currentColor 継承。offset/size/borderW は cqw 単位。
+function cornerBrackets({ offset = 0, size, borderW, opacity, color }) {
+  for (const vside of ['top', 'bottom']) {
+    for (const hside of ['left', 'right']) {
+      const b = xnew(`<div class="absolute ${vside}-[${offset}cqw] ${hside}-[${offset}cqw] w-[${size}cqw] h-[${size}cqw]" style="border-${vside}:${borderW}cqw solid; border-${hside}:${borderW}cqw solid; opacity:${opacity};">`);
+      if (color) {
+        b.element.style.color = color;
+      }
+    }
+  }
+}
 
 xnew(document.querySelector('#main'), Main);
 
@@ -98,13 +136,13 @@ function Contents(unit) {
 
 // ---- Character baking (VRM -> AnimatedSprite textures) ----
 //
-// 焼き機（WebGL + EffectComposer + SSAO + ライト + カメラ）を1セットだけ作り、VRM を順に差し替えて
-// 逐次ベイクする。キャラ毎に焼き機を立てて並列に焼く旧実装は GPU 圧迫の主因だった（DEVNOTES §5）。
-// 逐次化でピーク GPU を VRM 1体分に抑える（起動は数百ms 長くなる）。
+// 焼き機（WebGL + EffectComposer + SSAO + ライト + カメラ）を1セットだけ作り、VRM を順に差し替えて逐次ベイク。
+// 逐次化でピーク GPU を VRM 1体分に抑える（並列に焼く旧実装は GPU 圧迫の主因だった。DEVNOTES §5。起動は数百ms 長くなる）。
 
-// VRM を読み込むだけ（シーンには追加しない）。GPU アップロードはベイク時まで遅延させる。
-function loadVrm(url) {
-  return new Promise((resolve) => {
+// VRM を読み込むだけ（シーンには追加しない。GPU アップロードはベイク時まで遅延）。
+// xnew.promise('model', ...) で登録 → xnew.promise('vrms[]', xnew(VRMLoader, …)) で { model } として集約できる。
+function VRMLoader(unit, { url }) {
+  xnew.promise('model', (resolve) => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.load(url, (gltf) => {
@@ -118,35 +156,7 @@ function loadVrm(url) {
   });
 }
 
-// 1フレームぶんのポーズを当てる。model = { vrm, threeObject }。spin=true: 回る敵 / false: 後ろ向き固定の自機。
-// t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの sin(t×偶数) は t=3π で開始位相へ戻りシームレスに
-// ループする（回転/ボーン係数を変えるなら t=3π で元に戻るか要確認）。
-function poseFrame(model, t, spin) {
-  if (spin) {
-    model.threeObject.rotation.y = t * 4 / 3;
-    model.threeObject.rotation.z = t * 2 / 3;
-  } else {
-    model.threeObject.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
-    model.threeObject.rotation.y = Math.PI; // 後ろ向き固定（自機）
-    model.threeObject.rotation.z = 0;
-  }
-  const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
-  g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
-  g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-  g('hips').position.z          = Math.sin(t * 12) *  0.05;
-  g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-  g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-  g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-  g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-  g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-  g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-  g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-  g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
-  model.vrm.update(t);
-}
-
 function BakedCharacters(unit) {
-  // --- 焼き機（共有部分）を1セットだけ構築する ---
   const camera = new THREE.OrthographicCamera(-1, +1, +1, -1, 0.1, 10);
   xthree.initialize({ camera, canvas: new OffscreenCanvas(BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
   xthree.camera.position.set(0, -0.1, 2.5);
@@ -154,7 +164,7 @@ function BakedCharacters(unit) {
   const composer = new EffectComposer(xthree.renderer);
   composer.addPass(new RenderPass(xthree.scene, xthree.camera));
   const ssaoPass = new SSAOPass(xthree.scene, xthree.camera, xthree.canvas.width, xthree.canvas.height);
-  // OrthographicCamera 用: シェーダーのデフォルト PERSPECTIVE_CAMERA=1 を両マテリアルで上書き
+  // OrthographicCamera 用: シェーダーの PERSPECTIVE_CAMERA=1 を両マテリアルで 0 に上書き
   for (const material of [ssaoPass.ssaoMaterial, ssaoPass.depthRenderMaterial]) {
     material.defines['PERSPECTIVE_CAMERA'] = 0;
     material.needsUpdate = true;
@@ -165,8 +175,6 @@ function BakedCharacters(unit) {
   composer.addPass(ssaoPass);
   composer.addPass(new OutputPass());
 
-  // ライトは scene 直下に兄弟として並べる（nest だと2個目が前のオブジェクト配下に入れ子に
-  // なってしまうため add を使う）。
   xthree.add(new THREE.AmbientLight(0xFFFFFF, 1.2));
   const dirLight = xthree.add(new THREE.DirectionalLight(0xFFFFFF, 1.7));
   dirLight.position.set(2, 5, 10);
@@ -177,72 +185,80 @@ function BakedCharacters(unit) {
     { url: asset(PLAYER_FILE), spin: false },
   ];
 
-  // 全フレームを個別テクスチャにせず、1枚のアトラス canvas に敷き詰めて
-  // 「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でスプライトのバッチ描画も効く）。
-  // フレーム i のアトラス内左上座標は paste と PIXI sub-texture 切り出しで共有する。
+  // 全フレームを1枚のアトラス canvas に敷き詰め「キャラ1体 = GPU テクスチャ1枚」にする（source 共有でバッチ描画も効く）。
   const cols = Math.ceil(Math.sqrt(BAKE_FRAMES));
   const rows = Math.ceil(BAKE_FRAMES / cols);
-  const framePos = (i) => [(i % cols) * BAKE_FRAME_SIZE, Math.floor(i / cols) * BAKE_FRAME_SIZE];
 
-  // 各 VRM のロードを登録（解決値は下の then の vrms に入る）。
-  jobs.forEach((job) => xnew.promise('vrms[]', loadVrm(job.url)));
+  // 各 VRM ローダーを子 unit として登録（集約結果 { model } が下の then の vrms に登録順で入る）。
+  jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
 
-  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。内部で xnew.promise を立て、全キャラ
-  // 焼き終えたら resolve()。この完了は unit に畳まれ、Contents は焼き上がりまで待つ。
-  unit.promise.then(({ vrms }) => {
-    const { resolve } = xnew.promise();
+  // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。全キャラ焼き終えたら最終 dispose。
+  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（chunk の UnitPromise を return して直列化）。
+  xnew.promise(unit).then(({ vrms }) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
-    const wrapper = xthree.add(new THREE.Object3D());
+    let atlas;
+    let source; // アトラス canvas を共有する唯一の GPU テクスチャ source（各フレームはこの sub-texture）
 
-    const BATCH = 20; // 1 render tick で焼くフレーム数（大きいほど早いが GPU スパイク大）
-    let jobIndex = 0;
-    let frameIndex = 0;
-    let atlas = null;
+    // 全キャラ × 各 BAKE_FRAMES をフラットな単一 chunk に畳む。キャラ境界は index 演算で判定。
+    // 時間予算（既定 8ms）で毎フレーム自動的に分散するため GPU スパイクを抑えられる。
+    return xnew.chunk(({ index }) => {
+      const j = Math.floor(index / BAKE_FRAMES); // どのキャラ
+      const f = index % BAKE_FRAMES;             // そのキャラの何フレーム目
+      const job = jobs[j];
+      const vrm = vrms[j].model;
 
-    // 次キャラの焼成準備（VRM を wrapper にマウントし貼り込み先アトラスを用意）。全キャラ終了後は GPU を解放。
-    function startJob() {
-      if (jobIndex >= jobs.length) {
-        // 後段パスを解放し、xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
-        composer.dispose();
-        ssaoPass.dispose();
-        xthree.finalize();
-        resolve();
-        return;
+      if (f === 0) {
+        // startJob 相当: VRM をマウントし、貼り込み先アトラスと共有 source を用意。
+        xthree.add(vrm.scene);
+        const atlasCanvas = document.createElement('canvas');
+        [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
+        atlas = xnew.image.from(atlasCanvas);
+        source = PIXI.Texture.from(atlas.canvas).source;
+        job.textures = [];
       }
-      wrapper.add(vrms[jobIndex].scene);
-      const atlasCanvas = document.createElement('canvas');
-      [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-      atlas = xnew.image.from(atlasCanvas);
-      frameIndex = 0;
-    }
-    startJob();
 
-    // 1台の焼き機で VRM を差し替えつつ render tick ごとに少しずつ焼く（ピーク GPU を 1体分に保つ）。
-    unit.on('render', () => {
-      if (jobIndex >= jobs.length) return;
-      const job = jobs[jobIndex];
-      const vrm = vrms[jobIndex];
-
-      for (let f = frameIndex; f < Math.min(frameIndex + BATCH, BAKE_FRAMES); f++) {
-        poseFrame({ vrm, threeObject: wrapper }, f * (Math.PI / BAKE_FRAMES * 3), job.spin);
-        composer.render();
-        // OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap なし）
-        atlas.paste(xthree.canvas, ...framePos(f));
+      // 1フレームぶんのポーズを当てる。t は 1 周期 [0, 3π) を BAKE_FRAMES 等分。回転・ボーンの
+      // sin(t×偶数) は t=3π で開始位相へ戻りシームレスにループする（係数を変えるなら t=3π で元に戻るか要確認）。
+      // job.spin=true: 回る敵 / false: 後ろ向き固定の自機。
+      const t = f * (Math.PI / BAKE_FRAMES * 3);
+      if (job.spin) {
+        xthree.scene.rotation.y = t * 4 / 3;
+        xthree.scene.rotation.z = t * 2 / 3;
+      } else {
+        xthree.scene.rotation.x = 60 * Math.PI / 180; // 後ろ向きから少し見下ろす角度に
+        xthree.scene.rotation.y = Math.PI; // 後ろ向き固定（自機）
+        xthree.scene.rotation.z = 0;
       }
-      frameIndex += BATCH;
-      if (frameIndex < BAKE_FRAMES) return;
+      const g = (name) => vrm.humanoid.getNormalizedBoneNode(name);
+      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+      g('hips').position.z          = Math.sin(t * 12) *  0.05;
+      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+      vrm.update(t);
+      composer.render();
+      // フレーム f のアトラス内左上座標。OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
+      const [x, y] = [(f % cols) * BAKE_FRAME_SIZE, Math.floor(f / cols) * BAKE_FRAME_SIZE];
+      atlas.paste(xthree.canvas, x, y);
+      // 貼り込みと同じ座標で source 共有の sub-texture を切り出す（ピクセルコピーではなく矩形ビュー）
+      job.textures.push(new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
 
-      // アトラスを唯一の GPU テクスチャとし、各フレームは source 共有の sub-texture として切り出す
-      const source = PIXI.Texture.from(atlas.canvas).source;
-      job.textures = Array.from({ length: BAKE_FRAMES }, (_, f) => {
-        const [x, y] = framePos(f);
-        return new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) });
-      });
-
-      // wrapper から外して GPU リソースを解放してから次へ（ピークを VRM 1体分に保つ）
-      xthree.remove(vrm.scene);
-      jobIndex++;
-      startJob();
+      if (f === BAKE_FRAMES - 1) {
+        // endJob 相当: アトラスを GPU へ確定アップロードし、wrapper から外して GPU を解放。
+        source.update();
+        xthree.remove(vrm.scene);
+      }
+    }, jobs.length * BAKE_FRAMES).then(() => {
+      // 後段パスを解放し xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
+      composer.dispose();
+      ssaoPass.dispose();
+      xthree.finalize();
     });
   });
 
@@ -261,59 +277,58 @@ function TitleScene(unit, { skipStory = false } = {}) {
   xnew(Background);
   xnew(TitleCharacters); // 中央のうさぎ + 周囲で蠢く敵4キャラ（背景の上・HTMLテキストの下）
 
-  xnew(TitleText);
-  xnew(TouchMessage);
-  xnew(VolumeControl);
+  xnew(TitleText, { text: 'とーほくショット', color: 'text-blue-600' });
+  xnew(TouchMessage, { color: 'text-blue-600' });
+  xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
-  const advance = () => unit.change(skipStory ? GameScene : StoryScene);
-  unit.on('pointerdown', advance);
-  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); advance(); });
+  unit.on('pointerdown window.keydown.space', ({ event }) => {
+    event.preventDefault();
+    unit.change(skipStory ? GameScene : StoryScene);
+  });
 }
 
 // タイトル画面の主役表示：中央に中国うさぎ（usagi03、下1/3は画面外）、その周囲で敵4キャラが蠢く。
-function TitleCharacters(_unit) {
-  const stage = xpixi.nest(new PIXI.Container());
-  const tl = xnew.context(BakedCharacters).texturesList;
+function TitleCharacters(unit) {
+  xpixi.nest(new PIXI.Container());
 
   // 周囲の敵4キャラ（id 0..3）。うさぎより先に追加して背面に置く。
   const spots = [
-    { id: 1, x: 300, y: 360, s: 0.85 }, // 左上
-    { id: 2, x: 500, y: 380, s: 0.90 }, // 右上
-    { id: 0, x: 250, y: 490, s: 1.00 }, // 左
-    { id: 3, x: 555, y: 475, s: 1.05 }, // 右
+    { id: 1, x: 300, y: 360, scale: 0.85 }, // 左上
+    { id: 2, x: 500, y: 380, scale: 0.90 }, // 右上
+    { id: 0, x: 250, y: 490, scale: 1.00 }, // 左
+    { id: 3, x: 555, y: 475, scale: 1.05 }, // 右
   ];
-  for (const spot of spots) xnew(TitleFactor, { tl, ...spot });
+  for (const spot of spots) xnew(DriftingFactor, spot);
 
   // 中央の中国うさぎ（下1/3が画面下に隠れるよう中心を下げる）
   xpixi.load(asset('usagi03.png')).then((texture) => {
-    const usagi = new PIXI.Sprite(texture);
+    const usagi = xpixi.add(new PIXI.Sprite(texture));
     usagi.anchor.set(0.5);
     const H = 456;                               // 表示する高さ(px)（元の 380 の約1.2倍）
     usagi.scale.set(H / texture.height);
     usagi.position.set(400, 600 - H / 6);        // 下1/3 (=H/3) が y=600 より下に出る
-    stage.addChild(usagi);
   });
 }
 
-// タイトル用：定位置の周りで蠢く敵1体（ポップイン → 漂い + 拡縮ゆらぎ + 回転）。StoryFactor の定位置版。
-function TitleFactor(unit, { tl, id, x, y, s }) {
-  xpixi.nest(new PIXI.Container()); // 自前のコンテナを enclosing nest に積む（finalize で自動破棄＝後始末不要）
-  const textures = tl[id];
-  const sprite = bakedSprite(textures);
-  sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
-  sprite.position.set(x, y);
-  sprite.scale.set(0);
-  xpixi.add(sprite); // テクスチャは共有なので温存（xpixi の remove は children のみ破棄）
+// 漂うベイクスプライト1体（ポップイン → 蠢く拡縮 + 漂い + 回転）。
+// タイトル（定位置）/ 寸劇（ランダム湧き）が位置・スケールだけ変えて共有（揺れ方は固定、個体差は phx/phy の位相で出る）。テクスチャは共有なので温存される。
+function DriftingFactor(unit, { id, x, y, scale }) {
+  // 漂い/蠢きの細かいパラメータは両呼び出し元で共通の固定値。
+  const driftX = 22, driftY = 18, driftSpeedX = 0.02, driftSpeedY = 0.025;
+  const rotSpeed = 0.04, popSpeed = 0.05, squirmAmp = 0.1, squirmSpeed = 0.09;
 
-  const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
+  xpixi.nest(new PIXI.Container());
+  const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
+  sprite.position.set(x, y);
+
+  const phx = randAngle(), phy = randAngle();
   let pop = 0;
   unit.on('update', ({ count: t }) => {
-    pop = Math.min(1, pop + 0.05);                       // ポップイン
-    const squirm = 1 + Math.sin(t * 0.09 + phx) * 0.1;   // 蠢く拡縮
-    sprite.scale.set(s * pop * squirm);
-    sprite.x = x + Math.sin(t * 0.02 + phx) * 22;
-    sprite.y = y + Math.sin(t * 0.025 + phy) * 18;
-    sprite.rotation = Math.sin(t * 0.04 + phy) * 0.12;
+    pop = Math.min(1, pop + popSpeed); // ポップイン
+    sprite.scale.set(scale * pop * squirmFactor(t, phx, squirmAmp, squirmSpeed));
+    sprite.x = x + Math.sin(t * driftSpeedX + phx) * driftX;
+    sprite.y = y + Math.sin(t * driftSpeedY + phy) * driftY;
+    sprite.rotation = Math.sin(t * rotSpeed + phy) * 0.12;
   });
 }
 
@@ -325,7 +340,7 @@ function StoryScene(unit) {
 
   xnew(Background);   // 体内背景を流用（タイトル/ゲームと連続感）
   xnew(CameraShake);  // 被弾時のシェイク演出用
-  xnew(VolumeControl);
+  xnew(VolumeControl, { className: 'text-stone-300 z-10' });
   xnew(StoryTheater); // 下部の黒帯（セリフはこの上に表示）。pages より先に作り、テキストの背面に置く
 
   const pages = [StoryPageHit, StoryPageSwarm];
@@ -333,7 +348,9 @@ function StoryScene(unit) {
   let page = xnew(pages[0]);
 
   let busy = false;
-  const advance = () => {
+
+  unit.on('pointerdown window.keydown.space', ({ event }) => {
+    event.preventDefault();
     if (busy) return;
     busy = true;
     const next = index + 1;
@@ -345,14 +362,11 @@ function StoryScene(unit) {
     index = next;
     page = xnew(pages[index]);
     xnew.timeout(() => { busy = false; }, 300); // 連打での飛ばし過ぎを防ぐ
-  };
-  unit.on('pointerdown', advance);
-  unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); advance(); });
+  });
 }
 
-// 下部の黒帯（シアターモード風）。ストーリーのセリフはこの帯の上に載せて読ませる。
-// 高さ 26cqw（≒208px）。上端は短いグラデでぼかし、細いピンクのアクセントラインを引く。
-function StoryTheater(_unit) {
+// 下部の黒帯（シアターモード風）。セリフはこの帯の上に載せて読ませる。高さ 26cqw（≒208px）。
+function StoryTheater(unit) {
   xnew.nest('<div class="absolute inset-0 pointer-events-none">');
   // 帯の上にせり出すフェザー（境界をやわらかく、キャラの足元と馴染ませる）
   xnew('<div class="absolute left-0 right-0 bottom-[26cqw] h-[7cqw]" style="background: linear-gradient(to top, rgba(4,3,7,0.9), rgba(4,3,7,0));">');
@@ -364,93 +378,83 @@ function StoryTheater(_unit) {
   xnew('<div class="absolute left-0 right-0 bottom-[26cqw] h-[0.28cqw]" style="background: linear-gradient(90deg, transparent, rgba(255,143,163,0.75) 18%, rgba(255,143,163,0.75) 82%, transparent); box-shadow: 0 0 1.4cqw rgba(255,143,163,0.55);">');
 }
 
-// ストーリーのセリフをサイバーな字幕フレームで表示する（黒帯の上に重ねる）。
-// build でテキスト本文（svgText 群）を構築。accent=アクセント色 / tag=見出しラベル / bottomCqw=下端位置。
-// ヘッダー（点滅 ● ＋ ▶TAG ＋ 流れる hex ＋ 装飾ライン）／四隅ブラケット＋発光／流れる解析フッター を付与。
-function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
+// ストーリーのセリフをサイバーな字幕フレームで黒帯の上に重ねる。build=本文(SVGText 群) / accent=アクセント色 /
+// tag=見出しラベル / bottomCqw=下端位置。ヘッダー(点滅● + ▶TAG) と四隅ブラケット＋発光を付与。
+// extend して使う。本文は呼び出し元が extend 後に続けて追加する（最後の nest = 本文 wrap が
+// current 要素になるため）。例:
+//   xnew((unit) => { xnew.extend(StoryDialog, { ... }); xnew('<div>', ...); });
+function StoryDialog(_unit, { accent, tag, bottomCqw }) {
   xnew.nest(`<div class="absolute left-0 right-0 flex flex-col items-center pointer-events-none" style="bottom:${bottomCqw}cqw; font-family: monospace;">`);
 
   // ヘッダー: [線] ● ▶ TAG [線]
-  let blink;
   xnew('<div class="flex items-center mb-[1cqw] font-bold tracking-[0.3em]" style="font-size:1.8cqw;">', () => {
     const lineL = xnew('<div class="mr-[1cqw]" style="width:6cqw; height:0.18cqw;">');
     lineL.element.style.background = `linear-gradient(90deg, transparent, ${accent})`;
-    blink = xnew('<div class="mr-[0.8cqw]">', '●');
+    const blink = xnew('<div class="mr-[0.8cqw]">', '●');
+    blink.on('update', ({ count: t }) => {
+      blink.element.style.opacity = Math.floor(t / 16) % 2 ? '1' : '0.2';
+    });
     const lbl = xnew('<div class="mr-[1cqw]">', `▶ ${tag}`);
     const lineR = xnew('<div style="width:6cqw; height:0.18cqw;">');
     lineR.element.style.background = `linear-gradient(90deg, ${accent}, transparent)`;
     for (const e of [blink, lbl]) e.element.style.color = accent;
   });
+  cornerBrackets({ offset: 0, size: 2.2, borderW: 0.25, opacity: 0.85, color: accent });
 
-  // 本文（四隅ブラケットで囲む。drop-shadow でうっすら発光）
-  const wrap = xnew('<div class="relative px-[4cqw] py-[0.6cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
-    build();
-  });
-  wrap.element.style.filter = `drop-shadow(0 0 0.7cqw ${accent}88)`;
-  for (const [pos, css] of [
-    ['top-0 left-0', 'border-top:0.25cqw solid; border-left:0.25cqw solid;'],
-    ['top-0 right-0', 'border-top:0.25cqw solid; border-right:0.25cqw solid;'],
-    ['bottom-0 left-0', 'border-bottom:0.25cqw solid; border-left:0.25cqw solid;'],
-    ['bottom-0 right-0', 'border-bottom:0.25cqw solid; border-right:0.25cqw solid;'],
-  ]) {
-    const b = xnew(`<div class="absolute ${pos} w-[2.2cqw] h-[2.2cqw]" style="${css} opacity:0.85;">`);
-    b.element.style.color = accent; // border は currentColor
-  }
-
-  // ● の点滅のみ（読みやすさ優先で、流れる謎文字は出さない）
-  unit.on('update', ({ count: t }) => {
-    blink.element.style.opacity = Math.floor(t / 16) % 2 ? '1' : '0.2';
-  });
+  // 本文（四隅ブラケットで囲む。drop-shadow でうっすら発光）。中身は extend 側が続けて追加する。
+  const wrap = xnew.nest('<div class="relative px-[4cqw] py-[0.6cqw] text-center font-bold leading-tight" style="color:#ffffff;">');
+  wrap.style.filter = `drop-shadow(0 0 0.7cqw ${accent}88)`;
 }
 
 // ページ1: 中国うさぎがずんだアローに被弾する寸劇
 function StoryPageHit(unit) {
   const CX = 400, CY = 215;          // 中国うさぎの中心（黒帯の上・画面中央寄りに配置）
   const impactX = CX, impactY = CY - 30; // 矢の着弾点（体の中央やや上）
-  const stage = xpixi.nest(new PIXI.Container());
+  xpixi.nest(new PIXI.Container());
 
-  // 着弾フラッシュ（シェイクで端が抜けないよう広め）
-  const flashG = new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0xFFFFFF);
+  // 着弾フラッシュ（シェイクで端が抜けないよう広め）。usagi/arrow より後に追加して最前面に置く。
+  const flashG = xpixi.add(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0xFFFFFF));
   flashG.alpha = 0;
 
-  let usagi = null, arrow = null;
-  const usagiUrl = asset('usagi03.png'), arrowUrl = asset('zunda_arrow.png');
-  xnew.promise(PIXI.Assets.load([usagiUrl, arrowUrl])).then((loaded) => {
-    usagi = new PIXI.Sprite(loaded[usagiUrl]);
+  let usagi = null;
+  xpixi.load(asset('usagi03.png')).then((loaded) => {
+    usagi = xpixi.add(new PIXI.Sprite(loaded));
     usagi.anchor.set(0.5);
     usagi.scale.set(340 / usagi.texture.height); // やや大きめに
     usagi.position.set(CX, CY);
+  });
 
-    arrow = new PIXI.Sprite(loaded[arrowUrl]);
+  let arrow = null;
+  xpixi.load(asset('zunda_arrow.png')).then((loaded) => {
+    arrow = xpixi.add(new PIXI.Sprite(loaded));
     arrow.anchor.set(0.86, 0.5); // 先端（ずんだ玉）側を基準に
     arrow.scale.set(200 / arrow.texture.width);
     arrow.position.set(-220, impactY);
-
-    stage.addChild(usagi, arrow, flashG);
   });
 
   // セリフ（黒帯の中・サイバー字幕）。被弾の驚きをコミカルに。補足は着弾後にフェードイン。
   let sub;
-  xnew(StoryDialog, { accent: '#FF8FA3', tag: 'ALERT', bottomCqw: 4.5, build: () => {
-    xnew('<div style="color:#FF8FA3;">', () => { svgText('ずんだアローに当たってしまった！', '5.2cqw', '#0a1830', '0.25cqw'); });
+  xnew(() => {
+    xnew.extend(StoryDialog, { accent: '#FF8FA3', tag: 'ALERT', bottomCqw: 4.5 });
+
+    xnew('<div style="color:#FF8FA3;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだアローに当たってしまった！', fontSize: '5.2cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
     sub = xnew('<div class="mt-[0.6cqw]" style="color:#FCEFA0; opacity:0;">', () => {
-      svgText('（ずんだアローに当たると、ずんだ餅にされてしまう…）', '2.5cqw', '#0a1830');
+      xnew(xnew.basics.SVGText, { text: '（ずんだアローに当たると、ずんだ餅にされてしまう…）', fontSize: '2.5cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
     });
-  } });
+  });
 
   const FLY = 40; // 飛来フレーム数（約0.7秒）
-  let frame = 0, impacted = false, hitT = 0;
-  unit.on('update', () => {
+  let impacted = false, hitT = 0;
+  unit.on('update', ({ count }) => {
     if (arrow === null) return;
     if (!impacted) {
-      frame++;
-      const p = Math.min(1, frame / FLY);
+      const p = Math.min(1, count / FLY);
       const e = p * p; // 加速して突き刺さる
       arrow.x = -220 + (impactX + 220) * e;
       if (p >= 1) {
         impacted = true;
         xnew.emit('+shake', { amount: 0.7 });
-        xnew(HitBurst, { x: impactX + 28, y: impactY, power: 2.4 });
+        xnew(ExpandingBurst, { x: impactX + 28, y: impactY, power: 2.4 });
         flashG.alpha = 0.85;
         xnew.transition(({ value }) => { sub.element.style.opacity = `${value}`; }, 500, 'ease');
       }
@@ -468,49 +472,25 @@ function StoryPageHit(unit) {
 }
 
 // ページ2: 体内で増殖するずんだ因子（4キャラ）が蠢く様子
-function StoryPageSwarm(_unit) {
+function StoryPageSwarm(unit) {
   xpixi.nest(new PIXI.Container());
-  const tl = xnew.context(BakedCharacters).texturesList;
 
-  // 少しずつ湧いて増えていく（増殖感）
-  let n = 0;
-  const MAX = 12;
-  const adder = xnew.interval(() => {
-    xnew(StoryFactor, { tl });
-    if (++n >= MAX) adder.clear();
+  // 少しずつ湧いて増えていく（増殖感）。黒帯より上（テキスト帯に被らない領域）に位置・スケールをランダムに散らす。
+  xnew.interval(({ timer, count }) => {
+    xnew(DriftingFactor, {
+      id: randInt(xnew.context(BakedCharacters).texturesList.length),
+      x: randRange(90, 710),
+      y: randRange(90, 360),
+      scale: randRange(0.5, 1.0),
+    });
+    if (count >= 64) timer.clear();
   }, 200);
 
-  xnew(StoryDialog, { accent: '#9BE53C', tag: 'MISSION', bottomCqw: 5, build: () => {
-    xnew('<div class="mb-[0.6cqw]">', () => { svgText('体内の免疫キャラを操作し、', '4cqw', '#0a1830', '0.22cqw'); });
-    xnew('<div style="color:#9BE53C;">', () => { svgText('ずんだ因子の増殖を食い止めろ！', '4.4cqw', '#0a1830', '0.25cqw'); });
-  } });
-}
+  xnew(() => {
+    xnew.extend(StoryDialog, { accent: '#9BE53C', tag: 'MISSION', bottomCqw: 5 });
 
-// 蠢くずんだ因子1体（ポップイン → 漂い + 拡縮ゆらぎ）
-function StoryFactor(unit, { tl }) {
-  xpixi.nest(new PIXI.Container()); // 自前のコンテナ（finalize で自動破棄＝後始末不要）
-  const id = Math.floor(Math.random() * tl.length);
-  const textures = tl[id];
-  const sprite = bakedSprite(textures);
-  sprite.gotoAndPlay(Math.floor(Math.random() * textures.length));
-
-  const baseScale = 0.5 + Math.random() * 0.5;
-  const bx = 90 + Math.random() * 620;  // 黒帯より上（テキスト帯に被らない領域）に散らす
-  const by = 90 + Math.random() * 270;
-  sprite.position.set(bx, by);
-  sprite.scale.set(0);
-  xpixi.add(sprite); // テクスチャ共有のため温存（xpixi の remove は children のみ破棄）
-
-  const phx = Math.random() * Math.PI * 2, phy = Math.random() * Math.PI * 2;
-  const sx = 0.5 + Math.random(), sy = 0.5 + Math.random();
-  let pop = 0;
-  unit.on('update', ({ count: t }) => {
-    pop = Math.min(1, pop + 0.08);                       // ポップイン
-    const squirm = 1 + Math.sin(t * 0.12 + phx) * 0.08;  // 蠢く拡縮
-    sprite.scale.set(baseScale * pop * squirm);
-    sprite.x = bx + Math.sin(t * 0.03 * sx + phx) * 16;
-    sprite.y = by + Math.sin(t * 0.035 * sy + phy) * 14;
-    sprite.rotation = Math.sin(t * 0.05 + phy) * 0.12;
+    xnew('<div class="mb-[0.6cqw]">', () => { xnew(xnew.basics.SVGText, { text: '体内の免疫キャラを操作し、', fontSize: '4cqw', stroke: '#0a1830', strokeWidth: '0.22cqw', className: 'inline-block' }); });
+    xnew('<div style="color:#9BE53C;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだ因子の増殖を食い止めろ！', fontSize: '4.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
   });
 }
 
@@ -527,10 +507,10 @@ function GameScene(unit) {
   xnew(ScoreGauge);
   xnew(ShotEnergy);
   xnew(Player);
-  xnew(VolumeControl);
+  xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
   const bgm = xnew(() => {
-    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).then((music) => music.play({ fade: 1000, loop: true }));
+    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).play({ fade: 1000, loop: true });
   });
 
   unit.on('+gameover', () => {
@@ -542,7 +522,7 @@ function GameScene(unit) {
     // 最終 wave(4) のゲージを 100% 到達済みなら「クリア」扱い（wave4 は次へ進まないので waveScore で判定）
     const cleared = wave >= WAVE_GOALS.length && scoreManager.waveScore >= WAVE_GOALS[WAVE_GOALS.length - 1];
     const image = xpixi.renderer.extract.base64({ target: xpixi.scene, frame: new PIXI.Rectangle(0, 0, xpixi.canvas.width, xpixi.canvas.height) });
-    xnew(GameOverText);
+    xnew(GameOverText, { className: 'left-0 right-[25cqw]' });
     xnew.timeout(() => unit.change(ResultScene, { image, score, wave, kills, cleared }), 2000);
   });
 }
@@ -550,7 +530,7 @@ function GameScene(unit) {
 function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew.extend(xnew.basics.Scene);
 
-  xnew.audio.load(asset('st005.mp3')).then((music) => music.play({ fade: 1, loop: true }));
+  xnew.audio.load(asset('st005.mp3')).play({ fade: 1, loop: true });
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
@@ -558,12 +538,11 @@ function ResultScene(unit, { image, score, wave, kills, cleared }) {
     Object.assign(unit.element.style, { opacity: value, transform: `scale(${0.8 + value * 0.2})` });
   }, 500, 'ease');
 
-  xnew(ResultBackground);
-  xnew(ResultImage, { image });
+  xnew(ResultBackground, { gradient: 'from-slate-900 to-blue-950', textColor: 'text-blue-800' });
+  xnew(ResultImage, { image, boxClass: 'bottom-[14cqw] left-[2cqw] w-[56cqw] aspect-4/3' });
   xnew(ResultDetail, { score, wave, kills, cleared });
-  xnew(ResultFooter);
+  xnew(ResultFooter, { onBack: () => unit.change(TitleScene, { skipStory: true }) });
 
-  // スペースキーでもタイトルへ戻る（戻った先はストーリーを飛ばす）
   unit.on('window.keydown.space', ({ event }) => { event.preventDefault(); unit.change(TitleScene, { skipStory: true }); });
 }
 
@@ -585,42 +564,33 @@ function WaveManager(unit) {
   function nextWave() {
     transitioning = true;
     const next = wave + 1;
-    // 現在の画面内の敵を一旦フェードアウト（得点は入らない）
+    // 画面内の敵を一旦フェードアウト（得点は入らない）
     for (const enemy of xnew.find(Enemy)) enemy.fadeOut();
     // 警告 → 次 wave への切替表示
     xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: next });
     xnew.timeout(() => { startWave(next); transitioning = false; }, 2800);
   }
 
-  // wave 1 も警告画面（WaveTransition）を出してから開始する（初回も同じ導入演出にする）。
+  // wave1 も警告画面を出してから開始（初回も同じ導入演出）。湧きは transitioning で演出終了まで止める。
   // wave は即 1 にする（0 のままだと ScoreGauge のしきい値計算が NaN になり恒久的に壊れる）。
-  // 敵の湧きは transitioning フラグで演出が終わるまで止める。
   startWave(1);
   transitioning = true;
   xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: 1 });
   xnew.timeout(() => { transitioning = false; }, 2800);
 
-  let tick = 0;
-  const spawn = xnew.interval(() => {
+  const spawn = xnew.interval(({ count }) => {
     if (transitioning) return;
     // その wave の目標スコアに達したら次の wave へ（wave4 は到達してもエンドレスで移行しない）
     if (wave < 4 && xnew.context(ScoreManager).waveScore >= WAVE_GOALS[wave - 1]) {
       nextWave();
       return;
     }
-    tick++;
 
     const scene = xnew.context(xnew.basics.Scene);
-    // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場する。
+    // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場。
     const id = enemyIdForWave(wave);
-    if (id === 0) {
-      // wave1 は分裂しないので多めに出す
-      scene.add(Enemy, { id: 0 });
-      if (tick % 2 === 0) scene.add(Enemy, { id: 0 });
-    } else {
-      // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
-      if (tick % (id + 1) === 0) scene.add(Enemy, { id });
-    }
+    // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
+    if (count % (id + 1) === 0) scene.add(Enemy, { id });
   }, 200);
 
   unit.on('+gameover', () => spawn.clear());
@@ -628,10 +598,9 @@ function WaveManager(unit) {
   return { get wave() { return wave; } };
 }
 
-// wave 切替時のサイバーな警告画面（プレイ領域）。HUDフレーム + グリッチした WAVE 表示 +
-// 流れる謎文字（hex）+ 脅威解析バー で「敵を検知して解析している」感を出す。
+// wave 切替時のサイバーな警告画面（プレイ領域）。HUDフレーム + グリッチ WAVE 表示 + 流れる hex + 脅威解析バー。
 function WaveTransition(unit, { wave }) {
-  const color = cssHex(waveColor(wave));
+  const color = waveCss(wave);
   const code = ENEMY_CODES[enemyIdForWave(wave)];
   xnew.nest('<div class="absolute left-0 right-[25cqw] top-0 bottom-0 overflow-hidden pointer-events-none" style="font-family: monospace;">');
   unit.element.style.color = color; // 文字はすべて wave 色を継承
@@ -649,16 +618,8 @@ function WaveTransition(unit, { wave }) {
     s.element.style.background = stripe;
   }
 
-  // HUD コーナーブラケット（四隅）
-  const corners = [
-    ['top-[2cqw] left-[2cqw]', 'border-top:0.4cqw solid; border-left:0.4cqw solid;'],
-    ['top-[2cqw] right-[2cqw]', 'border-top:0.4cqw solid; border-right:0.4cqw solid;'],
-    ['bottom-[2cqw] left-[2cqw]', 'border-bottom:0.4cqw solid; border-left:0.4cqw solid;'],
-    ['bottom-[2cqw] right-[2cqw]', 'border-bottom:0.4cqw solid; border-right:0.4cqw solid;'],
-  ];
-  for (const [pos, border] of corners) {
-    xnew(`<div class="absolute ${pos} w-[5cqw] h-[5cqw]" style="${border} opacity:0.8;">`);
-  }
+  // HUD コーナーブラケット（四隅）。色は親の currentColor（wave 色）を継承。
+  cornerBrackets({ offset: 2, size: 5, borderW: 0.4, opacity: 0.8 });
 
   // 縦に流れる走査ライン
   const scan = xnew('<div class="absolute left-0 right-0 h-[0.35cqw]" style="top:0;">');
@@ -691,7 +652,6 @@ function WaveTransition(unit, { wave }) {
     streamEl = xnew('<div class="text-[1.2cqw] mt-[0.6cqw] tracking-[0.15em] whitespace-nowrap overflow-hidden" style="opacity:0.6;">', '');
   });
 
-  const streamChars = '0123456789ABCDEF<>/\\|=+*#░▒▓';
   const VISIBLE = 126; // フェード前のおおよそのフレーム数（解析バーをこの間にちょうど満たす）
   unit.on('update', ({ count: t }) => {
     flash.element.style.opacity = `${(Math.sin(t * 0.08) * 0.5 + 0.5) * 0.1 + 0.03}`; // ゆったり明滅
@@ -710,7 +670,7 @@ function WaveTransition(unit, { wave }) {
       hexTop.element.textContent = Array.from({ length: 6 }, () => randHex(2)).join(' ');
     }
     if (t % 2 === 0) {
-      streamEl.element.textContent = '> ' + randStream(streamChars, 40);
+      streamEl.element.textContent = '> ' + randStream(40);
     }
 
     // 脅威解析バー（0→100% を VISIBLE フレームで満たす）
@@ -728,42 +688,79 @@ function WaveTransition(unit, { wave }) {
 // 右パネル上部の "Wave N" 表示（wave のメインカラーに追従）
 function WaveLabel(unit) {
   xnew.nest('<div class="absolute top-[1.5cqw] right-0 w-[25cqw] text-center font-bold text-lime-400">');
-  const text = svgText('Wave 1', '6cqw', '#102008');
-  followWave(unit, (wave) => {
+  const text = xnew(xnew.basics.SVGText, { text: 'Wave 1', fontSize: '6cqw', stroke: '#102008', strokeWidth: '0.2cqw', className: 'inline-block' });
+  xnew(FollowWave, { apply: (wave) => {
     text.element.textContent = `Wave ${wave}`;
-    unit.element.style.color = cssHex(waveColor(wave)); // SVGText の fill=currentColor が追従
+    unit.element.style.color = waveCss(wave); // SVGText の fill=currentColor が追従
+  } });
+}
+
+// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査）。走査(scan)は fill 割合に追従して
+// 自前で走らせる（ScoreGauge / ShotEnergy で共有）。fill 幅は setFill(0..1) で更新し、色や opacity は
+// frame / fill 経由で触る。
+// segment=[隙間開始, 隙間終了]cqw。scanOnTop=true で走査をセグメントの上（最前面）に。extra() で箱末尾に追加要素（目盛り等）。
+// scanSpeed=走査の往復速度 / scanMargin=fill 端からの折り返し余白(%)。
+// 使い方: const bar = xnew(CyberBar, { ... }); bar.setFill(0.6); bar.fill / bar.frame
+function CyberBar(unit, { boxClass, boxStyle, fillWidth, fillStyle = '', segment, scanW, scanAlpha, scanOnTop = true, scanSpeed = 0.05, scanMargin = 0, extra }) {
+  let frame, fill, scan;
+  const addSegment = () => xnew(`<div class="absolute inset-0" style="background: repeating-linear-gradient(90deg, transparent 0 ${segment[0]}cqw, rgba(0,0,0,0.6) ${segment[0]}cqw ${segment[1]}cqw);">`);
+  const addScan = () => { scan = xnew(`<div class="absolute inset-y-0 w-[${scanW}cqw]" style="left:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,${scanAlpha}), transparent);">`); };
+  frame = xnew(`<div class="relative w-full ${boxClass}" style="${boxStyle}">`, () => {
+    fill = xnew(`<div class="absolute inset-y-0 left-0" style="width:${fillWidth};${fillStyle}">`);
+    if (scanOnTop) {
+      addSegment();
+      addScan();
+    } else {
+      addScan();
+      addSegment();
+    }
+    if (extra) {
+      extra();
+    }
   });
+
+  // fill 割合（0..1）を保持し、毎フレーム fill 充填内を走査ラインが往復する。
+  let fraction = parseFloat(fillWidth) / 100 || 0;
+  unit.on('update', ({ count: t }) => {
+    scan.element.style.left = `${(Math.sin(t * scanSpeed) * 0.5 + 0.5) * Math.max(0, fraction * 100 - scanMargin)}%`;
+  });
+
+  return {
+    get frame() { return frame; },
+    get fill() { return fill; },
+    setFill(f) { fraction = f; fill.element.style.width = `${f * 100}%`; },
+  };
 }
 
 // 次の wave までの進捗を示す「解析メーター」（画面左上）。色は wave のメインカラー。
 function ScoreGauge(unit) {
   xnew.nest('<div class="absolute top-[2cqw] left-[2cqw] right-[44cqw]" style="font-family: monospace;">');
 
-  let labelEl, pctEl, fill, frame;
   // 見出し行（ラベル + パーセント）
+  let labelEl, pctEl;
   xnew('<div class="flex justify-between items-end mb-[0.4cqw] text-[1.5cqw] tracking-[0.2em]">', () => {
     labelEl = xnew('<div>', 'ANALYSIS');
     pctEl = xnew('<div>', '0%');
   });
   // メーター本体（セグメント風）
-  frame = xnew('<div class="relative w-full h-[2.4cqw] bg-black/50" style="border: 0.2cqw solid; overflow: hidden;">', () => {
-    fill = xnew('<div class="absolute inset-y-0 left-0" style="width: 0%;">');
-    // セグメントの隙間を上に重ねてブロック分割に見せる
-    xnew('<div class="absolute inset-0" style="background: repeating-linear-gradient(90deg, transparent 0 1.4cqw, rgba(0,0,0,0.6) 1.4cqw 1.8cqw);">');
-    // 走査ハイライト（うっすら左右に動く）
-    fill.scan = xnew('<div class="absolute inset-y-0 w-[3cqw]" style="left:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);">');
+  const bar = xnew(CyberBar, {
+    boxClass: 'h-[2.4cqw] bg-black/50',
+    boxStyle: 'border: 0.2cqw solid; overflow: hidden;',
+    fillWidth: '0%',
+    segment: [1.4, 1.8],
+    scanW: 3, scanAlpha: 0.5, scanSpeed: 0.04, scanMargin: 3,
   });
 
   function applyColor(c) {
-    fill.element.style.background = c;
-    frame.element.style.borderColor = c;
+    bar.fill.element.style.background = c;
+    bar.frame.element.style.borderColor = c;
     labelEl.element.style.color = c;
     pctEl.element.style.color = c;
   }
-  followWave(unit, (wave) => applyColor(cssHex(waveColor(wave))));
+  xnew(FollowWave, { apply: (wave) => applyColor(waveCss(wave)) });
 
   let shown = 0;
-  unit.on('update', ({ count: t }) => {
+  unit.on('update', () => {
     const wave = xnew.context(WaveManager).wave;
     const waveScore = xnew.context(ScoreManager).waveScore;
 
@@ -773,16 +770,15 @@ function ScoreGauge(unit) {
 
     if (!Number.isFinite(shown)) shown = 0; // NaN に陥っても自己回復する保険
     shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
-    fill.element.style.width = `${shown * 100}%`;
+    bar.setFill(shown);
     pctEl.element.textContent = `${Math.round(shown * 100)}%`;
-    fill.scan.element.style.left = `${(Math.sin(t * 0.04) * 0.5 + 0.5) * Math.max(0, shown * 100 - 3)}%`;
   });
 }
 
 // ---- Game Components ----
 
 // 右端のイラストパネル。上=Wave / 中=駆逐対象(ターゲット表示) / 下=中国うさぎ（敵数で表情切替）
-function SidePanel(_unit) {
+function SidePanel(unit) {
   xnew(PanelBackdrop);     // pixi: 半透明パネル背景 + 区切り線
   xnew(WaveEnemyDisplay);  // pixi: その wave で登場する敵キャラ
   xnew(TargetReticle);     // pixi: 敵キャラを囲うターゲットレティクル
@@ -792,69 +788,63 @@ function SidePanel(_unit) {
 }
 
 // 半透明（約50%）のパネル背景 + 区切り線（区切り線は wave のメインカラーに追従）
-function PanelBackdrop(unit) {
-  const container = xpixi.nest(new PIXI.Container());
-  container.addChild(new PIXI.Graphics().rect(PLAY_RIGHT, 0, PANEL_W, 600).fill({ color: 0x05121A, alpha: 0.5 }));
+function PanelBackdrop(_unit) {
+  xpixi.nest(new PIXI.Container());
+  xpixi.add(new PIXI.Graphics().rect(PLAY_RIGHT, 0, PANEL_W, 600).fill({ color: 0x05121A, alpha: 0.5 }));
 
-  const divider = new PIXI.Graphics();
-  container.addChild(divider);
+  const divider = xpixi.add(new PIXI.Graphics());
   const drawDivider = (color) => {
     divider.clear();
     divider.moveTo(PLAY_RIGHT, 0).lineTo(PLAY_RIGHT, 600).stroke({ color, width: 2, alpha: 0.55 });
   };
-  followWave(unit, (wave) => drawDivider(waveColor(wave)));
+  xnew(FollowWave, { apply: (wave) => drawDivider(waveColor(wave)) });
 }
 
 // その wave で登場する敵キャラを表示（wave1:ずんだもん 2:きりたん 3:ずん子 4:イタコ）
 const TARGET_Y = 148; // ターゲット表示(敵キャラ+レティクル)の中心 y
 
 function WaveEnemyDisplay(unit) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
-  const tl = xnew.context(BakedCharacters).texturesList;
-  let current = null;
+  xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
+  let current = null; // 現在表示中の BakedSprite unit（クロスフェードで差し替える）
 
   unit.on('+wave', ({ wave }) => {
     const id = enemyIdForWave(wave); // wave4 以降はイタコ固定
-    const sprite = bakedSprite(tl[id]);
-    sprite.scale.set(0.82);
-    sprite.play();
-    sprite.alpha = 0;
-    container.addChild(sprite);
+    const next = xnew(BakedSprite, { id, scale: 0.82 });
+    next.sprite.alpha = 0;
 
     const old = current;
-    current = sprite;
+    current = next;
     xnew.transition(({ value }) => {
-      sprite.alpha = value;
-      if (old) old.alpha = 1 - value;
-    }, 400).timeout(() => { if (old) container.removeChild(old); });
+      next.sprite.alpha = value;
+      if (old) old.sprite.alpha = 1 - value;
+    }, 400).timeout(() => { if (old) old.finalize(); });
   });
 }
 
-// 敵キャラを囲うサイバーなターゲットレティクル。色は wave 連動。
-// 多重リング（逆回転）+ 回転するレーダー掃引 + 呼吸するロックオンブラケット +
-// 周回する解析ブリップ で「ロックして解析している」感を出す。
+// 敵キャラを囲うサイバーなターゲットレティクル（色は wave 連動）。
+// 多重リング（逆回転）+ レーダー掃引 + 呼吸するロックオンブラケット + 周回する解析ブリップ。
 function TargetReticle(unit) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
+  xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: TARGET_Y } }));
   const R = 46;
 
   // 独立回転させる層（container の子に直接 rotation を持たせる）
-  const outer = new PIXI.Container();   // 外周リング（CW）
-  const mid = new PIXI.Container();     // 中アーク（CCW）
-  const sweepC = new PIXI.Container();  // レーダー掃引（速い CW）
-  const blips = new PIXI.Container();   // 周回ブリップ
-  const brackets = new PIXI.Graphics(); // ロックオンブラケット（呼吸）
-  const cross = new PIXI.Graphics();
+  const outer = xpixi.add(new PIXI.Container());   // 外周リング（CW）
+  const mid = xpixi.add(new PIXI.Container());     // 中アーク（CCW）
+  const sweepC = xpixi.add(new PIXI.Container());  // レーダー掃引（CW）
+  const blips = xpixi.add(new PIXI.Container());   // 周回ブリップ
+  const brackets = xpixi.add(new PIXI.Graphics()); // ロックオンブラケット
+  const cross = xpixi.add(new PIXI.Graphics());
+  
   const outerG = new PIXI.Graphics(); outer.addChild(outerG);
   const midG = new PIXI.Graphics(); mid.addChild(midG);
   const sweepG = new PIXI.Graphics(); sweepC.addChild(sweepG);
-  container.addChild(sweepC, outer, mid, cross, brackets, blips);
 
   // 周回ブリップ（ランダムな半径/角速度）
   const dots = [];
   for (let i = 0; i < 6; i++) {
     const g = new PIXI.Graphics();
     blips.addChild(g);
-    dots.push({ g, radius: 24 + Math.random() * 26, ang: Math.random() * Math.PI * 2, spd: (0.01 + Math.random() * 0.03) * (Math.random() < 0.5 ? 1 : -1), size: 1.1 + Math.random() * 1.4 });
+    dots.push({ g, radius: randRange(24, 50), ang: randAngle(), spd: randRange(0.01, 0.04) * randSign(), size: randRange(1.1, 2.5) });
   }
 
   let color = WAVE_COLORS[0];
@@ -907,7 +897,7 @@ function TargetReticle(unit) {
     }
   }
 
-  followWave(unit, (wave) => draw(waveColor(wave)));
+  xnew(FollowWave, { apply: (wave) => draw(waveColor(wave)) });
 
   unit.on('update', ({ count: t }) => {
     outer.rotation += 0.006;
@@ -932,7 +922,7 @@ function TargetReticle(unit) {
   });
 }
 
-// レティクル周辺に「解析中っぽい」謎文字をごちゃごちゃ表示する HUD。色は wave 連動。
+// レティクル周辺に「解析中っぽい」謎文字を表示する HUD（色は wave 連動）。
 // ヘッダー / 四隅の座標ラベル / 円の左右を流れる hex レール / 下部の解析リードアウト。
 function TargetInfo(unit) {
   xnew.nest('<div class="absolute right-0 top-0 bottom-0 w-[25cqw] pointer-events-none" style="font-family: monospace; color:#9BE53C;">');
@@ -971,11 +961,10 @@ function TargetInfo(unit) {
   function applyWave(wave) {
     const id = enemyIdForWave(wave);
     idLine.element.textContent = `ID ${ENEMY_CODES[id]} ${'▮'.repeat(id + 1)}`;
-    unit.element.style.color = cssHex(waveColor(wave)); // 全テキストが継承
+    unit.element.style.color = waveCss(wave); // 全テキストが継承
   }
-  followWave(unit, applyWave);
+  xnew(FollowWave, { apply: applyWave });
 
-  const streamChars = '0123456789ABCDEF<>/\\|=+*░▒▓';
   const rightTokens = ['OK', '!!', 'ACK', '▮▮', '·▮·', 'SYN'];
   unit.on('update', ({ count: t }) => {
     // hex レールを数フレームごとに1行スクロール（流れる解析ダンプ）
@@ -983,7 +972,7 @@ function TargetInfo(unit) {
       for (let i = 0; i < leftRail.length - 1; i++) leftRail[i].element.textContent = leftRail[i + 1].element.textContent;
       leftRail[leftRail.length - 1].element.textContent = randHex(2);
       for (let i = 0; i < rightRail.length - 1; i++) rightRail[i].element.textContent = rightRail[i + 1].element.textContent;
-      rightRail[rightRail.length - 1].element.textContent = Math.random() < 0.5 ? `${Math.floor(Math.random() * 100)}%` : rightTokens[Math.floor(Math.random() * rightTokens.length)];
+      rightRail[rightRail.length - 1].element.textContent = Math.random() < 0.5 ? `${randInt(100)}%` : pick(rightTokens);
     }
 
     // 四隅ラベル
@@ -999,7 +988,7 @@ function TargetInfo(unit) {
 
     // データストリーム
     if (t % 3 === 0) {
-      stream.element.textContent = '> ' + randStream(streamChars, 9);
+      stream.element.textContent = '> ' + randStream(9);
     }
   });
 }
@@ -1007,21 +996,20 @@ function TargetInfo(unit) {
 // パネル下部の中国うさぎ。画面内の敵数に応じて表情をクロスフェードで切り替える。
 // （pixi スプライトで描画＝リザルトのキャプチャにも含まれる）
 function UsagiFace(unit) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: 596 } }));
+  xpixi.nest(new PIXI.Container({ position: { x: PLAY_RIGHT + PANEL_W / 2, y: 596 } }));
   const urls = [0, 1, 2].map((i) => asset(`usagi0${i}.png`));
 
   let back = null, front = null, current = 0;
 
-  xnew.promise(PIXI.Assets.load(urls)).then((loaded) => {
+  xpixi.load(urls).then((loaded) => {
     const textures = urls.map((u) => loaded[u]);
     const fit = (s, t) => {
       s.texture = t;
       s.anchor.set(0.5, 1.0); // 下端中央
       s.scale.set(Math.min((PANEL_W * 1.12) / t.width, 380 / t.height));
     };
-    back = new PIXI.Sprite(); fit(back, textures[0]);
-    front = new PIXI.Sprite(); fit(front, textures[0]);
-    container.addChild(back, front);
+    back = xpixi.add(new PIXI.Sprite()); fit(back, textures[0]);
+    front = xpixi.add(new PIXI.Sprite()); fit(front, textures[0]);
 
     // 0:余裕(〜20) 1:普通(〜40) 2:焦り(40〜)
     unit.on('update', () => {
@@ -1038,22 +1026,21 @@ function UsagiFace(unit) {
 }
 
 // 背景: zunda_background.png をやや暗めに加工 + 浮遊粒子（パララックス） + 薄い鼓動
-function Background(_unit) {
+function Background(unit) {
   xnew(BackgroundBase);
   for (let i = 0; i < 80; i++) xnew(Mote);
   xnew(PulseGlow);
 }
 
-function BackgroundBase(_unit) {
-  const container = xpixi.nest(new PIXI.Container());
+function BackgroundBase(unit) {
+  xpixi.nest(new PIXI.Container());
 
   // 下地（カメラシェイクで端が露出しても黒く抜けないよう少し広めに）
-  container.addChild(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0x0A0306));
+  xpixi.add(new PIXI.Graphics().rect(-40, -40, 880, 680).fill(0x0A0306));
 
-  xnew.promise(PIXI.Assets.load(asset('zunda_background.png'))).then((texture) => {
-    const sprite = new PIXI.Sprite(texture);
+  xpixi.load(asset('zunda_background.png')).then((texture) => {
+    const sprite = xpixi.add(new PIXI.Sprite(texture));
     sprite.scale.set(800 / texture.width, 600 / texture.height); // canvas にフィット
-    container.addChild(sprite);
 
     // やや暗め＆コントラスト緩和の暗幕 + 周辺減光を一枚のテクスチャに
     const canvas = document.createElement('canvas');
@@ -1070,7 +1057,7 @@ function BackgroundBase(_unit) {
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, 800, 600);
 
-    container.addChild(new PIXI.Sprite(PIXI.Texture.from(canvas)));
+    xpixi.add(new PIXI.Sprite(PIXI.Texture.from(canvas)));
   });
 }
 
@@ -1082,12 +1069,12 @@ function Mote(unit) {
   const depth = Math.random(); // 0:奥 〜 1:手前
   const size = 1 + depth * 4;
   const baseAlpha = 0.08 + depth * 0.22;
-  const color = [0xFF6E8A, 0xFFA7B6, 0xE8506A, 0xFFC0CB][Math.floor(Math.random() * 4)];
-  object.addChild(new PIXI.Graphics().circle(0, 0, size).fill(color));
+  const color = pick([0xFF6E8A, 0xFFA7B6, 0xE8506A, 0xFFC0CB]);
+  xpixi.add(new PIXI.Graphics().circle(0, 0, size).fill(color));
 
   const vy = 0.2 + depth * 0.9;
-  const vx = (Math.random() - 0.5) * 0.3;
-  let phase = Math.random() * Math.PI * 2;
+  const vx = randRange(-0.15, 0.15);
+  let phase = randAngle();
 
   unit.on('update', () => {
     object.x += vx;
@@ -1120,9 +1107,8 @@ function Controller(unit) {
     dpad.on('pointerdown', ({ event }) => event.stopPropagation());
   });
 
-  unit.on('pointerdown', () => xnew.emit('+shot'));
+  unit.on('pointerdown window.keydown.space', () => xnew.emit('+shot'));
   unit.on('window.keydown.arrow window.keyup.arrow window.keydown.wasd window.keyup.wasd', ({ vector }) => xnew.emit('+move', { vector }));
-  unit.on('window.keydown.space', () => xnew.emit('+shot'));
 }
 
 function ScoreManager(unit) {
@@ -1140,7 +1126,7 @@ function ScoreManager(unit) {
   let waveScore = 0;  // 現在の wave 内で稼いだスコア（wave 開始ごとに 0 リセット）
   const kills = [0, 0, 0, 0]; // 敵 id 別の撃破数
 
-  followWave(unit, (wave) => applyColor(cssHex(waveColor(wave))));
+  xnew(FollowWave, { apply: (wave) => applyColor(waveCss(wave)) });
   unit.on('+wave', () => { waveScore = 0; }); // wave 開始ごとに wave 内スコアをリセット
 
   return {
@@ -1156,29 +1142,15 @@ function ScoreManager(unit) {
   };
 }
 
-function GameOverText(unit) {
-  xnew.nest('<div class="absolute left-0 right-[25cqw] text-center text-red-400 font-bold">');
-  svgText('Game Over', '12cqw');
-  xnew.transition(({ value }) => {
-    Object.assign(unit.element.style, { opacity: value, top: `${10 + value * 15}cqw` });
-  }, 1000, 'ease');
-}
-
 function Player(unit) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(PLAY_RIGHT / 2, 500);
 
   // 自機＝中国うさぎ（後ろ向きベイク）
-  const sprite = bakedSprite(xnew.context(BakedCharacters).playerTextures);
-  sprite.scale.set(0.7);
-  sprite.play();
-  object.addChild(sprite);
+  const sprite = xnew(BakedSprite, { textures: xnew.context(BakedCharacters).playerTextures, scale: 0.7 }).sprite;
 
   // 当たり判定を可視化する円（キャラの上に重ねて表示）
-  const hitRing = new PIXI.Graphics()
-    .circle(0, 0, PLAYER_HIT_R).fill({ color: 0x33FFFF, alpha: 0.18 })
-    .circle(0, 0, PLAYER_HIT_R).stroke({ color: 0x33FFFF, width: 2.5, alpha: 0.9 });
-  object.addChild(hitRing);
+  const hitRing = xpixi.add(hitCircle(PLAYER_HIT_R, 0x33FFFF, 0.18, 2.5, 0.9));
 
   let alive = true;
   let velocity = { x: 0, y: 0 };
@@ -1204,27 +1176,25 @@ function Player(unit) {
 
     hitRing.alpha = 0.7 + 0.3 * Math.sin(count * 0.1); // うっすら明滅
 
-    for (const enemy of xnew.find(Enemy)) {
-      if (enemy.isVulnerable && enemy.distance(object) < PLAYER_HIT_R + ENEMY_HIT_R) {
-        xnew.emit('+gameover');
-        return;
-      }
-    }
+    // 無敵でない敵に触れたらゲームオーバー
+    hitNearestEnemy(object, PLAYER_HIT_R + ENEMY_HIT_R, () => xnew.emit('+gameover'), true);
   });
 }
 
-// 星のテクスチャ（白）を一度だけ生成してキャッシュする。
-// 「くっきりした不透明の星」＋「少しのブラーをかけた淡いグロー」で、形がはっきり読めてコントラストの高い見た目に
-// （以前の加算合成オンリーは形が滲んで分かりにくかった）。各星は同一テクスチャ + tint の Sprite なのでバッチ描画が効く。
-const STAR_TEX_R = 13; // テクスチャ内の星の基準半径。スケールは wantR / STAR_TEX_R。
 let _starTexture = null;
-function starTexture() {
+
+// 星ビジュアル component：共有テクスチャ + tint の Sprite を 1 枚持ち、回転とスケール変動（脈動 twinkle + 寿命に応じた縮み shrink）を内部計算。
+// テクスチャは初回だけ焼いてキャッシュ。移動・フェード・当たり判定は呼び出し側の責務。共有テクスチャなので破棄時に texture を消さないこと。
+function StarSprite(unit, { color, baseR, spin = 0.15, shrink = 0, twinkleAmp = 0, twinkleFreq = 0.6, life = 60 }) {
+  // 星の共有テクスチャ（白）。初回に一度だけ焼き、以降は使い回す（同一テクスチャ + tint なのでバッチ描画が効く）。
+  const STAR_TEX_R = 13; // テクスチャ内の星の基準半径。スケールは baseR / STAR_TEX_R。
+ 
   if (_starTexture === null) {
     const c = new PIXI.Container();
     // 下：少しブラーをかけた淡いグロー
     const glow = new PIXI.Graphics().star(0, 0, 5, STAR_TEX_R * 1.2, STAR_TEX_R * 0.55).fill({ color: 0xFFFFFF, alpha: 0.55 });
     glow.filters = [new PIXI.BlurFilter({ strength: 4 })];
-    // 上：くっきりした不透明の星（元のデザインと同じ 5 角・内半径 0.45）＋ コントラスト用の縁取り
+    // 上：くっきりした不透明の星（5 角・内半径 0.45）＋ コントラスト用の縁取り
     const body = new PIXI.Graphics()
       .star(0, 0, 5, STAR_TEX_R, STAR_TEX_R * 0.45).fill({ color: 0xFFFFFF })
       .star(0, 0, 5, STAR_TEX_R, STAR_TEX_R * 0.45).stroke({ color: 0x3A2A12, width: 1.5 });
@@ -1232,40 +1202,34 @@ function starTexture() {
     _starTexture = xpixi.renderer.generateTexture({ target: c, resolution: 2, antialias: true });
     c.destroy();
   }
-  return _starTexture;
-}
-// 星スプライト（tint で色付け、通常合成で形をくっきり出す）。共有テクスチャなので破棄時に texture を消さないこと。
-function starSprite(color) {
-  const s = new PIXI.Sprite(starTexture());
-  s.anchor.set(0.5);
-  s.tint = color;
-  return s;
+
+  const sprite = xpixi.add(new PIXI.Sprite(_starTexture));
+  sprite.anchor.set(0.5);
+  sprite.tint = color;
+
+  unit.on('update', ({ count }) => {
+    sprite.rotation += spin;
+    const p = count / life;
+    const twinkle = 1 + Math.sin(count * twinkleFreq) * twinkleAmp;
+    sprite.scale.set((baseR / STAR_TEX_R) * (1 - p * shrink) * twinkle);
+  });
 }
 
 function Shot(unit, { x, y }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
 
-  const color = 0x66FFFF;
-  const baseR = 18;
-
   // くっきりした星（回転 + 脈動）
-  const star = starSprite(color);
-  object.addChild(star);
+  xnew(StarSprite, { color: 0x66FFFF, baseR: 18, spin: 0.15, twinkleAmp: 0.12, twinkleFreq: 0.6 });
 
-  unit.on('update', ({ count: t }) => {
+  unit.on('update', () => {
     object.y -= 8;
-    star.rotation += 0.15;
-    star.scale.set((baseR / STAR_TEX_R) * (1 + Math.sin(t * 0.6) * 0.12)); // キラッと脈動
 
     if (object.y < 0) { unit.finalize(); return; }
 
-    for (const enemy of xnew.find(Enemy)) {
-      if (enemy.distance(object) < 30) {
-        enemy.clash(ENEMY_DATA[enemy.id].score, { x: 0, y: -1 }); // ショットは上方向
-        unit.finalize();
-        return;
-      }
+    // ショットは上方向。当たった敵を撃破して自身を消す。
+    if (hitNearestEnemy(object, 30, (e) => e.clash(ENEMY_DATA[e.id].score, { x: 0, y: -1 }))) {
+      unit.finalize();
     }
   });
 
@@ -1287,23 +1251,14 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   // 自動出現は画面上部 20%（y ∈ [20,120]）のエリアに湧く。分裂はその場（x,y 指定）に出す。
   object.position.set(x ?? (20 + Math.random() * (PLAY_RIGHT - 40)), y ?? (20 + Math.random() * 100));
 
-  // ベイクテクスチャでスプライト表示
-  const tl = xnew.context(BakedCharacters).texturesList;
-  const sprite = bakedSprite(tl[id]);
-  sprite.scale.set(0); // スケール0から pop-in（下の update で 0→1 に拡大）
-  sprite.play();
-  sprite.currentFrame = Math.floor(Math.random() * tl[id].length);
-  object.addChild(sprite);
+  // ベイクテクスチャでスプライト表示。scale 0 から pop-in（下の update で 0→1 に拡大）。
+  const sprite = xnew(BakedSprite, { id, scale: 0, frame: 'random' }).sprite;
 
-  // 当たり判定を可視化する円（キャラの上に重ねる・スケール変動の影響を受けない object 直下）
-  const hitRing = new PIXI.Graphics()
-    .circle(0, 0, ENEMY_HIT_R).fill({ color: 0xFF3355, alpha: 0.2 })
-    .circle(0, 0, ENEMY_HIT_R).stroke({ color: 0xFF3355, width: 2, alpha: 0.85 });
-  object.addChild(hitRing);
+  // 当たり判定を可視化する円（object 直下なのでスケール変動の影響を受けない）
+  xpixi.add(hitCircle(ENEMY_HIT_R, 0xFF3355, 0.2, 2, 0.85));
 
-  // 出現時の pop-in（0→1 に拡大）＋ スケールの時間変動（生きている＝蠢く感じ）。
-  // どちらもストーリー2ページ目の StoryFactor と同じ手法。
-  const squirmPhase = Math.random() * Math.PI * 2;
+  // 出現時の pop-in（0→1）＋ スケールの時間変動（蠢く感）。DriftingFactor と同じ手法。
+  const squirmPhase = randAngle();
   let pop = 0;
 
   // 無敵時間（分裂直後は半透明）
@@ -1313,10 +1268,10 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
     xnew.timeout(() => { vulnerable = true; object.alpha = 1.0; }, 500);
   }
 
-  // ランダムな速度（下向き成分を持つ）
-  const speed = 0.7 + Math.random() * 1.4;
-  const angle = Math.PI * (0.25 + Math.random() * 0.5); // 45~135度（下向き）
-  const vel = { x: Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1), y: Math.sin(angle) * speed };
+  // ランダムな速度（下向き成分を持つ。45~135度）
+  const speed = randRange(0.7, 2.1);
+  const angle = Math.PI * randRange(0.25, 0.75);
+  const vel = { x: Math.cos(angle) * speed * randSign(), y: Math.sin(angle) * speed };
 
   // 被弾時のノックバック（着弾点から弾け、徐々に減速）
   const kb = { x: knockback?.x ?? 0, y: knockback?.y ?? 0 };
@@ -1324,10 +1279,9 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   let fading = false; // wave 切替で退場中（得点・当たり判定なし）
 
   unit.on('update', ({ count }) => {
-    // pop-in（0→1）× y座標に応じた遠近感 × 時間で蠢く拡縮
+    // pop-in（0→1）× y座標に応じた遠近感 × 蠢く拡縮
     pop = Math.min(1, pop + 0.08);
-    const squirm = 1 + Math.sin(count * 0.12 + squirmPhase) * 0.08;
-    sprite.scale.set((0.4 + id * 0.2 + object.y * 0.0008) * squirm * pop);
+    sprite.scale.set((0.4 + id * 0.2 + object.y * 0.0008) * squirmFactor(count, squirmPhase, 0.08, 0.12) * pop);
 
     if (object.x < 15)             vel.x =  Math.abs(vel.x);
     if (object.x > PLAY_RIGHT - 15) vel.x = -Math.abs(vel.x);
@@ -1365,8 +1319,8 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       const scene = xnew.context(xnew.basics.Scene);
       const baseAngle = Math.atan2(direction.y, direction.x); // 当たった方向
 
-      // 撃破エフェクト：衝撃バースト + 撃破音。カメラシェイクは自機ショット命中時のみ。
-      scene.add(HitBurst, { x: object.x, y: object.y, power: 1 + id * 0.5 });
+      // 撃破エフェクト：衝撃バースト（敵が大きい id ほど強く）+ 撃破音。シェイクは自機ショット命中時のみ。
+      scene.add(ExpandingBurst, { x: object.x, y: object.y, power: 1 + id * 0.5 });
       xnew.context(SoundFX).defeat(id);
       if (!fromStar) xnew.emit('+shake', { amount: 0.16 + id * 0.13 });
 
@@ -1379,7 +1333,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       // 分裂（ノックバック方向を軸に小さくランダム微変動して弾ける）
       if (data.splitTo !== null) {
         for (let i = 0; i < 2; i++) {
-          const dir = baseAngle + (Math.random() - 0.5) * 0.6;
+          const dir = baseAngle + randRange(-0.3, 0.3);
           const power = 7 + id * 2;
           scene.add(Enemy, {
             id: data.splitTo, x: object.x, y: object.y, invincible: true,
@@ -1390,7 +1344,7 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
       // 星（チェーンショット）— 当たった方向へ扇状に、敵が大きいほど多く
       const starCount = 3 + id;
       for (let i = 0; i < starCount; i++) {
-        const angle = baseAngle + (Math.random() - 0.5) * 1.4;
+        const angle = baseAngle + randRange(-0.7, 0.7);
         scene.add(Star, { x: object.x, y: object.y, score, angle });
       }
       scene.add(ScorePopup, { x: object.x, y: object.y, score });
@@ -1400,40 +1354,33 @@ function Enemy(unit, { id, x, y, invincible = false, knockback = null }) {
   };
 }
 
-function Star(unit, { x, y, score, angle = Math.random() * Math.PI * 2 }) {
+function Star(unit, { x, y, score, angle = randAngle() }) {
   const object = xpixi.nest(new PIXI.Container());
   object.position.set(x, y);
 
-  const baseR = (9 + Math.random() * 7) * 1.5;
-  const color = [0xFFF066, 0xFFD700, 0xFFA53C, 0xFFFFFF, 0xFF8FD0, 0x9BE5FF][Math.floor(Math.random() * 6)];
-  const star = starSprite(color);
-  object.addChild(star);
+  const baseR = randRange(9, 16) * 1.5;
+  const color = pick([0xFFF066, 0xFFD700, 0xFFA53C, 0xFFFFFF, 0xFF8FD0, 0x9BE5FF]);
+  const spin = randSign() * randRange(0.12, 0.32);
+  // 縮みながら瞬く星（回転・スケール変動は component 内部で計算）
+  xnew(StarSprite, { color, baseR, spin, shrink: 0.35, twinkleAmp: 0.22, twinkleFreq: 0.5 });
 
-  const speed = 2 + Math.random() * 3;
+  const speed = randRange(2, 5);
   let vx = Math.cos(angle) * speed;
   let vy = Math.sin(angle) * speed;
-  const spin = (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.2);
 
   xnew.timeout(() => unit.finalize(), 900);
 
   unit.on('update', ({ count }) => {
     object.x += vx;
     object.y += vy;
-    const p = count / 60;
-    star.rotation += spin;
-    object.alpha = 1 - p;
-    const twinkle = 1 + Math.sin(count * 0.5) * 0.22;          // キラキラ点滅
-    star.scale.set((baseR / STAR_TEX_R) * (1 - p * 0.35) * twinkle); // 縮みながら瞬く
+    object.alpha = 1 - count / 60; // フェードは呼び出し側（コンテナ全体）で行う
 
     // 別の敵に当たると得点倍増（星の進行方向にノックバック/分裂）
-    for (const enemy of xnew.find(Enemy)) {
-      if (enemy.isVulnerable && enemy.distance(object) < 28) {
-        const len = Math.hypot(vx, vy) || 1;
-        enemy.clash(score + 2, { x: vx / len, y: vy / len }, true);
-        unit.finalize();
-        return;
-      }
-    }
+    const hit = hitNearestEnemy(object, 28, (e) => {
+      const len = Math.hypot(vx, vy) || 1;
+      e.clash(score + 2, { x: vx / len, y: vy / len }, true);
+    }, true);
+    if (hit) unit.finalize();
   });
 }
 
@@ -1442,27 +1389,23 @@ function ScorePopup(unit, { x, y, score }) {
   object.position.set(x, y);
   object.anchor.set(0.5);
 
-  xnew.timeout(() => unit.finalize(), 900);
-  unit.on('update', ({ count }) => {
-    object.y = y - 40 * (count / 60);
-    object.alpha = 1 - count / 60;
-  });
+  // 上へ 40px 浮かびながらフェードアウトし、終端で finalize（約1秒）。
+  xnew.transition(({ value: p }) => {
+    object.y = y - 40 * p;
+    object.alpha = 1 - p;
+  }, 1000).timeout(() => unit.finalize());
 }
 
 // 倒された敵のノックバック表現：薄れながら当たった方向へ飛んで消える
 function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   const object = xpixi.nest(new PIXI.Container({ position: { x, y } }));
 
-  const tl = xnew.context(BakedCharacters).texturesList;
-  const sprite = bakedSprite(tl[id]); // コープスは再生せず1フレーム固定
-  sprite.scale.set(scale);
-  sprite.currentFrame = Math.min(frame, tl[id].length - 1);
-  object.addChild(sprite);
+  xnew(BakedSprite, { id, scale, frame, play: false }); // コープスは再生せず1フレーム固定
 
   const angle = Math.atan2(direction.y, direction.x);
   let vx = Math.cos(angle) * power;
   let vy = Math.sin(angle) * power;
-  const spin = (Math.random() - 0.5) * 0.3;
+  const spin = randRange(-0.15, 0.15);
 
   const DURATION = 26;
   unit.on('update', ({ count }) => {
@@ -1476,31 +1419,45 @@ function EnemyCorpse(unit, { id, x, y, scale, frame = 0, direction, power }) {
   });
 }
 
+// 広がるフラッシュ + リングのバースト演出。(x,y) にコンテナを nest し duration フレーム後に finalize。
+// flash/ring は { r, alpha, grow, fade(p) }（ring.width=線幅）。省略時は power から標準の撃破バーストを作る。
+function ExpandingBurst(unit, { x, y, duration = 16, power = 1, flash, ring }) {
+  flash = flash ?? { r: 16 * power, alpha: 0.9, grow: 0.6, fade: (p) => 0.9 * (1 - p) };
+  ring = ring ?? { r: 10 * power, width: 4, alpha: 0.9, grow: 2.4, fade: (p) => 0.9 * (1 - p) };
+  xpixi.nest(new PIXI.Container({ position: { x, y } }));
+  const flashG = xpixi.add(new PIXI.Graphics().circle(0, 0, flash.r).fill({ color: 0xFFFFFF, alpha: flash.alpha }));
+  const ringG = xpixi.add(new PIXI.Graphics().circle(0, 0, ring.r).stroke({ color: 0x66E0FF, width: ring.width, alpha: ring.alpha }));
+  // duration は従来どおりフレーム数指定。0→1 を duration フレーム相当の時間で動かし、終端で finalize。
+  xnew.transition(({ value: p }) => {
+    flashG.scale.set(1 + p * flash.grow);
+    flashG.alpha = flash.fade(p);
+    ringG.scale.set(1 + p * ring.grow);
+    ringG.alpha = ring.fade(p);
+  }, duration * (1000 / 60)).timeout(() => unit.finalize());
+}
+
 // 自機被弾時の爆発エフェクト：白フラッシュ + 広がるリング + 飛び散る破片
 function PlayerExplosion(unit, { x, y }) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x, y } }));
+  const DURATION = 36;
+  // ExpandingBurst が (x,y) にコンテナを nest する（以降の破片もその nest 直下）。
+  xnew.extend(ExpandingBurst, {
+    x, y,
+    duration: DURATION,
+    flash: { r: 30, alpha: 1, grow: 1.5, fade: (p) => Math.max(0, 1 - p * 2) },
+    ring: { r: 18, width: 6, alpha: 1, grow: 3.5, fade: (p) => Math.max(0, 1 - p) },
+  });
 
-  const flash = new PIXI.Graphics().circle(0, 0, 30).fill({ color: 0xFFFFFF, alpha: 1 });
-  const ring = new PIXI.Graphics().circle(0, 0, 18).stroke({ color: 0x66E0FF, width: 6, alpha: 1 });
-  container.addChild(flash, ring);
-
+  // 飛び散る破片（PlayerExplosion 固有。flash/ring の後に追加して前面に出す）
   const palette = [0x9CF0FF, 0xFFFFFF, 0x66E0FF, 0xCFFBFF];
   const shards = [];
   for (let i = 0; i < 18; i++) {
-    const g = new PIXI.Graphics().circle(0, 0, 3 + Math.random() * 4).fill(palette[Math.floor(Math.random() * palette.length)]);
-    container.addChild(g);
-    const a = Math.random() * Math.PI * 2;
-    const sp = 3 + Math.random() * 6;
+    const g = xpixi.add(new PIXI.Graphics().circle(0, 0, randRange(3, 7)).fill(pick(palette)));
+    const a = randAngle();
+    const sp = randRange(3, 9);
     shards.push({ g, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
   }
-
-  const DURATION = 36;
   unit.on('update', ({ count }) => {
     const p = count / DURATION;
-    flash.scale.set(1 + p * 1.5);
-    flash.alpha = Math.max(0, 1 - p * 2);
-    ring.scale.set(1 + p * 3.5);
-    ring.alpha = Math.max(0, 1 - p);
     for (const s of shards) {
       s.g.x += s.vx;
       s.g.y += s.vy;
@@ -1508,26 +1465,6 @@ function PlayerExplosion(unit, { x, y }) {
       s.vy = s.vy * 0.92 + 0.15; // 減速 + 重力
       s.g.alpha = Math.max(0, 1 - p);
     }
-    if (count >= DURATION - 1) unit.finalize();
-  });
-}
-
-// 撃破時の衝撃エフェクト：白フラッシュ + 広がるシアンのリング
-function HitBurst(unit, { x, y, power = 1 }) {
-  const container = xpixi.nest(new PIXI.Container({ position: { x, y } }));
-
-  const flash = new PIXI.Graphics().circle(0, 0, 16 * power).fill({ color: 0xFFFFFF, alpha: 0.9 });
-  const ring = new PIXI.Graphics().circle(0, 0, 10 * power).stroke({ color: 0x66E0FF, width: 4, alpha: 0.9 });
-  container.addChild(flash, ring);
-
-  const DURATION = 16;
-  unit.on('update', ({ count }) => {
-    const p = count / DURATION;
-    flash.scale.set(1 + p * 0.6);
-    flash.alpha = 0.9 * (1 - p);
-    ring.scale.set(1 + p * 2.4);
-    ring.alpha = 0.9 * (1 - p);
-    if (count >= DURATION - 1) unit.finalize();
   });
 }
 
@@ -1564,13 +1501,15 @@ function ShotEnergy(unit) {
     statusEl = xnew('<div class="text-[1.3cqw]">', 'READY');
   });
 
-  // メーター本体（枠＋グロー＋セグメント＋走査＋目盛り）
-  let fill, scan;
-  xnew('<div class="relative w-full h-[2cqw] bg-black/55" style="outline:0.15cqw solid #22FFFF; box-shadow:0 0 1.2cqw rgba(34,255,255,0.45), inset 0 0 0.6cqw rgba(34,255,255,0.25);">', () => {
-    fill = xnew('<div class="absolute inset-y-0 left-0" style="width:100%; background:linear-gradient(180deg,#bdffff,#22FFFF 55%,#0aacac);">');
-    scan = xnew('<div class="absolute inset-y-0 w-[2cqw]" style="left:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent);">');
-    xnew('<div class="absolute inset-0" style="background:repeating-linear-gradient(90deg, transparent 0 2cqw, rgba(0,0,0,0.6) 2cqw 2.5cqw);">'); // セグメント隙間
-    xnew('<div class="absolute top-0 left-0 right-0 h-[0.4cqw]" style="background:repeating-linear-gradient(90deg, #22FFFF 0 0.15cqw, transparent 0.15cqw 1cqw); opacity:0.5;">'); // 上辺の目盛り
+  // メーター本体（枠＋グロー＋セグメント＋走査＋目盛り）。走査はセグメントの下、目盛りは最前面。
+  const bar = xnew(CyberBar, {
+    boxClass: 'h-[2cqw] bg-black/55',
+    boxStyle: 'outline:0.15cqw solid #22FFFF; box-shadow:0 0 1.2cqw rgba(34,255,255,0.45), inset 0 0 0.6cqw rgba(34,255,255,0.25);',
+    fillWidth: '100%',
+    fillStyle: 'background:linear-gradient(180deg,#bdffff,#22FFFF 55%,#0aacac);',
+    segment: [2, 2.5],
+    scanW: 2, scanAlpha: 0.75, scanOnTop: false, scanSpeed: 0.05, scanMargin: 8,
+    extra: () => xnew('<div class="absolute top-0 left-0 right-0 h-[0.4cqw]" style="background:repeating-linear-gradient(90deg, #22FFFF 0 0.15cqw, transparent 0.15cqw 1cqw); opacity:0.5;">'), // 上辺の目盛り
   });
 
   unit.on('update', ({ count: t }) => {
@@ -1578,9 +1517,8 @@ function ShotEnergy(unit) {
     const pct = energy / MAX;
     const ready = energy >= COST;
 
-    fill.element.style.width = `${pct * 100}%`;
-    fill.element.style.opacity = ready ? '1' : '0.45';
-    scan.element.style.left = `${(Math.sin(t * 0.05) * 0.5 + 0.5) * Math.max(0, pct * 100 - 8)}%`; // 充填内を走査
+    bar.setFill(pct);
+    bar.fill.element.style.opacity = ready ? '1' : '0.45';
     statusEl.element.textContent = ready ? 'READY' : 'CHARGE';
     statusEl.element.style.color = ready ? '#22FFFF' : '#ff5577';
     statusEl.element.style.opacity = ready ? '1' : `${Math.floor(t / 12) % 2 ? 1 : 0.3}`; // CHARGE 中は点滅
@@ -1596,7 +1534,7 @@ function ShotEnergy(unit) {
 }
 
 // 効果音：ショット音と撃破音（ピン、というピアノ風のシンセ音）
-function SoundFX(_unit) {
+function SoundFX(unit) {
   // ショット：高めで少し下がるピッ
   const shotSynth = xnew.audio.synthesizer({
     oscillator: { type: 'triangle', envelope: { amount: -7, ADSR: [0, 90, 0, 0] } },
@@ -1631,31 +1569,6 @@ function SoundFX(_unit) {
 }
 
 // ---- Result screen ----
-
-function ResultBackground(unit) {
-  xnew.nest(`<div class="relative size-full bg-linear-to-br from-slate-900 to-blue-950">`);
-  xnew('<div class="absolute top-0 left-[4cqw] text-[14cqw] text-blue-800">', 'Result');
-
-  // ランダム配置した白丸を sin で明滅させる。transform は種類ごとに変える（浮遊 / きらめき）。
-  function floatingCircle(sizeCqw, transform) {
-    const [x, y] = [Math.random() * 100, Math.random() * 100];
-    const circle = xnew(`<div class="absolute rounded-full bg-white" style="width: ${sizeCqw}cqw; height: ${sizeCqw}cqw; left: ${x}%; top: ${y}%; opacity: 0.2;">`);
-    circle.on('update', ({ count }) => {
-      const p = count * 0.02;
-      Object.assign(circle.element.style, { opacity: Math.sin(p) * 0.1 + 0.2, transform: transform(p) });
-    });
-  }
-
-  for (let i = 0; i < 20; i++) floatingCircle(Math.random() * 2 + 2, (p) => `translateY(${Math.sin(p) * 20}px)`);
-  for (let i = 0; i < 30; i++) floatingCircle(1, (p) => `scale(${1 + Math.sin(p) * 0.1})`);
-}
-
-function ResultImage(unit, { image }) {
-  // キャプチャは 800x600(4:3) なので、表示枠も 4:3 にして全体を表示する
-  xnew.nest('<div class="absolute bottom-[14cqw] left-[2cqw] w-[56cqw] aspect-4/3 rounded-[1cqw] overflow-hidden" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3)">');
-  const img = xnew('<img class="absolute inset-0 size-full object-cover">');
-  image?.then((src) => img.element.src = src);
-}
 
 function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0], cleared = false }) {
   xnew.nest('<div class="absolute bottom-[10cqw] right-[2cqw] w-[38cqw] bg-gray-100 px-[1.5cqw] py-[2.5cqw] rounded-[1cqw] font-bold" style="box-shadow: 0 8px 20px rgba(0,0,0,0.2);">');
@@ -1692,54 +1605,3 @@ function ResultDetail(unit, { score, wave, kills = [0, 0, 0, 0], cleared = false
   });
 }
 
-function ResultFooter(unit) {
-  xnew.nest(`<div class="absolute bottom-0 w-full h-[13cqh] px-[2cqw] flex justify-between text-stone-500">`);
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', Camera);
-    button.on('click', () => xnew(ScreenShot));
-    xnew('<div class="text-[3cqw] font-bold">', '画面を保存');
-  });
-
-  xnew('<div class="flex items-center gap-x-[2cqw]">', () => {
-    xnew('<div class="text-[3cqw] font-bold">', '戻る');
-    const button = xnew('<div class="relative size-[9cqw] cursor-pointer hover:scale-110">', ArrowUturnLeft);
-    button.on('click', () => xnew.context(xnew.basics.Scene).change(TitleScene, { skipStory: true }));
-  });
-}
-
-function ScreenShot(unit) {
-  xnew.nest(xnew.context(Main).element);
-  const cover = xnew('<div class="absolute inset-0 size-full z-10 bg-white">');
-  xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
-  .timeout(() => {
-    html2canvas(unit.element, { scale: 2, logging: false, useCORS: true }).then((canvas) => {
-      xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
-    });
-    unit.finalize();
-  });
-}
-
-// ---- UI Helpers ----
-
-function VolumeControl(_unit) {
-  xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[6cqw] text-stone-300 z-10">',
-    xnew.basics.VolumeController, { anchor: 'left' });
-}
-
-function TitleText(_unit) {
-  xnew.nest('<div class="absolute w-full top-[16cqw] text-center text-blue-600 font-bold">');
-  svgText('とーほくショット', '10cqw');
-}
-
-function TouchMessage(unit) {
-  xnew.nest('<div class="absolute w-full top-[30cqw] text-center text-blue-600 font-bold">');
-  svgText('touch start', '6cqw');
-  unit.on('update', ({ count }) => unit.element.style.opacity = 0.6 + Math.sin(count * 0.08) * 0.4);
-}
-
-const Camera = RingIcon([
-  'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23q-.57.08-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a48 48 0 0 0-1.134-.175a2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.19 2.19 0 0 0-1.736-1.039a49 49 0 0 0-5.232 0a2.19 2.19 0 0 0-1.736 1.039z',
-  'M16.5 12.75a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m2.25-2.25h.008v.008h-.008z',
-]);
-
-const ArrowUturnLeft = RingIcon(['M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3']);

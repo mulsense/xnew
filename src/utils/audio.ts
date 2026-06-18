@@ -9,12 +9,20 @@
 //
 // - context, master : shared global AudioContext and its master GainNode
 // - AudioTrack      : decoded audio buffer with play / pause / resume / volume + fade in / out.
-//                     `promise` resolves when the buffer is ready and rejects on load failure;
-//                     `play()` / `resume()` throw if the buffer is not yet loaded.
+//                     `promise` resolves when the buffer is ready and rejects on load failure.
+//                     `play()` is load-aware (defers until decoded) and re-triggers from the start
+//                     when called mid-playback, so it is safe to call right after `audio.load()`.
 // - Synthesizer / SynthesizerOptions
 //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
 //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
+// - audio           : public facade (xnew.audio) — `load`, `synthesizer`, and a `volume` accessor
+//                     over the master gain. `load` returns an AudioTrack, registers it with the
+//                     current Unit's promise aggregation, and fades it out when that Unit finalizes —
+//                     so `xnew.audio.load(path).play(...)` is the whole BGM lifecycle in one line
+//                     (play() is load-aware, so no awaiting). Depends on core (xnew / Unit) for this.
 //----------------------------------------------------------------------------------------------------
+
+import { Unit } from '../core/unit';
 
 const DEFAULT_MASTER_GAIN = 0.1;
 const DEFAULT_BPM = 120;
@@ -89,15 +97,22 @@ export class AudioTrack {
     // Plays from `offset` (ms). If `offset` is omitted, resumes from the position saved by the last
     // pause() — which is 0 on a fresh track, so the first call plays from the beginning.
     // `loop` defaults to the previously-set value, so resume keeps the original loop config.
+    //
+    // Load-aware: calling before the buffer is decoded defers playback until `promise` resolves
+    // (so `audio.load(url).play()` is safe without awaiting). Re-trigger: calling while already
+    // playing restarts from the beginning — handy for rapid SE replay — rather than no-op.
     play({ offset, fade = 0, loop }: { offset?: number, fade?: number, loop?: boolean } = {}) {
         if (this.buffer === undefined) {
-            throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
-        }
-        if (this.startedAt !== null) {
+            this.promise.then(() => this.play({ offset, fade, loop }));
             return;
         }
         if (loop !== undefined) {
             this.loop = loop;
+        }
+        if (this.startedAt !== null) {
+            this.forceStop();
+            this.startSource(offset ?? 0, fade);
+            return;
         }
         this.startSource(offset ?? this.pausedOffsetMs, fade);
     }
@@ -166,9 +181,14 @@ export class AudioTrack {
         this.startedAt = now - offsetMs / 1000;
         source.start(now, offsetMs / 1000);
 
+        // Always pin the fade gain to its target: a prior fade-out (pause/stop) may have left it at
+        // 0, so a fade=0 play would otherwise be silent.
+        this.fade.gain.cancelScheduledValues(now);
         if (fadeMs > 0) {
             this.fade.gain.setValueAtTime(0, now);
             this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+        } else {
+            this.fade.gain.setValueAtTime(1.0, now);
         }
 
         source.onended = () => {
@@ -459,3 +479,29 @@ export class Synthesizer {
         }
     }
 }
+
+//----------------------------------------------------------------------------------------------------
+// audio — public facade exposed as xnew.audio
+//----------------------------------------------------------------------------------------------------
+
+export const audio = {
+    AudioTrack,
+
+    load(path: string): AudioTrack {
+        const track = new AudioTrack(path);
+        const unit = new Unit(null, Unit.currentUnit);
+        unit.on('finalize', () => track.pause({ fade: 500 }));
+        return track;
+    },
+
+    synthesizer(props: SynthesizerOptions): Synthesizer {
+        return new Synthesizer(props);
+    },
+
+    get volume(): number {
+        return master.gain.value;
+    },
+    set volume(value: number) {
+        master.gain.value = value;
+    },
+};

@@ -85,7 +85,6 @@ declare class Unit {
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
     get element(): DomElement;
-    get promise(): UnitPromise;
     start(): void;
     stop(): void;
     finalize(): void;
@@ -121,15 +120,16 @@ declare class Unit {
 declare class UnitPromise {
     private promise;
     key?: string;
-    private rootUnit?;
     constructor(promise: Promise<any>, key?: string);
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
-    static all(promises: UnitPromise[]): UnitPromise;
-    static root(unit: Unit): UnitPromise;
-    private static stage;
-    static results(promises: UnitPromise[]): UnitPromise;
+    static defer(key?: string): {
+        unitPromise: UnitPromise;
+        resolve: (value?: unknown) => void;
+        reject: (reason?: unknown) => void;
+    };
+    static results(promises: UnitPromise[], key?: string): UnitPromise;
     private static assignKey;
 }
 declare class UnitTimer {
@@ -179,6 +179,85 @@ interface BootOptions {
     socket?: any;
     room?: string;
     name?: string;
+}
+
+declare class ImageData {
+    canvas: HTMLCanvasElement;
+    constructor(canvas: HTMLCanvasElement);
+    constructor(width: number, height: number);
+    crop(x: number, y: number, width: number, height: number): ImageData;
+    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
+    download(filename: string): void;
+}
+
+declare class AudioTrack {
+    private buffer?;
+    private source;
+    private amp;
+    private fade;
+    private startedAt;
+    private pausedOffsetMs;
+    private loop;
+    promise: Promise<void>;
+    constructor(path: string);
+    get isPlaying(): boolean;
+    get isLoaded(): boolean;
+    set volume(value: number);
+    get volume(): number;
+    play({ offset, fade, loop }?: {
+        offset?: number;
+        fade?: number;
+        loop?: boolean;
+    }): void;
+    pause({ fade }?: {
+        fade?: number;
+    }): void;
+    stop({ fade }?: {
+        fade?: number;
+    }): void;
+    clear(): void;
+    private forceStop;
+    private startSource;
+    private stopSource;
+}
+type SynthesizerOptions = {
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
+};
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
+};
+type Envelope = {
+    amount: number;
+    ADSR: [number, number, number, number];
+};
+type LFO = {
+    amount: number;
+    type: OscillatorType;
+    rate: number;
+};
+declare class Synthesizer {
+    props: SynthesizerOptions;
+    constructor(props: SynthesizerOptions);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
+        release: () => void;
+    } | undefined;
 }
 
 interface XnewBase {
@@ -308,85 +387,6 @@ declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
 
-declare class ImageData {
-    canvas: HTMLCanvasElement;
-    constructor(canvas: HTMLCanvasElement);
-    constructor(width: number, height: number);
-    crop(x: number, y: number, width: number, height: number): ImageData;
-    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
-    download(filename: string): void;
-}
-
-declare class AudioTrack {
-    private buffer?;
-    private source;
-    private amp;
-    private fade;
-    private startedAt;
-    private pausedOffsetMs;
-    private loop;
-    promise: Promise<void>;
-    constructor(path: string);
-    get isPlaying(): boolean;
-    get isLoaded(): boolean;
-    set volume(value: number);
-    get volume(): number;
-    play({ offset, fade, loop }?: {
-        offset?: number;
-        fade?: number;
-        loop?: boolean;
-    }): void;
-    pause({ fade }?: {
-        fade?: number;
-    }): void;
-    stop({ fade }?: {
-        fade?: number;
-    }): void;
-    clear(): void;
-    private forceStop;
-    private startSource;
-    private stopSource;
-}
-type SynthesizerOptions = {
-    oscillator: OscillatorOptions;
-    amp: AmpOptions;
-    filter?: FilterOptions;
-    reverb?: ReverbOptions;
-    bpm?: number;
-};
-type OscillatorOptions = {
-    type: OscillatorType;
-    envelope?: Envelope;
-    LFO?: LFO;
-};
-type FilterOptions = {
-    type: BiquadFilterType;
-    cutoff: number;
-};
-type AmpOptions = {
-    envelope: Envelope;
-};
-type ReverbOptions = {
-    time: number;
-    mix: number;
-};
-type Envelope = {
-    amount: number;
-    ADSR: [number, number, number, number];
-};
-type LFO = {
-    amount: number;
-    type: OscillatorType;
-    rate: number;
-};
-declare class Synthesizer {
-    props: SynthesizerOptions;
-    constructor(props: SynthesizerOptions);
-    press(frequency: number | string, duration?: number | string, wait?: number): {
-        release: () => void;
-    } | undefined;
-}
-
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
@@ -421,6 +421,11 @@ declare const xnew: XnewBase & {
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
+    chunk(callback: (arg: {
+        index: number;
+    }) => void, max: number, options?: {
+        budgetMs?: number;
+    }): UnitPromise;
     protect(): void;
     server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
     client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
@@ -442,7 +447,7 @@ declare const xnew: XnewBase & {
     };
     audio: {
         AudioTrack: typeof AudioTrack;
-        load(path: string): UnitPromise;
+        load(path: string): AudioTrack;
         synthesizer(props: SynthesizerOptions): Synthesizer;
         volume: number;
     };

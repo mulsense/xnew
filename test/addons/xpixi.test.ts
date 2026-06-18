@@ -123,7 +123,7 @@ test('finalize: xpixi.finalize で renderer が destroy される', async () => 
 
     xnew((u) => {
         xpixi.initialize({ canvas });
-        u.promise.then(() => { xpixi.finalize(); }); // renderer 解決後に scope 内で finalize
+        xnew.promise(u).then(() => { xpixi.finalize(); }); // renderer 解決後に scope 内で finalize
     });
     await flush();
 

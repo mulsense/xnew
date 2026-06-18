@@ -106,11 +106,24 @@ function Lights(unit) {
 
 ### `xthree.remove(threeObject)`
 
-`threeObject` をその時点の親オブジェクトから外し、配下の geometry / material / texture を dispose して GPU リソースを解放します（`nest` / `add` した unit が破棄されるときの処理を、任意のタイミングで手動で行うもの）。同じリグにモデルを差し替えながら使うようなケースで、次のモデルを載せる前に呼びます。
+`threeObject` をその時点の親オブジェクトから外します（**detach のみ**）。geometry / material / texture は **dispose しません** — これらは複数のモデルで共有されていたり、アプリ側でキャッシュされていることがあるためです。同じリグにモデルを差し替えながら使うようなケースで、次のモデルを載せる前に呼びます。
 
 ```js
 // 1台のリグに VRM を載せ替えながら順に焼く例
 rig.add(vrm.scene);
 // …描画・ベイク…
-xthree.remove(vrm.scene); // リグから外して GPU リソースを解放
+xthree.remove(vrm.scene); // リグから外す（リソースは保持）
+```
+
+:::note
+`nest` / `add` した unit の破棄時も同様に **detach のみ** で、GPU リソースは dispose されません。
+:::
+
+### `xthree.dispose(threeObject)`
+
+`threeObject` を親から外したうえで、配下の geometry / material / texture を辿って `dispose()` し、GPU リソースを**明示的に全解放**します。テクスチャ等を他のオブジェクトと共有していないことが前提です。共有リソースに対して呼ぶと、まだ生きている他のモデルの描画を壊すおそれがあります。
+
+```js
+// このモデル専用のリソースだと分かっているとき
+xthree.dispose(model); // 親から外し、geometry/material/texture を解放
 ```

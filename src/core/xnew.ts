@@ -7,9 +7,10 @@
 //
 // - xnew.nest / extend                   : 初期化中の Unit を拡張
 // - xnew.find / context                  : Component による検索 / 祖先コンテキスト解決
-// - xnew.promise                         : Unit に promise を登録（集約は unit.promise で .then/.catch/.finally）
+// - xnew.promise                         : Unit に promise を登録（集約リザルトは xnew.promise(unit) で取得し .then/.catch/.finally）
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
+// - xnew.chunk                           : 時間予算でフレーム分散する回数ループ（完了で UnitPromise を解決）
 // - xnew.server / client                 : mode 限定の extend
 //----------------------------------------------------------------------------------------------------
 
@@ -65,7 +66,7 @@ export const xnew = Object.assign(
             return Unit.getContext(Unit.currentUnit, key);
         },
             
-        /** Registers a promise to the current unit。第1引数が string ならキー。promise を渡さなければ deferred（{ resolve, reject }）。2 引数で promise が undefined は誤用として throw。 */
+        /** Registers a promise to the current unit。第1引数が string ならキー。promise を渡さなければ deferred（{ resolve, reject }）。2 引数で promise が undefined は誤用として throw。Unit を渡すとそのキー付き結果を集約し、対象 unit のプールを消費（リセット）する。 */
         promise: (function (keyOrPromise?: any, maybePromise?: any): any {
             const key = typeof keyOrPromise === 'string' ? keyOrPromise : undefined;
             const promise = typeof keyOrPromise === 'string' ? maybePromise : keyOrPromise;
@@ -79,28 +80,24 @@ export const xnew = Object.assign(
                 throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
             }
             if (promise === undefined) {
-                let settled = false;
-                let resolve!: (value?: unknown) => void;
-                let reject!: (reason?: unknown) => void;
-                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
-                unitPromise.key = key;
+                const { unitPromise, resolve, reject } = UnitPromise.defer(key);
                 Unit.currentUnit._.promises.push(unitPromise);
-                return {
-                    resolve(value?: unknown) { if (settled) return; settled = true; resolve(value); },
-                    reject(reason?: unknown) { if (settled) return; settled = true; reject(reason); },
-                };
-            }
-            let unitPromise: UnitPromise;
-            if (promise instanceof Unit) {
-                unitPromise = UnitPromise.results(promise._.promises);
-            } else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise);
+                return { resolve, reject };
             } else {
-                unitPromise = new UnitPromise(new Promise(xnew.scope(promise)));
+                let unitPromise: UnitPromise;
+                if (promise instanceof Unit) {
+                    unitPromise = UnitPromise.results(promise._.promises, key);
+                    // 集約した結果は消費する。UnitPromise.results は旧配列をクロージャで握るので、
+                    // ここで新配列に差し替えても進行中の集約は無傷。次の集約は新規登録分だけを見る。
+                    promise._.promises = [];
+                } else if (promise instanceof Promise) {
+                    unitPromise = new UnitPromise(promise, key);
+                } else {
+                    unitPromise = new UnitPromise(new Promise(xnew.scope(promise)), key);
+                }
+                Unit.currentUnit._.promises.push(unitPromise);
+                return unitPromise;
             }
-            unitPromise.key = key;
-            Unit.currentUnit._.promises.push(unitPromise);
-            return unitPromise;
         }) as {
             (): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
             (key: string): { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void };
@@ -124,19 +121,59 @@ export const xnew = Object.assign(
             return Unit.emit(type, ...args);
         },
 
-        /** Runs callback once after duration ms（unit のライフサイクルに従う。clear() で中止）。 */
+        /** Runs callback({ count, timer }) once after duration ms（count は呼び出し回数で常に 1。timer は UnitTimer インスタンス。unit のライフサイクルに従う。clear() で中止）。 */
         timeout(callback: Function, duration: number = 0): UnitTimer {
             return new UnitTimer().timeout(callback, duration);
         },
 
-        /** Runs callback every duration ms（iterations 回。0 は無限。clear() で停止）。 */
+        /** Runs callback({ count, timer }) every duration ms（count は 1 始まりの呼び出し回数。timer は UnitTimer インスタンス（timer.clear() で停止）。iterations 回。0 は無限）。 */
         interval(callback: Function, duration: number, iterations: number = 0): UnitTimer {
             return new UnitTimer().interval(callback, duration, iterations);
         },
 
-        /** Runs transition({ value: 0→1 }) over duration ms（easing: 'linear'|'ease'|'ease-in'|'ease-out'|'ease-in-out'。チェーン可）。 */
+        /** Runs transition({ value: 0→1, timer }) over duration ms（timer は UnitTimer インスタンス。easing: 'linear'|'ease'|'ease-in'|'ease-out'|'ease-in-out'。チェーン可）。 */
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): UnitTimer {
             return new UnitTimer().transition(transition, duration, easing);
+        },
+
+        /** Runs callback({ index }) for index 0..max-1, spread across the current unit's update ticks within a per-frame time budget (options.budgetMs, 既定 8ms; 最低1回/フレームは保証)。完了で解決する UnitPromise を返す（集約プールには積まない）。budgetMs はウォールクロック計測（Date.now）。同期的に軽いコールバックは1フレームで全消化されうる。確実に分散したい場合は budgetMs: 0 で「1 iteration/フレーム」になる。引数はオブジェクトで渡す（将来フィールドを足してもシグネチャを壊さないため）。 */
+        chunk(callback: (arg: { index: number }) => void, max: number, options: { budgetMs?: number } = {}): UnitPromise {
+            if (!Number.isInteger(max) || max < 0) {
+                throw new Error('xnew.chunk: max must be a non-negative integer');
+            }
+            const unit = Unit.currentUnit;
+            if (!unit) {
+                throw new Error('xnew.chunk must be called within a unit scope');
+            }
+            const budgetMs = options.budgetMs ?? 8;
+
+            const { unitPromise, resolve, reject } = UnitPromise.defer();
+
+            if (max === 0) {
+                resolve();
+                return unitPromise;
+            }
+
+            let index = 0;
+            const handler = (): void => {
+                const t0 = Date.now();
+                try {
+                    do {
+                        callback({ index: index++ });
+                    } while (index < max && Date.now() - t0 < budgetMs);
+                } catch (error) {
+                    unit.off('update', handler);
+                    reject(error);
+                    return;
+                }
+                if (index >= max) {
+                    unit.off('update', handler);
+                    resolve();
+                }
+            };
+            // unit finalize 時は teardown が listener を外し、promise は意図的に未解決のまま（xnew の deferred と同じ）。
+            unit.on('update', handler);
+            return unitPromise;
         },
 
         /**

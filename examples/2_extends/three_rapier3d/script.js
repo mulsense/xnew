@@ -25,7 +25,7 @@ function Main(unit) {
 
 function Contents(unit) {
   xrapier3d.initialize({ gravity: { x: 0.0, y: -9.81, z: 0.0 } });
-  unit.promise.then(() => {
+  xnew.promise(unit).then(() => {
     unit.on('render', () => {
       xrapier3d.world.timestep = 3 / 60;
       xrapier3d.world.step();
@@ -124,9 +124,9 @@ function Player(unit, { x, y, z }) {
     velocity.x = vector.x * speed;
     velocity.z = vector.y * speed;
   });
-  direct.on('keydown', ({ code }) => {
+  direct.on('window.keydown', ({ event }) => {
     // jump
-    if (code === 'Space' && characterController.computedGrounded()) {
+    if (event.code === 'Space' && characterController.computedGrounded()) {
       velocity.y = jumpForce;
     }
   });

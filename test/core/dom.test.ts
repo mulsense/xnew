@@ -370,6 +370,41 @@ describe('Eventor', () => {
         });
     });
 
+    describe('keyboard without the window. prefix (binds to the element, not the window)', () => {
+        it('binds bare keydown to the element as a normal event (no window binding)', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'keydown', listener);
+            jest.runOnlyPendingTimers();
+
+            // window へ送っても要素のリスナには届かない（window ではなく要素にバインドされるため）
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX' }));
+            expect(listener).not.toHaveBeenCalled();
+
+            // 要素へ送れば通常の DOM イベントとして発火する
+            const fresh = new KeyboardEvent('keydown', { code: 'KeyX' });
+            element.dispatchEvent(fresh);
+            expect(listener).toHaveBeenCalledWith({ event: fresh });
+        });
+
+        it('does not treat bare keydown.arrow as a window vector binding', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'keydown.arrow', listener);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp' }));
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it('does not treat bare keydown.space as a window named-key binding', () => {
+            const listener = jest.fn();
+            eventor.add(element, 'keydown.space', listener);
+            jest.runOnlyPendingTimers();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+            expect(listener).not.toHaveBeenCalled();
+        });
+    });
+
     // jsdom does not implement ResizeObserver, so the 'resize' element binding cannot be driven.
     it.todo('passes {} for a resize binding (jsdom: ResizeObserver not implemented)');
 

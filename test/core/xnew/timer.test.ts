@@ -13,12 +13,20 @@ describe('xnew timer helpers', () => {
             expect(cb).not.toHaveBeenCalled();
             jest.advanceTimersByTime(1);
             expect(cb).toHaveBeenCalledTimes(1);
+            expect(cb).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }));
         });
         it('clear() cancels a scheduled callback', () => {
             const cb = jest.fn();
             xnew(() => { const t = xnew.timeout(cb, 500); t.clear(); });
             jest.advanceTimersByTime(1000);
             expect(cb).not.toHaveBeenCalled();
+        });
+        it('passes the owning timer to the callback', () => {
+            let received: any;
+            let returned: any;
+            xnew(() => { returned = xnew.timeout(({ timer }: any) => { received = timer; }, 100); });
+            jest.advanceTimersByTime(100);
+            expect(received).toBe(returned);
         });
     });
 
@@ -37,15 +45,29 @@ describe('xnew timer helpers', () => {
             jest.advanceTimersByTime(50 * 5);
             expect(cb).toHaveBeenCalledTimes(5);
         });
+        it('passes the 1-based call count to the callback', () => {
+            const cb = jest.fn();
+            xnew(() => { xnew.interval(cb, 50, 0); });
+            jest.advanceTimersByTime(50 * 3);
+            expect(cb).toHaveBeenNthCalledWith(1, expect.objectContaining({ count: 1 }));
+            expect(cb).toHaveBeenNthCalledWith(2, expect.objectContaining({ count: 2 }));
+            expect(cb).toHaveBeenNthCalledWith(3, expect.objectContaining({ count: 3 }));
+        });
+        it('can stop itself via the timer argument', () => {
+            const cb = jest.fn(({ timer }: any) => { if (timer) { timer.clear(); } });
+            xnew(() => { xnew.interval(cb, 50, 0); });
+            jest.advanceTimersByTime(50 * 5);
+            expect(cb).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('xnew.transition', () => {
         it('emits 0 immediately and 1 on completion', () => {
             const cb = jest.fn();
             xnew(() => { xnew.transition(cb, 100); });
-            expect(cb).toHaveBeenCalledWith({ value: 0 });
+            expect(cb).toHaveBeenCalledWith(expect.objectContaining({ value: 0 }));
             jest.advanceTimersByTime(100);
-            expect(cb).toHaveBeenLastCalledWith({ value: 1 });
+            expect(cb).toHaveBeenLastCalledWith(expect.objectContaining({ value: 1 }));
         });
     });
 });

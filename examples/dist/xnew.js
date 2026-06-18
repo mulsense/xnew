@@ -440,7 +440,7 @@
         const [, scope, variant, rawKey, repeat] = matched;
         const key = rawKey.toLowerCase();
         const allowRepeat = repeat !== undefined;
-        const target = scope === 'window' ? window : document;
+        const target = scope === 'document' ? document : window;
         return (props) => listen(target, variant, (event) => {
             if (allowRepeat === false && event.repeat)
                 return;
@@ -537,9 +537,6 @@
         }
         get element() {
             return this._.currentElement;
-        }
-        get promise() {
-            return UnitPromise.root(this);
         }
         start() {
             this._.tostart = true;
@@ -817,13 +814,10 @@
     class UnitPromise {
         constructor(promise, key) { this.promise = promise; this.key = key; }
         then(callback) {
-            if (this.rootUnit !== undefined) {
-                return UnitPromise.stage(this.rootUnit, this, callback);
-            }
             const snapshot = Unit.snapshot(Unit.currentUnit);
             this.promise = this.promise.then((...args) => {
-                const result = Unit.scope(snapshot, callback, ...args);
-                return result instanceof UnitPromise ? result.promise : result;
+                const returned = Unit.scope(snapshot, callback, ...args);
+                return returned instanceof UnitPromise ? returned.promise : returned;
             });
             return this;
         }
@@ -843,36 +837,34 @@
             });
             return this;
         }
-        static all(promises) {
-            return new UnitPromise(Promise.all(promises.map(p => p.promise)));
+        static defer(key) {
+            let settled = false;
+            let resolve;
+            let reject;
+            const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }), key);
+            return {
+                unitPromise,
+                resolve(value) { if (settled) {
+                    return;
+                } settled = true; resolve(value); },
+                reject(reason) { if (settled) {
+                    return;
+                } settled = true; reject(reason); },
+            };
         }
-        static root(unit) {
-            const root = UnitPromise.results(unit._.promises);
-            root.rootUnit = unit;
-            return root;
-        }
-        static stage(unit, trigger, callback) {
-            const scope = Unit.snapshot(unit);
-            const completion = new UnitPromise(trigger.promise.then((results) => Unit.scope(scope, () => {
-                const before = unit._.promises.length;
-                const returned = callback(results);
-                const registered = unit._.promises.slice(before);
-                const tail = returned instanceof UnitPromise ? returned.promise : Promise.resolve(returned);
-                return Promise.all([tail, ...registered.map((p) => p.promise)]);
-            })));
-            unit._.promises.push(completion);
-            return completion;
-        }
-        static results(promises) {
+        static results(promises, key) {
             return new UnitPromise(Promise.all(promises.map(p => p.promise)).then((values) => {
-                const out = {};
+                const out = { results: [] };
                 promises.forEach((p, i) => {
                     if (p.key !== undefined) {
                         UnitPromise.assignKey(out, p.key, values[i]);
                     }
+                    else {
+                        out.results.push(values[i]);
+                    }
                 });
                 return out;
-            }));
+            }), key);
         }
         static assignKey(out, key, value) {
             const matched = key.match(/^(.+)\[\]$/);
@@ -915,7 +907,10 @@
                 let current = new Timer(onTimeout, onTransition, duration, easing);
                 function onTimeout() {
                     if (timeout)
-                        Unit.scope(snapshot, timeout);
+                        Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                    if (unit._.status === 'finalized') {
+                        return;
+                    }
                     if (iterations <= 0 || counter < iterations - 1) {
                         current = new Timer(onTimeout, onTransition, duration, easing);
                     }
@@ -926,7 +921,7 @@
                 }
                 function onTransition(value) {
                     if (transition)
-                        Unit.scope(snapshot, transition, { value });
+                        Unit.scope(snapshot, transition, { value, timer });
                 }
                 unit.on('finalize', () => current.clear());
             };
@@ -992,32 +987,25 @@
                 throw new Error('xnew.promise(key, promise): promise is required when a second argument is given');
             }
             if (promise === undefined) {
-                let settled = false;
-                let resolve;
-                let reject;
-                const unitPromise = new UnitPromise(new Promise((res, rej) => { resolve = res; reject = rej; }));
-                unitPromise.key = key;
+                const { unitPromise, resolve, reject } = UnitPromise.defer(key);
                 Unit.currentUnit._.promises.push(unitPromise);
-                return {
-                    resolve(value) { if (settled)
-                        return; settled = true; resolve(value); },
-                    reject(reason) { if (settled)
-                        return; settled = true; reject(reason); },
-                };
-            }
-            let unitPromise;
-            if (promise instanceof Unit) {
-                unitPromise = UnitPromise.results(promise._.promises);
-            }
-            else if (promise instanceof Promise) {
-                unitPromise = new UnitPromise(promise);
+                return { resolve, reject };
             }
             else {
-                unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)));
+                let unitPromise;
+                if (promise instanceof Unit) {
+                    unitPromise = UnitPromise.results(promise._.promises, key);
+                    promise._.promises = [];
+                }
+                else if (promise instanceof Promise) {
+                    unitPromise = new UnitPromise(promise, key);
+                }
+                else {
+                    unitPromise = new UnitPromise(new Promise(xnew$1.scope(promise)), key);
+                }
+                Unit.currentUnit._.promises.push(unitPromise);
+                return unitPromise;
             }
-            unitPromise.key = key;
-            Unit.currentUnit._.promises.push(unitPromise);
-            return unitPromise;
         }),
         scope(callback) {
             const snapshot = Unit.snapshot(Unit.currentUnit);
@@ -1037,6 +1025,42 @@
         },
         transition(transition, duration = 0, easing = 'linear') {
             return new UnitTimer().transition(transition, duration, easing);
+        },
+        chunk(callback, max, options = {}) {
+            var _a;
+            if (!Number.isInteger(max) || max < 0) {
+                throw new Error('xnew.chunk: max must be a non-negative integer');
+            }
+            const unit = Unit.currentUnit;
+            if (!unit) {
+                throw new Error('xnew.chunk must be called within a unit scope');
+            }
+            const budgetMs = (_a = options.budgetMs) !== null && _a !== void 0 ? _a : 8;
+            const { unitPromise, resolve, reject } = UnitPromise.defer();
+            if (max === 0) {
+                resolve();
+                return unitPromise;
+            }
+            let index = 0;
+            const handler = () => {
+                const t0 = Date.now();
+                try {
+                    do {
+                        callback({ index: index++ });
+                    } while (index < max && Date.now() - t0 < budgetMs);
+                }
+                catch (error) {
+                    unit.off('update', handler);
+                    reject(error);
+                    return;
+                }
+                if (index >= max) {
+                    unit.off('update', handler);
+                    resolve();
+                }
+            };
+            unit.on('update', handler);
+            return unitPromise;
         },
         protect() {
             Unit.currentUnit._.protected = true;
@@ -1873,13 +1897,16 @@
         }
         play({ offset, fade = 0, loop } = {}) {
             if (this.buffer === undefined) {
-                throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
-            }
-            if (this.startedAt !== null) {
+                this.promise.then(() => this.play({ offset, fade, loop }));
                 return;
             }
             if (loop !== undefined) {
                 this.loop = loop;
+            }
+            if (this.startedAt !== null) {
+                this.forceStop();
+                this.startSource(offset !== null && offset !== void 0 ? offset : 0, fade);
+                return;
             }
             this.startSource(offset !== null && offset !== void 0 ? offset : this.pausedOffsetMs, fade);
         }
@@ -1932,9 +1959,13 @@
             const now = context.currentTime;
             this.startedAt = now - offsetMs / 1000;
             source.start(now, offsetMs / 1000);
+            this.fade.gain.cancelScheduledValues(now);
             if (fadeMs > 0) {
                 this.fade.gain.setValueAtTime(0, now);
                 this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+            }
+            else {
+                this.fade.gain.setValueAtTime(1.0, now);
             }
             source.onended = () => {
                 source.disconnect();
@@ -2135,6 +2166,24 @@
             }
         }
     }
+    const audio = {
+        AudioTrack,
+        load(path) {
+            const track = new AudioTrack(path);
+            const unit = new Unit(null, Unit.currentUnit);
+            unit.on('finalize', () => track.pause({ fade: 500 }));
+            return track;
+        },
+        synthesizer(props) {
+            return new Synthesizer(props);
+        },
+        get volume() {
+            return master.gain.value;
+        },
+        set volume(value) {
+            master.gain.value = value;
+        },
+    };
 
     const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
     function SpeakerIcon(unit, { muted = false } = {}) {
@@ -2225,6 +2274,11 @@
             link.click();
         }
     }
+    const image = {
+        from(canvas) {
+            return new ImageData(canvas);
+        },
+    };
 
     const basics = {
         SVG,
@@ -2240,28 +2294,6 @@
         Room,
         Selectable,
         VolumeController,
-    };
-    const audio = {
-        AudioTrack,
-        load(path) {
-            const music = new AudioTrack(path);
-            xnew().on('finalize', () => music.pause({ fade: 500 }));
-            return xnew.promise(music.promise).then(() => music);
-        },
-        synthesizer(props) {
-            return new Synthesizer(props);
-        },
-        get volume() {
-            return master.gain.value;
-        },
-        set volume(value) {
-            master.gain.value = value;
-        }
-    };
-    const image = {
-        from(canvas) {
-            return new ImageData(canvas);
-        }
     };
     const xnew = Object.assign(xnew$1, { basics, audio, image, sync });
 
