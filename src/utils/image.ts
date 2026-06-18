@@ -7,6 +7,7 @@
 // callers assemble or disassemble atlas-style canvases without a dedicated sprite-sheet type.
 //
 // - ImageData / ImageDataArgs : wraps an existing canvas, or creates a new one at width × height
+// - image                     : public facade (xnew.image) — `from(canvas)` builds an ImageData
 //----------------------------------------------------------------------------------------------------
 
 export type ImageDataArgs = [canvas: HTMLCanvasElement] | [width: number, height: number];
@@ -55,3 +56,13 @@ export class ImageData {
         link.click();
     }
 }
+
+//----------------------------------------------------------------------------------------------------
+// image — public facade exposed as xnew.image
+//----------------------------------------------------------------------------------------------------
+
+export const image = {
+    from(canvas: HTMLCanvasElement): ImageData {
+        return new ImageData(canvas);
+    },
+};

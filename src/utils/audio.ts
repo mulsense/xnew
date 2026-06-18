@@ -9,11 +9,15 @@
 //
 // - context, master : shared global AudioContext and its master GainNode
 // - AudioTrack      : decoded audio buffer with play / pause / resume / volume + fade in / out.
-//                     `promise` resolves when the buffer is ready and rejects on load failure;
-//                     `play()` / `resume()` throw if the buffer is not yet loaded.
+//                     `promise` resolves when the buffer is ready and rejects on load failure.
+//                     `play()` is load-aware (defers until decoded) and re-triggers from the start
+//                     when called mid-playback, so it is safe to call right after `audio.load()`.
 // - Synthesizer / SynthesizerOptions
 //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
 //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
+// - audio           : public facade (xnew.audio) — `load` (new AudioTrack), `synthesizer`, and a
+//                     `volume` accessor over the master gain. Lifecycle (auto-pause on finalize) is
+//                     intentionally NOT here; it lives in the basics/Audio component.
 //----------------------------------------------------------------------------------------------------
 
 const DEFAULT_MASTER_GAIN = 0.1;
@@ -89,15 +93,22 @@ export class AudioTrack {
     // Plays from `offset` (ms). If `offset` is omitted, resumes from the position saved by the last
     // pause() — which is 0 on a fresh track, so the first call plays from the beginning.
     // `loop` defaults to the previously-set value, so resume keeps the original loop config.
+    //
+    // Load-aware: calling before the buffer is decoded defers playback until `promise` resolves
+    // (so `audio.load(url).play()` is safe without awaiting). Re-trigger: calling while already
+    // playing restarts from the beginning — handy for rapid SE replay — rather than no-op.
     play({ offset, fade = 0, loop }: { offset?: number, fade?: number, loop?: boolean } = {}) {
         if (this.buffer === undefined) {
-            throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
-        }
-        if (this.startedAt !== null) {
+            this.promise.then(() => this.play({ offset, fade, loop }));
             return;
         }
         if (loop !== undefined) {
             this.loop = loop;
+        }
+        if (this.startedAt !== null) {
+            this.forceStop();
+            this.startSource(offset ?? 0, fade);
+            return;
         }
         this.startSource(offset ?? this.pausedOffsetMs, fade);
     }
@@ -459,3 +470,26 @@ export class Synthesizer {
         }
     }
 }
+
+//----------------------------------------------------------------------------------------------------
+// audio — public facade exposed as xnew.audio
+//----------------------------------------------------------------------------------------------------
+
+export const audio = {
+    AudioTrack,
+
+    load(path: string): AudioTrack {
+        return new AudioTrack(path);
+    },
+
+    synthesizer(props: SynthesizerOptions): Synthesizer {
+        return new Synthesizer(props);
+    },
+
+    get volume(): number {
+        return master.gain.value;
+    },
+    set volume(value: number) {
+        master.gain.value = value;
+    },
+};

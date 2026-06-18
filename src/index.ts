@@ -13,9 +13,10 @@ import { Scene } from './basics/Scene';
 import { Room } from './basics/Room';
 import { Selectable } from './basics/Selectable';
 import { VolumeController } from './basics/Volume';
+import { Audio } from './basics/Audio';
 
-import { ImageData, ImageDataArgs } from './utils/image';
-import { master, AudioTrack, Synthesizer, SynthesizerOptions } from './utils/audio';
+import { image } from './utils/image';
+import { audio, AudioTrack } from './utils/audio';
 import { sync } from './utils/sync';
 
 const basics = {
@@ -32,34 +33,8 @@ const basics = {
     Room,
     Selectable,
     VolumeController,
+    Audio,
 };
-
-const audio = {
-    AudioTrack,
-    load(path: string) {
-        const music = new AudioTrack(path);
-        xnew().on('finalize', () => music.pause({ fade: 500 }));
-
-        return xnew.promise(music.promise).then(() => music);
-    },
-
-    synthesizer(props: SynthesizerOptions) {
-        return new Synthesizer(props);
-    },
-    get volume(): number {
-        return master.gain.value;
-    },
-    set volume(value: number) {
-        master.gain.value = value;
-    }
-}
-
-const image = {
-
-    from(canvas: HTMLCanvasElement): ImageData {
-        return new ImageData(canvas);
-    }
-}
 
 namespace xnew {
     export type Unit = InstanceType<typeof Unit>;

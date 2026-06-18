@@ -181,6 +181,85 @@ interface BootOptions {
     name?: string;
 }
 
+declare class ImageData {
+    canvas: HTMLCanvasElement;
+    constructor(canvas: HTMLCanvasElement);
+    constructor(width: number, height: number);
+    crop(x: number, y: number, width: number, height: number): ImageData;
+    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
+    download(filename: string): void;
+}
+
+declare class AudioTrack {
+    private buffer?;
+    private source;
+    private amp;
+    private fade;
+    private startedAt;
+    private pausedOffsetMs;
+    private loop;
+    promise: Promise<void>;
+    constructor(path: string);
+    get isPlaying(): boolean;
+    get isLoaded(): boolean;
+    set volume(value: number);
+    get volume(): number;
+    play({ offset, fade, loop }?: {
+        offset?: number;
+        fade?: number;
+        loop?: boolean;
+    }): void;
+    pause({ fade }?: {
+        fade?: number;
+    }): void;
+    stop({ fade }?: {
+        fade?: number;
+    }): void;
+    clear(): void;
+    private forceStop;
+    private startSource;
+    private stopSource;
+}
+type SynthesizerOptions = {
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
+};
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
+};
+type Envelope = {
+    amount: number;
+    ADSR: [number, number, number, number];
+};
+type LFO = {
+    amount: number;
+    type: OscillatorType;
+    rate: number;
+};
+declare class Synthesizer {
+    props: SynthesizerOptions;
+    constructor(props: SynthesizerOptions);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
+        release: () => void;
+    } | undefined;
+}
+
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
     <C extends ComponentFn<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -308,84 +387,17 @@ declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
 
-declare class ImageData {
-    canvas: HTMLCanvasElement;
-    constructor(canvas: HTMLCanvasElement);
-    constructor(width: number, height: number);
-    crop(x: number, y: number, width: number, height: number): ImageData;
-    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
-    download(filename: string): void;
-}
-
-declare class AudioTrack {
-    private buffer?;
-    private source;
-    private amp;
-    private fade;
-    private startedAt;
-    private pausedOffsetMs;
-    private loop;
-    promise: Promise<void>;
-    constructor(path: string);
-    get isPlaying(): boolean;
-    get isLoaded(): boolean;
-    set volume(value: number);
-    get volume(): number;
-    play({ offset, fade, loop }?: {
+declare function Audio(unit: Unit, { url, auto, volume }: {
+    url: string;
+    auto?: {
         offset?: number;
         fade?: number;
         loop?: boolean;
-    }): void;
-    pause({ fade }?: {
-        fade?: number;
-    }): void;
-    stop({ fade }?: {
-        fade?: number;
-    }): void;
-    clear(): void;
-    private forceStop;
-    private startSource;
-    private stopSource;
-}
-type SynthesizerOptions = {
-    oscillator: OscillatorOptions;
-    amp: AmpOptions;
-    filter?: FilterOptions;
-    reverb?: ReverbOptions;
-    bpm?: number;
+    };
+    volume?: number;
+}): {
+    readonly track: AudioTrack;
 };
-type OscillatorOptions = {
-    type: OscillatorType;
-    envelope?: Envelope;
-    LFO?: LFO;
-};
-type FilterOptions = {
-    type: BiquadFilterType;
-    cutoff: number;
-};
-type AmpOptions = {
-    envelope: Envelope;
-};
-type ReverbOptions = {
-    time: number;
-    mix: number;
-};
-type Envelope = {
-    amount: number;
-    ADSR: [number, number, number, number];
-};
-type LFO = {
-    amount: number;
-    type: OscillatorType;
-    rate: number;
-};
-declare class Synthesizer {
-    props: SynthesizerOptions;
-    constructor(props: SynthesizerOptions);
-    press(frequency: number | string, duration?: number | string, wait?: number): {
-        release: () => void;
-    } | undefined;
-}
 
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
@@ -444,10 +456,11 @@ declare const xnew: XnewBase & {
         Room: typeof Room;
         Selectable: typeof Selectable;
         VolumeController: typeof VolumeController;
+        Audio: typeof Audio;
     };
     audio: {
         AudioTrack: typeof AudioTrack;
-        load(path: string): UnitPromise;
+        load(path: string): AudioTrack;
         synthesizer(props: SynthesizerOptions): Synthesizer;
         volume: number;
     };

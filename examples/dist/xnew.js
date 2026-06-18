@@ -1897,13 +1897,16 @@
         }
         play({ offset, fade = 0, loop } = {}) {
             if (this.buffer === undefined) {
-                throw new Error('AudioTrack.play(): buffer is not loaded yet. Await `promise` first.');
-            }
-            if (this.startedAt !== null) {
+                this.promise.then(() => this.play({ offset, fade, loop }));
                 return;
             }
             if (loop !== undefined) {
                 this.loop = loop;
+            }
+            if (this.startedAt !== null) {
+                this.forceStop();
+                this.startSource(offset !== null && offset !== void 0 ? offset : 0, fade);
+                return;
             }
             this.startSource(offset !== null && offset !== void 0 ? offset : this.pausedOffsetMs, fade);
         }
@@ -2159,6 +2162,21 @@
             }
         }
     }
+    const audio = {
+        AudioTrack,
+        load(path) {
+            return new AudioTrack(path);
+        },
+        synthesizer(props) {
+            return new Synthesizer(props);
+        },
+        get volume() {
+            return master.gain.value;
+        },
+        set volume(value) {
+            master.gain.value = value;
+        },
+    };
 
     const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
     function SpeakerIcon(unit, { muted = false } = {}) {
@@ -2211,6 +2229,22 @@
         unit.on('click.outside', () => system.close());
     }
 
+    const FINALIZE_FADE_MS = 500;
+    function Audio(unit, { url, auto, volume = 1 }) {
+        const track = audio.load(url);
+        track.volume = volume;
+        xnew$1.promise(track.promise);
+        if (auto) {
+            track.play(auto);
+        }
+        unit.on('finalize', () => track.pause({ fade: FINALIZE_FADE_MS }));
+        return {
+            get track() {
+                return track;
+            },
+        };
+    }
+
     class ImageData {
         constructor(...args) {
             if (args[0] instanceof HTMLCanvasElement) {
@@ -2249,6 +2283,11 @@
             link.click();
         }
     }
+    const image = {
+        from(canvas) {
+            return new ImageData(canvas);
+        },
+    };
 
     const basics = {
         SVG,
@@ -2264,28 +2303,7 @@
         Room,
         Selectable,
         VolumeController,
-    };
-    const audio = {
-        AudioTrack,
-        load(path) {
-            const music = new AudioTrack(path);
-            xnew().on('finalize', () => music.pause({ fade: 500 }));
-            return xnew.promise(music.promise).then(() => music);
-        },
-        synthesizer(props) {
-            return new Synthesizer(props);
-        },
-        get volume() {
-            return master.gain.value;
-        },
-        set volume(value) {
-            master.gain.value = value;
-        }
-    };
-    const image = {
-        from(canvas) {
-            return new ImageData(canvas);
-        }
+        Audio,
     };
     const xnew = Object.assign(xnew$1, { basics, audio, image, sync });
 
