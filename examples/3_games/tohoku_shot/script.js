@@ -711,11 +711,13 @@ function WaveLabel(unit) {
   } });
 }
 
-// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査）。値の駆動は呼び出し側が
-// defines（{ frame, fill, scan }）を受け取って行う（ScoreGauge / ShotEnergy で共有）。
+// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査）。走査(scan)は fill 割合に追従して
+// 自前で走らせる（ScoreGauge / ShotEnergy で共有）。fill 幅は setFill(0..1) で更新し、色や opacity は
+// frame / fill 経由で触る。
 // segment=[隙間開始, 隙間終了]cqw。scanOnTop=true で走査をセグメントの上（最前面）に。extra() で箱末尾に追加要素（目盛り等）。
-// 使い方: const bar = xnew(CyberBar, { ... }); bar.fill / bar.scan / bar.frame
-function CyberBar(_unit, { boxClass, boxStyle, fillWidth, fillStyle = '', segment, scanW, scanAlpha, scanOnTop = true, extra }) {
+// scanSpeed=走査の往復速度 / scanMargin=fill 端からの折り返し余白(%)。
+// 使い方: const bar = xnew(CyberBar, { ... }); bar.setFill(0.6); bar.fill / bar.frame
+function CyberBar(unit, { boxClass, boxStyle, fillWidth, fillStyle = '', segment, scanW, scanAlpha, scanOnTop = true, scanSpeed = 0.05, scanMargin = 0, extra }) {
   let frame, fill, scan;
   const addSegment = () => xnew(`<div class="absolute inset-0" style="background: repeating-linear-gradient(90deg, transparent 0 ${segment[0]}cqw, rgba(0,0,0,0.6) ${segment[0]}cqw ${segment[1]}cqw);">`);
   const addScan = () => { scan = xnew(`<div class="absolute inset-y-0 w-[${scanW}cqw]" style="left:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,${scanAlpha}), transparent);">`); };
@@ -732,10 +734,17 @@ function CyberBar(_unit, { boxClass, boxStyle, fillWidth, fillStyle = '', segmen
       extra();
     }
   });
+
+  // fill 割合（0..1）を保持し、毎フレーム fill 充填内を走査ラインが往復する。
+  let fraction = parseFloat(fillWidth) / 100 || 0;
+  unit.on('update', ({ count: t }) => {
+    scan.element.style.left = `${(Math.sin(t * scanSpeed) * 0.5 + 0.5) * Math.max(0, fraction * 100 - scanMargin)}%`;
+  });
+
   return {
     get frame() { return frame; },
     get fill() { return fill; },
-    get scan() { return scan; },
+    setFill(f) { fraction = f; fill.element.style.width = `${f * 100}%`; },
   };
 }
 
@@ -755,7 +764,7 @@ function ScoreGauge(unit) {
     boxStyle: 'border: 0.2cqw solid; overflow: hidden;',
     fillWidth: '0%',
     segment: [1.4, 1.8],
-    scanW: 3, scanAlpha: 0.5,
+    scanW: 3, scanAlpha: 0.5, scanSpeed: 0.04, scanMargin: 3,
   });
 
   function applyColor(c) {
@@ -767,7 +776,7 @@ function ScoreGauge(unit) {
   xnew(FollowWave, { apply: (wave) => applyColor(waveCss(wave)) });
 
   let shown = 0;
-  unit.on('update', ({ count: t }) => {
+  unit.on('update', () => {
     const wave = xnew.context(WaveManager).wave;
     const waveScore = xnew.context(ScoreManager).waveScore;
 
@@ -777,9 +786,8 @@ function ScoreGauge(unit) {
 
     if (!Number.isFinite(shown)) shown = 0; // NaN に陥っても自己回復する保険
     shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
-    bar.fill.element.style.width = `${shown * 100}%`;
+    bar.setFill(shown);
     pctEl.element.textContent = `${Math.round(shown * 100)}%`;
-    bar.scan.element.style.left = `${(Math.sin(t * 0.04) * 0.5 + 0.5) * Math.max(0, shown * 100 - 3)}%`;
   });
 }
 
@@ -1397,11 +1405,11 @@ function ScorePopup(unit, { x, y, score }) {
   object.position.set(x, y);
   object.anchor.set(0.5);
 
-  xnew.timeout(() => unit.finalize(), 900);
-  unit.on('update', ({ count }) => {
-    object.y = y - 40 * (count / 60);
-    object.alpha = 1 - count / 60;
-  });
+  // 上へ 40px 浮かびながらフェードアウトし、終端で finalize（約1秒）。
+  xnew.transition(({ value: p }) => {
+    object.y = y - 40 * p;
+    object.alpha = 1 - p;
+  }, 1000).timeout(() => unit.finalize());
 }
 
 // 倒された敵のノックバック表現：薄れながら当たった方向へ飛んで消える
@@ -1435,16 +1443,13 @@ function ExpandingBurst(unit, { x, y, duration = 16, power = 1, flash, ring }) {
   xpixi.nest(new PIXI.Container({ position: { x, y } }));
   const flashG = xpixi.add(new PIXI.Graphics().circle(0, 0, flash.r).fill({ color: 0xFFFFFF, alpha: flash.alpha }));
   const ringG = xpixi.add(new PIXI.Graphics().circle(0, 0, ring.r).stroke({ color: 0x66E0FF, width: ring.width, alpha: ring.alpha }));
-  unit.on('update', ({ count }) => {
-    const p = count / duration;
+  // duration は従来どおりフレーム数指定。0→1 を duration フレーム相当の時間で動かし、終端で finalize。
+  xnew.transition(({ value: p }) => {
     flashG.scale.set(1 + p * flash.grow);
     flashG.alpha = flash.fade(p);
     ringG.scale.set(1 + p * ring.grow);
     ringG.alpha = ring.fade(p);
-    if (count >= duration - 1) {
-      unit.finalize();
-    }
-  });
+  }, duration * (1000 / 60)).timeout(() => unit.finalize());
 }
 
 // 自機被弾時の爆発エフェクト：白フラッシュ + 広がるリング + 飛び散る破片
@@ -1519,7 +1524,7 @@ function ShotEnergy(unit) {
     fillWidth: '100%',
     fillStyle: 'background:linear-gradient(180deg,#bdffff,#22FFFF 55%,#0aacac);',
     segment: [2, 2.5],
-    scanW: 2, scanAlpha: 0.75, scanOnTop: false,
+    scanW: 2, scanAlpha: 0.75, scanOnTop: false, scanSpeed: 0.05, scanMargin: 8,
     extra: () => xnew('<div class="absolute top-0 left-0 right-0 h-[0.4cqw]" style="background:repeating-linear-gradient(90deg, #22FFFF 0 0.15cqw, transparent 0.15cqw 1cqw); opacity:0.5;">'), // 上辺の目盛り
   });
 
@@ -1528,9 +1533,8 @@ function ShotEnergy(unit) {
     const pct = energy / MAX;
     const ready = energy >= COST;
 
-    bar.fill.element.style.width = `${pct * 100}%`;
+    bar.setFill(pct);
     bar.fill.element.style.opacity = ready ? '1' : '0.45';
-    bar.scan.element.style.left = `${(Math.sin(t * 0.05) * 0.5 + 0.5) * Math.max(0, pct * 100 - 8)}%`; // 充填内を走査
     statusEl.element.textContent = ready ? 'READY' : 'CHARGE';
     statusEl.element.style.color = ready ? '#22FFFF' : '#ff5577';
     statusEl.element.style.opacity = ready ? '1' : `${Math.floor(t / 12) % 2 ? 1 : 0.3}`; // CHARGE 中は点滅
