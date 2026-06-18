@@ -907,7 +907,10 @@
                 let current = new Timer(onTimeout, onTransition, duration, easing);
                 function onTimeout() {
                     if (timeout)
-                        Unit.scope(snapshot, timeout, { count: counter + 1 });
+                        Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                    if (unit._.status === 'finalized') {
+                        return;
+                    }
                     if (iterations <= 0 || counter < iterations - 1) {
                         current = new Timer(onTimeout, onTransition, duration, easing);
                     }
@@ -918,7 +921,7 @@
                 }
                 function onTransition(value) {
                     if (transition)
-                        Unit.scope(snapshot, transition, { value });
+                        Unit.scope(snapshot, transition, { value, timer });
                 }
                 unit.on('finalize', () => current.clear());
             };

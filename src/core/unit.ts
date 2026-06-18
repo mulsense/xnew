@@ -609,7 +609,9 @@ export class UnitTimer {
             let current = new Timer(onTimeout, onTransition, duration, easing);
 
             function onTimeout() {
-                if (timeout) Unit.scope(snapshot, timeout, { count: counter + 1 });
+                if (timeout) Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                // コールバック内で timer.clear() された場合は unit が finalize 済みなので再スケジュールしない。
+                if (unit._.status === 'finalized') { return; }
                 if (iterations <= 0 || counter < iterations - 1) {
                     current = new Timer(onTimeout, onTransition, duration, easing);
                 } else {
@@ -618,7 +620,7 @@ export class UnitTimer {
                 counter++;
             }
             function onTransition(value: number) {
-                if (transition) Unit.scope(snapshot, transition, { value });
+                if (transition) Unit.scope(snapshot, transition, { value, timer });
             }
 
             unit.on('finalize', () => current.clear());
