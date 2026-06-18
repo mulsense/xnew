@@ -601,14 +601,8 @@ function WaveManager(unit) {
     const scene = xnew.context(xnew.basics.Scene);
     // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場。
     const id = enemyIdForWave(wave);
-    if (id === 0) {
-      // wave1 は分裂しないので多めに出す
-      scene.add(Enemy, { id: 0 });
-      if (count % 2 === 0) scene.add(Enemy, { id: 0 });
-    } else {
-      // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
-      if (count % (id + 1) === 0) scene.add(Enemy, { id });
-    }
+    // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
+    if (count % (id + 1) === 0) scene.add(Enemy, { id });
   }, 200);
 
   unit.on('+gameover', () => spawn.clear());
