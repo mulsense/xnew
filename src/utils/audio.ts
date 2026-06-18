@@ -15,10 +15,14 @@
 // - Synthesizer / SynthesizerOptions
 //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
 //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
-// - audio           : public facade (xnew.audio) — `load` (new AudioTrack), `synthesizer`, and a
-//                     `volume` accessor over the master gain. Lifecycle (auto-pause on finalize) is
-//                     intentionally NOT here; it lives in the basics/Audio component.
+// - audio           : public facade (xnew.audio) — `load`, `synthesizer`, and a `volume` accessor
+//                     over the master gain. `load` returns an AudioTrack, registers it with the
+//                     current Unit's promise aggregation, and fades it out when that Unit finalizes —
+//                     so `xnew.audio.load(path).play(...)` is the whole BGM lifecycle in one line
+//                     (play() is load-aware, so no awaiting). Depends on core (xnew / Unit) for this.
 //----------------------------------------------------------------------------------------------------
+
+import { Unit } from '../core/unit';
 
 const DEFAULT_MASTER_GAIN = 0.1;
 const DEFAULT_BPM = 120;
@@ -177,9 +181,14 @@ export class AudioTrack {
         this.startedAt = now - offsetMs / 1000;
         source.start(now, offsetMs / 1000);
 
+        // Always pin the fade gain to its target: a prior fade-out (pause/stop) may have left it at
+        // 0, so a fade=0 play would otherwise be silent.
+        this.fade.gain.cancelScheduledValues(now);
         if (fadeMs > 0) {
             this.fade.gain.setValueAtTime(0, now);
             this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+        } else {
+            this.fade.gain.setValueAtTime(1.0, now);
         }
 
         source.onended = () => {
@@ -479,7 +488,10 @@ export const audio = {
     AudioTrack,
 
     load(path: string): AudioTrack {
-        return new AudioTrack(path);
+        const track = new AudioTrack(path);
+        const unit = new Unit(null, Unit.currentUnit);
+        unit.on('finalize', () => track.pause({ fade: 500 }));
+        return track;
     },
 
     synthesizer(props: SynthesizerOptions): Synthesizer {

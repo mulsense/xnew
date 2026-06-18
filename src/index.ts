@@ -13,7 +13,6 @@ import { Scene } from './basics/Scene';
 import { Room } from './basics/Room';
 import { Selectable } from './basics/Selectable';
 import { VolumeController } from './basics/Volume';
-import { Audio } from './basics/Audio';
 
 import { image } from './utils/image';
 import { audio, AudioTrack } from './utils/audio';
@@ -33,7 +32,6 @@ const basics = {
     Room,
     Selectable,
     VolumeController,
-    Audio,
 };
 
 namespace xnew {

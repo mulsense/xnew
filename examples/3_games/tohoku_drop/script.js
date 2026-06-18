@@ -96,7 +96,7 @@ function GameScene(unit) {
 
   const playing = xnew((unit) => {
     xnew(Controller);
-    xnew(xnew.basics.Audio, { url: '../../assets/y015.mp3', auto: { fade: 1000, loop: true } });
+    xnew.audio.load('../../assets/y015.mp3').play({ fade: 1000, loop: true });
   })
 
   // xnew.timeout(() => xnew.emit('+gameover'), 1100);
@@ -116,7 +116,7 @@ function GameScene(unit) {
 function ResultScene(unit, { image }) {
   xnew.extend(xnew.basics.Scene);
   
-  xnew(xnew.basics.Audio, { url: '../../assets/st005.mp3', auto: { fade: 1, loop: true } });
+  xnew.audio.load('../../assets/st005.mp3').play({ fade: 1, loop: true });
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);

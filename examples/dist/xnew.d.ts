@@ -387,18 +387,6 @@ declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
 
-declare function Audio(unit: Unit, { url, auto, volume }: {
-    url: string;
-    auto?: {
-        offset?: number;
-        fade?: number;
-        loop?: boolean;
-    };
-    volume?: number;
-}): {
-    readonly track: AudioTrack;
-};
-
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
@@ -456,7 +444,6 @@ declare const xnew: XnewBase & {
         Room: typeof Room;
         Selectable: typeof Selectable;
         VolumeController: typeof VolumeController;
-        Audio: typeof Audio;
     };
     audio: {
         AudioTrack: typeof AudioTrack;

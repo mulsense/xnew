@@ -1953,9 +1953,13 @@ class AudioTrack {
         const now = context.currentTime;
         this.startedAt = now - offsetMs / 1000;
         source.start(now, offsetMs / 1000);
+        this.fade.gain.cancelScheduledValues(now);
         if (fadeMs > 0) {
             this.fade.gain.setValueAtTime(0, now);
             this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+        }
+        else {
+            this.fade.gain.setValueAtTime(1.0, now);
         }
         source.onended = () => {
             source.disconnect();
@@ -2159,7 +2163,10 @@ class Synthesizer {
 const audio = {
     AudioTrack,
     load(path) {
-        return new AudioTrack(path);
+        const track = new AudioTrack(path);
+        const unit = new Unit(null, Unit.currentUnit);
+        unit.on('finalize', () => track.pause({ fade: 500 }));
+        return track;
     },
     synthesizer(props) {
         return new Synthesizer(props);
@@ -2223,22 +2230,6 @@ function VolumeController(unit, { anchor = 'left' } = {}) {
     unit.on('click.outside', () => system.close());
 }
 
-const FINALIZE_FADE_MS = 500;
-function Audio(unit, { url, auto, volume = 1 }) {
-    const track = audio.load(url);
-    track.volume = volume;
-    xnew$1.promise(track.promise);
-    if (auto) {
-        track.play(auto);
-    }
-    unit.on('finalize', () => track.pause({ fade: FINALIZE_FADE_MS }));
-    return {
-        get track() {
-            return track;
-        },
-    };
-}
-
 class ImageData {
     constructor(...args) {
         if (args[0] instanceof HTMLCanvasElement) {
@@ -2297,7 +2288,6 @@ const basics = {
     Room,
     Selectable,
     VolumeController,
-    Audio,
 };
 const xnew = Object.assign(xnew$1, { basics, audio, image, sync });
 
