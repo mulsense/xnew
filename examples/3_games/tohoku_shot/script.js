@@ -385,7 +385,10 @@ function StoryTheater(unit) {
 
 // ストーリーのセリフをサイバーな字幕フレームで黒帯の上に重ねる。build=本文(SVGText 群) / accent=アクセント色 /
 // tag=見出しラベル / bottomCqw=下端位置。ヘッダー(点滅● + ▶TAG) と四隅ブラケット＋発光を付与。
-function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
+// extend して使う。本文は呼び出し元が extend 後に続けて追加する（最後の nest = 本文 wrap が
+// current 要素になるため）。例:
+//   xnew((unit) => { xnew.extend(StoryDialog, { ... }); xnew('<div>', ...); });
+function StoryDialog(_unit, { accent, tag, bottomCqw }) {
   xnew.nest(`<div class="absolute left-0 right-0 flex flex-col items-center pointer-events-none" style="bottom:${bottomCqw}cqw; font-family: monospace;">`);
 
   // ヘッダー: [線] ● ▶ TAG [線]
@@ -401,13 +404,11 @@ function StoryDialog(unit, { accent, tag, bottomCqw, build }) {
     lineR.element.style.background = `linear-gradient(90deg, ${accent}, transparent)`;
     for (const e of [blink, lbl]) e.element.style.color = accent;
   });
-
-  // 本文（四隅ブラケットで囲む。drop-shadow でうっすら発光）
-  const wrap = xnew('<div class="relative px-[4cqw] py-[0.6cqw] text-center font-bold leading-tight" style="color:#ffffff;">', () => {
-    build();
-  });
-  wrap.element.style.filter = `drop-shadow(0 0 0.7cqw ${accent}88)`;
   cornerBrackets({ offset: 0, size: 2.2, borderW: 0.25, opacity: 0.85, color: accent });
+
+  // 本文（四隅ブラケットで囲む。drop-shadow でうっすら発光）。中身は extend 側が続けて追加する。
+  const wrap = xnew.nest('<div class="relative px-[4cqw] py-[0.6cqw] text-center font-bold leading-tight" style="color:#ffffff;">');
+  wrap.style.filter = `drop-shadow(0 0 0.7cqw ${accent}88)`;
 }
 
 // ページ1: 中国うさぎがずんだアローに被弾する寸劇
@@ -438,12 +439,14 @@ function StoryPageHit(unit) {
 
   // セリフ（黒帯の中・サイバー字幕）。被弾の驚きをコミカルに。補足は着弾後にフェードイン。
   let sub;
-  xnew(StoryDialog, { accent: '#FF8FA3', tag: 'ALERT', bottomCqw: 4.5, build: () => {
+  xnew(() => {
+    xnew.extend(StoryDialog, { accent: '#FF8FA3', tag: 'ALERT', bottomCqw: 4.5 });
+
     xnew('<div style="color:#FF8FA3;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだアローに当たってしまった！', fontSize: '5.2cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
     sub = xnew('<div class="mt-[0.6cqw]" style="color:#FCEFA0; opacity:0;">', () => {
       xnew(xnew.basics.SVGText, { text: '（ずんだアローに当たると、ずんだ餅にされてしまう…）', fontSize: '2.5cqw', stroke: '#0a1830', strokeWidth: '0.2cqw', className: 'inline-block' });
     });
-  } });
+  });
 
   const FLY = 40; // 飛来フレーム数（約0.7秒）
   let frame = 0, impacted = false, hitT = 0;
@@ -479,16 +482,17 @@ function StoryPageSwarm(unit) {
   xpixi.nest(new PIXI.Container());
 
   // 少しずつ湧いて増えていく（増殖感）
-  const MAX = 12;
-  const adder = xnew.interval(({ count }) => {
+  xnew.interval(({ timer, count }) => {
     xnew(StoryFactor);
-    if (count >= MAX) adder.clear();
+    if (count >= 64) timer.clear();
   }, 200);
 
-  xnew(StoryDialog, { accent: '#9BE53C', tag: 'MISSION', bottomCqw: 5, build: () => {
+  xnew(() => {
+    xnew.extend(StoryDialog, { accent: '#9BE53C', tag: 'MISSION', bottomCqw: 5 });
+
     xnew('<div class="mb-[0.6cqw]">', () => { xnew(xnew.basics.SVGText, { text: '体内の免疫キャラを操作し、', fontSize: '4cqw', stroke: '#0a1830', strokeWidth: '0.22cqw', className: 'inline-block' }); });
     xnew('<div style="color:#9BE53C;">', () => { xnew(xnew.basics.SVGText, { text: 'ずんだ因子の増殖を食い止めろ！', fontSize: '4.4cqw', stroke: '#0a1830', strokeWidth: '0.25cqw', className: 'inline-block' }); });
-  } });
+  });
 }
 
 // 蠢くずんだ因子1体（ランダム湧き）。DriftingFactor のランダムプリセット。
