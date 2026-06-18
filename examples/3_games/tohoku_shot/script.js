@@ -711,9 +711,11 @@ function WaveLabel(unit) {
   } });
 }
 
-// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査）を生成し要素を返す。値の駆動は呼び出し側（ScoreGauge / ShotEnergy で共有）。
+// セグメント風メーターの箱（枠 + fill + セグメント隙間 + 走査）。値の駆動は呼び出し側が
+// defines（{ frame, fill, scan }）を受け取って行う（ScoreGauge / ShotEnergy で共有）。
 // segment=[隙間開始, 隙間終了]cqw。scanOnTop=true で走査をセグメントの上（最前面）に。extra() で箱末尾に追加要素（目盛り等）。
-function cyberBar({ boxClass, boxStyle, fillWidth, fillStyle = '', segment, scanW, scanAlpha, scanOnTop = true, extra }) {
+// 使い方: const bar = xnew(CyberBar, { ... }); bar.fill / bar.scan / bar.frame
+function CyberBar(_unit, { boxClass, boxStyle, fillWidth, fillStyle = '', segment, scanW, scanAlpha, scanOnTop = true, extra }) {
   let frame, fill, scan;
   const addSegment = () => xnew(`<div class="absolute inset-0" style="background: repeating-linear-gradient(90deg, transparent 0 ${segment[0]}cqw, rgba(0,0,0,0.6) ${segment[0]}cqw ${segment[1]}cqw);">`);
   const addScan = () => { scan = xnew(`<div class="absolute inset-y-0 w-[${scanW}cqw]" style="left:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,${scanAlpha}), transparent);">`); };
@@ -730,7 +732,11 @@ function cyberBar({ boxClass, boxStyle, fillWidth, fillStyle = '', segment, scan
       extra();
     }
   });
-  return { frame, fill, scan };
+  return {
+    get frame() { return frame; },
+    get fill() { return fill; },
+    get scan() { return scan; },
+  };
 }
 
 // 次の wave までの進捗を示す「解析メーター」（画面左上）。色は wave のメインカラー。
@@ -744,7 +750,7 @@ function ScoreGauge(unit) {
     pctEl = xnew('<div>', '0%');
   });
   // メーター本体（セグメント風）
-  const { frame, fill, scan } = cyberBar({
+  const bar = xnew(CyberBar, {
     boxClass: 'h-[2.4cqw] bg-black/50',
     boxStyle: 'border: 0.2cqw solid; overflow: hidden;',
     fillWidth: '0%',
@@ -753,8 +759,8 @@ function ScoreGauge(unit) {
   });
 
   function applyColor(c) {
-    fill.element.style.background = c;
-    frame.element.style.borderColor = c;
+    bar.fill.element.style.background = c;
+    bar.frame.element.style.borderColor = c;
     labelEl.element.style.color = c;
     pctEl.element.style.color = c;
   }
@@ -771,9 +777,9 @@ function ScoreGauge(unit) {
 
     if (!Number.isFinite(shown)) shown = 0; // NaN に陥っても自己回復する保険
     shown += (target - shown) * 0.15; // イージング（wave 切替時に滑らかにリセット）
-    fill.element.style.width = `${shown * 100}%`;
+    bar.fill.element.style.width = `${shown * 100}%`;
     pctEl.element.textContent = `${Math.round(shown * 100)}%`;
-    scan.element.style.left = `${(Math.sin(t * 0.04) * 0.5 + 0.5) * Math.max(0, shown * 100 - 3)}%`;
+    bar.scan.element.style.left = `${(Math.sin(t * 0.04) * 0.5 + 0.5) * Math.max(0, shown * 100 - 3)}%`;
   });
 }
 
@@ -1507,7 +1513,7 @@ function ShotEnergy(unit) {
   });
 
   // メーター本体（枠＋グロー＋セグメント＋走査＋目盛り）。走査はセグメントの下、目盛りは最前面。
-  const { fill, scan } = cyberBar({
+  const bar = xnew(CyberBar, {
     boxClass: 'h-[2cqw] bg-black/55',
     boxStyle: 'outline:0.15cqw solid #22FFFF; box-shadow:0 0 1.2cqw rgba(34,255,255,0.45), inset 0 0 0.6cqw rgba(34,255,255,0.25);',
     fillWidth: '100%',
@@ -1522,9 +1528,9 @@ function ShotEnergy(unit) {
     const pct = energy / MAX;
     const ready = energy >= COST;
 
-    fill.element.style.width = `${pct * 100}%`;
-    fill.element.style.opacity = ready ? '1' : '0.45';
-    scan.element.style.left = `${(Math.sin(t * 0.05) * 0.5 + 0.5) * Math.max(0, pct * 100 - 8)}%`; // 充填内を走査
+    bar.fill.element.style.width = `${pct * 100}%`;
+    bar.fill.element.style.opacity = ready ? '1' : '0.45';
+    bar.scan.element.style.left = `${(Math.sin(t * 0.05) * 0.5 + 0.5) * Math.max(0, pct * 100 - 8)}%`; // 充填内を走査
     statusEl.element.textContent = ready ? 'READY' : 'CHARGE';
     statusEl.element.style.color = ready ? '#22FFFF' : '#ff5577';
     statusEl.element.style.opacity = ready ? '1' : `${Math.floor(t / 12) % 2 ? 1 : 0.3}`; // CHARGE 中は点滅
