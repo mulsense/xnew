@@ -80,7 +80,7 @@ function LobbyScene(unit) {
         });
     }
 
-    // 受信イベントは Lobby が '-event' で転送する（lobby:enter の送信・finalize の切断も Lobby が担う）。
+    // 受信イベントは Lobby が '-event' で転送する（enter の送信・finalize の切断も Lobby が担う）。
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
     unit.on('-lobby:rooms', ({ rooms: list }) => { rooms = list; render(); });
@@ -110,10 +110,10 @@ function GameScene(unit, { roomId }) {
     xnew.nest('<div class="flex gap-4">');   // 自機ペインの mount 先（World の client が pane を nest する）
 
     // room 関連の配線は Room が引き受ける（boot(World)、finalize で client 畳み + socket 切断）。
-    // socket は boot へ渡され、基本イベントは boot 親（この GameScene）の unit.on へ届く。
+    // socket は boot へ渡され、基本イベントは Room が '-event' でこの GameScene の unit.on へ転送する。
     xnew.extend(xnew.basics.Room, { socket: gameSocket, Component: World });
 
-    unit.on('connect', () => app.setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
-    unit.on('disconnect', () => app.setStatus('切断', false));
-    unit.on('room:notfound', () => unit.change(LobbyScene));   // 消滅ルームへ来たらロビーへ
+    unit.on('-connect', () => app.setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
+    unit.on('-disconnect', () => app.setStatus('切断', false));
+    unit.on('-room:notfound', () => unit.change(LobbyScene));   // 消滅ルームへ来たらロビーへ
 }

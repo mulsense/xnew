@@ -170,19 +170,9 @@ interface RootInfo {
 /** boot ルート → 関連情報。findSyncRoot / getRootSocket / getRootClient(s) がこれを引く。 */
 const syncRoots: WeakMap<Unit, RootInfo> = new WeakMap();
 
-// 接続まわりの「基本イベント」。dispatchSync（root 配下へ）とは別に、boot を呼んだ親ユニットの
-// unit.on(event) へ配る対象。
-const BASIC_EVENTS = ['connect', 'disconnect', 'room:notfound'] as const;
-
-/** unit のリスナへ props を配る（dispatchSync / dispatchBasicEvent 共通）。 */
+/** unit のリスナへ props を配る（dispatchSync が使う）。 */
 function deliver(unit: Unit, event: string, props: any): void {
     unit._.listeners.get(event)?.forEach((item) => item.execute(props));
-}
-
-/** 基本イベントを boot ルートの「外」にいる親ユニット 1 つだけに配る。 */
-function dispatchBasicEvent(parent: Unit | null, event: string, payload?: any): void {
-    if (parent === null || parent._.status === 'finalized') { return; }
-    deliver(parent, event, (payload !== null && typeof payload === 'object') ? payload : {});
 }
 
 /** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
@@ -221,9 +211,9 @@ function getRootClients(unit: Unit): ClientInfo[] {
 
 //----------------------------------------------------------------------------------------------------
 // boot — ルート生成 + 配線。server/client の分岐は sync.boot の 1 箇所だけ（→ ファサード末尾）。
-// 配線は 3 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
-// (2) dispatcher（受信を root 配下の unit.on へ。'-event'=同一 syncId / '+'・無印=全体）
-// (3) 基本イベント（connect/disconnect/room:notfound を boot を呼んだ親ユニットへ）。
+// 配線は 2 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
+// (2) dispatcher（受信を root 配下の unit.on へ。'-event'=同一 syncId / '+'・無印=全体。server は connect/
+//     disconnect も root 配下へ配る）。基本イベントの host(boot 親) への転送は basics/Sync.ts Room が担う。
 //----------------------------------------------------------------------------------------------------
 
 /** xnew.sync.boot の入力。socket は必須（socket.io の io / socket）。mode は実行環境から自動判定する。 */
@@ -241,15 +231,14 @@ function createSyncRoot(socket: RootSocket, opts: BootOptions, parent: Unit | nu
     return { root, info };
 }
 
-/** server ルートを生成・配線。下り mirror / dispatcher / presence（名簿更新→broadcast）/ 基本イベント転送。 */
+/** server ルートを生成・配線。下り mirror / dispatcher / presence（名簿更新→broadcast）。 */
 function bootServerRoot(server: ServerSocket, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
     const { root, info } = createSyncRoot(server, opts, parent, args);
     const broadcastRoster = () => server.emit('sync:roster', { clients: [...info.roster.values()] });
-    // connect/disconnect は名簿更新 + broadcast に加え、root 配下と親ユニットの両方へ配る。
+    // connect/disconnect は名簿更新 + broadcast に加え、root 配下の unit.on へ配る（host への転送は Room の責務）。
     const presence = (event: 'connect' | 'disconnect', clientId: string) => {
         broadcastRoster();
         dispatchSync(root, event, clientId, undefined);
-        dispatchBasicEvent(parent, event, { id: clientId });
     };
     root.on('update', () => server.emit('sync', captureStateTree(root)));
     server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
@@ -262,15 +251,13 @@ function bootServerRoot(server: ServerSocket, opts: BootOptions, parent: Unit | 
     return root;
 }
 
-/** client ルートを生成・配線。下り apply / dispatcher / 基本イベント転送 / presence mirror + hello 申告。 */
+/** client ルートを生成・配線。下り apply / dispatcher / presence mirror + hello 申告。 */
 function bootClientRoot(client: ClientSocket, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
     const { root, info } = createSyncRoot(client, opts, parent, args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     client.on('sync', onSync);
     root.on('finalize', () => client.off('sync', onSync));
     client.onAny((event, message) => dispatchSync(root, event, undefined, message));
-    // socket.io の onAny は connect/disconnect を含まないため、基本イベントは明示的に拾う。
-    BASIC_EVENTS.forEach((event) => client.on(event, (payload: any) => dispatchBasicEvent(parent, event, payload)));
     // presence: 受け取った名簿を mirror する。
     client.on('sync:roster', (payload: any) => {
         info.roster.clear();

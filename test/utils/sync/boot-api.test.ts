@@ -17,10 +17,10 @@ describe('xnew.sync.boot({ socket }) — in-memory socket.io', () => {
         expect(id2).toBe('c2');
     });
 
-    it('delivers connect to the boot-parent unit.on with the clientId', () => {
+    it('delivers connect to a unit inside the booted root with the clientId', () => {
+        // boot は connect/disconnect を root 配下の unit.on へ配る（host への転送は basics/Sync.ts Room の責務）。
         const seen: string[] = [];
-        xnew(function Host(unit: Unit) {
-            bootServer({ socket: hub.io }, function Server() {});
+        bootServer({ socket: hub.io }, function Server(unit: Unit) {
             unit.on('connect', ({ id }: any) => seen.push(id));
         });
         hub.connect('cX');   // a fresh client connects on the same shared hub

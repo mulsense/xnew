@@ -43,7 +43,7 @@ describe('Lobby', () => {
         });
 
         socket.fire('connect');
-        socket.fire('lobby:rooms', { rooms: [1, 2, 3] });   // onAny 経由（connect/disconnect 以外）
+        socket.fire('lobby:rooms', { rooms: [1, 2, 3] });
         socket.fire('disconnect');
 
         expect(log).toEqual(['connect', 'rooms:3', 'disconnect']);
@@ -71,102 +71,116 @@ describe('Lobby', () => {
         expect(socket.emit).toHaveBeenCalledWith('room:create', { name: 'my room' });
     });
 
-    it('sends lobby:enter deferred (after host setup, not synchronously)', () => {
+    it('sends enter deferred (after host setup, not synchronously)', () => {
         const socket = mockSocket();
         xnew(function Host() { xnew.extend(Lobby, { socket }); });
-        expect(socket.emit).not.toHaveBeenCalledWith('lobby:enter');   // 同期では送らない
+        expect(socket.emit).not.toHaveBeenCalledWith('enter');   // 同期では送らない
         jest.advanceTimersByTime(1);
-        expect(socket.emit).toHaveBeenCalledWith('lobby:enter');       // 時間差で送られる
+        expect(socket.emit).toHaveBeenCalledWith('enter');       // 時間差で送られる
     });
 });
 
-// server 側 io モック。connection リスナと、接続してくる socket を connect(socket) で擬似発火する。
-function mockIo() {
-    const connectionHandlers = new Set<Function>();
-    const lobbyEmit = jest.fn();
+// in-memory な socket.io 風 io（server 側）。複数の connection リスナ・'lobby' room への broadcast を支える。
+// （src の socketio アダプタもこの io に connection リスナを張るので、ルーム接続もそのまま処理される。）
+function lobbyIo() {
+    const onConnection = new Set<(s: any) => void>();
+    const lobby = new Set<any>();   // 'lobby' に join した conn 群
     return {
-        on(event: string, h: Function) { if (event === 'connection') { connectionHandlers.add(h); } },
-        off(event: string, h: Function) { if (event === 'connection') { connectionHandlers.delete(h); } },
-        to(room: string) { return { emit: (event: string, payload?: any) => lobbyEmit(room, event, payload) }; },
-        lobbyEmit,
-        connect(socket: any) { connectionHandlers.forEach((h) => h(socket)); },
-        get connectionCount() { return connectionHandlers.size; },
+        on(event: string, h: (s: any) => void) { if (event === 'connection') { onConnection.add(h); } },
+        off(event: string, h: (s: any) => void) { if (event === 'connection') { onConnection.delete(h); } },
+        to(room: string) { return { emit: (event: string, payload?: any) => { if (room === 'lobby') { lobby.forEach((c) => c._recv(event, payload)); } } }; },
+        emit() {},   // 全体 broadcast（このテストでは未使用）
+        _connect(conn: any) { onConnection.forEach((h) => h(conn)); },
+        _lobby: lobby,
+        get connectionCount() { return onConnection.size; },
     };
 }
 
-// server 側で接続してくる socket のモック。handshake.query.room の有無でロビー/ルーム接続を切り替える。
-function mockConn(roomId?: string) {
+let connSeq = 0;
+// 接続してくる socket のモック。handshake.query.room でロビー/ルーム接続を切り替える。
+//   server→client: emit/_recv で受信（conn.sent に記録）。client→server: _emit で on(event)+onAny を発火。
+//   _leave: client 切断（adapter の on('disconnect') を発火）。
+function lobbyConn(io: ReturnType<typeof lobbyIo>, roomId?: string) {
     const handlers = new Map<string, Set<Function>>();
-    return {
-        id: 'c1',
+    const anyHandlers = new Set<Function>();
+    const on = (event: string, h: Function) => { if (!handlers.has(event)) { handlers.set(event, new Set()); } handlers.get(event)!.add(h); };
+    const conn: any = {
+        id: 'c' + (++connSeq),
         handshake: { query: roomId !== undefined ? { room: roomId } : {} },
-        join: jest.fn(),
-        emit: jest.fn(),
+        sent: [] as any[],
+        join(room: string) { if (room === 'lobby') { io._lobby.add(conn); } },
+        emit(event: string, payload?: any) { conn.sent.push([event, payload]); },   // server→client(direct)
+        on,
+        onAny(h: Function) { anyHandlers.add(h); },                                  // socketio アダプタ用
         disconnect: jest.fn(),
-        on(event: string, h: Function) { if (!handlers.has(event)) { handlers.set(event, new Set()); } handlers.get(event)!.add(h); },
-        fire(event: string, payload?: any) { handlers.get(event)?.forEach((h) => h(payload)); },
+        _recv(event: string, payload?: any) { conn.sent.push([event, payload]); },   // server broadcast→client
+        _emit(event: string, payload?: any) { handlers.get(event)?.forEach((h) => h(payload)); anyHandlers.forEach((h) => h(event, payload)); },
+        _leave() { handlers.get('disconnect')?.forEach((h) => h()); },
+        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'lobby:rooms'); return m ? m[1].rooms : undefined; },
     };
+    return conn;
 }
 
 describe('Lobby (server)', () => {
-    beforeEach(() => { setEnvironment('server'); Unit.reset(); });
-    afterEach(() => { Unit.engineRoot?.finalize(); document.body.innerHTML = ''; setEnvironment(null); });
+    beforeEach(() => { setEnvironment('server'); jest.useFakeTimers(); Unit.reset(); });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
-    it('forwards a lobby connection (no room) to the host as -connect with the socket', () => {
-        const io = mockIo();
-        const conn = mockConn();   // room 無し = ロビー接続
-        const seen: any[] = [];
-        xnew(function Host(unit: Unit) {
-            xnew.extend(Lobby, { socket: io });
-            unit.on('-connect', ({ socket }: any) => seen.push(socket));
-        });
+    const mountLobby = (io: any, props: any = {}) =>
+        xnew(function Host() { xnew.extend(Lobby, { socket: io, Component: World, ...props }); });
 
-        io.connect(conn);
-        expect(conn.join).toHaveBeenCalledWith('lobby');
-        expect(seen).toEqual([conn]);
+    it('sends the current (empty) room list to a new lobby connection', () => {
+        const io = lobbyIo();
+        mountLobby(io);
+        const a = lobbyConn(io); io._connect(a);
+        expect(a.rooms()).toEqual([]);
     });
 
-    it('forwards lobby:enter / room:create from a lobby socket to the host', () => {
-        const io = mockIo();
-        const conn = mockConn();
-        const log: string[] = [];
-        xnew(function Host(unit: Unit) {
-            xnew.extend(Lobby, { socket: io });
-            unit.on('-lobby:enter', ({ socket }: any) => log.push(`enter:${socket.id}`));
-            unit.on('-room:create', ({ socket, name }: any) => log.push(`create:${socket.id}:${name}`));
-        });
-
-        io.connect(conn);
-        conn.fire('lobby:enter');
-        conn.fire('room:create', { name: 'my room' });
-        expect(log).toEqual(['enter:c1', 'create:c1:my room']);
+    it('creates a room on room:create: creator gets room:created and the lobby list updates', () => {
+        const io = lobbyIo();
+        mountLobby(io);
+        const a = lobbyConn(io); io._connect(a);
+        a._emit('room:create', { name: 'My Room' });
+        expect(a.sent).toContainEqual(['room:created', { roomId: 'r1' }]);
+        expect(a.rooms()).toEqual([{ id: 'r1', name: 'My Room', memberCount: 0 }]);
     });
 
-    it('forwards a room connection (with room) to the host as -room:connect (host validates)', () => {
-        const io = mockIo();
-        const conn = mockConn('r1');   // room 付き = ルーム接続
-        const seen: any[] = [];
-        xnew(function Host(unit: Unit) {
-            xnew.extend(Lobby, { socket: io });
-            unit.on('-room:connect', (payload: any) => seen.push(payload));
-        });
-
-        io.connect(conn);
-        expect(conn.join).not.toHaveBeenCalled();   // ルーム接続は lobby に join しない
-        expect(seen).toHaveLength(1);
-        expect(seen[0]).toMatchObject({ socket: conn, roomId: 'r1' });
+    it('rejects room:create beyond maxRooms with room:error', () => {
+        const io = lobbyIo();
+        mountLobby(io, { maxRooms: 1 });
+        const a = lobbyConn(io); io._connect(a);
+        a._emit('room:create', { name: 'A' });
+        a._emit('room:create', { name: 'B' });
+        expect(a.sent.filter(([e]: any) => e === 'room:created')).toHaveLength(1);
+        expect(a.sent).toContainEqual(['room:error', { message: expect.any(String) }]);
     });
 
-    it('exposes broadcast(event, payload) that emits to the lobby room', () => {
-        const io = mockIo();
-        const host = xnew(function Host() { return xnew.extend(Lobby, { socket: io }); });
-        (host as any).broadcast('lobby:rooms', { rooms: [1, 2] });
-        expect(io.lobbyEmit).toHaveBeenCalledWith('lobby', 'lobby:rooms', { rooms: [1, 2] });
+    it('rejects a connection to an unknown room with room:notfound and disconnect', () => {
+        const io = lobbyIo();
+        mountLobby(io);
+        const ghost = lobbyConn(io, 'ghost'); io._connect(ghost);
+        expect(ghost.sent).toContainEqual(['room:notfound', { roomId: 'ghost' }]);
+        expect(ghost.disconnect).toHaveBeenCalled();
+    });
+
+    it('counts members and cleans up the empty room after the grace period', () => {
+        const io = lobbyIo();
+        mountLobby(io, { graceMs: 1000 });
+        const a = lobbyConn(io); io._connect(a);
+        a._emit('room:create', { name: 'R' });        // r1 を作成
+
+        const p = lobbyConn(io, 'r1'); io._connect(p);   // r1 へ参加（adapter が connect を配る）
+        expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', memberCount: 1 }]);
+
+        p._leave();                                      // 退出 → memberCount 0
+        expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', memberCount: 0 }]);
+
+        jest.advanceTimersByTime(1000);                  // 猶予経過 → 空室は撤去
+        expect(a.rooms()).toEqual([]);
     });
 
     it('removes the connection listener on finalize', () => {
-        const io = mockIo();
-        const host = xnew(function Host() { xnew.extend(Lobby, { socket: io }); });
+        const io = lobbyIo();
+        const host = mountLobby(io);
         expect(io.connectionCount).toBe(1);
         host.finalize();
         expect(io.connectionCount).toBe(0);
@@ -177,60 +191,54 @@ describe('Room', () => {
     beforeEach(() => { jest.useFakeTimers(); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
-    it('delivers socket connect/disconnect/room:notfound to the host (boot parent) unit.on', () => {
+    it("forwards socket connect/disconnect/room:notfound to the host unit as '-events'", () => {
         const socket = mockSocket();
         const log: string[] = [];
         xnew(function Scene(unit: Unit) {
             xnew.extend(Room, { socket, Component: World });
-            // host unit（Scene）= boot 親なので、基本イベントを自身の unit.on で受け取れる。
-            unit.on('connect', () => log.push('connect'));
-            unit.on('disconnect', () => log.push('disconnect'));
-            unit.on('room:notfound', () => log.push('notfound'));
+            // Room が基本イベントを host unit（Scene）の '-event' へ転送する。
+            unit.on('-connect', () => log.push('connect'));
+            unit.on('-disconnect', () => log.push('disconnect'));
+            unit.on('-room:notfound', ({ roomId }: any) => log.push(`notfound:${roomId}`));
         });
 
         socket.fire('connect');
         socket.fire('room:notfound', { roomId: 'r1' });
         socket.fire('disconnect');
 
-        expect(log).toEqual(['connect', 'notfound', 'disconnect']);
+        expect(log).toEqual(['connect', 'notfound:r1', 'disconnect']);
     });
 
     it('boots the component as a client tree', () => {
         const socket = mockSocket();
-        let client: any;
-        xnew(function Scene(_: Unit) {
-            ({ client } = xnew.extend(Room, { socket, Component: World }) as any);
-        });
-        expect((client.element as HTMLElement).tagName).toBe('DIV');   // client 環境: World の client ブロックが nest
-        expect(client._.status).not.toBe('finalized');
+        xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, Component: World }); });
+        const [root] = Unit.find(World);   // boot された root の Component は World
+        expect((root.element as HTMLElement).tagName).toBe('DIV');   // client 環境: World の client ブロックが nest
+        expect(root._.status).not.toBe('finalized');
     });
 
     it('finalizes the client tree and disconnects the socket on finalize', () => {
         const socket = mockSocket();
-        let client: any;
-        const scene = xnew(function Scene(_: Unit) {
-            ({ client } = xnew.extend(Room, { socket, Component: World }) as any);
-        });
+        const scene = xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, Component: World }); });
+        const [root] = Unit.find(World);
 
-        expect(client._.status).not.toBe('finalized');
+        expect(root._.status).not.toBe('finalized');
         scene.finalize();
 
         expect(socket.disconnect).toHaveBeenCalledTimes(1);
-        expect(client._.status).toBe('finalized');
+        expect(root._.status).toBe('finalized');
     });
 
     it('boots in server mode without disconnecting, and finalizes on finalize', () => {
         setEnvironment('server');   // Node 実行を模す（jsdom はそのままだと client 判定）
         const socket = mockSocket();
-        let client: any;
-        const scene = xnew(function Scene(_: Unit) {
-            ({ client } = xnew(Room, { socket, Component: World }) as any);
-        });
+        const scene = xnew(function Scene(_: Unit) { xnew(Room, { socket, Component: World }); });
+        const [root] = Unit.find(World);
 
-        expect(client._.status).not.toBe('finalized');
+        expect(root._.status).not.toBe('finalized');
 
         scene.finalize();   // server 分岐は disconnect を呼ばず（ServerSocket に無い）booted root を畳むだけ
 
-        expect(client._.status).toBe('finalized');
+        expect(root._.status).toBe('finalized');
     });
 });
