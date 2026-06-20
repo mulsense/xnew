@@ -15,31 +15,13 @@ import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { sync, BootOptions } from '../utils/sync';
 
-/** ServerRoom — ロビーが管理する 1 部屋（server）。Component を boot し、人数台帳と空室掃除(graceMs)を持つ。
- *  人数が変われば onChange、無人が graceMs 続けば onEmpty(id) を呼ぶ。Lobby(server) が内部で使う。 */
-function ServerRoom(unit: Unit, { socket, id, name, Component, graceMs, onChange, onEmpty }:
-    { socket: any; id: string; name: string; Component: Function; graceMs: number; onChange: () => void; onEmpty: (id: string) => void }) {
-    xnew.extend(Room, { socket, room: id, Component });
-    const members = new Set<string>();
-    let graceTimer: ReturnType<typeof setTimeout> | null = null;
-    const clearGrace = () => { if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; } };
-    const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(() => { if (members.size === 0) { onEmpty(id); } }, graceMs); };
-
-    unit.on('-connect', ({ id: clientId }: any) => { clearGrace(); members.add(clientId); onChange(); });
-    unit.on('-disconnect', ({ id: clientId }: any) => { members.delete(clientId); onChange(); if (members.size === 0) { scheduleCleanup(); } });
-    unit.on('finalize', clearGrace);
-    scheduleCleanup();   // 作成直後に無人なら graceMs 後に掃除（最初の connect で解除）
-
-    return { get id() { return id; }, get name() { return name; }, get memberCount() { return members.size; } };
-}
-
 /** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。
  *  socket のコールバックは tick の外で走るので、emit を unit スコープで走らせるため xnew.scope で包む。 */
 export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 3000, roomNameMax = 16 }:
     { socket: any; Component?: Function; maxRooms?: number; graceMs?: number; roomNameMax?: number }) {
     // server: io.on('connection') を所有し、ルーム台帳・作成・一覧配信・人数・空室掃除・入室検証を自前で管理する。
     xnew.server(() => {
-        const rooms = new Map<string, any>();   // id → ServerRoom unit（id/name/memberCount を公開）
+        const rooms = new Map<string, any>();   // id → Room unit（id/name/memberCount を公開、-empty で撤去）
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
         const broadcastRooms = () => socket.to('lobby').emit('lobby:rooms', { rooms: roomList() });
@@ -47,14 +29,18 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
             const room = rooms.get(id);
             if (room === undefined) { return; }
             rooms.delete(id);
-            room.finalize();   // ServerRoom → Room の finalize が booted root を畳む
+            room.finalize();   // Room の finalize が booted root を畳む
             broadcastRooms();
         };
         const createRoom = (rawName: string): string | null => {
             if (rooms.size >= maxRooms) { return null; }
             const id = `r${++nextRoomNum}`;
             const name = String(rawName ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-            rooms.set(id, xnew(unit, ServerRoom, { socket, id, name, Component: Component!, graceMs, onChange: broadcastRooms, onEmpty: removeRoom }));
+            const room = xnew(unit, Room, { socket, room: id, name, Component: Component!, graceMs });
+            room.on('-connect', broadcastRooms);     // 人数変化のたびに一覧を再配信
+            room.on('-disconnect', broadcastRooms);
+            room.on('-empty', () => removeRoom(id));  // 無人が graceMs 続いたら撤去
+            rooms.set(id, room);
             broadcastRooms();
             return id;
         };
@@ -92,16 +78,23 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
     });
 }
 
-/** Room — 同期された 1 部屋を boot し socket を所有する。boot ルートが受け取る基本イベント
- *  (connect/disconnect/room:notfound)を host unit の '-<event>' へ転送する。server/client は実行環境で自動判定。 */
-export function Room(unit: Unit, { socket, room, name, Component }: Pick<BootOptions, 'socket' | 'room' | 'name'> & { Component: Function }) {
+/** Room — 同期された 1 部屋を boot し socket を所有する。基本イベント(connect/disconnect/room:notfound)を
+ *  host unit の '-<event>' へ転送する。server では加えて人数台帳を持ち、id/name/memberCount を公開、無人が
+ *  graceMs 続けば '-empty' を出す（ロビーの空室掃除に使う）。server/client は実行環境で自動判定。 */
+export function Room(unit: Unit, { socket, room, name, Component, graceMs = 3000 }: Pick<BootOptions, 'socket' | 'room' | 'name'> & { Component: Function; graceMs?: number }) {
     const client = sync.boot({ socket, room, name }, Component);
     unit.on('finalize', () => client.finalize());
+    const members = new Set<string>();
 
-    // server: connect/disconnect は boot ルート(client)配下へ配られるので、そこから host へ転送（{ id } 付き）。
+    // server: connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
     xnew.server(() => {
-        client.on('connect', xnew.scope((props: any) => xnew.emit('-connect', props)));
-        client.on('disconnect', xnew.scope((props: any) => xnew.emit('-disconnect', props)));
+        let graceTimer: ReturnType<typeof setTimeout> | null = null;
+        const clearGrace = () => { if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; } };
+        const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(xnew.scope(() => { if (members.size === 0) { xnew.emit('-empty', {}); } }), graceMs); };
+        client.on('connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); }));
+        client.on('disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); if (members.size === 0) { scheduleCleanup(); } }));
+        unit.on('finalize', clearGrace);
+        scheduleCleanup();   // 作成直後に無人なら graceMs 後に '-empty'（最初の connect で解除）
     });
 
     // client: 生 socket の基本イベントを host へ転送し、finalize で socket を切断する。
@@ -111,4 +104,6 @@ export function Room(unit: Unit, { socket, room, name, Component }: Pick<BootOpt
         socket.on('room:notfound', xnew.scope((payload: any) => xnew.emit('-room:notfound', payload)));
         unit.on('finalize', () => socket.disconnect());
     });
+
+    return { get id(): string | undefined { return room; }, get name(): string | undefined { return name; }, get memberCount(): number { return members.size; } };
 }
