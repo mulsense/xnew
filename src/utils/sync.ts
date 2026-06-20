@@ -11,11 +11,12 @@
 // - ClientSocket / ServerSocket / RootSocket : socket 契約（socket.io 互換の duck-type。型のみ）
 // - findSyncRoot / getRootSocket / getRootClient / getRootClients : boot ルートの解決と client/presence 取得
 // - ClientInfo : 1 接続者の {id, name}（xnew.sync.client / clients が返す）
-// - BootOptions / bootSyncRoot / loopbackHub : boot 入力・ルート生成 + 配線・共有 loopback hub
-// - Transport / loopback / socketio : transport 実装（in-memory ハブ / socket.io アダプタ）
+// - BootOptions / bootSyncRoot : boot 入力・ルート生成 + 配線（server/client は実行環境で決まる → core/env）
+// - Transport / socketio : transport 実装（socket.io アダプタ）
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from '../core/unit';
+import { getEnvironment, withEnvironment } from '../core/env';
 import { getOrCreate } from '../core/map';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
@@ -102,8 +103,17 @@ export function captureStateTree(root: Unit): StateTree {
 /** client ルートごとの id→Unit マップ。 */
 const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
-/** Applies a state tree to a client subtree（create/update/remove の差分適用。tree は pre-order）。 */
+/**
+ * Applies a state tree to a client subtree（create/update/remove の差分適用。tree は pre-order）。
+ * apply は本質的に「client 側の操作」（server は capture、client が apply）なので、replica の構築は
+ * 必ず client 環境で行う（withEnvironment）。production の client では no-op、テストが server 文脈
+ * （server の自動 broadcast から同期適用される場合）でも replica の client ブロックが正しく走る。
+ */
 export function applyStateTree(root: Unit, tree: StateTree): void {
+    withEnvironment('client', () => reconcileStateTree(root, tree));
+}
+
+function reconcileStateTree(root: Unit, tree: StateTree): void {
     const map = getOrCreate(reconcileMaps, root, () => new Map<number, Unit>());
 
     const incoming = new Set<number>(tree.map((node) => node.id));
@@ -225,7 +235,7 @@ function rootInfoOf(unit: Unit): RootInfo {
     const root = findSyncRoot(unit);
     const info = root !== null ? syncRoots.get(root) : undefined;
     if (info === undefined || info.socket === null) {
-        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ mode }, ...).');
+        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket }, ...).');
     }
     return info;
 }
@@ -246,36 +256,25 @@ export function getRootClients(unit: Unit): ClientInfo[] {
     return [...rootInfoOf(unit).roster.values()];
 }
 
-/** xnew.sync.boot の入力。mode は必須、socket を渡すと socket.io 経由・省略で in-memory loopback。 */
+/** xnew.sync.boot の入力。socket は必須（socket.io の io / socket）。mode は実行環境から自動判定する。 */
 export interface BootOptions {
-    mode: 'server' | 'client';
-    socket?: any;        // socket.io の io（server）/ socket（client）。省略時は loopback。
-    room?: string;       // server + socket.io のときだけ意味を持つ（接続を query.room で絞る）。
+    socket: any;         // socket.io の io（server）/ socket（client）。
+    room?: string;       // server のときだけ意味を持つ（接続を query.room で絞る）。
     name?: string;       // この client の表示名（presence に載り、xnew.sync.client.name で読める）。
 }
 
-// 同一 engineRoot 配下で socket 省略の boot が共有する in-memory hub。reset で engineRoot が変わると
-// WeakMap がミスして作り直されるので、明示リセットは不要（unit.ts は sync を一切知らないまま）。
-const loopbackHubs: WeakMap<Unit, Transport> = new WeakMap();
+// mode（server/client）は実行環境から決まり、実行中に変化しない（→ src/core/env.ts）。
+// boot は getEnvironment() を見て transport の server/client を選ぶ。
 
-/** 現在の engineRoot に紐づく共有 loopback hub を返す（無ければ生成）。テストが生 socket を得るのにも使う。 */
-export function loopbackHub(): Transport {
-    return getOrCreate(loopbackHubs, Unit.engineRoot, () => loopback());
-}
-
-/** BootOptions を RootSocket へ解決する（socket 有り = socket.io / 無し = 共有 loopback）。 */
+/** BootOptions を RootSocket へ解決する（socket.io を socketio アダプタでラップし、環境で server/client を選ぶ）。 */
 function resolveRootSocket(opts: BootOptions): RootSocket {
-    if (opts.socket !== undefined) {
-        const transport = socketio(opts.socket, opts.room !== undefined ? { room: opts.room } : {});
-        return opts.mode === 'server' ? transport.server : transport.connect();
-    }
-    const hub = loopbackHub();
-    return opts.mode === 'server' ? hub.server : hub.connect();
+    const transport = socketio(opts.socket, opts.room !== undefined ? { room: opts.room } : {});
+    return getEnvironment() === 'server' ? transport.server : transport.connect();
 }
 
 /**
- * BootOptions から boot ルートを生成し、mode 別に一括配線して返す。
- * transport は opts.socket の有無で決まる（無し = 共有 loopback / 有り = socketio で socket.io をラップ）。
+ * BootOptions から boot ルートを生成し、mode 別に一括配線して返す（mode は実行環境から自動判定）。
+ * transport は opts.socket（socket.io の io / socket）を socketio でラップして得る。
  * 配線は 3 つ:
  * (1) 状態の下り mirror : server は毎 update で capture → broadcast、client は on('sync') → apply
  * (2) dispatcher        : 受信イベントを root 配下の unit.on(event) へ（'-event'=同一 syncId / '+'・無印=全体）
@@ -283,13 +282,12 @@ function resolveRootSocket(opts: BootOptions): RootSocket {
  *     （server では connect/disconnect を root 配下にも配り、親へは { id: clientId } を渡す）
  */
 export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: any[]): Unit {
-    const mode = opts.mode;
     const socket = resolveRootSocket(opts);
     // socket / name / roster は unit に保持せず、setup フックで syncRoots へ登録する。
     const info: RootInfo = { socket, name: opts.name, roster: new Map() };
-    const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, info) }, parent, ...args);
+    const root = new Unit({ setup: (unit) => registerSyncRoot(unit, info) }, parent, ...args);
 
-    if (mode === 'server') {
+    if (getEnvironment() === 'server') {
         const server = socket as ServerSocket;
         // presence: connect/disconnect/sync:hello で名簿を更新し、変化のたびに全員へ配る。
         const broadcastRoster = () => server.emit('sync:roster', { clients: [...info.roster.values()] });
@@ -326,10 +324,9 @@ export function bootSyncRoot(opts: BootOptions, parent: Unit | null, ...args: an
             const list = (payload !== null && typeof payload === 'object' && Array.isArray(payload.clients)) ? payload.clients : [];
             for (const c of list) { info.roster.set(c.id, { id: c.id, name: c.name }); }
         });
-        // hello は roster ハンドラ登録後に送る。loopback では connect 時の初回 roster 配信が
-        // この登録より前に走るが、その hello への再配信で名簿が追いつく（前提: server を先に boot）。
+        // hello は roster ハンドラ登録後に送る（前提: server を先に boot）。
         const sendHello = () => client.emit('sync:hello', { name: info.name });
-        if ((client as any).id) { sendHello(); }   // 接続済み（loopback / 既接続 socket.io）なら即申告
+        if ((client as any).id) { sendHello(); }   // 既に接続済みの socket なら即申告
         client.on('connect', sendHello);           // socket.io の初回 / 再接続で申告
     }
     return root;
@@ -365,7 +362,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
 }
 
 //----------------------------------------------------------------------------------------------------
-// transport — socket 契約の具体実装（loopback / socketio）。socket.io への import 依存は持たず
+// transport — socket 契約の具体実装（socketio）。socket.io への import 依存は持たず
 // メソッド名（on/onAny/emit/to/disconnect）に duck-type で乗る。
 //----------------------------------------------------------------------------------------------------
 
@@ -378,7 +375,7 @@ export interface Transport {
 type BusHandler = (...args: any[]) => void;
 type BusAnyHandler = (event: string, ...args: any[]) => void;
 
-/** event→handler 群 + onAny の最小バス。loopback の server / 各 client と socketio の server が共有する。 */
+/** event→handler 群 + onAny の最小バス。socketio の server が使う。 */
 function eventBus() {
     const handlers = new Map<string, Set<BusHandler>>();
     const anyHandlers = new Set<BusAnyHandler>();
@@ -392,43 +389,6 @@ function eventBus() {
             if (withAny) { anyHandlers.forEach((handler) => handler(event, ...args)); }
         },
     };
-}
-
-// 'connect' / 'disconnect' は onAny に配らない（socket.io の onAny の挙動に合わせる）。
-const isAppEvent = (event: string): boolean => event !== 'connect' && event !== 'disconnect';
-
-/** In-memory transport hub（同一プロセスで server↔client を同期配送。テスト/擬似用）。 */
-export function loopback(): Transport {
-    const serverBus = eventBus();
-    const clients = new Map<string, ReturnType<typeof eventBus>>();   // clientId → その client の受信バス
-    let seq = 0;   // clientId 自動発番用（'c1', 'c2', ...）
-
-    // server: ハンドラは (clientId, payload) で受け、emit は全 client へ broadcast。
-    const server: ServerSocket = {
-        on: serverBus.on,
-        off: serverBus.off,
-        emit(event, payload) { for (const bus of clients.values()) { bus.fire(event, true, payload); } },  // broadcast
-        to(clientId) { return { emit(event, payload) { clients.get(clientId)?.fire(event, true, payload); } }; },
-        onAny: serverBus.onAny,
-    };
-
-    function connect(clientId?: string): ClientSocket {
-        if (clientId === undefined) { clientId = 'c' + (++seq); }   // 未指定なら自動発番
-        const bus = eventBus();
-        clients.set(clientId, bus);
-        serverBus.fire('connect', false, clientId, undefined);
-        return {
-            id: clientId,
-            emit(event, payload) { serverBus.fire(event, isAppEvent(event), clientId!, payload); },
-            // disconnect 後は bus を消すので on/off/onAny は ?. で no-op（finalize 時の off('sync') が切断済みでも安全）。
-            on(event, handler) { clients.get(clientId!)?.on(event, handler); },
-            off(event, handler) { clients.get(clientId!)?.off(event, handler); },
-            onAny(handler) { clients.get(clientId!)?.onAny(handler); },
-            disconnect() { clients.delete(clientId!); serverBus.fire('disconnect', false, clientId!, undefined); },
-        };
-    }
-
-    return { server, connect };
 }
 
 /**
@@ -483,7 +443,7 @@ export function socketio(ioOrSocket: any, opts: { room?: string } = {}): Transpo
 // - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
 // - capture / apply  : 手動同期用（boot の自動 mirror を使わない場合）
 // - emit / client / clients : イベント送信 / 自分の {id,name} / 同 room の全接続者
-// - boot             : socket をバインドしたルート生成（mode で server/client を指定）
+// - boot             : socket をバインドしたルート生成（server/client は実行環境で自動判定）
 //----------------------------------------------------------------------------------------------------
 
 /** Component / ハンドラ内であることを保証して currentUnit を返す（外だと throw）。 */
@@ -534,9 +494,9 @@ export const sync = {
         getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
     },
     /**
-     * Creates a root Unit for `opts.mode`（'server'|'client'）。transport は opts.socket の有無で決まる
-     * （省略 = in-memory loopback / 指定 = socket.io。server は opts.room で接続を絞れる）。残りの引数は
-     * xnew(...) へ転送。下り mirror と dispatcher の配線は bootSyncRoot が行う。
+     * Creates a sync root Unit。mode は実行環境から自動判定する（Node=server / browser=client）。transport は
+     * opts.socket（socket.io の io / socket）を socketio でラップして得る（server は opts.room で接続を絞れる）。
+     * 残りの引数は xnew(...) へ転送。下り mirror と dispatcher の配線は bootSyncRoot が行う。
      */
     boot(opts: BootOptions, ...args: any[]): Unit {
         if (Unit.engineRoot === undefined) { Unit.reset(); }

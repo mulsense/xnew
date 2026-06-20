@@ -29,14 +29,9 @@ interface Snapshot { unit: Unit; context: Context; element: DomElement; Componen
 // lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
 export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
 
-// engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
-export type Mode = 'server' | 'client' | null;
-
 // Unit 構築時の補助パラメータ。
-// - mode  : サブツリールートのエンジンモード（親 mode が null のときの fallback）
 // - setup : 構築直後・body 実行前に呼ばれるフック（sync.ts が boot 登録 / state プリシードに使う）
 export interface UnitOptions {
-    mode?: Mode;
     setup?: (unit: Unit) => void;
 }
 
@@ -91,7 +86,6 @@ export class Unit {
         eventor: Eventor;
 
         key: any;   // reserved prop for find(key) (global unique assumed)
-        mode: Mode;   // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)。親から継承
     };
 
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
@@ -159,7 +153,6 @@ export class Unit {
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
             key,
-            mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
         };
 
         if (options?.setup !== undefined) {

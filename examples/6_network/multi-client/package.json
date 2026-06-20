@@ -2,7 +2,7 @@
   "name": "xnew-example-multi-client",
   "version": "0.1.0",
   "private": true,
-  "description": "xnew multi-client sample. loopback: open index-browser-only.html directly. socket.io: npm install && npm start, then open http://localhost:3001/ in multiple tabs.",
+  "description": "xnew multi-client sample (socket.io). npm install && npm start, then open http://localhost:3001/ in multiple tabs.",
   "type": "module",
   "scripts": {
     "start": "node server.js",

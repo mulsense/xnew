@@ -1,0 +1,127 @@
+//----------------------------------------------------------------------------------------------------
+// io-mock — in-memory socket.io-shaped transport + mode helpers for sync tests
+//
+// src no longer ships an in-memory transport (loopback was removed with the browser-only run model),
+// and boot now auto-detects mode from the runtime (Node=server / browser=client). Tests run in one
+// jsdom process yet must exercise BOTH sides, so this fixture provides:
+//   - ioMock(): socket.io-shaped objects that src `socketio()` adapts (an `io` + `connect()` clients),
+//     wired in-memory. Pass `io` to the server boot and `connect()` to a client boot; clientId
+//     auto-numbers as 'c1', 'c2', ...
+//   - bootServer/bootClient(): force the boot mode (jsdom would otherwise always detect 'client').
+//
+// - ioMock() : { io, connect(id?) } — server-side io + client-socket factory, wired in-memory
+// - bootServer(opts, ...args) / bootClient(opts, ...args) : xnew.sync.boot with the mode forced
+//----------------------------------------------------------------------------------------------------
+
+import xnew from '../../../src/index';
+import { setEnvironment, withEnvironment } from '../../../src/core/env';
+
+type Handler = (...args: any[]) => void;
+type AnyHandler = (event: string, payload: any) => void;
+
+/** socket.io の client socket 相当（boot({ mode: 'client', socket }) と生クライアントの両方で使う）。 */
+export interface MockClientSocket {
+    id: string;
+    emit(event: string, payload?: any): void;
+    on(event: string, handler: Handler): void;
+    off(event: string, handler: Handler): void;
+    onAny(handler: AnyHandler): void;
+    disconnect(): void;
+}
+
+export interface IoMock {
+    io: any;                                  // socket.io の io 相当（server 側）
+    connect(id?: string): MockClientSocket;   // 1 接続ぶんの client socket を生成
+}
+
+export function ioMock(): IoMock {
+    let connectionCb: ((socket: any) => void) | null = null;
+    let seq = 0;   // clientId 自動発番（'c1', 'c2', ...）
+
+    interface Conn {
+        clientHandlers: Map<string, Set<Handler>>;   // client.on(event)
+        clientAny: Set<AnyHandler>;                   // client.onAny
+        serverAny: Set<AnyHandler>;                   // server 側 socket.onAny（socketio アダプタが張る）
+        serverDisconnect: Set<Handler>;              // server 側 socket.on('disconnect')
+    }
+    const conns = new Map<string, Conn>();
+
+    // server→client: 該当 client の on(event) と onAny を発火する。
+    const deliverToClient = (conn: Conn, event: string, payload: any): void => {
+        conn.clientHandlers.get(event)?.forEach((h) => h(payload));
+        conn.clientAny.forEach((h) => h(event, payload));
+    };
+
+    const io = {
+        on(event: string, cb: (socket: any) => void): void { if (event === 'connection') { connectionCb = cb; } },
+        emit(event: string, payload?: any): void {                 // broadcast（全 client へ）
+            for (const conn of conns.values()) { deliverToClient(conn, event, payload); }
+        },
+        to(target: string) {
+            // target は clientId 想定（room 単位の broadcast はテストで未使用）。
+            return { emit(event: string, payload?: any): void {
+                const conn = conns.get(target);
+                if (conn !== undefined) { deliverToClient(conn, event, payload); }
+            } };
+        },
+    };
+
+    function connect(id?: string): MockClientSocket {
+        const clientId = id ?? 'c' + (++seq);
+        const conn: Conn = { clientHandlers: new Map(), clientAny: new Set(), serverAny: new Set(), serverDisconnect: new Set() };
+        conns.set(clientId, conn);
+
+        // server 側 socket（socketio アダプタが onAny / on('disconnect') を張る）。
+        connectionCb?.({
+            id: clientId,
+            handshake: { query: {} },
+            join(): void {},
+            onAny(handler: AnyHandler): void { conn.serverAny.add(handler); },
+            on(event: string, handler: Handler): void { if (event === 'disconnect') { conn.serverDisconnect.add(handler); } },
+        });
+
+        return {
+            id: clientId,
+            emit(event: string, payload?: any): void { conn.serverAny.forEach((h) => h(event, payload)); },   // client→server
+            on(event: string, handler: Handler): void {
+                let set = conn.clientHandlers.get(event);
+                if (set === undefined) { set = new Set(); conn.clientHandlers.set(event, set); }
+                set.add(handler);
+            },
+            off(event: string, handler: Handler): void { conn.clientHandlers.get(event)?.delete(handler); },
+            onAny(handler: AnyHandler): void { conn.clientAny.add(handler); },
+            disconnect(): void { conns.delete(clientId); conn.serverDisconnect.forEach((h) => h()); },
+        };
+    }
+
+    return { io, connect };
+}
+
+type BootArgs = Parameters<typeof xnew.sync.boot>;
+
+// 実行環境（server/client）を固定して同期的な処理を走らせる。1 プロセスで両側を模すテスト用。
+// 構築（component body / xnew(...) / apply）のときだけ環境が効く（update/render/capture は環境非依存）。
+// → server 側の構築（boot / server update での spawn）は asServer、client 側は asClient で囲む。
+// apply は src 側で常に client 環境を強制するので、apply 自体は囲まなくてよい。
+
+/** fn を server 環境で実行する。 */
+export function asServer<T>(fn: () => T): T { return withEnvironment('server', fn); }
+
+/** fn を client 環境で実行する。 */
+export function asClient<T>(fn: () => T): T { return withEnvironment('client', fn); }
+
+/** server 環境で非同期 fn を実行する（fake timer の flush 中に server spawn が走る場合用。完了まで env を保持）。 */
+export async function asServerAsync<T>(fn: () => Promise<T>): Promise<T> {
+    setEnvironment('server');
+    try { return await fn(); } finally { setEnvironment(null); }
+}
+
+/** xnew.sync.boot を server 環境で呼ぶ。 */
+export function bootServer(...args: BootArgs): ReturnType<typeof xnew.sync.boot> {
+    return asServer(() => xnew.sync.boot(...args));
+}
+
+/** xnew.sync.boot を client 環境で呼ぶ。 */
+export function bootClient(...args: BootArgs): ReturnType<typeof xnew.sync.boot> {
+    return asClient(() => xnew.sync.boot(...args));
+}

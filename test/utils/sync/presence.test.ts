@@ -1,15 +1,16 @@
 import { Unit } from '../../../src/core/unit';
 import xnew from '../../../src/index';
-import { loopbackHub } from '../../../src/utils/sync';
+import { ioMock, bootServer, bootClient } from './io-mock';
 
 describe('xnew.sync.client / clients (presence)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('exposes own id and name via xnew.sync.client', () => {
-        xnew.sync.boot({ mode: 'server' }, function Server() {});
+        bootServer({ socket: hub.io }, function Server() {});
         let me: any;
-        xnew.sync.boot({ mode: 'client', name: 'Alice' }, function C(unit: Unit) {
+        bootClient({ socket: hub.connect(), name: 'Alice' }, function C(unit: Unit) {
             xnew.client(() => { me = xnew.sync.client; });
         });
         expect(me).toEqual({ id: 'c1', name: 'Alice' });
@@ -17,15 +18,15 @@ describe('xnew.sync.client / clients (presence)', () => {
 
     it('shares the roster across all clients and the server', () => {
         let serverRoster: any[] = [];
-        xnew.sync.boot({ mode: 'server' }, function Server(unit: Unit) {
+        bootServer({ socket: hub.io }, function Server(unit: Unit) {
             xnew.server(() => { unit.on('update', () => { serverRoster = [...xnew.sync.clients]; }); });
         });
         let aRoster: any[] = [];
         let bRoster: any[] = [];
-        xnew.sync.boot({ mode: 'client', name: 'Alice' }, function A(unit: Unit) {
+        bootClient({ socket: hub.connect(), name: 'Alice' }, function A(unit: Unit) {
             xnew.client(() => { unit.on('update', () => { aRoster = [...xnew.sync.clients]; }); });
         });
-        xnew.sync.boot({ mode: 'client', name: 'Bob' }, function B(unit: Unit) {
+        bootClient({ socket: hub.connect(), name: 'Bob' }, function B(unit: Unit) {
             xnew.client(() => { unit.on('update', () => { bRoster = [...xnew.sync.clients]; }); });
         });
         Unit.start(Unit.engineRoot);
@@ -38,10 +39,10 @@ describe('xnew.sync.client / clients (presence)', () => {
 
     it('removes a client from the roster on disconnect', () => {
         let roster: any[] = [];
-        xnew.sync.boot({ mode: 'server' }, function Server(unit: Unit) {
+        bootServer({ socket: hub.io }, function Server(unit: Unit) {
             xnew.server(() => { unit.on('update', () => { roster = [...xnew.sync.clients]; }); });
         });
-        const raw = loopbackHub().connect('cX');     // raw client joins on the shared hub
+        const raw = hub.connect('cX');     // raw client joins on the shared hub
         raw.emit('sync:hello', { name: 'Zoe' });
         Unit.start(Unit.engineRoot); Unit.update(Unit.engineRoot);
         expect(roster.map((c) => c.name)).toEqual(['Zoe']);
@@ -52,10 +53,10 @@ describe('xnew.sync.client / clients (presence)', () => {
 
     it('does not deliver reserved sync: events to app units', () => {
         const seen: string[] = [];
-        xnew.sync.boot({ mode: 'server' }, function Server(unit: Unit) {
+        bootServer({ socket: hub.io }, function Server(unit: Unit) {
             xnew.server(() => { unit.on('sync:hello', () => seen.push('leaked')); });
         });
-        xnew.sync.boot({ mode: 'client', name: 'Alice' }, function C() {});
+        bootClient({ socket: hub.connect(), name: 'Alice' }, function C() {});
         expect(seen).toEqual([]);
     });
 });

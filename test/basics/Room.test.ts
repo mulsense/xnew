@@ -1,11 +1,11 @@
 import { Unit } from '../../src/core/unit';
 import { xnew } from '../../src/core/xnew';
 import { Room } from '../../src/basics/Room';
-import { Selectable } from '../../src/basics/Selectable';
+import { setEnvironment } from '../../src/core/env';
 
-// boot 対象の client ツリー（client 側でペインを nest し、Selectable で選択を持つ）。
+// boot 対象の client ツリー（client 側でペインを nest する）。
 function World(unit: Unit) {
-    xnew.client(() => { xnew.nest('<div>'); xnew.extend(Selectable); });
+    xnew.client(() => { xnew.nest('<div>'); });
 }
 
 // socket.io 互換の最小モック socket。fire でイベントを擬似発火する（onAny は connect/disconnect を含まない）。
@@ -29,13 +29,13 @@ function mockSocket() {
 
 describe('Room', () => {
     beforeEach(() => { jest.useFakeTimers(); Unit.reset(); });
-    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; });
+    afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
     it('delivers socket connect/disconnect/room:notfound to the host (boot parent) unit.on', () => {
         const socket = mockSocket();
         const log: string[] = [];
         xnew(function Scene(unit: Unit) {
-            xnew.extend(Room, { mode: 'client', socket, component: World });
+            xnew.extend(Room, { socket, Component: World });
             // host unit（Scene）= boot 親なので、基本イベントを自身の unit.on で受け取れる。
             unit.on('connect', () => log.push('connect'));
             unit.on('disconnect', () => log.push('disconnect'));
@@ -49,20 +49,21 @@ describe('Room', () => {
         expect(log).toEqual(['connect', 'notfound', 'disconnect']);
     });
 
-    it('boots the component as a client tree and selects it', () => {
+    it('boots the component as a client tree', () => {
         const socket = mockSocket();
         let client: any;
         xnew(function Scene(_: Unit) {
-            ({ client } = xnew.extend(Room, { mode: 'client', socket, component: World }) as any);
+            ({ client } = xnew.extend(Room, { socket, Component: World }) as any);
         });
-        expect(client.selected).toBe(true);
+        expect((client.element as HTMLElement).tagName).toBe('DIV');   // client 環境: World の client ブロックが nest
+        expect(client._.status).not.toBe('finalized');
     });
 
     it('finalizes the client tree and disconnects the socket on finalize', () => {
         const socket = mockSocket();
         let client: any;
         const scene = xnew(function Scene(_: Unit) {
-            ({ client } = xnew.extend(Room, { mode: 'client', socket, component: World }) as any);
+            ({ client } = xnew.extend(Room, { socket, Component: World }) as any);
         });
 
         expect(client._.status).not.toBe('finalized');
@@ -73,12 +74,13 @@ describe('Room', () => {
     });
 
     it('boots in server mode without disconnecting, and finalizes on finalize', () => {
+        setEnvironment('server');   // Node 実行を模す（jsdom はそのままだと client 判定）
+        const socket = mockSocket();
         let client: any;
         const scene = xnew(function Scene(_: Unit) {
-            ({ client } = xnew(Room, { mode: 'server', component: World }) as any);
+            ({ client } = xnew(Room, { socket, Component: World }) as any);
         });
 
-        expect(client._.mode).toBe('server');
         expect(client._.status).not.toBe('finalized');
 
         scene.finalize();   // server 分岐は disconnect を呼ばず（ServerSocket に無い）booted root を畳むだけ

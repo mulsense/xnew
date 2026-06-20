@@ -1,9 +1,11 @@
 import { Unit } from '../../../src/core/unit';
 import { syncOf } from '../../../src/utils/sync';
 import xnew from '../../../src/index';
+import { ioMock, bootServer, bootClient } from './io-mock';
 
 describe('scoped registry isolation', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     // 同名 'Child' を 2 つの親がそれぞれ別の実体で登録する
@@ -25,12 +27,12 @@ describe('scoped registry isolation', () => {
     });
 
     it('apply re-creates each Child with the component its reconciled parent registered', () => {
-        const server = xnew.sync.boot({ mode: 'server' }, function Root() {
+        const server = bootServer({ socket: hub.io }, function Root() {
             xnew.sync.register({ ParentA, ParentB });
             xnew(ParentA);
             xnew(ParentB);
         });
-        const client = xnew.sync.boot({ mode: 'client' }, function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
+        const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
 
         xnew.sync.apply(client, xnew.sync.capture(server));
 

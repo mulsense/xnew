@@ -1,6 +1,7 @@
 import { Unit } from '../../../src/core/unit';
 import { syncOf } from '../../../src/utils/sync';
 import xnew from '../../../src/index';
+import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 // 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ
 function Mover(unit: Unit) {
@@ -14,13 +15,14 @@ function Mover(unit: Unit) {
     });
 }
 
-describe('loopback simulation (server/client blocks)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+describe('server/client mirror (server/client blocks)', () => {
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {
-        const server = xnew.sync.boot({ mode: 'server' }, function Server() { xnew.sync.register({ Mover }); xnew(Mover); });
-        const client = xnew.sync.boot({ mode: 'client' }, function ClientRoot() { xnew.sync.register({ Mover }); });
+        const server = bootServer({ socket: hub.io }, function Server() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
         function cycle() {
             Unit.start(Unit.engineRoot);
@@ -51,15 +53,15 @@ describe('loopback simulation (server/client blocks)', () => {
             xnew.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
         }
 
-        const server = xnew.sync.boot({ mode: 'server' }, Main);
-        const client = xnew.sync.boot({ mode: 'client' }, Main);
+        const server = bootServer({ socket: hub.io }, Main);
+        const client = bootClient({ socket: hub.connect() }, Main);
 
         // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
         const tree = xnew.sync.capture(server);
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Mover');
         expect(tree[0].parentId).toBeNull();
-        expect(server._.children[0]._.mode).toBe('server');   // Main の server ブロックが生成した Mover
+        expect(server._.children[0]._.Components).toContain(Mover);   // Main の server ブロックが生成した Mover
 
         function cycle() {
             Unit.start(Unit.engineRoot);
@@ -73,7 +75,6 @@ describe('loopback simulation (server/client blocks)', () => {
         // client Main の下に replica Mover が生成され、nest した既存 view 要素の配下に mount される。
         const replicaMover = client._.children[0];
         expect(replicaMover).toBeDefined();
-        expect(replicaMover._.mode).toBe('client');
         expect(syncOf(replicaMover).state!.position).toBe(1);
         expect(view.contains(replicaMover.element as Node)).toBe(true);
         expect((replicaMover.element as HTMLElement).style.left).toBe('1px');
@@ -90,14 +91,14 @@ describe('loopback simulation (server/client blocks)', () => {
                 });
             });
         }
-        const server = xnew.sync.boot({ mode: 'server' }, Server);
-        const client = xnew.sync.boot({ mode: 'client' }, function ClientRoot() { xnew.sync.register({ Mover }); });
+        const server = bootServer({ socket: hub.io }, Server);
+        const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
         const sync = () => xnew.sync.apply(client, xnew.sync.capture(server));
         Unit.start(Unit.engineRoot);
-        Unit.update(Unit.engineRoot); sync();
+        asServer(() => Unit.update(Unit.engineRoot)); sync();   // server update が Mover を spawn（server 構築）
         expect(client._.children.length).toBe(1);    // spawn mirrored
-        Unit.update(Unit.engineRoot); sync();
+        asServer(() => Unit.update(Unit.engineRoot)); sync();
         expect(client._.children.length).toBe(0);     // despawn mirrored
     });
 });

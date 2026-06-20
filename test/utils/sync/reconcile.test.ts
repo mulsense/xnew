@@ -1,5 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import xnew from '../../../src/index';
+import { ioMock, bootClient } from './io-mock';
 import { syncOf, StateTree } from '../../../src/utils/sync';
 
 function Box(unit: Unit) {
@@ -15,7 +16,7 @@ describe('applyStateTree create', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
-    function makeView() { return xnew.sync.boot({ mode: 'client' }, function View() { xnew.sync.register({ Box }); }); }
+    function makeView() { return bootClient({ socket: ioMock().connect() }, function View() { xnew.sync.register({ Box }); }); }
 
     it('creates client units under the reconcile root with state applied', () => {
         const view = makeView();
@@ -24,7 +25,6 @@ describe('applyStateTree create', () => {
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
         expect(syncOf(child).id).toBe(1);
-        expect(child._.mode).toBe('client');
         expect(syncOf(child).state).toEqual({ value: 7 });
     });
 
@@ -47,7 +47,7 @@ describe('applyStateTree state injection (client inits from server state)', () =
     }
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); observed = null; });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
-    function makeView() { return xnew.sync.boot({ mode: 'client' }, function View() { xnew.sync.register({ Probe }); }); }
+    function makeView() { return bootClient({ socket: ioMock().connect() }, function View() { xnew.sync.register({ Probe }); }); }
 
     it('injects server state before the body runs so local initial is ignored', () => {
         const view = makeView();
@@ -67,7 +67,7 @@ describe('applyStateTree state injection (client inits from server state)', () =
 describe('applyStateTree update', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
-    function makeView() { return xnew.sync.boot({ mode: 'client' }, function View() { xnew.sync.register({ Box }); }); }
+    function makeView() { return bootClient({ socket: ioMock().connect() }, function View() { xnew.sync.register({ Box }); }); }
 
     it('updates existing unit in place without recreating it', () => {
         const view = makeView();
@@ -83,7 +83,7 @@ describe('applyStateTree update', () => {
 describe('applyStateTree remove', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
-    function makeView() { return xnew.sync.boot({ mode: 'client' }, function View() { xnew.sync.register({ Box }); }); }
+    function makeView() { return bootClient({ socket: ioMock().connect() }, function View() { xnew.sync.register({ Box }); }); }
 
     it('finalizes replica units whose id disappears from the tree', () => {
         const view = makeView();

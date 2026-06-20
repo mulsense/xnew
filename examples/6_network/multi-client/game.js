@@ -1,12 +1,13 @@
 import xnew from '@mulsense/xnew';
 
 //----------------------------------------------------------------------------------------------------
-// game — multi-client のゲームロジック（loopback / socket.io 共通・無改変で動く）。
-//   ネットワークは xnew.sync（emit/on/client）だけに依存。transport は起動側が xnew.sync.boot({ mode, socket? }, ...) で選ぶ（socket 省略=loopback / 指定=socket.io）。
+// game — multi-client のゲームロジック（socket.io 前提・無改変で動く）。
+//   ネットワークは xnew.sync（emit/on/client）だけに依存。transport は起動側が xnew.sync.boot({ mode, socket }, ...) で渡す socket.io の socket。
+//   1 ブラウザ = 1 client = 1 ペイン。入力は常に自機へ送る（ペイン選択は無い）。
 //
 //   - World  : server/client 共通ルート。socket バインドと状態の下り(capture/apply)は xnew.sync.boot が自動で行う。
 //       server: '-join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
-//       client: ペインを生成し emit('-join')。Selectable で「クリック選択 / 他ペインで自動解除（相互排他）」だけを担う。
+//       client: 自分のペインを 1 つ生成し emit('-join')。
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。
 //       server: '-move'（同一コンポーネント宛て）で方向を vel に保持→update で積分。
 //       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.client.id。
@@ -43,17 +44,13 @@ export function Player(unit, { clientId = '' } = {}) {
 
         // 入力 → 移動はこの自機の動作。自機（このクライアント自身の Player）だけが入力を受ける。
         if (state.clientId === xnew.sync.client.id) {
-            const pane = xnew.context(xnew.basics.Selectable);   // 所属する World の選択状態/イベント
             const stop = () => xnew.sync.emit('-move', { vector: { x: 0, y: 0 } });
-            // 所属ペインが選択中のときだけ、方向ベクトルを emit('-move')（自機の入力の上り）。
+            // 方向ベクトルを emit('-move')（自機の入力の上り）。
             unit.on('window.keydown.wasd window.keyup.wasd window.keydown.arrow window.keyup.arrow', ({ event, vector }) => {
-                if (!pane?.selected) { return; }
                 event.preventDefault();
                 xnew.sync.emit('-move', { vector });
             });
-            unit.on('window.blur', () => { if (pane?.selected) { stop(); } });   // フォーカス喪失で停止
-            pane?.on('-deselect', stop);                                          // 選択を外れたら停止
-            unit.on('finalize', () => pane?.off('-deselect', stop));
+            unit.on('window.blur', stop);   // フォーカス喪失で停止
         }
     });
 }
@@ -71,11 +68,6 @@ export function World(unit) {
 
     xnew.client(() => {
         xnew.sync.emit('-join');   // 参加通知（これで server が Player を spawn する）。'-' = 自身宛て: client ルート ⇄ 対応する server ルート（共に syncId=null で一致）。
-        const pane = xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50 cursor-pointer">');
-
-        // クリックで選択（他ペインのクリックで自動解除 = 相互排他）。入力→移動は自機 Player 側が担う。
-        xnew.extend(xnew.basics.Selectable);
-        unit.on('-select', () => pane.classList.add('ring-2', 'ring-black'));
-        unit.on('-deselect', () => pane.classList.remove('ring-2', 'ring-black'));
+        xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50">');   // 自分のペイン（入力→移動は自機 Player 側が担う）
     });
 }

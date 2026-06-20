@@ -11,10 +11,11 @@
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
 // - xnew.chunk                           : 時間予算でフレーム分散する回数ループ（完了で UnitPromise を解決）
-// - xnew.server / client                 : mode 限定の extend
+// - xnew.server / client                 : 実行環境（Node=server / browser=client）限定の extend
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
+import { getEnvironment } from './env';
 import { DomElement } from './dom';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -184,23 +185,23 @@ export const xnew = Object.assign(
             Unit.currentUnit._.protected = true;
         },
 
-        /** Extend 相当。ただし client では実行されない（server / standalone のみ。skip 時は {} を返す）。 */
+        /** Extend 相当。ただし実行環境が client（browser）のときは実行されない（server のみ。skip 時は {} を返す）。 */
         server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
             if (Unit.currentUnit._.status !== 'invoked') {
                 throw new Error('xnew.server can not be called after initialized.');
             }
-            if (Unit.currentUnit._.mode === 'client') {
+            if (getEnvironment() === 'client') {
                 return {};
             }
             return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
         },
 
-        /** Extend 相当。ただし server では実行されない（client / standalone のみ。skip 時は {} を返す）。 */
+        /** Extend 相当。ただし実行環境が server（Node）のときは実行されない（client のみ。skip 時は {} を返す）。 */
         client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
             if (Unit.currentUnit._.status !== 'invoked') {
                 throw new Error('xnew.client can not be called after initialized.');
             }
-            if (Unit.currentUnit._.mode === 'server') {
+            if (getEnvironment() === 'server') {
                 return {};
             }
             return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;

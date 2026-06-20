@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------------------------------
 // multi-client（socket.io 版・server 側）— express で静的配信し、socket.io で実ネットワーク同期する。
 //   ロビー + 動的ルームをこのファイルで配線する（素の socket.io）。部屋ごとに Room を
-//   { mode:'server', socket: io, room } で boot し、共有 component World の server ツリーを起こす。
+//   { socket: io, room } で boot し、共有 component World の server ツリーを起こす（Node 実行なので mode は server に自動判定）。
 //   Room は server/client 対称な「1部屋」プリミティブ。
 //   人数カウントと空室掃除はこのファイルの台帳で行う。ゲーム本体 game.js は無改変。
 //----------------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ function createRoom(rawName) {
 
     // room スコープで World を Room として boot する（boot 内部で io を room=id に絞った socketio へ橋渡し）。
     // auto-mirror がこのルームへ broadcast し、connect/disconnect は Room unit.on へ { id } 付きで届く。
-    const unit = xnew(xnew.basics.Room, { mode: 'server', socket: io, room: id, component: World });
+    const unit = xnew(xnew.basics.Room, { socket: io, room: id, Component: World });
     const room = { id, name, unit, members: new Set(), graceTimer: null };
 
     const scheduleCleanup = () => {

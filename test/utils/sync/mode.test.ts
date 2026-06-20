@@ -1,52 +1,55 @@
 import { Unit } from '../../../src/core/unit';
 import xnew from '../../../src/index';
+import { ioMock, bootServer, bootClient } from './io-mock';
 
-describe('mode inheritance', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+// mode（server/client）は実行環境で決まる（Node=server / browser=client、core/env）。
+// xnew.server / xnew.client は現在の環境を見て、その環境のブロックだけを実行する。
+
+describe('xnew.server / xnew.client by environment', () => {
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
-    it('a booted top-level unit adopts the given mode', () => {
-        const unit = xnew.sync.boot({ mode: 'server' }, (u: Unit) => {});
-        expect(unit._.mode).toBe('server');
-    });
-
-    it('a nested unit inherits its parent mode', () => {
-        let child!: Unit;
-        xnew.sync.boot({ mode: 'server' }, (u: Unit) => {
-            child = xnew((c: Unit) => {}) as unknown as Unit;
+    it('server environment runs server blocks for the root and nested units', () => {
+        const ran: string[] = [];
+        bootServer({ socket: hub.io }, (_: Unit) => {
+            xnew.server(() => { ran.push('root-server'); });
+            xnew.client(() => { ran.push('root-client'); });
+            xnew((_c: Unit) => {
+                xnew.server(() => { ran.push('child-server'); });
+                xnew.client(() => { ran.push('child-client'); });
+            });
         });
-        expect(child._.mode).toBe('server');
+        expect(ran).toEqual(['root-server', 'child-server']);   // 環境はサブツリー全体に効く
     });
 
-    it('defaults to null without a boot', () => {
-        const unit = xnew((u: Unit) => {});
-        expect(unit._.mode).toBeNull();
+    it('client environment runs client blocks', () => {
+        const ran: string[] = [];
+        bootClient({ socket: hub.connect() }, (_: Unit) => {
+            xnew.server(() => { ran.push('server'); });
+            xnew.client(() => { ran.push('client'); });
+        });
+        expect(ran).toEqual(['client']);
     });
 });
 
 describe('xnew.sync.boot', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
-    it('creates the unit with the given mode and returns it', () => {
-        const unit = xnew.sync.boot({ mode: 'server' }, (u: Unit) => {});
-        expect(unit._.mode).toBe('server');
+    it('creates and returns the root unit', () => {
+        const unit = bootServer({ socket: hub.io }, (_: Unit) => {});
+        expect(unit).toBeInstanceOf(Unit);
     });
 
     it('forwards extra args to the unit (target, Component)', () => {
         const el = document.createElement('div');
-        const unit = xnew.sync.boot({ mode: 'client' }, el, (u: Unit) => {});
-        expect(unit._.mode).toBe('client');
+        const unit = bootClient({ socket: hub.connect() }, el, (_: Unit) => {});
         expect(unit.element).toBe(el);
     });
 
     it('propagates a throw from the component', () => {
-        expect(() => xnew.sync.boot({ mode: 'server' }, () => { throw new Error('boom'); })).toThrow('boom');
-    });
-
-    it('does not leak mode into a later plain xnew root', () => {
-        xnew.sync.boot({ mode: 'client' }, (u: Unit) => {});
-        const plain = xnew((u: Unit) => {});
-        expect(plain._.mode).toBeNull();   // mode は options で渡るだけ。グローバルに残らない
+        expect(() => bootServer({ socket: hub.io }, () => { throw new Error('boom'); })).toThrow('boom');
     });
 });

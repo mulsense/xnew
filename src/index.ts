@@ -1,5 +1,6 @@
 import { xnew as base } from './core/xnew';
-import { Unit, UnitTimer, ComponentFn, Mode as CoreMode, Status as CoreStatus } from './core/unit';
+import { Unit, UnitTimer, ComponentFn, Status as CoreStatus } from './core/unit';
+import { Environment as CoreEnvironment } from './core/env';
 
 // boot に渡す socket を型付けできるよう、socket 契約型を公開する。
 export type { ClientSocket, ServerSocket, RootSocket, BootOptions, ClientInfo } from './utils/sync';
@@ -38,7 +39,7 @@ namespace xnew {
     export type Unit = InstanceType<typeof Unit>;
     export type UnitTimer = InstanceType<typeof UnitTimer>;
     export type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
-    export type Mode = CoreMode;
+    export type Environment = CoreEnvironment;
     export type Status = CoreStatus;
     export namespace audio {
         export type AudioTrack = InstanceType<typeof AudioTrack>;
