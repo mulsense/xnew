@@ -34,8 +34,7 @@ function Lobby(unit) {
 
     // ロビー接続（room 無し = サーバーはロビー接続として扱う。forceNew で独立）。
     // Lobby が受信イベントを unit.on('-event') へ転送し、finalize で socket を切断する。
-    const lobbySocket = window.io({ forceNew: true });
-    xnew.extend(xnew.basics.Lobby, { socket: lobbySocket });
+    xnew.extend(xnew.basics.Lobby, { socket: window.io({ forceNew: true }) });
 
     let rooms = [];
     let listEl;
@@ -103,7 +102,7 @@ function Room(unit, { roomId }) {
     xnew.extend(xnew.basics.Scene);
     const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
-    const gameSocket = window.io({ query: { room: roomId }, forceNew: true });
+    const socket = window.io({ query: { room: roomId }, forceNew: true });
 
     const back = xnew('<button class="px-3 py-1 mb-2 rounded border-0 bg-gray-500 hover:bg-gray-600 text-white text-sm cursor-pointer">', '← ロビーに戻る');
     back.on('click', () => unit.change(Lobby));
@@ -111,9 +110,9 @@ function Room(unit, { roomId }) {
 
     // room 関連の配線は Room が引き受ける（boot(World)、finalize で client 畳み + socket 切断）。
     // socket は boot へ渡され、基本イベントは Room が '-event' でこの Room の unit.on へ転送する。
-    xnew.extend(xnew.basics.Room, { socket: gameSocket, Component: World });
+    xnew.extend(xnew.basics.Room, { socket, Component: World });
 
-    unit.on('-connect', () => app.setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
+    unit.on('-connect', () => app.setStatus(`ルーム ${roomId}: ${socket.id}`, true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
     unit.on('-notfound', () => unit.change(Lobby));   // 消滅ルームへ来たらロビーへ
 }

@@ -117,8 +117,14 @@ describe('Lobby (server)', () => {
     beforeEach(() => { setEnvironment('server'); jest.useFakeTimers(); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
-    const mountLobby = (io: any, props: any = {}) =>
-        xnew(function Host() { xnew.extend(Lobby, { io, Component: World, ...props }); });
+    // host は basics Lobby を extend し、'-create' を受けて Room を作り accept で台帳へ登録する（生成は利用側の責務）。
+    const mountLobby = (io: any, { graceMs, ...lobbyProps }: any = {}) =>
+        xnew(function Host(unit: Unit) {
+            xnew.extend(Lobby, { io, ...lobbyProps });
+            unit.on('-create', ({ id, name, accept }: any) => {
+                accept(xnew(unit, Room, { io, room: id, name, Component: World, graceMs }));
+            });
+        });
 
     it('sends the current (empty) room list to a new lobby connection', () => {
         const io = lobbyIo();

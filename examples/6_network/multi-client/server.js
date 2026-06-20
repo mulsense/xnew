@@ -1,8 +1,9 @@
 //----------------------------------------------------------------------------------------------------
 // multi-client（socket.io 版・server 側）— express で静的配信し、socket.io で実ネットワーク同期する。
-//   ロビー + 動的ルームの配線は xnew.basics.Lobby に一任する（io.on('connection') の所有、ルーム台帳・
-//   作成・一覧配信・人数計数・空室掃除・入室検証まで内蔵）。利用側は io と部屋の中身 Component(World) を
-//   渡すだけ。Node 実行なので mode は server に自動判定される。ゲーム本体 game.js は無改変。
+//   ロビー / ルームの汎用配線は xnew.basics.Lobby / Room に任せる（接続所有・台帳・一覧配信・人数計数・
+//   空室掃除・入室検証）。本ファイルの Lobby / Room はそれを extend し、部屋の作り方（中身 Component=World）
+//   だけを与える: basics Lobby の '-create' を受けて xnew(Room, ...) を作成し accept で台帳へ登録する。
+//   Node 実行なので mode は server に自動判定される。ゲーム本体 game.js は無改変。
 //----------------------------------------------------------------------------------------------------
 
 import { createServer } from 'node:http';
@@ -25,8 +26,21 @@ app.use('/thirdparty', express.static(join(__dirname, '..', '..', 'thirdparty'))
 const httpServer = createServer(app);
 const io = new IOServer(httpServer);
 
-// ---- ロビー + 動的ルーム（xnew.basics.Lobby が全部やる） ----
-xnew(xnew.basics.Lobby, { io, Component: World });
+// ---- ロビー + 動的ルーム（basics を extend し、部屋の中身だけ与える） ----
+// basics Lobby が台帳・一覧配信・入室検証を持つ。部屋生成だけ '-create' で委譲されるので、ここで Room を作る。
+function Lobby(unit) {
+    xnew.extend(xnew.basics.Lobby, { io });
+    unit.on('-create', ({ id, name, accept }) => {
+        accept(xnew(unit, Room, { io, room: id, name }));
+    });
+}
+
+// 1 部屋 = basics Room を extend し、中身 Component に World を据える。
+function Room(unit, { io, room, name }) {
+    xnew.extend(xnew.basics.Room, { io, room, name, Component: World });
+}
+
+xnew(Lobby);
 
 httpServer.listen(PORT, () => {
     console.log(`[multi-client] socket.io server on http://localhost:${PORT}/`);
