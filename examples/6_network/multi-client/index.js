@@ -24,7 +24,7 @@ xnew(document.getElementById('app'), App);
 
 //----------------------------------------------------------------------------------------------------
 // Lobby — ルーム作成 / 一覧 / 入室
-//   ルームは動的。誰かが作成すると lobby:rooms で全員へ一覧が届く。作成すると room:created で自分の
+//   ルームは動的。誰かが作成すると '-rooms' で全員へ一覧が届く。作成すると '-created' で自分の
 //   入るべき roomId が返るので、そのまま Room へ遷移する。
 //----------------------------------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ function Lobby(unit) {
                 event.preventDefault();
                 const name = nameInput.element.value.trim();
                 if (!name) { return; }
-                unit.create(name);   // Lobby が公開（内部で room:create を emit）
+                unit.create(name);   // Lobby が公開（内部で 'create' を emit）
                 nameInput.element.value = '';
             });
         });
@@ -80,23 +80,23 @@ function Lobby(unit) {
         });
     }
 
-    // 受信イベントは Lobby が '-event' で転送する（enter の送信・finalize の切断も Lobby が担う）。
+    // 受信イベントは Lobby が '-event' で転送する（finalize の切断も Lobby が担う。一覧は接続時に自動で届く）。
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
-    unit.on('-lobby:rooms', ({ rooms: list }) => { rooms = list; render(); });
-    unit.on('-room:created', ({ roomId }) => unit.change(Room, { roomId }));
-    unit.on('-room:error', ({ message }) => { hintEl.element.textContent = message; });
+    unit.on('-rooms', ({ rooms: list }) => { rooms = list; render(); });
+    unit.on('-created', ({ roomId }) => unit.change(Room, { roomId }));
+    unit.on('-rejected', ({ message }) => { hintEl.element.textContent = message; });
 
-    render();   // 初期描画（一覧は -lobby:rooms 受信で更新）
+    render();   // 初期描画（一覧は -rooms 受信で更新）
 }
 
 //----------------------------------------------------------------------------------------------------
 // Room — そのルームへ接続し、client ツリー(World) を 1 ペイン mount してプレイ
 //   gameSocket は query{room} 付きで張る（forceNew で独立接続）。socket の用意と HTML
 //   （戻るボタン・ペインの mount 先）だけを持ち、room 関連の配線（boot / socket 所有）は
-//   xnew.basics.Room に委ねる。Room へ { socket: gameSocket } を渡すと、boot は基本
-//   イベント（connect / disconnect / room:notfound）を boot を呼んだ親ユニット（= この GameScene）の
-//   unit.on へ配るので、接続まわりはここで受け取れる（browser 実行なので mode は client に自動判定）。
+//   xnew.basics.Room に委ねる。Room へ { socket: gameSocket } を渡すと、基本イベント
+//   （connect / disconnect / notfound）を '-event' でこの Room の unit.on へ転送するので、接続まわりは
+//   ここで受け取れる（browser 実行なので mode は client に自動判定）。
 //----------------------------------------------------------------------------------------------------
 
 function Room(unit, { roomId }) {
@@ -115,5 +115,5 @@ function Room(unit, { roomId }) {
 
     unit.on('-connect', () => app.setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
-    unit.on('-room:notfound', () => unit.change(Lobby));   // 消滅ルームへ来たらロビーへ
+    unit.on('-notfound', () => unit.change(Lobby));   // 消滅ルームへ来たらロビーへ
 }

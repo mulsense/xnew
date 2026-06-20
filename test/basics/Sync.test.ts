@@ -38,12 +38,12 @@ describe('Lobby', () => {
         xnew(function Host(unit: Unit) {
             xnew.extend(Lobby, { socket });
             unit.on('-connect', () => log.push('connect'));
-            unit.on('-lobby:rooms', ({ rooms }: any) => log.push(`rooms:${rooms.length}`));
+            unit.on('-rooms', ({ rooms }: any) => log.push(`rooms:${rooms.length}`));
             unit.on('-disconnect', () => log.push('disconnect'));
         });
 
         socket.fire('connect');
-        socket.fire('lobby:rooms', { rooms: [1, 2, 3] });
+        socket.fire('rooms', { rooms: [1, 2, 3] });
         socket.fire('disconnect');
 
         expect(log).toEqual(['connect', 'rooms:3', 'disconnect']);
@@ -64,19 +64,11 @@ describe('Lobby', () => {
         expect(log).toEqual([]);
     });
 
-    it('exposes create(name) on the host unit that emits room:create', () => {
+    it('exposes create(name) on the host unit that emits create', () => {
         const socket = mockSocket();
         const host = xnew(function Host() { xnew.extend(Lobby, { socket }); });
         (host as any).create('my room');
-        expect(socket.emit).toHaveBeenCalledWith('room:create', { name: 'my room' });
-    });
-
-    it('sends enter deferred (after host setup, not synchronously)', () => {
-        const socket = mockSocket();
-        xnew(function Host() { xnew.extend(Lobby, { socket }); });
-        expect(socket.emit).not.toHaveBeenCalledWith('enter');   // 同期では送らない
-        jest.advanceTimersByTime(1);
-        expect(socket.emit).toHaveBeenCalledWith('enter');       // 時間差で送られる
+        expect(socket.emit).toHaveBeenCalledWith('create', { name: 'my room' });
     });
 });
 
@@ -116,7 +108,7 @@ function lobbyConn(io: ReturnType<typeof lobbyIo>, roomId?: string) {
         _recv(event: string, payload?: any) { conn.sent.push([event, payload]); },   // server broadcast→client
         _emit(event: string, payload?: any) { handlers.get(event)?.forEach((h) => h(payload)); anyHandlers.forEach((h) => h(event, payload)); },
         _leave() { handlers.get('disconnect')?.forEach((h) => h()); },
-        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'lobby:rooms'); return m ? m[1].rooms : undefined; },
+        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'rooms'); return m ? m[1].rooms : undefined; },
     };
     return conn;
 }
@@ -135,30 +127,30 @@ describe('Lobby (server)', () => {
         expect(a.rooms()).toEqual([]);
     });
 
-    it('creates a room on room:create: creator gets room:created and the lobby list updates', () => {
+    it('creates a room on create: creator gets created and the lobby list updates', () => {
         const io = lobbyIo();
         mountLobby(io);
         const a = lobbyConn(io); io._connect(a);
-        a._emit('room:create', { name: 'My Room' });
-        expect(a.sent).toContainEqual(['room:created', { roomId: 'r1' }]);
+        a._emit('create', { name: 'My Room' });
+        expect(a.sent).toContainEqual(['created', { roomId: 'r1' }]);
         expect(a.rooms()).toEqual([{ id: 'r1', name: 'My Room', memberCount: 0 }]);
     });
 
-    it('rejects room:create beyond maxRooms with room:error', () => {
+    it('rejects create beyond maxRooms with rejected', () => {
         const io = lobbyIo();
         mountLobby(io, { maxRooms: 1 });
         const a = lobbyConn(io); io._connect(a);
-        a._emit('room:create', { name: 'A' });
-        a._emit('room:create', { name: 'B' });
-        expect(a.sent.filter(([e]: any) => e === 'room:created')).toHaveLength(1);
-        expect(a.sent).toContainEqual(['room:error', { message: expect.any(String) }]);
+        a._emit('create', { name: 'A' });
+        a._emit('create', { name: 'B' });
+        expect(a.sent.filter(([e]: any) => e === 'created')).toHaveLength(1);
+        expect(a.sent).toContainEqual(['rejected', { message: expect.any(String) }]);
     });
 
-    it('rejects a connection to an unknown room with room:notfound and disconnect', () => {
+    it('rejects a connection to an unknown room with notfound and disconnect', () => {
         const io = lobbyIo();
         mountLobby(io);
         const ghost = lobbyConn(io, 'ghost'); io._connect(ghost);
-        expect(ghost.sent).toContainEqual(['room:notfound', { roomId: 'ghost' }]);
+        expect(ghost.sent).toContainEqual(['notfound', { roomId: 'ghost' }]);
         expect(ghost.disconnect).toHaveBeenCalled();
     });
 
@@ -166,7 +158,7 @@ describe('Lobby (server)', () => {
         const io = lobbyIo();
         mountLobby(io, { graceMs: 1000 });
         const a = lobbyConn(io); io._connect(a);
-        a._emit('room:create', { name: 'R' });        // r1 を作成
+        a._emit('create', { name: 'R' });        // r1 を作成
 
         const p = lobbyConn(io, 'r1'); io._connect(p);   // r1 へ参加（adapter が connect を配る）
         expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', memberCount: 1 }]);
@@ -191,7 +183,7 @@ describe('Room', () => {
     beforeEach(() => { jest.useFakeTimers(); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
-    it("forwards socket connect/disconnect/room:notfound to the host unit as '-events'", () => {
+    it("forwards socket connect/disconnect/notfound to the host unit as '-events'", () => {
         const socket = mockSocket();
         const log: string[] = [];
         xnew(function Scene(unit: Unit) {
@@ -199,11 +191,11 @@ describe('Room', () => {
             // Room が基本イベントを host unit（Scene）の '-event' へ転送する。
             unit.on('-connect', () => log.push('connect'));
             unit.on('-disconnect', () => log.push('disconnect'));
-            unit.on('-room:notfound', ({ roomId }: any) => log.push(`notfound:${roomId}`));
+            unit.on('-notfound', ({ roomId }: any) => log.push(`notfound:${roomId}`));
         });
 
         socket.fire('connect');
-        socket.fire('room:notfound', { roomId: 'r1' });
+        socket.fire('notfound', { roomId: 'r1' });
         socket.fire('disconnect');
 
         expect(log).toEqual(['connect', 'notfound:r1', 'disconnect']);

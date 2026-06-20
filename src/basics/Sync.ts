@@ -5,7 +5,7 @@
 // 基底コンポーネント。server / client は実行環境で自動判定する（→ core/env）。
 //
 // - Lobby : component({ socket, Component?, maxRooms?, graceMs?, roomNameMax? }) — ロビー + 動的ルーム。
-//           client = ロビー受信を unit.on('-<event>') へ転送 + create() / enter（UI は利用側）。
+//           client = ロビー受信を unit.on('-<event>') へ転送 + create()（UI は利用側）。
 //           server = io.on('connection') を所有し、ルーム台帳・作成・一覧配信・人数計数・空室掃除・入室検証まで
 //                    自前で管理する（部屋ごとに Component を boot）。利用側は socket と Component を渡すだけ。
 // - Room  : component({ socket, room?, name?, Component }) — socket で Component を boot し基本イベントを host へ転送。
@@ -24,7 +24,7 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
         const rooms = new Map<string, any>();   // id → Room unit（id/name/memberCount を公開、-empty で撤去）
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
-        const broadcastRooms = () => socket.to('lobby').emit('lobby:rooms', { rooms: roomList() });
+        const broadcastRooms = () => socket.to('lobby').emit('rooms', { rooms: roomList() });
         const removeRoom = (id: string) => {
             const room = rooms.get(id);
             if (room === undefined) { return; }
@@ -47,18 +47,17 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
         const connection = xnew.scope((conn: any) => {
             const roomId = conn.handshake?.query?.room;
             if (roomId !== undefined && roomId !== '') {
-                // ルーム接続: 消滅 / 不正ルームは弾く（有効ルームは ServerRoom の boot 配線が処理する）。
-                if (!rooms.has(roomId)) { conn.emit('room:notfound', { roomId }); conn.disconnect(true); }
+                // ルーム接続: 消滅 / 不正ルームは弾く（有効ルームは Room の boot 配線が処理する）。
+                if (!rooms.has(roomId)) { conn.emit('notfound', { roomId }); conn.disconnect(true); }
                 return;
             }
-            // ロビー接続: 一覧を返し、enter / room:create を処理する。
+            // ロビー接続: 現在の一覧を返し（以降は作成 / 人数変化で自動配信）、create を処理する。
             conn.join('lobby');
-            conn.emit('lobby:rooms', { rooms: roomList() });
-            conn.on('enter', () => conn.emit('lobby:rooms', { rooms: roomList() }));
-            conn.on('room:create', (payload: any) => {
+            conn.emit('rooms', { rooms: roomList() });
+            conn.on('create', (payload: any) => {
                 const id = createRoom(payload?.name);
-                if (id === null) { conn.emit('room:error', { message: 'room limit reached' }); return; }
-                conn.emit('room:created', { roomId: id });
+                if (id === null) { conn.emit('rejected', { message: 'room limit reached' }); return; }
+                conn.emit('created', { roomId: id });
             });
         });
         socket.on('connection', connection);
@@ -69,16 +68,15 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
     xnew.client(() => {
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
-        socket.on('lobby:rooms', xnew.scope((payload: any) => xnew.emit('-lobby:rooms', payload)));
-        socket.on('room:created', xnew.scope((payload: any) => xnew.emit('-room:created', payload)));
-        socket.on('room:error', xnew.scope((payload: any) => xnew.emit('-room:error', payload)));
+        socket.on('rooms', xnew.scope((payload: any) => xnew.emit('-rooms', payload)));
+        socket.on('created', xnew.scope((payload: any) => xnew.emit('-created', payload)));
+        socket.on('rejected', xnew.scope((payload: any) => xnew.emit('-rejected', payload)));
         unit.on('finalize', () => socket.disconnect());
-        xnew.timeout(() => socket.emit('enter'));   // host のリスナ登録後に（時間差で）一覧を要求
-        return { create(name: string) { socket.emit('room:create', { name }); } };
+        return { create(name: string) { socket.emit('create', { name }); } };
     });
 }
 
-/** Room — 同期された 1 部屋を boot し socket を所有する。基本イベント(connect/disconnect/room:notfound)を
+/** Room — 同期された 1 部屋を boot し socket を所有する。基本イベント(connect/disconnect/notfound)を
  *  host unit の '-<event>' へ転送する。server では加えて人数台帳を持ち、id/name/memberCount を公開、無人が
  *  graceMs 続けば '-empty' を出す（ロビーの空室掃除に使う）。server/client は実行環境で自動判定。 */
 export function Room(unit: Unit, { socket, room, name, Component, graceMs = 3000 }: Pick<BootOptions, 'socket' | 'room' | 'name'> & { Component: Function; graceMs?: number }) {
@@ -101,7 +99,7 @@ export function Room(unit: Unit, { socket, room, name, Component, graceMs = 3000
     xnew.client(() => {
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
-        socket.on('room:notfound', xnew.scope((payload: any) => xnew.emit('-room:notfound', payload)));
+        socket.on('notfound', xnew.scope((payload: any) => xnew.emit('-notfound', payload)));
         unit.on('finalize', () => socket.disconnect());
     });
 
