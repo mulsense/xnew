@@ -16,36 +16,33 @@ import { sync, BootOptions } from '../utils/sync';
 // onAny は connect/disconnect を含まないため、client では基本イベントを明示的に拾う。
 const BASIC_EVENTS = ['connect', 'disconnect'] as const;
 
-/** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。 */
+/** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。
+ *  socket のコールバックは tick の外で走るので、emit を unit スコープで走らせるため xnew.scope で包む。 */
 export function Lobby(unit: Unit, { socket }: { socket: any }) {
-    // 受信を host unit の '-event' へ転送（emit を unit スコープで走らせるため scope で包む）。
-    const forward = xnew.scope((event: string, payload: any) => {
-        xnew.emit('-' + event, (payload !== null && typeof payload === 'object') ? payload : {});
-    });
-
     // server: io.on('connection') を所有し、ロビー / ルーム接続を接続 socket 付きで host へ配る。
     xnew.server(() => {
-        const onConnection = (conn: any) => {
+        const onConnection = xnew.scope((conn: any) => {
             const roomId = conn.handshake?.query?.room;
             if (roomId !== undefined && roomId !== '') {
-                forward('room:connect', { socket: conn, roomId });   // ルームの有効性は host が判定する
+                xnew.emit('-room:connect', { socket: conn, roomId });   // ルームの有効性は host が判定する
                 return;
             }
             conn.join('lobby');
-            forward('connect', { socket: conn });
-            conn.on('lobby:enter', () => forward('lobby:enter', { socket: conn }));
-            conn.on('room:create', (payload: any) => forward('room:create', { socket: conn, name: payload?.name }));
-            conn.on('disconnect', () => forward('disconnect', { socket: conn }));
-        };
+            xnew.emit('-connect', { socket: conn });
+            conn.on('lobby:enter', xnew.scope(() => xnew.emit('-lobby:enter', { socket: conn })));
+            conn.on('room:create', xnew.scope((payload: any) => xnew.emit('-room:create', { socket: conn, name: payload?.name })));
+            conn.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', { socket: conn })));
+        });
         socket.on('connection', onConnection);
         unit.on('finalize', () => socket.off?.('connection', onConnection));
         return { broadcast(event: string, payload?: any) { socket.to('lobby').emit(event, payload); } };
     });
 
-    // client: 受信を転送し、finalize で socket を切断する。
+    // client: 受信を '-<event>' で host へ転送し、finalize で socket を切断する。
     xnew.client(() => {
-        const anyHandler = (event: string, payload: any) => forward(event, payload);
-        const basicHandlers = BASIC_EVENTS.map((event) => [event, (payload: any) => forward(event, payload)] as const);
+        const anyHandler = xnew.scope((event: string, payload: any) =>
+            xnew.emit('-' + event, (payload !== null && typeof payload === 'object') ? payload : {}));
+        const basicHandlers = BASIC_EVENTS.map((event) => [event, xnew.scope(() => xnew.emit('-' + event, {}))] as const);
         socket.onAny(anyHandler);
         basicHandlers.forEach(([event, handler]) => socket.on(event, handler));
         unit.on('finalize', () => {
