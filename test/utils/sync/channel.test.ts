@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import xnew from '../../../src/index';
-import { syncOf, getRootSocket, captureStateTree, applyStateTree } from '../../../src/utils/sync';
+import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 //----------------------------------------------------------------------------------------------------
@@ -100,7 +100,8 @@ describe('event channel (socket.io transport)', () => {
 
         const server = bootServer({ socket: hub.io }, World);                          // on('connect') を登録
         const client1 = bootClient({ socket: hub.connect() }, World, { view: view1 }); // connect → presence に c1
-        const client2 = bootClient({ socket: hub.connect() }, World, { view: view2 }); // connect → presence に c2
+        const socket2 = hub.connect();
+        const client2 = bootClient({ socket: socket2 }, World, { view: view2 });        // connect → presence に c2
 
         const sync = () => {
             const tree = captureStateTree(server);
@@ -129,8 +130,8 @@ describe('event channel (socket.io transport)', () => {
         expect(client1._.children.filter((c: Unit) => syncOf(c).state).length).toBe(2);
         expect(client2._.children.filter((c: Unit) => syncOf(c).state).length).toBe(2);
 
-        // 切断 → 次フレームで despawn（boot が自動バインドした socket は getRootSocket で取得できる）
-        getRootSocket(client2).disconnect();
+        // 切断 → 次フレームで despawn
+        socket2.disconnect();
         asServer(() => Unit.update(Unit.engineRoot));
         expect(captureStateTree(server).filter((n) => n.name === 'Player').length).toBe(1);
     });

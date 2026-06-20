@@ -10,13 +10,13 @@
 // bootClientRoot が直接 io.on('connection') / socket.onAny などを使う（抽象 transport 層は持たない）。
 //
 // 公開は xnew.sync ファサード（sync）。型 export（BootOptions / ClientInfo）は index.ts が再公開し、syncOf /
-// getRootSocket / StateTree / captureStateTree / applyStateTree は Room / テストが使う（capture・apply は
-// ファサードには載せない＝アプリは boot の自動 mirror を使う）。register などの helper や SyncNode・SyncData
-// 等の型は module 内部のみ。
+// StateTree / captureStateTree / applyStateTree は Room / テストが使う（capture・apply はファサードには
+// 載せない＝アプリは boot の自動 mirror を使う）。register などの helper や SyncNode・SyncData 等の型は
+// module 内部のみ。
 //
 // - sync : xnew.sync ファサード（state / register / emit / client / boot）
 // - syncOf / StateTree : unit 単位の同期データ取得 / captureStateTree・applyStateTree が運ぶノード列
-// - ClientInfo / getRootSocket / BootOptions : 自分の {id,name} / socket 解決 / boot 入力
+// - ClientInfo / BootOptions : 自分の {id,name} / boot 入力
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from '../core/unit';
@@ -133,7 +133,7 @@ interface RootInfo {
     name: string | undefined;            // この client 自身の name（server では undefined）
 }
 
-/** boot ルート → 関連情報。findSyncRoot / rootInfoOf / getRootSocket がこれを引く。 */
+/** boot ルート → 関連情報。findSyncRoot / rootInfoOf がこれを引く。 */
 const syncRoots: WeakMap<Unit, RootInfo> = new WeakMap();
 
 /** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
@@ -152,11 +152,6 @@ function rootInfoOf(unit: Unit): RootInfo {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket }, ...).');
     }
     return info;
-}
-
-/** Resolves the socket.io ハンドル bound to the caller's sync-tree root（無ければ throw）. */
-export function getRootSocket(unit: Unit): any {
-    return rootInfoOf(unit).socket;
 }
 
 //----------------------------------------------------------------------------------------------------
