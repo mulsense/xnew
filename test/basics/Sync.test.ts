@@ -38,12 +38,12 @@ describe('Lobby', () => {
         xnew(function Host(unit: Unit) {
             xnew.extend(Lobby, { socket });
             unit.on('-connect', () => log.push('connect'));
-            unit.on('-rooms', ({ rooms }: any) => log.push(`rooms:${rooms.length}`));
+            unit.on('-update', ({ rooms }: any) => log.push(`rooms:${rooms.length}`));
             unit.on('-disconnect', () => log.push('disconnect'));
         });
 
         socket.fire('connect');
-        socket.fire('rooms', { rooms: [1, 2, 3] });
+        socket.fire('update', { rooms: [1, 2, 3] });
         socket.fire('disconnect');
 
         expect(log).toEqual(['connect', 'rooms:3', 'disconnect']);
@@ -108,7 +108,7 @@ function lobbyConn(io: ReturnType<typeof lobbyIo>, roomId?: string) {
         _recv(event: string, payload?: any) { conn.sent.push([event, payload]); },   // server broadcast→client
         _emit(event: string, payload?: any) { handlers.get(event)?.forEach((h) => h(payload)); anyHandlers.forEach((h) => h(event, payload)); },
         _leave() { handlers.get('disconnect')?.forEach((h) => h()); },
-        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'rooms'); return m ? m[1].rooms : undefined; },
+        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'update'); return m ? m[1].rooms : undefined; },
     };
     return conn;
 }

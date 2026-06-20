@@ -24,7 +24,7 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
         const rooms = new Map<string, any>();   // id → Room unit（id/name/memberCount を公開、-empty で撤去）
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
-        const broadcastRooms = () => socket.to('lobby').emit('rooms', { rooms: roomList() });
+        const broadcastRooms = () => socket.to('lobby').emit('update', { rooms: roomList() });
         const removeRoom = (id: string) => {
             const room = rooms.get(id);
             if (room === undefined) { return; }
@@ -53,7 +53,7 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
             }
             // ロビー接続: 現在の一覧を返し（以降は作成 / 人数変化で自動配信）、create を処理する。
             conn.join('lobby');
-            conn.emit('rooms', { rooms: roomList() });
+            conn.emit('update', { rooms: roomList() });
             conn.on('create', (payload: any) => {
                 const id = createRoom(payload?.name);
                 if (id === null) { conn.emit('rejected', { message: 'room limit reached' }); return; }
@@ -68,7 +68,7 @@ export function Lobby(unit: Unit, { socket, Component, maxRooms = 20, graceMs = 
     xnew.client(() => {
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
-        socket.on('rooms', xnew.scope((payload: any) => xnew.emit('-rooms', payload)));
+        socket.on('update', xnew.scope((payload: any) => xnew.emit('-update', payload)));
         socket.on('created', xnew.scope((payload: any) => xnew.emit('-created', payload)));
         socket.on('rejected', xnew.scope((payload: any) => xnew.emit('-rejected', payload)));
         unit.on('finalize', () => socket.disconnect());
