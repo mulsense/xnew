@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf } from '../../../src/utils/sync';
+import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
 import xnew from '../../../src/index';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
@@ -27,7 +27,7 @@ describe('server/client mirror (server/client blocks)', () => {
         function cycle() {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot);                              // server Mover: position += 1
-            xnew.sync.apply(client, xnew.sync.capture(server));    // sync
+            applyStateTree(client, captureStateTree(server));    // sync
             Unit.start(Unit.engineRoot);                               // start newly-created replica units
             Unit.render(Unit.engineRoot);                             // replica render
         }
@@ -57,7 +57,7 @@ describe('server/client mirror (server/client blocks)', () => {
         const client = bootClient({ socket: hub.connect() }, Main);
 
         // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
-        const tree = xnew.sync.capture(server);
+        const tree = captureStateTree(server);
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Mover');
         expect(tree[0].parentId).toBeNull();
@@ -66,7 +66,7 @@ describe('server/client mirror (server/client blocks)', () => {
         function cycle() {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot);
-            xnew.sync.apply(client, xnew.sync.capture(server));
+            applyStateTree(client, captureStateTree(server));
             Unit.start(Unit.engineRoot);
             Unit.render(Unit.engineRoot);
         }
@@ -94,7 +94,7 @@ describe('server/client mirror (server/client blocks)', () => {
         const server = bootServer({ socket: hub.io }, Server);
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
-        const sync = () => xnew.sync.apply(client, xnew.sync.capture(server));
+        const sync = () => applyStateTree(client, captureStateTree(server));
         Unit.start(Unit.engineRoot);
         asServer(() => Unit.update(Unit.engineRoot)); sync();   // server update が Mover を spawn（server 構築）
         expect(client._.children.length).toBe(1);    // spawn mirrored

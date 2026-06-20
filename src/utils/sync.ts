@@ -7,14 +7,14 @@
 // （プレーンなデータ更新に留め、spawn は update で行う）。
 //
 // 公開は xnew.sync ファサード（sync）。型 export（ClientSocket / ServerSocket / RootSocket / BootOptions /
-// ClientInfo）は index.ts が再公開し、syncOf / getRootSocket / socketio / StateTree は Room / テストが使う。
-// capture / apply / register / presence などの helper や SyncNode・SyncData 等の型は module 内部のみ
-// （アプリは sync ファサード経由で使う）。
+// ClientInfo）は index.ts が再公開し、syncOf / getRootSocket / socketio / StateTree / captureStateTree /
+// applyStateTree は Room / テストが使う（capture・apply はファサードには載せない＝アプリは boot の自動
+// mirror を使う）。register などの helper や SyncNode・SyncData 等の型は module 内部のみ。
 //
-// - sync : xnew.sync ファサード（state / register / capture / apply / emit / client / clients / boot）
-// - syncOf / StateTree : unit 単位の同期データ取得 / capture・apply が運ぶノード列
+// - sync : xnew.sync ファサード（state / register / emit / client / boot）
+// - syncOf / StateTree : unit 単位の同期データ取得 / captureStateTree・applyStateTree が運ぶノード列
 // - ClientSocket / ServerSocket / RootSocket / socketio : socket 契約と socket.io アダプタ
-// - ClientInfo / getRootSocket / BootOptions : presence 公開情報 / socket 解決 / boot 入力
+// - ClientInfo / getRootSocket / BootOptions : 自分の {id,name} / socket 解決 / boot 入力
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from '../core/unit';
@@ -48,13 +48,7 @@ export function syncOf(unit: Unit): SyncData {
 // 同期ノード id の採番カウンタ（identity 用。順序保証は不要で reset を跨いで単調増加でよい）。
 let syncIdCounter = 1;
 
-/** 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。 */
-function registerOnUnit(unit: Unit, components: Record<string, Function>): void {
-    const data = syncOf(unit);
-    data.registry = Object.assign(data.registry ?? {}, components);
-}
-
-function captureStateTree(root: Unit): StateTree {
+export function captureStateTree(root: Unit): StateTree {
     const nodes: StateTree = [];
 
     // 直接の親のレジストリ上の登録名（未登録なら undefined = 同期対象外）。
@@ -94,7 +88,7 @@ const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
  * （withEnvironment）。production の client では no-op だが、server の自動 broadcast から同期適用される
  * テスト文脈でも replica の client ブロックが正しく走る。
  */
-function applyStateTree(root: Unit, tree: StateTree): void {
+export function applyStateTree(root: Unit, tree: StateTree): void {
     withEnvironment('client', () => {
         const map = getOrCreate(reconcileMaps, root, () => new Map<number, Unit>());
         const incoming = new Set<number>(tree.map((node) => node.id));
@@ -154,26 +148,20 @@ export type RootSocket = ClientSocket | ServerSocket;
 // 同期ツリーのルート情報（syncRoots）
 //----------------------------------------------------------------------------------------------------
 
-/** 1 接続者の公開情報（presence のエントリ／自分自身）。 */
+/** この client 自身の identity（{ id, name }）。 */
 export interface ClientInfo {
     id: string | undefined;
     name: string | undefined;
 }
 
-/** boot ルートに紐づく内部情報。socket・自分の name・presence 名簿を持つ。 */
+/** boot ルートに紐づく内部情報。socket と自分の name を持つ。 */
 interface RootInfo {
     socket: RootSocket | null;
     name: string | undefined;            // この client 自身の name（server では undefined）
-    roster: Map<string, ClientInfo>;     // presence（server が権威、client は mirror）
 }
 
-/** boot ルート → 関連情報。findSyncRoot / getRootSocket / getRootClient(s) がこれを引く。 */
+/** boot ルート → 関連情報。findSyncRoot / rootInfoOf / getRootSocket がこれを引く。 */
 const syncRoots: WeakMap<Unit, RootInfo> = new WeakMap();
-
-/** unit のリスナへ props を配る（dispatchSync が使う）。 */
-function deliver(unit: Unit, event: string, props: any): void {
-    unit._.listeners.get(event)?.forEach((item) => item.execute(props));
-}
 
 /** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
 function findSyncRoot(unit: Unit): Unit | null {
@@ -198,17 +186,6 @@ export function getRootSocket(unit: Unit): RootSocket {
     return rootInfoOf(unit).socket as RootSocket;
 }
 
-/** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
-function getRootClient(unit: Unit): ClientInfo {
-    const info = rootInfoOf(unit);
-    return { id: (info.socket as any).id, name: info.name };
-}
-
-/** 同じ room の全接続者（presence 名簿のスナップショット）。 */
-function getRootClients(unit: Unit): ClientInfo[] {
-    return [...rootInfoOf(unit).roster.values()];
-}
-
 //----------------------------------------------------------------------------------------------------
 // boot — ルート生成 + 配線。server/client の分岐は sync.boot の 1 箇所だけ（→ ファサード末尾）。
 // 配線は 2 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
@@ -220,60 +197,41 @@ function getRootClients(unit: Unit): ClientInfo[] {
 export interface BootOptions {
     socket: any;         // socket.io の io（server）/ socket（client）。
     room?: string;       // server のときだけ意味を持つ（接続を query.room で絞る）。
-    name?: string;       // この client の表示名（presence に載り、xnew.sync.client.name で読める）。
+    name?: string;       // この client の表示名（xnew.sync.client.name で読める）。
 }
 
-/** boot ルート Unit と RootInfo を生成して syncRoots へ登録する（server/client 共通の土台）。 */
-function createSyncRoot(socket: RootSocket, opts: BootOptions, parent: Unit | null, args: any[]): { root: Unit; info: RootInfo } {
-    // socket / name / roster は unit に保持せず、setup フックで syncRoots へ登録する。
-    const info: RootInfo = { socket, name: opts.name, roster: new Map() };
-    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-    return { root, info };
+/** boot ルート Unit を生成し、socket/name を syncRoots へ登録する（server/client 共通の土台）。 */
+function createSyncRoot(socket: RootSocket, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
+    // socket / name は unit に保持せず、setup フックで syncRoots へ登録する。
+    const info: RootInfo = { socket, name: opts.name };
+    return new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
 }
 
-/** server ルートを生成・配線。下り mirror / dispatcher / presence（名簿更新→broadcast）。 */
+/** server ルートを生成・配線。下り mirror（update で capture→broadcast）/ dispatcher / connect・disconnect 配布。 */
 function bootServerRoot(server: ServerSocket, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    const { root, info } = createSyncRoot(server, opts, parent, args);
-    const broadcastRoster = () => server.emit('sync:roster', { clients: [...info.roster.values()] });
-    // connect/disconnect は名簿更新 + broadcast に加え、root 配下の unit.on へ配る（host への転送は Room の責務）。
-    const presence = (event: 'connect' | 'disconnect', clientId: string) => {
-        broadcastRoster();
-        dispatchSync(root, event, clientId, undefined);
-    };
+    const root = createSyncRoot(server, opts, parent, args);
     root.on('update', () => server.emit('sync', captureStateTree(root)));
     server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-    server.on('connect', (clientId) => { info.roster.set(clientId, { id: clientId, name: undefined }); presence('connect', clientId); });
-    server.on('disconnect', (clientId) => { info.roster.delete(clientId); presence('disconnect', clientId); });
-    server.on('sync:hello', (clientId, payload) => {
-        info.roster.set(clientId, { id: clientId, name: payload?.name });
-        broadcastRoster();
-    });
+    // connect/disconnect は root 配下の unit.on へ配る（host への転送は Room の責務）。
+    server.on('connect', (clientId) => dispatchSync(root, 'connect', clientId, undefined));
+    server.on('disconnect', (clientId) => dispatchSync(root, 'disconnect', clientId, undefined));
     return root;
 }
 
-/** client ルートを生成・配線。下り apply / dispatcher / presence mirror + hello 申告。 */
+/** client ルートを生成・配線。下り apply（on('sync')→apply）/ dispatcher。 */
 function bootClientRoot(client: ClientSocket, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    const { root, info } = createSyncRoot(client, opts, parent, args);
+    const root = createSyncRoot(client, opts, parent, args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     client.on('sync', onSync);
     root.on('finalize', () => client.off('sync', onSync));
     client.onAny((event, message) => dispatchSync(root, event, undefined, message));
-    // presence: 受け取った名簿を mirror する。
-    client.on('sync:roster', (payload: any) => {
-        info.roster.clear();
-        for (const c of (Array.isArray(payload?.clients) ? payload.clients : [])) { info.roster.set(c.id, { id: c.id, name: c.name }); }
-    });
-    // 自分の name を hello で申告（roster ハンドラ登録後。前提: server を先に boot）。
-    const sendHello = () => client.emit('sync:hello', { name: info.name });
-    if ((client as any).id) { sendHello(); }   // 既に接続済みの socket なら即申告
-    client.on('connect', sendHello);           // socket.io の初回 / 再接続で申告
     return root;
 }
 
 /** 1 つの受信イベントを、root 配下の該当 unit リスナへ配る。 */
 function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
-    if (root._.status === 'finalized' || event.startsWith('sync:')) {
-        return;   // 'sync:hello' / 'sync:roster' などの予約イベントは app ユニットへ配らない
+    if (root._.status === 'finalized' || event === 'sync') {
+        return;   // 'sync'（状態 mirror の予約イベント）は app ユニットへ配らない
     }
     const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
     const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
@@ -286,7 +244,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
     targets.forEach((unit) => {
         if (findSyncRoot(unit) !== root) { return; }                  // 別ルートの unit には配らない
         if (selfOnly && syncOf(unit).id !== syncId) { return; }
-        deliver(unit, event, props);
+        unit._.listeners.get(event)?.forEach((item) => item.execute(props));
     });
 }
 
@@ -369,18 +327,9 @@ export function socketio(ioOrSocket: any, opts: { room?: string } = {}): Transpo
 // 各メソッドは暗黙の Unit.currentUnit に作用するため、Component 関数 / ハンドラの中から呼ぶ。
 //
 // - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
-// - capture / apply  : 手動同期用（boot の自動 mirror を使わない場合）
-// - emit / client / clients : イベント送信 / 自分の {id,name} / 同 room の全接続者
+// - emit / client : イベント送信 / 自分の {id,name}
 // - boot             : socket をバインドしたルート生成（server/client は実行環境で自動判定）
 //----------------------------------------------------------------------------------------------------
-
-/** Component / ハンドラ内であることを保証して currentUnit を返す（外だと throw）。 */
-function activeUnit(api: string): Unit {
-    if (Unit.currentUnit === null) {
-        throw new Error(`xnew.sync.${api} can not be called outside a component.`);
-    }
-    return Unit.currentUnit;
-}
 
 export const sync = {
     state(initial: Record<string, any> = {}): Record<string, any> {
@@ -393,27 +342,21 @@ export const sync = {
         return data.state;
     },
     register(components: Record<string, Function>): void {
-        if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.sync.register can not be called outside a component.');
+        const unit = Unit.currentUnit;
+        if (unit._.status !== 'invoked') {
+            throw new Error('xnew.sync.register must be called during component initialization.');
         }
-        registerOnUnit(Unit.currentUnit, components);
-    },
-    capture(root: Unit): StateTree {
-        return captureStateTree(root);
-    },
-    apply(root: Unit, tree: StateTree): void {
-        applyStateTree(root, tree);
+        // 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。
+        const data = syncOf(unit);
+        data.registry = Object.assign(data.registry ?? {}, components);
     },
     /** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
     get client(): ClientInfo {
-        return getRootClient(activeUnit('client'));
-    },
-    /** 同じ room の全接続者（presence 名簿。name は入室時に boot / Room の name で設定）。 */
-    get clients(): ReadonlyArray<ClientInfo> {
-        return getRootClients(activeUnit('clients'));
+        const info = rootInfoOf(Unit.currentUnit);
+        return { id: (info.socket as any).id, name: info.name };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
-        const unit = activeUnit('emit');
+        const unit = Unit.currentUnit;
         // 送信ユニットの syncId を載せる（受信側の '-event' ルーティング用）。
         getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
     },

@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import xnew from '../../../src/index';
-import { syncOf, getRootSocket, ClientSocket, socketio } from '../../../src/utils/sync';
+import { syncOf, getRootSocket, ClientSocket, socketio, captureStateTree, applyStateTree } from '../../../src/utils/sync';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 //----------------------------------------------------------------------------------------------------
@@ -103,9 +103,9 @@ describe('event channel (socket.io transport)', () => {
         const client2 = bootClient({ socket: hub.connect() }, World, { view: view2 }); // connect → presence に c2
 
         const sync = () => {
-            const tree = xnew.sync.capture(server);
-            xnew.sync.apply(client1, tree);
-            xnew.sync.apply(client2, tree);
+            const tree = captureStateTree(server);
+            applyStateTree(client1, tree);
+            applyStateTree(client2, tree);
         };
         function cycle() {
             Unit.start(Unit.engineRoot);
@@ -118,7 +118,7 @@ describe('event channel (socket.io transport)', () => {
         cycle();   // f2: client emit → 各 Player の on('move') が受信時に state を更新
         cycle();
 
-        const tree = xnew.sync.capture(server);
+        const tree = captureStateTree(server);
         const players = tree.filter((n) => n.name === 'Player');
         expect(players.length).toBe(2);
         const byClient = Object.fromEntries(players.map((p) => [p.state.clientId, p.state]));
@@ -132,7 +132,7 @@ describe('event channel (socket.io transport)', () => {
         // 切断 → 次フレームで despawn（boot が自動バインドした socket は getRootSocket で取得できる）
         (getRootSocket(client2) as ClientSocket).disconnect();
         asServer(() => Unit.update(Unit.engineRoot));
-        expect(xnew.sync.capture(server).filter((n) => n.name === 'Player').length).toBe(1);
+        expect(captureStateTree(server).filter((n) => n.name === 'Player').length).toBe(1);
     });
 
     it('boot auto-wires the down-channel (server broadcast / client apply)', () => {
@@ -153,7 +153,7 @@ describe('event channel (socket.io transport)', () => {
 
         const replica = client._.children.find((c: Unit) => syncOf(c).state);
         expect(replica).toBeDefined();
-        expect(syncOf(replica!).state!.x).toBe(xnew.sync.capture(server).find((n) => n.name === 'Mover')!.state.x);
+        expect(syncOf(replica!).state!.x).toBe(captureStateTree(server).find((n) => n.name === 'Mover')!.state.x);
         expect(syncOf(replica!).state!.x).toBeGreaterThanOrEqual(1);
     });
 

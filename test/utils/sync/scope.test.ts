@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf } from '../../../src/utils/sync';
+import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
 import xnew from '../../../src/index';
 import { ioMock, bootServer, bootClient } from './io-mock';
 
@@ -20,7 +20,7 @@ describe('scoped registry isolation', () => {
             xnew(ParentA);
             xnew(ParentB);
         });
-        const tree = xnew.sync.capture(root);
+        const tree = captureStateTree(root);
         const childNodes = tree.filter(n => n.name === 'Child');
         expect(childNodes).toHaveLength(2);
         expect(childNodes.map(n => n.state.kind).sort()).toEqual(['A', 'B']);
@@ -34,7 +34,7 @@ describe('scoped registry isolation', () => {
         });
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
 
-        xnew.sync.apply(client, xnew.sync.capture(server));
+        applyStateTree(client, captureStateTree(server));
 
         const replicaA = client._.children.find(c => c._.Components.includes(ParentA))!;
         const replicaB = client._.children.find(c => c._.Components.includes(ParentB))!;
@@ -47,7 +47,7 @@ describe('scoped registry isolation', () => {
     it('a child not registered by its parent is omitted from capture', () => {
         function Loose(unit: Unit) { xnew.sync.state({ v: 1 }); }
         const root = xnew(function Root() { xnew(Loose); });   // Root は Loose を register しない
-        const tree = xnew.sync.capture(root);
+        const tree = captureStateTree(root);
         expect(tree).toHaveLength(0);
     });
 
@@ -55,7 +55,7 @@ describe('scoped registry isolation', () => {
         const err = jest.spyOn(console, 'error').mockImplementation(() => {});
         function Solo(unit: Unit) {}
         // トップレベル（構築中のユニットが無い）で呼ぶとエラー
-        expect(() => xnew.sync.register({ Solo })).toThrow('outside a component');
+        expect(() => xnew.sync.register({ Solo })).toThrow('during component initialization');
         err.mockRestore();
     });
 });

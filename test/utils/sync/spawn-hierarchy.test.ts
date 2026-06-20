@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf } from '../../../src/utils/sync';
+import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
 import xnew from '../../../src/index';
 import { ioMock, bootServer, bootClient, asServerAsync } from './io-mock';
 
@@ -39,7 +39,7 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     function sync(server: Unit, client: Unit) {
-        return xnew.sync.apply(client, xnew.sync.capture(server));
+        return applyStateTree(client, captureStateTree(server));
     }
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
@@ -50,7 +50,7 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         await asServerAsync(() => jest.advanceTimersByTimeAsync(500));   // interval 発火 → Enemy spawn（server 構築）
         Unit.update(Unit.engineRoot);                          // server Enemy が移動
 
-        const tree = xnew.sync.capture(server);
+        const tree = captureStateTree(server);
         const moverNode = tree.find(n => n.name === 'Mover')!;
         const enemyNode = tree.find(n => n.name === 'Enemy')!;
         expect(moverNode.parentId).toBeNull();
