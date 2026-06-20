@@ -11,7 +11,7 @@ import { Screen } from './basics/Screen';
 import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
 import { Scene } from './basics/Scene';
-import { Room } from './basics/Room';
+import { Lobby, Room } from './basics/Sync';
 import { Selectable } from './basics/Selectable';
 import { VolumeController } from './basics/Volume';
 
@@ -30,6 +30,7 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    Lobby,
     Room,
     Selectable,
     VolumeController,

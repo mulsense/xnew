@@ -32,12 +32,10 @@ function LobbyScene(unit) {
     xnew.extend(xnew.basics.Scene);
     const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
-    // ロビー接続はこのシーンが所有する（room 無し = サーバーはロビー接続として扱う。forceNew で独立）。
+    // ロビー接続（room 無し = サーバーはロビー接続として扱う。forceNew で独立）。
+    // Lobby が受信イベントを unit.on('-event') へ転送し、finalize で socket を切断する。
     const lobbySocket = window.io({ forceNew: true });
-    const onConnect = () => app.setStatus('ロビー', true);
-    const onDisconnect = () => app.setStatus('切断', false);
-    lobbySocket.on('connect', onConnect);
-    lobbySocket.on('disconnect', onDisconnect);
+    xnew.extend(xnew.basics.Lobby, { socket: lobbySocket });
 
     let rooms = [];
     let listEl;
@@ -52,7 +50,7 @@ function LobbyScene(unit) {
                 event.preventDefault();
                 const name = nameInput.element.value.trim();
                 if (!name) { return; }
-                lobbySocket.emit('room:create', { name });
+                unit.create(name);   // Lobby が公開（内部で room:create を emit）
                 nameInput.element.value = '';
             });
         });
@@ -82,22 +80,14 @@ function LobbyScene(unit) {
         });
     }
 
-    const onRooms = ({ rooms: list }) => { rooms = list; render(); };
-    const onCreated = ({ roomId }) => unit.change(GameScene, { roomId });
-    const onError = ({ message }) => { hintEl.element.textContent = message; };
-    lobbySocket.on('lobby:rooms', onRooms);
-    lobbySocket.on('room:created', onCreated);
-    lobbySocket.on('room:error', onError);
-    // forceNew 接続なので finalize で閉じるだけ（残りの on は接続破棄で消える）。
-    // 先に connect/disconnect を外し、切断時の '切断' 表示が GameScene への遷移に被らないようにする。
-    unit.on('finalize', () => {
-        lobbySocket.off('connect', onConnect);
-        lobbySocket.off('disconnect', onDisconnect);
-        lobbySocket.disconnect();
-    });
+    // 受信イベントは Lobby が '-event' で転送する（lobby:enter の送信・finalize の切断も Lobby が担う）。
+    unit.on('-connect', () => app.setStatus('ロビー', true));
+    unit.on('-disconnect', () => app.setStatus('切断', false));
+    unit.on('-lobby:rooms', ({ rooms: list }) => { rooms = list; render(); });
+    unit.on('-room:created', ({ roomId }) => unit.change(GameScene, { roomId }));
+    unit.on('-room:error', ({ message }) => { hintEl.element.textContent = message; });
 
-    lobbySocket.emit('lobby:enter');
-    render();   // 既に rooms があれば即描画
+    render();   // 初期描画（一覧は -lobby:rooms 受信で更新）
 }
 
 //----------------------------------------------------------------------------------------------------
