@@ -3,23 +3,24 @@ import { World } from './game.js';
 
 //----------------------------------------------------------------------------------------------------
 // multi-client（client 側）— ロビーでルームを作成 / 入室してプレイする。
-//   接続は 2 本（サーバーは query.room の有無で判別）:
-//     - lobbySocket : room 無し → ロビー（ルーム一覧 / 作成）
-//     - gameSocket  : query{room} 付き → そのルームに参加（入室のたびに張り直す）
+//   各シーンが自分の socket.io 接続を所有する（サーバーは query.room の有無で lobby/game を判別）:
+//     - LobbyScene : window.io()（room 無し）→ ロビー（ルーム一覧 / 作成）
+//     - GameScene  : window.io({ query:{room}, forceNew }) → そのルームに参加
 //   ゲーム本体 game.js は World が clientId/emit('-join')/move を処理する（boot へ socket.io の socket を渡すだけ）。
 //----------------------------------------------------------------------------------------------------
 
-const lobbySocket = window.io();   // room 無し → サーバーはロビー接続として扱う
-const statusEl = document.getElementById('status');
-const setStatus = (text, ok) => { statusEl.textContent = text; statusEl.className = ok ? 'text-green-600' : 'text-red-500'; };
-
-if (lobbySocket.connected) { setStatus('ロビー', true); }
-lobbySocket.on('connect', () => setStatus('ロビー', true));
-lobbySocket.on('disconnect', () => setStatus('切断', false));
-
-// App は #app を要素に持つ親。各シーン（Lobby/Game）はこの App の子として相互にスワップする
-// （Scene.change は unit.parent の下へ次シーンを mount するため、共通の親が要る）。
-xnew(document.getElementById('app'), function App() { xnew(LobbyScene); });
+// App — #app を要素に持つコンテナ。ステータス表示(setStatus)を公開し、最初のシーンを mount する。
+//   各シーン（Lobby/Game）はこの App の子として相互にスワップする（Scene.change が unit.parent の下へ
+//   次シーンを mount → finalize するため、共通の親が要る。シーンを直接 #app に張ると親が engineRoot に
+//   なり #app の外へ出てしまう）。シーンからは xnew.context(App).setStatus(...) で表示を更新する。
+function App() {
+    const statusEl = document.getElementById('status');
+    xnew(LobbyScene);
+    return {
+        setStatus(text, ok) { statusEl.textContent = text; statusEl.className = ok ? 'text-green-600' : 'text-red-500'; },
+    };
+}
+xnew(document.getElementById('app'), App);
 
 //----------------------------------------------------------------------------------------------------
 // LobbyScene — ルーム作成 / 一覧 / 入室
@@ -29,7 +30,14 @@ xnew(document.getElementById('app'), function App() { xnew(LobbyScene); });
 
 function LobbyScene(unit) {
     xnew.extend(xnew.basics.Scene);
-    if (lobbySocket.connected) { setStatus('ロビー', true); }
+    const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
+
+    // ロビー接続はこのシーンが所有する（room 無し = サーバーはロビー接続として扱う。forceNew で独立）。
+    const lobbySocket = window.io({ forceNew: true });
+    const onConnect = () => app.setStatus('ロビー', true);
+    const onDisconnect = () => app.setStatus('切断', false);
+    lobbySocket.on('connect', onConnect);
+    lobbySocket.on('disconnect', onDisconnect);
 
     let rooms = [];
     let listEl;
@@ -80,10 +88,12 @@ function LobbyScene(unit) {
     lobbySocket.on('lobby:rooms', onRooms);
     lobbySocket.on('room:created', onCreated);
     lobbySocket.on('room:error', onError);
+    // forceNew 接続なので finalize で閉じるだけ（残りの on は接続破棄で消える）。
+    // 先に connect/disconnect を外し、切断時の '切断' 表示が GameScene への遷移に被らないようにする。
     unit.on('finalize', () => {
-        lobbySocket.off('lobby:rooms', onRooms);
-        lobbySocket.off('room:created', onCreated);
-        lobbySocket.off('room:error', onError);
+        lobbySocket.off('connect', onConnect);
+        lobbySocket.off('disconnect', onDisconnect);
+        lobbySocket.disconnect();
     });
 
     lobbySocket.emit('lobby:enter');
@@ -92,7 +102,7 @@ function LobbyScene(unit) {
 
 //----------------------------------------------------------------------------------------------------
 // GameScene — そのルームへ接続し、client ツリー(World) を 1 ペイン mount してプレイ
-//   gameSocket は query{room} 付きで張る（forceNew で lobbySocket と分離）。socket の用意と HTML
+//   gameSocket は query{room} 付きで張る（forceNew で独立接続）。socket の用意と HTML
 //   （戻るボタン・ペインの mount 先）だけを持ち、room 関連の配線（boot / socket 所有）は
 //   xnew.basics.Room に委ねる。Room へ { socket: gameSocket } を渡すと、boot は基本
 //   イベント（connect / disconnect / room:notfound）を boot を呼んだ親ユニット（= この GameScene）の
@@ -101,6 +111,7 @@ function LobbyScene(unit) {
 
 function GameScene(unit, { roomId }) {
     xnew.extend(xnew.basics.Scene);
+    const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
     const gameSocket = window.io({ query: { room: roomId }, forceNew: true });
 
@@ -112,7 +123,7 @@ function GameScene(unit, { roomId }) {
     // socket は boot へ渡され、基本イベントは boot 親（この GameScene）の unit.on へ届く。
     xnew.extend(xnew.basics.Room, { socket: gameSocket, Component: World });
 
-    unit.on('connect', () => setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
-    unit.on('disconnect', () => setStatus('切断', false));
+    unit.on('connect', () => app.setStatus(`ルーム ${roomId}: ${gameSocket.id}`, true));
+    unit.on('disconnect', () => app.setStatus('切断', false));
     unit.on('room:notfound', () => unit.change(LobbyScene));   // 消滅ルームへ来たらロビーへ
 }
