@@ -169,21 +169,16 @@ export interface BootOptions {
     name?: string;       // この client の表示名（xnew.sync.client.name で読める）。
 }
 
-/** boot ルート Unit を生成し、解決済み handle/room/name を syncRoots へ登録する（server/client 共通の土台）。 */
-function createSyncRoot(handle: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    // handle / room / name は unit に保持せず、setup フックで syncRoots へ登録する。
-    const info: RootInfo = { handle, room: opts.room, name: opts.name };
-    return new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-}
-
 /**
  * server ルートを生成・配線（socket.io の io を直接使う）。下り mirror（update で capture→room へ broadcast）と、
  * io.on('connection') ごとに connect / 全受信イベント / disconnect を clientId 付きで root 配下の unit.on へ配る。
  * room 指定時は query.room が一致する接続だけを扱い、配信も io.to(room) に絞る。
  */
 function bootServerRoot(io: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    const root = createSyncRoot(io, opts, parent, args);
     const room = opts.room;
+    // handle / room / name は unit に保持せず、setup フックで syncRoots へ登録する。
+    const info: RootInfo = { handle: io, room, name: opts.name };
+    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const target = () => (room !== undefined ? io.to(room) : io);   // 配信は room があれば絞る
     root.on('update', () => target().emit('sync', captureStateTree(root)));
     io.on('connection', (socket: any) => {
@@ -199,7 +194,9 @@ function bootServerRoot(io: any, opts: BootOptions, parent: Unit | null, args: a
 
 /** client ルートを生成・配線（socket.io の socket を直接使う）。下り apply（on('sync')→apply）/ 受信を root 配下へ配る。 */
 function bootClientRoot(socket: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    const root = createSyncRoot(socket, opts, parent, args);
+    // handle / name は unit に保持せず、setup フックで syncRoots へ登録する（client は room を持たない）。
+    const info: RootInfo = { handle: socket, room: undefined, name: opts.name };
+    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
     root.on('finalize', () => socket.off('sync', onSync));
