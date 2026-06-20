@@ -121,8 +121,8 @@ describe('Lobby (server)', () => {
     const mountLobby = (io: any, { graceMs, ...lobbyProps }: any = {}) =>
         xnew(function Host(unit: Unit) {
             xnew.extend(Lobby, { io, ...lobbyProps });
-            unit.on('-create', ({ id, name, accept }: any) => {
-                accept(xnew(unit, Room, { io, room: id, name, Component: World, graceMs }));
+            unit.on('-create', ({ id, name }: any) => {
+                xnew(unit, Room, { io, room: id, name, Component: World, graceMs });
             });
         });
 

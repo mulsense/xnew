@@ -30,8 +30,8 @@ const io = new IOServer(httpServer);
 // basics Lobby が台帳・一覧配信・入室検証を持つ。部屋生成だけ '-create' で委譲されるので、ここで Room を作る。
 function Lobby(unit) {
     xnew.extend(xnew.basics.Lobby, { io });
-    unit.on('-create', ({ id, name, accept }) => {
-        accept(xnew(unit, Room, { io, room: id, name }));
+    unit.on('-create', ({ id, name }) => {
+        xnew(unit, Room, { io, room: id, name });   // Room が自分を台帳へ載せる（created は Lobby が返す）
     });
 }
 

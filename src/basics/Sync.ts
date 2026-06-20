@@ -7,10 +7,11 @@
 //
 // - Lobby : component({ io?, socket?, maxRooms?, roomNameMax? }) — ロビー + 動的ルーム。
 //           client（socket）= ロビー受信を unit.on('-<event>') へ転送 + create()（UI は利用側）。
-//           server（io）= io.on('connection') を所有し、ルーム台帳・一覧配信・人数計数・空室掃除・入室検証を
-//                    自前で管理する。ただし部屋の生成(xnew(Room,...))自体は持たず host へ委譲する
-//                    （'-create' { id, name, accept } を出し、host が作った Room を accept(room) で台帳へ登録）。
-// - Room  : component({ io?, socket?, room?, name?, Component }) — ハンドルで Component を boot し基本イベントを host へ転送。
+//           server（io）= io.on('connection') を所有し、入室検証 +「台帳(rooms)・一覧再配信(broadcast)」を公開する。
+//                    部屋の生成・台帳への出し入れは持たず host へ委譲する（'-create' { id, name } を出し、host が
+//                    xnew(Room,...)。Room が台帳へ載ったのを確認して creator へ created を返す）。
+// - Room  : component({ io?, socket?, room?, name?, Component }) — Component を boot し基本イベントを host へ転送。
+//           親に Lobby があれば（context(Lobby)）その台帳へ自分を出し入れし、人数変化で一覧を再配信する。
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
@@ -21,28 +22,13 @@ import { sync, BootOptions } from '../utils/sync';
  *  socket のコールバックは tick の外で走るので、emit を unit スコープで走らせるため xnew.scope で包む。 */
 export function Lobby(unit: Unit, { io, socket, maxRooms = 20, roomNameMax = 16 }:
     { io?: any; socket?: any; maxRooms?: number; roomNameMax?: number }) {
-    // server: io.on('connection') を所有し、台帳・一覧配信・人数・空室掃除・入室検証を持つ。
-    // 部屋の生成自体は host へ委譲する（'-create' を出し、作られた Room を accept で台帳へ登録）。
+    // server: io.on('connection') を所有し、入室検証と「台帳(rooms)＋一覧再配信(broadcast)」を持つ。
+    // 部屋の生成・台帳への出し入れは Room 側に委ねる（host が xnew(Room,...) し、Room が context(Lobby) 経由で登録）。
     xnew.server(() => {
-        const rooms = new Map<string, any>();   // id → Room unit（id/name/memberCount を公開、-empty で撤去）
+        const rooms = new Map<string, { id: string; name: string; memberCount: number }>();   // id → 行情報（Room が出し入れ）
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
-        const broadcastRooms = () => io.to('lobby').emit('update', { rooms: roomList() });
-        const removeRoom = (id: string) => {
-            const room = rooms.get(id);
-            if (room === undefined) { return; }
-            rooms.delete(id);
-            room.finalize();   // Room の finalize が booted root を畳む
-            broadcastRooms();
-        };
-        // host が作った Room を台帳へ登録し、人数変化での一覧再配信・空室撤去を配線する。
-        const register = (id: string, room: any) => {
-            room.on('-connect', broadcastRooms);     // 人数変化のたびに一覧を再配信
-            room.on('-disconnect', broadcastRooms);
-            room.on('-empty', () => removeRoom(id));  // 無人が graceMs 続いたら撤去
-            rooms.set(id, room);
-            broadcastRooms();
-        };
+        const broadcast = () => io.to('lobby').emit('update', { rooms: roomList() });
         const connection = xnew.scope((conn: any) => {
             const roomId = conn.handshake?.query?.room;
             if (roomId !== undefined && roomId !== '') {
@@ -57,12 +43,17 @@ export function Lobby(unit: Unit, { io, socket, maxRooms = 20, roomNameMax = 16 
                 if (rooms.size >= maxRooms) { conn.emit('rejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                // 生成は host に委譲: host が xnew(Room, ...) して accept(room) を呼ぶと台帳へ載り created を返す。
-                xnew.emit('-create', { id, name, accept: (room: any) => { register(id, room); conn.emit('created', { roomId: id }); } });
+                // 生成は host へ委譲（同期 emit）。host が xnew(Room, ...) すると Room 自身が台帳へ載るので、
+                // 台帳に入ったこと（＝生成成功）を確認して creator へ created を返す。
+                xnew.emit('-create', { id, name });
+                if (rooms.has(id)) { conn.emit('created', { roomId: id }); }
             }));
         });
         io.on('connection', connection);
         unit.on('finalize', () => io.off('connection', connection));
+
+        // Room が context(Lobby) で台帳へ自分を出し入れし、人数変化で一覧を再配信できるよう公開する。
+        return { get rooms() { return rooms; }, broadcast };
     });
 
     // client: ロビーの受信イベントを host unit の '-<event>' へ転送し、finalize で socket を切断する。
@@ -79,21 +70,29 @@ export function Lobby(unit: Unit, { io, socket, maxRooms = 20, roomNameMax = 16 
 
 /** Room — 同期された 1 部屋を boot し socket を所有する。基本イベント(connect/disconnect/notfound)を
  *  host unit の '-<event>' へ転送する。server では加えて人数台帳を持ち、id/name/memberCount を公開、無人が
- *  graceMs 続けば '-empty' を出す（ロビーの空室掃除に使う）。server/client は実行環境で自動判定。 */
+ *  graceMs 続けば '-empty' を出す。親に Lobby があれば（context(Lobby)）その台帳へ自分を登録し、人数変化で
+ *  一覧を再配信、空室確定で自分を台帳から外して撤去する。server/client は実行環境で自動判定。 */
 export function Room(unit: Unit, { io, socket, room, name, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room' | 'name'> & { Component: Function; graceMs?: number }) {
     const client = sync.boot({ io, socket, room, name }, Component);   // server は io / client は socket（boot が env で選ぶ）
     unit.on('finalize', () => client.finalize());
     const members = new Set<string>();
 
     // server: connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
+    // 親に Lobby があれば、その台帳(rooms)へ自分を出し入れし人数変化で一覧を再配信する（旧 Lobby.register を内包）。
     xnew.server(() => {
+        const lobby = xnew.context(Lobby);   // 無ければ undefined（Lobby 配下でない単独利用）
+        // 台帳に載せる行情報。自分の interface はまだ未確定なので memberCount だけ closure から live に返す。
+        const entry = { id: room ?? '', name: name ?? '', get memberCount() { return members.size; } };
         let graceTimer: ReturnType<typeof setTimeout> | null = null;
         const clearGrace = () => { if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; } };
-        const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(xnew.scope(() => { if (members.size === 0) { xnew.emit('-empty', {}); } }), graceMs); };
-        client.on('connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); }));
-        client.on('disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); if (members.size === 0) { scheduleCleanup(); } }));
+        const remove = () => { lobby.rooms.delete(room); lobby.broadcast(); unit.finalize(); };   // 無人確定 → 台帳から外して撤去
+        const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(xnew.scope(() => { if (members.size === 0) { xnew.emit('-empty', {}); if (lobby !== undefined) { remove(); } } }), graceMs); };
+        client.on('connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); lobby?.broadcast(); }));
+        client.on('disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); lobby?.broadcast(); if (members.size === 0) { scheduleCleanup(); } }));
         unit.on('finalize', clearGrace);
-        scheduleCleanup();   // 作成直後に無人なら graceMs 後に '-empty'（最初の connect で解除）
+        lobby?.rooms.set(room, entry);   // 台帳へ自分を登録し、直ちに一覧へ反映
+        lobby?.broadcast();
+        scheduleCleanup();   // 作成直後に無人なら graceMs 後に撤去（最初の connect で解除）
     });
 
     // client: 生 socket の基本イベントを host へ転送し、finalize で socket を切断する。
