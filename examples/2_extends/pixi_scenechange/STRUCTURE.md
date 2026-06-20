@@ -9,9 +9,9 @@
 ## シーン内の構造
 
 ```mermaid
-flowchart TD
-    Scene1 -->|xnew| Text["Text: 'Scene1'"]
-    Scene1 -->|xnew| Box["Box: 赤 0xff2266"]
+flowchart LR
+    Scene1 -->|xnew| Text["Text: ラベル文字 'Scene1'"]
+    Scene1 -->|xnew| Box["Box: 回転する四角 赤 0xff2266"]
 ```
 
 ## シーン遷移の条件
@@ -25,9 +25,9 @@ flowchart TD
 ## シーン内の構造
 
 ```mermaid
-flowchart TD
-    Scene2 -->|xnew| Text["Text: 'Scene2'"]
-    Scene2 -->|xnew| Box["Box: 青 0x6622ff"]
+flowchart LR
+    Scene2 -->|xnew| Text["Text: ラベル文字 'Scene2'"]
+    Scene2 -->|xnew| Box["Box: 回転する四角 青 0x6622ff"]
 ```
 
 ## シーン遷移の条件
