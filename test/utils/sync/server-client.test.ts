@@ -9,7 +9,7 @@ describe('xnew.server / xnew.client', () => {
 
     it('server mode runs server block, skips client block', () => {
         const serverRan = jest.fn(); const clientRan = jest.fn();
-        bootServer({ socket: hub.io }, (u: Unit) => {
+        bootServer({ io: hub.io }, (u: Unit) => {
             xnew.server(() => { serverRan(); });
             xnew.client(() => { clientRan(); });
         });
@@ -38,7 +38,7 @@ describe('xnew.server / xnew.client', () => {
     });
 
     it('merges defines returned by the executed block onto the unit', () => {
-        const unit = bootServer({ socket: hub.io }, (u: Unit) => {
+        const unit = bootServer({ io: hub.io }, (u: Unit) => {
             xnew.server(() => ({ greet: () => 'hi-from-server' }));
             xnew.client(() => ({ draw: () => 'should-not-exist' }));
         });
@@ -53,7 +53,7 @@ describe('xnew.server / xnew.client', () => {
         expect(el.tagName).toBe('DIV');
 
         let el2: any = 'untouched';
-        bootServer({ socket: hub.io }, (u: Unit) => { xnew.client(() => { el2 = xnew.nest('<div>'); }); });
+        bootServer({ io: hub.io }, (u: Unit) => { xnew.client(() => { el2 = xnew.nest('<div>'); }); });
         expect(el2).toBe('untouched');   // client callback never ran, so nest never called
     });
 });

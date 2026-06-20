@@ -26,7 +26,7 @@ const httpServer = createServer(app);
 const io = new IOServer(httpServer);
 
 // ---- ロビー + 動的ルーム（xnew.basics.Lobby が全部やる） ----
-xnew(xnew.basics.Lobby, { socket: io, Component: World });
+xnew(xnew.basics.Lobby, { io, Component: World });
 
 httpServer.listen(PORT, () => {
     console.log(`[multi-client] socket.io server on http://localhost:${PORT}/`);

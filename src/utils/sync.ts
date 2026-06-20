@@ -126,9 +126,9 @@ export interface ClientInfo {
     name: string | undefined;
 }
 
-/** boot ルートに紐づく内部情報。socket.io ハンドルと room / 自分の name を持つ。 */
+/** boot ルートに紐づく内部情報。解決済みの socket.io ハンドルと room / 自分の name を持つ。 */
 interface RootInfo {
-    socket: any;                         // socket.io の io（server）/ socket（client）
+    handle: any;                         // この side の socket.io ハンドル（server=io / client=socket）
     room: string | undefined;            // server: 配信を絞る room（client は undefined）
     name: string | undefined;            // この client 自身の name（server では undefined）
 }
@@ -161,17 +161,18 @@ function rootInfoOf(unit: Unit): RootInfo {
 //     disconnect も root 配下へ配る）。基本イベントの host(boot 親) への転送は basics/Sync.ts Room が担う。
 //----------------------------------------------------------------------------------------------------
 
-/** xnew.sync.boot の入力。socket は必須（socket.io の io / socket）。mode は実行環境から自動判定する。 */
+/** xnew.sync.boot の入力。実行環境に応じて io（server）/ socket（client）のどちらかを渡す。 */
 export interface BootOptions {
-    socket: any;         // socket.io の io（server）/ socket（client）。
+    io?: any;            // server: socket.io の Server（io）。
+    socket?: any;        // client: socket.io の Socket。
     room?: string;       // server のときだけ意味を持つ（接続を query.room で絞る）。
     name?: string;       // この client の表示名（xnew.sync.client.name で読める）。
 }
 
-/** boot ルート Unit を生成し、socket/room/name を syncRoots へ登録する（server/client 共通の土台）。 */
-function createSyncRoot(socket: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    // socket / room / name は unit に保持せず、setup フックで syncRoots へ登録する。
-    const info: RootInfo = { socket, room: opts.room, name: opts.name };
+/** boot ルート Unit を生成し、解決済み handle/room/name を syncRoots へ登録する（server/client 共通の土台）。 */
+function createSyncRoot(handle: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
+    // handle / room / name は unit に保持せず、setup フックで syncRoots へ登録する。
+    const info: RootInfo = { handle, room: opts.room, name: opts.name };
     return new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
 }
 
@@ -257,25 +258,25 @@ export const sync = {
     /** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
     get client(): ClientInfo {
         const info = rootInfoOf(Unit.currentUnit);
-        return { id: info.socket.id, name: info.name };
+        return { id: info.handle.id, name: info.name };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
         const unit = Unit.currentUnit;
         const info = rootInfoOf(unit);
         // 送信ユニットの syncId を載せる（受信側の '-event' ルーティング用）。server は room へ broadcast。
-        const target = info.room !== undefined ? info.socket.to(info.room) : info.socket;
+        const target = info.room !== undefined ? info.handle.to(info.room) : info.handle;
         target.emit(event, { syncId: syncOf(unit).id, data: payload });
     },
     /**
-     * Creates a sync root Unit。mode は実行環境から自動判定する（Node=server / browser=client）。opts.socket は
-     * socket.io の io（server）/ socket（client）をそのまま渡す（server は opts.room で接続を絞れる）。残りの
+     * Creates a sync root Unit。mode は実行環境から自動判定する（Node=server / browser=client）。socket.io の
+     * ハンドルは server なら opts.io、client なら opts.socket を渡す（server は opts.room で接続を絞れる）。残りの
      * 引数は xnew(...) へ転送。server/client の分岐はここ 1 箇所だけ（配線は bootServerRoot / bootClientRoot に委譲）。
      */
     boot(opts: BootOptions, ...args: any[]): Unit {
         if (Unit.engineRoot === undefined) { Unit.reset(); }
         const parent = Unit.currentUnit;
         return getEnvironment() === 'server'
-            ? bootServerRoot(opts.socket, opts, parent, args)
+            ? bootServerRoot(opts.io, opts, parent, args)
             : bootClientRoot(opts.socket, opts, parent, args);
     },
 };

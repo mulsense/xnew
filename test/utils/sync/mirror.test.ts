@@ -21,7 +21,7 @@ describe('server/client mirror (server/client blocks)', () => {
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('mirrors server state into the client subtree and renders it', () => {
-        const server = bootServer({ socket: hub.io }, function Server() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const server = bootServer({ io: hub.io }, function Server() { xnew.sync.register({ Mover }); xnew(Mover); });
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
         function cycle() {
@@ -53,7 +53,7 @@ describe('server/client mirror (server/client blocks)', () => {
             xnew.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
         }
 
-        const server = bootServer({ socket: hub.io }, Main);
+        const server = bootServer({ io: hub.io }, Main);
         const client = bootClient({ socket: hub.connect() }, Main);
 
         // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
@@ -91,7 +91,7 @@ describe('server/client mirror (server/client blocks)', () => {
                 });
             });
         }
-        const server = bootServer({ socket: hub.io }, Server);
+        const server = bootServer({ io: hub.io }, Server);
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
         const sync = () => applyStateTree(client, captureStateTree(server));

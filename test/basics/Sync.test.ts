@@ -118,7 +118,7 @@ describe('Lobby (server)', () => {
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
     const mountLobby = (io: any, props: any = {}) =>
-        xnew(function Host() { xnew.extend(Lobby, { socket: io, Component: World, ...props }); });
+        xnew(function Host() { xnew.extend(Lobby, { io, Component: World, ...props }); });
 
     it('sends the current (empty) room list to a new lobby connection', () => {
         const io = lobbyIo();
@@ -223,13 +223,13 @@ describe('Room', () => {
 
     it('boots in server mode without disconnecting, and finalizes on finalize', () => {
         setEnvironment('server');   // Node 実行を模す（jsdom はそのままだと client 判定）
-        const socket = mockSocket();
-        const scene = xnew(function Scene(_: Unit) { xnew(Room, { socket, Component: World }); });
+        const io = mockSocket();
+        const scene = xnew(function Scene(_: Unit) { xnew(Room, { io, Component: World }); });
         const [root] = Unit.find(World);
 
         expect(root._.status).not.toBe('finalized');
 
-        scene.finalize();   // server 分岐は disconnect を呼ばず（ServerSocket に無い）booted root を畳むだけ
+        scene.finalize();   // server 分岐は disconnect を呼ばず booted root を畳むだけ
 
         expect(root._.status).toBe('finalized');
     });
