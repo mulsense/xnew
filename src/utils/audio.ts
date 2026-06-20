@@ -9,17 +9,19 @@
 //
 // - context, master : shared global AudioContext and its master GainNode
 // - AudioTrack      : decoded audio buffer with play / pause / resume / volume + fade in / out.
-//                     `promise` resolves when the buffer is ready and rejects on load failure.
-//                     `play()` is load-aware (defers until decoded) and re-triggers from the start
-//                     when called mid-playback, so it is safe to call right after `audio.load()`.
+//                     `promise` resolves with the track itself when the buffer is ready and rejects
+//                     on load failure. `play()` is load-aware (defers until decoded) and re-triggers
+//                     from the start when called mid-playback, so it is safe to call right after
+//                     `audio.load()` resolves.
 // - Synthesizer / SynthesizerOptions
 //                   : oscillator + amp / filter / reverb + ADSR + LFO synth, with note-name
 //                     ('A4', 'C#5') and rhythmic ('4n', '8n') key maps
 // - audio           : public facade (xnew.audio) — `load`, `synthesizer`, and a `volume` accessor
-//                     over the master gain. `load` returns an AudioTrack, registers it with the
-//                     current Unit's promise aggregation, and fades it out when that Unit finalizes —
-//                     so `xnew.audio.load(path).play(...)` is the whole BGM lifecycle in one line
-//                     (play() is load-aware, so no awaiting). Depends on core (xnew / Unit) for this.
+//                     over the master gain. `load` returns the track's `promise` (resolving to the
+//                     AudioTrack once decoded), registers it with the current Unit's promise
+//                     aggregation, and fades it out when that Unit finalizes — so
+//                     `xnew.audio.load(path).then((track) => track.play(...))` is the whole BGM
+//                     lifecycle. Depends on core (xnew / Unit) for this.
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from '../core/unit';
@@ -59,13 +61,13 @@ export class AudioTrack {
     private pausedOffsetMs: number;
     private loop: boolean;
 
-    public promise: Promise<void>;
+    public promise: Promise<AudioTrack>;
 
     constructor(path: string) {
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
             .then((response) => context.decodeAudioData(response))
-            .then((response) => { this.buffer = response });
+            .then((response) => { this.buffer = response; return this });
         this.amp = context.createGain();
         this.amp.gain.value = 1.0;
         this.amp.connect(master);
@@ -487,11 +489,11 @@ export class Synthesizer {
 export const audio = {
     AudioTrack,
 
-    load(path: string): AudioTrack {
+    load(path: string): Promise<AudioTrack> {
         const track = new AudioTrack(path);
         const unit = new Unit(null, Unit.currentUnit);
         unit.on('finalize', () => track.pause({ fade: 500 }));
-        return track;
+        return track.promise;
     },
 
     synthesizer(props: SynthesizerOptions): Synthesizer {

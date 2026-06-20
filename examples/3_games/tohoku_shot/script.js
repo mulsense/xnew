@@ -510,7 +510,7 @@ function GameScene(unit) {
   xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
   const bgm = xnew(() => {
-    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).play({ fade: 1000, loop: true });
+    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).then((track) => track.play({ fade: 1000, loop: true }));
   });
 
   unit.on('+gameover', () => {
@@ -530,7 +530,7 @@ function GameScene(unit) {
 function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew.extend(xnew.basics.Scene);
 
-  xnew.audio.load(asset('st005.mp3')).play({ fade: 1, loop: true });
+  xnew.audio.load(asset('st005.mp3')).then((track) => track.play({ fade: 1, loop: true }));
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
