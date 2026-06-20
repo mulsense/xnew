@@ -2,8 +2,8 @@ import { xnew as base } from './core/xnew';
 import { Unit, UnitTimer, ComponentFn, Status as CoreStatus } from './core/unit';
 import { Environment as CoreEnvironment } from './core/env';
 
-// boot に渡す socket を型付けできるよう、socket 契約型を公開する。
-export type { ClientSocket, ServerSocket, RootSocket, BootOptions, ClientInfo } from './utils/sync';
+// boot 入力 / presence identity の型を公開する（socket は socket.io の io / socket をそのまま渡す）。
+export type { BootOptions, ClientInfo } from './utils/sync';
 
 import { OpenAndClose, Accordion, Popup } from './basics/Transition';
 import { SVG, SVGText } from './basics/SVG';

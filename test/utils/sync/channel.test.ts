@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import xnew from '../../../src/index';
-import { syncOf, getRootSocket, ClientSocket, socketio, captureStateTree, applyStateTree } from '../../../src/utils/sync';
+import { syncOf, getRootSocket, captureStateTree, applyStateTree } from '../../../src/utils/sync';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 //----------------------------------------------------------------------------------------------------
@@ -130,7 +130,7 @@ describe('event channel (socket.io transport)', () => {
         expect(client2._.children.filter((c: Unit) => syncOf(c).state).length).toBe(2);
 
         // 切断 → 次フレームで despawn（boot が自動バインドした socket は getRootSocket で取得できる）
-        (getRootSocket(client2) as ClientSocket).disconnect();
+        getRootSocket(client2).disconnect();
         asServer(() => Unit.update(Unit.engineRoot));
         expect(captureStateTree(server).filter((n) => n.name === 'Player').length).toBe(1);
     });
@@ -155,59 +155,6 @@ describe('event channel (socket.io transport)', () => {
         expect(replica).toBeDefined();
         expect(syncOf(replica!).state!.x).toBe(captureStateTree(server).find((n) => n.name === 'Mover')!.state.x);
         expect(syncOf(replica!).state!.x).toBeGreaterThanOrEqual(1);
-    });
-
-    it('socketio(): adapts a socket.io-like io to the server Transport (onAny → (clientId,payload))', () => {
-        // 最小の socket.io 風モック（io.on('connection') / socket.onAny / socket.on('disconnect') / io.emit）
-        let connectionCb: ((s: any) => void) | null = null;
-        const io = { on: (ev: string, cb: any) => { if (ev === 'connection') { connectionCb = cb; } }, emit: () => {}, to: () => ({ emit: () => {} }) };
-        const transport = socketio(io);
-        const received: Array<[string, any]> = [];
-        transport.server.on('move', (clientId, payload) => received.push([clientId, payload]));
-
-        // 接続をシミュレート: onAny で来たイベントが (socket.id, payload) に橋渡しされる
-        const anyHandlers: Function[] = [];
-        const socket = { id: 's1', onAny: (cb: any) => anyHandlers.push(cb), on: () => {} };
-        connectionCb!(socket);
-        anyHandlers.forEach((cb) => cb('move', { dx: 1 }));
-
-        expect(received).toEqual([['s1', { dx: 1 }]]);
-    });
-
-    it('socketio({ room }): scopes broadcast to io.to(room) and filters connections by query.room', () => {
-        // socket.io 風モック: io.to(r) は r ごとの emit を記録、connection で socket を渡す。
-        const sent: Array<[string, string, any]> = [];   // [room, event, payload]
-        const joined: string[] = [];
-        let connectionCb: ((s: any) => void) | null = null;
-        const io = {
-            on: (ev: string, cb: any) => { if (ev === 'connection') { connectionCb = cb; } },
-            to: (room: string) => ({ emit: (event: string, payload: any) => sent.push([room, event, payload]) }),
-            emit: () => {},
-        };
-        const transport = socketio(io, { room: 'r1' });
-        const got: Array<[string, any]> = [];
-        transport.server.onAny((event, clientId, payload) => got.push([clientId, payload]));
-
-        // socket モック: onAny を保持。join を記録。
-        const anyOf = new Map<string, Function>();
-        const mk = (sid: string, room: string) => ({
-            id: sid, handshake: { query: { room } },
-            join: (r: string) => joined.push(`${sid}->${r}`),
-            onAny: (cb: any) => anyOf.set(sid, cb),
-            on: () => {},
-        });
-        connectionCb!(mk('s1', 'r1'));
-        connectionCb!(mk('s2', 'r2'));   // 別ルーム → 無視される
-
-        expect(joined).toContain('s1->r1');
-        expect(joined).not.toContain('s2->r2');
-        expect(anyOf.has('s2')).toBe(false);   // r2 の socket は wire されない
-
-        anyOf.get('s1')!('move', { syncId: 1, data: { x: 1 } });
-        expect(got).toEqual([['s1', { syncId: 1, data: { x: 1 } }]]);
-
-        transport.server.emit('sync', [{ id: 1 }]);
-        expect(sent).toContainEqual(['r1', 'sync', [{ id: 1 }]]);   // broadcast は io.to('r1') へ
     });
 
     it('unit.on sync handler runs in the registering unit scope (inner xnew(...) parents correctly)', () => {
@@ -271,11 +218,11 @@ describe('event channel (socket.io transport)', () => {
         // 基本イベント(connect/disconnect/room:notfound)の host への転送は boot ではなく Room が担う。
         // よって boot 単体では boot 親ユニットへは配らない。
         const handlers = new Map<string, Set<Function>>();
-        const socket: ClientSocket = {
+        const socket: any = {
             id: 'c1',
             emit: () => {},
-            on: (event, h) => { if (!handlers.has(event)) { handlers.set(event, new Set()); } handlers.get(event)!.add(h); },
-            off: (event, h) => { handlers.get(event)?.delete(h); },
+            on: (event: string, h: Function) => { if (!handlers.has(event)) { handlers.set(event, new Set()); } handlers.get(event)!.add(h); },
+            off: (event: string, h: Function) => { handlers.get(event)?.delete(h); },
             onAny: () => {},
             disconnect: () => {},
         };

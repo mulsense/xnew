@@ -4,7 +4,7 @@
 // src no longer ships an in-memory transport (loopback was removed with the browser-only run model),
 // and boot now auto-detects mode from the runtime (Node=server / browser=client). Tests run in one
 // jsdom process yet must exercise BOTH sides, so this fixture provides:
-//   - ioMock(): socket.io-shaped objects that src `socketio()` adapts (an `io` + `connect()` clients),
+//   - ioMock(): socket.io-shaped objects that boot uses directly (an `io` + `connect()` clients),
 //     wired in-memory. Pass `io` to the server boot and `connect()` to a client boot; clientId
 //     auto-numbers as 'c1', 'c2', ...
 //   - bootServer/bootClient(): force the boot mode (jsdom would otherwise always detect 'client').
@@ -41,16 +41,18 @@ export function ioMock(): IoMock {
     interface Conn {
         clientHandlers: Map<string, Set<Handler>>;   // client.on(event)
         clientAny: Set<AnyHandler>;                   // client.onAny
-        serverAny: Set<AnyHandler>;                   // server 側 socket.onAny（socketio アダプタが張る）
+        serverAny: Set<AnyHandler>;                   // server 側 socket.onAny（bootServerRoot が張る）
         serverDisconnect: Set<Handler>;              // server 側 socket.on('disconnect')
     }
     const conns = new Map<string, Conn>();
 
-    // server→client: 該当 client の on(event) と onAny を発火する。
-    const deliverToClient = (conn: Conn, event: string, payload: any): void => {
+    // server→client: 該当 client の on(event) と onAny を発火する。client プロセスが受信する状況なので、
+    // ハンドラ（boot の on('sync')→apply など）は client 環境で走らせる（server 環境のテスト中に server の
+    // 自動 broadcast が同期的に client へ届くケースで、replica が client として構築されるように）。
+    const deliverToClient = (conn: Conn, event: string, payload: any): void => withEnvironment('client', () => {
         conn.clientHandlers.get(event)?.forEach((h) => h(payload));
         conn.clientAny.forEach((h) => h(event, payload));
-    };
+    });
 
     const io = {
         on(event: string, cb: (socket: any) => void): void { if (event === 'connection') { connectionCb = cb; } },
@@ -71,7 +73,7 @@ export function ioMock(): IoMock {
         const conn: Conn = { clientHandlers: new Map(), clientAny: new Set(), serverAny: new Set(), serverDisconnect: new Set() };
         conns.set(clientId, conn);
 
-        // server 側 socket（socketio アダプタが onAny / on('disconnect') を張る）。
+        // server 側 socket（bootServerRoot が onAny / on('disconnect') を張る）。
         connectionCb?.({
             id: clientId,
             handshake: { query: {} },
