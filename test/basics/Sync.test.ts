@@ -135,7 +135,7 @@ describe('Lobby (server)', () => {
         mountLobby(io);
         const a = lobbyConn(io); io._connect(a);
         a._emit('create', { name: 'My Room' });
-        expect(a.sent).toContainEqual(['created', { roomId: 'r1' }]);
+        expect(a.sent).toContainEqual(['created', { room: { id: 'r1', name: 'My Room' } }]);
         expect(a.rooms()).toEqual([{ id: 'r1', name: 'My Room', memberCount: 0 }]);
     });
 

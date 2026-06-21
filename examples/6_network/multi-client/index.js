@@ -83,7 +83,7 @@ function Lobby(unit) {
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
     unit.on('-update', ({ rooms: list }) => { rooms = list; render(); });
-    unit.on('-created', ({ roomId }) => unit.change(Room, { roomId }));
+    unit.on('-created', ({ room }) => unit.change(Room, { roomId: room.id }));
     unit.on('-rejected', ({ message }) => { hintEl.element.textContent = message; });
 
     render();   // 初期描画（一覧は -update 受信で更新）

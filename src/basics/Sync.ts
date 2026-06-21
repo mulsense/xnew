@@ -46,7 +46,7 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
                 // 部屋は host が注入した Room コンポーネントで生成する（Room が台帳へ自分を載せる）。生成直後に
                 // creator へ created を返す（同期生成なので成功は確定）。
                 xnew(unit, Room!, { io, room: { id, name } });
-                conn.emit('created', { roomId: id });
+                conn.emit('created', { room: { id, name } });
             }));
         });
         io.on('connection', connection);
