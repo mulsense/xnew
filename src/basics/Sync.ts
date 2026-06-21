@@ -8,9 +8,9 @@
 // - Lobby : component({ io?, socket?, Room?, maxRooms?, roomNameMax? }) — ロビー + 動的ルーム。
 //           client（socket）= ロビー受信を unit.on('-<event>') へ転送 + create()（UI は利用側）。
 //           server（io）= io.on('connection') を所有し、入室検証 + 台帳(rooms)・一覧再配信(broadcast) を公開する。
-//                    create 要求を受けると注入された Room コンポーネントで xnew(Room, { room:id, name }) を生成し、
+//                    create 要求を受けると注入された Room コンポーネントで xnew(Room, { room:{id,name} }) を生成し、
 //                    直後に creator へ created を返す（台帳への登録・人数再配信は Room が context(Lobby) で行う）。
-// - Room  : component({ io?, socket?, room?, name?, Component }) — Component を boot し基本イベントを host へ転送。
+// - Room  : component({ io?, socket?, room?: {id,name}, Component }) — Component を boot し基本イベントを host へ転送。
 //           親に Lobby があれば（context(Lobby)）その台帳へ自分を出し入れし、人数変化で一覧を再配信する。
 //----------------------------------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
                 // 部屋は host が注入した Room コンポーネントで生成する（Room が台帳へ自分を載せる）。生成直後に
                 // creator へ created を返す（同期生成なので成功は確定）。
-                xnew(unit, Room!, { io, room: id, name });
+                xnew(unit, Room!, { io, room: { id, name } });
                 conn.emit('created', { roomId: id });
             }));
         });
@@ -72,8 +72,8 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
  *  host unit の '-<event>' へ転送する。server では加えて人数台帳を持ち、id/name/memberCount を公開、無人が
  *  graceMs 続けば '-empty' を出す。親に Lobby があれば（context(Lobby)）その台帳へ自分を登録し、人数変化で
  *  一覧を再配信、空室確定で自分を台帳から外して撤去する。server/client は実行環境で自動判定。 */
-export function Room(unit: Unit, { io, socket, room, name, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room' | 'name'> & { Component: Function; graceMs?: number }) {
-    const client = sync.boot({ io, socket, room, name }, Component);   // server は io / client は socket（boot が env で選ぶ）
+export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room'> & { Component: Function; graceMs?: number }) {
+    const client = sync.boot({ io, socket, room }, Component);   // server は io / client は socket（boot が env で選ぶ）
     unit.on('finalize', () => client.finalize());
     const members = new Set<string>();
 
@@ -82,15 +82,15 @@ export function Room(unit: Unit, { io, socket, room, name, Component, graceMs = 
     xnew.server(() => {
         const lobby = xnew.context(Lobby);   // 無ければ undefined（Lobby 配下でない単独利用）
         // 台帳に載せる行情報。自分の interface はまだ未確定なので memberCount だけ closure から live に返す。
-        const entry = { id: room ?? '', name: name ?? '', get memberCount() { return members.size; } };
+        const entry = { id: room?.id ?? '', name: room?.name ?? '', get memberCount() { return members.size; } };
         let graceTimer: ReturnType<typeof setTimeout> | null = null;
         const clearGrace = () => { if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; } };
-        const remove = () => { lobby.rooms.delete(room); lobby.broadcast(); unit.finalize(); };   // 無人確定 → 台帳から外して撤去
+        const remove = () => { lobby.rooms.delete(room?.id); lobby.broadcast(); unit.finalize(); };   // 無人確定 → 台帳から外して撤去
         const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(xnew.scope(() => { if (members.size === 0) { xnew.emit('-empty', {}); if (lobby !== undefined) { remove(); } } }), graceMs); };
         client.on('sync.connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); lobby?.broadcast(); }));
         client.on('sync.disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); lobby?.broadcast(); if (members.size === 0) { scheduleCleanup(); } }));
         unit.on('finalize', clearGrace);
-        lobby?.rooms.set(room, entry);   // 台帳へ自分を登録し、直ちに一覧へ反映
+        lobby?.rooms.set(room?.id, entry);   // 台帳へ自分を登録し、直ちに一覧へ反映
         lobby?.broadcast();
         scheduleCleanup();   // 作成直後に無人なら graceMs 後に撤去（最初の connect で解除）
     });
@@ -103,5 +103,5 @@ export function Room(unit: Unit, { io, socket, room, name, Component, graceMs = 
         unit.on('finalize', () => socket.disconnect());
     });
 
-    return { get id(): string | undefined { return room; }, get name(): string | undefined { return name; }, get memberCount(): number { return members.size; } };
+    return { get id(): string | undefined { return room?.id; }, get name(): string | undefined { return room?.name; }, get memberCount(): number { return members.size; } };
 }

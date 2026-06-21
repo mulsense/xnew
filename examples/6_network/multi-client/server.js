@@ -32,9 +32,9 @@ function Lobby(unit) {
     xnew.extend(xnew.basics.Lobby, { io, Room });
 }
 
-// 1 部屋 = basics Room を extend し、中身 Component に World を据える（basics Lobby から room/name を受け取る）。
-function Room(unit, { io, room, name }) {
-    xnew.extend(xnew.basics.Room, { io, room, name, Component: World });
+// 1 部屋 = basics Room を extend し、中身 Component に World を据える（basics Lobby から room={id,name} を受け取る）。
+function Room(unit, { io, room }) {
+    xnew.extend(xnew.basics.Room, { io, room, Component: World });
 }
 
 xnew(Lobby);
