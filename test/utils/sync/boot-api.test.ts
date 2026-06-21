@@ -11,17 +11,17 @@ describe('xnew.sync.boot({ socket }) — in-memory socket.io', () => {
         bootServer({ io: hub.io }, function Server() {});
         let id1: string | undefined;
         let id2: string | undefined;
-        bootClient({ socket: hub.connect() }, function C1() { xnew.client(() => { id1 = xnew.sync.client.id; }); });
-        bootClient({ socket: hub.connect() }, function C2() { xnew.client(() => { id2 = xnew.sync.client.id; }); });
+        bootClient({ socket: hub.connect() }, function C1() { xnew.client(() => { id1 = xnew.sync.status.id; }); });
+        bootClient({ socket: hub.connect() }, function C2() { xnew.client(() => { id2 = xnew.sync.status.id; }); });
         expect(id1).toBe('c1');
         expect(id2).toBe('c2');
     });
 
-    it('delivers connect to a unit inside the booted root with the clientId', () => {
-        // boot は connect/disconnect を root 配下の unit.on へ配る（host への転送は basics/Sync.ts Room の責務）。
+    it('delivers sync.connect to a unit inside the booted root with the clientId', () => {
+        // boot は sync.connect/sync.disconnect を root 配下の unit.on へ配る（host への転送は basics/Sync.ts Room の責務）。
         const seen: string[] = [];
         bootServer({ io: hub.io }, function Server(unit: Unit) {
-            unit.on('connect', ({ id }: any) => seen.push(id));
+            unit.on('sync.connect', ({ id }: any) => seen.push(id));
         });
         hub.connect('cX');   // a fresh client connects on the same shared hub
         expect(seen).toEqual(['cX']);

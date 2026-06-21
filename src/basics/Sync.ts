@@ -77,7 +77,7 @@ export function Room(unit: Unit, { io, socket, room, name, Component, graceMs = 
     unit.on('finalize', () => client.finalize());
     const members = new Set<string>();
 
-    // server: connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
+    // server: sync.connect/sync.disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
     // 親に Lobby があれば、その台帳(rooms)へ自分を出し入れし人数変化で一覧を再配信する（旧 Lobby.register を内包）。
     xnew.server(() => {
         const lobby = xnew.context(Lobby);   // 無ければ undefined（Lobby 配下でない単独利用）
@@ -87,8 +87,8 @@ export function Room(unit: Unit, { io, socket, room, name, Component, graceMs = 
         const clearGrace = () => { if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; } };
         const remove = () => { lobby.rooms.delete(room); lobby.broadcast(); unit.finalize(); };   // 無人確定 → 台帳から外して撤去
         const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(xnew.scope(() => { if (members.size === 0) { xnew.emit('-empty', {}); if (lobby !== undefined) { remove(); } } }), graceMs); };
-        client.on('connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); lobby?.broadcast(); }));
-        client.on('disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); lobby?.broadcast(); if (members.size === 0) { scheduleCleanup(); } }));
+        client.on('sync.connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); lobby?.broadcast(); }));
+        client.on('sync.disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); lobby?.broadcast(); if (members.size === 0) { scheduleCleanup(); } }));
         unit.on('finalize', clearGrace);
         lobby?.rooms.set(room, entry);   // 台帳へ自分を登録し、直ちに一覧へ反映
         lobby?.broadcast();

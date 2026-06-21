@@ -9,14 +9,14 @@
 // 通信は socket.io 前提。boot に socket.io の io（server）/ socket（client）をそのまま渡し、bootServerRoot /
 // bootClientRoot が直接 io.on('connection') / socket.onAny などを使う（抽象 transport 層は持たない）。
 //
-// 公開は xnew.sync ファサード（sync）。型 export（BootOptions / ClientInfo）は index.ts が再公開し、syncOf /
+// 公開は xnew.sync ファサード（sync）。型 export（BootOptions / SyncStatus 等）は index.ts が再公開し、syncOf /
 // StateTree / captureStateTree / applyStateTree は Room / テストが使う（capture・apply はファサードには
 // 載せない＝アプリは boot の自動 mirror を使う）。register などの helper や SyncNode・SyncData 等の型は
 // module 内部のみ。
 //
-// - sync : xnew.sync ファサード（state / register / emit / client / boot）
+// - sync : xnew.sync ファサード（state / register / emit / status / boot）
 // - syncOf / StateTree : unit 単位の同期データ取得 / captureStateTree・applyStateTree が運ぶノード列
-// - ClientInfo / BootOptions : 自分の {id,name} / boot 入力
+// - SyncStatus / ClientStatus / RoomStatus / BootOptions : ルームのステータス各種 / boot 入力
 //----------------------------------------------------------------------------------------------------
 
 import { Unit } from '../core/unit';
@@ -120,24 +120,40 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
 // 同期ツリーのルート情報（syncRoots）— socket.io の io(server)/socket(client) をそのまま保持する
 //----------------------------------------------------------------------------------------------------
 
-/** この client 自身の identity（{ id, name }）。 */
-export interface ClientInfo {
+/** ルーム内の 1 メンバ（{ id, name }）。 */
+export interface ClientStatus {
+    id: string;
+    name: string | undefined;
+}
+
+/** ルーム自体の情報（{ id, name }）。 */
+export interface RoomStatus {
     id: string | undefined;
     name: string | undefined;
+}
+
+/** ルームのステータス。server は { clients } のみ、client は自分の id とルーム情報も持つ。 */
+export interface SyncStatus {
+    id?: string;              // client: 自分自身の client id
+    clients: ClientStatus[];  // ルーム内メンバ
+    room?: RoomStatus;        // client: ルーム自体の情報
 }
 
 /** server boot ルートの内部情報（socket.io の Server を保持し、配信を room で絞れる）。 */
 interface ServerRootInfo {
     mode: 'server';
-    io: any;                     // socket.io の Server（broadcast の起点）。
-    room: string | undefined;    // 配信を絞る room（無ければ全体へ）。
+    io: any;                             // socket.io の Server（broadcast の起点）。
+    room: string | undefined;            // 配信を絞る room（無ければ全体へ）。status.room.id にもなる。
+    roomName: string | undefined;        // status.room.name。
+    clients: Map<string, ClientStatus>;  // 接続中メンバの台帳（socket.id → {id,name}）。
 }
 
-/** client boot ルートの内部情報（自分の socket と表示名を保持する）。 */
+/** client boot ルートの内部情報（自分の socket と、server から受信した最新ステータスを保持する）。 */
 interface ClientRootInfo {
     mode: 'client';
-    socket: any;                 // socket.io の Socket。
-    name: string | undefined;    // この client 自身の表示名。
+    socket: any;                  // socket.io の Socket。
+    clients: ClientStatus[];      // server から受信したメンバ一覧。
+    room: RoomStatus | undefined; // server から受信したルーム情報。
 }
 
 /** boot ルートに紐づく内部情報。server / client で構造が異なる discriminated union。 */
@@ -175,8 +191,8 @@ function rootInfoOf(unit: Unit): RootInfo {
 export interface BootOptions {
     io?: any;            // server: socket.io の Server（io）。
     socket?: any;        // client: socket.io の Socket。
-    room?: string;       // server のときだけ意味を持つ（接続を query.room で絞る）。
-    name?: string;       // この client の表示名（xnew.sync.client.name で読める）。
+    room?: string;       // server のときだけ意味を持つ（接続を query.room で絞る。status.room.id にもなる）。
+    name?: string;       // server: ルームの表示名（status.room.name）。client では未使用。
 }
 
 /**
@@ -186,38 +202,57 @@ export interface BootOptions {
  */
 function bootServerRoot(io: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
     const room = opts.room;
-    // io / room は unit に保持せず、setup フックで syncRoots へ登録する。
-    const info: ServerRootInfo = { mode: 'server', io, room };
+    // io / room / メンバ台帳は unit に保持せず、setup フックで syncRoots へ登録する。
+    const info: ServerRootInfo = { mode: 'server', io, room, roomName: opts.name, clients: new Map() };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const target = () => (room !== undefined ? io.to(room) : io);   // 配信は room があれば絞る
     root.on('update', () => target().emit('sync', captureStateTree(root)));
+    // ルームのステータス（メンバ台帳 + ルーム情報）を client へ配信し、サブツリーへ sync.statusupdate を配る。
+    const refreshStatus = () => {
+        target().emit('status', { clients: [...info.clients.values()], room: { id: room, name: opts.name } });
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    };
     io.on('connection', (socket: any) => {
         if (room !== undefined && socket.handshake?.query?.room !== room) { return; }   // 別ルームは無視
         if (room !== undefined) { socket.join(room); }
-        // connect / 全受信 / disconnect を clientId 付きで配る（host への転送は Room の責務）。
-        dispatchSync(root, 'connect', socket.id, undefined);
+        // 接続 → 台帳へ追加。sync.connect / 全受信 / sync.disconnect を clientId 付きでサブツリーへ配る
+        // （host への転送は Room の責務）。connect / disconnect は status 変化として client へも配信する。
+        info.clients.set(socket.id, { id: socket.id, name: socket.handshake?.query?.name });
+        dispatchSync(root, 'sync.connect', socket.id, undefined);
+        refreshStatus();
         socket.onAny((event: string, payload: any) => dispatchSync(root, event, socket.id, payload));
-        socket.on('disconnect', () => dispatchSync(root, 'disconnect', socket.id, undefined));
+        socket.on('disconnect', () => {
+            info.clients.delete(socket.id);
+            dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+            refreshStatus();
+        });
     });
     return root;
 }
 
-/** client ルートを生成・配線（socket.io の socket を直接使う）。下り apply（on('sync')→apply）/ 受信を root 配下へ配る。 */
-function bootClientRoot(socket: any, opts: BootOptions, parent: Unit | null, args: any[]): Unit {
-    // socket / name は unit に保持せず、setup フックで syncRoots へ登録する。
-    const info: ClientRootInfo = { mode: 'client', socket, name: opts.name };
+/** client ルートを生成・配線（socket.io の socket を直接使う）。下り apply（on('sync')→apply）と、
+ *  ステータス取り込み（on('status')）、受信の root 配下への配布を行う。 */
+function bootClientRoot(socket: any, parent: Unit | null, args: any[]): Unit {
+    const info: ClientRootInfo = { mode: 'client', socket, clients: [], room: undefined };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
-    root.on('finalize', () => socket.off('sync', onSync));
+    // server からのステータスを取り込み、サブツリーへ sync.statusupdate を配る。
+    const onStatus = (status: { clients?: ClientStatus[]; room?: RoomStatus }) => {
+        info.clients = status?.clients ?? [];
+        info.room = status?.room;
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    };
+    socket.on('status', onStatus);
+    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
     socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
     return root;
 }
 
 /** 1 つの受信イベントを、root 配下の該当 unit リスナへ配る。 */
 function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
-    if (root._.status === 'finalized' || event === 'sync') {
-        return;   // 'sync'（状態 mirror の予約イベント）は app ユニットへ配らない
+    if (root._.status === 'finalized' || event === 'sync' || event === 'status') {
+        return;   // 'sync'（状態 mirror）/ 'status'（ルームステータス）は予約イベントなので app ユニットへ配らない
     }
     const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
     const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
@@ -239,7 +274,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
 // 各メソッドは暗黙の Unit.currentUnit に作用するため、Component 関数 / ハンドラの中から呼ぶ。
 //
 // - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
-// - emit / client : イベント送信 / 自分の {id,name}
+// - emit / status : イベント送信 / ルームのステータス（メンバ一覧・ルーム情報・自分の id）
 // - boot             : socket をバインドしたルート生成（server/client は実行環境で自動判定）
 //----------------------------------------------------------------------------------------------------
 
@@ -262,11 +297,13 @@ export const sync = {
         const data = syncOf(unit);
         data.registry = Object.assign(data.registry ?? {}, components);
     },
-    /** この client 自身の identity（{ id, name }）。server では id/name とも undefined。 */
-    get client(): ClientInfo {
+    /** ルームのステータス。server は { clients } のみ、client は { id（自分）, clients, room }。 */
+    get status(): SyncStatus {
         const info = rootInfoOf(Unit.currentUnit);
-        // identity は client にのみ存在する（server では未確定）。
-        return info.mode === 'client' ? { id: info.socket.id, name: info.name } : { id: undefined, name: undefined };
+        if (info.mode === 'server') {
+            return { clients: [...info.clients.values()] };
+        }
+        return { id: info.socket.id, clients: info.clients, room: info.room };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
         const unit = Unit.currentUnit;
@@ -285,6 +322,6 @@ export const sync = {
         const parent = Unit.currentUnit;
         return getEnvironment() === 'server'
             ? bootServerRoot(opts.io, opts, parent, args)
-            : bootClientRoot(opts.socket, opts, parent, args);
+            : bootClientRoot(opts.socket, parent, args);
     },
 };

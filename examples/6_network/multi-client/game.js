@@ -2,15 +2,15 @@ import xnew from '@mulsense/xnew';
 
 //----------------------------------------------------------------------------------------------------
 // game — multi-client のゲームロジック（socket.io 前提・無改変で動く）。
-//   ネットワークは xnew.sync（emit/on/client）だけに依存。transport は起動側が xnew.sync.boot({ mode, socket }, ...) で渡す socket.io の socket。
+//   ネットワークは xnew.sync（emit/on/status）だけに依存。transport は起動側が xnew.sync.boot({ socket }, ...) で渡す socket.io の socket。
 //   1 ブラウザ = 1 client = 1 ペイン。入力は常に自機へ送る（ペイン選択は無い）。
 //
 //   - World  : server/client 共通ルート。socket バインドと状態の下り(capture/apply)は xnew.sync.boot が自動で行う。
-//       server: '-join' で xnew(Player, { key: clientId }) を生成、'disconnect' で find(Player,{key}) して finalize。
+//       server: '-join' で xnew(Player, { key: clientId }) を生成、'sync.disconnect' で find(Player,{key}) して finalize。
 //       client: 自分のペインを 1 つ生成し emit('-join')。
 //   - Player : synced state {x, y, clientId}。移動は Player の動作として完結する。
 //       server: '-move'（同一コンポーネント宛て）で方向を vel に保持→update で積分。
-//       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.client.id。
+//       client: 描画＋（自機なら）入力(WASD/矢印)→emit('-move')。自機判定は state.clientId === xnew.sync.status.id。
 //   - sync イベント: 送信は xnew.sync.emit（payload はオブジェクト・syncId 自動付与）、受信は unit.on（受信 unit を明示）。
 //       handler は { id, ...payload }。プレフィックス '-'=同一コンポーネント(同じ syncId・replica↔server で一致) / '+'・無印=全体。
 //   - key: xnew(C, { key }) で同一性の目印を付け、xnew.find(C, { key }) で引ける（key はグローバル一意の想定）。
@@ -43,7 +43,7 @@ export function Player(unit, { clientId = '' } = {}) {
         unit.on('render', () => { el.style.left = `${state.x}px`; el.style.top = `${state.y}px`; });
 
         // 入力 → 移動はこの自機の動作。自機（このクライアント自身の Player）だけが入力を受ける。
-        if (state.clientId === xnew.sync.client.id) {
+        if (state.clientId === xnew.sync.status.id) {
             const stop = () => xnew.sync.emit('-move', { vector: { x: 0, y: 0 } });
             // 方向ベクトルを emit('-move')（自機の入力の上り）。
             unit.on('window.keydown.wasd window.keyup.wasd window.keydown.arrow window.keyup.arrow', ({ event, vector }) => {
@@ -63,7 +63,7 @@ export function World(unit) {
         // clientId を key にして Player を生成（同一性の目印）。disconnect では key で引いて finalize。
         // sync.on は登録元ユニットのスコープで走るので、xnew(Player) は World の子として生成される。
         unit.on('-join', ({ id }) => xnew(Player, { key: id, clientId: id }));
-        unit.on('disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());
+        unit.on('sync.disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());
     });
 
     xnew.client(() => {

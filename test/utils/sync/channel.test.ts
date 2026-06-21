@@ -25,10 +25,10 @@ describe('event channel (socket.io transport)', () => {
         let id1: string | undefined;
         let id2: string | undefined;
         bootClient({ socket: hub.connect() }, function Client(unit: Unit) {
-            xnew.client(() => { id1 = xnew.sync.client.id; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
+            xnew.client(() => { id1 = xnew.sync.status.id; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
         });
         bootClient({ socket: hub.connect() }, function Client(unit: Unit) {
-            xnew.client(() => { id2 = xnew.sync.client.id; });
+            xnew.client(() => { id2 = xnew.sync.status.id; });
         });
 
         expect(id1).toBe('c1');   // 自動発番（手動 clientId 不要）
@@ -71,15 +71,15 @@ describe('event channel (socket.io transport)', () => {
             });
             xnew.client(() => { xnew.nest('<div>'); });
         }
-        // World: 接続集合(presence)を on('connect'/'disconnect') で持ち、spawn/despawn は update(tick内)で行う。
+        // World: 接続集合(presence)を on('sync.connect'/'sync.disconnect') で持ち、spawn/despawn は update(tick内)で行う。
         function World(unit: Unit, props: { view?: HTMLElement } = {}) {
             xnew.sync.register({ Player });
             // socket は boot に渡した transport により自動バインドされる。
             xnew.server(() => {
                 const connected = new Set<string>();
                 const players = new Map<string, Unit>();
-                unit.on('connect', ({ id }: any) => connected.add(id));
-                unit.on('disconnect', ({ id }: any) => connected.delete(id));
+                unit.on('sync.connect', ({ id }: any) => connected.add(id));
+                unit.on('sync.disconnect', ({ id }: any) => connected.delete(id));
                 unit.on('update', () => {
                     for (const clientId of connected) {
                         if (!players.has(clientId)) { players.set(clientId, xnew(Player, { clientId }) as unknown as Unit); }
@@ -98,7 +98,7 @@ describe('event channel (socket.io transport)', () => {
         const view1 = document.createElement('div');
         const view2 = document.createElement('div');
 
-        const server = bootServer({ io: hub.io }, World);                          // on('connect') を登録
+        const server = bootServer({ io: hub.io }, World);                          // on('sync.connect') を登録
         const client1 = bootClient({ socket: hub.connect() }, World, { view: view1 }); // connect → presence に c1
         const socket2 = hub.connect();
         const client2 = bootClient({ socket: socket2 }, World, { view: view2 });        // connect → presence に c2
