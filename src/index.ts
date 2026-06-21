@@ -12,7 +12,6 @@ import { AnalogStick, DPad } from './basics/Controller';
 import { Panel } from './basics/Panel';
 import { Scene } from './basics/Scene';
 import { Lobby, Room } from './basics/Sync';
-import { Selectable } from './basics/Selectable';
 import { VolumeController } from './basics/Volume';
 
 import { image } from './utils/image';
@@ -32,7 +31,6 @@ const basics = {
     Scene,
     Lobby,
     Room,
-    Selectable,
     VolumeController,
 };
 
