@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------------------------------
 // multi-client（socket.io 版・server 側）— express で静的配信し、socket.io で実ネットワーク同期する。
 //   ロビー / ルームの汎用配線は xnew.basics.Lobby / Room に任せる（接続所有・台帳・一覧配信・人数計数・
-//   空室掃除・入室検証）。本ファイルの Lobby / Room はそれを extend し、部屋の作り方（中身 Component=World）
+//   空室掃除・入室検証）。本ファイルの Lobby / Room はそれを extend し、部屋の作り方（中身 Component=Game）
 //   だけを与える: basics Lobby の '-create' を受けて xnew(Room, ...) を作成し accept で台帳へ登録する。
 //   Node 実行なので mode は server に自動判定される。ゲーム本体 game.js は無改変。
 //----------------------------------------------------------------------------------------------------
@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 import express from 'express';
 import { Server as IOServer } from 'socket.io';
 import xnew from '@mulsense/xnew';
-import { World } from './game.js';
+import { Game } from './game.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -32,14 +32,14 @@ function Lobby(unit) {
     xnew.extend(xnew.basics.Lobby, { io, Room });
 }
 
-// 1 部屋 = basics Room を extend し、中身 Component に World を据える（basics Lobby から room={id,name} を受け取る）。
+// 1 部屋 = basics Room を extend し、中身 Component に Game を据える（basics Lobby から room={id,name} を受け取る）。
 function Room(unit, { io, room }) {
-    xnew.extend(xnew.basics.Room, { io, room, Component: World });
+    xnew.extend(xnew.basics.Room, { io, room, Component: Game });
 }
 
 xnew(Lobby);
 
 httpServer.listen(PORT, () => {
-    console.log(`[multi-client] socket.io server on http://localhost:${PORT}/`);
-    console.log('[multi-client] ロビーでルームを作成 → 複数のタブ/ブラウザで同じルームに入ると互いの自機が見えます');
+    console.log(`[multi-client] socket.io server on http://localhost:${PORT}/index-multiframe.html`);
+    console.log('[multi-client] 4 分割の各フレームで同じルームに入ると、タイトル → 設定 → ゲーム開始の流れを 1 画面で確認できます');
 });

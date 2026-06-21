@@ -1,5 +1,5 @@
 import xnew from '@mulsense/xnew';
-import { World } from './game.js';
+import { Game } from './game.js';
 
 //----------------------------------------------------------------------------------------------------
 // multi-client（client 側）— ロビーでルームを作成 / 入室してプレイする。
@@ -8,7 +8,7 @@ import { World } from './game.js';
 //     - Lobby : window.io({ forceNew })（room 無し）→ ロビー（ルーム一覧 / 作成）
 //     - Room  : window.io({ query:{room}, forceNew }）→ そのルームに参加
 //   各シーンは渡された socket を basics.Lobby / basics.Room に委ね、finalize で切断される。
-//   ゲーム本体 game.js は World が clientId/emit('-join')/move を処理する（boot へ socket を渡すだけ）。
+//   ゲーム本体 game.js は Game が Title→Setup→World のシーン遷移を同期で処理する（boot へ socket を渡すだけ）。
 //----------------------------------------------------------------------------------------------------
 
 // App — #app を要素に持つコンテナ。ステータス表示(setStatus)を公開し、最初のシーンを mount する。
@@ -89,9 +89,9 @@ function Lobby(unit, { socket }) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// Room — 渡された socket でそのルームへ接続し、client ツリー(World) を 1 ペイン mount してプレイ
+// Room — 渡された socket でそのルームへ接続し、client ツリー(Game) を mount してプレイ
 //   socket は呼び出し側が query{room} 付きで用意する（roomId は表示用に socket の query から取り出す）。
-//   HTML（戻るボタン・ペインの mount 先）だけを持ち、room 関連の配線（boot / socket 所有 / 基本イベント
+//   HTML（戻るボタン・シーンの mount 先）だけを持ち、room 関連の配線（boot / socket 所有 / 基本イベント
 //   connect・disconnect・notfound の '-event' 転送）は xnew.basics.Room に委ねる（mode は client に自動判定）。
 //----------------------------------------------------------------------------------------------------
 
@@ -103,11 +103,11 @@ function Room(unit, { socket }) {
 
     const back = xnew('<button class="px-3 py-1 mb-2 rounded border-0 bg-gray-500 hover:bg-gray-600 text-white text-sm cursor-pointer">', '← ロビーに戻る');
     back.on('click', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));
-    xnew.nest('<div class="flex gap-4">');   // 自機ペインの mount 先（World の client が pane を nest する）
+    xnew.nest('<div class="flex gap-4">');   // シーンの mount 先（Game の client が Title/Setup/World を nest する）
 
-    // room 関連の配線は Room が引き受ける（boot(World)、finalize で client 畳み + socket 切断）。
+    // room 関連の配線は Room が引き受ける（boot(Game)、finalize で client 畳み + socket 切断）。
     // socket は boot へ渡され、基本イベントは Room が '-event' でこの Room の unit.on へ転送する。
-    xnew.extend(xnew.basics.Room, { socket, Component: World });
+    xnew.extend(xnew.basics.Room, { socket, Component: Game });
 
     unit.on('-connect', () => app.setStatus(`ルーム ${roomId}: ${socket.id}`, true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
