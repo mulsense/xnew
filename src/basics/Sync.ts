@@ -5,11 +5,11 @@
 // server / client は実行環境で自動判定する（→ core/env）。ハンドルは server なら io、client なら socket を渡す
 // （socket.io の慣習に合わせ、各環境ブロックが正しい名前の変数を参照する）。
 //
-// - Lobby : component({ io?, socket?, maxRooms?, roomNameMax? }) — ロビー + 動的ルーム。
+// - Lobby : component({ io?, socket?, Room?, maxRooms?, roomNameMax? }) — ロビー + 動的ルーム。
 //           client（socket）= ロビー受信を unit.on('-<event>') へ転送 + create()（UI は利用側）。
-//           server（io）= io.on('connection') を所有し、入室検証 +「台帳(rooms)・一覧再配信(broadcast)」を公開する。
-//                    部屋の生成・台帳への出し入れは持たず host へ委譲する（'-create' { id, name } を出し、host が
-//                    xnew(Room,...)。Room が台帳へ載ったのを確認して creator へ created を返す）。
+//           server（io）= io.on('connection') を所有し、入室検証 + 台帳(rooms)・一覧再配信(broadcast) を公開する。
+//                    create 要求を受けると注入された Room コンポーネントで xnew(Room, { room:id, name }) を生成し、
+//                    直後に creator へ created を返す（台帳への登録・人数再配信は Room が context(Lobby) で行う）。
 // - Room  : component({ io?, socket?, room?, name?, Component }) — Component を boot し基本イベントを host へ転送。
 //           親に Lobby があれば（context(Lobby)）その台帳へ自分を出し入れし、人数変化で一覧を再配信する。
 //----------------------------------------------------------------------------------------------------
@@ -20,8 +20,8 @@ import { sync, BootOptions } from '../utils/sync';
 
 /** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。
  *  socket のコールバックは tick の外で走るので、emit を unit スコープで走らせるため xnew.scope で包む。 */
-export function Lobby(unit: Unit, { io, socket, maxRooms = 20, roomNameMax = 16 }:
-    { io?: any; socket?: any; maxRooms?: number; roomNameMax?: number }) {
+export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }:
+    { io?: any; socket?: any; Room?: Function; maxRooms?: number; roomNameMax?: number }) {
     // server: io.on('connection') を所有し、入室検証と「台帳(rooms)＋一覧再配信(broadcast)」を持つ。
     // 部屋の生成・台帳への出し入れは Room 側に委ねる（host が xnew(Room,...) し、Room が context(Lobby) 経由で登録）。
     xnew.server(() => {
@@ -43,10 +43,10 @@ export function Lobby(unit: Unit, { io, socket, maxRooms = 20, roomNameMax = 16 
                 if (rooms.size >= maxRooms) { conn.emit('rejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                // 生成は host へ委譲（同期 emit）。host が xnew(Room, ...) すると Room 自身が台帳へ載るので、
-                // 台帳に入ったこと（＝生成成功）を確認して creator へ created を返す。
-                xnew.emit('-create', { id, name });
-                if (rooms.has(id)) { conn.emit('created', { roomId: id }); }
+                // 部屋は host が注入した Room コンポーネントで生成する（Room が台帳へ自分を載せる）。生成直後に
+                // creator へ created を返す（同期生成なので成功は確定）。
+                xnew(unit, Room!, { io, room: id, name });
+                conn.emit('created', { roomId: id });
             }));
         });
         io.on('connection', connection);

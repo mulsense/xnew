@@ -117,14 +117,11 @@ describe('Lobby (server)', () => {
     beforeEach(() => { setEnvironment('server'); jest.useFakeTimers(); Unit.reset(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); document.body.innerHTML = ''; setEnvironment(null); });
 
-    // host は basics Lobby を extend し、'-create' を受けて Room を作り accept で台帳へ登録する（生成は利用側の責務）。
-    const mountLobby = (io: any, { graceMs, ...lobbyProps }: any = {}) =>
-        xnew(function Host(unit: Unit) {
-            xnew.extend(Lobby, { io, ...lobbyProps });
-            unit.on('-create', ({ id, name }: any) => {
-                xnew(unit, Room, { io, room: id, name, Component: World, graceMs });
-            });
-        });
+    // host は basics Lobby を extend し、生成に使う Room コンポーネント（World を中身に据える）を注入する。
+    const mountLobby = (io: any, { graceMs, ...lobbyProps }: any = {}) => {
+        const GameRoom = (_u: Unit, props: any) => xnew.extend(Room, { ...props, Component: World, graceMs });
+        return xnew(function Host() { xnew.extend(Lobby, { io, Room: GameRoom, ...lobbyProps }); });
+    };
 
     it('sends the current (empty) room list to a new lobby connection', () => {
         const io = lobbyIo();

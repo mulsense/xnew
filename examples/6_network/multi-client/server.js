@@ -27,15 +27,12 @@ const httpServer = createServer(app);
 const io = new IOServer(httpServer);
 
 // ---- ロビー + 動的ルーム（basics を extend し、部屋の中身だけ与える） ----
-// basics Lobby が台帳・一覧配信・入室検証を持つ。部屋生成だけ '-create' で委譲されるので、ここで Room を作る。
+// basics Lobby が接続所有・台帳・一覧配信・入室検証・部屋生成まで行う。生成に使う Room コンポーネントを注入する。
 function Lobby(unit) {
-    xnew.extend(xnew.basics.Lobby, { io });
-    unit.on('-create', ({ id, name }) => {
-        xnew(unit, Room, { io, room: id, name });   // Room が自分を台帳へ載せる（created は Lobby が返す）
-    });
+    xnew.extend(xnew.basics.Lobby, { io, Room });
 }
 
-// 1 部屋 = basics Room を extend し、中身 Component に World を据える。
+// 1 部屋 = basics Room を extend し、中身 Component に World を据える（basics Lobby から room/name を受け取る）。
 function Room(unit, { io, room, name }) {
     xnew.extend(xnew.basics.Room, { io, room, name, Component: World });
 }
