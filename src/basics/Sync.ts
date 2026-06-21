@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
-import { Unit } from '../core/unit';
+import { Unit, UnitTimer } from '../core/unit';
 import { sync, BootOptions } from '../utils/sync';
 
 /** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。
@@ -68,30 +68,55 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
  *  '-<event>' へ転送する。server では人数台帳を持ち id/name/memberCount を公開、無人が graceMs 続けば '-empty'。
  *  親に Lobby があればその台帳へ自分を出し入れし、人数変化で一覧を再配信、空室確定で撤去する。env で自動判定。 */
 export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room'> & { Component: Function; graceMs?: number }) {
-    const client = sync.boot({ io, socket, room }, Component);   // server=io / client=socket（boot が env で選ぶ）
-    unit.on('finalize', () => client.finalize());
-    const members = new Set<string>();
 
     // server: sync.connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
     // 親に Lobby があればその台帳(rooms)へ出し入れし人数変化で一覧を再配信する。
     xnew.server(() => {
-        const lobby = xnew.context(Lobby);   // 無ければ undefined（Lobby 配下でない単独利用）
-        // 台帳の行情報。memberCount だけ closure から live に返す。
+        const client = sync.boot({ io, room }, Component);
+        unit.on('finalize', () => client.finalize());
+        const members = new Set<string>();
+
+        const lobby = xnew.context(Lobby);
+
+        // Lobby 台帳の行情報。memberCount だけ live に返す。
         const entry = { id: room?.id ?? '', name: room?.name ?? '', get memberCount() { return members.size; } };
-        let graceTimer: ReturnType<typeof setTimeout> | null = null;
-        const clearGrace = () => { if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; } };
-        const remove = () => { lobby.rooms.delete(room?.id); lobby.broadcast(); unit.finalize(); };   // 無人確定 → 台帳から外して撤去
-        const scheduleCleanup = () => { clearGrace(); graceTimer = setTimeout(xnew.scope(() => { if (members.size === 0) { xnew.emit('-empty', {}); if (lobby !== undefined) { remove(); } } }), graceMs); };
-        client.on('sync.connect', xnew.scope(({ id }: any) => { clearGrace(); members.add(id); xnew.emit('-connect', { id }); lobby?.broadcast(); }));
-        client.on('sync.disconnect', xnew.scope(({ id }: any) => { members.delete(id); xnew.emit('-disconnect', { id }); lobby?.broadcast(); if (members.size === 0) { scheduleCleanup(); } }));
-        unit.on('finalize', clearGrace);
-        lobby?.rooms.set(room?.id, entry);   // 台帳へ登録し直ちに一覧へ反映
+
+        // 無人が graceMs 続いたら撤去する。connect で解除し、disconnect で再設定する。
+        // xnew.timeout は unit 配下なので finalize で自動停止し、コールバックも unit スコープで走る。
+        let graceTimer: UnitTimer | null = null;
+        const cancelCleanup = () => { graceTimer?.clear(); graceTimer = null; };
+        const scheduleCleanup = () => {
+            cancelCleanup();
+            graceTimer = xnew.timeout(() => {
+                if (members.size > 0) { return; }
+                xnew.emit('-empty', {});
+                if (lobby !== undefined) { lobby.rooms.delete(room?.id); lobby.broadcast(); unit.finalize(); }
+            }, graceMs);
+        };
+
+        client.on('sync.connect', xnew.scope(({ id }: any) => {
+            cancelCleanup();
+            members.add(id);
+            xnew.emit('-connect', { id });
+            lobby?.broadcast();
+        }));
+        client.on('sync.disconnect', xnew.scope(({ id }: any) => {
+            members.delete(id);
+            xnew.emit('-disconnect', { id });
+            lobby?.broadcast();
+            if (members.size === 0) { scheduleCleanup(); }
+        }));
+
+        lobby?.rooms.set(room?.id, entry);   // 台帳へ登録し一覧へ反映
         lobby?.broadcast();
-        scheduleCleanup();   // 作成直後に無人なら graceMs 後に撤去（最初の connect で解除）
+        scheduleCleanup();                   // 無人のまま放置されたら撤去（最初の connect で解除）
     });
 
     // client: 生 socket の基本イベントを host へ転送し、finalize で socket を切断する。
     xnew.client(() => {
+        const client = sync.boot({ socket }, Component);
+        unit.on('finalize', () => client.finalize());
+
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
         socket.on('notfound', xnew.scope((payload: any) => xnew.emit('-notfound', payload)));
