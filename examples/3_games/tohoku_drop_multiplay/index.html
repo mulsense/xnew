@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>とーほくドロップ 2人対戦</title>
+  <script src="/thirdparty/tailwindcss/playcdn.js"></script>
+  <!-- client 側のみ: pixi / three / voxelkit と xnew の描画 addon（matter は server 専用なので読み込まない） -->
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "/thirdparty/pixi/pixi.min.mjs",
+        "three": "/thirdparty/three/three.module.js",
+        "three/addons/": "/thirdparty/three/addons/",
+        "@pixiv/three-vrm": "/thirdparty/three-vrm/three-vrm.module.min.js",
+        "voxelkit": "/thirdparty/voxelkit/voxelkit.mjs",
+        "@mulsense/xnew": "/xnew/xnew.mjs",
+        "@mulsense/xnew/addons/xpixi": "/xnew/addons/xpixi.mjs",
+        "@mulsense/xnew/addons/xthree": "/xnew/addons/xthree.mjs"
+      }
+    }
+  </script>
+</head>
+<body class="m-2 font-sans text-gray-600">
+  <p class="text-[13px] leading-relaxed mb-2">
+    ロビーでルームを作成 / 入室し、同じルームに 2 人入ると対戦開始。共有の皿に交互にドロップ
+    （手番のとき盤面をクリック）。落とした玉・合体で生まれた玉のポイントを獲得、皿からあふれた玉は
+    減点。落下が収まると手番交代。先に <b>200 点</b> で勝ち。
+    <span id="status" class="text-red-500">接続中…</span>
+  </p>
+  <!-- ロビー / ルーム（ゲーム）の両シーンがここに mount される -->
+  <div id="app"></div>
+  <!-- socket.io クライアント（socket.io サーバーが自動配信。グローバル io を定義） -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="./index.js"></script>
+</body>
+</html>
