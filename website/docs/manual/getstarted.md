@@ -19,12 +19,7 @@ xnew の特徴は次のとおりです。
 
 導入方法は次の 3 通りから選べます。
 
-### CDN (初心者向け)
-HTML に次のスクリプトタグを追加します。
-```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-```
-### CDN (ESM)
+### CDN
 ES モジュール版は import map で読み込みます。
 ```html
 <script type="importmap">
@@ -84,10 +79,17 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create your first component
     xnew(MyFirstComponent);
 
@@ -119,10 +121,17 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create main component
     xnew(MainComponent);
 
@@ -177,10 +186,17 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     xnew(RotatingBox);
 
     function RotatingBox(unit) {

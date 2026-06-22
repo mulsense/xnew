@@ -11,12 +11,6 @@ providing a flexible architecture well-suited for applications with dynamic scen
 ## Setup
 
 ### Via CDN
-Include the following script in your HTML file:
-```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-```
-
-### Via CDN (ESM)
 Use the ES module version with an import map:
 ```html
 <script type="importmap">

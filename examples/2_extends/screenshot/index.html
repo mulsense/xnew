@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="../../dist/xnew.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@mulsense/xnew": "../../dist/xnew.mjs"
+      }
+    }
+  </script>
   <script src="../../thirdparty/html2canvas-pro/html2canvas-pro.min.js"></script>
   <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
@@ -11,7 +17,9 @@
 <body class="m-0 p-0 w-full h-screen overflow-hidden">
   <div id="main" class="relative w-full h-full"></div>
 
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
+
     xnew(document.querySelector('#main'), Main);
 
     function Main(unit) {

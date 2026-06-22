@@ -3,14 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="../../dist/xnew.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@mulsense/xnew": "../../dist/xnew.mjs"
+      }
+    }
+  </script>
   <script src="../../thirdparty/tailwindcss/playcdn.js"></script>
 </head>
 
 <body>
   <div id="main" class="relative w-full h-full"></div>
 
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
+
     let counter = 0;
     xnew(document.querySelector('#main'), Main);
     

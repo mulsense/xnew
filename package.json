@@ -5,39 +5,32 @@
     "Component-Oriented Programming"
   ],
   "version": "0.8.4",
-  "main": "dist/xnew.js",
   "module": "dist/xnew.mjs",
   "types": "dist/xnew.d.ts",
   "exports": {
     ".": {
       "types": "./dist/xnew.d.ts",
-      "import": "./dist/xnew.mjs",
-      "require": "./dist/xnew.js"
+      "import": "./dist/xnew.mjs"
     },
     "./addons/xmatter": {
       "types": "./dist/addons/xmatter.d.ts",
-      "import": "./dist/addons/xmatter.mjs",
-      "require": "./dist/addons/xmatter.js"
+      "import": "./dist/addons/xmatter.mjs"
     },
     "./addons/xpixi": {
       "types": "./dist/addons/xpixi.d.ts",
-      "import": "./dist/addons/xpixi.mjs",
-      "require": "./dist/addons/xpixi.js"
+      "import": "./dist/addons/xpixi.mjs"
     },
     "./addons/xrapier2d": {
       "types": "./dist/addons/xrapier2d.d.ts",
-      "import": "./dist/addons/xrapier2d.mjs",
-      "require": "./dist/addons/xrapier2d.js"
+      "import": "./dist/addons/xrapier2d.mjs"
     },
     "./addons/xrapier3d": {
       "types": "./dist/addons/xrapier3d.d.ts",
-      "import": "./dist/addons/xrapier3d.mjs",
-      "require": "./dist/addons/xrapier3d.js"
+      "import": "./dist/addons/xrapier3d.mjs"
     },
     "./addons/xthree": {
       "types": "./dist/addons/xthree.d.ts",
-      "import": "./dist/addons/xthree.mjs",
-      "require": "./dist/addons/xthree.js"
+      "import": "./dist/addons/xthree.mjs"
     }
   },
   "files": [

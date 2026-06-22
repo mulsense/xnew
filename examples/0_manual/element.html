@@ -5,11 +5,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <script src="../dist/xnew.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@mulsense/xnew": "../dist/xnew.mjs"
+      }
+    }
+  </script>
 </head>
 
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
+
     // Create first component.
     xnew(Component);
 

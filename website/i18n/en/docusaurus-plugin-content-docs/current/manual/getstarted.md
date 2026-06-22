@@ -19,12 +19,7 @@ The key features:
 
 Choose one of the following methods to include xnew in your project:
 
-### Via CDN (Recommended for beginners)
-Include the following script in your HTML file:
-```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-```
-### Via CDN (ESM)
+### Via CDN
 Use the ES module version with an import map:
 ```html
 <script type="importmap">
@@ -84,10 +79,17 @@ A minimal example that creates a single component and displays a message:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create your first component
     xnew(MyFirstComponent);
 
@@ -119,10 +121,17 @@ This will generate:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create main component
     xnew(MainComponent);
 
@@ -177,10 +186,17 @@ Click the box below to start and stop a CSS rotation animation.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     xnew(RotatingBox);
 
     function RotatingBox(unit) {

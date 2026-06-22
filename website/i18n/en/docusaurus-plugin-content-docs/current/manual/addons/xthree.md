@@ -10,12 +10,6 @@ sidebar_position: 502
 
 ### Via CDN
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xthree.js"></script>
-```
-
-### Via CDN (ESM)
-```html
 <script type="importmap">
 {
   "imports": {

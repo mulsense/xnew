@@ -9,12 +9,6 @@ sidebar_position: 501
 ## セットアップ
 ### CDN
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xpixi.js"></script>
-```
-
-### CDN (ESM)
-```html
 <script type="importmap">
 {
   "imports": {
