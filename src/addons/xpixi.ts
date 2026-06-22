@@ -18,13 +18,13 @@
 // `finalize()` tears down the Root Unit, releasing the renderer (destroy). The same release also runs
 // on normal tree teardown, so the renderer is never leaked.
 //
-// - default : { initialize, nest, add, remove, load, finalize, renderer, scene, canvas }
+// - xpixi : { initialize, nest, add, remove, load, finalize, renderer, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import * as PIXI from 'pixi.js'
 
-export default {
+export const xpixi = {
     initialize(
         { canvas }:
         { canvas: HTMLCanvasElement }

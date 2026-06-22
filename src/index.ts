@@ -47,4 +47,4 @@ namespace xnew {
 
 const xnew = Object.assign(base, { basics, audio, image, sync });
 
-export default xnew;
+export { xnew };

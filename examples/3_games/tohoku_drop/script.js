@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import voxelkit from 'voxelkit';
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
-import xthree from '@mulsense/xnew/addons/xthree';
-import xmatter from '@mulsense/xnew/addons/xmatter';
+import { xnew } from '@mulsense/xnew';
+import { xpixi } from '@mulsense/xnew/addons/xpixi';
+import { xthree } from '@mulsense/xnew/addons/xthree';
+import { xmatter } from '@mulsense/xnew/addons/xmatter';
 import { ResultBackground, ResultImage, ResultFooter, TitleText, TouchMessage, GameOverText, VolumeControl } from '../utils/ui.js';
 
 xnew(document.querySelector('#main'), Main);

@@ -1,4 +1,4 @@
-import xnew from '../../dist/xnew.mjs';
+import { xnew } from '../../dist/xnew.mjs';
 
 xnew(Main);
 

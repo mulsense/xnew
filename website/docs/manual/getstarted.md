@@ -36,7 +36,7 @@ ES モジュール版は import map で読み込みます。
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 
 // Your code here
 </script>
@@ -50,7 +50,7 @@ npm install @mulsense/xnew@0.8.x
 
 JavaScript ファイルからインポートして使用します。
 ```js
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 ```
 
 ## チュートリアル

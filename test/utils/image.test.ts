@@ -1,5 +1,5 @@
 import { ImageData } from '../../src/utils/image';
-import xnew from '../../src/index';
+import { xnew } from '../../src/index';
 
 describe('ImageData', () => {
     it('wraps an existing canvas', () => {

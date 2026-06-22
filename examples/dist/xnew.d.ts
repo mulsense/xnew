@@ -1,3 +1,82 @@
+declare class ImageData {
+    canvas: HTMLCanvasElement;
+    constructor(canvas: HTMLCanvasElement);
+    constructor(width: number, height: number);
+    crop(x: number, y: number, width: number, height: number): ImageData;
+    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
+    download(filename: string): void;
+}
+
+declare class AudioTrack {
+    private buffer?;
+    private source;
+    private amp;
+    private fade;
+    private startedAt;
+    private pausedOffsetMs;
+    private loop;
+    promise: Promise<AudioTrack>;
+    constructor(path: string);
+    get isPlaying(): boolean;
+    get isLoaded(): boolean;
+    set volume(value: number);
+    get volume(): number;
+    play({ offset, fade, loop }?: {
+        offset?: number;
+        fade?: number;
+        loop?: boolean;
+    }): void;
+    pause({ fade }?: {
+        fade?: number;
+    }): void;
+    stop({ fade }?: {
+        fade?: number;
+    }): void;
+    clear(): void;
+    private forceStop;
+    private startSource;
+    private stopSource;
+}
+type SynthesizerOptions = {
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
+};
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
+};
+type Envelope = {
+    amount: number;
+    ADSR: [number, number, number, number];
+};
+type LFO = {
+    amount: number;
+    type: OscillatorType;
+    rate: number;
+};
+declare class Synthesizer {
+    props: SynthesizerOptions;
+    constructor(props: SynthesizerOptions);
+    press(frequency: number | string, duration?: number | string, wait?: number): {
+        release: () => void;
+    } | undefined;
+}
+
 declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     has(key: Key): boolean;
     has(key: Key, value: Value): boolean;
@@ -39,9 +118,7 @@ interface Snapshot {
     Component: Function | null;
 }
 type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
-type Mode = 'server' | 'client' | null;
 interface UnitOptions {
-    mode?: Mode;
     setup?: (unit: Unit) => void;
 }
 type ComponentFn<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
@@ -80,7 +157,6 @@ declare class Unit {
         }>;
         eventor: Eventor;
         key: any;
-        mode: Mode;
     };
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
@@ -143,123 +219,6 @@ declare class UnitTimer {
     private static next;
 }
 
-interface SyncNode {
-    id: number;
-    name: string;
-    parentId: number | null;
-    state: Record<string, any>;
-}
-type StateTree = SyncNode[];
-declare function captureStateTree(root: Unit): StateTree;
-declare function applyStateTree(root: Unit, tree: StateTree): void;
-interface ClientSocket {
-    id: string;
-    emit(event: string, payload?: any): void;
-    on(event: string, handler: (payload: any) => void): void;
-    off(event: string, handler: (payload: any) => void): void;
-    onAny(handler: (event: string, payload: any) => void): void;
-    disconnect(): void;
-}
-interface ServerSocket {
-    on(event: string, handler: (clientId: string, payload: any) => void): void;
-    off(event: string, handler: (clientId: string, payload: any) => void): void;
-    emit(event: string, payload?: any): void;
-    to(clientId: string): {
-        emit(event: string, payload?: any): void;
-    };
-    onAny(handler: (event: string, clientId: string, payload: any) => void): void;
-}
-type RootSocket = ClientSocket | ServerSocket;
-interface ClientInfo {
-    id: string | undefined;
-    name: string | undefined;
-}
-interface BootOptions {
-    mode: 'server' | 'client';
-    socket?: any;
-    room?: string;
-    name?: string;
-}
-
-declare class ImageData {
-    canvas: HTMLCanvasElement;
-    constructor(canvas: HTMLCanvasElement);
-    constructor(width: number, height: number);
-    crop(x: number, y: number, width: number, height: number): ImageData;
-    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
-    download(filename: string): void;
-}
-
-declare class AudioTrack {
-    private buffer?;
-    private source;
-    private amp;
-    private fade;
-    private startedAt;
-    private pausedOffsetMs;
-    private loop;
-    promise: Promise<void>;
-    constructor(path: string);
-    get isPlaying(): boolean;
-    get isLoaded(): boolean;
-    set volume(value: number);
-    get volume(): number;
-    play({ offset, fade, loop }?: {
-        offset?: number;
-        fade?: number;
-        loop?: boolean;
-    }): void;
-    pause({ fade }?: {
-        fade?: number;
-    }): void;
-    stop({ fade }?: {
-        fade?: number;
-    }): void;
-    clear(): void;
-    private forceStop;
-    private startSource;
-    private stopSource;
-}
-type SynthesizerOptions = {
-    oscillator: OscillatorOptions;
-    amp: AmpOptions;
-    filter?: FilterOptions;
-    reverb?: ReverbOptions;
-    bpm?: number;
-};
-type OscillatorOptions = {
-    type: OscillatorType;
-    envelope?: Envelope;
-    LFO?: LFO;
-};
-type FilterOptions = {
-    type: BiquadFilterType;
-    cutoff: number;
-};
-type AmpOptions = {
-    envelope: Envelope;
-};
-type ReverbOptions = {
-    time: number;
-    mix: number;
-};
-type Envelope = {
-    amount: number;
-    ADSR: [number, number, number, number];
-};
-type LFO = {
-    amount: number;
-    type: OscillatorType;
-    rate: number;
-};
-declare class Synthesizer {
-    props: SynthesizerOptions;
-    constructor(props: SynthesizerOptions);
-    press(frequency: number | string, duration?: number | string, wait?: number): {
-        release: () => void;
-    } | undefined;
-}
-
 interface XnewBase {
     <C extends ComponentFn<any, any>>(Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
     <C extends ComponentFn<any, any>>(target: DomElement | string, Component: C, props?: PropsOf<C>): Unit & DefinesOf<C>;
@@ -267,6 +226,27 @@ interface XnewBase {
     (content: string | number): Unit;
     (parent: Unit | null, ...args: any[]): Unit;
     (): Unit;
+}
+
+type Environment = 'server' | 'client';
+
+interface ClientStatus {
+    id: string;
+    name: string | undefined;
+}
+interface RoomStatus {
+    id: string | undefined;
+    name: string | undefined;
+}
+interface SyncStatus {
+    id?: string;
+    clients: ClientStatus[];
+    room?: RoomStatus;
+}
+interface BootOptions {
+    io?: any;
+    socket?: any;
+    room?: RoomStatus;
 }
 
 interface TransitionOptions {
@@ -369,18 +349,20 @@ declare function Scene(unit: Unit): {
     add(Component: Function, props?: any): void;
 };
 
-declare function Room(unit: Unit, { mode, socket, room, name, component }: Pick<BootOptions, 'mode' | 'socket' | 'room' | 'name'> & {
-    component: Function;
+declare function Lobby(unit: Unit, { io, socket, Room, maxRooms, roomNameMax }: {
+    io?: any;
+    socket?: any;
+    Room?: Function;
+    maxRooms?: number;
+    roomNameMax?: number;
+}): void;
+declare function Room(unit: Unit, { io, socket, room, Component, graceMs }: Pick<BootOptions, 'io' | 'socket' | 'room'> & {
+    Component: Function;
+    graceMs?: number;
 }): {
-    readonly client: Unit;
-};
-
-declare function Selectable(unit: Unit, { selected }?: {
-    selected?: boolean;
-}): {
-    readonly selected: boolean;
-    select(): void;
-    deselect(): void;
+    readonly id: string | undefined;
+    readonly name: string | undefined;
+    readonly memberCount: number;
 };
 
 declare function VolumeController(unit: Unit, { anchor }?: {
@@ -391,7 +373,7 @@ declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
     type UnitTimer = InstanceType<typeof UnitTimer>;
     type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
-    type Mode = Mode;
+    type Environment = Environment;
     type Status = Status;
     namespace audio {
         type AudioTrack = InstanceType<typeof AudioTrack>;
@@ -441,13 +423,13 @@ declare const xnew: XnewBase & {
         Accordion: typeof Accordion;
         Popup: typeof Popup;
         Scene: typeof Scene;
+        Lobby: typeof Lobby;
         Room: typeof Room;
-        Selectable: typeof Selectable;
         VolumeController: typeof VolumeController;
     };
     audio: {
         AudioTrack: typeof AudioTrack;
-        load(path: string): AudioTrack;
+        load(path: string): Promise<AudioTrack>;
         synthesizer(props: SynthesizerOptions): Synthesizer;
         volume: number;
     };
@@ -457,14 +439,11 @@ declare const xnew: XnewBase & {
     sync: {
         state(initial?: Record<string, any>): Record<string, any>;
         register(components: Record<string, Function>): void;
-        capture(root: Unit): ReturnType<typeof captureStateTree>;
-        apply(root: Unit, tree: Parameters<typeof applyStateTree>[1]): void;
-        readonly client: ClientInfo;
-        readonly clients: ReadonlyArray<ClientInfo>;
+        readonly status: SyncStatus;
         emit(event: string, payload?: Record<string, any>): void;
         boot(opts: BootOptions, ...args: any[]): Unit;
     };
 };
 
-export { xnew as default };
-export type { BootOptions, ClientInfo, ClientSocket, RootSocket, ServerSocket };
+export { xnew };
+export type { BootOptions, ClientStatus, RoomStatus, SyncStatus };

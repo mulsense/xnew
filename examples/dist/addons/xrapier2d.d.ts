@@ -1,6 +1,6 @@
-declare const _default: {
+declare const xrapier2d: {
     initialize({ gravity }?: any): void;
     readonly world: any;
 };
 
-export { _default as default };
+export { xrapier2d };

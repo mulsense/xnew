@@ -25,8 +25,8 @@ sidebar_position: 501
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew'
-import xpixi from '@mulsense/xnew/addons/xpixi'
+import { xnew } from '@mulsense/xnew'
+import { xpixi } from '@mulsense/xnew/addons/xpixi'
 
 // ...
 </script>
@@ -37,8 +37,8 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 npm install @mulsense/xnew@0.8.x
 ```
 ```js
-import xnew from '@mulsense/xnew'
-import xpixi from '@mulsense/xnew/addons/xpixi'
+import { xnew } from '@mulsense/xnew'
+import { xpixi } from '@mulsense/xnew/addons/xpixi'
 ```
 
 ## Core API

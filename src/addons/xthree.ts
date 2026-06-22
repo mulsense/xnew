@@ -17,13 +17,13 @@
 // `finalize()` tears down the Root Unit, releasing the renderer (dispose + forceContextLoss). The same
 // release also runs on normal tree teardown, so the WebGL context is never leaked.
 //
-// - default : { initialize, nest, add, remove, dispose, finalize, renderer, camera, scene, canvas }
+// - xthree : { initialize, nest, add, remove, dispose, finalize, renderer, camera, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import * as THREE from 'three';
 
-export default {
+export const xthree = {
     initialize (
         { canvas, camera = null }:
         { canvas: HTMLCanvasElement, camera?: THREE.Camera | null }

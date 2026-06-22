@@ -26,8 +26,8 @@ sidebar_position: 502
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew'
-import xthree from '@mulsense/xnew/addons/xthree'
+import { xnew } from '@mulsense/xnew'
+import { xthree } from '@mulsense/xnew/addons/xthree'
 
 // ...
 </script>
@@ -38,8 +38,8 @@ import xthree from '@mulsense/xnew/addons/xthree'
 npm install @mulsense/xnew@0.8.x
 ```
 ```js
-import xnew from '@mulsense/xnew'
-import xthree from '@mulsense/xnew/addons/xthree'
+import { xnew } from '@mulsense/xnew'
+import { xthree } from '@mulsense/xnew/addons/xthree'
 ```
 
 ## コア API

@@ -1,4 +1,4 @@
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 
 //----------------------------------------------------------------------------------------------------
 // game — multi-client のゲームロジック（socket.io 前提・無改変で動く）。

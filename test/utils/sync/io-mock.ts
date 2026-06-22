@@ -13,7 +13,7 @@
 // - bootServer(opts, ...args) / bootClient(opts, ...args) : xnew.sync.boot with the mode forced
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '../../../src/index';
+import { xnew } from '../../../src/index';
 import { setEnvironment, withEnvironment } from '../../../src/core/env';
 
 type Handler = (...args: any[]) => void;

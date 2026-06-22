@@ -1,5 +1,5 @@
-import xnew from '@mulsense/xnew';
-import xthree from '@mulsense/xnew/addons/xthree';
+import { xnew } from '@mulsense/xnew';
+import { xthree } from '@mulsense/xnew/addons/xthree';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';

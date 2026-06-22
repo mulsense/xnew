@@ -10,8 +10,8 @@ jest.spyOn(THREE, 'WebGLRenderer').mockImplementation(() => ({
     forceContextLoss() {},
 }));
 
-import xnew from '../../src/index';
-import xthree from '../../src/addons/xthree';
+import { xnew } from '../../src/index';
+import { xthree } from '../../src/addons/xthree';
 
 function setup() {
     const canvas = document.createElement('canvas');

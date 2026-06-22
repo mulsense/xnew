@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
-import xnew from '../../../src/index';
+import { xnew } from '../../../src/index';
 import { ioMock, bootServer, bootClient } from './io-mock';
 
 // Base: synced state を宣言する基底コンポーネント（最初の sync.state 宣言）

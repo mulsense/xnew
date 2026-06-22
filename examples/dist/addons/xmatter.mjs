@@ -1,7 +1,7 @@
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import Matter from 'matter-js';
 
-var xmatter = {
+const xmatter = {
     initialize({} = {}) {
         xnew.promise(xnew(Root, {}));
     },
@@ -21,4 +21,4 @@ function Root(unit, {}) {
     };
 }
 
-export { xmatter as default };
+export { xmatter };

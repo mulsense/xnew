@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
-import xnew from '../../../src/index';
+import { xnew } from '../../../src/index';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 // 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ

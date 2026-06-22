@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import xnew from '../../../src/index';
+import { xnew } from '../../../src/index';
 import { ioMock, bootServer, bootClient } from './io-mock';
 
 describe('xnew.server / xnew.client', () => {

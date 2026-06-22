@@ -1,6 +1,6 @@
-import xnew from '@mulsense/xnew';
-import xthree from '@mulsense/xnew/addons/xthree';
-import xrapier3d from '@mulsense/xnew/addons/xrapier3d';
+import { xnew } from '@mulsense/xnew';
+import { xthree } from '@mulsense/xnew/addons/xthree';
+import { xrapier3d } from '@mulsense/xnew/addons/xrapier3d';
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 

@@ -17,7 +17,7 @@
 // 各 index.html の importmap に @mulsense/xnew と html2canvas-pro が必要（既存サンプルは充足済み）。
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import html2canvas from 'html2canvas-pro';
 
 // 丸枠アイコン: 外周の円 + 中央70%に path 群。Camera / ArrowUturnLeft で共有。

@@ -1,7 +1,7 @@
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import * as PIXI from 'pixi.js';
 
-var xpixi = {
+const xpixi = {
     initialize({ canvas }) {
         xnew.promise(xnew(Root, { canvas }));
     },
@@ -86,4 +86,4 @@ function Add(unit, { object }) {
     attach(unit, object);
 }
 
-export { xpixi as default };
+export { xpixi };

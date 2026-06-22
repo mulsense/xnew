@@ -1,4 +1,4 @@
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import { Game } from './game.js';
 
 //----------------------------------------------------------------------------------------------------

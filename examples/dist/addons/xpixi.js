@@ -23,13 +23,13 @@
 
     var PIXI__namespace = /*#__PURE__*/_interopNamespaceDefault(PIXI);
 
-    var xpixi = {
+    const xpixi = {
         initialize({ canvas }) {
-            xnew.promise(xnew(Root, { canvas }));
+            xnew.xnew.promise(xnew.xnew(Root, { canvas }));
         },
         nest(object) {
-            xnew(Nest, { object });
-            xnew.extend(() => {
+            xnew.xnew(Nest, { object });
+            xnew.xnew.extend(() => {
                 return {
                     get pixiObject() { return object; }
                 };
@@ -37,35 +37,35 @@
             return object;
         },
         add(object) {
-            xnew(Add, { object });
+            xnew.xnew(Add, { object });
             return object;
         },
         remove(object) {
             removeObject(object);
         },
         load(source) {
-            return xnew.promise(PIXI__namespace.Assets.load(source));
+            return xnew.xnew.promise(PIXI__namespace.Assets.load(source));
         },
         finalize() {
             var _a;
-            (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.release();
+            (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.release();
         },
         get renderer() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.renderer;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.renderer;
         },
         get scene() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.scene;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.scene;
         },
         get canvas() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.canvas;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.canvas;
         },
     };
     function Root(unit, { canvas }) {
         let renderer = null;
-        xnew.promise(PIXI__namespace.autoDetectRenderer({
+        xnew.xnew.promise(PIXI__namespace.autoDetectRenderer({
             width: canvas.width, height: canvas.height, view: canvas,
             antialias: true, backgroundAlpha: 0,
         })).then((value) => {
@@ -93,8 +93,8 @@
     }
     function attach(unit, object) {
         var _a, _b;
-        const root = xnew.context(Root);
-        const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.pixiObject) !== null && _b !== void 0 ? _b : root.scene;
+        const root = xnew.xnew.context(Root);
+        const parent = (_b = (_a = xnew.xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.pixiObject) !== null && _b !== void 0 ? _b : root.scene;
         parent.addChild(object);
         unit.on('finalize', () => removeObject(object));
     }

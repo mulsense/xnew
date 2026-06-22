@@ -4,17 +4,17 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.xmatter = factory(global.xnew, global.Matter));
 })(this, (function (xnew, Matter) { 'use strict';
 
-    var xmatter = {
+    const xmatter = {
         initialize({} = {}) {
-            xnew.promise(xnew(Root, {}));
+            xnew.xnew.promise(xnew.xnew(Root, {}));
         },
         get engine() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine;
         },
         get world() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine.world;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.engine.world;
         },
     };
     function Root(unit, {}) {

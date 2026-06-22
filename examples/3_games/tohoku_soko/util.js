@@ -1,7 +1,7 @@
 
 import * as PIXI from 'pixi.js';
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
+import { xnew } from '@mulsense/xnew';
+import { xpixi } from '@mulsense/xnew/addons/xpixi';
 
 export function Background(unit) {
   xnew(() => {

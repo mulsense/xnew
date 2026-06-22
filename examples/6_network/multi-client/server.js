@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import express from 'express';
 import { Server as IOServer } from 'socket.io';
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import { Game } from './game.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

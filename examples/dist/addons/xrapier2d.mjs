@@ -1,7 +1,7 @@
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import RAPIER from '@dimforge/rapier2d-compat';
 
-var xrapier2d = {
+const xrapier2d = {
     initialize({ gravity = { x: 0.0, y: -9.81 } } = {}) {
         xnew.promise(xnew(Root, { gravity }));
     },
@@ -20,4 +20,4 @@ function Root(unit, { gravity }) {
     };
 }
 
-export { xrapier2d as default };
+export { xrapier2d };

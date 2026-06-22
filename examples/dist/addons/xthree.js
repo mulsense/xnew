@@ -23,13 +23,13 @@
 
     var THREE__namespace = /*#__PURE__*/_interopNamespaceDefault(THREE);
 
-    var xthree = {
+    const xthree = {
         initialize({ canvas, camera = null }) {
-            xnew.promise(xnew(Root, { canvas, camera }));
+            xnew.xnew.promise(xnew.xnew(Root, { canvas, camera }));
         },
         nest(object) {
-            xnew(Nest, { object });
-            xnew.extend(() => {
+            xnew.xnew(Nest, { object });
+            xnew.xnew.extend(() => {
                 return {
                     get threeObject() { return object; }
                 };
@@ -37,7 +37,7 @@
             return object;
         },
         add(object) {
-            xnew(Add, { object });
+            xnew.xnew(Add, { object });
             return object;
         },
         remove(object) {
@@ -51,23 +51,23 @@
         },
         finalize() {
             var _a;
-            (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.release();
+            (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.release();
         },
         get renderer() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.renderer;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.renderer;
         },
         get camera() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.camera;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.camera;
         },
         get scene() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.scene;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.scene;
         },
         get canvas() {
             var _a;
-            return (_a = xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.canvas;
+            return (_a = xnew.xnew.context(Root)) === null || _a === void 0 ? void 0 : _a.canvas;
         },
     };
     function Root(unit, { canvas, camera }) {
@@ -109,8 +109,8 @@
     }
     function attach(unit, object) {
         var _a, _b;
-        const root = xnew.context(Root);
-        const parent = (_b = (_a = xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.threeObject) !== null && _b !== void 0 ? _b : root.scene;
+        const root = xnew.xnew.context(Root);
+        const parent = (_b = (_a = xnew.xnew.context(Nest)) === null || _a === void 0 ? void 0 : _a.threeObject) !== null && _b !== void 0 ? _b : root.scene;
         parent.add(object);
         unit.on('finalize', () => {
             parent.remove(object);

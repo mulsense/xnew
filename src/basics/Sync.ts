@@ -69,12 +69,15 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
  *  親に Lobby があればその台帳へ自分を出し入れし、人数変化で一覧を再配信、空室確定で撤去する。env で自動判定。 */
 export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room'> & { Component: Function; graceMs?: number }) {
 
+    // 人数台帳。server で connect/disconnect により更新し、公開する memberCount から参照する。
+    // client 側では更新されず常に空（memberCount は 0）。
+    const members = new Set<string>();
+
     // server: sync.connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
     // 親に Lobby があればその台帳(rooms)へ出し入れし人数変化で一覧を再配信する。
     xnew.server(() => {
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
-        const members = new Set<string>();
 
         const lobby = xnew.context(Lobby);
 
