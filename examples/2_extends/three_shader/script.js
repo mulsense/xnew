@@ -35,7 +35,7 @@ const fragmentShader = `
     vec3 color = mix(uColor, rimColor, fresnel) + scan * 0.4;
     float alpha = fresnel * 0.8 + 0.15 + scan * 0.2;
 
-    gl_FragColor = vec4(color, clamp(1.0, 0.0, 1.0));
+    gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
   }
 `;
 
