@@ -1,5 +1,5 @@
 {
-  "name": "xnew-example-multi-client",
+  "name": "xnew-example-network",
   "version": "0.1.0",
   "private": true,
   "description": "xnew multi-client sample (socket.io). npm install && npm start, then open http://localhost:3001/ in multiple tabs.",
