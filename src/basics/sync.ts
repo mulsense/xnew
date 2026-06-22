@@ -13,7 +13,7 @@
 
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
-import { sync, BootOptions } from '../utils/sync';
+import { sync, BootOptions } from '../core/sync';
 
 /** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。
  *  socket のコールバックは tick 外で走るため emit を unit スコープへ載せるよう xnew.scope で包む。 */

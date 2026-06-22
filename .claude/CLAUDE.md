@@ -28,10 +28,9 @@ Integrations for games and interactive apps.
 
 ## Directory Layout
 
-- `src/core/` — `xnew` core, `unit`, event, time, map
+- `src/core/` — `xnew` core, `unit`, event, time, map, sync
 - `src/basics/` — built-in basic components
 - `src/addons/` — third-party library integrations
-- `src/utils/` — image / audio utilities
 - `examples/` — runnable samples
 - `website/` — Docusaurus documentation site
 - `test/` — Jest tests
@@ -80,7 +79,6 @@ for a reference.
 | `src/core/`   | Role, invariants, relationship to other core files                   |
 | `src/basics/` | User-facing component behavior and a small usage example             |
 | `src/addons/` | Integration target (and version), boundary with xnew, lifetime model |
-| `src/utils/`  | I/O contract, side effects, location of any global dependency        |
 
 **Template**
 

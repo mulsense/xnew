@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf, captureStateTree } from '../../../src/utils/sync';
+import { syncOf, captureStateTree } from '../../../src/core/sync';
 import { xnew } from '../../../src/index';
 
 function Player() {}

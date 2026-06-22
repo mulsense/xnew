@@ -1,82 +1,3 @@
-declare class ImageData {
-    canvas: HTMLCanvasElement;
-    constructor(canvas: HTMLCanvasElement);
-    constructor(width: number, height: number);
-    crop(x: number, y: number, width: number, height: number): ImageData;
-    paste(source: ImageData | CanvasImageSource, x: number, y: number, width?: number, height?: number): this;
-    download(filename: string): void;
-}
-
-declare class AudioTrack {
-    private buffer?;
-    private source;
-    private amp;
-    private fade;
-    private startedAt;
-    private pausedOffsetMs;
-    private loop;
-    promise: Promise<AudioTrack>;
-    constructor(path: string);
-    get isPlaying(): boolean;
-    get isLoaded(): boolean;
-    set volume(value: number);
-    get volume(): number;
-    play({ offset, fade, loop }?: {
-        offset?: number;
-        fade?: number;
-        loop?: boolean;
-    }): void;
-    pause({ fade }?: {
-        fade?: number;
-    }): void;
-    stop({ fade }?: {
-        fade?: number;
-    }): void;
-    clear(): void;
-    private forceStop;
-    private startSource;
-    private stopSource;
-}
-type SynthesizerOptions = {
-    oscillator: OscillatorOptions;
-    amp: AmpOptions;
-    filter?: FilterOptions;
-    reverb?: ReverbOptions;
-    bpm?: number;
-};
-type OscillatorOptions = {
-    type: OscillatorType;
-    envelope?: Envelope;
-    LFO?: LFO;
-};
-type FilterOptions = {
-    type: BiquadFilterType;
-    cutoff: number;
-};
-type AmpOptions = {
-    envelope: Envelope;
-};
-type ReverbOptions = {
-    time: number;
-    mix: number;
-};
-type Envelope = {
-    amount: number;
-    ADSR: [number, number, number, number];
-};
-type LFO = {
-    amount: number;
-    type: OscillatorType;
-    rate: number;
-};
-declare class Synthesizer {
-    props: SynthesizerOptions;
-    constructor(props: SynthesizerOptions);
-    press(frequency: number | string, duration?: number | string, wait?: number): {
-        release: () => void;
-    } | undefined;
-}
-
 declare class MapSet<Key, Value> extends Map<Key, Set<Value>> {
     has(key: Key): boolean;
     has(key: Key, value: Value): boolean;
@@ -365,6 +286,63 @@ declare function Room(unit: Unit, { io, socket, room, Component, graceMs }: Pick
     readonly memberCount: number;
 };
 
+declare function AudioTrack(unit: Unit, { url, volume, loop }: {
+    url: string;
+    volume?: number;
+    loop?: boolean;
+}): {
+    play: ({ offset, fade: fadeMs, loop: loopArg }?: {
+        offset?: number;
+        fade?: number;
+        loop?: boolean;
+    }) => void;
+    pause: ({ fade: fadeMs }?: {
+        fade?: number;
+    }) => void;
+    stop: ({ fade: fadeMs }?: {
+        fade?: number;
+    }) => void;
+    readonly isPlaying: boolean;
+    readonly isLoaded: boolean;
+    volume: number;
+};
+type SynthesizerOptions = {
+    oscillator: OscillatorOptions;
+    amp: AmpOptions;
+    filter?: FilterOptions;
+    reverb?: ReverbOptions;
+    bpm?: number;
+};
+type OscillatorOptions = {
+    type: OscillatorType;
+    envelope?: Envelope;
+    LFO?: LFO;
+};
+type FilterOptions = {
+    type: BiquadFilterType;
+    cutoff: number;
+};
+type AmpOptions = {
+    envelope: Envelope;
+};
+type ReverbOptions = {
+    time: number;
+    mix: number;
+};
+type Envelope = {
+    amount: number;
+    ADSR: [number, number, number, number];
+};
+type LFO = {
+    amount: number;
+    type: OscillatorType;
+    rate: number;
+};
+declare function Synthesizer(unit: Unit, props: SynthesizerOptions): {
+    press: (frequency: number | string, duration?: number | string, wait?: number) => {
+        release: () => void;
+    } | undefined;
+};
 declare function VolumeController(unit: Unit, { anchor }?: {
     anchor?: string | undefined;
 }): void;
@@ -375,9 +353,6 @@ declare namespace xnew {
     type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
     type Environment = Environment;
     type Status = Status;
-    namespace audio {
-        type AudioTrack = InstanceType<typeof AudioTrack>;
-    }
 }
 declare const xnew: XnewBase & {
     nest(target: DomElement | string): HTMLElement | SVGElement;
@@ -425,16 +400,9 @@ declare const xnew: XnewBase & {
         Scene: typeof Scene;
         Lobby: typeof Lobby;
         Room: typeof Room;
-        VolumeController: typeof VolumeController;
-    };
-    audio: {
         AudioTrack: typeof AudioTrack;
-        load(path: string): Promise<AudioTrack>;
-        synthesizer(props: SynthesizerOptions): Synthesizer;
-        volume: number;
-    };
-    image: {
-        from(canvas: HTMLCanvasElement): ImageData;
+        Synthesizer: typeof Synthesizer;
+        VolumeController: typeof VolumeController;
     };
     sync: {
         state(initial?: Record<string, any>): Record<string, any>;

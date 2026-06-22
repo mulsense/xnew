@@ -3,7 +3,7 @@ import { Unit, UnitTimer, ComponentFn, Status as CoreStatus } from './core/unit'
 import { Environment as CoreEnvironment } from './core/env';
 
 // boot 入力 / ルームステータスの型を公開する（socket は socket.io の io / socket をそのまま渡す）。
-export type { BootOptions, SyncStatus, ClientStatus, RoomStatus } from './utils/sync';
+export type { BootOptions, SyncStatus, ClientStatus, RoomStatus } from './core/sync';
 
 import { OpenAndClose, Accordion, Popup } from './basics/transition';
 import { SVG, SVGText } from './basics/svg';
@@ -12,10 +12,9 @@ import { AnalogStick, DPad } from './basics/controller';
 import { Panel } from './basics/panel';
 import { Scene } from './basics/scene';
 import { Lobby, Room } from './basics/sync';
-import { VolumeController } from './basics/audio';
+import { AudioTrack as AudioTrackComponent, Synthesizer, VolumeController } from './basics/audio';
 
-import { audio, AudioTrack } from './utils/audio';
-import { sync } from './utils/sync';
+import { sync } from './core/sync';
 
 const basics = {
     SVG,
@@ -30,6 +29,8 @@ const basics = {
     Scene,
     Lobby,
     Room,
+    AudioTrack: AudioTrackComponent,
+    Synthesizer,
     VolumeController,
 };
 
@@ -39,11 +40,8 @@ namespace xnew {
     export type Component<P extends object = any, A extends object = {}> = ComponentFn<P, A>;
     export type Environment = CoreEnvironment;
     export type Status = CoreStatus;
-    export namespace audio {
-        export type AudioTrack = InstanceType<typeof AudioTrack>;
-    }
 }
 
-const xnew = Object.assign(base, { basics, audio, sync });
+const xnew = Object.assign(base, { basics, sync });
 
 export { xnew };

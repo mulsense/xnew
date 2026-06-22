@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/index';
-import { syncOf, captureStateTree, applyStateTree } from '../../../src/utils/sync';
+import { syncOf, captureStateTree, applyStateTree } from '../../../src/core/sync';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 //----------------------------------------------------------------------------------------------------
@@ -8,7 +8,7 @@ import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 //   - client.emit('move', payload) → server.on('move', (clientId, payload)) へ clientId 付きで届く
 //   - boot がルートに socket をバインドし、コンポーネント / handler 内から emit/on を使う
 //   - 1 イベントに複数ハンドラ登録可。受信時に closure の state を直接更新する（ポーリング無し）
-//   transport は in-memory な socket.io 風モック（test/utils/sync/io-mock）を使う。
+//   transport は in-memory な socket.io 風モック（test/core/sync/io-mock）を使う。
 //----------------------------------------------------------------------------------------------------
 
 describe('event channel (socket.io transport)', () => {

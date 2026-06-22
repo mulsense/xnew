@@ -22,19 +22,19 @@
     
     function Main(unit) {
       xnew.nest('<div class="m-2 flex gap-2">');
-      // load() returns a promise that resolves with the AudioTrack once decoded; chaining .then on
-      // each click keeps it load-aware — clicking before the buffer finishes loading just defers.
-      // play resumes from the last pause position (or 0 on first call); stop halts playback and
-      // resets the position to 0, so the next play starts from the beginning.
-      const music = xnew.audio.load('b096.mp3');
+      // The AudioTrack component fetches + decodes the file and is load-aware: calling play() before
+      // the buffer finishes loading just defers playback. play resumes from the last pause position
+      // (or 0 on first call); stop halts playback and resets the position to 0, so the next play
+      // starts from the beginning. The track is released when this unit finalizes.
+      const music = xnew(xnew.basics.AudioTrack, { url: 'b096.mp3' });
       xnew(Button, { name: 'play' }).on('click', () => {
-        music.then((track) => track.play({ fade: 1000 }));
+        music.play({ fade: 1000 });
       });
       xnew(Button, { name: 'pause' }).on('click', () => {
-        music.then((track) => track.pause({ fade: 1000 }));
+        music.pause({ fade: 1000 });
       });
       xnew(Button, { name: 'stop' }).on('click', () => {
-        music.then((track) => track.stop({ fade: 1000 }));
+        music.stop({ fade: 1000 });
       });
       xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[8cqw] text-stone-500">', 
         xnew.basics.VolumeController, { anchor: 'left' });

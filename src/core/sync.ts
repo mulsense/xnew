@@ -11,9 +11,9 @@
 // - SyncStatus / ClientStatus / RoomStatus / BootOptions : ルームのステータス各種 / boot 入力
 //----------------------------------------------------------------------------------------------------
 
-import { Unit } from '../core/unit';
-import { getEnvironment } from '../core/env';
-import { getOrCreate } from '../core/map';
+import { Unit } from './unit';
+import { getEnvironment } from './env';
+import { getOrCreate } from './map';
 
 interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
@@ -250,7 +250,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
 }
 
 //----------------------------------------------------------------------------------------------------
-// xnew.sync facade — index.ts が xnew へ attach する（audio と同じ後付けパターン）。
+// xnew.sync facade — index.ts が xnew へ attach する後付けパターン。
 // 各メソッドは暗黙の Unit.currentUnit に作用するため Component 関数 / ハンドラ内から呼ぶ。
 //
 // - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録

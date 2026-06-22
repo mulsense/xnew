@@ -511,7 +511,7 @@ function GameScene(unit) {
   xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
   const bgm = xnew(() => {
-    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).then((track) => track.play({ fade: 1000, loop: true }));
+    xnew(xnew.basics.AudioTrack, { url: asset('maou_bgm_cyber31.mp3') }).play({ fade: 1000, loop: true });
   });
 
   unit.on('+gameover', () => {
@@ -531,7 +531,7 @@ function GameScene(unit) {
 function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew.extend(xnew.basics.Scene);
 
-  xnew.audio.load(asset('st005.mp3')).then((track) => track.play({ fade: 1, loop: true }));
+  xnew(xnew.basics.AudioTrack, { url: asset('st005.mp3') }).play({ fade: 1, loop: true });
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
@@ -1537,13 +1537,13 @@ function ShotEnergy(unit) {
 // 効果音：ショット音と撃破音（ピン、というピアノ風のシンセ音）
 function SoundFX(unit) {
   // ショット：高めで少し下がるピッ
-  const shotSynth = xnew.audio.synthesizer({
+  const shotSynth = xnew(xnew.basics.Synthesizer, {
     oscillator: { type: 'triangle', envelope: { amount: -7, ADSR: [0, 90, 0, 0] } },
     filter: { type: 'lowpass', cutoff: 3500 },
     amp: { envelope: { amount: 0.3, ADSR: [0, 110, 0, 0] } },
   });
   // 撃破：ピン（ピアノ風の余韻のある短い音）。敵 id ごとに音程を変える。
-  const pinSynth = xnew.audio.synthesizer({
+  const pinSynth = xnew(xnew.basics.Synthesizer, {
     oscillator: { type: 'triangle' },
     filter: { type: 'lowpass', cutoff: 5000 },
     amp: { envelope: { amount: 0.8, ADSR: [2, 350, 0, 0] } },

@@ -1,7 +1,7 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/index';
 import { ioMock, bootClient } from './io-mock';
-import { syncOf, StateTree, applyStateTree } from '../../../src/utils/sync';
+import { syncOf, StateTree, applyStateTree } from '../../../src/core/sync';
 
 function Box(unit: Unit) {
     xnew.sync.register({ Box });   // Box は自分を直接の同期子として許可（ネスト用）

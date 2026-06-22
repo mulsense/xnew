@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf } from '../../../src/utils/sync';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/index';
 
 describe('xnew.sync.state', () => {
