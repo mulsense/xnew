@@ -14,7 +14,6 @@ import { Scene } from './basics/Scene';
 import { Lobby, Room } from './basics/Sync';
 import { VolumeController } from './basics/Volume';
 
-import { image } from './utils/image';
 import { audio, AudioTrack } from './utils/audio';
 import { sync } from './utils/sync';
 
@@ -45,6 +44,6 @@ namespace xnew {
     }
 }
 
-const xnew = Object.assign(base, { basics, audio, image, sync });
+const xnew = Object.assign(base, { basics, audio, sync });
 
 export { xnew };

@@ -52,7 +52,15 @@ export function ScreenShot(unit) {
   xnew.transition(({ value }) => cover.element.style.opacity = 1 - value, 1000)
     .timeout(() => {
       html2canvas(unit.element, { scale: 2, logging: false, useCORS: true }).then((canvas) => {
-        xnew.image.from(canvas).crop(0, 0, canvas.width, Math.floor(canvas.height * 0.87)).download('image.png');
+        // 下部 13% のフッターを除いた領域を切り出して PNG としてダウンロードする。
+        const [width, height] = [canvas.width, Math.floor(canvas.height * 0.87)];
+        const cropped = document.createElement('canvas');
+        [cropped.width, cropped.height] = [width, height];
+        cropped.getContext('2d').drawImage(canvas, 0, 0, width, height, 0, 0, width, height);
+        const link = document.createElement('a');
+        link.download = 'image.png';
+        link.href = cropped.toDataURL('image/png');
+        link.click();
       });
       unit.finalize();
     });

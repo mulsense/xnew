@@ -196,7 +196,8 @@ function BakedCharacters(unit) {
   // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（chunk の UnitPromise を return して直列化）。
   xnew.promise(unit).then(({ vrms }) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
-    let atlas;
+    let atlasCanvas;
+    let atlasContext; // アトラス canvas の 2D コンテキスト（各フレームをこの上に貼り込む）
     let source; // アトラス canvas を共有する唯一の GPU テクスチャ source（各フレームはこの sub-texture）
 
     // 全キャラ × 各 BAKE_FRAMES をフラットな単一 chunk に畳む。キャラ境界は index 演算で判定。
@@ -210,10 +211,10 @@ function BakedCharacters(unit) {
       if (f === 0) {
         // startJob 相当: VRM をマウントし、貼り込み先アトラスと共有 source を用意。
         xthree.add(vrm.scene);
-        const atlasCanvas = document.createElement('canvas');
+        atlasCanvas = document.createElement('canvas');
         [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-        atlas = xnew.image.from(atlasCanvas);
-        source = PIXI.Texture.from(atlas.canvas).source;
+        atlasContext = atlasCanvas.getContext('2d');
+        source = PIXI.Texture.from(atlasCanvas).source;
         job.textures = [];
       }
 
@@ -245,7 +246,7 @@ function BakedCharacters(unit) {
       composer.render();
       // フレーム f のアトラス内左上座標。OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
       const [x, y] = [(f % cols) * BAKE_FRAME_SIZE, Math.floor(f / cols) * BAKE_FRAME_SIZE];
-      atlas.paste(xthree.canvas, x, y);
+      atlasContext.drawImage(xthree.canvas, x, y);
       // 貼り込みと同じ座標で source 共有の sub-texture を切り出す（ピクセルコピーではなく矩形ビュー）
       job.textures.push(new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
 

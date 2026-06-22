@@ -250,7 +250,7 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
 }
 
 //----------------------------------------------------------------------------------------------------
-// xnew.sync facade — index.ts が xnew へ attach する（audio / image と同じ後付けパターン）。
+// xnew.sync facade — index.ts が xnew へ attach する（audio と同じ後付けパターン）。
 // 各メソッドは暗黙の Unit.currentUnit に作用するため Component 関数 / ハンドラ内から呼ぶ。
 //
 // - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
