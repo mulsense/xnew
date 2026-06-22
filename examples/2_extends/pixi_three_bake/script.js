@@ -29,14 +29,16 @@ function Main(unit) {
 function Contents(unit) {
   const assets = xnew(BakedCharacters);
 
-  xnew.promise(assets).then((texturesList) => {
-    xnew(ViewScene, { texturesList });
+  // 集約結果 { list: [{ textures }, ...] } から各キャラの textures だけ取り出して渡す。
+  xnew.promise(assets).then(({ list }) => {
+    xnew(ViewScene, { texturesList: list.map((result) => result.textures) });
   });
 }
 
 function BakedCharacters(unit) {
+  // 登録順に list[] へ集約する（PreRender ごとの結果 { textures } が list に並ぶ）。
   for (const name of CHARACTER_FILES) {
-    xnew.promise(name, xnew(PreRender, { url: `../../assets/${name}` })).then((value) => value.textures);
+    xnew.promise('list[]', xnew(PreRender, { url: `../../assets/${name}` }));
   }
 }
 
@@ -165,10 +167,7 @@ function ViewScene(unit, { texturesList }) {
   const cellW = 800 / cols;
   const cellH = 600 / rows;
 
-  for (let i = 0; i < Object.keys(texturesList).length; i++) {
-    const key = Object.keys(texturesList)[i];
-    const textures = texturesList[key];
-
+  texturesList.forEach((textures, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = cellW * (col + 0.5);
@@ -181,5 +180,5 @@ function ViewScene(unit, { texturesList }) {
       sprite.scale.set(1.5);
       sprite.play();
     });
-  }
+  });
 }
