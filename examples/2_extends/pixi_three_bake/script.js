@@ -104,47 +104,39 @@ function PreRender(unit, { url }) {
 
   const model = xnew(Model, { url });
   const textures = [];
-  let frameIndex = 0;
 
   const { resolve } = xnew.promise('textures');
 
-  unit.on('render', () => {
-    if (model.vrm === null) return;
+  const BAKE_FRAMES = 120;
 
-    const BAKE_FRAMES = 120;
-    const batch = 30; // Number of frames to bake per render
-    for (let i = frameIndex; i < Math.min(frameIndex + batch, BAKE_FRAMES); i++) {
-      // const t = i * (Math.PI / BAKE_FRAMES * 3);
-      const t = i * (Math.PI / BAKE_FRAMES * 3);
+  // Model のロード完了を待ってから、xnew.chunk で BAKE_FRAMES 回を時間予算（既定 8ms/フレーム）で
+  // 自動的にフレーム分散してベイクする。完了で textures を解決し unit を畳む。
+  // （旧実装の unit.on('render') + frameIndex/batch による手動バッチを置き換え。）
+  xnew.promise(model).then(() => xnew.chunk(({ index }) => {
+    const t = index * (Math.PI / BAKE_FRAMES * 3);
 
-      model.threeObject.rotation.y = t * 4 / 3;
-      model.threeObject.rotation.z = t * 2 / 3;
-      const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
-      g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
-      g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
-      g('hips').position.z          = Math.sin(t * 12) *  0.05;
-      g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
-      g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
-      g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
-      g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
-      g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
-      g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
-      g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
-      g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
-      model.vrm.update(t);
+    model.threeObject.rotation.y = t * 4 / 3;
+    model.threeObject.rotation.z = t * 2 / 3;
+    const g = (name) => model.vrm.humanoid.getNormalizedBoneNode(name);
+    g('neck').rotation.x          = Math.sin(t * 8)  *  0.02;
+    g('chest').rotation.x         = Math.sin(t * 12) *  0.05;
+    g('hips').position.z          = Math.sin(t * 12) *  0.05;
+    g('leftUpperArm').rotation.z  = Math.sin(t * 12) *  0.7;
+    g('leftUpperArm').rotation.x  = Math.sin(t * 6)  *  0.8;
+    g('rightUpperArm').rotation.z = Math.sin(t * 12) * -0.7;
+    g('rightUpperArm').rotation.x = Math.sin(t * 6)  *  0.8;
+    g('leftUpperLeg').rotation.z  = Math.sin(t * 8)  *  0.2;
+    g('leftUpperLeg').rotation.x  = Math.sin(t * 12) *  0.7;
+    g('rightUpperLeg').rotation.z = Math.sin(t * 8)  * -0.2;
+    g('rightUpperLeg').rotation.x = Math.sin(t * 12) * -0.7;
+    model.vrm.update(t);
 
-      composer.render();
-
-      //xthree.renderer.render(xthree.scene, xthree.camera);
-      textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
-    }
-    frameIndex += batch;
-
-    if (frameIndex >= BAKE_FRAMES) {
-      resolve(textures);
-      unit.finalize();
-    }
-  });
+    composer.render();
+    textures.push(PIXI.Texture.from(xthree.canvas.transferToImageBitmap()));
+  }, BAKE_FRAMES).then(() => {
+    resolve(textures);
+    unit.finalize();
+  }));
 }
 
 function Model(unit, { url }) {
