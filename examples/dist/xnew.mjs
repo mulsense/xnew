@@ -1843,8 +1843,6 @@ function AudioTrack(unit, { url, volume, loop = false }) {
         }
         if (startedAt !== null) {
             forceStop();
-            startSource(offset !== null && offset !== void 0 ? offset : 0, fadeMs);
-            return;
         }
         startSource(offset !== null && offset !== void 0 ? offset : pausedOffsetMs, fadeMs);
     }
@@ -1860,15 +1858,6 @@ function AudioTrack(unit, { url, volume, loop = false }) {
         startedAt = null;
         stopSource(node, fadeMs);
     }
-    function stop({ fade: fadeMs = 0 } = {}) {
-        if (startedAt !== null) {
-            const node = source;
-            source = null;
-            startedAt = null;
-            stopSource(node, fadeMs);
-        }
-        pausedOffsetMs = 0;
-    }
     unit.on('finalize', () => {
         forceStop();
         amp.disconnect();
@@ -1878,7 +1867,6 @@ function AudioTrack(unit, { url, volume, loop = false }) {
     return {
         play,
         pause,
-        stop,
         get isPlaying() {
             return startedAt !== null;
         },

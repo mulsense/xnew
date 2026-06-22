@@ -23,9 +23,9 @@
     function Main(unit) {
       xnew.nest('<div class="m-2 flex gap-2">');
       // The AudioTrack component fetches + decodes the file and is load-aware: calling play() before
-      // the buffer finishes loading just defers playback. play resumes from the last pause position
-      // (or 0 on first call); stop halts playback and resets the position to 0, so the next play
-      // starts from the beginning. The track is released when this unit finalizes.
+      // the buffer finishes loading just defers playback. play() resumes from the last pause position
+      // (or 0 on first call); play({ offset: 0 }) restarts from the beginning. The track is released
+      // when this unit finalizes.
       const music = xnew(xnew.basics.AudioTrack, { url: 'b096.mp3' });
       xnew(Button, { name: 'play' }).on('click', () => {
         music.play({ fade: 1000 });
@@ -33,8 +33,8 @@
       xnew(Button, { name: 'pause' }).on('click', () => {
         music.pause({ fade: 1000 });
       });
-      xnew(Button, { name: 'stop' }).on('click', () => {
-        music.stop({ fade: 1000 });
+      xnew(Button, { name: 'restart' }).on('click', () => {
+        music.play({ offset: 0, fade: 1000 });
       });
       xnew('<div class="absolute right-[2cqw] bottom-[2cqw] size-[8cqw] text-stone-500">', 
         xnew.basics.VolumeController, { anchor: 'left' });

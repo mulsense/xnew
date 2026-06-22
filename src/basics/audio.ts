@@ -10,8 +10,8 @@
 // import never throws.
 //
 // - AudioTrack        : component({ url, volume?, loop? }) — fetches + decodes an audio file and drives
-//                       it with play / pause / stop. Registers the load with the unit's promise
-//                       aggregation and releases the Web Audio nodes on finalize.
+//                       it with play / pause (play({ offset: 0 }) restarts, play() resumes). Registers
+//                       the load with the unit's promise aggregation and releases nodes on finalize.
 // - Synthesizer       : component(SynthesizerOptions) — oscillator + amp / filter / reverb + ADSR + LFO
 //                       synth driven by press(frequency, duration?, wait?), with note-name ('A4', 'C#5')
 //                       and rhythmic ('4n', '8n') key maps. A note with no duration sustains and
@@ -60,10 +60,9 @@ if (context !== null && master !== null) {
 //
 // `startedAt` is the (virtual) AudioContext time at which playback would have started from offset 0
 // — i.e. `currentTime - startedAt` is the position within the buffer. On pause, that position is
-// frozen into `pausedOffsetMs` so a subsequent `play()` (with no explicit offset) picks it up — i.e.
-// `play()` doubles as resume. `stop()` halts playback AND zeros `pausedOffsetMs`, so the next
-// `play()` starts from the beginning. `looping` is stored so `pause()` can mod the position by
-// buffer.duration only when looping.
+// frozen into `pausedOffsetMs` so a subsequent `play()` with no explicit offset picks it up — i.e.
+// `play()` doubles as resume, while `play({ offset: 0 })` restarts from the beginning. `looping` is
+// stored so `pause()` can mod the position by buffer.duration only when looping.
 //----------------------------------------------------------------------------------------------------
 
 export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: string, volume?: number, loop?: boolean }) {
@@ -112,8 +111,8 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         startedAt = now - offsetMs / 1000;
         node.start(now, offsetMs / 1000);
 
-        // Always pin the fade gain to its target: a prior fade-out (pause/stop) may have left it at
-        // 0, so a fade=0 play would otherwise be silent.
+        // Always pin the fade gain to its target: a prior fade-out (pause) may have left it at 0, so
+        // a fade=0 play would otherwise be silent.
         fade.gain.cancelScheduledValues(now);
         if (fadeMs > 0) {
             fade.gain.setValueAtTime(0, now);
@@ -146,12 +145,13 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         }
     }
 
-    // Plays from `offset` (ms). If `offset` is omitted, resumes from the position saved by the last
-    // pause() — which is 0 on a fresh track, so the first call plays from the beginning.
+    // Plays from `offset` (ms). `offset: 0` starts from the beginning; if `offset` is omitted, resumes
+    // from the position saved by the last pause() — which is 0 on a fresh track, so the first call
+    // plays from the beginning either way.
     //
     // Load-aware: calling before the buffer is decoded defers playback until the load resolves (so
     // `xnew(AudioTrack, { url }).play()` is safe without awaiting). Re-trigger: calling while already
-    // playing restarts from the beginning — handy for rapid SE replay — rather than no-op.
+    // playing restarts at the resolved offset — handy for rapid SE replay — rather than no-op.
     function play({ offset, fade: fadeMs = 0, loop: loopArg }: { offset?: number, fade?: number, loop?: boolean } = {}) {
         if (buffer === undefined) {
             promise.then(() => play({ offset, fade: fadeMs, loop: loopArg }));
@@ -162,8 +162,6 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         }
         if (startedAt !== null) {
             forceStop();
-            startSource(offset ?? 0, fadeMs);
-            return;
         }
         startSource(offset ?? pausedOffsetMs, fadeMs);
     }
@@ -185,18 +183,6 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         stopSource(node, fadeMs);
     }
 
-    // Stops playback (with optional fade-out) and resets the paused position to 0. After this, the
-    // next `play()` starts from the beginning.
-    function stop({ fade: fadeMs = 0 }: { fade?: number } = {}) {
-        if (startedAt !== null) {
-            const node = source!;
-            source = null;
-            startedAt = null;
-            stopSource(node, fadeMs);
-        }
-        pausedOffsetMs = 0;
-    }
-
     // Release the Web Audio nodes when the unit is finalized.
     unit.on('finalize', () => {
         forceStop();
@@ -208,7 +194,6 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
     return {
         play,
         pause,
-        stop,
         get isPlaying(): boolean {
             return startedAt !== null;
         },

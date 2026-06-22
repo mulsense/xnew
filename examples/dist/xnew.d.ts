@@ -299,9 +299,6 @@ declare function AudioTrack(unit: Unit, { url, volume, loop }: {
     pause: ({ fade: fadeMs }?: {
         fade?: number;
     }) => void;
-    stop: ({ fade: fadeMs }?: {
-        fade?: number;
-    }) => void;
     readonly isPlaying: boolean;
     readonly isLoaded: boolean;
     volume: number;
