@@ -17,7 +17,7 @@ xnew の特徴は次のとおりです。
 
 ## セットアップ
 
-導入方法は次の 3 通りから選べます。
+導入方法は次の 2 通りから選べます。
 
 ### CDN
 ES モジュール版は import map で読み込みます。
@@ -25,7 +25,7 @@ ES モジュール版は import map で読み込みます。
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -40,7 +40,7 @@ import { xnew } from '@mulsense/xnew';
 ### npm
 npm でインストールします。
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 
 JavaScript ファイルからインポートして使用します。
@@ -82,7 +82,7 @@ unit.element; // Access the created DOM element
   <script type="importmap">
   {
     "imports": {
-      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
   }
   </script>
@@ -124,7 +124,7 @@ unit.element; // Access the created DOM element
   <script type="importmap">
   {
     "imports": {
-      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
   }
   </script>
@@ -189,7 +189,7 @@ unit.element; // Access the created DOM element
   <script type="importmap">
   {
     "imports": {
-      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
   }
   </script>

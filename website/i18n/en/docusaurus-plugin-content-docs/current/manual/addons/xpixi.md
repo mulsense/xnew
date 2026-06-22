@@ -12,8 +12,8 @@ sidebar_position: 501
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs",
-    "@mulsense/xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xpixi.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs",
+    "@mulsense/xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/addons/xpixi.mjs"
   }
 }
 </script>
@@ -28,7 +28,7 @@ import { xpixi } from '@mulsense/xnew/addons/xpixi'
 
 ### Via npm
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 ```js
 import { xnew } from '@mulsense/xnew'

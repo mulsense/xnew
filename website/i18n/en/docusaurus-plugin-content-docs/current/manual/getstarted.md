@@ -25,7 +25,7 @@ Use the ES module version with an import map:
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
   }
 }
 </script>
@@ -40,7 +40,7 @@ import { xnew } from '@mulsense/xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 
 Then import it in your JavaScript file:
@@ -82,7 +82,7 @@ A minimal example that creates a single component and displays a message:
   <script type="importmap">
   {
     "imports": {
-      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
   }
   </script>
@@ -124,7 +124,7 @@ This will generate:
   <script type="importmap">
   {
     "imports": {
-      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
   }
   </script>
@@ -189,7 +189,7 @@ Click the box below to start and stop a CSS rotation animation.
   <script type="importmap">
   {
     "imports": {
-      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
   }
   </script>
