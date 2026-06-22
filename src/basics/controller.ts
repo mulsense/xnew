@@ -11,8 +11,8 @@
 
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { SVG } from '../basics/SVG';
-import { Aspect } from '../basics/Aspect';
+import { SVG } from '../basics/svg';
+import { Aspect } from '../basics/aspect';
 
 //----------------------------------------------------------------------------------------------------
 // controller

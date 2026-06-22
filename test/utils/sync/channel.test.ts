@@ -215,7 +215,7 @@ describe('event channel (socket.io transport)', () => {
         expect(hits.sort()).toEqual(['A:1', 'B:1']);
     });
 
-    it('client boot does NOT forward basic socket events to the boot parent (basics/Sync.ts Room の責務)', () => {
+    it('client boot does NOT forward basic socket events to the boot parent (basics/sync.ts Room の責務)', () => {
         // 基本イベント(connect/disconnect/room:notfound)の host への転送は boot ではなく Room が担う。
         // よって boot 単体では boot 親ユニットへは配らない。
         const handlers = new Map<string, Set<Function>>();

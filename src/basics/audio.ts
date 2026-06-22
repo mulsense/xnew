@@ -11,9 +11,9 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { master } from '../utils/audio';
-import { SVG } from './SVG';
-import { Aspect } from './Aspect';
-import { OpenAndClose } from './Transition';
+import { SVG } from './svg';
+import { Aspect } from './aspect';
+import { OpenAndClose } from './transition';
 
 const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
 

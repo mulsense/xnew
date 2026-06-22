@@ -10,7 +10,7 @@
 
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { Aspect } from '../basics/Aspect';
+import { Aspect } from '../basics/aspect';
 
 export function Screen(unit: Unit,
     { width = 800, height = 600, fit = 'contain' }:

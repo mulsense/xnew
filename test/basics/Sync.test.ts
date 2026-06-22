@@ -1,6 +1,6 @@
 import { Unit } from '../../src/core/unit';
 import { xnew } from '../../src/core/xnew';
-import { Lobby, Room } from '../../src/basics/Sync';
+import { Lobby, Room } from '../../src/basics/sync';
 import { setEnvironment } from '../../src/core/env';
 
 // boot 対象の client ツリー（client 側でペインを nest する）。

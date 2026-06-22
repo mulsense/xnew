@@ -5,14 +5,14 @@ import { Environment as CoreEnvironment } from './core/env';
 // boot 入力 / ルームステータスの型を公開する（socket は socket.io の io / socket をそのまま渡す）。
 export type { BootOptions, SyncStatus, ClientStatus, RoomStatus } from './utils/sync';
 
-import { OpenAndClose, Accordion, Popup } from './basics/Transition';
-import { SVG, SVGText } from './basics/SVG';
-import { Screen } from './basics/Screen';
-import { AnalogStick, DPad } from './basics/Controller';
-import { Panel } from './basics/Panel';
-import { Scene } from './basics/Scene';
-import { Lobby, Room } from './basics/Sync';
-import { VolumeController } from './basics/Volume';
+import { OpenAndClose, Accordion, Popup } from './basics/transition';
+import { SVG, SVGText } from './basics/svg';
+import { Screen } from './basics/screen';
+import { AnalogStick, DPad } from './basics/controller';
+import { Panel } from './basics/panel';
+import { Scene } from './basics/scene';
+import { Lobby, Room } from './basics/sync';
+import { VolumeController } from './basics/audio';
 
 import { audio, AudioTrack } from './utils/audio';
 import { sync } from './utils/sync';

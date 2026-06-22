@@ -11,8 +11,8 @@
 
 import { xnew } from '../core/xnew';
 import { Unit, ComponentFn } from '../core/unit';
-import { SVG } from './SVG';
-import { OpenAndClose, Accordion, Popup } from './Transition';
+import { SVG } from './svg';
+import { OpenAndClose, Accordion, Popup } from './transition';
 
 interface PanelOptions { name?: string; open?: boolean; params?: Record<string, any>; }
 

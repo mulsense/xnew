@@ -170,7 +170,7 @@ function rootInfoOf(unit: Unit): RootInfo {
 // boot — ルート生成 + 配線。server/client の分岐は sync.boot の 1 箇所だけ。
 // 配線は 2 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
 // (2) dispatcher（受信を root 配下の unit.on へ。'-event'=同一 syncId / '+'・無印=全体）。
-// 基本イベントの host(boot 親) への転送は basics/Sync.ts Room が担う。
+// 基本イベントの host(boot 親) への転送は basics/sync.ts Room が担う。
 //----------------------------------------------------------------------------------------------------
 
 /** xnew.sync.boot の入力。実行環境に応じて io（server）/ socket（client）を渡す。 */
