@@ -12,7 +12,7 @@
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
 import { SVG } from '../basics/svg';
-import { Aspect } from '../basics/aspect';
+import { Aspect } from '../basics/view';
 
 //----------------------------------------------------------------------------------------------------
 // controller

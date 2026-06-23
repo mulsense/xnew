@@ -7,12 +7,10 @@ export type { BootOptions, SyncStatus, ClientStatus, RoomStatus } from './core/s
 
 import { OpenAndClose, Accordion, Popup } from './basics/transition';
 import { SVG, SVGText } from './basics/svg';
-import { Screen } from './basics/screen';
 import { AnalogStick, DPad } from './basics/controller';
 import { Panel } from './basics/panel';
-import { Scene } from './basics/scene';
 import { Lobby, Room } from './basics/sync';
-import { Aspect } from './basics/aspect';
+import { Aspect, Screen, Scene } from './basics/view';
 import { AudioTrack as AudioTrackComponent, Synthesizer, Volume } from './basics/audio';
 
 import { sync } from './core/sync';
