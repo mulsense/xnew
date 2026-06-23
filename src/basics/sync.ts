@@ -1,46 +1,54 @@
 //----------------------------------------------------------------------------------------------------
 // Sync — socket.io basics components (Lobby / Room)
 //
-// socket.io ハンドルの受信を host unit へ配線し後始末を引き受ける基底コンポーネント。
-// server/client は実行環境で自動判定（→ core/env）。ハンドルは server=io / client=socket。
+// Base components that wire socket.io handles to the host unit and own their teardown.
+// server/client is auto-detected from the runtime (→ core/env); handle is server=io / client=socket.
 //
-// - Lobby : ロビー + 動的ルーム。client=ロビー受信を unit.on('-<event>') へ転送 + create()。
-//           server=io.on('connection') を所有し入室検証 + 台帳(rooms)・一覧再配信(broadcast) を公開。
-//           create 要求で注入 Room を生成し creator へ created を返す（台帳登録は Room が context 経由で行う）。
-// - Room  : Component を boot し基本イベント(connect/disconnect/notfound)を host へ転送。server では人数を
-//           数え、親 Lobby の台帳へ出し入れして人数変化で一覧を再配信、無人が graceMs 続けば撤去する。
+// - Lobby : lobby + dynamic rooms. client forwards lobby events to unit.on('-<event>') + create().
+//           server owns io.on('connection'), validates joins, and exposes the room ledger + broadcast.
+//           A create request spawns the injected Room and replies 'created' (Room registers itself via context).
+// - Room  : boots Component and forwards basic events (connect/disconnect/notfound) to the host. On the
+//           server it counts members, syncs the parent Lobby ledger, re-broadcasts on changes, and removes
+//           itself once empty for graceMs.
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
 import { sync, BootOptions } from '../core/sync';
 
-/** Lobby — ロビー接続を host unit に配線する。受信は unit.on('-<event>') で受け取る。
- *  socket のコールバックは tick 外で走るため emit を unit スコープへ載せるよう xnew.scope で包む。 */
-export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }:
-    { io?: any; socket?: any; Room?: Function; maxRooms?: number; roomNameMax?: number }) {
-    // server: io.on('connection') を所有し、入室検証と台帳(rooms)＋一覧再配信(broadcast) を持つ。
-    // 部屋生成・台帳の出し入れは Room へ委ねる（host が xnew(Room,...) し、Room が context(Lobby) で登録）。
+/** Lobby props. The component is mounted on both server and client, but each side reads a different
+ *  shape: the server needs the io handle and the Room to spawn, the client only needs its socket.
+ *  Splitting the two makes the unused-on-this-side fields explicit at the call site. */
+export interface LobbyServerProps { io: any; Room: Function; maxRooms?: number; roomNameMax?: number; }
+export interface LobbyClientProps { socket: any; }
+export type LobbyProps = LobbyServerProps | LobbyClientProps;
+
+/** Lobby — wires the lobby connection to the host unit; events arrive via unit.on('-<event>').
+ *  socket callbacks run outside the tick, so emits are wrapped in xnew.scope to bind the unit scope. */
+export function Lobby(unit: Unit, props: LobbyProps) {
+    // server: owns io.on('connection') with join validation, the room ledger, and list re-broadcast.
+    // Room creation and ledger updates are delegated to Room (host does xnew(Room,...), Room registers via context).
     sync.server(() => {
-        const rooms = new Map<string, { id: string; name: string; memberCount: number }>();   // id → 行情報（Room が出し入れ）
+        const { io, Room, maxRooms = 20, roomNameMax = 16 } = props as LobbyServerProps;
+        const rooms = new Map<string, { id: string; name: string; memberCount: number }>();   // id → row (Room maintains)
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
-        const broadcast = () => io.to('lobby').emit('update', { rooms: roomList() });
+        
         const connection = xnew.scope((conn: any) => {
             const roomId = conn.handshake?.query?.room;
             if (roomId !== undefined && roomId !== '') {
-                // ルーム接続: 消滅 / 不正ルームは弾く（有効ルームは Room の boot 配線が処理）。
+                // room connection: reject gone/invalid rooms (valid ones are handled by Room's boot wiring).
                 if (!rooms.has(roomId)) { conn.emit('notfound', { roomId }); conn.disconnect(true); }
                 return;
             }
-            // ロビー接続: 現在の一覧を返し（以降は作成 / 人数変化で自動配信）、create を処理する。
+            // lobby connection: send the current list (later updates auto-broadcast), then handle create.
             conn.join('lobby');
             conn.emit('update', { rooms: roomList() });
             conn.on('create', xnew.scope((payload: any) => {
                 if (rooms.size >= maxRooms) { conn.emit('rejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                // 注入された Room で部屋を生成し（Room が台帳へ自分を載せる）、直後に creator へ created を返す。
+                // spawn the injected Room (it adds itself to the ledger), then reply 'created' to the creator.
                 xnew(unit, Room!, { io, room: { id, name } });
                 conn.emit('created', { room: { id, name } });
             }));
@@ -48,12 +56,18 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
         io.on('connection', connection);
         unit.on('finalize', () => io.off('connection', connection));
 
-        // Room が context(Lobby) で台帳の出し入れ・一覧再配信に使えるよう公開する。
-        return { get rooms() { return rooms; }, broadcast };
+        // exposed so Room (via context(Lobby)) can maintain the ledger and re-broadcast the list.
+        return {
+            get rooms() { return rooms; },
+            broadcast() {
+                return io.to('lobby').emit('update', { rooms: roomList() });
+            }
+        };
     });
 
-    // client: ロビー受信を host unit の '-<event>' へ転送し、finalize で socket を切断する。
+    // client: forward lobby events to the host unit's '-<event>', and disconnect the socket on finalize.
     sync.client(() => {
+        const { socket } = props as LobbyClientProps;
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
         socket.on('update', xnew.scope((payload: any) => xnew.emit('-update', payload)));
@@ -64,28 +78,36 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
     });
 }
 
-/** Room — 同期された 1 部屋を boot し socket を所有。基本イベント(connect/disconnect/notfound)を host unit の
- *  '-<event>' へ転送する。server では人数台帳を持ち、無人が graceMs 続けば '-empty'。
- *  親に Lobby があればその台帳へ自分を出し入れし、人数変化で一覧を再配信、空室確定で撤去する。env で自動判定。 */
-export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room'> & { Component: Function; graceMs?: number }) {
+/** Room props. Like Lobby, the component runs on both sides but each reads a different shape: the server
+ *  boots with the io handle, the client with its socket. room/Component/graceMs are shared by both. */
+export interface RoomServerProps { io: any; room: BootOptions['room']; Component: Function; graceMs?: number; }
+export interface RoomClientProps { socket: any; Component: Function; graceMs?: number; }
+export type RoomProps = RoomServerProps | RoomClientProps;
 
-    // 人数台帳。server で connect/disconnect により更新し、公開する memberCount から参照する。
-    // client 側では更新されず常に空（memberCount は 0）。
+/** Room — boots one synced room and owns the socket, forwarding basic events (connect/disconnect/notfound)
+ *  to the host unit's '-<event>'. On the server it keeps a member ledger and emits '-empty' once empty for
+ *  graceMs; if a parent Lobby exists it syncs that ledger, re-broadcasts on changes, and removes itself when
+ *  the room stays empty. server/client is auto-detected via env. */
+export function Room(unit: Unit, props: RoomProps) {
+
+    // member ledger: updated on the server by connect/disconnect, read via the exposed memberCount.
+    // On the client it is never updated and stays empty (memberCount is 0).
     const members = new Set<string>();
 
-    // server: sync.connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
-    // 親に Lobby があればその台帳(rooms)へ出し入れし人数変化で一覧を再配信する。
+    // server: sync.connect/disconnect arrive under the boot (client) route. Forward to the host while keeping
+    // the member ledger and empty-room cleanup. If a parent Lobby exists, sync its ledger and re-broadcast on change.
     sync.server(() => {
+        const { io, room, Component, graceMs = 3000 } = props as RoomServerProps;
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
 
         const lobby = xnew.context(Lobby);
 
-        // Lobby 台帳の行情報。memberCount だけ live に返す。
+        // ledger row for the Lobby; only memberCount is returned live.
         const entry = { id: room?.id ?? '', name: room?.name ?? '', get memberCount() { return members.size; } };
 
-        // 無人が graceMs 続いたら撤去する。connect で解除し、disconnect で再設定する。
-        // xnew.timeout は unit 配下なので finalize で自動停止し、コールバックも unit スコープで走る。
+        // remove the room once empty for graceMs: connect cancels it, disconnect reschedules it.
+        // xnew.timeout lives under the unit, so finalize stops it and its callback runs in the unit scope.
         let graceTimer: UnitTimer | null = null;
         const cancelCleanup = () => { graceTimer?.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
@@ -110,13 +132,14 @@ export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }
             if (members.size === 0) { scheduleCleanup(); }
         }));
 
-        lobby?.rooms.set(room?.id, entry);   // 台帳へ登録し一覧へ反映
+        lobby?.rooms.set(room?.id, entry);   // register in the ledger and reflect in the list
         lobby?.broadcast();
-        scheduleCleanup();                   // 無人のまま放置されたら撤去（最初の connect で解除）
+        scheduleCleanup();                   // remove if left empty (canceled on the first connect)
     });
 
-    // client: 生 socket の基本イベントを host へ転送し、finalize で socket を切断する。
+    // client: forward the raw socket's basic events to the host, and disconnect the socket on finalize.
     sync.client(() => {
+        const { socket, Component } = props as RoomClientProps;
         const client = sync.boot({ socket }, Component);
         unit.on('finalize', () => client.finalize());
 
