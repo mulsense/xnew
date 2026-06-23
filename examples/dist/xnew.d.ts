@@ -286,6 +286,11 @@ declare function Room(unit: Unit, { io, socket, room, Component, graceMs }: Pick
     readonly memberCount: number;
 };
 
+declare function Aspect(unit: Unit, { aspect, fit }?: {
+    aspect?: number;
+    fit?: 'contain' | 'cover';
+}): void;
+
 declare function AudioTrack(unit: Unit, { url, volume, loop }: {
     url: string;
     volume?: number;
@@ -340,9 +345,10 @@ declare function Synthesizer(unit: Unit, props: SynthesizerOptions): {
         release: () => void;
     } | undefined;
 };
-declare function VolumeController(unit: Unit, { anchor }?: {
-    anchor?: string | undefined;
-}): void;
+declare function Volume(unit: Unit): {
+    volume: number;
+    readonly muted: boolean;
+};
 
 declare namespace xnew {
     type Unit = InstanceType<typeof Unit>;
@@ -387,6 +393,7 @@ declare const xnew: XnewBase & {
     basics: {
         SVG: typeof SVG;
         SVGText: typeof SVGText;
+        Aspect: typeof Aspect;
         Screen: typeof Screen;
         OpenAndClose: typeof OpenAndClose;
         AnalogStick: typeof AnalogStick;
@@ -399,7 +406,7 @@ declare const xnew: XnewBase & {
         Room: typeof Room;
         AudioTrack: typeof AudioTrack;
         Synthesizer: typeof Synthesizer;
-        VolumeController: typeof VolumeController;
+        Volume: typeof Volume;
     };
     sync: {
         state(initial?: Record<string, any>): Record<string, any>;

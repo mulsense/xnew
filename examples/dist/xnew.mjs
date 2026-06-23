@@ -1279,7 +1279,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
 }
 
-const paleColor$1 = 'color-mix(in srgb, currentColor 20%, transparent)';
+const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
 const hiddenInput = 'position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;';
 function Panel(unit, { params }) {
     const object = params !== null && params !== void 0 ? params : {};
@@ -1337,7 +1337,7 @@ function Button(unit, { key = '' }) {
     xnew$1.nest('<button style="margin: 0.125em 0; height: 2em; border: 1px solid; border-radius: 0.25em; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        Object.assign(unit.element.style, { background: paleColor$1, borderColor: 'currentColor' });
+        Object.assign(unit.element.style, { background: paleColor, borderColor: 'currentColor' });
     });
     unit.on('pointerout', () => {
         Object.assign(unit.element.style, { background: '', borderColor: '' });
@@ -1356,7 +1356,7 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     value = value !== null && value !== void 0 ? value : min;
     xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none;">`);
     const ratio = (value - min) / (max - min);
-    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor$1}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
+    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
     const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
         xnew$1('<div>', key);
         xnew$1('<div key="status">', value);
@@ -1380,7 +1380,7 @@ function Checkbox(unit, { key = '', value } = {}) {
     });
     const check = box.element.querySelector('svg');
     const update = (checked) => {
-        box.element.style.background = checked ? paleColor$1 : '';
+        box.element.style.background = checked ? paleColor : '';
         check.style.opacity = checked ? '1' : '0';
     };
     update(!!value);
@@ -1419,7 +1419,7 @@ function Select(_, { key = '', value, items = [] } = {}) {
             xnew$1.nest(`<div style="position: relative; border: 1px solid currentColor; border-radius: 0.25em; overflow: hidden;">`);
             for (const item of items) {
                 const div = xnew$1(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, item);
-                div.on('pointerover', () => div.element.style.background = paleColor$1);
+                div.on('pointerover', () => div.element.style.background = paleColor);
                 div.on('pointerout', () => div.element.style.background = '');
                 div.on('click', () => {
                     button.element.textContent = item;
@@ -2058,60 +2058,24 @@ function Synthesizer(unit, props) {
     }
     return { press };
 }
-const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
-function SpeakerIcon(unit, { muted = false } = {}) {
-    xnew$1.extend(SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
-    const path = muted
-        ? 'M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z'
-        : 'M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z';
-    xnew$1(`<path d="${path}" />`);
-}
-function VolumeController(unit, { anchor = 'left' } = {}) {
-    xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
-    unit.on('pointerdown', ({ event }) => event.stopPropagation());
-    const system = xnew$1(OpenAndClose, { open: false, transition: { duration: 250, easing: 'ease' } });
-    const button = xnew$1((unit) => {
-        xnew$1.nest('<div style="width: 100%; height: 100%; cursor: pointer;">');
-        unit.on('click', () => system.toggle());
-        let icon = xnew$1(SpeakerIcon, { muted: master.gain.value === 0 });
-        return {
-            update() {
-                icon === null || icon === void 0 ? void 0 : icon.finalize();
-                icon = xnew$1(SpeakerIcon, { muted: master.gain.value === 0 });
-            }
-        };
-    });
-    xnew$1(() => {
-        const isHoriz = anchor === 'left' || anchor === 'right';
-        const unit = isHoriz ? 'cqw' : 'cqh';
-        const fillProp = isHoriz ? 'width' : 'height';
-        const pct = master.gain.value * 100;
-        const outerSize = isHoriz ? `top: 20%; bottom: 20%; width: 0${unit}` : `left: 20%; right: 20%; height: 0${unit}`;
-        const fillSize = isHoriz ? `top: 0; left: 0; bottom: 0; width: ${pct}%; height: 100%` : `bottom: 0; left: 0; right: 0; width: 100%; height: ${pct}%`;
-        const outer = xnew$1.nest(`<div style="position: absolute; ${outerSize};">`);
-        xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%; border: 1px solid currentColor; border-radius: 0.25em; box-sizing: border-box;">`);
-        const fill = xnew$1(`<div style="position: absolute; ${fillSize}; background: ${paleColor};">`);
-        const input = xnew$1(`<input type="range" min="0" max="100" value="${pct}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;${isHoriz ? '' : ' writing-mode: vertical-lr; direction: rtl;'}">`);
-        const css = (el) => el.style;
-        input.on('input', ({ event }) => {
-            const v = Number(event.target.value);
-            css(fill.element)[fillProp] = `${v}%`;
-            master.gain.value = v / 100;
-            button.update();
-        });
-        system.on('-transition', ({ value }) => {
-            css(outer)[anchor] = `-${value * 400 + 20}${unit}`;
-            css(outer)[fillProp] = `${value * 400}${unit}`;
-            outer.style.opacity = value.toString();
-            outer.style.pointerEvents = value < 0.9 ? 'none' : 'auto';
-        });
-    });
-    unit.on('click.outside', () => system.close());
+function Volume(unit) {
+    return {
+        get volume() {
+            return master.gain.value;
+        },
+        set volume(value) {
+            master.gain.value = value;
+        },
+        get muted() {
+            return master.gain.value === 0;
+        },
+    };
 }
 
 const basics = {
     SVG,
     SVGText,
+    Aspect,
     Screen,
     OpenAndClose,
     AnalogStick,
@@ -2124,7 +2088,7 @@ const basics = {
     Room,
     AudioTrack: AudioTrack,
     Synthesizer,
-    VolumeController,
+    Volume,
 };
 const xnew = Object.assign(xnew$1, { basics, sync });
 

@@ -12,13 +12,15 @@ import { AnalogStick, DPad } from './basics/controller';
 import { Panel } from './basics/panel';
 import { Scene } from './basics/scene';
 import { Lobby, Room } from './basics/sync';
-import { AudioTrack as AudioTrackComponent, Synthesizer, VolumeController } from './basics/audio';
+import { Aspect } from './basics/aspect';
+import { AudioTrack as AudioTrackComponent, Synthesizer, Volume } from './basics/audio';
 
 import { sync } from './core/sync';
 
 const basics = {
     SVG,
     SVGText,
+    Aspect,
     Screen,
     OpenAndClose,
     AnalogStick,
@@ -31,7 +33,7 @@ const basics = {
     Room,
     AudioTrack: AudioTrackComponent,
     Synthesizer,
-    VolumeController,
+    Volume,
 };
 
 namespace xnew {

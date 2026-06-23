@@ -16,10 +16,9 @@
 //                       synth driven by press(frequency, duration?, wait?), with note-name ('A4', 'C#5')
 //                       and rhythmic ('4n', '8n') key maps. A note with no duration sustains and
 //                       returns { release } for the caller to stop.
-// - VolumeController  : component({ anchor: 'left' | 'right' | 'top' | 'bottom' }) — speaker-icon +
-//                       slider bound to the master gain (the sole intended way to control volume).
-//                       Clicking the icon opens an anchored slider and dragging updates master.gain in
-//                       real time; the icon swaps to a muted glyph when the value reaches 0.
+// - Volume            : component() — master-gain accessor (volume / muted). The bridge that lets UI
+//                       code read / write the global volume without touching the private master node.
+//                       Standalone or used as a base via xnew.extend(xnew.basics.Volume).
 //
 // Usage:
 //   const track = xnew(xnew.basics.AudioTrack, { url: 'bgm.mp3', loop: true });
@@ -32,9 +31,6 @@
 
 import { xnew } from '../core/xnew';
 import { Unit } from '../core/unit';
-import { SVG } from './svg';
-import { Aspect } from './aspect';
-import { OpenAndClose } from './transition';
 
 //----------------------------------------------------------------------------------------------------
 // shared Web Audio bus — single AudioContext + master GainNode
@@ -475,68 +471,24 @@ export function Synthesizer(unit: Unit, props: SynthesizerOptions) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// VolumeController — speaker-icon + slider bound to the audio master gain
+// Volume — master-gain accessor as a component
+//
+// The package's master GainNode is module-private, so this component is the bridge that lets external
+// code (UI widgets like a slider) read / write the global volume without touching the node directly.
+// Use standalone (`const v = xnew(xnew.basics.Volume); v.volume = 0.5`) or as a base via
+// `xnew.extend(xnew.basics.Volume)` so a UI unit gains the volume / muted accessors.
 //----------------------------------------------------------------------------------------------------
 
-const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
-
-function SpeakerIcon(unit: Unit, { muted = false } = {}) {
-    xnew.extend(SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
-    const path = muted
-        ? 'M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z'
-        : 'M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z';
-    xnew(`<path d="${path}" />`);
-}
-
-export function VolumeController(unit: Unit, { anchor = 'left' } = {}) {
-    xnew.extend(Aspect, { aspect: 1.0, fit: 'contain' });
-    unit.on('pointerdown', ({ event }: { event: Event }) => event.stopPropagation());
-
-    const system = xnew(OpenAndClose, { open: false, transition: { duration: 250, easing: 'ease' } });
-
-    const button = xnew((unit: Unit) => {
-        xnew.nest('<div style="width: 100%; height: 100%; cursor: pointer;">');
-        unit.on('click', () => system.toggle());
-        let icon = xnew(SpeakerIcon, { muted: master.gain.value === 0 });
-        return {
-            update() {
-                icon?.finalize();
-                icon = xnew(SpeakerIcon, { muted: master.gain.value === 0 });
-            }
-        };
-    });
-
-    xnew(() => {
-        const isHoriz = anchor === 'left' || anchor === 'right';
-        const unit = isHoriz ? 'cqw' : 'cqh';
-        const fillProp = isHoriz ? 'width' : 'height';
-        const pct = master.gain.value * 100;
-
-        const outerSize = isHoriz ? `top: 20%; bottom: 20%; width: 0${unit}` : `left: 20%; right: 20%; height: 0${unit}`;
-        const fillSize = isHoriz ? `top: 0; left: 0; bottom: 0; width: ${pct}%; height: 100%` : `bottom: 0; left: 0; right: 0; width: 100%; height: ${pct}%`;
-
-        const outer = xnew.nest(`<div style="position: absolute; ${outerSize};">`);
-        xnew.nest(`<div style="position: relative; width: 100%; height: 100%; border: 1px solid currentColor; border-radius: 0.25em; box-sizing: border-box;">`);
-
-        const fill = xnew(`<div style="position: absolute; ${fillSize}; background: ${paleColor};">`);
-        const input = xnew(`<input type="range" min="0" max="100" value="${pct}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;${isHoriz ? '' : ' writing-mode: vertical-lr; direction: rtl;'}">`);
-
-        const css = (el: { style: CSSStyleDeclaration }) => el.style as unknown as Record<string, string>;
-
-        input.on('input', ({ event }: { event: Event }) => {
-            const v = Number((event.target as HTMLInputElement).value);
-            css(fill.element)[fillProp] = `${v}%`;
-            master.gain.value = v / 100;
-            button.update();
-        });
-
-        system.on('-transition', ({ value }: { value: number }) => {
-            css(outer)[anchor] = `-${value * 400 + 20}${unit}`;
-            css(outer)[fillProp] = `${value * 400}${unit}`;
-            outer.style.opacity = value.toString();
-            outer.style.pointerEvents = value < 0.9 ? 'none' : 'auto';
-        });
-    });
-
-    unit.on('click.outside', () => system.close());
+export function Volume(unit: Unit) {
+    return {
+        get volume(): number {
+            return master.gain.value;
+        },
+        set volume(value: number) {
+            master.gain.value = value;
+        },
+        get muted(): boolean {
+            return master.gain.value === 0;
+        },
+    };
 }
