@@ -75,7 +75,7 @@ unit.off();               // すべてのリスナーを解除
 | `start`      | 最初の `update` の直前に 1 回                 |
 | `update`     | 毎フレーム（おおよそ 60fps）                  |
 | `render`     | 各 `update` の後                              |
-| `stop`       | 更新ループが停止したとき                      |
+| `stop`       | unit が破棄される直前（`finalize` の前）に 1 回 |
 | `finalize`   | unit が破棄されるとき                         |
 
 ```js
@@ -91,10 +91,8 @@ function AnimatedBox(unit) {
 
 ### ライフサイクル制御メソッド
 
-unit のライフサイクルは 3 つのメソッドで制御します。
+unit は生成と同時に自動で開始され、`update` ループが回り始めます。破棄するときは `finalize` を使います。
 
-- `unit.start()` — 更新ループを開始します（既定で自動開始）。
-- `unit.stop()` — 更新ループを停止します（unit は生存し、`update` は呼ばれなくなります）。
 - `unit.finalize()` — unit を破棄し、生成した要素を DOM から削除します。
 
 ```js
@@ -182,7 +180,7 @@ console.log(counter.value); // 1
 
 次の名前は unit が既に使っているため、カスタムプロパティには使えません。
 
-- `start`, `stop`, `finalize`
+- `finalize`
 - `element`, `parent`, `promise`, `on`, `off`
 - `_`（内部用）
 

@@ -206,29 +206,19 @@ unit.element; // Access the created DOM element
       // Add text inside the box
       const text = xnew('<span style="color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; height: 100%;">');
 
-      // Handle click events - toggle start/stop
+      // Handle click events - toggle the rotation
       let running = false;
       unit.on('click', ({ event }) => {
-        running ? unit.stop() : unit.start();
-      });
-
-      // When animation starts
-      unit.on('start', () => {
-        running = true;
-        text.element.textContent = 'start';
+        running = !running;
+        text.element.textContent = running ? 'start' : 'stop';
       });
 
       // Update animation frame
       let rotate = 0;
       unit.on('update', () => {
+        if (running === false) return;
         rotate++;
         unit.element.style.transform = `rotate(${rotate}deg)`;
-      });
-
-      // When animation stops
-      unit.on('stop', () => {
-        running = false;
-        text.element.textContent = 'stop';
       });
     }
   </script>
@@ -238,8 +228,8 @@ unit.element; // Access the created DOM element
 
 **ポイント:**
 - `unit.on()` でイベントリスナーを登録します
-- `unit.start()` / `unit.stop()` で更新ループを制御します
-- `update` イベントは更新中、毎フレーム発火します
+- `click` などの DOM イベントはユーザー操作に応じて発火します
+- `update` イベントは毎フレーム発火します
 
 ## 次のステップ
 

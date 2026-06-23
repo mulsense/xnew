@@ -82,8 +82,8 @@ declare class Unit {
     constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
     get element(): DomElement;
-    start(): void;
-    stop(): void;
+    private start;
+    private stop;
     finalize(): void;
     static finalize(unit: Unit): void;
     static nest(unit: Unit, target: DomElement | string, textContent?: string | number): DomElement;

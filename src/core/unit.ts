@@ -68,11 +68,10 @@ export class Unit {
         status: Status;
         tostart: boolean;
         protected: boolean;
-        updateCount: number;   // この unit が受け取った update tick 数（update リスナの count として渡す）
-        renderCount: number;   // 同上（render 側）
         promises: UnitPromise[];
         defines: Record<string, any>;
-        systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
+        // count はリスナ登録ごとに保持する（そのリスナが呼ばれた回数。後から登録したものは 0 始まり）。
+        systems: Record<SystemEvent, { listener: Function, execute: Function, count: number }[]>;
 
         currentElement: DomElement;
         currentContext: Context;
@@ -138,8 +137,6 @@ export class Unit {
             status: 'invoked',
             tostart: true,
             protected: false,
-            updateCount: 0,
-            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -180,11 +177,14 @@ export class Unit {
         return this._.currentElement;
     }
 
-    public start(): void {
+    // 非公開のライフサイクル制御。公開 API には載せないが、停止/再開の能力は内部に残す。
+    // start: 次フレーム以降の自動 start を許可（実際の起動はエンジンの cascade が行う）。
+    // stop:  自動 start を抑止し、即座に stop 遷移する。
+    private start(): void {
         this._.tostart = true;
     }
 
-    public stop(): void {
+    private stop(): void {
         this._.tostart = false;
         Unit.stop(this);
     }
@@ -316,21 +316,20 @@ export class Unit {
         }
     }
 
-    // count = この unit の update tick 数（起動後 0 始まり）, delta = 前フレームからの経過 ms。
-    // リスナは ({ count, delta }) で受け取れる（同 tick 内の同 unit のリスナは同じ count）。
+    // count = そのリスナが呼ばれた回数（登録後 0 始まり）, delta = 前フレームからの経過 ms。
+    // リスナは ({ count, delta }) で受け取れる。count はリスナ登録ごとに独立し、
+    // 後から登録したリスナは 0 から数え始める。
     static update(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child, delta));
-            const count = unit._.updateCount++;
-            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.update.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
 
     static render(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child: Unit) => Unit.render(child, delta));
-            const count = unit._.renderCount++;
-            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.render.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
 
@@ -442,7 +441,7 @@ export class Unit {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         }
         if (isSystemEvent(type)) {
-            unit._.systems[type].push({ listener, execute });
+            unit._.systems[type].push({ listener, execute, count: 0 });
         }
         if (unit._.listeners.has(type, listener) === false) {
             unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });

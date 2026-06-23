@@ -11,27 +11,19 @@ describe('Unit lifecycle', () => {
         jest.useRealTimers();
     });
 
-    it('emits start when started explicitly after a stop()', async () => {
+    it('emits start automatically once the unit begins ticking', async () => {
         const onStart = jest.fn();
-        let target!: Unit;
-        xnew((unit: Unit) => {
-            target = unit;
-            unit.stop();
-            unit.on('start', onStart);
-        });
-        setTimeout(() => target.start(), 500);
-
-        await jest.advanceTimersByTimeAsync(499);
+        xnew((u: Unit) => u.on('start', onStart));
         expect(onStart).not.toHaveBeenCalled();
         await jest.advanceTimersByTimeAsync(50);
         expect(onStart).toHaveBeenCalledTimes(1);
     });
 
-    it('emits stop when transitioning from started to stopped', async () => {
+    it('emits stop when finalized after having started', async () => {
         const onStop = jest.fn();
         const unit = xnew((u: Unit) => u.on('stop', onStop));
         await jest.advanceTimersByTimeAsync(40);
-        unit.stop();
+        unit.finalize();
         expect(onStop).toHaveBeenCalledTimes(1);
     });
 
@@ -43,12 +35,12 @@ describe('Unit lifecycle', () => {
         expect(onFinalize).toHaveBeenCalledTimes(1);
     });
 
-    it('does not emit stop again when already stopped', async () => {
+    it('does not emit stop again when finalized twice', async () => {
         const onStop = jest.fn();
         const unit = xnew((u: Unit) => u.on('stop', onStop));
         await jest.advanceTimersByTimeAsync(40);
-        unit.stop();
-        unit.stop();
+        unit.finalize();
+        unit.finalize();
         expect(onStop).toHaveBeenCalledTimes(1);
     });
 
