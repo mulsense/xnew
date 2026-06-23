@@ -7,8 +7,8 @@
 // - Lobby : ロビー + 動的ルーム。client=ロビー受信を unit.on('-<event>') へ転送 + create()。
 //           server=io.on('connection') を所有し入室検証 + 台帳(rooms)・一覧再配信(broadcast) を公開。
 //           create 要求で注入 Room を生成し creator へ created を返す（台帳登録は Room が context 経由で行う）。
-// - Room  : Component を boot し基本イベントを host へ転送。親に Lobby があればその台帳へ出し入れし
-//           人数変化で一覧を再配信する。
+// - Room  : Component を boot し基本イベント(connect/disconnect/notfound)を host へ転送。server では人数を
+//           数え、親 Lobby の台帳へ出し入れして人数変化で一覧を再配信、無人が graceMs 続けば撤去する。
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
@@ -65,7 +65,7 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
 }
 
 /** Room — 同期された 1 部屋を boot し socket を所有。基本イベント(connect/disconnect/notfound)を host unit の
- *  '-<event>' へ転送する。server では人数台帳を持ち id/name/memberCount を公開、無人が graceMs 続けば '-empty'。
+ *  '-<event>' へ転送する。server では人数台帳を持ち、無人が graceMs 続けば '-empty'。
  *  親に Lobby があればその台帳へ自分を出し入れし、人数変化で一覧を再配信、空室確定で撤去する。env で自動判定。 */
 export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }: Pick<BootOptions, 'io' | 'socket' | 'room'> & { Component: Function; graceMs?: number }) {
 
@@ -125,6 +125,4 @@ export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }
         socket.on('notfound', xnew.scope((payload: any) => xnew.emit('-notfound', payload)));
         unit.on('finalize', () => socket.disconnect());
     });
-
-    return { get id(): string | undefined { return room?.id; }, get name(): string | undefined { return room?.name; }, get memberCount(): number { return members.size; } };
 }

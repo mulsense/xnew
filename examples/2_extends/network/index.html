@@ -14,11 +14,8 @@
   </script>
 </head>
 <body class="m-2 font-sans text-gray-600">
-  <p class="text-[13px] leading-relaxed mb-3">
-    ロビーでルームを作成 / 入室 → タイトル → 設定画面でプレイヤー1 / プレイヤー2 を選び → ゲーム開始。
-    別タブ/別ブラウザで同じルームに入ると同期する（枠を取った人が <code>WASD</code>/<code>矢印</code> で移動・他は観戦）。
-    <span id="status" class="text-red-500">接続中…</span>
-  </p>
+  <!-- 接続状態 / ルーム情報の表示先（シーンから App.setStatus で更新される） -->
+  <p class="text-[13px] leading-relaxed mb-3"><span id="status" class="text-red-500">接続中…</span></p>
   <!-- ロビー / ゲームの両シーンがここに mount される -->
   <div id="app"></div>
   <!-- socket.io クライアント（socket.io サーバーが自動配信。グローバル io を定義する） -->

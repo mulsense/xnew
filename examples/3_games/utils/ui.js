@@ -157,11 +157,11 @@ function VolumeController(unit, { anchor = 'left' } = {}) {
   const button = xnew((unit) => {
     xnew.nest('<div style="width: 100%; height: 100%; cursor: pointer;">');
     unit.on('click', () => system.toggle());
-    let icon = xnew(SpeakerIcon, { muted: volume.muted });
+    let icon = xnew(SpeakerIcon, { muted: volume.volume === 0 });
     return {
       update() {
         icon?.finalize();
-        icon = xnew(SpeakerIcon, { muted: volume.muted });
+        icon = xnew(SpeakerIcon, { muted: volume.volume === 0 });
       }
     };
   });

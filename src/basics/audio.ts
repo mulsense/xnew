@@ -1,32 +1,17 @@
 //----------------------------------------------------------------------------------------------------
-// audio — built-in audio components + the shared Web Audio bus
+// audio — built-in audio components over a shared Web Audio bus
 //
-// Owns the package's single AudioContext + master GainNode (created at module load) so every audio
-// source mixes through one bus, and exposes audio sources as components that live as units in the
-// tree and release their nodes automatically when their unit finalizes.
+// Owns the package's single AudioContext + master GainNode (created at import) so every source mixes
+// through one bus. Sources live as units and release their nodes on finalize. In a context-less
+// environment (Node/SSR/jsdom) `context`/`master` fall back to null so import never throws.
 //
-// Side effect on import: instantiates window.AudioContext and connects the master gain. In a context-
-// less environment (Node/SSR/jsdom or unsupported browsers) `context`/`master` fall back to null so
-// import never throws.
-//
-// - AudioTrack        : component({ url, volume?, loop? }) — fetches + decodes an audio file and drives
-//                       it with play / pause (play({ offset: 0 }) restarts, play() resumes). Registers
-//                       the load with the unit's promise aggregation and releases nodes on finalize.
-// - Synthesizer       : component(SynthesizerOptions) — oscillator + amp / filter / reverb + ADSR + LFO
-//                       synth driven by press(frequency, duration?, wait?), with note-name ('A4', 'C#5')
-//                       and rhythmic ('4n', '8n') key maps. A note with no duration sustains and
-//                       returns { release } for the caller to stop.
-// - Volume            : component() — master-gain accessor (volume / muted). The bridge that lets UI
-//                       code read / write the global volume without touching the private master node.
-//                       Standalone or used as a base via xnew.extend(xnew.basics.Volume).
+// - AudioTrack   : fetch + decode an audio file, driven by play / pause.
+// - Synthesizer  : oscillator + amp / filter / reverb + ADSR + LFO synth, driven by press.
+// - Volume       : master-gain accessor (volume), standalone or via xnew.extend.
 //
 // Usage:
-//   const track = xnew(xnew.basics.AudioTrack, { url: 'bgm.mp3', loop: true });
-//   track.play();
-//   track.pause();
-//
-//   const synth = xnew(xnew.basics.Synthesizer, { oscillator: { type: 'sine' }, amp: { envelope: ... } });
-//   synth.press('A4', '4n');
+//   xnew(xnew.basics.AudioTrack, { url: 'bgm.mp3', loop: true }).play();
+//   xnew(xnew.basics.Synthesizer, { oscillator: { type: 'sine' }, amp: { envelope: ... } }).press('A4', '4n');
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
@@ -40,7 +25,7 @@ const DEFAULT_MASTER_GAIN = 0.1;
 const DEFAULT_BPM = 120;
 const RELEASE_CLEANUP_DELAY_MS = 2000;
 
-// AudioContext が無い環境（Node/SSR/jsdom や未対応ブラウザ）では null に落とす（import 時に落ちない）。
+// Fall back to null where AudioContext is unavailable (Node/SSR/jsdom) so import never throws.
 const AudioContextCtor: typeof AudioContext | undefined =
     typeof window !== 'undefined' ? (window.AudioContext ?? (window as any).webkitAudioContext) : undefined;
 const context: AudioContext = typeof AudioContextCtor === 'function' ? new AudioContextCtor() : null as unknown as AudioContext;
@@ -54,11 +39,9 @@ if (context !== null && master !== null) {
 //----------------------------------------------------------------------------------------------------
 // AudioTrack — fetch + decode an audio file and drive it as a unit
 //
-// `startedAt` is the (virtual) AudioContext time at which playback would have started from offset 0
-// — i.e. `currentTime - startedAt` is the position within the buffer. On pause, that position is
-// frozen into `pausedOffsetMs` so a subsequent `play()` with no explicit offset picks it up — i.e.
-// `play()` doubles as resume, while `play({ offset: 0 })` restarts from the beginning. `looping` is
-// stored so `pause()` can mod the position by buffer.duration only when looping.
+// `startedAt` is the (virtual) context time of offset 0, so `currentTime - startedAt` is the position
+// in the buffer. On pause that position is frozen into `pausedOffsetMs`, which `play()` resumes from
+// unless given an explicit offset.
 //----------------------------------------------------------------------------------------------------
 
 export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: string, volume?: number, loop?: boolean }) {
@@ -81,14 +64,14 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         .then((response) => { buffer = response; });
     xnew.promise(promise);
 
-    // Hard-stops the source without triggering onended state cleanup. Caller resets remaining state.
+    // Hard-stop the source without triggering its onended cleanup.
     function forceStop() {
         if (source !== null) {
             source.onended = null;
             try {
                 source.stop();
             } catch {
-                // Source was never started or already stopped — safe to ignore.
+                // Never started or already stopped — safe to ignore.
             }
             source.disconnect();
             source = null;
@@ -107,8 +90,7 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         startedAt = now - offsetMs / 1000;
         node.start(now, offsetMs / 1000);
 
-        // Always pin the fade gain to its target: a prior fade-out (pause) may have left it at 0, so
-        // a fade=0 play would otherwise be silent.
+        // Pin the fade gain: a prior fade-out may have left it at 0, silencing a fade=0 play.
         fade.gain.cancelScheduledValues(now);
         if (fadeMs > 0) {
             fade.gain.setValueAtTime(0, now);
@@ -119,9 +101,8 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
 
         node.onended = () => {
             node.disconnect();
-            // Only clear state if this is still the active source. `pause()` and re-trigger replace /
-            // null out `source`, so a stale onended firing after their fade-out must not clobber
-            // pausedOffsetMs.
+            // Clear state only if still the active source; pause / re-trigger null out `source` first
+            // so a stale onended must not clobber pausedOffsetMs.
             if (source === node) {
                 source = null;
                 startedAt = null;
@@ -141,44 +122,6 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
         }
     }
 
-    // Plays from `offset` (ms). `offset: 0` starts from the beginning; if `offset` is omitted, resumes
-    // from the position saved by the last pause() — which is 0 on a fresh track, so the first call
-    // plays from the beginning either way.
-    //
-    // Load-aware: calling before the buffer is decoded defers playback until the load resolves (so
-    // `xnew(AudioTrack, { url }).play()` is safe without awaiting). Re-trigger: calling while already
-    // playing restarts at the resolved offset — handy for rapid SE replay — rather than no-op.
-    function play({ offset, fade: fadeMs = 0, loop: loopArg }: { offset?: number, fade?: number, loop?: boolean } = {}) {
-        if (buffer === undefined) {
-            promise.then(() => play({ offset, fade: fadeMs, loop: loopArg }));
-            return;
-        }
-        if (loopArg !== undefined) {
-            looping = loopArg;
-        }
-        if (startedAt !== null) {
-            forceStop();
-        }
-        startSource(offset ?? pausedOffsetMs, fadeMs);
-    }
-
-    function pause({ fade: fadeMs = 0 }: { fade?: number } = {}) {
-        if (buffer === undefined || startedAt === null) {
-            return;
-        }
-        const elapsedSec = context.currentTime - startedAt;
-        const positionSec = looping ? elapsedSec % buffer.duration : Math.min(elapsedSec, buffer.duration);
-        pausedOffsetMs = positionSec * 1000;
-
-        // Detach the current source before scheduling its stop. Its `onended` will fire after the
-        // fade-out completes (or immediately for fade=0); the guard inside `onended` checks
-        // `source === node` and, finding it false, skips state cleanup so pausedOffsetMs survives.
-        const node = source!;
-        source = null;
-        startedAt = null;
-        stopSource(node, fadeMs);
-    }
-
     // Release the Web Audio nodes when the unit is finalized.
     unit.on('finalize', () => {
         forceStop();
@@ -188,8 +131,37 @@ export function AudioTrack(unit: Unit, { url, volume, loop = false }: { url: str
     });
 
     return {
-        play,
-        pause,
+        // Play from `offset` (ms); if omitted, resume from the last pause (0 on a fresh track).
+        // Called before decode finishes, it defers until the load resolves; called while playing, it
+        // restarts at the offset.
+        play: function play({ offset, fade: fadeMs = 0, loop: loopArg }: { offset?: number, fade?: number, loop?: boolean } = {}): void {
+            if (buffer === undefined) {
+                promise.then(() => play({ offset, fade: fadeMs, loop: loopArg }));
+                return;
+            }
+            if (loopArg !== undefined) {
+                looping = loopArg;
+            }
+            if (startedAt !== null) {
+                forceStop();
+            }
+            startSource(offset ?? pausedOffsetMs, fadeMs);
+        },
+        pause({ fade: fadeMs = 0 }: { fade?: number } = {}): void {
+            if (buffer === undefined || startedAt === null) {
+                return;
+            }
+            const elapsedSec = context.currentTime - startedAt;
+            const positionSec = looping ? elapsedSec % buffer.duration : Math.min(elapsedSec, buffer.duration);
+            pausedOffsetMs = positionSec * 1000;
+
+            // Detach before scheduling the stop, so its onended (guarded on `source === node`) skips
+            // cleanup and pausedOffsetMs survives.
+            const node = source!;
+            source = null;
+            startedAt = null;
+            stopSource(node, fadeMs);
+        },
         get isPlaying(): boolean {
             return startedAt !== null;
         },
@@ -365,9 +337,9 @@ function attachReverb(amp: GainNode, target: GainNode, reverb: ReverbOptions): R
 //----------------------------------------------------------------------------------------------------
 
 export function Synthesizer(unit: Unit, props: SynthesizerOptions) {
-    // Press a note: `frequency` is a Hz number or note name ('A4'); `duration` is ms or a note length
-    // ('4n'). With a duration the note auto-releases; without one it sustains and returns { release }
-    // so the caller can stop it. `wait` (ms) delays the attack.
+    // Press a note. `frequency`: Hz or note name ('A4'). `duration`: ms or note length ('4n') — with
+    // one the note auto-releases, without one it sustains and returns { release }. `wait` (ms) delays
+    // the attack.
     function press(frequency: number | string, duration?: number | string, wait?: number) {
         const freq = resolveFrequency(frequency);
         const dv = resolveDurationSeconds(duration, props.bpm ?? DEFAULT_BPM);
@@ -473,10 +445,8 @@ export function Synthesizer(unit: Unit, props: SynthesizerOptions) {
 //----------------------------------------------------------------------------------------------------
 // Volume — master-gain accessor as a component
 //
-// The package's master GainNode is module-private, so this component is the bridge that lets external
-// code (UI widgets like a slider) read / write the global volume without touching the node directly.
-// Use standalone (`const v = xnew(xnew.basics.Volume); v.volume = 0.5`) or as a base via
-// `xnew.extend(xnew.basics.Volume)` so a UI unit gains the volume / muted accessors.
+// The master GainNode is module-private; this component lets UI code read / write the global volume
+// without touching it. Use standalone or as a base via `xnew.extend(xnew.basics.Volume)`.
 //----------------------------------------------------------------------------------------------------
 
 export function Volume(unit: Unit) {
@@ -486,9 +456,6 @@ export function Volume(unit: Unit) {
         },
         set volume(value: number) {
             master.gain.value = value;
-        },
-        get muted(): boolean {
-            return master.gain.value === 0;
         },
     };
 }
