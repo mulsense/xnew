@@ -61,6 +61,10 @@ function isSystemEvent(type: string): type is SystemEvent {
 
 export class Unit {
 
+    // Component が返す defines はランタイムで unit に生やされる（static には型で追えない）。
+    // それらを unit.<name> で読めるよう、任意メンバを許可する。既知メンバの型はそのまま優先される。
+    [key: string]: any;
+
     public _: {
         parent: Unit | null;
         children: Unit[];
@@ -223,7 +227,7 @@ export class Unit {
             unit._.currentContext = { previous: null };
 
             Object.keys(unit._.defines).forEach((key) => {
-                delete unit[key as keyof Unit];
+                delete unit[key];
             });
             unit._.defines = {};
             unit._.status = 'finalized';
@@ -273,7 +277,7 @@ export class Unit {
         unit._.Components.push(Component);
 
         Object.keys(defines).forEach((key) => {
-            if ((unit as any)[key] !== undefined && unit._.defines[key] === undefined) {
+            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);

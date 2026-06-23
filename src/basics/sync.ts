@@ -5,11 +5,12 @@
 // server/client is auto-detected from the runtime (→ core/env); handle is server=io / client=socket.
 //
 // - Lobby : lobby + dynamic rooms. client forwards lobby events to unit.on('-<event>') + create().
-//           server owns io.on('connection'), validates joins, and exposes the room ledger + broadcast.
-//           A create request spawns the injected Room and replies 'created' (Room registers itself via context).
+//           server owns io.on('connection'), validates joins, and holds the room ledger (id → Room unit).
+//           A create request spawns the injected Room, stores its unit, and replies 'created'; the room
+//           list is built from each stored unit's info().
 // - Room  : boots Component and forwards basic events (connect/disconnect/notfound) to the host. On the
-//           server it counts members, syncs the parent Lobby ledger, re-broadcasts on changes, and removes
-//           itself once empty for graceMs.
+//           server it counts members and exposes info() (id/name/memberCount) for the parent Lobby's list,
+//           re-broadcasts on changes, and drops itself from the ledger once empty for graceMs.
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
@@ -23,6 +24,9 @@ export interface LobbyServerProps { io: any; Room: Function; maxRooms?: number; 
 export interface LobbyClientProps { socket: any; }
 export type LobbyProps = LobbyServerProps | LobbyClientProps;
 
+/** One row of the lobby's room list, produced by Room.info() and read off the stored Room unit. */
+export interface RoomInfo { id: string; name: string; memberCount: number; }
+
 /** Lobby — wires the lobby connection to the host unit; events arrive via unit.on('-<event>').
  *  socket callbacks run outside the tick, so emits are wrapped in xnew.scope to bind the unit scope. */
 export function Lobby(unit: Unit, props: LobbyProps) {
@@ -30,10 +34,9 @@ export function Lobby(unit: Unit, props: LobbyProps) {
     // Room creation and ledger updates are delegated to Room (host does xnew(Room,...), Room registers via context).
     sync.server(() => {
         const { io, Room, maxRooms = 20, roomNameMax = 16 } = props as LobbyServerProps;
-        const rooms = new Map<string, { id: string; name: string; memberCount: number }>();   // id → row (Room maintains)
+        const rooms = new Map<string, Unit>();   // id → Room unit; the row is read via room.info()
         let nextRoomNum = 0;
-        const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
-        
+
         const connection = xnew.scope((conn: any) => {
             const roomId = conn.handshake?.query?.room;
             if (roomId !== undefined && roomId !== '') {
@@ -43,25 +46,27 @@ export function Lobby(unit: Unit, props: LobbyProps) {
             }
             // lobby connection: send the current list (later updates auto-broadcast), then handle create.
             conn.join('lobby');
-            conn.emit('update', { rooms: roomList() });
+            conn.emit('update', { rooms: unit.rooms });
             conn.on('create', xnew.scope((payload: any) => {
                 if (rooms.size >= maxRooms) { conn.emit('rejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                // spawn the injected Room (it adds itself to the ledger), then reply 'created' to the creator.
-                xnew(unit, Room!, { io, room: { id, name } });
+                // spawn the injected Room, store the unit, then reply 'created' and refresh the list.
+                rooms.set(id, xnew(unit, Room!, { io, room: { id, name } }));
                 conn.emit('created', { room: { id, name } });
+                unit.broadcast();
             }));
         });
         io.on('connection', connection);
         unit.on('finalize', () => io.off('connection', connection));
 
-        // exposed so Room (via context(Lobby)) can maintain the ledger and re-broadcast the list.
+        // exposed so Room (via context(Lobby)) can drop itself from the ledger and re-broadcast the list.
         return {
-            get rooms() { return rooms; },
+            get rooms() { return [...rooms.values()].map((room) => room.info()); },
             broadcast() {
-                return io.to('lobby').emit('update', { rooms: roomList() });
-            }
+                return io.to('lobby').emit('update', { rooms: unit.rooms });
+            },
+            remove(id: string) { rooms.delete(id); },
         };
     });
 
@@ -80,7 +85,7 @@ export function Lobby(unit: Unit, props: LobbyProps) {
 
 /** Room props. Like Lobby, the component runs on both sides but each reads a different shape: the server
  *  boots with the io handle, the client with its socket. room/Component/graceMs are shared by both. */
-export interface RoomServerProps { io: any; room: BootOptions['room']; Component: Function; graceMs?: number; }
+export interface RoomServerProps { io: any; room?: BootOptions['room']; Component: Function; graceMs?: number; }
 export interface RoomClientProps { socket: any; Component: Function; graceMs?: number; }
 export type RoomProps = RoomServerProps | RoomClientProps;
 
@@ -103,9 +108,6 @@ export function Room(unit: Unit, props: RoomProps) {
 
         const lobby = xnew.context(Lobby);
 
-        // ledger row for the Lobby; only memberCount is returned live.
-        const entry = { id: room?.id ?? '', name: room?.name ?? '', get memberCount() { return members.size; } };
-
         // remove the room once empty for graceMs: connect cancels it, disconnect reschedules it.
         // xnew.timeout lives under the unit, so finalize stops it and its callback runs in the unit scope.
         let graceTimer: UnitTimer | null = null;
@@ -115,7 +117,7 @@ export function Room(unit: Unit, props: RoomProps) {
             graceTimer = xnew.timeout(() => {
                 if (members.size > 0) { return; }
                 xnew.emit('-empty', {});
-                if (lobby !== undefined) { lobby.rooms.delete(room?.id); lobby.broadcast(); unit.finalize(); }
+                if (lobby !== undefined) { lobby.remove(room?.id); lobby.broadcast(); unit.finalize(); }
             }, graceMs);
         };
 
@@ -132,9 +134,14 @@ export function Room(unit: Unit, props: RoomProps) {
             if (members.size === 0) { scheduleCleanup(); }
         }));
 
-        lobby?.rooms.set(room?.id, entry);   // register in the ledger and reflect in the list
-        lobby?.broadcast();
         scheduleCleanup();                   // remove if left empty (canceled on the first connect)
+
+        // exposed to the parent Lobby (which stores this unit): one room-list row, with the live member count.
+        return {
+            info(): RoomInfo {
+                return { id: room?.id ?? '', name: room?.name ?? '', memberCount: members.size };
+            },
+        };
     });
 
     // client: forward the raw socket's basic events to the host, and disconnect the socket on finalize.

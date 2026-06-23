@@ -48,6 +48,7 @@ type PropsOf<C> = C extends (unit: Unit, props: infer P, ...rest: any[]) => any 
 declare const SYSTEM_EVENTS: readonly ["start", "update", "render", "stop", "finalize"];
 type SystemEvent = typeof SYSTEM_EVENTS[number];
 declare class Unit {
+    [key: string]: any;
     _: {
         parent: Unit | null;
         children: Unit[];
@@ -256,21 +257,30 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
     separator(): void;
 };
 
-declare function Lobby(unit: Unit, { io, socket, Room, maxRooms, roomNameMax }: {
-    io?: any;
-    socket?: any;
-    Room?: Function;
+interface LobbyServerProps {
+    io: any;
+    Room: Function;
     maxRooms?: number;
     roomNameMax?: number;
-}): void;
-declare function Room(unit: Unit, { io, socket, room, Component, graceMs }: Pick<BootOptions, 'io' | 'socket' | 'room'> & {
+}
+interface LobbyClientProps {
+    socket: any;
+}
+type LobbyProps = LobbyServerProps | LobbyClientProps;
+declare function Lobby(unit: Unit, props: LobbyProps): void;
+interface RoomServerProps {
+    io: any;
+    room?: BootOptions['room'];
     Component: Function;
     graceMs?: number;
-}): {
-    readonly id: string | undefined;
-    readonly name: string | undefined;
-    readonly memberCount: number;
-};
+}
+interface RoomClientProps {
+    socket: any;
+    Component: Function;
+    graceMs?: number;
+}
+type RoomProps = RoomServerProps | RoomClientProps;
+declare function Room(unit: Unit, props: RoomProps): void;
 
 declare function Aspect(unit: Unit, { aspect, fit }?: {
     aspect?: number;
@@ -401,7 +411,7 @@ declare const xnew: XnewBase & {
         server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
         client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
         state(initial?: Record<string, any>): Record<string, any>;
-        register(components: Record<string, Function>): void;
+        register(Components: Record<string, Function>): void;
         readonly status: SyncStatus;
         emit(event: string, payload?: Record<string, any>): void;
         boot(opts: BootOptions, ...args: any[]): Unit;

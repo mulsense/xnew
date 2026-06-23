@@ -1577,14 +1577,14 @@ const sync = {
         }
         return data.state;
     },
-    register(components) {
+    register(Components) {
         var _a;
         const unit = Unit.currentUnit;
         if (unit._.status !== 'invoked') {
             throw new Error('xnew.sync.register must be called during component initialization.');
         }
         const data = syncOf(unit);
-        data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, components);
+        data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, Components);
     },
     get status() {
         const info = rootInfoOf(Unit.currentUnit);
@@ -1616,12 +1616,11 @@ const sync = {
     },
 };
 
-function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
+function Lobby(unit, props) {
     sync.server(() => {
+        const { io, Room, maxRooms = 20, roomNameMax = 16 } = props;
         const rooms = new Map();
         let nextRoomNum = 0;
-        const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
-        const broadcast = () => io.to('lobby').emit('update', { rooms: roomList() });
         const connection = xnew$1.scope((conn) => {
             var _a, _b;
             const roomId = (_b = (_a = conn.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room;
@@ -1633,7 +1632,7 @@ function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
                 return;
             }
             conn.join('lobby');
-            conn.emit('update', { rooms: roomList() });
+            conn.emit('update', { rooms: unit.rooms });
             conn.on('create', xnew$1.scope((payload) => {
                 var _a;
                 if (rooms.size >= maxRooms) {
@@ -1642,15 +1641,23 @@ function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
                 }
                 const id = `r${++nextRoomNum}`;
                 const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                xnew$1(unit, Room, { io, room: { id, name } });
+                rooms.set(id, xnew$1(unit, Room, { io, room: { id, name } }));
                 conn.emit('created', { room: { id, name } });
+                unit.broadcast();
             }));
         });
         io.on('connection', connection);
         unit.on('finalize', () => io.off('connection', connection));
-        return { get rooms() { return rooms; }, broadcast };
+        return {
+            get rooms() { return [...rooms.values()].map((room) => room.info()); },
+            broadcast() {
+                return io.to('lobby').emit('update', { rooms: unit.rooms });
+            },
+            remove(id) { rooms.delete(id); },
+        };
     });
     sync.client(() => {
+        const { socket } = props;
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));
         socket.on('update', xnew$1.scope((payload) => xnew$1.emit('-update', payload)));
@@ -1660,14 +1667,13 @@ function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
         return { create(name) { socket.emit('create', { name }); } };
     });
 }
-function Room(unit, { io, socket, room, Component, graceMs = 3000 }) {
+function Room(unit, props) {
     const members = new Set();
     sync.server(() => {
-        var _a, _b;
+        const { io, room, Component, graceMs = 3000 } = props;
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
         const lobby = xnew$1.context(Lobby);
-        const entry = { id: (_a = room === null || room === void 0 ? void 0 : room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room === null || room === void 0 ? void 0 : room.name) !== null && _b !== void 0 ? _b : '', get memberCount() { return members.size; } };
         let graceTimer = null;
         const cancelCleanup = () => { graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
@@ -1678,7 +1684,7 @@ function Room(unit, { io, socket, room, Component, graceMs = 3000 }) {
                 }
                 xnew$1.emit('-empty', {});
                 if (lobby !== undefined) {
-                    lobby.rooms.delete(room === null || room === void 0 ? void 0 : room.id);
+                    lobby.remove(room === null || room === void 0 ? void 0 : room.id);
                     lobby.broadcast();
                     unit.finalize();
                 }
@@ -1698,11 +1704,16 @@ function Room(unit, { io, socket, room, Component, graceMs = 3000 }) {
                 scheduleCleanup();
             }
         }));
-        lobby === null || lobby === void 0 ? void 0 : lobby.rooms.set(room === null || room === void 0 ? void 0 : room.id, entry);
-        lobby === null || lobby === void 0 ? void 0 : lobby.broadcast();
         scheduleCleanup();
+        return {
+            info() {
+                var _a, _b;
+                return { id: (_a = room === null || room === void 0 ? void 0 : room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room === null || room === void 0 ? void 0 : room.name) !== null && _b !== void 0 ? _b : '', memberCount: members.size };
+            },
+        };
     });
     sync.client(() => {
+        const { socket, Component } = props;
         const client = sync.boot({ socket }, Component);
         unit.on('finalize', () => client.finalize());
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
@@ -1710,7 +1721,6 @@ function Room(unit, { io, socket, room, Component, graceMs = 3000 }) {
         socket.on('notfound', xnew$1.scope((payload) => xnew$1.emit('-notfound', payload)));
         unit.on('finalize', () => socket.disconnect());
     });
-    return { get id() { return room === null || room === void 0 ? void 0 : room.id; }, get name() { return room === null || room === void 0 ? void 0 : room.name; }, get memberCount() { return members.size; } };
 }
 
 var _a;

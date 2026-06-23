@@ -5,10 +5,12 @@ import { xnew } from '../../../src/core/xnew';
 // Typed defines (theme 2)
 //
 // xnew(Component) returns `Unit & DefinesOf<Component>`, and xnew.extend(Component) returns
-// `DefinesOf<Component>`. The `[key: string]: any` index signature was removed from Unit, so
-// accessing an undeclared / un-inferred property is now a compile error (asserted via @ts-expect-error).
-// These checks run under ts-jest, so a type regression fails the build, and the runtime expectations
-// confirm the defines are actually wired onto the unit.
+// `DefinesOf<Component>`. Unit carries a `[key: string]: any` index signature (defines are attached
+// at runtime and can't be tracked statically), so declared defines keep their types while undeclared
+// access on a unit resolves to `any` instead of erroring. The bare object returned by xnew.extend has
+// no Unit, so it stays strictly typed: undeclared access there is still a compile error (asserted with
+// a ts-expect-error directive below). These checks run under ts-jest, so a type regression fails the
+// build, and the runtime expectations confirm the defines are actually wired onto the unit.
 //----------------------------------------------------------------------------------------------------
 
 function Counter(_unit: Unit, props: { start?: number }) {
@@ -33,8 +35,7 @@ describe('typed defines', () => {
             counter.inc();                          // typed method
             expect(counter.value).toBe(11);         // typed getter
             expect(typeof counter.on).toBe('function'); // still a Unit
-            // @ts-expect-error — undeclared define is a type error (index signature removed)
-            counter.nope;
+            expect(counter.nope).toBeUndefined();   // undeclared access resolves to any (Unit index signature)
         });
     });
 
@@ -52,8 +53,7 @@ describe('typed defines', () => {
         xnew(() => {
             const plain = xnew((_unit: Unit) => { /* no defines */ });
             expect(typeof plain.finalize).toBe('function');
-            // @ts-expect-error — no defines to access
-            plain.anything;
+            expect(plain.anything).toBeUndefined();   // bare Unit still allows any access via index signature
         });
     });
 });
