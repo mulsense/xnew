@@ -18,18 +18,10 @@ import { getOrCreate } from './map';
 interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
 
-/** ユニット単位の同期レジストリ。name → Component（逆引きは線形探索）。 */
-type SyncRegistry = Record<string, Function>;
-
-//----------------------------------------------------------------------------------------------------
-// per-unit sync data — Unit を汚染しないよう WeakMap で保持（Unit は sync を知らない）
-//----------------------------------------------------------------------------------------------------
-
-/** 1 unit 分の同期データ。 */
 interface SyncData {
     id: number | null;                 // 同期ノード id（capture 時に採番）
     state: Record<string, any> | null; // synced state（sync.state で宣言 / apply がプリシード）
-    registry: SyncRegistry | null;     // 直接の同期子として許可する {name: Component}
+    registry: Record<string, Function> | null;     // 直接の同期子として許可する {name: Component}
 }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
@@ -289,14 +281,14 @@ export const sync = {
         }
         return data.state;
     },
-    register(components: Record<string, Function>): void {
+    register(Components: Record<string, Function>): void {
         const unit = Unit.currentUnit;
         if (unit._.status !== 'invoked') {
             throw new Error('xnew.sync.register must be called during component initialization.');
         }
         // 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。
         const data = syncOf(unit);
-        data.registry = Object.assign(data.registry ?? {}, components);
+        data.registry = Object.assign(data.registry ?? {}, Components);
     },
     /** ルームのステータス。server は { clients } のみ、client は { id（自分）, clients, room }。 */
     get status(): SyncStatus {
