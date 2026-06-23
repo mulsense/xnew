@@ -122,12 +122,12 @@ export const xnew = Object.assign(
             return Unit.emit(type, ...args);
         },
 
-        /** Runs callback({ count, timer }) once after duration ms（count は呼び出し回数で常に 1。timer は UnitTimer インスタンス。unit のライフサイクルに従う。clear() で中止）。 */
+        /** Runs callback({ timer }) once after duration ms（timer は UnitTimer インスタンス。unit のライフサイクルに従う。clear() で中止）。 */
         timeout(callback: Function, duration: number = 0): UnitTimer {
             return new UnitTimer().timeout(callback, duration);
         },
 
-        /** Runs callback({ count, timer }) every duration ms（count は 1 始まりの呼び出し回数。timer は UnitTimer インスタンス（timer.clear() で停止）。iterations 回。0 は無限）。 */
+        /** Runs callback({ timer }) every duration ms（timer は UnitTimer インスタンス（timer.clear() で停止）。iterations 回。0 は無限）。 */
         interval(callback: Function, duration: number, iterations: number = 0): UnitTimer {
             return new UnitTimer().interval(callback, duration, iterations);
         },

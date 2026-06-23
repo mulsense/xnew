@@ -477,14 +477,16 @@ function StoryPageSwarm(unit) {
   xpixi.nest(new PIXI.Container());
 
   // 少しずつ湧いて増えていく（増殖感）。黒帯より上（テキスト帯に被らない領域）に位置・スケールをランダムに散らす。
-  xnew.interval(({ timer, count }) => {
+  let spawnedCount = 0;
+  xnew.interval(({ timer }) => {
+    spawnedCount++;
     xnew(DriftingFactor, {
       id: randInt(xnew.context(BakedCharacters).texturesList.length),
       x: randRange(90, 710),
       y: randRange(90, 360),
       scale: randRange(0.5, 1.0),
     });
-    if (count >= 64) timer.clear();
+    if (spawnedCount >= 64) timer.clear();
   }, 200);
 
   xnew(() => {
@@ -579,7 +581,9 @@ function WaveManager(unit) {
   xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: 1 });
   xnew.timeout(() => { transitioning = false; }, 2800);
 
-  const spawn = xnew.interval(({ count }) => {
+  let spawnTick = 0;
+  const spawn = xnew.interval(() => {
+    spawnTick++;
     if (transitioning) return;
     // その wave の目標スコアに達したら次の wave へ（wave4 は到達してもエンドレスで移行しない）
     if (wave < 4 && xnew.context(ScoreManager).waveScore >= WAVE_GOALS[wave - 1]) {
@@ -591,7 +595,7 @@ function WaveManager(unit) {
     // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場。
     const id = enemyIdForWave(wave);
     // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
-    if (count % (id + 1) === 0) scene.add(Enemy, { id });
+    if (spawnTick % (id + 1) === 0) scene.add(Enemy, { id });
   }, 200);
 
   unit.on('+gameover', () => spawn.clear());
