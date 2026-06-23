@@ -3,9 +3,9 @@ import { xnew } from '../../../src/index';
 import { ioMock, bootServer, bootClient } from './io-mock';
 
 // mode（server/client）は実行環境で決まる（Node=server / browser=client、core/env）。
-// xnew.server / xnew.client は現在の環境を見て、その環境のブロックだけを実行する。
+// xnew.sync.server / xnew.sync.client は現在の環境を見て、その環境のブロックだけを実行する。
 
-describe('xnew.server / xnew.client by environment', () => {
+describe('xnew.sync.server / xnew.sync.client by environment', () => {
     let hub: ReturnType<typeof ioMock>;
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
@@ -13,11 +13,11 @@ describe('xnew.server / xnew.client by environment', () => {
     it('server environment runs server blocks for the root and nested units', () => {
         const ran: string[] = [];
         bootServer({ io: hub.io }, (_: Unit) => {
-            xnew.server(() => { ran.push('root-server'); });
-            xnew.client(() => { ran.push('root-client'); });
+            xnew.sync.server(() => { ran.push('root-server'); });
+            xnew.sync.client(() => { ran.push('root-client'); });
             xnew((_c: Unit) => {
-                xnew.server(() => { ran.push('child-server'); });
-                xnew.client(() => { ran.push('child-client'); });
+                xnew.sync.server(() => { ran.push('child-server'); });
+                xnew.sync.client(() => { ran.push('child-client'); });
             });
         });
         expect(ran).toEqual(['root-server', 'child-server']);   // 環境はサブツリー全体に効く
@@ -26,8 +26,8 @@ describe('xnew.server / xnew.client by environment', () => {
     it('client environment runs client blocks', () => {
         const ran: string[] = [];
         bootClient({ socket: hub.connect() }, (_: Unit) => {
-            xnew.server(() => { ran.push('server'); });
-            xnew.client(() => { ran.push('client'); });
+            xnew.sync.server(() => { ran.push('server'); });
+            xnew.sync.client(() => { ran.push('client'); });
         });
         expect(ran).toEqual(['client']);
     });

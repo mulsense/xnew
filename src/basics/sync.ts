@@ -21,7 +21,7 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
     { io?: any; socket?: any; Room?: Function; maxRooms?: number; roomNameMax?: number }) {
     // server: io.on('connection') を所有し、入室検証と台帳(rooms)＋一覧再配信(broadcast) を持つ。
     // 部屋生成・台帳の出し入れは Room へ委ねる（host が xnew(Room,...) し、Room が context(Lobby) で登録）。
-    xnew.server(() => {
+    sync.server(() => {
         const rooms = new Map<string, { id: string; name: string; memberCount: number }>();   // id → 行情報（Room が出し入れ）
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
@@ -53,7 +53,7 @@ export function Lobby(unit: Unit, { io, socket, Room, maxRooms = 20, roomNameMax
     });
 
     // client: ロビー受信を host unit の '-<event>' へ転送し、finalize で socket を切断する。
-    xnew.client(() => {
+    sync.client(() => {
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
         socket.on('update', xnew.scope((payload: any) => xnew.emit('-update', payload)));
@@ -75,7 +75,7 @@ export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }
 
     // server: sync.connect/disconnect は boot ルート(client)配下へ配られる。host へ転送しつつ人数台帳と空室掃除を持つ。
     // 親に Lobby があればその台帳(rooms)へ出し入れし人数変化で一覧を再配信する。
-    xnew.server(() => {
+    sync.server(() => {
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
 
@@ -116,7 +116,7 @@ export function Room(unit: Unit, { io, socket, room, Component, graceMs = 3000 }
     });
 
     // client: 生 socket の基本イベントを host へ転送し、finalize で socket を切断する。
-    xnew.client(() => {
+    sync.client(() => {
         const client = sync.boot({ socket }, Component);
         unit.on('finalize', () => client.finalize());
 

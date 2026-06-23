@@ -934,11 +934,6 @@ class UnitTimer {
     }
 }
 
-const detected = (typeof window === 'undefined' || typeof window.document === 'undefined') ? 'server' : 'client';
-function getEnvironment() {
-    return detected;
-}
-
 const xnew$1 = Object.assign((function (...args) {
     var _a, _b;
     if (Unit.engineRoot === undefined)
@@ -1022,24 +1017,6 @@ const xnew$1 = Object.assign((function (...args) {
     },
     protect() {
         Unit.currentUnit._.protected = true;
-    },
-    server(callback, props) {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.server can not be called after initialized.');
-        }
-        if (getEnvironment() === 'client') {
-            return {};
-        }
-        return Unit.extend(Unit.currentUnit, callback, props);
-    },
-    client(callback, props) {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.client can not be called after initialized.');
-        }
-        if (getEnvironment() === 'server') {
-            return {};
-        }
-        return Unit.extend(Unit.currentUnit, callback, props);
     },
 });
 
@@ -1414,6 +1391,11 @@ function Select(_, { key = '', value, items = [] } = {}) {
     }
 }
 
+const detected = (typeof window === 'undefined' || typeof window.document === 'undefined') ? 'server' : 'client';
+function getEnvironment() {
+    return detected;
+}
+
 const syncData = new WeakMap();
 function syncOf(unit) {
     return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
@@ -1566,6 +1548,24 @@ function dispatchSync(root, event, id, message) {
     });
 }
 const sync = {
+    server(callback, props) {
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.sync.server can not be called after initialized.');
+        }
+        if (getEnvironment() === 'client') {
+            return {};
+        }
+        return Unit.extend(Unit.currentUnit, callback, props);
+    },
+    client(callback, props) {
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.sync.client can not be called after initialized.');
+        }
+        if (getEnvironment() === 'server') {
+            return {};
+        }
+        return Unit.extend(Unit.currentUnit, callback, props);
+    },
     state(initial = {}) {
         var _a;
         const data = syncOf(Unit.currentUnit);
@@ -1617,7 +1617,7 @@ const sync = {
 };
 
 function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
-    xnew$1.server(() => {
+    sync.server(() => {
         const rooms = new Map();
         let nextRoomNum = 0;
         const roomList = () => [...rooms.values()].map((r) => ({ id: r.id, name: r.name, memberCount: r.memberCount }));
@@ -1650,7 +1650,7 @@ function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
         unit.on('finalize', () => io.off('connection', connection));
         return { get rooms() { return rooms; }, broadcast };
     });
-    xnew$1.client(() => {
+    sync.client(() => {
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));
         socket.on('update', xnew$1.scope((payload) => xnew$1.emit('-update', payload)));
@@ -1662,7 +1662,7 @@ function Lobby(unit, { io, socket, Room, maxRooms = 20, roomNameMax = 16 }) {
 }
 function Room(unit, { io, socket, room, Component, graceMs = 3000 }) {
     const members = new Set();
-    xnew$1.server(() => {
+    sync.server(() => {
         var _a, _b;
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
@@ -1702,7 +1702,7 @@ function Room(unit, { io, socket, room, Component, graceMs = 3000 }) {
         lobby === null || lobby === void 0 ? void 0 : lobby.broadcast();
         scheduleCleanup();
     });
-    xnew$1.client(() => {
+    sync.client(() => {
         const client = sync.boot({ socket }, Component);
         unit.on('finalize', () => client.finalize());
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));

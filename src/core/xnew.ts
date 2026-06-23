@@ -10,11 +10,11 @@
 // - xnew.promise                         : Unit に promise を登録（集約リザルトは xnew.promise(unit) で取得し .then/.catch/.finally）
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
-// - xnew.server / client                 : 実行環境（Node=server / browser=client）限定の extend
 //----------------------------------------------------------------------------------------------------
+//
+// 実行環境限定の extend（旧 xnew.server / xnew.client）は sync 配下へ移動した（src/core/sync.ts）。
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
-import { getEnvironment } from './env';
 import { DomElement } from './dom';
 
 // xnew(...) の呼び出しシグネチャ。Component を渡した形は戻り値に defines を合成する(Unit & DefinesOf<C>)。
@@ -142,28 +142,6 @@ export const xnew = Object.assign(
          */
         protect(): void {
             Unit.currentUnit._.protected = true;
-        },
-
-        /** Extend 相当。ただし実行環境が client（browser）のときは実行されない（server のみ。skip 時は {} を返す）。 */
-        server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.server can not be called after initialized.');
-            }
-            if (getEnvironment() === 'client') {
-                return {};
-            }
-            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
-        },
-
-        /** Extend 相当。ただし実行環境が server（Node）のときは実行されない（client のみ。skip 時は {} を返す）。 */
-        client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.client can not be called after initialized.');
-            }
-            if (getEnvironment() === 'server') {
-                return {};
-            }
-            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
         },
 
     }

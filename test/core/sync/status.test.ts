@@ -17,7 +17,7 @@ describe('room status (sync.status / sync.statusupdate)', () => {
     it('server status.clients tracks members; sync.statusupdate fires on connect/disconnect', () => {
         const snapshots: string[][] = [];
         bootServer({ io: hub.io }, function Server(unit: Unit) {
-            xnew.server(() => { unit.on('sync.statusupdate', () => snapshots.push(xnew.sync.status.clients.map((c) => c.id))); });
+            xnew.sync.server(() => { unit.on('sync.statusupdate', () => snapshots.push(xnew.sync.status.clients.map((c) => c.id))); });
         });
         const a = hub.connect('a');
         hub.connect('b');
@@ -29,7 +29,7 @@ describe('room status (sync.status / sync.statusupdate)', () => {
         bootServer({ io: hub.io }, function Server() {});
         let status: any;
         bootClient({ socket: hub.connect('c1') }, function Client(unit: Unit) {
-            xnew.client(() => { unit.on('sync.statusupdate', () => { status = xnew.sync.status; }); });
+            xnew.sync.client(() => { unit.on('sync.statusupdate', () => { status = xnew.sync.status; }); });
         });
         hub.connect('c2');   // c2 の接続で server が status を全 client へ broadcast → 配線済みの c1 が受信
         expect(status.id).toBe('c1');                                          // 自分自身の client id

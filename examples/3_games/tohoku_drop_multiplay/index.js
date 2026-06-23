@@ -4,7 +4,7 @@ import { Game } from './game.js';
 //----------------------------------------------------------------------------------------------------
 // tohoku_drop_multiplay（client エントリ）— ロビー / ルームの配線だけ。
 //   ゲームの描画・入力（three/pixi）はすべて game.js の Game に集約。Room の中身として Game を boot し、
-//   browser 実行なので Game の xnew.client 分岐（three/pixi）だけが動く。matter は読み込まれない。
+//   browser 実行なので Game の xnew.sync.client 分岐（three/pixi）だけが動く。matter は読み込まれない。
 //   Lobby / Room の作りは network サンプルと同じ。
 //----------------------------------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------------------------------
 // tohoku_drop_multiplay（server エントリ）— express 静的配信 + socket.io + ロビー/ルームの配線だけ。
 //   ゲームロジック（物理 / 勝敗 / 同期）はすべて game.js の Game に集約。Room の中身として Game を boot し、
-//   Node 実行なので Game の xnew.server 分岐（matter）だけが動く。three/pixi は読み込まれない。
+//   Node 実行なので Game の xnew.sync.server 分岐（matter）だけが動く。three/pixi は読み込まれない。
 //----------------------------------------------------------------------------------------------------
 
 import { createServer } from 'node:http';

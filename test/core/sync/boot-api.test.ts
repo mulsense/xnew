@@ -11,8 +11,8 @@ describe('xnew.sync.boot({ socket }) — in-memory socket.io', () => {
         bootServer({ io: hub.io }, function Server() {});
         let id1: string | undefined;
         let id2: string | undefined;
-        bootClient({ socket: hub.connect() }, function C1() { xnew.client(() => { id1 = xnew.sync.status.id; }); });
-        bootClient({ socket: hub.connect() }, function C2() { xnew.client(() => { id2 = xnew.sync.status.id; }); });
+        bootClient({ socket: hub.connect() }, function C1() { xnew.sync.client(() => { id1 = xnew.sync.status.id; }); });
+        bootClient({ socket: hub.connect() }, function C2() { xnew.sync.client(() => { id2 = xnew.sync.status.id; }); });
         expect(id1).toBe('c1');
         expect(id2).toBe('c2');
     });
@@ -29,11 +29,11 @@ describe('xnew.sync.boot({ socket }) — in-memory socket.io', () => {
 
     it('environment selects which block runs at the root', () => {
         const ran: string[] = [];
-        bootServer({ io: hub.io }, function S() { xnew.server(() => ran.push('server')); xnew.client(() => ran.push('client')); });
+        bootServer({ io: hub.io }, function S() { xnew.sync.server(() => ran.push('server')); xnew.sync.client(() => ran.push('client')); });
         expect(ran).toEqual(['server']);
 
         ran.length = 0;
-        bootClient({ socket: hub.connect() }, function C() { xnew.server(() => ran.push('server')); xnew.client(() => ran.push('client')); });
+        bootClient({ socket: hub.connect() }, function C() { xnew.sync.server(() => ran.push('server')); xnew.sync.client(() => ran.push('client')); });
         expect(ran).toEqual(['client']);
     });
 });

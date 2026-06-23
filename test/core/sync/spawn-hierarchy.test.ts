@@ -8,11 +8,11 @@ import { ioMock, bootServer, bootClient, asServerAsync } from './io-mock';
 
 function Enemy(unit: Unit, props: any = {}) {
     const state = xnew.sync.state({ x: props.x ?? 0 });
-    xnew.server(() => {
+    xnew.sync.server(() => {
         unit.on('update', () => { state.x += 1; });          // 所定方向へ移動
         xnew.timeout(() => unit.finalize(), 1000);           // 一定時間で消滅
     });
-    xnew.client(() => {
+    xnew.sync.client(() => {
         const el = xnew.nest('<div>');
         unit.on('render', () => { (el as HTMLElement).style.left = `${state.x}px`; });
     });
@@ -21,10 +21,10 @@ function Enemy(unit: Unit, props: any = {}) {
 function Mover(unit: Unit) {
     xnew.sync.register({ Enemy });
     const state = xnew.sync.state({ spawned: 0 });
-    xnew.server(() => {
+    xnew.sync.server(() => {
         xnew.interval(() => { state.spawned += 1; xnew(Enemy, { x: 0 }); }, 500); // 定期 spawn
     });
-    xnew.client(() => {
+    xnew.sync.client(() => {
         xnew.nest('<div>');                                   // Enemy を内包するコンテナ
     });
 }

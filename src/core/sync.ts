@@ -6,12 +6,12 @@
 // socket（client）をそのまま渡す（抽象 transport 層は持たない）。
 // 注意: socket の on ハンドラは tick/scope 外で走るので unit の生成/finalize はしない（spawn は update で）。
 //
-// - sync : xnew.sync ファサード（state / register / emit / status / boot）
+// - sync : xnew.sync ファサード（state / register / emit / status / boot / server / client）
 // - syncOf / StateTree : unit 単位の同期データ取得 / capture・apply が運ぶノード列
 // - SyncStatus / ClientStatus / RoomStatus / BootOptions : ルームのステータス各種 / boot 入力
 //----------------------------------------------------------------------------------------------------
 
-import { Unit } from './unit';
+import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { getEnvironment } from './env';
 import { getOrCreate } from './map';
 
@@ -256,9 +256,30 @@ function dispatchSync(root: Unit, event: string, id: string | undefined, message
 // - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
 // - emit / status    : イベント送信 / ルームのステータス（メンバ一覧・ルーム情報・自分の id）
 // - boot             : socket をバインドしたルート生成（server/client は実行環境で自動判定）
+// - server / client  : 実行環境（Node=server / browser=client）限定の extend ブロック
 //----------------------------------------------------------------------------------------------------
 
 export const sync = {
+    /** Extend 相当。ただし実行環境が client（browser）のときは実行されない（server のみ。skip 時は {} を返す）。 */
+    server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.sync.server can not be called after initialized.');
+        }
+        if (getEnvironment() === 'client') {
+            return {};
+        }
+        return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
+    },
+    /** Extend 相当。ただし実行環境が server（Node）のときは実行されない（client のみ。skip 時は {} を返す）。 */
+    client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
+        if (Unit.currentUnit._.status !== 'invoked') {
+            throw new Error('xnew.sync.client can not be called after initialized.');
+        }
+        if (getEnvironment() === 'server') {
+            return {};
+        }
+        return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
+    },
     state(initial: Record<string, any> = {}): Record<string, any> {
         const data = syncOf(Unit.currentUnit);
         data.state ??= {};

@@ -36,20 +36,20 @@ export function Game(unit) {
     xnew.sync.register({ Title, Setup, World });   // 同期対象（= シーン）の型を宣言
 
     // server: 最初のシーン Title を生成。以降は各シーンが unit.parent 経由で次シーンへ差し替える。
-    xnew.server(() => { xnew(Title); });
+    xnew.sync.server(() => { xnew(Title); });
 
     // client: シーン（synced child）の mount 先コンテナだけ用意する。
-    xnew.client(() => { xnew.nest('<div class="flex flex-col gap-3">'); });
+    xnew.sync.client(() => { xnew.nest('<div class="flex flex-col gap-3">'); });
 }
 
 // ---- Title: タイトル画面。'-proceed' で全員 Setup へ ----
 function Title(unit) {
-    xnew.server(() => {
+    xnew.sync.server(() => {
         // 誰かの '-proceed' で Setup へ差し替える（最初の 1 件で遷移。Title は 1 つなので全員分が届く）。
         unit.on('-proceed', () => { xnew(unit.parent, Setup); unit.finalize(); });
     });
 
-    xnew.client(() => {
+    xnew.sync.client(() => {
         xnew.nest('<div class="flex flex-col items-start gap-3 p-4 border border-gray-300 rounded bg-white">');
         xnew('<h2 class="m-0 text-lg font-bold text-gray-700">', 'マルチプレイ サンプル');
         xnew('<p class="m-0 text-sm text-gray-500">', 'プレイヤー1 / プレイヤー2 を決めてゲームを開始します。');
@@ -62,7 +62,7 @@ function Title(unit) {
 function Setup(unit) {
     const state = xnew.sync.state({ slots: { p1: null, p2: null } });   // 共有: 枠 → 取得した clientId
 
-    xnew.server(() => {
+    xnew.sync.server(() => {
         const free = (id) => SLOTS.forEach((s) => { if (state.slots[s] === id) { state.slots[s] = null; } });
         // 1 人 1 枠。空き枠の取得時は既存の枠を空けてから割り当てる。
         unit.on('-claim', ({ id, slot }) => {
@@ -80,7 +80,7 @@ function Setup(unit) {
         });
     });
 
-    xnew.client(() => {
+    xnew.sync.client(() => {
         xnew.nest('<div class="flex flex-col items-start gap-2 p-4 border border-gray-300 rounded bg-white">');
         xnew('<p class="m-0 text-sm text-gray-600">', '担当プレイヤーを選んでください（クリックで取得 / 取り消し）。');
 
@@ -117,7 +117,7 @@ function Setup(unit) {
 export function World(unit, { slots } = {}) {
     xnew.sync.register({ Player });
 
-    xnew.server(() => {
+    xnew.sync.server(() => {
         SLOTS.forEach((slot) => {
             const clientId = slots?.[slot];
             if (clientId) { xnew(Player, { key: clientId, clientId, slot }); }
@@ -125,7 +125,7 @@ export function World(unit, { slots } = {}) {
         unit.on('sync.disconnect', ({ id }) => xnew.find(Player, { key: id })[0]?.finalize());   // 退室した自機を撤去
     });
 
-    xnew.client(() => {
+    xnew.sync.client(() => {
         xnew.nest('<div class="flex flex-col gap-1">');   // World のラッパ（ラベル + 盤面）
         const status = xnew('<p class="m-0 text-xs text-gray-500">');   // 操作中 / 観戦中 の表示
         xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50">');   // 全員共通の盤面（以降 Player はここへ）
@@ -143,7 +143,7 @@ export function World(unit, { slots } = {}) {
 export function Player(unit, { clientId = '', slot = '' } = {}) {
     const state = xnew.sync.state({ x: 0, y: 0, clientId, slot });
 
-    xnew.server(() => {
+    xnew.sync.server(() => {
         state.x = state.slot === 'p2' ? FIELD.w : 0;   // 初期位置（p1 左 / p2 右）。重ならないよう離す
         state.y = FIELD.h / 2;
         const vel = { x: 0, y: 0 };   // 受けた方向(速度)。update で積分し、押しっぱなしで動き続ける
@@ -158,7 +158,7 @@ export function Player(unit, { clientId = '', slot = '' } = {}) {
         });
     });
 
-    xnew.client(() => {
+    xnew.sync.client(() => {
         const color = state.slot === 'p1' ? 'bg-blue-500' : 'bg-red-500';   // p1=青 / p2=赤
         const el = xnew.nest(`<div class="absolute w-4 h-4 rounded ${color}">`);
         unit.on('render', () => { el.style.left = `${state.x}px`; el.style.top = `${state.y}px`; });

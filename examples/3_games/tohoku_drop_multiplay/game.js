@@ -2,7 +2,7 @@ import { xnew } from '@mulsense/xnew';
 
 //----------------------------------------------------------------------------------------------------
 // game — とーほくドロップ 2人対戦のゲームロジック（server / client を 1 ファイルに集約）。
-//   server / client の分岐は xnew.server / xnew.client で行い、環境依存ライブラリは「環境判定つきの
+//   server / client の分岐は xnew.sync.server / xnew.sync.client で行い、環境依存ライブラリは「環境判定つきの
 //   動的 import」で読み分ける（matter は browser の importmap に無く、three/pixi は Node で動かないため）。
 //   sync は「レジストリ名」で同期するので、同じ Status / Ball を両環境で登録し、各 unit の中で
 //   server=物理(matter) / client=描画(three・pixi) を担当する。boot と Lobby/Room の配線は server.js /
@@ -53,7 +53,7 @@ export function Game(unit) {
     xnew.sync.register({ Status, Ball });   // 同期対象（server/client 共通の名前で登録）
 
     // server: matter エンジンと皿、共有状態 Status を用意する（描画はしない）。
-    xnew.server(() => {
+    xnew.sync.server(() => {
         xmatter.initialize();   // この unit 配下に matter Root（以降の子は context で engine/world を引ける）
         unit.on('update', () => Matter.Engine.update(xmatter.engine));
 
@@ -68,7 +68,7 @@ export function Game(unit) {
     });
 
     // client: 描画パイプライン（three→pixi）と盤面・カーソル・予告・HUD を組み立てる。
-    xnew.client(() => {
+    xnew.sync.client(() => {
         xnew.extend(xnew.basics.Screen, { width: WIDTH, height: HEIGHT });
 
         xthree.initialize({ canvas: new OffscreenCanvas(WIDTH, HEIGHT) });
@@ -109,7 +109,7 @@ function Status(unit) {
     });
 
     // server: 権威ロジック。Ball が合体/あふれの加減点に使えるよう addScore を公開する。
-    xnew.server(() => {
+    xnew.sync.server(() => {
         const QUEUE_LEN = 3;
         const idOfTurn = () => (state.turn === 1 ? state.p1 : state.p2);
         const randDrop = () => Math.floor(Math.random() * DROP_KINDS);
@@ -192,7 +192,7 @@ function Status(unit) {
     });
 
     // client: 同期 state を毎フレーム '+status' として盤面（Cursor / QueuePreview / HUD）へ配る。
-    xnew.client(() => {
+    xnew.sync.client(() => {
         const myId = xnew.sync.status.id;
         unit.on('render', () => {
             const myNo = myId === state.p1 ? 1 : myId === state.p2 ? 2 : 0;
@@ -214,7 +214,7 @@ function Ball(unit, { x = 0, y = 0, id = 0 } = {}) {
     const state = xnew.sync.state({ x, y, angle: 0, id });   // server が書き、client が描画に使う
 
     // server: matter ボディを持ち、毎フレーム位置を state へ反映。あふれ=減点撤去 / 同種接触=合体。
-    xnew.server(() => {
+    xnew.sync.server(() => {
         const radius = ballRadius(state.id);
         const body = Matter.Bodies.circle(state.x, state.y, radius, { restitution: 0.1, friction: 0.5 });
         Matter.Composite.add(xmatter.world, body);
@@ -257,7 +257,7 @@ function Ball(unit, { x = 0, y = 0, id = 0 } = {}) {
     });
 
     // client: 3D モデルを synced 位置/角度へ追従させる。
-    xnew.client(() => {
+    xnew.sync.client(() => {
         const model = xnew(Model, { id: state.id, scale: SCALES[state.id] });
         unit.on('update', () => {
             const p = convert3d(state.x, state.y);

@@ -378,8 +378,6 @@ declare const xnew: XnewBase & {
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
     protect(): void;
-    server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
-    client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
 } & {
     basics: {
         SVG: typeof SVG;
@@ -400,6 +398,8 @@ declare const xnew: XnewBase & {
         Volume: typeof Volume;
     };
     sync: {
+        server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
+        client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
         state(initial?: Record<string, any>): Record<string, any>;
         register(components: Record<string, Function>): void;
         readonly status: SyncStatus;

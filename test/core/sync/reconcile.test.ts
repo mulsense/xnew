@@ -6,7 +6,7 @@ import { syncOf, StateTree, applyStateTree } from '../../../src/core/sync';
 function Box(unit: Unit) {
     xnew.sync.register({ Box });   // Box は自分を直接の同期子として許可（ネスト用）
     const state = xnew.sync.state({ value: 0 });
-    xnew.client(() => {
+    xnew.sync.client(() => {
         const el = xnew.nest('<div>');
         unit.on('render', () => { (el as HTMLElement).textContent = String(state.value); });
     });

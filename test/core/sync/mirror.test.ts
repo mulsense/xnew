@@ -6,10 +6,10 @@ import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 // 1 関数コンポーネント: server ブロック(update)と client ブロック(描画) を持つ
 function Mover(unit: Unit) {
     const state = xnew.sync.state({ position: 0 });
-    xnew.server(() => {
+    xnew.sync.server(() => {
         unit.on('update', () => { state.position += 1; });   // server のみ
     });
-    xnew.client(() => {
+    xnew.sync.client(() => {
         const el = xnew.nest('<div>');
         unit.on('render', () => { (el as HTMLElement).style.left = `${state.position}px`; }); // client のみ
     });
@@ -46,11 +46,11 @@ describe('server/client mirror (server/client blocks)', () => {
     it('routes a single shared Main root to server/client by mode and mounts replicas into the nested element', () => {
         const view = document.createElement('div');   // 既存の描画先（例の #view 相当）
 
-        // server/client 共通の非同期ルート。中で xnew.server / xnew.client に分岐する。
+        // server/client 共通の非同期ルート。中で xnew.sync.server / xnew.sync.client に分岐する。
         function Main() {
             xnew.sync.register({ Mover });               // server/client 共通: Mover を直接の同期子として宣言
-            xnew.server(() => { xnew(Mover); });        // server: ロジックツリー
-            xnew.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
+            xnew.sync.server(() => { xnew(Mover); });        // server: ロジックツリー
+            xnew.sync.client(() => { xnew.nest(view); });    // client: 既存要素を描画先にする
         }
 
         const server = bootServer({ io: hub.io }, Main);
@@ -84,7 +84,7 @@ describe('server/client mirror (server/client blocks)', () => {
         function Server(unit: Unit) {
             xnew.sync.register({ Mover });
             let spawned = false; let child: Unit | null = null;
-            xnew.server(() => {
+            xnew.sync.server(() => {
                 unit.on('update', () => {
                     if (!spawned) { child = xnew(Mover) as unknown as Unit; spawned = true; }
                     else if (child) { child.finalize(); child = null; }
