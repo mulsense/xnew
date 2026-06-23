@@ -44,16 +44,33 @@ describe('Unit lifecycle', () => {
         expect(onStop).toHaveBeenCalledTimes(1);
     });
 
-    it('passes an incrementing per-unit count and numeric delta to update listeners', async () => {
+    it('passes an incrementing per-listener count and numeric delta to update listeners', async () => {
         const calls: Array<{ count: number, delta: number }> = [];
         xnew((u: Unit) => u.on('update', ({ count, delta }: any) => calls.push({ count, delta })));
         await jest.advanceTimersByTimeAsync(100);
         expect(calls.length).toBeGreaterThan(1);
         calls.forEach((c, i) => {
-            expect(c.count).toBe(i); // 起動後 0 始まりで 1 ずつ増える
+            expect(c.count).toBe(i); // リスナが呼ばれるたび 0 始まりで 1 ずつ増える
             expect(typeof c.delta).toBe('number');
             expect(c.delta).toBeGreaterThan(0);
         });
+    });
+
+    it('counts per listener — a listener added later starts its own count at 0', async () => {
+        const a: number[] = [];
+        const b: number[] = [];
+        xnew((u: Unit) => {
+            u.on('update', ({ count }: any) => {
+                a.push(count);
+                // 同じ unit でも、後から登録したリスナは独立に 0 から数える。
+                if (count === 2) u.on('update', ({ count }: any) => b.push(count));
+            });
+        });
+        await jest.advanceTimersByTimeAsync(120);
+
+        expect(a[0]).toBe(0);
+        expect(b[0]).toBe(0); // A が count===2 まで進んでいても B は 0 から
+        expect(a.at(-1)!).toBeGreaterThan(b.at(-1)!); // 先に登録した A の方が多く呼ばれている
     });
 
     it('passes count / delta to render listeners as well', async () => {
