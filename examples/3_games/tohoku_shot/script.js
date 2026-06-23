@@ -193,16 +193,16 @@ function BakedCharacters(unit) {
   jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
 
   // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。全キャラ焼き終えたら最終 dispose。
-  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（chunk の UnitPromise を return して直列化）。
+  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（焼き上がりの Promise を return して直列化）。
   xnew.promise(unit).then(({ vrms }) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
     let atlasCanvas;
     let atlasContext; // アトラス canvas の 2D コンテキスト（各フレームをこの上に貼り込む）
     let source; // アトラス canvas を共有する唯一の GPU テクスチャ source（各フレームはこの sub-texture）
 
-    // 全キャラ × 各 BAKE_FRAMES をフラットな単一 chunk に畳む。キャラ境界は index 演算で判定。
-    // 時間予算（既定 8ms）で毎フレーム自動的に分散するため GPU スパイクを抑えられる。
-    return xnew.chunk(({ index }) => {
+    // 全キャラ × 各 BAKE_FRAMES をフラットに畳む。キャラ境界は index 演算で判定。
+    const total = jobs.length * BAKE_FRAMES;
+    const bakeFrame = (index) => {
       const j = Math.floor(index / BAKE_FRAMES); // どのキャラ
       const f = index % BAKE_FRAMES;             // そのキャラの何フレーム目
       const job = jobs[j];
@@ -255,7 +255,18 @@ function BakedCharacters(unit) {
         source.update();
         xthree.remove(vrm.scene);
       }
-    }, jobs.length * BAKE_FRAMES).then(() => {
+    };
+    // 時間予算（8ms）で毎フレーム分散し GPU スパイクを抑える。完了時 resolve するネイティブ
+    // Promise を return し、xnew.promise(unit) チェーンを焼き上がりまで直列化する。
+    return new Promise((resolve) => {
+      let index = 0;
+      const handler = () => {
+        const t0 = Date.now();
+        do { bakeFrame(index++); } while (index < total && Date.now() - t0 < 8);
+        if (index >= total) { unit.off('update', handler); resolve(); }
+      };
+      unit.on('update', handler);
+    }).then(() => {
       // 後段パスを解放し xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
       composer.dispose();
       ssaoPass.dispose();

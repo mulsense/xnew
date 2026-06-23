@@ -54,13 +54,12 @@ declare class Unit {
         status: Status;
         tostart: boolean;
         protected: boolean;
-        updateCount: number;
-        renderCount: number;
         promises: UnitPromise[];
         defines: Record<string, any>;
         systems: Record<SystemEvent, {
             listener: Function;
             execute: Function;
+            count: number;
         }[]>;
         currentElement: DomElement;
         currentContext: Context;
@@ -217,14 +216,6 @@ interface SVGTextInterface {
 }
 declare function SVGText(unit: Unit, { text, fontSize, anchor, className, style, stroke, strokeOpacity, strokeWidth, strokeLinejoin, strokeLinecap, fill, fillOpacity }?: SVGTextInterface): void;
 
-declare function Screen(unit: Unit, { width, height, fit }?: {
-    width?: number;
-    height?: number;
-    fit?: 'contain' | 'cover';
-}): {
-    readonly canvas: DomElement;
-};
-
 declare function AnalogStick(unit: Unit, { stroke, strokeOpacity, strokeWidth, fill, fillOpacity }?: {
     stroke?: string;
     strokeOpacity?: number;
@@ -265,11 +256,6 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
     separator(): void;
 };
 
-declare function Scene(unit: Unit): {
-    change(Component: Function, props?: any): void;
-    add(Component: Function, props?: any): void;
-};
-
 declare function Lobby(unit: Unit, { io, socket, Room, maxRooms, roomNameMax }: {
     io?: any;
     socket?: any;
@@ -290,6 +276,17 @@ declare function Aspect(unit: Unit, { aspect, fit }?: {
     aspect?: number;
     fit?: 'contain' | 'cover';
 }): void;
+declare function Screen(unit: Unit, { width, height, fit }?: {
+    width?: number;
+    height?: number;
+    fit?: 'contain' | 'cover';
+}): {
+    readonly canvas: DomElement;
+};
+declare function Scene(unit: Unit): {
+    change(Component: Function, props?: any): void;
+    add(Component: Function, props?: any): void;
+};
 
 declare function AudioTrack(unit: Unit, { url, volume, loop }: {
     url: string;
@@ -301,9 +298,9 @@ declare function AudioTrack(unit: Unit, { url, volume, loop }: {
         fade?: number;
         loop?: boolean;
     }) => void;
-    pause: ({ fade: fadeMs }?: {
+    pause({ fade: fadeMs }?: {
         fade?: number;
-    }) => void;
+    }): void;
     readonly isPlaying: boolean;
     readonly isLoaded: boolean;
     volume: number;
@@ -347,7 +344,6 @@ declare function Synthesizer(unit: Unit, props: SynthesizerOptions): {
 };
 declare function Volume(unit: Unit): {
     volume: number;
-    readonly muted: boolean;
 };
 
 declare namespace xnew {
@@ -381,11 +377,6 @@ declare const xnew: XnewBase & {
     timeout(callback: Function, duration?: number): UnitTimer;
     interval(callback: Function, duration: number, iterations?: number): UnitTimer;
     transition(transition: Function, duration?: number, easing?: string): UnitTimer;
-    chunk(callback: (arg: {
-        index: number;
-    }) => void, max: number, options?: {
-        budgetMs?: number;
-    }): UnitPromise;
     protect(): void;
     server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
     client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};

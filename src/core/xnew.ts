@@ -10,7 +10,6 @@
 // - xnew.promise                         : Unit に promise を登録（集約リザルトは xnew.promise(unit) で取得し .then/.catch/.finally）
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
-// - xnew.chunk                           : 時間予算でフレーム分散する回数ループ（完了で UnitPromise を解決）
 // - xnew.server / client                 : 実行環境（Node=server / browser=client）限定の extend
 //----------------------------------------------------------------------------------------------------
 
@@ -135,46 +134,6 @@ export const xnew = Object.assign(
         /** Runs transition({ value: 0→1, timer }) over duration ms（timer は UnitTimer インスタンス。easing: 'linear'|'ease'|'ease-in'|'ease-out'|'ease-in-out'。チェーン可）。 */
         transition(transition: Function, duration: number = 0, easing: string = 'linear'): UnitTimer {
             return new UnitTimer().transition(transition, duration, easing);
-        },
-
-        /** Runs callback({ index }) for index 0..max-1, spread across the current unit's update ticks within a per-frame time budget (options.budgetMs, 既定 8ms; 最低1回/フレームは保証)。完了で解決する UnitPromise を返す（集約プールには積まない）。budgetMs はウォールクロック計測（Date.now）。同期的に軽いコールバックは1フレームで全消化されうる。確実に分散したい場合は budgetMs: 0 で「1 iteration/フレーム」になる。引数はオブジェクトで渡す（将来フィールドを足してもシグネチャを壊さないため）。 */
-        chunk(callback: (arg: { index: number }) => void, max: number, options: { budgetMs?: number } = {}): UnitPromise {
-            if (!Number.isInteger(max) || max < 0) {
-                throw new Error('xnew.chunk: max must be a non-negative integer');
-            }
-            const unit = Unit.currentUnit;
-            if (!unit) {
-                throw new Error('xnew.chunk must be called within a unit scope');
-            }
-            const budgetMs = options.budgetMs ?? 8;
-
-            const { unitPromise, resolve, reject } = UnitPromise.defer();
-
-            if (max === 0) {
-                resolve();
-                return unitPromise;
-            }
-
-            let index = 0;
-            const handler = (): void => {
-                const t0 = Date.now();
-                try {
-                    do {
-                        callback({ index: index++ });
-                    } while (index < max && Date.now() - t0 < budgetMs);
-                } catch (error) {
-                    unit.off('update', handler);
-                    reject(error);
-                    return;
-                }
-                if (index >= max) {
-                    unit.off('update', handler);
-                    resolve();
-                }
-            };
-            // unit finalize 時は teardown が listener を外し、promise は意図的に未解決のまま（xnew の deferred と同じ）。
-            unit.on('update', handler);
-            return unitPromise;
         },
 
         /**

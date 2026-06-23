@@ -496,8 +496,6 @@ class Unit {
             status: 'invoked',
             tostart: true,
             protected: false,
-            updateCount: 0,
-            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -658,15 +656,13 @@ class Unit {
     static update(unit, delta = 0) {
         if (unit._.status === 'started') {
             unit._.children.forEach((child) => Unit.update(child, delta));
-            const count = unit._.updateCount++;
-            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.update.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
     static render(unit, delta = 0) {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child) => Unit.render(child, delta));
-            const count = unit._.renderCount++;
-            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.render.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
     static reset() {
@@ -757,7 +753,7 @@ class Unit {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         };
         if (isSystemEvent(type)) {
-            unit._.systems[type].push({ listener, execute });
+            unit._.systems[type].push({ listener, execute, count: 0 });
         }
         if (unit._.listeners.has(type, listener) === false) {
             unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
@@ -900,7 +896,7 @@ class UnitTimer {
             let current = new Timer(onTimeout, onTransition, duration, easing);
             function onTimeout() {
                 if (timeout)
-                    Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                    Unit.scope(snapshot, timeout, { timer });
                 if (unit._.status === 'finalized') {
                     return;
                 }
@@ -1024,42 +1020,6 @@ const xnew$1 = Object.assign((function (...args) {
     transition(transition, duration = 0, easing = 'linear') {
         return new UnitTimer().transition(transition, duration, easing);
     },
-    chunk(callback, max, options = {}) {
-        var _a;
-        if (!Number.isInteger(max) || max < 0) {
-            throw new Error('xnew.chunk: max must be a non-negative integer');
-        }
-        const unit = Unit.currentUnit;
-        if (!unit) {
-            throw new Error('xnew.chunk must be called within a unit scope');
-        }
-        const budgetMs = (_a = options.budgetMs) !== null && _a !== void 0 ? _a : 8;
-        const { unitPromise, resolve, reject } = UnitPromise.defer();
-        if (max === 0) {
-            resolve();
-            return unitPromise;
-        }
-        let index = 0;
-        const handler = () => {
-            const t0 = Date.now();
-            try {
-                do {
-                    callback({ index: index++ });
-                } while (index < max && Date.now() - t0 < budgetMs);
-            }
-            catch (error) {
-                unit.off('update', handler);
-                reject(error);
-                return;
-            }
-            if (index >= max) {
-                unit.off('update', handler);
-                resolve();
-            }
-        };
-        unit.on('update', handler);
-        return unitPromise;
-    },
     protect() {
         Unit.currentUnit._.protected = true;
     },
@@ -1179,12 +1139,22 @@ function Aspect(unit, { aspect = 1.0, fit = 'contain' } = {}) {
         unit.element.style.width = `max(100cqw, calc(100cqh * ${aspect}))`;
     }
 }
-
 function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
     xnew$1.extend(Aspect, { aspect: width / height, fit });
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom;">`);
     return {
         get canvas() { return canvas.element; },
+    };
+}
+function Scene(unit) {
+    return {
+        change(Component, props) {
+            xnew$1(unit.parent, Component, props);
+            unit.finalize();
+        },
+        add(Component, props) {
+            xnew$1(unit, Component, props);
+        }
     };
 }
 
@@ -1442,18 +1412,6 @@ function Select(_, { key = '', value, items = [] } = {}) {
         }
         return 'Canvas';
     }
-}
-
-function Scene(unit) {
-    return {
-        change(Component, props) {
-            xnew$1(unit.parent, Component, props);
-            unit.finalize();
-        },
-        add(Component, props) {
-            xnew$1(unit, Component, props);
-        }
-    };
 }
 
 const syncData = new WeakMap();
@@ -1833,31 +1791,6 @@ function AudioTrack(unit, { url, volume, loop = false }) {
             node.stop(now);
         }
     }
-    function play({ offset, fade: fadeMs = 0, loop: loopArg } = {}) {
-        if (buffer === undefined) {
-            promise.then(() => play({ offset, fade: fadeMs, loop: loopArg }));
-            return;
-        }
-        if (loopArg !== undefined) {
-            looping = loopArg;
-        }
-        if (startedAt !== null) {
-            forceStop();
-        }
-        startSource(offset !== null && offset !== void 0 ? offset : pausedOffsetMs, fadeMs);
-    }
-    function pause({ fade: fadeMs = 0 } = {}) {
-        if (buffer === undefined || startedAt === null) {
-            return;
-        }
-        const elapsedSec = context.currentTime - startedAt;
-        const positionSec = looping ? elapsedSec % buffer.duration : Math.min(elapsedSec, buffer.duration);
-        pausedOffsetMs = positionSec * 1000;
-        const node = source;
-        source = null;
-        startedAt = null;
-        stopSource(node, fadeMs);
-    }
     unit.on('finalize', () => {
         forceStop();
         amp.disconnect();
@@ -1865,8 +1798,31 @@ function AudioTrack(unit, { url, volume, loop = false }) {
         pausedOffsetMs = 0;
     });
     return {
-        play,
-        pause,
+        play: function play({ offset, fade: fadeMs = 0, loop: loopArg } = {}) {
+            if (buffer === undefined) {
+                promise.then(() => play({ offset, fade: fadeMs, loop: loopArg }));
+                return;
+            }
+            if (loopArg !== undefined) {
+                looping = loopArg;
+            }
+            if (startedAt !== null) {
+                forceStop();
+            }
+            startSource(offset !== null && offset !== void 0 ? offset : pausedOffsetMs, fadeMs);
+        },
+        pause({ fade: fadeMs = 0 } = {}) {
+            if (buffer === undefined || startedAt === null) {
+                return;
+            }
+            const elapsedSec = context.currentTime - startedAt;
+            const positionSec = looping ? elapsedSec % buffer.duration : Math.min(elapsedSec, buffer.duration);
+            pausedOffsetMs = positionSec * 1000;
+            const node = source;
+            source = null;
+            startedAt = null;
+            stopSource(node, fadeMs);
+        },
         get isPlaying() {
             return startedAt !== null;
         },
@@ -2065,9 +2021,6 @@ function Volume(unit) {
         },
         set volume(value) {
             master.gain.value = value;
-        },
-        get muted() {
-            return master.gain.value === 0;
         },
     };
 }

@@ -519,8 +519,8 @@ export class UnitPromise {
     }
 
     // deferred な UnitPromise を生成し、settled ガード付きの resolve / reject と共に返す。
-    // xnew.promise() の deferred 形と xnew.chunk が共有する（Promise 構築と executor からの
-    // resolve / reject 取り出しの重複を排除する）。
+    // xnew.promise() の deferred 形が使う（Promise 構築と executor からの resolve / reject
+    // 取り出しの重複を排除する）。
     public static defer(key?: string): {
         unitPromise: UnitPromise;
         resolve: (value?: unknown) => void;
