@@ -43,7 +43,7 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     }
 
     it('captures Enemy as a child of Mover and mirrors the 2-level tree on the replica', async () => {
-        const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const server = bootServer({ io: hub.io }, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
         Unit.start(Unit.engineRoot);
@@ -69,7 +69,7 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
     });
 
     it('despawns Enemy after its lifetime and removes that replica', async () => {
-        const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
+        const server = bootServer({ io: hub.io }, function Root() { xnew.sync.register({ Mover }); xnew(Mover); });
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
         Unit.start(Unit.engineRoot);

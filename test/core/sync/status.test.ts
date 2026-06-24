@@ -16,7 +16,7 @@ describe('room status (sync.status / sync.statusupdate)', () => {
 
     it('server status.clients tracks members; sync.statusupdate fires on connect/disconnect', () => {
         const snapshots: string[][] = [];
-        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server(unit: Unit) {
+        bootServer({ io: hub.io }, function Server(unit: Unit) {
             xnew.sync.server(() => { unit.on('sync.statusupdate', () => snapshots.push(xnew.sync.status.clients.map((c) => c.id))); });
         });
         // connect/disconnect が server の sync.statusupdate を発火し sync.status を読むので server 環境で囲む。
@@ -29,7 +29,7 @@ describe('room status (sync.status / sync.statusupdate)', () => {
     });
 
     it('client receives status (id / clients / room) via broadcast', () => {
-        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server() {});
+        bootServer({ io: hub.io }, function Server() {});
         let status: any;
         bootClient({ socket: hub.connect('c1') }, function Client(unit: Unit) {
             xnew.sync.client(() => { unit.on('sync.statusupdate', () => { status = xnew.sync.status; }); });

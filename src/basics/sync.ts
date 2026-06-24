@@ -77,8 +77,8 @@ export function Room(unit: Unit, props: any) {
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
 
-        // listed = tracked by a Lobby ledger; a standalone Room (room.id undefined) skips broadcast/self-removal.
-        const isListed = () => room.id !== undefined && rooms.has(room.id);
+        // listed = tracked by a Lobby ledger; a standalone Room (id not in the ledger) skips broadcast/self-removal.
+        const isListed = () => rooms.has(room.id);
 
         // drop the room once empty for graceMs (connect cancels, disconnect reschedules).
         let graceTimer: UnitTimer | null = null;
@@ -88,7 +88,7 @@ export function Room(unit: Unit, props: any) {
             graceTimer = xnew.timeout(() => {
                 if (members.size > 0) { return; }
                 xnew.emit('-empty', {});
-                if (isListed()) { rooms.delete(room.id!); broadcastRooms(io); unit.finalize(); }
+                if (isListed()) { rooms.delete(room.id); broadcastRooms(io); unit.finalize(); }
             }, graceMs);
         };
 
@@ -110,7 +110,7 @@ export function Room(unit: Unit, props: any) {
         // exposed to the parent Lobby: one room-list row with the live member count.
         return {
             info(): RoomInfo {
-                return { id: room.id ?? '', name: room.name ?? '', count: members.size };
+                return { id: room.id, name: room.name, count: members.size };
             },
         };
     });

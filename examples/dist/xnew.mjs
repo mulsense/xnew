@@ -1481,20 +1481,18 @@ function bootServer(opts, parent, args) {
     const roomId = room.id;
     const info = { io, room, clients: new Map() };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-    const target = () => (roomId !== undefined ? io.to(roomId) : io);
+    const target = () => io.to(roomId);
     root.on('update', () => target().emit('sync', captureStateTree(root)));
     const refreshStatus = () => {
-        target().emit('status', { clients: [...info.clients.values()], room });
+        target().emit('status', { clients: [...info.clients.values()] });
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     io.on('connection', (socket) => {
         var _a, _b, _c, _d, _e;
-        if (roomId !== undefined && ((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== roomId) {
+        if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== roomId) {
             return;
         }
-        if (roomId !== undefined) {
-            socket.join(roomId);
-        }
+        socket.join(roomId);
         info.clients.set(socket.id, { id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
         dispatchSync(root, 'sync.connect', socket.id, undefined);
         refreshStatus();
@@ -1516,7 +1514,6 @@ function bootClient(opts, parent, args) {
     const onStatus = (status) => {
         var _a;
         info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
-        info.room = status === null || status === void 0 ? void 0 : status.room;
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
@@ -1595,7 +1592,7 @@ const sync = {
         const info = rootInfoOf(Unit.currentUnit);
         if (getEnvironment() === 'server') {
             const server = info;
-            return { clients: [...server.clients.values()] };
+            return { clients: [...server.clients.values()], room: server.room };
         }
         else {
             const client = info;
@@ -1608,7 +1605,7 @@ const sync = {
         const envelope = { syncId: syncOf(unit).id, data: payload };
         if (getEnvironment() === 'server') {
             const server = info;
-            (server.room.id !== undefined ? server.io.to(server.room.id) : server.io).emit(event, envelope);
+            server.io.to(server.room.id).emit(event, envelope);
         }
         else {
             info.socket.emit(event, envelope);
@@ -1684,7 +1681,7 @@ function Room(unit, props) {
         const { io, room, Component, graceMs = 3000 } = props;
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
-        const isListed = () => room.id !== undefined && rooms.has(room.id);
+        const isListed = () => rooms.has(room.id);
         let graceTimer = null;
         const cancelCleanup = () => { graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
@@ -1722,8 +1719,7 @@ function Room(unit, props) {
         scheduleCleanup();
         return {
             info() {
-                var _a, _b;
-                return { id: (_a = room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room.name) !== null && _b !== void 0 ? _b : '', count: members.size };
+                return { id: room.id, name: room.name, count: members.size };
             },
         };
     });

@@ -8,7 +8,7 @@ describe('xnew.sync.boot({ socket, room }) — in-memory socket.io', () => {
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('boots server + client on a shared hub and auto-numbers clientId', () => {
-        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server() {});
+        bootServer({ io: hub.io }, function Server() {});
         let id1: string | undefined;
         let id2: string | undefined;
         bootClient({ socket: hub.connect() }, function C1() { xnew.sync.client(() => { id1 = xnew.sync.status.id; }); });
@@ -20,7 +20,7 @@ describe('xnew.sync.boot({ socket, room }) — in-memory socket.io', () => {
     it('delivers sync.connect to a unit inside the booted root with the clientId', () => {
         // boot は sync.connect/sync.disconnect を root 配下の unit.on へ配る（host への転送は basics/sync.ts Room の責務）。
         const seen: string[] = [];
-        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server(unit: Unit) {
+        bootServer({ io: hub.io }, function Server(unit: Unit) {
             unit.on('sync.connect', ({ id }: any) => seen.push(id));
         });
         hub.connect('cX');   // a fresh client connects on the same shared hub
@@ -29,7 +29,7 @@ describe('xnew.sync.boot({ socket, room }) — in-memory socket.io', () => {
 
     it('environment selects which block runs at the root', () => {
         const ran: string[] = [];
-        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function S() { xnew.sync.server(() => ran.push('server')); xnew.sync.client(() => ran.push('client')); });
+        bootServer({ io: hub.io }, function S() { xnew.sync.server(() => ran.push('server')); xnew.sync.client(() => ran.push('client')); });
         expect(ran).toEqual(['server']);
 
         ran.length = 0;

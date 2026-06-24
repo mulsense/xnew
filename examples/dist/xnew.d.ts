@@ -156,13 +156,13 @@ interface ClientData {
     name: string;
 }
 interface RoomData {
-    id: string | undefined;
-    name: string | undefined;
+    id: string;
+    name: string;
 }
 interface SyncStatus {
     id?: string;
     clients: ClientData[];
-    room?: RoomData;
+    room: RoomData;
 }
 interface BootServerOptions {
     io: any;

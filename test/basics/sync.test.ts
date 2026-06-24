@@ -190,7 +190,7 @@ describe('Room', () => {
         const socket = mockSocket();
         const log: string[] = [];
         xnew(function Scene(unit: Unit) {
-            xnew.extend(Room, { socket, room: { id: undefined, name: undefined }, Component: World });
+            xnew.extend(Room, { socket, room: { id: 'solo', name: 'solo' }, Component: World });
             // Room が基本イベントを host unit（Scene）の '-event' へ転送する。
             unit.on('-connect', () => log.push('connect'));
             unit.on('-disconnect', () => log.push('disconnect'));
@@ -206,7 +206,7 @@ describe('Room', () => {
 
     it('boots the component as a client tree', () => {
         const socket = mockSocket();
-        xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, room: { id: undefined, name: undefined }, Component: World }); });
+        xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, room: { id: 'solo', name: 'solo' }, Component: World }); });
         const [root] = Unit.find(World);   // boot された root の Component は World
         expect((root.element as HTMLElement).tagName).toBe('DIV');   // client 環境: World の client ブロックが nest
         expect(root._.status).not.toBe('finalized');
@@ -214,7 +214,7 @@ describe('Room', () => {
 
     it('finalizes the client tree and disconnects the socket on finalize', () => {
         const socket = mockSocket();
-        const scene = xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, room: { id: undefined, name: undefined }, Component: World }); });
+        const scene = xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, room: { id: 'solo', name: 'solo' }, Component: World }); });
         const [root] = Unit.find(World);
 
         expect(root._.status).not.toBe('finalized');
@@ -227,7 +227,7 @@ describe('Room', () => {
     it('boots in server mode without disconnecting, and finalizes on finalize', () => {
         setEnvironment('server');   // Node 実行を模す（jsdom はそのままだと client 判定）
         const io = mockSocket();
-        const scene = xnew(function Scene(_: Unit) { xnew(Room, { io, room: { id: undefined, name: undefined }, Component: World }); });
+        const scene = xnew(function Scene(_: Unit) { xnew(Room, { io, room: { id: 'solo', name: 'solo' }, Component: World }); });
         const [root] = Unit.find(World);
 
         expect(root._.status).not.toBe('finalized');

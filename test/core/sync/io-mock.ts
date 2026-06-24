@@ -19,6 +19,9 @@ import { setEnvironment, withEnvironment } from '../../../src/core/env';
 type Handler = (...args: any[]) => void;
 type AnyHandler = (event: string, payload: any) => void;
 
+/** テストの既定 room。bootServer/bootClient が省略時に補い、connect も既定でここへ join する。 */
+export const ROOM = { id: 'room', name: 'room' };
+
 /** socket.io の client socket 相当（boot({ mode: 'client', socket }) と生クライアントの両方で使う）。 */
 export interface MockClientSocket {
     id: string;
@@ -41,8 +44,9 @@ export function ioMock(): IoMock {
     interface Conn {
         clientHandlers: Map<string, Set<Handler>>;   // client.on(event)
         clientAny: Set<AnyHandler>;                   // client.onAny
-        serverAny: Set<AnyHandler>;                   // server 側 socket.onAny（bootServerRoot が張る）
+        serverAny: Set<AnyHandler>;                   // server 側 socket.onAny（bootServer が張る）
         serverDisconnect: Set<Handler>;              // server 側 socket.on('disconnect')
+        room?: string;                                // server が socket.join(room) で設定する所属 room
     }
     const conns = new Map<string, Conn>();
 
@@ -59,25 +63,26 @@ export function ioMock(): IoMock {
         emit(event: string, payload?: any): void {                 // broadcast（全 client へ）
             for (const conn of conns.values()) { deliverToClient(conn, event, payload); }
         },
-        to(target: string) {
-            // target は clientId 想定（room 単位の broadcast はテストで未使用）。
+        to(room: string) {
+            // room に join した全 client へ配信する。
             return { emit(event: string, payload?: any): void {
-                const conn = conns.get(target);
-                if (conn !== undefined) { deliverToClient(conn, event, payload); }
+                for (const conn of conns.values()) {
+                    if (conn.room === room) { deliverToClient(conn, event, payload); }
+                }
             } };
         },
     };
 
-    function connect(id?: string): MockClientSocket {
+    function connect(id?: string, roomId: string = ROOM.id): MockClientSocket {
         const clientId = id ?? 'c' + (++seq);
         const conn: Conn = { clientHandlers: new Map(), clientAny: new Set(), serverAny: new Set(), serverDisconnect: new Set() };
         conns.set(clientId, conn);
 
-        // server 側 socket（bootServerRoot が onAny / on('disconnect') を張る）。
+        // server 側 socket（bootServer が onAny / on('disconnect') を張る）。query.room で入室先を伝える。
         connectionCb?.({
             id: clientId,
-            handshake: { query: {} },
-            join(): void {},
+            handshake: { query: { room: roomId } },
+            join(room: string): void { conn.room = room; },
             onAny(handler: AnyHandler): void { conn.serverAny.add(handler); },
             on(event: string, handler: Handler): void { if (event === 'disconnect') { conn.serverDisconnect.add(handler); } },
         });
@@ -99,8 +104,6 @@ export function ioMock(): IoMock {
     return { io, connect };
 }
 
-type BootArgs = Parameters<typeof xnew.sync.boot>;
-
 // 実行環境（server/client）を固定して同期的な処理を走らせる。1 プロセスで両側を模すテスト用。
 // 構築（component body / xnew(...) / apply）に加え、sync.status / sync.emit も env で server/client を
 // 分岐する。よって server 側の処理（boot / server update での spawn / status・emit）は asServer、client 側は
@@ -119,12 +122,12 @@ export async function asServerAsync<T>(fn: () => Promise<T>): Promise<T> {
     try { return await fn(); } finally { setEnvironment(null); }
 }
 
-/** xnew.sync.boot を server 環境で呼ぶ。 */
-export function bootServer(...args: BootArgs): ReturnType<typeof xnew.sync.boot> {
-    return asServer(() => xnew.sync.boot(...args));
+/** xnew.sync.boot を server 環境で呼ぶ（room 未指定なら既定 ROOM を補う）。 */
+export function bootServer(opts: { io: any; room?: any }, ...rest: any[]): ReturnType<typeof xnew.sync.boot> {
+    return asServer(() => xnew.sync.boot({ room: ROOM, ...opts }, ...rest));
 }
 
-/** xnew.sync.boot を client 環境で呼ぶ（room 未指定なら無名 room を補う）。 */
+/** xnew.sync.boot を client 環境で呼ぶ（room 未指定なら既定 ROOM を補う）。 */
 export function bootClient(opts: { socket: any; room?: any }, ...rest: any[]): ReturnType<typeof xnew.sync.boot> {
-    return asClient(() => xnew.sync.boot({ room: { id: undefined, name: undefined }, ...opts }, ...rest));
+    return asClient(() => xnew.sync.boot({ room: ROOM, ...opts }, ...rest));
 }
