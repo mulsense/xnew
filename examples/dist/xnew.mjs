@@ -1682,9 +1682,9 @@ function Room(unit, props) {
     const members = new Set();
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props;
-        const client = sync.boot({ io, room: room !== null && room !== void 0 ? room : { id: undefined, name: undefined } }, Component);
+        const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
-        const isListed = () => (room === null || room === void 0 ? void 0 : room.id) !== undefined && rooms.has(room.id);
+        const isListed = () => room.id !== undefined && rooms.has(room.id);
         let graceTimer = null;
         const cancelCleanup = () => { graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
@@ -1723,14 +1723,14 @@ function Room(unit, props) {
         return {
             info() {
                 var _a, _b;
-                return { id: (_a = room === null || room === void 0 ? void 0 : room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room === null || room === void 0 ? void 0 : room.name) !== null && _b !== void 0 ? _b : '', count: members.size };
+                return { id: (_a = room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room.name) !== null && _b !== void 0 ? _b : '', count: members.size };
             },
         };
     });
     sync.client(() => {
         xnew$1.extend(Scene);
         const { socket, room, Component } = props;
-        const client = sync.boot({ socket, room: room !== null && room !== void 0 ? room : { id: undefined, name: undefined } }, Component);
+        const client = sync.boot({ socket, room }, Component);
         unit.on('finalize', () => client.finalize());
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));

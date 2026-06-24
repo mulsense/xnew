@@ -73,13 +73,12 @@ export function Room(unit: Unit, props: any) {
     const members = new Set<string>();
 
     sync.server(() => {
-        const { io, room, Component, graceMs = 3000 } = props as { io: any; room?: BootServerOptions['room']; Component: Function; graceMs?: number; };
-        // standalone Room (no Lobby) has no room → boot against the whole io with an unnamed room.
-        const client = sync.boot({ io, room: room ?? { id: undefined, name: undefined } }, Component);
+        const { io, room, Component, graceMs = 3000 } = props as { io: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
+        const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
 
-        // listed = tracked by a Lobby ledger; a standalone Room skips broadcast/self-removal.
-        const isListed = () => room?.id !== undefined && rooms.has(room.id);
+        // listed = tracked by a Lobby ledger; a standalone Room (room.id undefined) skips broadcast/self-removal.
+        const isListed = () => room.id !== undefined && rooms.has(room.id);
 
         // drop the room once empty for graceMs (connect cancels, disconnect reschedules).
         let graceTimer: UnitTimer | null = null;
@@ -89,7 +88,7 @@ export function Room(unit: Unit, props: any) {
             graceTimer = xnew.timeout(() => {
                 if (members.size > 0) { return; }
                 xnew.emit('-empty', {});
-                if (isListed()) { rooms.delete(room!.id!); broadcastRooms(io); unit.finalize(); }
+                if (isListed()) { rooms.delete(room.id!); broadcastRooms(io); unit.finalize(); }
             }, graceMs);
         };
 
@@ -111,16 +110,16 @@ export function Room(unit: Unit, props: any) {
         // exposed to the parent Lobby: one room-list row with the live member count.
         return {
             info(): RoomInfo {
-                return { id: room?.id ?? '', name: room?.name ?? '', count: members.size };
+                return { id: room.id ?? '', name: room.name ?? '', count: members.size };
             },
         };
     });
 
     sync.client(() => {
         xnew.extend(Scene);
-        const { socket, room, Component } = props as { socket: any; room?: BootServerOptions['room']; Component: Function; graceMs?: number; };
-        // client は接続先 room を持たないこともある（server status で確定する）。初期値として渡す。
-        const client = sync.boot({ socket, room: room ?? { id: undefined, name: undefined } }, Component);
+        const { socket, room, Component } = props as { socket: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
+        // room は呼び出し側から必ず渡す（server status で上書きされるまでの初期値）。
+        const client = sync.boot({ socket, room }, Component);
         unit.on('finalize', () => client.finalize());
 
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
