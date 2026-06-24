@@ -1589,26 +1589,23 @@ const sync = {
         data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, Components);
     },
     get status() {
-        const info = rootInfoOf(Unit.currentUnit);
         if (getEnvironment() === 'server') {
-            const server = info;
+            const server = rootInfoOf(Unit.currentUnit);
             return { clients: [...server.clients.values()], room: server.room };
         }
         else {
-            const client = info;
+            const client = rootInfoOf(Unit.currentUnit);
             return { id: client.socket.id, clients: client.clients, room: client.room };
         }
     },
     emit(event, payload = {}) {
-        const unit = Unit.currentUnit;
-        const info = rootInfoOf(unit);
-        const envelope = { syncId: syncOf(unit).id, data: payload };
         if (getEnvironment() === 'server') {
-            const server = info;
-            server.io.to(server.room.id).emit(event, envelope);
+            const server = rootInfoOf(Unit.currentUnit);
+            server.io.to(server.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
         else {
-            info.socket.emit(event, envelope);
+            const client = rootInfoOf(Unit.currentUnit);
+            client.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
     },
     boot(opts, ...args) {
@@ -1698,24 +1695,30 @@ function Room(unit, props) {
                 }
             }, graceMs);
         };
-        client.on('sync.connect', xnew$1.scope(({ id }) => {
+        const connection = xnew$1.scope((socket) => {
+            var _a, _b;
+            if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room.id) {
+                return;
+            }
             cancelCleanup();
-            members.add(id);
-            xnew$1.emit('-connect', { id });
+            members.add(socket.id);
+            xnew$1.emit('-connect', { id: socket.id });
             if (isListed()) {
                 broadcastRooms(io);
             }
-        }));
-        client.on('sync.disconnect', xnew$1.scope(({ id }) => {
-            members.delete(id);
-            xnew$1.emit('-disconnect', { id });
-            if (isListed()) {
-                broadcastRooms(io);
-            }
-            if (members.size === 0) {
-                scheduleCleanup();
-            }
-        }));
+            socket.on('disconnect', xnew$1.scope(() => {
+                members.delete(socket.id);
+                xnew$1.emit('-disconnect', { id: socket.id });
+                if (isListed()) {
+                    broadcastRooms(io);
+                }
+                if (members.size === 0) {
+                    scheduleCleanup();
+                }
+            }));
+        });
+        io.on('connection', connection);
+        unit.on('finalize', () => io.off('connection', connection));
         scheduleCleanup();
         return {
             info() {

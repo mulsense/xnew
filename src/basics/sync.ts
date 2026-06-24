@@ -92,18 +92,22 @@ export function Room(unit: Unit, props: any) {
             }, graceMs);
         };
 
-        client.on('sync.connect', xnew.scope(({ id }: any) => {
+        // socket.io の connection / disconnect を直接受けてこの room のメンバを計数する（room フィルタ付き）。
+        const connection = xnew.scope((socket: any) => {
+            if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
             cancelCleanup();
-            members.add(id);
-            xnew.emit('-connect', { id });
+            members.add(socket.id);
+            xnew.emit('-connect', { id: socket.id });
             if (isListed()) { broadcastRooms(io); }
-        }));
-        client.on('sync.disconnect', xnew.scope(({ id }: any) => {
-            members.delete(id);
-            xnew.emit('-disconnect', { id });
-            if (isListed()) { broadcastRooms(io); }
-            if (members.size === 0) { scheduleCleanup(); }
-        }));
+            socket.on('disconnect', xnew.scope(() => {
+                members.delete(socket.id);
+                xnew.emit('-disconnect', { id: socket.id });
+                if (isListed()) { broadcastRooms(io); }
+                if (members.size === 0) { scheduleCleanup(); }
+            }));
+        });
+        io.on('connection', connection);
+        unit.on('finalize', () => io.off('connection', connection));
 
         scheduleCleanup();
 
