@@ -38,12 +38,12 @@ describe('Lobby', () => {
         xnew(function Host(unit: Unit) {
             xnew.extend(Lobby, { socket });
             unit.on('-connect', () => log.push('connect'));
-            unit.on('-update', ({ rooms }: any) => log.push(`rooms:${rooms.length}`));
+            unit.on('-statusupdate', ({ rooms }: any) => log.push(`rooms:${rooms.length}`));
             unit.on('-disconnect', () => log.push('disconnect'));
         });
 
         socket.fire('connect');
-        socket.fire('update', { rooms: [1, 2, 3] });
+        socket.fire('statusupdate', { rooms: [1, 2, 3] });
         socket.fire('disconnect');
 
         expect(log).toEqual(['connect', 'rooms:3', 'disconnect']);
@@ -68,7 +68,7 @@ describe('Lobby', () => {
         const socket = mockSocket();
         const host = xnew(function Host() { xnew.extend(Lobby, { socket }); });
         (host as any).create('my room');
-        expect(socket.emit).toHaveBeenCalledWith('create', { name: 'my room' });
+        expect(socket.emit).toHaveBeenCalledWith('roomcreate', { name: 'my room' });
     });
 });
 
@@ -108,7 +108,7 @@ function lobbyConn(io: ReturnType<typeof lobbyIo>, roomId?: string) {
         _recv(event: string, payload?: any) { conn.sent.push([event, payload]); },   // server broadcast→client
         _emit(event: string, payload?: any) { handlers.get(event)?.forEach((h) => h(payload)); anyHandlers.forEach((h) => h(event, payload)); },
         _leave() { handlers.get('disconnect')?.forEach((h) => h()); },
-        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'update'); return m ? m[1].rooms : undefined; },
+        rooms() { const m = [...conn.sent].reverse().find(([e]: any) => e === 'statusupdate'); return m ? m[1].rooms : undefined; },
     };
     return conn;
 }
@@ -134,8 +134,8 @@ describe('Lobby (server)', () => {
         const io = lobbyIo();
         mountLobby(io);
         const a = lobbyConn(io); io._connect(a);
-        a._emit('create', { name: 'My Room' });
-        expect(a.sent).toContainEqual(['created', { room: { id: 'r1', name: 'My Room' } }]);
+        a._emit('roomcreate', { name: 'My Room' });
+        expect(a.sent).toContainEqual(['roomcreated', { room: { id: 'r1', name: 'My Room' } }]);
         expect(a.rooms()).toEqual([{ id: 'r1', name: 'My Room', memberCount: 0 }]);
     });
 
@@ -143,10 +143,10 @@ describe('Lobby (server)', () => {
         const io = lobbyIo();
         mountLobby(io, { maxRooms: 1 });
         const a = lobbyConn(io); io._connect(a);
-        a._emit('create', { name: 'A' });
-        a._emit('create', { name: 'B' });
-        expect(a.sent.filter(([e]: any) => e === 'created')).toHaveLength(1);
-        expect(a.sent).toContainEqual(['rejected', { message: expect.any(String) }]);
+        a._emit('roomcreate', { name: 'A' });
+        a._emit('roomcreate', { name: 'B' });
+        expect(a.sent.filter(([e]: any) => e === 'roomcreated')).toHaveLength(1);
+        expect(a.sent).toContainEqual(['roomrejected', { message: expect.any(String) }]);
     });
 
     it('rejects a connection to an unknown room with notfound and disconnect', () => {
@@ -161,7 +161,7 @@ describe('Lobby (server)', () => {
         const io = lobbyIo();
         mountLobby(io, { graceMs: 1000 });
         const a = lobbyConn(io); io._connect(a);
-        a._emit('create', { name: 'R' });        // r1 を作成
+        a._emit('roomcreate', { name: 'R' });        // r1 を作成
 
         const p = lobbyConn(io, 'r1'); io._connect(p);   // r1 へ参加（adapter が connect を配る）
         expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', memberCount: 1 }]);

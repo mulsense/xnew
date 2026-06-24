@@ -66,9 +66,9 @@ function Lobby(unit, { socket }) {
 
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
-    unit.on('-update', ({ rooms: list }) => { rooms = list; render(); });
-    unit.on('-created', ({ room }) => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }) }));
-    unit.on('-rejected', ({ message }) => { hintEl.element.textContent = message; });
+    unit.on('-statusupdate', ({ rooms: list }) => { rooms = list; render(); });
+    unit.on('-roomcreated', ({ room }) => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }) }));
+    unit.on('-roomrejected', ({ message }) => { hintEl.element.textContent = message; });
 
     render();
 }

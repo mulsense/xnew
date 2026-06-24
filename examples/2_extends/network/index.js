@@ -26,7 +26,7 @@ xnew(document.getElementById('app'), App);
 
 //----------------------------------------------------------------------------------------------------
 // Lobby — ルーム作成 / 一覧 / 入室
-//   ルームは動的。誰かが作成すると '-update' で全員へ一覧が届く。作成すると '-created' で自分の
+//   ルームは動的。誰かが作成すると '-statusupdate' で全員へ一覧が届く。作成すると '-roomcreated' で自分の
 //   入るべき roomId が返るので、そのまま Room へ遷移する。
 //----------------------------------------------------------------------------------------------------
 
@@ -81,11 +81,11 @@ function Lobby(unit, { socket }) {
     // 受信イベントは Lobby が '-event' で転送する（finalize の切断も Lobby が担う。一覧は接続時に自動で届く）。
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
-    unit.on('-update', ({ rooms: list }) => { rooms = list; render(); });
-    unit.on('-created', ({ room }) => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }) }));
-    unit.on('-rejected', ({ message }) => { hintEl.element.textContent = message; });
+    unit.on('-statusupdate', ({ rooms: list }) => { rooms = list; render(); });
+    unit.on('-roomcreated', ({ room }) => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }) }));
+    unit.on('-roomrejected', ({ message }) => { hintEl.element.textContent = message; });
 
-    render();   // 初期描画（一覧は -update 受信で更新）
+    render();   // 初期描画（一覧は -statusupdate 受信で更新）
 }
 
 //----------------------------------------------------------------------------------------------------

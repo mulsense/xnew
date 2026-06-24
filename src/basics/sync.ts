@@ -6,7 +6,7 @@
 //
 // - Lobby : lobby + dynamic rooms. client forwards lobby events to unit.on('-<event>') + create().
 //           server owns io.on('connection'), validates joins, and holds the room ledger (id → Room unit).
-//           A create request spawns the injected Room, stores its unit, and replies 'created'; the room
+//           A create request spawns the injected Room, stores its unit, and replies 'roomcreated'; the room
 //           list is built from each stored unit's info().
 // - Room  : boots Component and forwards basic events (connect/disconnect/notfound) to the host. On the
 //           server it counts members and exposes info() (id/name/memberCount) for the parent Lobby's list,
@@ -46,14 +46,14 @@ export function Lobby(unit: Unit, props: LobbyProps) {
             }
             // lobby connection: send the current list (later updates auto-broadcast), then handle create.
             conn.join('lobby');
-            conn.emit('update', { rooms: unit.rooms });
-            conn.on('create', xnew.scope((payload: any) => {
-                if (rooms.size >= maxRooms) { conn.emit('rejected', { message: 'room limit reached' }); return; }
+            conn.emit('statusupdate', { rooms: unit.rooms });
+            conn.on('roomcreate', xnew.scope((payload: any) => {
+                if (rooms.size >= maxRooms) { conn.emit('roomrejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                // spawn the injected Room, store the unit, then reply 'created' and refresh the list.
+                // spawn the injected Room, store the unit, then reply 'roomcreated' and refresh the list.
                 rooms.set(id, xnew(unit, Room!, { io, room: { id, name } }));
-                conn.emit('created', { room: { id, name } });
+                conn.emit('roomcreated', { room: { id, name } });
                 unit.broadcast();
             }));
         });
@@ -64,7 +64,7 @@ export function Lobby(unit: Unit, props: LobbyProps) {
         return {
             get rooms() { return [...rooms.values()].map((room) => room.info()); },
             broadcast() {
-                return io.to('lobby').emit('update', { rooms: unit.rooms });
+                return io.to('lobby').emit('statusupdate', { rooms: unit.rooms });
             },
             remove(id: string) { rooms.delete(id); },
         };
@@ -75,11 +75,11 @@ export function Lobby(unit: Unit, props: LobbyProps) {
         const { socket } = props as LobbyClientProps;
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
-        socket.on('update', xnew.scope((payload: any) => xnew.emit('-update', payload)));
-        socket.on('created', xnew.scope((payload: any) => xnew.emit('-created', payload)));
-        socket.on('rejected', xnew.scope((payload: any) => xnew.emit('-rejected', payload)));
+        socket.on('statusupdate', xnew.scope((payload: any) => xnew.emit('-statusupdate', payload)));
+        socket.on('roomcreated', xnew.scope((payload: any) => xnew.emit('-roomcreated', payload)));
+        socket.on('roomrejected', xnew.scope((payload: any) => xnew.emit('-roomrejected', payload)));
         unit.on('finalize', () => socket.disconnect());
-        return { create(name: string) { socket.emit('create', { name }); } };
+        return { create(name: string) { socket.emit('roomcreate', { name }); } };
     });
 }
 

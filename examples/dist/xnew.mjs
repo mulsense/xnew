@@ -1632,17 +1632,17 @@ function Lobby(unit, props) {
                 return;
             }
             conn.join('lobby');
-            conn.emit('update', { rooms: unit.rooms });
-            conn.on('create', xnew$1.scope((payload) => {
+            conn.emit('statusupdate', { rooms: unit.rooms });
+            conn.on('roomcreate', xnew$1.scope((payload) => {
                 var _a;
                 if (rooms.size >= maxRooms) {
-                    conn.emit('rejected', { message: 'room limit reached' });
+                    conn.emit('roomrejected', { message: 'room limit reached' });
                     return;
                 }
                 const id = `r${++nextRoomNum}`;
                 const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
                 rooms.set(id, xnew$1(unit, Room, { io, room: { id, name } }));
-                conn.emit('created', { room: { id, name } });
+                conn.emit('roomcreated', { room: { id, name } });
                 unit.broadcast();
             }));
         });
@@ -1651,7 +1651,7 @@ function Lobby(unit, props) {
         return {
             get rooms() { return [...rooms.values()].map((room) => room.info()); },
             broadcast() {
-                return io.to('lobby').emit('update', { rooms: unit.rooms });
+                return io.to('lobby').emit('statusupdate', { rooms: unit.rooms });
             },
             remove(id) { rooms.delete(id); },
         };
@@ -1660,11 +1660,11 @@ function Lobby(unit, props) {
         const { socket } = props;
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));
-        socket.on('update', xnew$1.scope((payload) => xnew$1.emit('-update', payload)));
-        socket.on('created', xnew$1.scope((payload) => xnew$1.emit('-created', payload)));
-        socket.on('rejected', xnew$1.scope((payload) => xnew$1.emit('-rejected', payload)));
+        socket.on('statusupdate', xnew$1.scope((payload) => xnew$1.emit('-statusupdate', payload)));
+        socket.on('roomcreated', xnew$1.scope((payload) => xnew$1.emit('-roomcreated', payload)));
+        socket.on('roomrejected', xnew$1.scope((payload) => xnew$1.emit('-roomrejected', payload)));
         unit.on('finalize', () => socket.disconnect());
-        return { create(name) { socket.emit('create', { name }); } };
+        return { create(name) { socket.emit('roomcreate', { name }); } };
     });
 }
 function Room(unit, props) {
