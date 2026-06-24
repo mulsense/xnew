@@ -27,7 +27,7 @@ describe('scoped registry isolation', () => {
     });
 
     it('apply re-creates each Child with the component its reconciled parent registered', () => {
-        const server = bootServer({ io: hub.io }, function Root() {
+        const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Root() {
             xnew.sync.register({ ParentA, ParentB });
             xnew(ParentA);
             xnew(ParentB);

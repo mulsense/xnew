@@ -12,7 +12,7 @@ describe('xnew.sync.server / xnew.sync.client by environment', () => {
 
     it('server environment runs server blocks for the root and nested units', () => {
         const ran: string[] = [];
-        bootServer({ io: hub.io }, (_: Unit) => {
+        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, (_: Unit) => {
             xnew.sync.server(() => { ran.push('root-server'); });
             xnew.sync.client(() => { ran.push('root-client'); });
             xnew((_c: Unit) => {
@@ -39,7 +39,7 @@ describe('xnew.sync.boot', () => {
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     it('creates and returns the root unit', () => {
-        const unit = bootServer({ io: hub.io }, (_: Unit) => {});
+        const unit = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, (_: Unit) => {});
         expect(unit).toBeInstanceOf(Unit);
     });
 
@@ -50,6 +50,6 @@ describe('xnew.sync.boot', () => {
     });
 
     it('propagates a throw from the component', () => {
-        expect(() => bootServer({ io: hub.io }, () => { throw new Error('boom'); })).toThrow('boom');
+        expect(() => bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, () => { throw new Error('boom'); })).toThrow('boom');
     });
 });

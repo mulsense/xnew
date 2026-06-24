@@ -1,7 +1,7 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/index';
 import { syncOf, captureStateTree, applyStateTree } from '../../../src/core/sync';
-import { ioMock, bootServer, bootClient, asServer } from './io-mock';
+import { ioMock, bootServer, bootClient, asServer, asClient } from './io-mock';
 
 //----------------------------------------------------------------------------------------------------
 // イベントチャンネル（socket.io transport: boot / emit / on）
@@ -18,7 +18,7 @@ describe('event channel (socket.io transport)', () => {
 
     it('boot({ socket }): wires the transport and auto-generates clientId', () => {
         const received: Array<[string, any]> = [];
-        const server = bootServer({ io: hub.io }, function Server(unit: Unit) {
+        const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server(unit: Unit) {
             xnew.sync.server(() => { unit.on('move', ({ id, x }: any) => received.push([id, { x }])); });
         });
 
@@ -43,7 +43,7 @@ describe('event channel (socket.io transport)', () => {
 
     it('updates state directly on message receipt (no polling) via closure', () => {
         let state: Record<string, any> = {};
-        bootServer({ io: hub.io }, function Server(unit: Unit) {
+        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server(unit: Unit) {
             xnew.sync.server(() => {
                 state = xnew.sync.state({ x: 0 });
                 // 受信時に closure の state を直接更新（inbox 不要）。unit 生成等はしない。
@@ -98,7 +98,7 @@ describe('event channel (socket.io transport)', () => {
         const view1 = document.createElement('div');
         const view2 = document.createElement('div');
 
-        const server = bootServer({ io: hub.io }, World);                          // on('sync.connect') を登録
+        const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, World);                          // on('sync.connect') を登録
         const client1 = bootClient({ socket: hub.connect() }, World, { view: view1 }); // connect → presence に c1
         const socket2 = hub.connect();
         const client2 = bootClient({ socket: socket2 }, World, { view: view2 });        // connect → presence に c2
@@ -108,9 +108,12 @@ describe('event channel (socket.io transport)', () => {
             applyStateTree(client1, tree);
             applyStateTree(client2, tree);
         };
+        // server / client サブツリーを各々の環境で別々に tick する（emit/status は env で分岐するため、
+        // 1 回の update で両側をまとめて回さない）。server を先に回して Player を spawn → client が emit。
         function cycle() {
             Unit.start(Unit.engineRoot);
-            asServer(() => Unit.update(Unit.engineRoot));   // server World: presence から Player を spawn（server 構築）
+            asServer(() => Unit.update(server));                                // server: presence から Player を spawn
+            asClient(() => { Unit.update(client1); Unit.update(client2); });    // client: on('update') の emit
             sync();
             Unit.start(Unit.engineRoot);
             Unit.render(Unit.engineRoot);
@@ -132,7 +135,7 @@ describe('event channel (socket.io transport)', () => {
 
         // 切断 → 次フレームで despawn
         socket2.disconnect();
-        asServer(() => Unit.update(Unit.engineRoot));
+        asServer(() => Unit.update(server));   // server World が切断メンバの Player を despawn
         expect(captureStateTree(server).filter((n) => n.name === 'Player').length).toBe(1);
     });
 
@@ -145,7 +148,7 @@ describe('event channel (socket.io transport)', () => {
             xnew.sync.register({ Mover });   // 下りの配線（emit('sync')/on('sync')）は boot が自動で行う
             xnew.sync.server(() => { xnew(Mover); });
         }
-        const server = bootServer({ io: hub.io }, World);   // boot の自動 mirror が update で broadcast
+        const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, World);   // boot の自動 mirror が update で broadcast
         const client = bootClient({ socket: hub.connect() }, World);   // boot の自動 mirror が on('sync') で apply
 
         Unit.start(Unit.engineRoot);
@@ -166,7 +169,7 @@ describe('event channel (socket.io transport)', () => {
             // ハンドラ内で生成した Child は、登録元(World)の子として作られなければならない。
             unit.on('join', ({ id }: any) => xnew(Child, { key: id, clientId: id }));
         }
-        bootServer({ io: hub.io }, World);
+        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, World);
 
         // 同じ hub の生 client が join を送ると server の on('join') が発火する（id=clientId）。
         hub.connect('c1').emit('join');
@@ -183,7 +186,7 @@ describe('event channel (socket.io transport)', () => {
             syncOf(unit).id = props.syncId ?? null;
             xnew.sync.server(() => { unit.on('-move', ({ vector }: any) => hits.push(`${props.tag}:${vector.x}`)); });
         }
-        bootServer({ io: hub.io }, function Server() {
+        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server() {
             xnew.sync.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
         });
 
@@ -204,7 +207,7 @@ describe('event channel (socket.io transport)', () => {
             syncOf(unit).id = props.syncId ?? null;
             xnew.sync.server(() => { unit.on('+ping', ({ n }: any) => hits.push(`${props.tag}:${n}`)); });
         }
-        bootServer({ io: hub.io }, function Server() {
+        bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server() {
             xnew.sync.server(() => { xnew(Tagged, { tag: 'A', syncId: 10 }); xnew(Tagged, { tag: 'B', syncId: 20 }); });
         });
         // 送信ユニットの syncId に関係なく、'+ping' は両方のユニットへ届く（全体）。

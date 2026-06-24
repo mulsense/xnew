@@ -1,27 +1,18 @@
 //----------------------------------------------------------------------------------------------------
 // Sync — socket.io basics components (Lobby / Room)
 //
-// Base components that wire socket.io handles to the host unit and own their teardown.
-// server/client is auto-detected from the runtime (→ core/env); handle is server=io / client=socket.
-// The server-side room ledger (id → Room unit) lives at module scope so Room can drop itself and
-// re-broadcast without a Lobby context; Lobby owns its lifecycle and clears it on finalize.
+// Wire socket.io handles to the host unit; server/client auto-detected (→ core/env: io vs socket).
+// The room ledger (id → Room unit) is module-global so Room self-removes/re-broadcasts without a
+// Lobby context; Lobby is its sole writer and clears it on finalize. The client side extends Scene.
 //
-// Both components extend Scene (basics/view) as their base, so a Lobby / Room is a swappable scene
-// (change / add) regardless of side; the server/client wiring is layered on top of that base.
-//
-// - Lobby : lobby + dynamic rooms. client forwards lobby events to unit.on('-<event>') + create().
-//           server owns io.on('connection'), validates joins, and writes the module-global room ledger.
-//           A create request spawns the injected Room, stores its unit, and replies 'roomcreated'; the room
-//           list is built from each stored unit's info().
-// - Room  : boots Component and forwards basic events (connect/disconnect/notfound) to the host. On the
-//           server it counts members and exposes info() (id/name/count) for the lobby list,
-//           re-broadcasts on changes, and drops itself from the ledger once empty for graceMs. A Room that
-//           is not in the ledger (mounted without a Lobby) skips broadcasting and self-removal.
+// - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes create().
+// - Room     : boots Component, forwards connect/disconnect/notfound; server counts members + cleanup.
+// - RoomInfo : one room-list row { id, name, count }.
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
-import { sync, BootOptions } from '../core/sync';
+import { sync, BootServerOptions } from '../core/sync';
 import { Scene } from './view';
 
 const rooms = new Map<string, Unit>();
@@ -35,21 +26,16 @@ function broadcastRooms(io: any): void {
     io.to('lobby').emit('statusupdate', { rooms: roomList() });
 }
 
-export interface LobbyServerProps { io: any; Room: Function; maxRooms?: number; roomNameMax?: number; }
-export interface LobbyClientProps { socket: any; }
-export type LobbyProps = LobbyServerProps | LobbyClientProps;
-
-export function Lobby(unit: Unit, props: LobbyProps) {
-    xnew.extend(Scene);
+export function Lobby(unit: Unit, props: any) {
 
     sync.server(() => {
-        const { io, Room, maxRooms = 20, roomNameMax = 16 } = props as LobbyServerProps;
+        const { io, Room, maxRooms = 20, roomNameMax = 16 } = props as { io: any; Room: Function; maxRooms?: number; roomNameMax?: number; };
         let nextRoomNum = 0;
 
         const connection = xnew.scope((conn: any) => {
             const roomId = conn.handshake?.query?.room;
             if (roomId !== undefined && roomId !== '') {
-                // room connection: reject gone/invalid rooms (valid ones are handled by Room's boot wiring).
+                // reject gone/invalid rooms (valid ones are handled by Room's boot wiring).
                 if (!rooms.has(roomId)) { conn.emit('notfound', { roomId }); conn.disconnect(true); }
                 return;
             }
@@ -60,20 +46,19 @@ export function Lobby(unit: Unit, props: LobbyProps) {
                 if (rooms.size >= maxRooms) { conn.emit('roomrejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                // spawn the injected Room, store the unit, then reply 'roomcreated' and refresh the list.
-                rooms.set(id, xnew(unit, Room!, { io, room: { id, name } }));
+                rooms.set(id, xnew(unit, Room, { io, room: { id, name } }));
                 conn.emit('roomcreated', { room: { id, name } });
                 broadcastRooms(io);
             }));
         });
         io.on('connection', connection);
-        // Lobby owns the ledger lifecycle: drop the connection listener and clear the ledger on finalize.
         unit.on('finalize', () => { io.off('connection', connection); rooms.clear(); });
     });
 
-    // client: forward lobby events to the host unit's '-<event>', and disconnect the socket on finalize.
     sync.client(() => {
-        const { socket } = props as LobbyClientProps;
+        xnew.extend(Scene);
+
+        const { socket } = props as { socket: any; };
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
         socket.on('statusupdate', xnew.scope((payload: any) => xnew.emit('-statusupdate', payload)));
@@ -84,25 +69,19 @@ export function Lobby(unit: Unit, props: LobbyProps) {
     });
 }
 
-export interface RoomServerProps { io: any; room?: BootOptions['room']; Component: Function; graceMs?: number; }
-export interface RoomClientProps { socket: any; Component: Function; graceMs?: number; }
-export type RoomProps = RoomServerProps | RoomClientProps;
-
-export function Room(unit: Unit, props: RoomProps) {
-    xnew.extend(Scene);
+export function Room(unit: Unit, props: any) {
     const members = new Set<string>();
 
     sync.server(() => {
-        const { io, room, Component, graceMs = 3000 } = props as RoomServerProps;
-        const client = sync.boot({ io, room }, Component);
+        const { io, room, Component, graceMs = 3000 } = props as { io: any; room?: BootServerOptions['room']; Component: Function; graceMs?: number; };
+        // standalone Room (no Lobby) has no room → boot against the whole io with an unnamed room.
+        const client = sync.boot({ io, room: room ?? { id: undefined, name: undefined } }, Component);
         unit.on('finalize', () => client.finalize());
 
-        // listed = this room is in the module-global ledger (i.e. a Lobby created it). A standalone Room
-        // (mounted without a Lobby) is never listed, so it skips broadcasting and self-removal.
+        // listed = tracked by a Lobby ledger; a standalone Room skips broadcast/self-removal.
         const isListed = () => room?.id !== undefined && rooms.has(room.id);
 
-        // remove the room once empty for graceMs: connect cancels it, disconnect reschedules it.
-        // xnew.timeout lives under the unit, so finalize stops it and its callback runs in the unit scope.
+        // drop the room once empty for graceMs (connect cancels, disconnect reschedules).
         let graceTimer: UnitTimer | null = null;
         const cancelCleanup = () => { graceTimer?.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
@@ -127,9 +106,9 @@ export function Room(unit: Unit, props: RoomProps) {
             if (members.size === 0) { scheduleCleanup(); }
         }));
 
-        scheduleCleanup();                   // remove if left empty (canceled on the first connect)
+        scheduleCleanup();
 
-        // exposed to the parent Lobby (which stores this unit): one room-list row, with the live member count.
+        // exposed to the parent Lobby: one room-list row with the live member count.
         return {
             info(): RoomInfo {
                 return { id: room?.id ?? '', name: room?.name ?? '', count: members.size };
@@ -138,7 +117,8 @@ export function Room(unit: Unit, props: RoomProps) {
     });
 
     sync.client(() => {
-        const { socket, Component } = props as RoomClientProps;
+        xnew.extend(Scene);
+        const { socket, Component } = props as { socket: any; Component: Function; graceMs?: number; };
         const client = sync.boot({ socket }, Component);
         unit.on('finalize', () => client.finalize());
 

@@ -1476,9 +1476,9 @@ function rootInfoOf(unit) {
     }
     return info;
 }
-function bootServerRoot(io, opts, parent, args) {
-    const room = opts.room;
-    const roomId = room === null || room === void 0 ? void 0 : room.id;
+function bootServer(opts, parent, args) {
+    const { io, room } = opts;
+    const roomId = room.id;
     const info = { io, room, clients: new Map() };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const target = () => (roomId !== undefined ? io.to(roomId) : io);
@@ -1507,7 +1507,8 @@ function bootServerRoot(io, opts, parent, args) {
     });
     return root;
 }
-function bootClientRoot(socket, parent, args) {
+function bootClient(opts, parent, args) {
+    const { socket } = opts;
     const info = { socket, clients: [], room: undefined };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const onSync = (tree) => applyStateTree(root, tree);
@@ -1552,10 +1553,12 @@ const sync = {
         if (Unit.currentUnit._.status !== 'invoked') {
             throw new Error('xnew.sync.server can not be called after initialized.');
         }
-        if (getEnvironment() === 'client') {
+        if (getEnvironment() === 'server') {
+            return Unit.extend(Unit.currentUnit, callback, props);
+        }
+        else {
             return {};
         }
-        return Unit.extend(Unit.currentUnit, callback, props);
     },
     client(callback, props) {
         if (Unit.currentUnit._.status !== 'invoked') {
@@ -1564,7 +1567,9 @@ const sync = {
         if (getEnvironment() === 'server') {
             return {};
         }
-        return Unit.extend(Unit.currentUnit, callback, props);
+        else {
+            return Unit.extend(Unit.currentUnit, callback, props);
+        }
     },
     state(initial = {}) {
         var _a;
@@ -1588,18 +1593,23 @@ const sync = {
     },
     get status() {
         const info = rootInfoOf(Unit.currentUnit);
-        if ('io' in info) {
-            return { clients: [...info.clients.values()] };
+        if (getEnvironment() === 'server') {
+            const server = info;
+            return { clients: [...server.clients.values()] };
         }
-        return { id: info.socket.id, clients: info.clients, room: info.room };
+        else {
+            const client = info;
+            return { id: client.socket.id, clients: client.clients, room: client.room };
+        }
     },
     emit(event, payload = {}) {
         var _a;
         const unit = Unit.currentUnit;
         const info = rootInfoOf(unit);
         const envelope = { syncId: syncOf(unit).id, data: payload };
-        if ('io' in info) {
-            (((_a = info.room) === null || _a === void 0 ? void 0 : _a.id) !== undefined ? info.io.to(info.room.id) : info.io).emit(event, envelope);
+        if (getEnvironment() === 'server') {
+            const server = info;
+            (((_a = server.room) === null || _a === void 0 ? void 0 : _a.id) !== undefined ? server.io.to(server.room.id) : server.io).emit(event, envelope);
         }
         else {
             info.socket.emit(event, envelope);
@@ -1609,10 +1619,12 @@ const sync = {
         if (Unit.engineRoot === undefined) {
             Unit.reset();
         }
-        const parent = Unit.currentUnit;
-        return getEnvironment() === 'server'
-            ? bootServerRoot(opts.io, opts, parent, args)
-            : bootClientRoot(opts.socket, parent, args);
+        if (getEnvironment() === 'server') {
+            return bootServer(opts, Unit.currentUnit, args);
+        }
+        else {
+            return bootClient(opts, Unit.currentUnit, args);
+        }
     },
 };
 
@@ -1624,7 +1636,6 @@ function broadcastRooms(io) {
     io.to('lobby').emit('statusupdate', { rooms: roomList() });
 }
 function Lobby(unit, props) {
-    xnew$1.extend(Scene);
     sync.server(() => {
         const { io, Room, maxRooms = 20, roomNameMax = 16 } = props;
         let nextRoomNum = 0;
@@ -1657,6 +1668,7 @@ function Lobby(unit, props) {
         unit.on('finalize', () => { io.off('connection', connection); rooms.clear(); });
     });
     sync.client(() => {
+        xnew$1.extend(Scene);
         const { socket } = props;
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));
@@ -1668,11 +1680,10 @@ function Lobby(unit, props) {
     });
 }
 function Room(unit, props) {
-    xnew$1.extend(Scene);
     const members = new Set();
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props;
-        const client = sync.boot({ io, room }, Component);
+        const client = sync.boot({ io, room: room !== null && room !== void 0 ? room : { id: undefined, name: undefined } }, Component);
         unit.on('finalize', () => client.finalize());
         const isListed = () => (room === null || room === void 0 ? void 0 : room.id) !== undefined && rooms.has(room.id);
         let graceTimer = null;
@@ -1718,6 +1729,7 @@ function Room(unit, props) {
         };
     });
     sync.client(() => {
+        xnew$1.extend(Scene);
         const { socket, Component } = props;
         const client = sync.boot({ socket }, Component);
         unit.on('finalize', () => client.finalize());

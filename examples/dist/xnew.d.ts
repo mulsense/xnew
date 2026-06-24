@@ -164,10 +164,12 @@ interface SyncStatus {
     clients: ClientStatus[];
     room?: RoomStatus;
 }
-interface BootOptions {
-    io?: any;
-    socket?: any;
-    room?: RoomStatus;
+interface BootServerOptions {
+    io: any;
+    room: RoomStatus;
+}
+interface BootClientOptions {
+    socket: any;
 }
 
 interface TransitionOptions {
@@ -257,30 +259,8 @@ declare function Panel(unit: Unit, { params }: PanelOptions): {
     separator(): void;
 };
 
-interface LobbyServerProps {
-    io: any;
-    Room: Function;
-    maxRooms?: number;
-    roomNameMax?: number;
-}
-interface LobbyClientProps {
-    socket: any;
-}
-type LobbyProps = LobbyServerProps | LobbyClientProps;
-declare function Lobby(unit: Unit, props: LobbyProps): void;
-interface RoomServerProps {
-    io: any;
-    room?: BootOptions['room'];
-    Component: Function;
-    graceMs?: number;
-}
-interface RoomClientProps {
-    socket: any;
-    Component: Function;
-    graceMs?: number;
-}
-type RoomProps = RoomServerProps | RoomClientProps;
-declare function Room(unit: Unit, props: RoomProps): void;
+declare function Lobby(unit: Unit, props: any): void;
+declare function Room(unit: Unit, props: any): void;
 
 declare function Aspect(unit: Unit, { aspect, fit }?: {
     aspect?: number;
@@ -414,9 +394,9 @@ declare const xnew: XnewBase & {
         register(Components: Record<string, Function>): void;
         readonly status: SyncStatus;
         emit(event: string, payload?: Record<string, any>): void;
-        boot(opts: BootOptions, ...args: any[]): Unit;
+        boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit;
     };
 };
 
 export { xnew };
-export type { BootOptions, ClientStatus, RoomStatus, SyncStatus };
+export type { BootClientOptions, BootServerOptions, ClientStatus, RoomStatus, SyncStatus };
