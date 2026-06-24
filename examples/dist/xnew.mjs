@@ -1472,7 +1472,7 @@ function rootInfoOf(unit) {
     const root = findSyncRoot(unit);
     const info = root !== null ? syncRoots.get(root) : undefined;
     if (info === undefined) {
-        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket }, ...).');
+        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket, room }, ...).');
     }
     return info;
 }
@@ -1488,14 +1488,14 @@ function bootServer(opts, parent, args) {
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     io.on('connection', (socket) => {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         if (roomId !== undefined && ((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== roomId) {
             return;
         }
         if (roomId !== undefined) {
             socket.join(roomId);
         }
-        info.clients.set(socket.id, { id: socket.id, name: (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name });
+        info.clients.set(socket.id, { id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
         dispatchSync(root, 'sync.connect', socket.id, undefined);
         refreshStatus();
         socket.onAny((event, payload) => dispatchSync(root, event, socket.id, payload));
@@ -1508,8 +1508,8 @@ function bootServer(opts, parent, args) {
     return root;
 }
 function bootClient(opts, parent, args) {
-    const { socket } = opts;
-    const info = { socket, clients: [], room: undefined };
+    const { socket, room } = opts;
+    const info = { socket, clients: [], room };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const onSync = (tree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
@@ -1603,13 +1603,12 @@ const sync = {
         }
     },
     emit(event, payload = {}) {
-        var _a;
         const unit = Unit.currentUnit;
         const info = rootInfoOf(unit);
         const envelope = { syncId: syncOf(unit).id, data: payload };
         if (getEnvironment() === 'server') {
             const server = info;
-            (((_a = server.room) === null || _a === void 0 ? void 0 : _a.id) !== undefined ? server.io.to(server.room.id) : server.io).emit(event, envelope);
+            (server.room.id !== undefined ? server.io.to(server.room.id) : server.io).emit(event, envelope);
         }
         else {
             info.socket.emit(event, envelope);
@@ -1730,8 +1729,8 @@ function Room(unit, props) {
     });
     sync.client(() => {
         xnew$1.extend(Scene);
-        const { socket, Component } = props;
-        const client = sync.boot({ socket }, Component);
+        const { socket, room, Component } = props;
+        const client = sync.boot({ socket, room: room !== null && room !== void 0 ? room : { id: undefined, name: undefined } }, Component);
         unit.on('finalize', () => client.finalize());
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));

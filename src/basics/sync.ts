@@ -118,8 +118,9 @@ export function Room(unit: Unit, props: any) {
 
     sync.client(() => {
         xnew.extend(Scene);
-        const { socket, Component } = props as { socket: any; Component: Function; graceMs?: number; };
-        const client = sync.boot({ socket }, Component);
+        const { socket, room, Component } = props as { socket: any; room?: BootServerOptions['room']; Component: Function; graceMs?: number; };
+        // client は接続先 room を持たないこともある（server status で確定する）。初期値として渡す。
+        const client = sync.boot({ socket, room: room ?? { id: undefined, name: undefined } }, Component);
         unit.on('finalize', () => client.finalize());
 
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));

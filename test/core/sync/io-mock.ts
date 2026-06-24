@@ -124,7 +124,7 @@ export function bootServer(...args: BootArgs): ReturnType<typeof xnew.sync.boot>
     return asServer(() => xnew.sync.boot(...args));
 }
 
-/** xnew.sync.boot を client 環境で呼ぶ。 */
-export function bootClient(...args: BootArgs): ReturnType<typeof xnew.sync.boot> {
-    return asClient(() => xnew.sync.boot(...args));
+/** xnew.sync.boot を client 環境で呼ぶ（room 未指定なら無名 room を補う）。 */
+export function bootClient(opts: { socket: any; room?: any }, ...rest: any[]): ReturnType<typeof xnew.sync.boot> {
+    return asClient(() => xnew.sync.boot({ room: { id: undefined, name: undefined }, ...opts }, ...rest));
 }

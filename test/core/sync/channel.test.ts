@@ -16,7 +16,7 @@ describe('event channel (socket.io transport)', () => {
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
-    it('boot({ socket }): wires the transport and auto-generates clientId', () => {
+    it('boot({ socket, room }): wires the transport and auto-generates clientId', () => {
         const received: Array<[string, any]> = [];
         const server = bootServer({ io: hub.io, room: { id: undefined, name: undefined } }, function Server(unit: Unit) {
             xnew.sync.server(() => { unit.on('move', ({ id, x }: any) => received.push([id, { x }])); });

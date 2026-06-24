@@ -2,7 +2,7 @@ import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/index';
 import { ioMock, bootServer, bootClient } from './io-mock';
 
-describe('xnew.sync.boot({ socket }) — in-memory socket.io', () => {
+describe('xnew.sync.boot({ socket, room }) — in-memory socket.io', () => {
     let hub: ReturnType<typeof ioMock>;
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
