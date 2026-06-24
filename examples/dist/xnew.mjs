@@ -1643,14 +1643,14 @@ function Lobby(unit, props) {
                 const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
                 rooms.set(id, xnew$1(unit, Room, { io, room: { id, name } }));
                 conn.emit('roomcreated', { room: { id, name } });
-                unit.broadcast();
+                unit.update();
             }));
         });
         io.on('connection', connection);
         unit.on('finalize', () => io.off('connection', connection));
         return {
             get rooms() { return [...rooms.values()].map((room) => room.info()); },
-            broadcast() {
+            update() {
                 return io.to('lobby').emit('statusupdate', { rooms: unit.rooms });
             },
             remove(id) { rooms.delete(id); },
@@ -1685,7 +1685,7 @@ function Room(unit, props) {
                 xnew$1.emit('-empty', {});
                 if (lobby !== undefined) {
                     lobby.remove(room === null || room === void 0 ? void 0 : room.id);
-                    lobby.broadcast();
+                    lobby.update();
                     unit.finalize();
                 }
             }, graceMs);
@@ -1694,12 +1694,12 @@ function Room(unit, props) {
             cancelCleanup();
             members.add(id);
             xnew$1.emit('-connect', { id });
-            lobby === null || lobby === void 0 ? void 0 : lobby.broadcast();
+            lobby === null || lobby === void 0 ? void 0 : lobby.update();
         }));
         client.on('sync.disconnect', xnew$1.scope(({ id }) => {
             members.delete(id);
             xnew$1.emit('-disconnect', { id });
-            lobby === null || lobby === void 0 ? void 0 : lobby.broadcast();
+            lobby === null || lobby === void 0 ? void 0 : lobby.update();
             if (members.size === 0) {
                 scheduleCleanup();
             }

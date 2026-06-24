@@ -54,7 +54,7 @@ export function Lobby(unit: Unit, props: LobbyProps) {
                 // spawn the injected Room, store the unit, then reply 'roomcreated' and refresh the list.
                 rooms.set(id, xnew(unit, Room!, { io, room: { id, name } }));
                 conn.emit('roomcreated', { room: { id, name } });
-                unit.broadcast();
+                unit.update();
             }));
         });
         io.on('connection', connection);
@@ -63,7 +63,7 @@ export function Lobby(unit: Unit, props: LobbyProps) {
         // exposed so Room (via context(Lobby)) can drop itself from the ledger and re-broadcast the list.
         return {
             get rooms() { return [...rooms.values()].map((room) => room.info()); },
-            broadcast() {
+            update() {
                 return io.to('lobby').emit('statusupdate', { rooms: unit.rooms });
             },
             remove(id: string) { rooms.delete(id); },
@@ -117,7 +117,7 @@ export function Room(unit: Unit, props: RoomProps) {
             graceTimer = xnew.timeout(() => {
                 if (members.size > 0) { return; }
                 xnew.emit('-empty', {});
-                if (lobby !== undefined) { lobby.remove(room?.id); lobby.broadcast(); unit.finalize(); }
+                if (lobby !== undefined) { lobby.remove(room?.id); lobby.update(); unit.finalize(); }
             }, graceMs);
         };
 
@@ -125,12 +125,12 @@ export function Room(unit: Unit, props: RoomProps) {
             cancelCleanup();
             members.add(id);
             xnew.emit('-connect', { id });
-            lobby?.broadcast();
+            lobby?.update();
         }));
         client.on('sync.disconnect', xnew.scope(({ id }: any) => {
             members.delete(id);
             xnew.emit('-disconnect', { id });
-            lobby?.broadcast();
+            lobby?.update();
             if (members.size === 0) { scheduleCleanup(); }
         }));
 
