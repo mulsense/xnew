@@ -136,7 +136,7 @@ describe('Lobby (server)', () => {
         const a = lobbyConn(io); io._connect(a);
         a._emit('roomcreate', { name: 'My Room' });
         expect(a.sent).toContainEqual(['roomcreated', { room: { id: 'r1', name: 'My Room' } }]);
-        expect(a.rooms()).toEqual([{ id: 'r1', name: 'My Room', memberCount: 0 }]);
+        expect(a.rooms()).toEqual([{ id: 'r1', name: 'My Room', count: 0 }]);
     });
 
     it('rejects create beyond maxRooms with rejected', () => {
@@ -164,10 +164,10 @@ describe('Lobby (server)', () => {
         a._emit('roomcreate', { name: 'R' });        // r1 を作成
 
         const p = lobbyConn(io, 'r1'); io._connect(p);   // r1 へ参加（adapter が connect を配る）
-        expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', memberCount: 1 }]);
+        expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', count: 1 }]);
 
-        p._leave();                                      // 退出 → memberCount 0
-        expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', memberCount: 0 }]);
+        p._leave();                                      // 退出 → count 0
+        expect(a.rooms()).toEqual([{ id: 'r1', name: 'R', count: 0 }]);
 
         jest.advanceTimersByTime(1000);                  // 猶予経過 → 空室は撤去
         expect(a.rooms()).toEqual([]);

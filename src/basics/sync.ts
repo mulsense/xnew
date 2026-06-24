@@ -14,7 +14,7 @@
 //           A create request spawns the injected Room, stores its unit, and replies 'roomcreated'; the room
 //           list is built from each stored unit's info().
 // - Room  : boots Component and forwards basic events (connect/disconnect/notfound) to the host. On the
-//           server it counts members and exposes info() (id/name/memberCount) for the lobby list,
+//           server it counts members and exposes info() (id/name/count) for the lobby list,
 //           re-broadcasts on changes, and drops itself from the ledger once empty for graceMs. A Room that
 //           is not in the ledger (mounted without a Lobby) skips broadcasting and self-removal.
 //----------------------------------------------------------------------------------------------------
@@ -24,32 +24,22 @@ import { Unit, UnitTimer } from '../core/unit';
 import { sync, BootOptions } from '../core/sync';
 import { Scene } from './view';
 
-/** Server-side room ledger (id → Room unit). Module-global so Room reaches it without a Lobby context;
- *  Lobby is the sole writer and clears it on finalize. Unused on the client. */
 const rooms = new Map<string, Unit>();
+export interface RoomInfo { id: string; name: string; count: number; }
 
-/** The current room list, one row per stored Room unit (built from each unit's info()). */
 function roomList(): RoomInfo[] {
     return [...rooms.values()].map((room) => room.info());
 }
 
-/** Push the current room list to everyone in the 'lobby' room. */
 function broadcastRooms(io: any): void {
     io.to('lobby').emit('statusupdate', { rooms: roomList() });
 }
 
-/** Lobby props. The component is mounted on both server and client, but each side reads a different
- *  shape: the server needs the io handle and the Room to spawn, the client only needs its socket.
- *  Splitting the two makes the unused-on-this-side fields explicit at the call site. */
 export interface LobbyServerProps { io: any; Room: Function; maxRooms?: number; roomNameMax?: number; }
 export interface LobbyClientProps { socket: any; }
 export type LobbyProps = LobbyServerProps | LobbyClientProps;
 
-/** One row of the lobby's room list, produced by Room.info() and read off the stored Room unit. */
-export interface RoomInfo { id: string; name: string; memberCount: number; }
-
 export function Lobby(unit: Unit, props: LobbyProps) {
-    // base: a swappable scene (exposes change / add for sibling-swap navigation).
     xnew.extend(Scene);
 
     sync.server(() => {
@@ -94,26 +84,14 @@ export function Lobby(unit: Unit, props: LobbyProps) {
     });
 }
 
-/** Room props. Like Lobby, the component runs on both sides but each reads a different shape: the server
- *  boots with the io handle, the client with its socket. room/Component/graceMs are shared by both. */
 export interface RoomServerProps { io: any; room?: BootOptions['room']; Component: Function; graceMs?: number; }
 export interface RoomClientProps { socket: any; Component: Function; graceMs?: number; }
 export type RoomProps = RoomServerProps | RoomClientProps;
 
-/** Room — boots one synced room and owns the socket, forwarding basic events (connect/disconnect/notfound)
- *  to the host unit's '-<event>'. On the server it keeps a member ledger and emits '-empty' once empty for
- *  graceMs; if a parent Lobby exists it syncs that ledger, re-broadcasts on changes, and removes itself when
- *  the room stays empty. server/client is auto-detected via env. */
 export function Room(unit: Unit, props: RoomProps) {
-    // base: a swappable scene (exposes change / add for sibling-swap navigation).
     xnew.extend(Scene);
-
-    // member ledger: updated on the server by connect/disconnect, read via the exposed memberCount.
-    // On the client it is never updated and stays empty (memberCount is 0).
     const members = new Set<string>();
 
-    // server: sync.connect/disconnect arrive under the boot (client) route. Forward to the host while keeping
-    // the member ledger and empty-room cleanup. If a parent Lobby exists, sync its ledger and re-broadcast on change.
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props as RoomServerProps;
         const client = sync.boot({ io, room }, Component);
@@ -154,12 +132,11 @@ export function Room(unit: Unit, props: RoomProps) {
         // exposed to the parent Lobby (which stores this unit): one room-list row, with the live member count.
         return {
             info(): RoomInfo {
-                return { id: room?.id ?? '', name: room?.name ?? '', memberCount: members.size };
+                return { id: room?.id ?? '', name: room?.name ?? '', count: members.size };
             },
         };
     });
 
-    // client: forward the raw socket's basic events to the host, and disconnect the socket on finalize.
     sync.client(() => {
         const { socket, Component } = props as RoomClientProps;
         const client = sync.boot({ socket }, Component);

@@ -1713,7 +1713,7 @@ function Room(unit, props) {
         return {
             info() {
                 var _a, _b;
-                return { id: (_a = room === null || room === void 0 ? void 0 : room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room === null || room === void 0 ? void 0 : room.name) !== null && _b !== void 0 ? _b : '', memberCount: members.size };
+                return { id: (_a = room === null || room === void 0 ? void 0 : room.id) !== null && _a !== void 0 ? _a : '', name: (_b = room === null || room === void 0 ? void 0 : room.name) !== null && _b !== void 0 ? _b : '', count: members.size };
             },
         };
     });

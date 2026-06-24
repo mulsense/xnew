@@ -31,7 +31,6 @@ xnew(document.getElementById('app'), App);
 //----------------------------------------------------------------------------------------------------
 
 function Lobby(unit, { socket }) {
-    xnew.extend(xnew.basics.Scene);
     const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
     // socket は呼び出し側が用意（room 無し = サーバーはロビー接続として扱う）。
@@ -69,7 +68,7 @@ function Lobby(unit, { socket }) {
                 xnew('<li class="flex items-center justify-between gap-3 px-3 py-2 bg-white border border-gray-200 rounded">', () => {
                     xnew('<div>', () => {
                         xnew('<span class="font-medium text-gray-700">', room.name);   // textContent でユーザー入力名を安全に表示
-                        xnew('<span class="text-xs text-gray-400 ml-2">', `(${room.memberCount}人)`);
+                        xnew('<span class="text-xs text-gray-400 ml-2">', `(${room.count}人)`);
                     });
                     const enter = xnew('<button class="px-3 py-1 rounded border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer">', '入室');
                     enter.on('click', () => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }) }));
@@ -96,7 +95,6 @@ function Lobby(unit, { socket }) {
 //----------------------------------------------------------------------------------------------------
 
 function Room(unit, { socket }) {
-    xnew.extend(xnew.basics.Scene);
     const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
     const roomId = socket.io?.opts?.query?.room;   // 表示用（socket 作成時の query から取り出す）

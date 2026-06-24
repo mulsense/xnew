@@ -22,7 +22,6 @@ xnew(document.getElementById('app'), App);
 //----------------------------------------------------------------------------------------------------
 
 function Lobby(unit, { socket }) {
-    xnew.extend(xnew.basics.Scene);
     const app = xnew.context(App);
     xnew.extend(xnew.basics.Lobby, { socket });
 
@@ -55,7 +54,7 @@ function Lobby(unit, { socket }) {
                 xnew('<li class="flex items-center justify-between gap-3 px-3 py-2 bg-white border border-gray-200 rounded">', () => {
                     xnew('<div>', () => {
                         xnew('<span class="font-medium text-gray-700">', room.name);
-                        xnew('<span class="text-xs text-gray-400 ml-2">', `(${room.memberCount}人)`);
+                        xnew('<span class="text-xs text-gray-400 ml-2">', `(${room.count}人)`);
                     });
                     const enter = xnew('<button class="px-3 py-1 rounded border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer">', '入室');
                     enter.on('click', () => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }) }));
@@ -74,7 +73,6 @@ function Lobby(unit, { socket }) {
 }
 
 function Room(unit, { socket }) {
-    xnew.extend(xnew.basics.Scene);
     const app = xnew.context(App);
     const roomId = socket.io?.opts?.query?.room;
 
