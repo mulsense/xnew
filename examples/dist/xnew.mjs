@@ -1616,10 +1616,17 @@ const sync = {
     },
 };
 
+const rooms = new Map();
+function roomList() {
+    return [...rooms.values()].map((room) => room.info());
+}
+function broadcastRooms(io) {
+    io.to('lobby').emit('statusupdate', { rooms: roomList() });
+}
 function Lobby(unit, props) {
+    xnew$1.extend(Scene);
     sync.server(() => {
         const { io, Room, maxRooms = 20, roomNameMax = 16 } = props;
-        const rooms = new Map();
         let nextRoomNum = 0;
         const connection = xnew$1.scope((conn) => {
             var _a, _b;
@@ -1632,7 +1639,7 @@ function Lobby(unit, props) {
                 return;
             }
             conn.join('lobby');
-            conn.emit('statusupdate', { rooms: unit.rooms });
+            conn.emit('statusupdate', { rooms: roomList() });
             conn.on('roomcreate', xnew$1.scope((payload) => {
                 var _a;
                 if (rooms.size >= maxRooms) {
@@ -1643,18 +1650,11 @@ function Lobby(unit, props) {
                 const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
                 rooms.set(id, xnew$1(unit, Room, { io, room: { id, name } }));
                 conn.emit('roomcreated', { room: { id, name } });
-                unit.update();
+                broadcastRooms(io);
             }));
         });
         io.on('connection', connection);
-        unit.on('finalize', () => io.off('connection', connection));
-        return {
-            get rooms() { return [...rooms.values()].map((room) => room.info()); },
-            update() {
-                return io.to('lobby').emit('statusupdate', { rooms: unit.rooms });
-            },
-            remove(id) { rooms.delete(id); },
-        };
+        unit.on('finalize', () => { io.off('connection', connection); rooms.clear(); });
     });
     sync.client(() => {
         const { socket } = props;
@@ -1668,12 +1668,13 @@ function Lobby(unit, props) {
     });
 }
 function Room(unit, props) {
+    xnew$1.extend(Scene);
     const members = new Set();
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props;
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
-        const lobby = xnew$1.context(Lobby);
+        const isListed = () => (room === null || room === void 0 ? void 0 : room.id) !== undefined && rooms.has(room.id);
         let graceTimer = null;
         const cancelCleanup = () => { graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
@@ -1683,9 +1684,9 @@ function Room(unit, props) {
                     return;
                 }
                 xnew$1.emit('-empty', {});
-                if (lobby !== undefined) {
-                    lobby.remove(room === null || room === void 0 ? void 0 : room.id);
-                    lobby.update();
+                if (isListed()) {
+                    rooms.delete(room.id);
+                    broadcastRooms(io);
                     unit.finalize();
                 }
             }, graceMs);
@@ -1694,12 +1695,16 @@ function Room(unit, props) {
             cancelCleanup();
             members.add(id);
             xnew$1.emit('-connect', { id });
-            lobby === null || lobby === void 0 ? void 0 : lobby.update();
+            if (isListed()) {
+                broadcastRooms(io);
+            }
         }));
         client.on('sync.disconnect', xnew$1.scope(({ id }) => {
             members.delete(id);
             xnew$1.emit('-disconnect', { id });
-            lobby === null || lobby === void 0 ? void 0 : lobby.update();
+            if (isListed()) {
+                broadcastRooms(io);
+            }
             if (members.size === 0) {
                 scheduleCleanup();
             }

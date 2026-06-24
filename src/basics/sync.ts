@@ -3,19 +3,40 @@
 //
 // Base components that wire socket.io handles to the host unit and own their teardown.
 // server/client is auto-detected from the runtime (→ core/env); handle is server=io / client=socket.
+// The server-side room ledger (id → Room unit) lives at module scope so Room can drop itself and
+// re-broadcast without a Lobby context; Lobby owns its lifecycle and clears it on finalize.
+//
+// Both components extend Scene (basics/view) as their base, so a Lobby / Room is a swappable scene
+// (change / add) regardless of side; the server/client wiring is layered on top of that base.
 //
 // - Lobby : lobby + dynamic rooms. client forwards lobby events to unit.on('-<event>') + create().
-//           server owns io.on('connection'), validates joins, and holds the room ledger (id → Room unit).
+//           server owns io.on('connection'), validates joins, and writes the module-global room ledger.
 //           A create request spawns the injected Room, stores its unit, and replies 'roomcreated'; the room
 //           list is built from each stored unit's info().
 // - Room  : boots Component and forwards basic events (connect/disconnect/notfound) to the host. On the
-//           server it counts members and exposes info() (id/name/memberCount) for the parent Lobby's list,
-//           re-broadcasts on changes, and drops itself from the ledger once empty for graceMs.
+//           server it counts members and exposes info() (id/name/memberCount) for the lobby list,
+//           re-broadcasts on changes, and drops itself from the ledger once empty for graceMs. A Room that
+//           is not in the ledger (mounted without a Lobby) skips broadcasting and self-removal.
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
 import { sync, BootOptions } from '../core/sync';
+import { Scene } from './view';
+
+/** Server-side room ledger (id → Room unit). Module-global so Room reaches it without a Lobby context;
+ *  Lobby is the sole writer and clears it on finalize. Unused on the client. */
+const rooms = new Map<string, Unit>();
+
+/** The current room list, one row per stored Room unit (built from each unit's info()). */
+function roomList(): RoomInfo[] {
+    return [...rooms.values()].map((room) => room.info());
+}
+
+/** Push the current room list to everyone in the 'lobby' room. */
+function broadcastRooms(io: any): void {
+    io.to('lobby').emit('statusupdate', { rooms: roomList() });
+}
 
 /** Lobby props. The component is mounted on both server and client, but each side reads a different
  *  shape: the server needs the io handle and the Room to spawn, the client only needs its socket.
@@ -27,14 +48,12 @@ export type LobbyProps = LobbyServerProps | LobbyClientProps;
 /** One row of the lobby's room list, produced by Room.info() and read off the stored Room unit. */
 export interface RoomInfo { id: string; name: string; memberCount: number; }
 
-/** Lobby — wires the lobby connection to the host unit; events arrive via unit.on('-<event>').
- *  socket callbacks run outside the tick, so emits are wrapped in xnew.scope to bind the unit scope. */
 export function Lobby(unit: Unit, props: LobbyProps) {
-    // server: owns io.on('connection') with join validation, the room ledger, and list re-broadcast.
-    // Room creation and ledger updates are delegated to Room (host does xnew(Room,...), Room registers via context).
+    // base: a swappable scene (exposes change / add for sibling-swap navigation).
+    xnew.extend(Scene);
+
     sync.server(() => {
         const { io, Room, maxRooms = 20, roomNameMax = 16 } = props as LobbyServerProps;
-        const rooms = new Map<string, Unit>();   // id → Room unit; the row is read via room.info()
         let nextRoomNum = 0;
 
         const connection = xnew.scope((conn: any) => {
@@ -44,9 +63,9 @@ export function Lobby(unit: Unit, props: LobbyProps) {
                 if (!rooms.has(roomId)) { conn.emit('notfound', { roomId }); conn.disconnect(true); }
                 return;
             }
-            // lobby connection: send the current list (later updates auto-broadcast), then handle create.
+
             conn.join('lobby');
-            conn.emit('statusupdate', { rooms: unit.rooms });
+            conn.emit('statusupdate', { rooms: roomList() });
             conn.on('roomcreate', xnew.scope((payload: any) => {
                 if (rooms.size >= maxRooms) { conn.emit('roomrejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
@@ -54,20 +73,12 @@ export function Lobby(unit: Unit, props: LobbyProps) {
                 // spawn the injected Room, store the unit, then reply 'roomcreated' and refresh the list.
                 rooms.set(id, xnew(unit, Room!, { io, room: { id, name } }));
                 conn.emit('roomcreated', { room: { id, name } });
-                unit.update();
+                broadcastRooms(io);
             }));
         });
         io.on('connection', connection);
-        unit.on('finalize', () => io.off('connection', connection));
-
-        // exposed so Room (via context(Lobby)) can drop itself from the ledger and re-broadcast the list.
-        return {
-            get rooms() { return [...rooms.values()].map((room) => room.info()); },
-            update() {
-                return io.to('lobby').emit('statusupdate', { rooms: unit.rooms });
-            },
-            remove(id: string) { rooms.delete(id); },
-        };
+        // Lobby owns the ledger lifecycle: drop the connection listener and clear the ledger on finalize.
+        unit.on('finalize', () => { io.off('connection', connection); rooms.clear(); });
     });
 
     // client: forward lobby events to the host unit's '-<event>', and disconnect the socket on finalize.
@@ -94,6 +105,8 @@ export type RoomProps = RoomServerProps | RoomClientProps;
  *  graceMs; if a parent Lobby exists it syncs that ledger, re-broadcasts on changes, and removes itself when
  *  the room stays empty. server/client is auto-detected via env. */
 export function Room(unit: Unit, props: RoomProps) {
+    // base: a swappable scene (exposes change / add for sibling-swap navigation).
+    xnew.extend(Scene);
 
     // member ledger: updated on the server by connect/disconnect, read via the exposed memberCount.
     // On the client it is never updated and stays empty (memberCount is 0).
@@ -106,7 +119,9 @@ export function Room(unit: Unit, props: RoomProps) {
         const client = sync.boot({ io, room }, Component);
         unit.on('finalize', () => client.finalize());
 
-        const lobby = xnew.context(Lobby);
+        // listed = this room is in the module-global ledger (i.e. a Lobby created it). A standalone Room
+        // (mounted without a Lobby) is never listed, so it skips broadcasting and self-removal.
+        const isListed = () => room?.id !== undefined && rooms.has(room.id);
 
         // remove the room once empty for graceMs: connect cancels it, disconnect reschedules it.
         // xnew.timeout lives under the unit, so finalize stops it and its callback runs in the unit scope.
@@ -117,7 +132,7 @@ export function Room(unit: Unit, props: RoomProps) {
             graceTimer = xnew.timeout(() => {
                 if (members.size > 0) { return; }
                 xnew.emit('-empty', {});
-                if (lobby !== undefined) { lobby.remove(room?.id); lobby.update(); unit.finalize(); }
+                if (isListed()) { rooms.delete(room!.id!); broadcastRooms(io); unit.finalize(); }
             }, graceMs);
         };
 
@@ -125,12 +140,12 @@ export function Room(unit: Unit, props: RoomProps) {
             cancelCleanup();
             members.add(id);
             xnew.emit('-connect', { id });
-            lobby?.update();
+            if (isListed()) { broadcastRooms(io); }
         }));
         client.on('sync.disconnect', xnew.scope(({ id }: any) => {
             members.delete(id);
             xnew.emit('-disconnect', { id });
-            lobby?.update();
+            if (isListed()) { broadcastRooms(io); }
             if (members.size === 0) { scheduleCleanup(); }
         }));
 
