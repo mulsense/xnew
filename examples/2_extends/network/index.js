@@ -17,9 +17,12 @@ import { Game } from './game.js';
 //   なり #app の外へ出てしまう）。シーンからは xnew.context(App).setStatus(...) で表示を更新する。
 function App() {
     const statusEl = document.getElementById('status');
+    let playerName = '';   // プレイヤー名。Lobby の入力欄から更新され、シーンをまたいで保持される。
     xnew(Lobby, { socket: window.io({ forceNew: true }) });
     return {
         setStatus(text, ok) { statusEl.textContent = text; statusEl.className = ok ? 'text-green-600' : 'text-red-500'; },
+        get playerName() { return playerName; },
+        setPlayerName(name) { playerName = name; },
     };
 }
 xnew(document.getElementById('app'), App);
@@ -39,7 +42,17 @@ function Lobby(unit, { socket }) {
 
     let rooms = [];
 
+    // 入室時に query へ載せる socket を作る。name は空なら 'ゲスト' にフォールバックし、必ず非空にする。
+    const joinSocket = (roomId) => window.io({ query: { room: roomId, name: app.playerName.trim() || 'ゲスト' }, forceNew: true });
+
     xnew.nest('<div class="max-w-md flex flex-col gap-3">');
+    // 名前入力（App に保持。入室時の query.name になり、空ならゲスト名へフォールバック）
+    xnew('<label class="flex items-center gap-2 text-sm text-gray-600">', () => {
+        xnew('<span>', 'あなたの名前');
+        const nameField = xnew('<input class="flex-1 px-2.5 py-1.5 rounded border border-gray-300 text-sm" type="text" maxlength="16" placeholder="ゲスト">');
+        nameField.element.value = app.playerName;   // シーン復帰時に既存の名前を復元
+        nameField.on('input', ({ value }) => app.setPlayerName(value));
+    });
     // 作成フォーム
     xnew('<form class="flex gap-2">', (form) => {
         const nameInput = xnew('<input class="flex-1 px-2.5 py-1.5 rounded border border-gray-300 text-sm" type="text" maxlength="16" placeholder="新しいルーム名">');
@@ -71,7 +84,7 @@ function Lobby(unit, { socket }) {
                         xnew('<span class="text-xs text-gray-400 ml-2">', `(${room.count}人)`);
                     });
                     const enter = xnew('<button class="px-3 py-1 rounded border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer">', '入室');
-                    enter.on('click', () => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }), room: { id: room.id, name: room.name } }));
+                    enter.on('click', () => unit.change(Room, { socket: joinSocket(room.id), room: { id: room.id, name: room.name, count: room.count } }));
                 });
             }
         });
@@ -81,7 +94,7 @@ function Lobby(unit, { socket }) {
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
     unit.on('-statusupdate', ({ rooms: list }) => { rooms = list; render(); });
-    unit.on('-roomcreated', ({ room }) => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }), room: { id: room.id, name: room.name } }));
+    unit.on('-roomcreated', ({ room }) => unit.change(Room, { socket: joinSocket(room.id), room: { id: room.id, name: room.name, count: room.count } }));
     unit.on('-roomrejected', ({ message }) => { hintEl.element.textContent = message; });
 
     render();   // 初期描画（一覧は -statusupdate 受信で更新）

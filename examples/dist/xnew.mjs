@@ -448,7 +448,7 @@ function isSystemEvent(type) {
     return SYSTEM_EVENTS.includes(type);
 }
 class Unit {
-    constructor(options, parent, ...args) {
+    constructor(parent, ...args) {
         var _a, _b, _c;
         let target;
         let Component;
@@ -492,6 +492,7 @@ class Unit {
         const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
         const key = (_c = props === null || props === void 0 ? void 0 : props.key) !== null && _c !== void 0 ? _c : null;
         this._ = {
+            id: Unit.next++,
             parent,
             status: 'invoked',
             tostart: true,
@@ -510,9 +511,6 @@ class Unit {
             eventor: new Eventor(),
             key,
         };
-        if ((options === null || options === void 0 ? void 0 : options.setup) !== undefined) {
-            options.setup(this);
-        }
         if (typeof target === 'string') {
             Unit.nest(this, target);
         }
@@ -668,7 +666,8 @@ class Unit {
     static reset() {
         var _a;
         (_a = Unit.engineRoot) === null || _a === void 0 ? void 0 : _a.finalize();
-        Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
+        Unit.next = 0;
+        Unit.currentUnit = Unit.engineRoot = new Unit(null);
         const ticker = new Ticker((delta) => {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot, delta);
@@ -797,6 +796,7 @@ class Unit {
         }
     }
 }
+Unit.next = 0;
 Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
@@ -915,7 +915,7 @@ class UnitTimer {
             unit.on('finalize', () => current.clear());
         };
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(null, Unit.currentUnit, Component);
+            timer.unit = new Unit(Unit.currentUnit, Component);
         }
         else if (timer.queue.length === 0) {
             timer.queue.push(Component);
@@ -928,7 +928,7 @@ class UnitTimer {
     }
     static next(timer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
+            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
@@ -941,11 +941,11 @@ const xnew$1 = Object.assign((function (...args) {
     if (args[0] instanceof Unit) {
         const parent = args.shift();
         const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-        return Unit.scope(snapshot, () => new Unit(null, parent, ...args));
+        return Unit.scope(snapshot, () => new Unit(parent, ...args));
     }
     else {
         const parent = (_b = Unit.currentUnit) !== null && _b !== void 0 ? _b : null;
-        return new Unit(null, parent, ...args);
+        return new Unit(parent, ...args);
     }
 }), {
     nest(target) {
@@ -1397,8 +1397,14 @@ function getEnvironment() {
 }
 
 const syncData = new WeakMap();
+const pendingStates = new Map();
 function syncOf(unit) {
-    return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
+    return getOrCreate(syncData, unit, () => {
+        var _a;
+        const state = (_a = pendingStates.get(unit._.id)) !== null && _a !== void 0 ? _a : null;
+        pendingStates.delete(unit._.id);
+        return { id: null, state, registry: null };
+    });
 }
 const syncIdCounters = new WeakMap();
 function captureStateTree(root) {
@@ -1451,7 +1457,8 @@ function applyStateTree(root, tree) {
         if (!Component) {
             continue;
         }
-        const unit = new Unit({ setup: (u) => { syncOf(u).state = Object.assign({}, node.state); } }, parent, Component);
+        pendingStates.set(Unit.next, Object.assign({}, node.state));
+        const unit = new Unit(parent, Component);
         syncOf(unit).id = node.id;
         map.set(node.id, unit);
     }
@@ -1462,10 +1469,10 @@ function applyStateTree(root, tree) {
         }
     }
 }
-const syncRoots = new WeakMap();
+const roots = new Map();
 function findSyncRoot(unit) {
     for (let u = unit; u !== null; u = u._.parent) {
-        if (syncRoots.has(u)) {
+        if (roots.has(u._.id)) {
             return u;
         }
     }
@@ -1473,7 +1480,7 @@ function findSyncRoot(unit) {
 }
 function rootInfoOf(unit) {
     const root = findSyncRoot(unit);
-    const info = root !== null ? syncRoots.get(root) : undefined;
+    const info = root !== null ? roots.get(root._.id) : undefined;
     if (info === undefined) {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket, room }, ...).');
     }
@@ -1482,13 +1489,10 @@ function rootInfoOf(unit) {
 function bootServer(opts, parent, args) {
     const { io, room } = opts;
     const info = { io, room, clients: [] };
-    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-    const target = () => io.to(room.id);
-    root.on('update', () => target().emit('sync', captureStateTree(root)));
-    const refreshStatus = () => {
-        target().emit('status', { clients: [...info.clients] });
-        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-    };
+    roots.set(Unit.next, info);
+    const root = new Unit(parent, ...args);
+    root.on('finalize', () => roots.delete(root._.id));
+    root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
     io.on('connection', (socket) => {
         var _a, _b, _c, _d, _e;
         if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room.id) {
@@ -1497,20 +1501,25 @@ function bootServer(opts, parent, args) {
         socket.join(room.id);
         info.clients.push({ id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
         dispatchSync(root, 'sync.connect', socket.id, undefined);
-        refreshStatus();
+        statusUpdate();
         socket.onAny((event, payload) => dispatchSync(root, event, socket.id, payload));
         socket.on('disconnect', () => {
             info.clients = info.clients.filter((c) => c.id !== socket.id);
             dispatchSync(root, 'sync.disconnect', socket.id, undefined);
-            refreshStatus();
+            statusUpdate();
         });
     });
+    function statusUpdate() {
+        io.to(room.id).emit('status', { clients: info.clients });
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    }
     return root;
 }
 function bootClient(opts, parent, args) {
     const { socket, room } = opts;
     const info = { socket, clients: [], room };
-    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    roots.set(Unit.next, info);
+    const root = new Unit(parent, ...args);
     const onSync = (tree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
     const onStatus = (status) => {
@@ -1519,7 +1528,7 @@ function bootClient(opts, parent, args) {
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
-    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
+    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root._.id); });
     socket.onAny((event, payload) => dispatchSync(root, event, undefined, payload));
     return root;
 }
@@ -1660,8 +1669,8 @@ function Lobby(unit, props) {
                 }
                 const id = `r${++nextRoomNum}`;
                 const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                rooms.set(id, xnew$1(unit, Room, { io, room: { id, name } }));
-                conn.emit('roomcreated', { room: { id, name } });
+                rooms.set(id, xnew$1(unit, Room, { io, room: { id, name, count: 0 } }));
+                conn.emit('roomcreated', { room: { id, name, count: 0 } });
                 broadcastRooms(io);
             }));
         });

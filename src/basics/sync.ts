@@ -7,18 +7,18 @@
 //
 // - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes create().
 // - Room     : boots Component, forwards connect/disconnect/notfound; server counts members + cleanup.
-// - RoomInfo : one room-list row { id, name, count }.
+//
+// A room-list row is core's RoomData { id, name, count } (count = live member count).
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
-import { sync, BootServerOptions } from '../core/sync';
+import { sync, BootServerOptions, RoomData } from '../core/sync';
 import { Scene } from './view';
 
 const rooms = new Map<string, Unit>();
-export interface RoomInfo { id: string; name: string; count: number; }
 
-function roomList(): RoomInfo[] {
+function roomList(): RoomData[] {
     return [...rooms.values()].map((room) => room.info());
 }
 
@@ -46,8 +46,8 @@ export function Lobby(unit: Unit, props: any) {
                 if (rooms.size >= maxRooms) { conn.emit('roomrejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                rooms.set(id, xnew(unit, Room, { io, room: { id, name } }));
-                conn.emit('roomcreated', { room: { id, name } });
+                rooms.set(id, xnew(unit, Room, { io, room: { id, name, count: 0 } }));
+                conn.emit('roomcreated', { room: { id, name, count: 0 } });
                 broadcastRooms(io);
             }));
         });
@@ -113,7 +113,7 @@ export function Room(unit: Unit, props: any) {
 
         // exposed to the parent Lobby: one room-list row with the live member count.
         return {
-            info(): RoomInfo {
+            info(): RoomData {
                 return { id: room.id, name: room.name, count: members.size };
             },
         };

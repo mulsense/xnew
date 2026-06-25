@@ -39,9 +39,6 @@ interface Snapshot {
     Component: Function | null;
 }
 type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
-interface UnitOptions {
-    setup?: (unit: Unit) => void;
-}
 type ComponentFn<P extends object = any, A extends object = {}> = (unit: Unit, props: P) => A | void;
 type DefinesOf<C> = C extends (...args: any[]) => infer R ? ([R] extends [void] ? {} : Exclude<R, void | undefined>) : {};
 type PropsOf<C> = C extends (unit: Unit, props: infer P, ...rest: any[]) => any ? P : {};
@@ -50,6 +47,7 @@ type SystemEvent = typeof SYSTEM_EVENTS[number];
 declare class Unit {
     [key: string]: any;
     _: {
+        id: number;
         parent: Unit | null;
         children: Unit[];
         status: Status;
@@ -79,7 +77,7 @@ declare class Unit {
         eventor: Eventor;
         key: any;
     };
-    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]);
+    constructor(parent: Unit | null, ...args: any[]);
     get parent(): Unit | null;
     get element(): DomElement;
     private start;
@@ -96,6 +94,7 @@ declare class Unit {
     static render(unit: Unit, delta?: number): void;
     static engineRoot: Unit;
     static currentUnit: Unit;
+    static next: number;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
@@ -158,6 +157,7 @@ interface ClientData {
 interface RoomData {
     id: string;
     name: string;
+    count: number;
 }
 interface SyncStatus {
     room: RoomData;

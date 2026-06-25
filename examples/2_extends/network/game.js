@@ -30,6 +30,8 @@ const SPEED = 3;
 const SLOTS = ['p1', 'p2'];
 const slotLabel = (slot) => (slot === 'p1' ? 'プレイヤー1' : 'プレイヤー2');
 const clamp = (v, max) => Math.max(0, Math.min(max, v));
+// clientId → 表示名。台帳（status.clients の name）に無ければ id 先頭を出す。client 側でのみ使う。
+const nameOf = (id) => xnew.sync.status.clients.find((c) => c.id === id)?.name || (id ? id.slice(0, 4) : '');
 
 // ---- Game: server/client 共通ルート。シーンを synced child として 1 つ持つ ----
 export function Game(unit) {
@@ -104,7 +106,7 @@ function Setup(unit) {
         unit.on('render', () => {
             SLOTS.forEach((slot) => {
                 const owner = state.slots[slot];
-                const who = owner ? (owner === myId ? 'あなた' : owner.slice(0, 4)) : '空き';
+                const who = owner ? (owner === myId ? 'あなた' : nameOf(owner)) : '空き';
                 slotBtns[slot].textContent = `${slotLabel(slot)}: ${who}`;
             });
             begin.element.disabled = !(state.slots.p1 && state.slots.p2);
@@ -128,13 +130,23 @@ export function World(unit, { slots } = {}) {
     xnew.sync.client(() => {
         xnew.nest('<div class="flex flex-col gap-1">');   // World のラッパ（ラベル + 盤面）
         const status = xnew('<p class="m-0 text-xs text-gray-500">');   // 操作中 / 観戦中 の表示
+        const roster = xnew('<p class="m-0 text-xs text-gray-400">');   // 各枠の担当者名
         xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50">');   // 全員共通の盤面（以降 Player はここへ）
 
         // 自分の id に一致する Player があれば操作者、無ければ観戦者（途中参加もここに含まれる）。
         const myId = xnew.sync.status.client.id;
         unit.on('render', () => {
-            const mine = xnew.find(Player).find((player) => player.clientId === myId);
+            const players = xnew.find(Player);
+            const mine = players.find((player) => player.clientId === myId);
             status.element.textContent = mine ? `操作中: ${slotLabel(mine.slot)}（WASD / 矢印で移動）` : '観戦中（操作はできません）';
+            // 各枠を slot 順に並べ、担当者名を出す（自分は「あなた」）。
+            roster.element.textContent = SLOTS
+                .map((slot) => {
+                    const p = players.find((player) => player.slot === slot);
+                    const who = p ? (p.clientId === myId ? 'あなた' : nameOf(p.clientId)) : '空き';
+                    return `${slotLabel(slot)}: ${who}`;
+                })
+                .join(' / ');
         });
     });
 }

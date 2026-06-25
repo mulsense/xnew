@@ -20,7 +20,7 @@ type Handler = (...args: any[]) => void;
 type AnyHandler = (event: string, payload: any) => void;
 
 /** テストの既定 room。bootServer/bootClient が省略時に補い、connect も既定でここへ join する。 */
-export const ROOM = { id: 'room', name: 'room' };
+export const ROOM = { id: 'room', name: 'room', count: 0 };
 
 /** socket.io の client socket 相当（boot({ mode: 'client', socket }) と生クライアントの両方で使う）。 */
 export interface MockClientSocket {

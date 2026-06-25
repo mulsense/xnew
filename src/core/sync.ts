@@ -111,7 +111,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
 }
 
 export interface ClientData { id: string; name: string; }
-export interface RoomData { id: string; name: string; }
+export interface RoomData { id: string; name: string; count: number; }
 
 export interface SyncStatus { room: RoomData; clients: ClientData[]; client: ClientData; }
 
@@ -264,12 +264,11 @@ export const sync = {
         const data = syncOf(unit);
         data.registry = Object.assign(data.registry ?? {}, Components);
     },
-    /** ルームのステータス。room / clients は両環境、client（自分の情報）は client 環境のみ（server は throw）。 */
     get status(): SyncStatus {
         if (getEnvironment() === 'server') {
             const info = rootInfoOf(Unit.currentUnit) as ServerInfo;
             return {
-                room: info.room, clients: [...info.clients],
+                room: info.room, clients: info.clients,
                 get client(): ClientData { throw new Error('sync.status.client is only available on the client side.'); },
             };
         } else {
