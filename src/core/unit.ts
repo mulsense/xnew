@@ -29,12 +29,6 @@ interface Snapshot { unit: Unit; context: Context; element: DomElement; Componen
 // lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
 export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
 
-// Unit 構築時の補助パラメータ。
-// - setup : 構築直後・body 実行前に呼ばれるフック（sync.ts が boot 登録 / state プリシードに使う）
-export interface UnitOptions {
-    setup?: (unit: Unit) => void;
-}
-
 // Component 関数の型。戻り値 defines は xnew(...) の戻り値に合成される(Unit & A)。
 export type ComponentFn<P extends object = any, A extends object = {}> =
     (unit: Unit, props: P) => A | void;
@@ -60,12 +54,10 @@ function isSystemEvent(type: string): type is SystemEvent {
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
-
-    // Component が返す defines はランタイムで unit に生やされる（static には型で追えない）。
-    // それらを unit.<name> で読めるよう、任意メンバを許可する。既知メンバの型はそのまま優先される。
     [key: string]: any;
 
     public _: {
+        id: number;
         parent: Unit | null;
         children: Unit[];
 
@@ -91,7 +83,7 @@ export class Unit {
         key: any;   // reserved prop for find(key) (global unique assumed)
     };
 
-    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
+    constructor(parent: Unit | null, ...args: any[]) {
         let target: DomElement | string | null;
         let Component: Function | string | number | undefined;
         let props: Object | undefined;
@@ -137,6 +129,7 @@ export class Unit {
         const key = (props as any)?.key ?? null;
      
         this._ = {
+            id: Unit.next++,
             parent,
             status: 'invoked',
             tostart: true,
@@ -155,10 +148,6 @@ export class Unit {
             eventor: new Eventor(),
             key,
         };
-
-        if (options?.setup !== undefined) {
-            options.setup(this);
-        }
 
         if (typeof target === 'string') {
             Unit.nest(this, target);
@@ -339,9 +328,11 @@ export class Unit {
 
     static engineRoot: Unit;
     static currentUnit: Unit;
+    static next: number = 0;   // unit ごとに 0 から順番に採番する id（reset でリセット）
     static reset(): void {
         Unit.engineRoot?.finalize();
-        Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
+        Unit.next = 0;
+        Unit.currentUnit = Unit.engineRoot = new Unit(null);
         const ticker = new Ticker((delta: number) => {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot, delta);
@@ -623,7 +614,7 @@ export class UnitTimer {
         };
 
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(null, Unit.currentUnit, Component);
+            timer.unit = new Unit(Unit.currentUnit, Component);
         } else if (timer.queue.length === 0) {
             timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
@@ -635,7 +626,7 @@ export class UnitTimer {
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
+            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }

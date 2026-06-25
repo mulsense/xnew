@@ -27,9 +27,17 @@ interface SyncData {
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
+// apply が unit 生成前に server state を仕込むための受け渡し。次に生成される unit の id（Unit.next）を
+// key にして置き、syncOf が初回生成時に消費する（body の sync.state より前に state を埋めるため）。
+const pendingStates: Map<number, Record<string, any>> = new Map();
+
 /** unit の同期データを返す（無ければ遅延生成。可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
-    return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
+    return getOrCreate(syncData, unit, () => {
+        const state = pendingStates.get(unit._.id) ?? null;
+        pendingStates.delete(unit._.id);
+        return { id: null, state, registry: null };
+    });
 }
 
 // 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
@@ -89,8 +97,9 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         const parent = node.parentId === null ? root : map.get(node.parentId);
         const Component = parent && syncOf(parent).registry?.[node.name];
         if (!Component) { continue; }   // 親が無い / 許可していない型は無視
-        // setup でサーバー状態をプリシード（body より前に走るので欠落キーも埋まる）。
-        const unit = new Unit({ setup: (u) => { syncOf(u).state = { ...node.state }; } }, parent, Component);
+        // 生成前にサーバー状態を id 指定でプリシード（body の sync.state より前に欠落キーも埋まる）。
+        pendingStates.set(Unit.next, { ...node.state });
+        const unit = new Unit(parent, Component);
         syncOf(unit).id = node.id;
         map.set(node.id, unit);
     }
@@ -108,12 +117,13 @@ export interface SyncStatus { room: RoomData; clients: ClientData[]; client: Cli
 
 interface ServerInfo { io: any; room: RoomData; clients: ClientData[]; }
 interface ClientInfo { socket: any; room: RoomData; clients: ClientData[]; }
-const syncRoots: WeakMap<Unit, ServerInfo | ClientInfo> = new WeakMap();
+// boot ルートの内部情報。unit._.id を key にし、unit 生成前に Unit.next で登録できる（setup 不要）。
+const syncRoots: Map<number, ServerInfo | ClientInfo> = new Map();
 
 /** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
 function findSyncRoot(unit: Unit): Unit | null {
     for (let u: Unit | null = unit; u !== null; u = u._.parent) {
-        if (syncRoots.has(u)) { return u; }
+        if (syncRoots.has(u._.id)) { return u; }
     }
     return null;
 }
@@ -121,7 +131,7 @@ function findSyncRoot(unit: Unit): Unit | null {
 /** caller の sync ルートの内部情報を返す（未 boot なら throw）。 */
 function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
     const root = findSyncRoot(unit);
-    const info = root !== null ? syncRoots.get(root) : undefined;
+    const info = root !== null ? syncRoots.get(root._.id) : undefined;
     if (info === undefined) {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket, room }, ...).');
     }
@@ -143,7 +153,9 @@ export interface BootClientOptions { socket: any; room: RoomData; }
 function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
     const { io, room } = opts;
     const info: ServerInfo = { io, room, clients: [] };
-    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    syncRoots.set(Unit.next, info);   // 生成前に「次に採番される id」へ紐付ける
+    const root = new Unit(parent, ...args);
+    root.on('finalize', () => syncRoots.delete(root._.id));
     const target = () => io.to(room.id);   // 常に room 単位で配信する
     root.on('update', () => target().emit('sync', captureStateTree(root)));
     // メンバ台帳を client へ配信し、サブツリーへ sync.statusupdate を配る。
@@ -172,7 +184,8 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
 function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { socket, room } = opts;
     const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
-    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    syncRoots.set(Unit.next, info);   // 生成前に「次に採番される id」へ紐付ける
+    const root = new Unit(parent, ...args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
     // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
@@ -181,7 +194,7 @@ function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): 
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
-    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
+    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); syncRoots.delete(root._.id); });
     socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
     return root;
 }
