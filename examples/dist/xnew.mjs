@@ -1400,9 +1400,11 @@ const syncData = new WeakMap();
 function syncOf(unit) {
     return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
 }
-let syncIdCounter = 1;
+const syncIdCounters = new WeakMap();
 function captureStateTree(root) {
+    var _a;
     const nodes = [];
+    let nextId = (_a = syncIdCounters.get(root)) !== null && _a !== void 0 ? _a : 1;
     const syncName = (unit) => {
         const registry = unit._.parent ? syncOf(unit._.parent).registry : null;
         if (registry === null) {
@@ -1422,13 +1424,14 @@ function captureStateTree(root) {
         const data = syncOf(unit);
         const name = syncName(unit);
         if (name !== undefined) {
-            (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = syncIdCounter++);
+            (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
             nodes.push({ id: data.id, name, parentId, state: Object.assign({}, ((_b = data.state) !== null && _b !== void 0 ? _b : {})) });
             parentId = data.id;
         }
         unit._.children.forEach((child) => walk(child, parentId));
     };
     walk(root, null);
+    syncIdCounters.set(root, nextId);
     return nodes;
 }
 const reconcileMaps = new WeakMap();
@@ -1590,30 +1593,28 @@ const sync = {
     },
     get status() {
         if (getEnvironment() === 'server') {
-            const server = rootInfoOf(Unit.currentUnit);
+            const info = rootInfoOf(Unit.currentUnit);
             return {
-                room: server.room,
-                clients: [...server.clients],
+                room: info.room, clients: [...info.clients],
                 get client() { throw new Error('sync.status.client is only available on the client side.'); },
             };
         }
         else {
-            const client = rootInfoOf(Unit.currentUnit);
+            const info = rootInfoOf(Unit.currentUnit);
             return {
-                room: client.room,
-                clients: client.clients,
-                get client() { var _a; return (_a = client.clients.find((c) => c.id === client.socket.id)) !== null && _a !== void 0 ? _a : { id: client.socket.id, name: '' }; },
+                room: info.room, clients: info.clients,
+                get client() { var _a; return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' }; },
             };
         }
     },
     emit(event, payload = {}) {
         if (getEnvironment() === 'server') {
-            const server = rootInfoOf(Unit.currentUnit);
-            server.io.to(server.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            const info = rootInfoOf(Unit.currentUnit);
+            info.io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
         else {
-            const client = rootInfoOf(Unit.currentUnit);
-            client.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            const info = rootInfoOf(Unit.currentUnit);
+            info.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
     },
     boot(opts, ...args) {

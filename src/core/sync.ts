@@ -32,11 +32,13 @@ export function syncOf(unit: Unit): SyncData {
     return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
 }
 
-// 同期ノード id の採番カウンタ（identity 用。reset を跨いで単調増加でよい）。
-let syncIdCounter = 1;
+// 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
+// id は root 内で一意なら十分（apply は root 別 reconcileMap、dispatch は root で絞る）。
+const syncIdCounters: WeakMap<Unit, number> = new WeakMap();
 
 export function captureStateTree(root: Unit): StateTree {
     const nodes: StateTree = [];
+    let nextId = syncIdCounters.get(root) ?? 1;
 
     // 親のレジストリ上の登録名（未登録なら undefined = 同期対象外）。
     // _.Components は [基底..., 最派生] 順なので末尾側の一致を採る。
@@ -55,7 +57,7 @@ export function captureStateTree(root: Unit): StateTree {
         const data = syncOf(unit);
         const name = syncName(unit);
         if (name !== undefined) {
-            data.id ??= syncIdCounter++;
+            data.id ??= nextId++;
             nodes.push({ id: data.id, name, parentId, state: { ...(data.state ?? {}) } });
             parentId = data.id;
         }
@@ -63,6 +65,7 @@ export function captureStateTree(root: Unit): StateTree {
     };
 
     walk(root, null);
+    syncIdCounters.set(root, nextId);
     return nodes;
 }
 
