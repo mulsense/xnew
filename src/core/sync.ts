@@ -132,17 +132,8 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 // 基本イベントの host(boot 親) への転送は basics/sync.ts Room が担う。
 //----------------------------------------------------------------------------------------------------
 
-/** server 側 boot の入力。io（socket.io の Server）と、絞り込む room（id で query.room / broadcast を限定）。 */
-export interface BootServerOptions {
-    io: any;
-    room: RoomData;    // id で query.room / broadcast を絞る
-}
-
-/** client 側 boot の入力。socket（socket.io の Socket）と、接続先 room（server からの status で上書きされる初期値）。 */
-export interface BootClientOptions {
-    socket: any;
-    room: RoomData;
-}
+export interface BootServerOptions { io: any; room: RoomData; }
+export interface BootClientOptions { socket: any; room: RoomData; }
 
 /** server ルートを生成・配線。下り mirror（update で capture→room へ broadcast）と、接続ごとに
  *  connect / 全受信 / disconnect を clientId 付きで root 配下へ配る。room 指定時は query.room 一致だけ扱う。 */
