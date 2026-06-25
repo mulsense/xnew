@@ -84,7 +84,7 @@ function Setup(unit) {
         xnew.nest('<div class="flex flex-col items-start gap-2 p-4 border border-gray-300 rounded bg-white">');
         xnew('<p class="m-0 text-sm text-gray-600">', '担当プレイヤーを選んでください（クリックで取得 / 取り消し）。');
 
-        const myId = xnew.sync.status.id;
+        const myId = xnew.sync.status.client.id;
         // 枠ボタン: 自分の枠ならクリックで取消、空き枠なら取得。
         const slotBtns = {};
         SLOTS.forEach((slot) => {
@@ -131,7 +131,7 @@ export function World(unit, { slots } = {}) {
         xnew.nest('<div class="relative w-60 h-40 overflow-hidden border border-gray-300 bg-gray-50">');   // 全員共通の盤面（以降 Player はここへ）
 
         // 自分の id に一致する Player があれば操作者、無ければ観戦者（途中参加もここに含まれる）。
-        const myId = xnew.sync.status.id;
+        const myId = xnew.sync.status.client.id;
         unit.on('render', () => {
             const mine = xnew.find(Player).find((player) => player.clientId === myId);
             status.element.textContent = mine ? `操作中: ${slotLabel(mine.slot)}（WASD / 矢印で移動）` : '観戦中（操作はできません）';
@@ -164,7 +164,7 @@ export function Player(unit, { clientId = '', slot = '' } = {}) {
         unit.on('render', () => { el.style.left = `${state.x}px`; el.style.top = `${state.y}px`; });
 
         // 入力 → 移動は自機（このクライアント自身の Player）だけが受ける。観戦者は描画のみ。
-        if (state.clientId === xnew.sync.status.id) {
+        if (state.clientId === xnew.sync.status.client.id) {
             const stop = () => xnew.sync.emit('-move', { vector: { x: 0, y: 0 } });
             unit.on('window.keydown.wasd window.keyup.wasd window.keydown.arrow window.keyup.arrow', ({ event, vector }) => {
                 event.preventDefault();

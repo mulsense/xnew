@@ -11,8 +11,8 @@ describe('xnew.sync.boot({ socket, room }) — in-memory socket.io', () => {
         bootServer({ io: hub.io }, function Server() {});
         let id1: string | undefined;
         let id2: string | undefined;
-        bootClient({ socket: hub.connect() }, function C1() { xnew.sync.client(() => { id1 = xnew.sync.status.id; }); });
-        bootClient({ socket: hub.connect() }, function C2() { xnew.sync.client(() => { id2 = xnew.sync.status.id; }); });
+        bootClient({ socket: hub.connect() }, function C1() { xnew.sync.client(() => { id1 = xnew.sync.status.client.id; }); });
+        bootClient({ socket: hub.connect() }, function C2() { xnew.sync.client(() => { id2 = xnew.sync.status.client.id; }); });
         expect(id1).toBe('c1');
         expect(id2).toBe('c2');
     });

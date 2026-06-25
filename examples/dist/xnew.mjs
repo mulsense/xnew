@@ -1479,12 +1479,12 @@ function rootInfoOf(unit) {
 function bootServer(opts, parent, args) {
     const { io, room } = opts;
     const roomId = room.id;
-    const info = { io, room, clients: new Map() };
+    const info = { io, room, clients: [] };
     const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
     const target = () => io.to(roomId);
     root.on('update', () => target().emit('sync', captureStateTree(root)));
     const refreshStatus = () => {
-        target().emit('status', { clients: [...info.clients.values()] });
+        target().emit('status', { clients: [...info.clients] });
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     io.on('connection', (socket) => {
@@ -1493,12 +1493,12 @@ function bootServer(opts, parent, args) {
             return;
         }
         socket.join(roomId);
-        info.clients.set(socket.id, { id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
+        info.clients.push({ id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
         dispatchSync(root, 'sync.connect', socket.id, undefined);
         refreshStatus();
         socket.onAny((event, payload) => dispatchSync(root, event, socket.id, payload));
         socket.on('disconnect', () => {
-            info.clients.delete(socket.id);
+            info.clients = info.clients.filter((c) => c.id !== socket.id);
             dispatchSync(root, 'sync.disconnect', socket.id, undefined);
             refreshStatus();
         });
@@ -1591,11 +1591,19 @@ const sync = {
     get status() {
         if (getEnvironment() === 'server') {
             const server = rootInfoOf(Unit.currentUnit);
-            return { clients: [...server.clients.values()], room: server.room };
+            return {
+                room: server.room,
+                clients: [...server.clients],
+                get client() { throw new Error('sync.status.client is only available on the client side.'); },
+            };
         }
         else {
             const client = rootInfoOf(Unit.currentUnit);
-            return { id: client.socket.id, clients: client.clients, room: client.room };
+            return {
+                room: client.room,
+                clients: client.clients,
+                get client() { var _a; return (_a = client.clients.find((c) => c.id === client.socket.id)) !== null && _a !== void 0 ? _a : { id: client.socket.id, name: '' }; },
+            };
         }
     },
     emit(event, payload = {}) {

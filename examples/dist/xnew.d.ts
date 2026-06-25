@@ -160,9 +160,9 @@ interface RoomData {
     name: string;
 }
 interface SyncStatus {
-    id?: string;
-    clients: ClientData[];
     room: RoomData;
+    clients: ClientData[];
+    client: ClientData;
 }
 interface BootServerOptions {
     io: any;

@@ -6,7 +6,7 @@ import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 // ルームステータス（xnew.sync.status / sync.statusupdate）
 //   - server: メンバ接続/切断で台帳(clients)が更新され、サブツリーへ sync.statusupdate が配られる。
 //             sync.status は { clients: [{id,name}] }。
-//   - client: server からの status 配信を取り込み、sync.statusupdate を配る。sync.status は { id, clients, room }。
+//   - client: server からの status 配信を取り込み、sync.statusupdate を配る。sync.status は { room, clients, client }。
 //----------------------------------------------------------------------------------------------------
 
 describe('room status (sync.status / sync.statusupdate)', () => {
@@ -28,14 +28,14 @@ describe('room status (sync.status / sync.statusupdate)', () => {
         expect(snapshots).toEqual([['a'], ['a', 'b'], ['b']]);
     });
 
-    it('client receives status (id / clients / room) via broadcast', () => {
+    it('client receives status (client / clients / room) via broadcast', () => {
         bootServer({ io: hub.io }, function Server() {});
         let status: any;
         bootClient({ socket: hub.connect('c1') }, function Client(unit: Unit) {
             xnew.sync.client(() => { unit.on('sync.statusupdate', () => { status = xnew.sync.status; }); });
         });
         hub.connect('c2');   // c2 の接続で server が status を全 client へ broadcast → 配線済みの c1 が受信
-        expect(status.id).toBe('c1');                                          // 自分自身の client id
+        expect(status.client.id).toBe('c1');                                   // 自分自身の client（ClientData）
         expect(status.clients.map((c: any) => c.id).sort()).toEqual(['c1', 'c2']);
     });
 });
