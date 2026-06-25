@@ -1479,6 +1479,50 @@ function rootInfoOf(unit) {
     }
     return info;
 }
+function bootServer(opts, parent, args) {
+    const { io, room } = opts;
+    const info = { io, room, clients: [] };
+    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    const target = () => io.to(room.id);
+    root.on('update', () => target().emit('sync', captureStateTree(root)));
+    const refreshStatus = () => {
+        target().emit('status', { clients: [...info.clients] });
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    };
+    io.on('connection', (socket) => {
+        var _a, _b, _c, _d, _e;
+        if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room.id) {
+            return;
+        }
+        socket.join(room.id);
+        info.clients.push({ id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
+        dispatchSync(root, 'sync.connect', socket.id, undefined);
+        refreshStatus();
+        socket.onAny((event, payload) => dispatchSync(root, event, socket.id, payload));
+        socket.on('disconnect', () => {
+            info.clients = info.clients.filter((c) => c.id !== socket.id);
+            dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+            refreshStatus();
+        });
+    });
+    return root;
+}
+function bootClient(opts, parent, args) {
+    const { socket, room } = opts;
+    const info = { socket, clients: [], room };
+    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    const onSync = (tree) => applyStateTree(root, tree);
+    socket.on('sync', onSync);
+    const onStatus = (status) => {
+        var _a;
+        info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    };
+    socket.on('status', onStatus);
+    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
+    socket.onAny((event, payload) => dispatchSync(root, event, undefined, payload));
+    return root;
+}
 function dispatchSync(root, event, id, message) {
     if (root._.status === 'finalized' || event === 'sync' || event === 'status') {
         return;
@@ -1576,51 +1620,11 @@ const sync = {
         if (Unit.engineRoot === undefined) {
             Unit.reset();
         }
-        const parent = Unit.currentUnit;
-        const { room } = opts;
         if (getEnvironment() === 'server') {
-            const { io } = opts;
-            const info = { io, room, clients: [] };
-            const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-            const target = () => io.to(room.id);
-            root.on('update', () => target().emit('sync', captureStateTree(root)));
-            const refreshStatus = () => {
-                target().emit('status', { clients: [...info.clients] });
-                dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-            };
-            io.on('connection', (socket) => {
-                var _a, _b, _c, _d, _e;
-                if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room.id) {
-                    return;
-                }
-                socket.join(room.id);
-                info.clients.push({ id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
-                dispatchSync(root, 'sync.connect', socket.id, undefined);
-                refreshStatus();
-                socket.onAny((event, payload) => dispatchSync(root, event, socket.id, payload));
-                socket.on('disconnect', () => {
-                    info.clients = info.clients.filter((c) => c.id !== socket.id);
-                    dispatchSync(root, 'sync.disconnect', socket.id, undefined);
-                    refreshStatus();
-                });
-            });
-            return root;
+            return bootServer(opts, Unit.currentUnit, args);
         }
         else {
-            const { socket } = opts;
-            const info = { socket, clients: [], room };
-            const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-            const onSync = (tree) => applyStateTree(root, tree);
-            socket.on('sync', onSync);
-            const onStatus = (status) => {
-                var _a;
-                info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
-                dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-            };
-            socket.on('status', onStatus);
-            root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
-            socket.onAny((event, payload) => dispatchSync(root, event, undefined, payload));
-            return root;
+            return bootClient(opts, Unit.currentUnit, args);
         }
     },
 };

@@ -129,7 +129,7 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 }
 
 //----------------------------------------------------------------------------------------------------
-// boot 配線メモ — server/client の分岐は sync.boot（後述の facade）1 関数の中だけ。
+// boot — ルート生成 + 配線。server/client の分岐は sync.boot の 1 箇所だけ。
 // 配線は 2 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
 // (2) dispatcher（受信を root 配下の unit.on へ。'-event'=同一 syncId / '+'・無印=全体）。
 // 基本イベントの host(boot 親) への転送は basics/sync.ts Room が担う。
@@ -137,6 +137,54 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 
 export interface BootServerOptions { io: any; room: RoomData; }
 export interface BootClientOptions { socket: any; room: RoomData; }
+
+/** server ルートを生成・配線。下り mirror（update で capture→room へ broadcast）と、接続ごとに
+ *  connect / 全受信 / disconnect を clientId 付きで root 配下へ配る。room 指定時は query.room 一致だけ扱う。 */
+function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
+    const { io, room } = opts;
+    const info: ServerInfo = { io, room, clients: [] };
+    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    const target = () => io.to(room.id);   // 常に room 単位で配信する
+    root.on('update', () => target().emit('sync', captureStateTree(root)));
+    // メンバ台帳を client へ配信し、サブツリーへ sync.statusupdate を配る。
+    const refreshStatus = () => {
+        target().emit('status', { clients: [...info.clients] });
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    };
+    io.on('connection', (socket: any) => {
+        if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
+        socket.join(room.id);
+        // 接続 → 台帳へ追加し connect / 全受信 / disconnect をサブツリーへ配る（host への転送は Room の責務）。
+        info.clients.push({ id: socket.id, name: socket.handshake?.query?.name ?? '' });
+        dispatchSync(root, 'sync.connect', socket.id, undefined);
+        refreshStatus();
+        socket.onAny((event: string, payload: any) => dispatchSync(root, event, socket.id, payload));
+        socket.on('disconnect', () => {
+            info.clients = info.clients.filter((c) => c.id !== socket.id);
+            dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+            refreshStatus();
+        });
+    });
+    return root;
+}
+
+/** client ルートを生成・配線。下り apply（on('sync')）、ステータス取り込み（on('status')）、受信配布を行う。 */
+function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
+    const { socket, room } = opts;
+    const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
+    const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
+    const onSync = (tree: StateTree) => applyStateTree(root, tree);
+    socket.on('sync', onSync);
+    // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
+    const onStatus = (status: { clients?: ClientData[] }) => {
+        info.clients = status?.clients ?? [];
+        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    };
+    socket.on('status', onStatus);
+    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
+    socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
+    return root;
+}
 
 /** 1 つの受信イベントを root 配下の該当 unit リスナへ配る。 */
 function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
@@ -234,52 +282,10 @@ export const sync = {
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {
         if (Unit.engineRoot === undefined) { Unit.reset(); }
-        const parent = Unit.currentUnit;
-        const { room } = opts;
-
         if (getEnvironment() === 'server') {
-            // server: 下り mirror（update で capture→room へ broadcast）＋接続ごとに connect/全受信/disconnect を配る。
-            const { io } = opts as BootServerOptions;
-            const info: ServerInfo = { io, room, clients: [] };
-            const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-            const target = () => io.to(room.id);   // 常に room 単位で配信する
-            root.on('update', () => target().emit('sync', captureStateTree(root)));
-            // メンバ台帳を client へ配信し、サブツリーへ sync.statusupdate を配る。
-            const refreshStatus = () => {
-                target().emit('status', { clients: [...info.clients] });
-                dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-            };
-            io.on('connection', (socket: any) => {
-                if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
-                socket.join(room.id);
-                // 接続 → 台帳へ追加し connect / 全受信 / disconnect をサブツリーへ配る（host への転送は Room の責務）。
-                info.clients.push({ id: socket.id, name: socket.handshake?.query?.name ?? '' });
-                dispatchSync(root, 'sync.connect', socket.id, undefined);
-                refreshStatus();
-                socket.onAny((event: string, payload: any) => dispatchSync(root, event, socket.id, payload));
-                socket.on('disconnect', () => {
-                    info.clients = info.clients.filter((c) => c.id !== socket.id);
-                    dispatchSync(root, 'sync.disconnect', socket.id, undefined);
-                    refreshStatus();
-                });
-            });
-            return root;
+            return bootServer(opts as BootServerOptions, Unit.currentUnit, args);
         } else {
-            // client: 下り apply（on('sync')）、ステータス取り込み（on('status')）、受信配布。
-            const { socket } = opts as BootClientOptions;
-            const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
-            const root = new Unit({ setup: (unit) => { syncRoots.set(unit, info); } }, parent, ...args);
-            const onSync = (tree: StateTree) => applyStateTree(root, tree);
-            socket.on('sync', onSync);
-            // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
-            const onStatus = (status: { clients?: ClientData[] }) => {
-                info.clients = status?.clients ?? [];
-                dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-            };
-            socket.on('status', onStatus);
-            root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); });
-            socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
-            return root;
+            return bootClient(opts as BootClientOptions, Unit.currentUnit, args);
         }
     },
 };
