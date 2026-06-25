@@ -256,29 +256,26 @@ export const sync = {
     /** ルームのステータス。room / clients は両環境、client（自分の情報）は client 環境のみ（server は throw）。 */
     get status(): SyncStatus {
         if (getEnvironment() === 'server') {
-            const server = rootInfoOf(Unit.currentUnit) as ServerInfo;
+            const info = rootInfoOf(Unit.currentUnit) as ServerInfo;
             return {
-                room: server.room,
-                clients: [...server.clients],
+                room: info.room, clients: [...info.clients],
                 get client(): ClientData { throw new Error('sync.status.client is only available on the client side.'); },
             };
         } else {
-            const client = rootInfoOf(Unit.currentUnit) as ClientInfo;
+            const info = rootInfoOf(Unit.currentUnit) as ClientInfo;
             return {
-                room: client.room,
-                clients: client.clients,
-                // 自分の ClientData。status 受信前（台帳に未掲載）は socket.id から最小形を補う。
-                get client(): ClientData { return client.clients.find((c) => c.id === client.socket.id) ?? { id: client.socket.id, name: '' }; },
+                room: info.room, clients: info.clients,
+                get client(): ClientData { return info.clients.find((c) => c.id === info.socket.id) ?? { id: info.socket.id, name: '' }; },
             };
         }
     },
     emit(event: string, payload: Record<string, any> = {}): void {
         if (getEnvironment() === 'server') {
-            const server = rootInfoOf(Unit.currentUnit) as ServerInfo;
-            server.io.to(server.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            const info = rootInfoOf(Unit.currentUnit) as ServerInfo;
+            info.io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         } else {
-            const client = rootInfoOf(Unit.currentUnit) as ClientInfo;
-            client.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            const info = rootInfoOf(Unit.currentUnit) as ClientInfo;
+            info.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {
