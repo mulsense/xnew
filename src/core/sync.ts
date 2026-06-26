@@ -147,9 +147,8 @@ export interface BootServerOptions { io: any; room: RoomData; }
 export interface BootClientOptions { socket: any; room: RoomData; }
 
 function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
-    const isServer = getEnvironment() === 'server';
     const { room } = opts;
-    const info: ServerInfo | ClientInfo = isServer
+    const info: ServerInfo | ClientInfo = getEnvironment() === 'server'
         ? { io: (opts as BootServerOptions).io, room, clients: [] }
         : { socket: (opts as BootClientOptions).socket, room, clients: [] };
 
@@ -159,27 +158,28 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
     roots.set(root, info);
     Unit.initialize(root, ...args);
 
-    if (isServer) {
+    if (getEnvironment() === 'server') {
         const { io } = info as ServerInfo;
         root.on('finalize', () => roots.delete(root));
         root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
         io.on('connection', (socket: any) => {
-            if (socket.handshake?.query?.room !== room.id) { return; }   // ignore other rooms
+            const query = socket.handshake?.query;
+            if (query?.room !== room.id) return; // ignore other rooms
             socket.join(room.id);
             // on connect: add to roster, dispatch connect / all received / disconnect to the subtree (host forwarding is Room's job).
-            info.clients.push({ id: socket.id, name: socket.handshake?.query?.name ?? '' });
-            dispatchSync(root, 'sync.connect', socket.id, undefined);
+            info.clients.push({ id: socket.id, name: query?.name ?? '' });
+            dispatch('sync.connect', socket.id, undefined);
             statusUpdate();
-            socket.onAny((event: string, payload: any) => dispatchSync(root, event, socket.id, payload));
+            socket.onAny((event: string, payload: any) => dispatch(event, socket.id, payload));
             socket.on('disconnect', () => {
                 info.clients = info.clients.filter((c) => c.id !== socket.id);
-                dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+                dispatch('sync.disconnect', socket.id, undefined);
                 statusUpdate();
             });
         });
         function statusUpdate() {
             io.to(room.id).emit('status', { clients: info.clients });
-            dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+            dispatch('sync.statusupdate', undefined, undefined);
         }
     } else {
         const { socket } = info as ClientInfo;
@@ -188,17 +188,16 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         // take the member roster from the server and dispatch sync.statusupdate to the subtree.
         const onStatus = (status: { clients?: ClientData[] }) => {
             info.clients = status?.clients ?? [];
-            dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+            dispatch('sync.statusupdate', undefined, undefined);
         };
         socket.on('status', onStatus);
         root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
-        socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
+        socket.onAny((event: string, payload: any) => dispatch(event, undefined, payload));
     }
 
-    function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
-        const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
-        const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
-        const syncId = isEnvelope ? message.syncId : undefined;
+    function dispatch(event: string, id: string | undefined, payload: any): void {
+        const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
+        const syncId = payload ? payload.syncId : undefined;
         (Unit.type2units.get(event) ?? []).forEach((unit) => {
             if (findSyncRoot(unit) !== root) return; // skip units of another root
             if (event[0] === '-' && syncOf(unit).id !== syncId) return; // skip units of another sync node
