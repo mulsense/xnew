@@ -83,30 +83,14 @@ export class Unit {
         key: any;   // reserved prop for find(key) (global unique assumed)
     };
 
-    constructor(parent: Unit | null, ...args: any[]) {
-        let target: DomElement | string | null;
-        let Component: Function | string | number | undefined;
-        let props: Object | undefined;
-
-        // parse arguments: (target,) Component, props 
-        if (isDomElement(args[0]) || typeof args[0] === 'string') {
-            target = args[0] as DomElement | string;
-            Component = args[1] as Function | string | number | undefined;
-            props = args[2] as Object | undefined;
-        } else {
-            target = null;
-            Component = args[0] as Function | string | number | undefined;
-            props = args[1] as Object | undefined;
-        }
-
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = this;
-
+    constructor(parent: Unit | null, element: DomElement | null) {
         parent?._.children.push(this);
 
+        const baseContext = parent?._.currentContext ?? { previous: null };
+
         let baseElement: DomElement;
-        if (isDomElement(target)) {
-            baseElement = target;
+        if (element !== null) {
+            baseElement = element;
         } else if (parent !== null) {
             baseElement = parent._.currentElement;
         } else if (globalThis.document?.body) {
@@ -115,19 +99,6 @@ export class Unit {
             baseElement = null as unknown as DomElement;
         }
 
-        let baseComponent: Function;
-        if (typeof Component === 'function') {
-            baseComponent = Component;
-        } else if (typeof Component === 'string' || typeof Component === 'number') {
-            baseComponent = (unit: Unit) => { unit.element.textContent = Component.toString(); };
-        } else {
-            baseComponent = (unit: Unit) => {};
-        }
-
-        const baseContext = parent?._.currentContext ?? { previous: null };
-
-        const key = (props as any)?.key ?? null;
-     
         this._ = {
             id: Unit.next++,
             parent,
@@ -146,19 +117,59 @@ export class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
-            key,
+            key: null,
         };
+    }
 
-        if (typeof target === 'string') {
-            Unit.nest(this, target);
+    static create(parent: Unit | null, ...args: any[]): Unit {
+        let element: DomElement | null;
+        let tag: string | null;
+        if (isDomElement(args[0])) {
+            element = args.shift() as DomElement;
+            tag = null;
+        } else if (typeof args[0] === 'string') {
+            element = null;
+            tag = args.shift() as string;
+        } else {
+            element = null;
+            tag = null;
         }
 
-        Unit.extend(this, baseComponent, props);
+        const unit = new Unit(parent, element);
 
-        if (this._.status === 'invoked') {
-            this._.status = 'initialized';
+        if (tag !== null) {
+            Unit.nest(unit, tag);
         }
-        this._.afterSnapshot = Unit.snapshot(this);
+
+        Unit.initialize(unit, ...args);
+
+        return unit;
+    }
+
+    static initialize(unit: Unit, ...args: any[]): void {
+        const Component = args[0] as Function | string | number | undefined;
+        const props = args[1] as Object | undefined;
+
+        let baseComponent: Function;
+        if (typeof Component === 'function') {
+            baseComponent = Component;
+        } else if (typeof Component === 'string' || typeof Component === 'number') {
+            baseComponent = (unit: Unit) => { unit.element.textContent = Component.toString(); };
+        } else {
+            baseComponent = (unit: Unit) => {};
+        }
+
+        unit._.key = (props as any)?.key ?? null;
+
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = unit;
+
+        Unit.extend(unit, baseComponent, props);
+
+        if (unit._.status === 'invoked') {
+            unit._.status = 'initialized';
+        }
+        unit._.afterSnapshot = Unit.snapshot(unit);
         Unit.currentUnit = backup;
     }
 
@@ -332,7 +343,7 @@ export class Unit {
     static reset(): void {
         Unit.engineRoot?.finalize();
         Unit.next = 0;
-        Unit.currentUnit = Unit.engineRoot = new Unit(null);
+        Unit.currentUnit = Unit.engineRoot = Unit.create(null);
         const ticker = new Ticker((delta: number) => {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot, delta);
@@ -614,7 +625,7 @@ export class UnitTimer {
         };
 
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, Component);
+            timer.unit = Unit.create(Unit.currentUnit, Component);
         } else if (timer.queue.length === 0) {
             timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
@@ -626,7 +637,7 @@ export class UnitTimer {
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
+            timer.unit = Unit.create(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }

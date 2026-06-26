@@ -124,7 +124,7 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         // 生成前に初期 SyncData（id + server state）を仕込む。生成中の body の sync.state より前に
         // 欠落キーが埋まり、id も確定する。body が syncOf を呼ばなければ直後の syncOf(unit) が adopt する。
         seededData.set(Unit.next, { id: node.id, state: { ...node.state }, registry: null });
-        const unit = new Unit(parent, Component);
+        const unit = Unit.create(parent, Component);
         syncOf(unit);
         map.set(node.id, unit);
     }
@@ -177,7 +177,7 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
     const { io, room } = opts;
     const info: ServerInfo = { io, room, clients: [] };
     roots.set(Unit.next, info);
-    const root = new Unit(parent, ...args);
+    const root = Unit.create(parent, ...args);
     root.on('finalize', () => roots.delete(root._.id));
     root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
 
@@ -206,7 +206,7 @@ function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): 
     const { socket, room } = opts;
     const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
     roots.set(Unit.next, info);   // 生成前に「次に採番される id」へ紐付ける
-    const root = new Unit(parent, ...args);
+    const root = Unit.create(parent, ...args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
     // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
