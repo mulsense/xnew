@@ -7,7 +7,7 @@
 // 注意: socket の on ハンドラは tick/scope 外で走るので unit の生成/finalize はしない（spawn は update で）。
 //
 // - sync : xnew.sync ファサード（state / register / emit / status / boot / server / client）
-// - syncOf / setState / setRegister : unit 単位の同期データ取得 / state 補完 / レジストリ追記
+// - syncOf : unit 単位の同期データ取得（state 補完 / レジストリ追記は sync.state / sync.register が担う）
 // - StateTree : capture・apply が運ぶノード列
 // - SyncStatus / ClientData / RoomData : ルームのステータス各種
 // - BootServerOptions / BootClientOptions : server / client それぞれの boot 入力
@@ -35,21 +35,6 @@ export function syncOf(unit: Unit): SyncData {
         syncData.set(unit, data);
     }
     return data;
-}
-
-/** unit の synced state を取得（既存キーは尊重し、無いキーだけ initial で補完）。 */
-export function setState(unit: Unit, initial: Record<string, any>): Record<string, any> {
-    const data = syncOf(unit);
-    // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
-    for (const key of Object.keys(initial)) {
-        if (!(key in data.state)) { data.state[key] = initial[key]; }
-    }
-    return data.state;
-}
-
-/** unit のレジストリへ {name: Component} を追記する（無ければ生成）。 */
-export function setRegister(unit: Unit, Components: Record<string, Function>): void {
-    Object.assign(syncOf(unit).registry, Components);
 }
 
 // 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
@@ -267,14 +252,19 @@ export const sync = {
         }
     },
     state(initial: Record<string, any> = {}): Record<string, any> {
-        return setState(Unit.currentUnit, initial);
+        const data = syncOf(Unit.currentUnit);
+        // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
+        for (const key of Object.keys(initial)) {
+            if (!(key in data.state)) { data.state[key] = initial[key]; }
+        }
+        return data.state;
     },
     register(Components: Record<string, Function>): void {
         const unit = Unit.currentUnit;
         if (unit._.status !== 'invoked') {
             throw new Error('xnew.sync.register must be called during component initialization.');
         }
-        setRegister(unit, Components);
+        Object.assign(syncOf(unit).registry, Components);
     },
     get status(): SyncStatus {
         const info = rootInfoOf(Unit.currentUnit);
