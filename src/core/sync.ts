@@ -20,8 +20,8 @@ interface SyncNode { id: number; name: string; parentId: number | null; state: R
 export type StateTree = SyncNode[];
 
 interface SyncData {
-    id: number | null;                  // sync node id (assigned on capture)
-    state: Record<string, any>;         // synced state (declared by sync.state / preseeded by apply)
+    id: number | null;
+    state: Record<string, any>;
     registry: Record<string, Function>; // {name: Component} allowed as direct sync children
 }
 
@@ -34,15 +34,14 @@ export function syncOf(unit: Unit): SyncData {
     return syncData.get(unit)!;
 }
 
-// Sync node id counter (identity). Monotonic and independent per root (boot root).
-// id only needs to be unique within a root (apply uses a per-root reconcileMap; dispatch filters by root).
+// Per-root monotonic id counter; ids only need to be unique within a root.
 const syncIdCounters: WeakMap<Unit, number> = new WeakMap();
 
 export function captureStateTree(root: Unit): StateTree {
     const nodes: StateTree = [];
     let nextId = syncIdCounters.get(root) ?? 1;
 
-    // Registered name in the parent's registry (undefined = not a sync target).
+    // Registered name in the parent's registry, or undefined if not a sync target.
     // _.Components is [base..., most-derived], so match from the tail.
     const syncName = (unit: Unit): string | undefined => {
         const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
@@ -87,22 +86,21 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
     for (const node of tree) {
         const existing = map.get(node.id);
         if (existing !== undefined) {
-            // update: overwrite changed fields (never delete a once-set key; v1 simplification)
+            // never delete a once-set key (v1 simplification)
             Object.assign(syncOf(existing).state, node.state);
             continue;
         }
         const parent = node.parentId === null ? root : map.get(node.parentId);
         const Component = parent && syncOf(parent).registry[node.name];
-        if (!Component) { continue; }   // ignore: no parent / type not allowed
-        // Create the unit before its body runs and seed its SyncData (id + server state) by unit key,
-        // then initialize: missing keys are filled before the body's sync.state and the id is fixed.
+        if (!Component) { continue; }
+        // seed SyncData before initialize so the body's sync.state sees the server state and fixed id
         const unit = new Unit(parent);
         syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
         Unit.initialize(unit, Component);
         map.set(node.id, unit);
     }
 
-    // remove: collapse replicas whose id vanished from the tree
+    // remove replicas whose id vanished from the tree
     for (const [id, unit] of [...map.entries()]) {
         if (!incoming.has(id)) { unit.finalize(); map.delete(id); }
     }
@@ -137,10 +135,9 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 }
 
 //----------------------------------------------------------------------------------------------------
-// boot — root creation + wiring. The server/client split lives only inside the boot function.
-// Two wirings: (1) downstream state mirror (server: capture→broadcast on update / client: apply on 'sync')
-// (2) dispatcher (received events → unit.on under root: '-event'=same syncId / '+'·plain=whole tree).
-// Forwarding basic events to the host (boot parent) is Room's job in basics/sync.ts.
+// boot — root creation + wiring; the server/client split lives only inside this function.
+// (1) downstream state mirror (server: capture→broadcast on update / client: apply on 'sync')
+// (2) dispatcher (received events → unit.on under root: '-event'=same syncId / '+'·plain=whole tree)
 //----------------------------------------------------------------------------------------------------
 
 export interface BootServerOptions { io: any; room: RoomData; }
@@ -153,7 +150,6 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         : { socket: (opts as BootClientOptions).socket, room, clients: [] };
 
     // Bind root before init so sync functions in the body can resolve it via findSyncRoot.
-    // root may take (target, Component) form, so leave arg parsing to Unit.initialize.
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
@@ -166,7 +162,6 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
             const query = socket.handshake?.query;
             if (query?.room !== room.id) return; // ignore other rooms
             socket.join(room.id);
-            // on connect: add to roster, dispatch connect / all received / disconnect to the subtree (host forwarding is Room's job).
             info.clients.push({ id: socket.id, name: query?.name ?? '' });
             dispatch('sync.connect', socket.id, undefined);
             statusUpdate();
@@ -185,7 +180,6 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         const { socket } = info as ClientInfo;
         const onSync = (tree: StateTree) => applyStateTree(root, tree);
         socket.on('sync', onSync);
-        // take the member roster from the server and dispatch sync.statusupdate to the subtree.
         const onStatus = (status: { clients?: ClientData[] }) => {
             info.clients = status?.clients ?? [];
             dispatch('sync.statusupdate', undefined, undefined);
@@ -240,7 +234,7 @@ export const sync = {
     },
     state(initial: Record<string, any> = {}): Record<string, any> {
         const data = syncOf(Unit.currentUnit);
-        // keep existing keys, fill only missing ones from initial (apply's preseed / prior declaration wins).
+        // fill only missing keys (apply's preseed / prior declaration wins)
         for (const key of Object.keys(initial)) {
             if (!(key in data.state)) { data.state[key] = initial[key]; }
         }
