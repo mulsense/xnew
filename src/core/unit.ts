@@ -83,7 +83,7 @@ export class Unit {
         key: any;   // reserved prop for find(key) (global unique assumed)
     };
 
-    constructor(parent: Unit | null, element: DomElement | null) {
+    constructor(parent: Unit | null = null, element: DomElement | null = null) {
         parent?._.children.push(this);
 
         const baseContext = parent?._.currentContext ?? { previous: null };

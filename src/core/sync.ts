@@ -27,17 +27,11 @@ interface SyncData {
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
-// apply が unit 生成前に初期 SyncData を仕込むための受け渡し。生成中に走る body の sync.state より前に
-// state / id を確定させたいが、生成前は Unit 参照が無く WeakMap に置けない。そこで「次に採番される id」
-// (Unit.next) を key にして置き、syncOf が初回生成時に adopt する（id key なので生成途中の再入でも混ざらない）。
-const seededData: Map<number, SyncData> = new Map();
-
-/** unit の同期データを返す（無ければ seed を adopt、無ければ空生成。可変で直接読み書きしてよい）。 */
+/** unit の同期データを返す（無ければ遅延生成。可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
     let data = syncData.get(unit);
     if (data === undefined) {
-        data = seededData.get(unit._.id) ?? { id: null, state: null, registry: null };
-        seededData.delete(unit._.id);
+        data = { id: null, state: null, registry: null };
         syncData.set(unit, data);
     }
     return data;
@@ -121,11 +115,11 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         const parent = node.parentId === null ? root : map.get(node.parentId);
         const Component = parent && syncOf(parent).registry?.[node.name];
         if (!Component) { continue; }   // 親が無い / 許可していない型は無視
-        // 生成前に初期 SyncData（id + server state）を仕込む。生成中の body の sync.state より前に
-        // 欠落キーが埋まり、id も確定する。body が syncOf を呼ばなければ直後の syncOf(unit) が adopt する。
-        seededData.set(Unit.next, { id: node.id, state: { ...node.state }, registry: null });
-        const unit = Unit.create(parent, Component);
-        syncOf(unit);
+        // body 未実行の unit を先に生成し、初期 SyncData（id + server state）を unit キーで仕込んでから
+        // initialize で body を走らせる。これで body の sync.state より前に欠落キーが埋まり id も確定する。
+        const unit = new Unit(parent);
+        syncData.set(unit, { id: node.id, state: { ...node.state }, registry: null });
+        Unit.initialize(unit, Component);
         map.set(node.id, unit);
     }
 
@@ -176,6 +170,8 @@ export interface BootClientOptions { socket: any; room: RoomData; }
 function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
     const { io, room } = opts;
     const info: ServerInfo = { io, room, clients: [] };
+    // body 内の sync 関数が findSyncRoot で root を引けるよう、生成前に「次に採番される id」へ紐付ける。
+    // root は (target, Component) 形も取りうるので引数解析を持つ Unit.create を使う（分割すると解析が要る）。
     roots.set(Unit.next, info);
     const root = Unit.create(parent, ...args);
     root.on('finalize', () => roots.delete(root._.id));
@@ -205,7 +201,7 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
 function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { socket, room } = opts;
     const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
-    roots.set(Unit.next, info);   // 生成前に「次に採番される id」へ紐付ける
+    roots.set(Unit.next, info);   // 生成前に「次に採番される id」へ紐付ける（root は (target, Component) 形も取りうる）
     const root = Unit.create(parent, ...args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
