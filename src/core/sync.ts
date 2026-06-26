@@ -7,7 +7,8 @@
 // 注意: socket の on ハンドラは tick/scope 外で走るので unit の生成/finalize はしない（spawn は update で）。
 //
 // - sync : xnew.sync ファサード（state / register / emit / status / boot / server / client）
-// - syncOf / StateTree : unit 単位の同期データ取得 / capture・apply が運ぶノード列
+// - syncOf / setState / setRegister : unit 単位の同期データ取得 / state 補完 / レジストリ追記
+// - StateTree : capture・apply が運ぶノード列
 // - SyncStatus / ClientData / RoomData : ルームのステータス各種
 // - BootServerOptions / BootClientOptions : server / client それぞれの boot 入力
 //----------------------------------------------------------------------------------------------------
@@ -26,20 +27,37 @@ interface SyncData {
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
-// apply が unit 生成前に server state を仕込むための受け渡し。次に生成される unit の id（Unit.next）を
-// key にして置き、syncOf が初回生成時に消費する（body の sync.state より前に state を埋めるため）。
-const pendingStates: Map<number, Record<string, any>> = new Map();
+// apply が unit 生成前に初期 SyncData を仕込むための受け渡し。生成中に走る body の sync.state より前に
+// state / id を確定させたいが、生成前は Unit 参照が無く WeakMap に置けない。そこで「次に採番される id」
+// (Unit.next) を key にして置き、syncOf が初回生成時に adopt する（id key なので生成途中の再入でも混ざらない）。
+const seededData: Map<number, SyncData> = new Map();
 
-/** unit の同期データを返す（無ければ遅延生成。可変で直接読み書きしてよい）。 */
+/** unit の同期データを返す（無ければ seed を adopt、無ければ空生成。可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
     let data = syncData.get(unit);
     if (data === undefined) {
-        const state = pendingStates.get(unit._.id) ?? null;
-        pendingStates.delete(unit._.id);
-        data = { id: null, state, registry: null };
+        data = seededData.get(unit._.id) ?? { id: null, state: null, registry: null };
+        seededData.delete(unit._.id);
         syncData.set(unit, data);
     }
     return data;
+}
+
+/** unit の synced state を取得（既存キーは尊重し、無いキーだけ initial で補完）。 */
+export function setState(unit: Unit, initial: Record<string, any>): Record<string, any> {
+    const data = syncOf(unit);
+    data.state ??= {};
+    // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
+    for (const key of Object.keys(initial)) {
+        if (!(key in data.state)) { data.state[key] = initial[key]; }
+    }
+    return data.state;
+}
+
+/** unit のレジストリへ {name: Component} を追記する（無ければ生成）。 */
+export function setRegister(unit: Unit, Components: Record<string, Function>): void {
+    const data = syncOf(unit);
+    data.registry = Object.assign(data.registry ?? {}, Components);
 }
 
 // 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
@@ -53,8 +71,8 @@ export function captureStateTree(root: Unit): StateTree {
     // 親のレジストリ上の登録名（未登録なら undefined = 同期対象外）。
     // _.Components は [基底..., 最派生] 順なので末尾側の一致を採る。
     const syncName = (unit: Unit): string | undefined => {
-        const registry = unit._.parent ? syncOf(unit._.parent).registry : null;
-        if (registry === null) { return undefined; }
+        const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
+        if (registry === null || registry === undefined) { return undefined; }
         const entries = Object.entries(registry);
         for (let i = unit._.Components.length - 1; i >= 0; i--) {
             const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
@@ -64,9 +82,9 @@ export function captureStateTree(root: Unit): StateTree {
     };
 
     const walk = (unit: Unit, parentId: number | null): void => {
-        const data = syncOf(unit);
         const name = syncName(unit);
         if (name !== undefined) {
+            const data = syncOf(unit);
             data.id ??= nextId++;
             nodes.push({ id: data.id, name, parentId, state: { ...(data.state ?? {}) } });
             parentId = data.id;
@@ -103,10 +121,11 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         const parent = node.parentId === null ? root : map.get(node.parentId);
         const Component = parent && syncOf(parent).registry?.[node.name];
         if (!Component) { continue; }   // 親が無い / 許可していない型は無視
-        // 生成前にサーバー状態を id 指定でプリシード（body の sync.state より前に欠落キーも埋まる）。
-        pendingStates.set(Unit.next, { ...node.state });
+        // 生成前に初期 SyncData（id + server state）を仕込む。生成中の body の sync.state より前に
+        // 欠落キーが埋まり、id も確定する。body が syncOf を呼ばなければ直後の syncOf(unit) が adopt する。
+        seededData.set(Unit.next, { id: node.id, state: { ...node.state }, registry: null });
         const unit = new Unit(parent, Component);
-        syncOf(unit).id = node.id;
+        syncOf(unit);
         map.set(node.id, unit);
     }
 
@@ -253,22 +272,14 @@ export const sync = {
         }
     },
     state(initial: Record<string, any> = {}): Record<string, any> {
-        const data = syncOf(Unit.currentUnit);
-        data.state ??= {};
-        // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
-        for (const key of Object.keys(initial)) {
-            if (!(key in data.state)) { data.state[key] = initial[key]; }
-        }
-        return data.state;
+        return setState(Unit.currentUnit, initial);
     },
     register(Components: Record<string, Function>): void {
         const unit = Unit.currentUnit;
         if (unit._.status !== 'invoked') {
             throw new Error('xnew.sync.register must be called during component initialization.');
         }
-        // 呼び出しユニットのレジストリへ {name: Component} を追記する（無ければ生成）。
-        const data = syncOf(unit);
-        data.registry = Object.assign(data.registry ?? {}, Components);
+        setRegister(unit, Components);
     },
     get status(): SyncStatus {
         if (getEnvironment() === 'server') {
