@@ -1,16 +1,16 @@
 //----------------------------------------------------------------------------------------------------
-// sync — server→client 状態同期エンジン
+// sync — server→client state sync engine
 //
-// server ツリーの同期対象を SyncNode 列として捕捉し client ツリーへ差分適用する。同期対象は
-// 「直接の親のレジストリに登録された型」だけ。通信は socket.io 前提で、boot に io（server）/
-// socket（client）をそのまま渡す（抽象 transport 層は持たない）。
-// 注意: socket の on ハンドラは tick/scope 外で走るので unit の生成/finalize はしない（spawn は update で）。
+// Captures the server tree's sync targets as a SyncNode list and diff-applies them to the client
+// tree. A sync target is only a type registered in its direct parent's registry. Transport is
+// socket.io: boot receives io (server) / socket (client) directly; there is no transport abstraction.
+// Note: socket on-handlers run outside the tick/scope, so never create/finalize units there (spawn on update).
 //
-// - sync : xnew.sync ファサード（state / register / emit / status / boot / server / client）
-// - syncOf : unit 単位の同期データ取得（state 補完 / レジストリ追記は sync.state / sync.register が担う）
-// - StateTree : capture・apply が運ぶノード列
-// - SyncStatus / ClientData / RoomData : ルームのステータス各種
-// - BootServerOptions / BootClientOptions : server / client それぞれの boot 入力
+// - sync : xnew.sync facade (state / register / emit / status / boot / server / client)
+// - syncOf : per-unit sync data accessor (state fill / registry append live in sync.state / sync.register)
+// - StateTree : node list carried by capture / apply
+// - SyncStatus / ClientData / RoomData : room status types
+// - BootServerOptions / BootClientOptions : boot input for server / client
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
@@ -20,33 +20,30 @@ interface SyncNode { id: number; name: string; parentId: number | null; state: R
 export type StateTree = SyncNode[];
 
 interface SyncData {
-    id: number | null;                  // 同期ノード id（capture 時に採番）
-    state: Record<string, any>;         // synced state（sync.state で宣言 / apply がプリシード）
-    registry: Record<string, Function>; // 直接の同期子として許可する {name: Component}
+    id: number | null;                  // sync node id (assigned on capture)
+    state: Record<string, any>;         // synced state (declared by sync.state / preseeded by apply)
+    registry: Record<string, Function>; // {name: Component} allowed as direct sync children
 }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
-/** unit の同期データを返す（無ければ遅延生成。可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
-    let data = syncData.get(unit);
-    if (data === undefined) {
-        data = { id: null, state: {}, registry: {} };
-        syncData.set(unit, data);
+    if (syncData.has(unit) === false) {
+        syncData.set(unit, { id: null, state: {}, registry: {} });
     }
-    return data;
+    return syncData.get(unit)!;
 }
 
-// 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
-// id は root 内で一意なら十分（apply は root 別 reconcileMap、dispatch は root で絞る）。
+// Sync node id counter (identity). Monotonic and independent per root (boot root).
+// id only needs to be unique within a root (apply uses a per-root reconcileMap; dispatch filters by root).
 const syncIdCounters: WeakMap<Unit, number> = new WeakMap();
 
 export function captureStateTree(root: Unit): StateTree {
     const nodes: StateTree = [];
     let nextId = syncIdCounters.get(root) ?? 1;
 
-    // 親のレジストリ上の登録名（未登録なら undefined = 同期対象外）。
-    // _.Components は [基底..., 最派生] 順なので末尾側の一致を採る。
+    // Registered name in the parent's registry (undefined = not a sync target).
+    // _.Components is [base..., most-derived], so match from the tail.
     const syncName = (unit: Unit): string | undefined => {
         const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
         if (registry === null || registry === undefined) { return undefined; }
@@ -74,38 +71,38 @@ export function captureStateTree(root: Unit): StateTree {
     return nodes;
 }
 
-/** client ルートごとの id→Unit マップ。 */
+/** Per-client-root id→Unit map. */
 const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
-/** state tree を client サブツリーへ差分適用（create/update/remove。tree は pre-order で client 側のみ呼ばれる）。 */
+/** Diff-apply a state tree to the client subtree (create/update/remove; tree is pre-order, client only). */
 export function applyStateTree(root: Unit, tree: StateTree): void {
-    let map = reconcileMaps.get(root);
-    if (map === undefined) {
-        map = new Map<number, Unit>();
-        reconcileMaps.set(root, map);
+    if (reconcileMaps.has(root) === false) {
+        reconcileMaps.set(root, new Map<number, Unit>());
     }
+    const map = reconcileMaps.get(root)!;
+
     const incoming = new Set<number>(tree.map((node) => node.id));
 
-    // create / update（pre-order なので親が先に存在する）
+    // create / update (pre-order, so the parent already exists)
     for (const node of tree) {
         const existing = map.get(node.id);
         if (existing !== undefined) {
-            // update: 変更フィールドを上書き（一度入ったキーは消さない。v1 の割り切り）
+            // update: overwrite changed fields (never delete a once-set key; v1 simplification)
             Object.assign(syncOf(existing).state, node.state);
             continue;
         }
         const parent = node.parentId === null ? root : map.get(node.parentId);
         const Component = parent && syncOf(parent).registry[node.name];
-        if (!Component) { continue; }   // 親が無い / 許可していない型は無視
-        // body 未実行の unit を先に生成し、初期 SyncData（id + server state）を unit キーで仕込んでから
-        // initialize で body を走らせる。これで body の sync.state より前に欠落キーが埋まり id も確定する。
+        if (!Component) { continue; }   // ignore: no parent / type not allowed
+        // Create the unit before its body runs and seed its SyncData (id + server state) by unit key,
+        // then initialize: missing keys are filled before the body's sync.state and the id is fixed.
         const unit = new Unit(parent);
         syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
         Unit.initialize(unit, Component);
         map.set(node.id, unit);
     }
 
-    // remove: tree から消えた id の replica を畳む
+    // remove: collapse replicas whose id vanished from the tree
     for (const [id, unit] of [...map.entries()]) {
         if (!incoming.has(id)) { unit.finalize(); map.delete(id); }
     }
@@ -121,7 +118,7 @@ interface ClientInfo { socket: any; room: RoomData; clients: ClientData[]; }
 
 const roots: Map<Unit, ServerInfo | ClientInfo> = new Map();
 
-/** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
+/** Nearest boot root walking up from unit (null if none). */
 function findSyncRoot(unit: Unit): Unit | null {
     for (let u: Unit | null = unit; u !== null; u = u._.parent) {
         if (roots.has(u)) { return u; }
@@ -129,7 +126,7 @@ function findSyncRoot(unit: Unit): Unit | null {
     return null;
 }
 
-/** caller の sync ルートの内部情報を返す（未 boot なら throw）。 */
+/** Internal info of the caller's sync root (throws if not booted). */
 function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
     const root = findSyncRoot(unit);
     const info = root !== null ? roots.get(root) : undefined;
@@ -140,10 +137,10 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 }
 
 //----------------------------------------------------------------------------------------------------
-// boot — ルート生成 + 配線。server/client の分岐は boot 関数の 1 箇所だけ。
-// 配線は 2 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
-// (2) dispatcher（受信を root 配下の unit.on へ。'-event'=同一 syncId / '+'・無印=全体）。
-// 基本イベントの host(boot 親) への転送は basics/sync.ts Room が担う。
+// boot — root creation + wiring. The server/client split lives only inside the boot function.
+// Two wirings: (1) downstream state mirror (server: capture→broadcast on update / client: apply on 'sync')
+// (2) dispatcher (received events → unit.on under root: '-event'=same syncId / '+'·plain=whole tree).
+// Forwarding basic events to the host (boot parent) is Room's job in basics/sync.ts.
 //----------------------------------------------------------------------------------------------------
 
 export interface BootServerOptions { io: any; room: RoomData; }
@@ -156,24 +153,20 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         ? { io: (opts as BootServerOptions).io, room, clients: [] }
         : { socket: (opts as BootClientOptions).socket, room, clients: [] };
 
-    // body 内の sync 関数が findSyncRoot で root を引けるよう、初期化前に root を紐付ける。
-    // root は (target, Component) 形も取りうるので引数解析は Unit.initialize に委ねる。
+    // Bind root before init so sync functions in the body can resolve it via findSyncRoot.
+    // root may take (target, Component) form, so leave arg parsing to Unit.initialize.
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
 
     if (isServer) {
         const { io } = info as ServerInfo;
-        const statusUpdate = () => {
-            io.to(room.id).emit('status', { clients: info.clients });
-            dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-        };
         root.on('finalize', () => roots.delete(root));
         root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
         io.on('connection', (socket: any) => {
-            if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
+            if (socket.handshake?.query?.room !== room.id) { return; }   // ignore other rooms
             socket.join(room.id);
-            // 接続 → 台帳へ追加し connect / 全受信 / disconnect をサブツリーへ配る（host への転送は Room の責務）。
+            // on connect: add to roster, dispatch connect / all received / disconnect to the subtree (host forwarding is Room's job).
             info.clients.push({ id: socket.id, name: socket.handshake?.query?.name ?? '' });
             dispatchSync(root, 'sync.connect', socket.id, undefined);
             statusUpdate();
@@ -184,11 +177,15 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
                 statusUpdate();
             });
         });
+        function statusUpdate() {
+            io.to(room.id).emit('status', { clients: info.clients });
+            dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+        }
     } else {
         const { socket } = info as ClientInfo;
         const onSync = (tree: StateTree) => applyStateTree(root, tree);
         socket.on('sync', onSync);
-        // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
+        // take the member roster from the server and dispatch sync.statusupdate to the subtree.
         const onStatus = (status: { clients?: ClientData[] }) => {
             info.clients = status?.clients ?? [];
             dispatchSync(root, 'sync.statusupdate', undefined, undefined);
@@ -197,37 +194,33 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
         socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
     }
+
+    function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
+        const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
+        const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
+        const props = { id, ...data };
+        const targets = Unit.type2units.get(event);
+        if (targets === undefined) { return; }
+        // '-event' → only units with the sender's syncId. '+event'·plain → all units under root.
+        const selfOnly = event[0] === '-';
+        const syncId = isEnvelope ? message.syncId : undefined;
+        targets.forEach((unit) => {
+            if (findSyncRoot(unit) !== root) { return; }                  // skip units of another root
+            if (selfOnly && syncOf(unit).id !== syncId) { return; }
+            unit._.listeners.get(event)?.forEach((item) => item.execute(props));
+        });
+    }
     return root;
 }
 
-/** 1 つの受信イベントを root 配下の該当 unit リスナへ配る。 */
-function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
-    if (root._.status === 'finalized' || event === 'sync' || event === 'status') {
-        return;   // 'sync' / 'status' は予約イベントなので app ユニットへ配らない
-    }
-    const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
-    const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
-    const props = { id, ...data };
-    const targets = Unit.type2units.get(event);
-    if (targets === undefined) { return; }
-    // '-event' は送信元と同一 syncId の unit のみ。'+event'・無印は root 配下の全 unit へ。
-    const selfOnly = event[0] === '-';
-    const syncId = isEnvelope ? message.syncId : undefined;
-    targets.forEach((unit) => {
-        if (findSyncRoot(unit) !== root) { return; }                  // 別ルートの unit には配らない
-        if (selfOnly && syncOf(unit).id !== syncId) { return; }
-        unit._.listeners.get(event)?.forEach((item) => item.execute(props));
-    });
-}
-
 //----------------------------------------------------------------------------------------------------
-// xnew.sync facade — index.ts が xnew へ attach する後付けパターン。
-// 各メソッドは暗黙の Unit.currentUnit に作用するため Component 関数 / ハンドラ内から呼ぶ。
+// xnew.sync facade — attached onto xnew by index.ts (post-hoc pattern).
+// Each method acts on the implicit Unit.currentUnit, so call them from a Component function / handler.
 //
-// - state / register : 同期 state の宣言 / 直接の同期子 {Name: Component} の登録
-// - emit / status    : イベント送信 / ルームのステータス（room・clients は両環境、client は client 環境のみ）
-// - boot             : socket をバインドしたルート生成（server/client は実行環境で自動判定）
-// - server / client  : 実行環境（Node=server / browser=client）限定の extend ブロック
+// - state / register : declare synced state / register direct sync children {Name: Component}
+// - emit / status    : send an event / room status (room·clients on both sides, client only on client)
+// - boot             : create a root bound to a socket (server/client auto-detected by environment)
+// - server / client  : extend block limited to the runtime (Node=server / browser=client)
 //----------------------------------------------------------------------------------------------------
 
 export const sync = {
@@ -253,7 +246,7 @@ export const sync = {
     },
     state(initial: Record<string, any> = {}): Record<string, any> {
         const data = syncOf(Unit.currentUnit);
-        // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
+        // keep existing keys, fill only missing ones from initial (apply's preseed / prior declaration wins).
         for (const key of Object.keys(initial)) {
             if (!(key in data.state)) { data.state[key] = initial[key]; }
         }
