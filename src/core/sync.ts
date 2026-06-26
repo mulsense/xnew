@@ -198,16 +198,11 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
     function dispatchSync(root: Unit, event: string, id: string | undefined, message: any): void {
         const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
         const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
-        const props = { id, ...data };
-        const targets = Unit.type2units.get(event);
-        if (targets === undefined) { return; }
-        // '-event' → only units with the sender's syncId. '+event'·plain → all units under root.
-        const selfOnly = event[0] === '-';
         const syncId = isEnvelope ? message.syncId : undefined;
-        targets.forEach((unit) => {
-            if (findSyncRoot(unit) !== root) { return; }                  // skip units of another root
-            if (selfOnly && syncOf(unit).id !== syncId) { return; }
-            unit._.listeners.get(event)?.forEach((item) => item.execute(props));
+        (Unit.type2units.get(event) ?? []).forEach((unit) => {
+            if (findSyncRoot(unit) !== root) return; // skip units of another root
+            if (event[0] === '-' && syncOf(unit).id !== syncId) return; // skip units of another sync node
+            unit._.listeners.get(event)?.forEach((item) => item.execute({ id, ...data }));
         });
     }
     return root;
