@@ -39,7 +39,7 @@ describe('applyStateTree create', () => {
     });
 });
 
-describe('applyStateTree state hydration (client gets server state after apply)', () => {
+describe('applyStateTree state injection (client inits from server state)', () => {
     let observed: Record<string, any> | null;
     function Probe(unit: Unit) {
         const state = xnew.sync.state({ value: 0, who: 'local' });
@@ -49,14 +49,13 @@ describe('applyStateTree state hydration (client gets server state after apply)'
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
     function makeView() { return bootClient({ socket: ioMock().connect() }, function View() { xnew.sync.register({ Probe }); }); }
 
-    it('overrides local initial with server state after construction', () => {
+    it('injects server state before the body runs so local initial is ignored', () => {
         const view = makeView();
         applyStateTree(view, [{ id: 1, name: 'Probe', parentId: null, state: { value: 42, who: 'server' } }]);
-        expect(observed).toEqual({ value: 0, who: 'local' });                              // 構築時はまだ local
-        expect(syncOf(view._.children[0]).state).toEqual({ value: 42, who: 'server' });   // apply は生成後に server 値で上書き
+        expect(observed).toEqual({ value: 42, who: 'server' });   // 本体実行時には既に注入済み
     });
 
-    it('does not affect a unit created outside apply (keeps local initial)', () => {
+    it('does not leak injected state to a unit created outside apply (read-once)', () => {
         const view = makeView();
         applyStateTree(view, [{ id: 1, name: 'Probe', parentId: null, state: { value: 42, who: 'server' } }]);
         observed = null;

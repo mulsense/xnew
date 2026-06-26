@@ -21,17 +21,23 @@ export type StateTree = SyncNode[];
 
 interface SyncData {
     id: number | null;                 // 同期ノード id（capture 時に採番）
-    state: Record<string, any> | null; // synced state（sync.state で宣言 / apply が server 値で上書き）
+    state: Record<string, any> | null; // synced state（sync.state で宣言 / apply がプリシード）
     registry: Record<string, Function> | null;     // 直接の同期子として許可する {name: Component}
 }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
-/** unit の同期データを返す（無ければ遅延生成。可変で直接読み書きしてよい）。 */
+// apply が unit 生成前に初期 SyncData を仕込むための受け渡し。生成中に走る body の sync.state より前に
+// state / id を確定させたいが、生成前は Unit 参照が無く WeakMap に置けない。そこで「次に採番される id」
+// (Unit.next) を key にして置き、syncOf が初回生成時に adopt する（id key なので生成途中の再入でも混ざらない）。
+const seededData: Map<number, SyncData> = new Map();
+
+/** unit の同期データを返す（無ければ seed を adopt、無ければ空生成。可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
     let data = syncData.get(unit);
     if (data === undefined) {
-        data = { id: null, state: null, registry: null };
+        data = seededData.get(unit._.id) ?? { id: null, state: null, registry: null };
+        seededData.delete(unit._.id);
         syncData.set(unit, data);
     }
     return data;
@@ -41,7 +47,7 @@ export function syncOf(unit: Unit): SyncData {
 export function setState(unit: Unit, initial: Record<string, any>): Record<string, any> {
     const data = syncOf(unit);
     data.state ??= {};
-    // 既存キーは尊重し、無いキーだけ initial で埋める（先に宣言された値を優先。server 値は apply が後で上書き）。
+    // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
     for (const key of Object.keys(initial)) {
         if (!(key in data.state)) { data.state[key] = initial[key]; }
     }
@@ -105,18 +111,22 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
 
     // create / update（pre-order なので親が先に存在する）
     for (const node of tree) {
-        let unit = map.get(node.id);
-        if (unit === undefined) {
-            const parent = node.parentId === null ? root : map.get(node.parentId);
-            const Component = parent && syncOf(parent).registry?.[node.name];
-            if (!Component) { continue; }   // 親が無い / 許可していない型は無視
-            unit = new Unit(parent, Component);
-            syncOf(unit).id = node.id;
-            map.set(node.id, unit);
+        const existing = map.get(node.id);
+        if (existing !== undefined) {
+            // update: 変更フィールドを上書き（一度入ったキーは消さない。v1 の割り切り）
+            const data = syncOf(existing);
+            data.state = Object.assign(data.state ?? {}, node.state);
+            continue;
         }
-        // server 値を上書きで取り込む（生成直後 / 既存 とも同じ。一度入ったキーは消さない。v1 の割り切り）。
-        const data = syncOf(unit);
-        data.state = Object.assign(data.state ?? {}, node.state);
+        const parent = node.parentId === null ? root : map.get(node.parentId);
+        const Component = parent && syncOf(parent).registry?.[node.name];
+        if (!Component) { continue; }   // 親が無い / 許可していない型は無視
+        // 生成前に初期 SyncData（id + server state）を仕込む。生成中の body の sync.state より前に
+        // 欠落キーが埋まり、id も確定する。body が syncOf を呼ばなければ直後の syncOf(unit) が adopt する。
+        seededData.set(Unit.next, { id: node.id, state: { ...node.state }, registry: null });
+        const unit = new Unit(parent, Component);
+        syncOf(unit);
+        map.set(node.id, unit);
     }
 
     // remove: tree から消えた id の replica を畳む

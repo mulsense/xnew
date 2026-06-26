@@ -16,7 +16,7 @@ function Enemy(unit: Unit) {
     const state = xnew.sync.state({ x: 0 });
     xnew.sync.server(() => { unit.on('update', () => { state.x += 3; }); });
     xnew.sync.client(() => {
-        // 構築時点での state を記録（apply は生成後に上書きするので、ここではまだ local 初期値のはず）
+        // 構築時点での state を記録（注入が全宣言に効いていれば全てサーバー値になる）
         clientReadAtConstruction = { ...state };
     });
 }
@@ -31,7 +31,7 @@ describe('composed synced state (base + extend)', () => {
     });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
-    it('hydrates every sync.state declaration from server state after apply (server-wins)', () => {
+    it('hydrates every sync.state declaration from injected server state at construction time', () => {
         const server = bootServer({ io: hub.io }, function Server() { xnew.sync.register({ Enemy }); xnew(Enemy); });
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Enemy }); });
 
@@ -40,9 +40,8 @@ describe('composed synced state (base + extend)', () => {
         applyStateTree(client, captureStateTree(server));     // create replica
 
         const replica = client._.children[0];
-        // 構築時点ではまだ local 初期値（apply は生成後に server 値で上書きする）
-        expect(clientReadAtConstruction).toEqual({ hp: 100, x: 0 });
-        // apply 後は Base(hp) と Enemy(x) の両宣言が server 値でハイドレートされる
+        // Base(hp) と Enemy(x) の両宣言が、構築時点でサーバー値として読めている
+        expect(clientReadAtConstruction).toEqual({ hp: 101, x: 3 });
         expect(syncOf(replica).state).toEqual({ hp: 101, x: 3 });
     });
 
@@ -51,10 +50,10 @@ describe('composed synced state (base + extend)', () => {
             xnew.sync.state({ pos: 1 });
             xnew.sync.state({ pos: 2 });   // 同名キー: 既存（先勝ち）を尊重
         });
-        expect(syncOf(unit).state).toEqual({ pos: 1 });   // existing-wins（先に宣言された値を優先する規則）
+        expect(syncOf(unit).state).toEqual({ pos: 1 });   // existing-wins（プリシード/先行宣言を優先する規則と一貫）
     });
 
-    it('applies server state to the replica only, not to a non-synced child built during the body', () => {
+    it('does not leak injected state into a non-synced child built during the body', () => {
         let childState: Record<string, any> = {};
         function Host(unit: Unit) {
             xnew.sync.state({ value: 0 });
@@ -72,8 +71,8 @@ describe('composed synced state (base + extend)', () => {
         applyStateTree(client, captureStateTree(server));     // create replica Host + inline Child
 
         const replicaHost = client._.children[0];
-        expect(syncOf(replicaHost).state!.value).toBe(5);             // Host は apply で server 値
-        expect(childState.value).toBe(-1);                      // 子は自分の initial（apply 対象外）
+        expect(syncOf(replicaHost).state!.value).toBe(5);             // Host は注入値
+        expect(childState.value).toBe(-1);                      // 子は自分の initial（親の注入が漏れない）
     });
 
     // 基底コンポーネントも register されている場合（単独利用もあり得るため）でも、
