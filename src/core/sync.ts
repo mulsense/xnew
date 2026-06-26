@@ -14,7 +14,6 @@
 
 import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { getEnvironment } from './env';
-import { getOrCreate } from './map';
 
 interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
@@ -33,11 +32,14 @@ const pendingStates: Map<number, Record<string, any>> = new Map();
 
 /** unit の同期データを返す（無ければ遅延生成。可変で直接読み書きしてよい）。 */
 export function syncOf(unit: Unit): SyncData {
-    return getOrCreate(syncData, unit, () => {
+    let data = syncData.get(unit);
+    if (data === undefined) {
         const state = pendingStates.get(unit._.id) ?? null;
         pendingStates.delete(unit._.id);
-        return { id: null, state, registry: null };
-    });
+        data = { id: null, state, registry: null };
+        syncData.set(unit, data);
+    }
+    return data;
 }
 
 // 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
@@ -82,7 +84,11 @@ const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
 
 /** state tree を client サブツリーへ差分適用（create/update/remove。tree は pre-order で client 側のみ呼ばれる）。 */
 export function applyStateTree(root: Unit, tree: StateTree): void {
-    const map = getOrCreate(reconcileMaps, root, () => new Map<number, Unit>());
+    let map = reconcileMaps.get(root);
+    if (map === undefined) {
+        map = new Map<number, Unit>();
+        reconcileMaps.set(root, map);
+    }
     const incoming = new Set<number>(tree.map((node) => node.id));
 
     // create / update（pre-order なので親が先に存在する）

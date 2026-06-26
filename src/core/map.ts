@@ -4,25 +4,9 @@
 // 挿入時に内側コレクションを自動生成し、空になったら外側エントリも自動削除する。
 // 各メソッドは引数の数で外側 / 内側のどちらを操作するか切り替わる。
 //
-// - getOrCreate(map, key, make) : map[key] を返す。無ければ make() で生成して set（Map / WeakMap 両対応）
 // - MapSet<Key, Value>        : Map<Key, Set<Value>>
 // - MapMap<Key1, Key2, Value> : Map<Key1, Map<Key2, Value>>
 //----------------------------------------------------------------------------------------------------
-
-//----------------------------------------------------------------------------------------------------
-// get-or-create
-//----------------------------------------------------------------------------------------------------
-
-/** map[key] を返す。未登録なら make() で生成して set する（遅延初期化。Map / WeakMap 両対応）。 */
-export function getOrCreate<K extends object, V>(map: WeakMap<K, V>, key: K, make: () => V): V;
-export function getOrCreate<K, V>(map: Map<K, V>, key: K, make: () => V): V;
-export function getOrCreate<K, V>(map: { get(key: K): V | undefined; set(key: K, value: V): unknown }, key: K, make: () => V): V {
-    let value = map.get(key);
-    if (value === undefined) {
-        map.set(key, value = make());
-    }
-    return value;
-}
 
 //----------------------------------------------------------------------------------------------------
 // map set
