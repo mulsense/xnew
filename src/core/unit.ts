@@ -83,15 +83,13 @@ export class Unit {
         key: any;   // reserved prop for find(key) (global unique assumed)
     };
 
-    constructor(parent: Unit | null = null, element: DomElement | null = null) {
+    constructor(parent: Unit | null = null) {
         parent?._.children.push(this);
 
         const baseContext = parent?._.currentContext ?? { previous: null };
 
         let baseElement: DomElement;
-        if (element !== null) {
-            baseElement = element;
-        } else if (parent !== null) {
+        if (parent !== null) {
             baseElement = parent._.currentElement;
         } else if (globalThis.document?.body) {
             baseElement = globalThis.document.body;
@@ -100,7 +98,7 @@ export class Unit {
         }
 
         this._ = {
-            id: Unit.next++,
+            id: Unit.nextId++,
             parent,
             status: 'invoked',
             tostart: true,
@@ -122,24 +120,7 @@ export class Unit {
     }
 
     static create(parent: Unit | null, ...args: any[]): Unit {
-        let element: DomElement | null;
-        let tag: string | null;
-        if (isDomElement(args[0])) {
-            element = args.shift() as DomElement;
-            tag = null;
-        } else if (typeof args[0] === 'string') {
-            element = null;
-            tag = args.shift() as string;
-        } else {
-            element = null;
-            tag = null;
-        }
-
-        const unit = new Unit(parent, element);
-
-        if (tag !== null) {
-            Unit.nest(unit, tag);
-        }
+        const unit = new Unit(parent);
 
         Unit.initialize(unit, ...args);
 
@@ -147,6 +128,12 @@ export class Unit {
     }
 
     static initialize(unit: Unit, ...args: any[]): void {
+        if (isDomElement(args[0])) {
+            unit._.currentElement = args.shift() as DomElement;
+        } else if (typeof args[0] === 'string') {
+            Unit.nest(unit, args.shift() as string);
+        }
+
         const Component = args[0] as Function | string | number | undefined;
         const props = args[1] as Object | undefined;
 
@@ -339,10 +326,10 @@ export class Unit {
 
     static engineRoot: Unit;
     static currentUnit: Unit;
-    static next: number = 0;   // unit ごとに 0 から順番に採番する id（reset でリセット）
+    static nextId: number = 0;   // unit ごとに 0 から順番に採番する id（reset でリセット）
     static reset(): void {
         Unit.engineRoot?.finalize();
-        Unit.next = 0;
+        Unit.nextId = 0;
         Unit.currentUnit = Unit.engineRoot = Unit.create(null);
         const ticker = new Ticker((delta: number) => {
             Unit.start(Unit.engineRoot);

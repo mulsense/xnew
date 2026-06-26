@@ -134,12 +134,12 @@ export interface SyncStatus { room: RoomData; clients: ClientData[]; client: Cli
 interface ServerInfo { io: any; room: RoomData; clients: ClientData[]; }
 interface ClientInfo { socket: any; room: RoomData; clients: ClientData[]; }
 
-const roots: Map<number, ServerInfo | ClientInfo> = new Map();
+const roots: Map<Unit, ServerInfo | ClientInfo> = new Map();
 
 /** unit から遡って最も近い boot ルートを返す（無ければ null）。 */
 function findSyncRoot(unit: Unit): Unit | null {
     for (let u: Unit | null = unit; u !== null; u = u._.parent) {
-        if (roots.has(u._.id)) { return u; }
+        if (roots.has(u)) { return u; }
     }
     return null;
 }
@@ -147,7 +147,7 @@ function findSyncRoot(unit: Unit): Unit | null {
 /** caller の sync ルートの内部情報を返す（未 boot なら throw）。 */
 function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
     const root = findSyncRoot(unit);
-    const info = root !== null ? roots.get(root._.id) : undefined;
+    const info = root !== null ? roots.get(root) : undefined;
     if (info === undefined) {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket, room }, ...).');
     }
@@ -167,11 +167,12 @@ export interface BootClientOptions { socket: any; room: RoomData; }
 function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
     const { io, room } = opts;
     const info: ServerInfo = { io, room, clients: [] };
-    // body 内の sync 関数が findSyncRoot で root を引けるよう、生成前に「次に採番される id」へ紐付ける。
-    // root は (target, Component) 形も取りうるので引数解析を持つ Unit.create を使う（分割すると解析が要る）。
-    roots.set(Unit.next, info);
-    const root = Unit.create(parent, ...args);
-    root.on('finalize', () => roots.delete(root._.id));
+    // body 内の sync 関数が findSyncRoot で root を引けるよう、初期化前に root を紐付ける。
+    // root は (target, Component) 形も取りうるので引数解析は Unit.initialize に委ねる。
+    const root = new Unit(parent);
+    roots.set(root, info);
+    Unit.initialize(root, ...args);
+    root.on('finalize', () => roots.delete(root));
     root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
 
     io.on('connection', (socket: any) => {
@@ -198,8 +199,9 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
 function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { socket, room } = opts;
     const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
-    roots.set(Unit.next, info);   // 生成前に「次に採番される id」へ紐付ける（root は (target, Component) 形も取りうる）
-    const root = Unit.create(parent, ...args);
+    const root = new Unit(parent);
+    roots.set(root, info);   // 初期化前に root を紐付ける（root は (target, Component) 形も取りうる）
+    Unit.initialize(root, ...args);
     const onSync = (tree: StateTree) => applyStateTree(root, tree);
     socket.on('sync', onSync);
     // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
@@ -208,7 +210,7 @@ function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): 
         dispatchSync(root, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
-    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root._.id); });
+    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
     socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
     return root;
 }
