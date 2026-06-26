@@ -140,7 +140,7 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 }
 
 //----------------------------------------------------------------------------------------------------
-// boot — ルート生成 + 配線。server/client の分岐は sync.boot の 1 箇所だけ。
+// boot — ルート生成 + 配線。server/client の分岐は boot 関数の 1 箇所だけ。
 // 配線は 2 つ: (1) 状態の下り mirror（server=update で capture→broadcast / client=on('sync')→apply）
 // (2) dispatcher（受信を root 配下の unit.on へ。'-event'=同一 syncId / '+'・無印=全体）。
 // 基本イベントの host(boot 親) への転送は basics/sync.ts Room が担う。
@@ -149,54 +149,54 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 export interface BootServerOptions { io: any; room: RoomData; }
 export interface BootClientOptions { socket: any; room: RoomData; }
 
-function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
-    const { io, room } = opts;
-    const info: ServerInfo = { io, room, clients: [] };
+function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
+    const isServer = getEnvironment() === 'server';
+    const { room } = opts;
+    const info: ServerInfo | ClientInfo = isServer
+        ? { io: (opts as BootServerOptions).io, room, clients: [] }
+        : { socket: (opts as BootClientOptions).socket, room, clients: [] };
+
     // body 内の sync 関数が findSyncRoot で root を引けるよう、初期化前に root を紐付ける。
     // root は (target, Component) 形も取りうるので引数解析は Unit.initialize に委ねる。
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
-    root.on('finalize', () => roots.delete(root));
-    root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
 
-    io.on('connection', (socket: any) => {
-        if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
-        socket.join(room.id);
-        // 接続 → 台帳へ追加し connect / 全受信 / disconnect をサブツリーへ配る（host への転送は Room の責務）。
-        info.clients.push({ id: socket.id, name: socket.handshake?.query?.name ?? '' });
-        dispatchSync(root, 'sync.connect', socket.id, undefined);
-        statusUpdate();
-        socket.onAny((event: string, payload: any) => dispatchSync(root, event, socket.id, payload));
-        socket.on('disconnect', () => {
-            info.clients = info.clients.filter((c) => c.id !== socket.id);
-            dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+    if (isServer) {
+        const { io } = info as ServerInfo;
+        const statusUpdate = () => {
+            io.to(room.id).emit('status', { clients: info.clients });
+            dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+        };
+        root.on('finalize', () => roots.delete(root));
+        root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
+        io.on('connection', (socket: any) => {
+            if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
+            socket.join(room.id);
+            // 接続 → 台帳へ追加し connect / 全受信 / disconnect をサブツリーへ配る（host への転送は Room の責務）。
+            info.clients.push({ id: socket.id, name: socket.handshake?.query?.name ?? '' });
+            dispatchSync(root, 'sync.connect', socket.id, undefined);
             statusUpdate();
+            socket.onAny((event: string, payload: any) => dispatchSync(root, event, socket.id, payload));
+            socket.on('disconnect', () => {
+                info.clients = info.clients.filter((c) => c.id !== socket.id);
+                dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+                statusUpdate();
+            });
         });
-    });
-    function statusUpdate() {
-        io.to(room.id).emit('status', { clients: info.clients });
-        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+    } else {
+        const { socket } = info as ClientInfo;
+        const onSync = (tree: StateTree) => applyStateTree(root, tree);
+        socket.on('sync', onSync);
+        // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
+        const onStatus = (status: { clients?: ClientData[] }) => {
+            info.clients = status?.clients ?? [];
+            dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+        };
+        socket.on('status', onStatus);
+        root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
+        socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
     }
-    return root;
-}
-
-function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
-    const { socket, room } = opts;
-    const info: ClientInfo = { socket, clients: [], room };   // room は boot で確定（server は配らない）
-    const root = new Unit(parent);
-    roots.set(root, info);   // 初期化前に root を紐付ける（root は (target, Component) 形も取りうる）
-    Unit.initialize(root, ...args);
-    const onSync = (tree: StateTree) => applyStateTree(root, tree);
-    socket.on('sync', onSync);
-    // server からのメンバ台帳を取り込み、サブツリーへ sync.statusupdate を配る。
-    const onStatus = (status: { clients?: ClientData[] }) => {
-        info.clients = status?.clients ?? [];
-        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-    };
-    socket.on('status', onStatus);
-    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
-    socket.onAny((event: string, payload: any) => dispatchSync(root, event, undefined, payload));
     return root;
 }
 
@@ -290,10 +290,6 @@ export const sync = {
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {
         if (Unit.engineRoot === undefined) { Unit.reset(); }
-        if (getEnvironment() === 'server') {
-            return bootServer(opts as BootServerOptions, Unit.currentUnit, args);
-        } else {
-            return bootClient(opts as BootClientOptions, Unit.currentUnit, args);
-        }
+        return boot(opts, Unit.currentUnit, args);
     },
 };
