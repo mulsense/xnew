@@ -104,7 +104,6 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
 
 export interface ClientData { id: string; name: string; }
 export interface RoomData { id: string; name: string; count: number; }
-
 export interface SyncStatus { room: RoomData; clients: ClientData[]; client: ClientData; }
 
 interface ServerInfo { io: any; room: RoomData; clients: ClientData[]; }

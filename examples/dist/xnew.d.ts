@@ -77,7 +77,9 @@ declare class Unit {
         eventor: Eventor;
         key: any;
     };
-    constructor(parent: Unit | null, ...args: any[]);
+    constructor(parent?: Unit | null);
+    static create(parent: Unit | null, ...args: any[]): Unit;
+    static initialize(unit: Unit, ...args: any[]): void;
     get parent(): Unit | null;
     get element(): DomElement;
     private start;
@@ -94,7 +96,7 @@ declare class Unit {
     static render(unit: Unit, delta?: number): void;
     static engineRoot: Unit;
     static currentUnit: Unit;
-    static next: number;
+    static nextId: number;
     static reset(): void;
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;

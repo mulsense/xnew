@@ -441,51 +441,22 @@ function isSystemEvent(type) {
     return SYSTEM_EVENTS.includes(type);
 }
 class Unit {
-    constructor(parent, ...args) {
-        var _a, _b, _c;
-        let target;
-        let Component;
-        let props;
-        if (isDomElement(args[0]) || typeof args[0] === 'string') {
-            target = args[0];
-            Component = args[1];
-            props = args[2];
-        }
-        else {
-            target = null;
-            Component = args[0];
-            props = args[1];
-        }
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = this;
+    constructor(parent = null) {
+        var _a, _b;
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
+        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
         let baseElement;
-        if (isDomElement(target)) {
-            baseElement = target;
-        }
-        else if (parent !== null) {
+        if (parent !== null) {
             baseElement = parent._.currentElement;
         }
-        else if ((_a = globalThis.document) === null || _a === void 0 ? void 0 : _a.body) {
+        else if ((_b = globalThis.document) === null || _b === void 0 ? void 0 : _b.body) {
             baseElement = globalThis.document.body;
         }
         else {
             baseElement = null;
         }
-        let baseComponent;
-        if (typeof Component === 'function') {
-            baseComponent = Component;
-        }
-        else if (typeof Component === 'string' || typeof Component === 'number') {
-            baseComponent = (unit) => { unit.element.textContent = Component.toString(); };
-        }
-        else {
-            baseComponent = (unit) => { };
-        }
-        const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
-        const key = (_c = props === null || props === void 0 ? void 0 : props.key) !== null && _c !== void 0 ? _c : null;
         this._ = {
-            id: Unit.next++,
+            id: Unit.nextId++,
             parent,
             status: 'invoked',
             tostart: true,
@@ -502,16 +473,42 @@ class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
-            key,
+            key: null,
         };
-        if (typeof target === 'string') {
-            Unit.nest(this, target);
+    }
+    static create(parent, ...args) {
+        const unit = new Unit(parent);
+        Unit.initialize(unit, ...args);
+        return unit;
+    }
+    static initialize(unit, ...args) {
+        var _a;
+        if (isDomElement(args[0])) {
+            unit._.currentElement = args.shift();
         }
-        Unit.extend(this, baseComponent, props);
-        if (this._.status === 'invoked') {
-            this._.status = 'initialized';
+        else if (typeof args[0] === 'string') {
+            Unit.nest(unit, args.shift());
         }
-        this._.afterSnapshot = Unit.snapshot(this);
+        const Component = args[0];
+        const props = args[1];
+        let baseComponent;
+        if (typeof Component === 'function') {
+            baseComponent = Component;
+        }
+        else if (typeof Component === 'string' || typeof Component === 'number') {
+            baseComponent = (unit) => { unit.element.textContent = Component.toString(); };
+        }
+        else {
+            baseComponent = (unit) => { };
+        }
+        unit._.key = (_a = props === null || props === void 0 ? void 0 : props.key) !== null && _a !== void 0 ? _a : null;
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = unit;
+        Unit.extend(unit, baseComponent, props);
+        if (unit._.status === 'invoked') {
+            unit._.status = 'initialized';
+        }
+        unit._.afterSnapshot = Unit.snapshot(unit);
         Unit.currentUnit = backup;
     }
     get parent() {
@@ -659,8 +656,8 @@ class Unit {
     static reset() {
         var _a;
         (_a = Unit.engineRoot) === null || _a === void 0 ? void 0 : _a.finalize();
-        Unit.next = 0;
-        Unit.currentUnit = Unit.engineRoot = new Unit(null);
+        Unit.nextId = 0;
+        Unit.currentUnit = Unit.engineRoot = Unit.create(null);
         const ticker = new Ticker((delta) => {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot, delta);
@@ -789,7 +786,7 @@ class Unit {
         }
     }
 }
-Unit.next = 0;
+Unit.nextId = 0;
 Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
@@ -908,7 +905,7 @@ class UnitTimer {
             unit.on('finalize', () => current.clear());
         };
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(Unit.currentUnit, Component);
+            timer.unit = Unit.create(Unit.currentUnit, Component);
         }
         else if (timer.queue.length === 0) {
             timer.queue.push(Component);
@@ -921,7 +918,7 @@ class UnitTimer {
     }
     static next(timer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(Unit.currentUnit, timer.queue.shift());
+            timer.unit = Unit.create(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
@@ -934,11 +931,11 @@ const xnew$1 = Object.assign((function (...args) {
     if (args[0] instanceof Unit) {
         const parent = args.shift();
         const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-        return Unit.scope(snapshot, () => new Unit(parent, ...args));
+        return Unit.scope(snapshot, () => Unit.create(parent, ...args));
     }
     else {
         const parent = (_b = Unit.currentUnit) !== null && _b !== void 0 ? _b : null;
-        return new Unit(parent, ...args);
+        return Unit.create(parent, ...args);
     }
 }), {
     nest(target) {
@@ -1390,32 +1387,11 @@ function getEnvironment() {
 }
 
 const syncData = new WeakMap();
-const seededData = new Map();
 function syncOf(unit) {
-    var _a;
-    let data = syncData.get(unit);
-    if (data === undefined) {
-        data = (_a = seededData.get(unit._.id)) !== null && _a !== void 0 ? _a : { id: null, state: null, registry: null };
-        seededData.delete(unit._.id);
-        syncData.set(unit, data);
+    if (syncData.has(unit) === false) {
+        syncData.set(unit, { id: null, state: {}, registry: {} });
     }
-    return data;
-}
-function setState(unit, initial) {
-    var _a;
-    const data = syncOf(unit);
-    (_a = data.state) !== null && _a !== void 0 ? _a : (data.state = {});
-    for (const key of Object.keys(initial)) {
-        if (!(key in data.state)) {
-            data.state[key] = initial[key];
-        }
-    }
-    return data.state;
-}
-function setRegister(unit, Components) {
-    var _a;
-    const data = syncOf(unit);
-    data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, Components);
+    return syncData.get(unit);
 }
 const syncIdCounters = new WeakMap();
 function captureStateTree(root) {
@@ -1438,12 +1414,12 @@ function captureStateTree(root) {
         return undefined;
     };
     const walk = (unit, parentId) => {
-        var _a, _b;
+        var _a;
         const name = syncName(unit);
         if (name !== undefined) {
             const data = syncOf(unit);
             (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
-            nodes.push({ id: data.id, name, parentId, state: Object.assign({}, ((_b = data.state) !== null && _b !== void 0 ? _b : {})) });
+            nodes.push({ id: data.id, name, parentId, state: Object.assign({}, data.state) });
             parentId = data.id;
         }
         unit._.children.forEach((child) => walk(child, parentId));
@@ -1454,28 +1430,25 @@ function captureStateTree(root) {
 }
 const reconcileMaps = new WeakMap();
 function applyStateTree(root, tree) {
-    var _a, _b;
-    let map = reconcileMaps.get(root);
-    if (map === undefined) {
-        map = new Map();
-        reconcileMaps.set(root, map);
+    if (reconcileMaps.has(root) === false) {
+        reconcileMaps.set(root, new Map());
     }
+    const map = reconcileMaps.get(root);
     const incoming = new Set(tree.map((node) => node.id));
     for (const node of tree) {
         const existing = map.get(node.id);
         if (existing !== undefined) {
-            const data = syncOf(existing);
-            data.state = Object.assign((_a = data.state) !== null && _a !== void 0 ? _a : {}, node.state);
+            Object.assign(syncOf(existing).state, node.state);
             continue;
         }
         const parent = node.parentId === null ? root : map.get(node.parentId);
-        const Component = parent && ((_b = syncOf(parent).registry) === null || _b === void 0 ? void 0 : _b[node.name]);
+        const Component = parent && syncOf(parent).registry[node.name];
         if (!Component) {
             continue;
         }
-        seededData.set(Unit.next, { id: node.id, state: Object.assign({}, node.state), registry: null });
-        const unit = new Unit(parent, Component);
-        syncOf(unit);
+        const unit = new Unit(parent);
+        syncData.set(unit, { id: node.id, state: Object.assign({}, node.state), registry: {} });
+        Unit.initialize(unit, Component);
         map.set(node.id, unit);
     }
     for (const [id, unit] of [...map.entries()]) {
@@ -1488,89 +1461,79 @@ function applyStateTree(root, tree) {
 const roots = new Map();
 function findSyncRoot(unit) {
     for (let u = unit; u !== null; u = u._.parent) {
-        if (roots.has(u._.id)) {
+        if (roots.has(u))
             return u;
-        }
     }
     return null;
 }
 function rootInfoOf(unit) {
     const root = findSyncRoot(unit);
-    const info = root !== null ? roots.get(root._.id) : undefined;
+    const info = root !== null ? roots.get(root) : undefined;
     if (info === undefined) {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket, room }, ...).');
     }
     return info;
 }
-function bootServer(opts, parent, args) {
-    const { io, room } = opts;
-    const info = { io, room, clients: [] };
-    roots.set(Unit.next, info);
-    const root = new Unit(parent, ...args);
-    root.on('finalize', () => roots.delete(root._.id));
-    root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
-    io.on('connection', (socket) => {
-        var _a, _b, _c, _d, _e;
-        if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room.id) {
-            return;
-        }
-        socket.join(room.id);
-        info.clients.push({ id: socket.id, name: (_e = (_d = (_c = socket.handshake) === null || _c === void 0 ? void 0 : _c.query) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : '' });
-        dispatchSync(root, 'sync.connect', socket.id, undefined);
-        statusUpdate();
-        socket.onAny((event, payload) => dispatchSync(root, event, socket.id, payload));
-        socket.on('disconnect', () => {
-            info.clients = info.clients.filter((c) => c.id !== socket.id);
-            dispatchSync(root, 'sync.disconnect', socket.id, undefined);
+function boot(opts, parent, args) {
+    const { room } = opts;
+    const info = getEnvironment() === 'server'
+        ? { io: opts.io, room, clients: [] }
+        : { socket: opts.socket, room, clients: [] };
+    const root = new Unit(parent);
+    roots.set(root, info);
+    Unit.initialize(root, ...args);
+    if (getEnvironment() === 'server') {
+        const { io } = info;
+        root.on('finalize', () => roots.delete(root));
+        root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
+        io.on('connection', (socket) => {
+            var _a, _b;
+            const query = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query;
+            if ((query === null || query === void 0 ? void 0 : query.room) !== room.id)
+                return;
+            socket.join(room.id);
+            info.clients.push({ id: socket.id, name: (_b = query === null || query === void 0 ? void 0 : query.name) !== null && _b !== void 0 ? _b : '' });
+            dispatch('sync.connect', socket.id, undefined);
             statusUpdate();
+            socket.onAny((event, payload) => dispatch(event, socket.id, payload));
+            socket.on('disconnect', () => {
+                info.clients = info.clients.filter((c) => c.id !== socket.id);
+                dispatch('sync.disconnect', socket.id, undefined);
+                statusUpdate();
+            });
         });
-    });
-    function statusUpdate() {
-        io.to(room.id).emit('status', { clients: info.clients });
-        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
+        function statusUpdate() {
+            io.to(room.id).emit('status', { clients: info.clients });
+            dispatch('sync.statusupdate', undefined, undefined);
+        }
+    }
+    else {
+        const { socket } = info;
+        const onSync = (tree) => applyStateTree(root, tree);
+        socket.on('sync', onSync);
+        const onStatus = (status) => {
+            var _a;
+            info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
+            dispatch('sync.statusupdate', undefined, undefined);
+        };
+        socket.on('status', onStatus);
+        root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
+        socket.onAny((event, payload) => dispatch(event, undefined, payload));
+    }
+    function dispatch(event, id, payload) {
+        var _a;
+        const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
+        const syncId = payload ? payload.syncId : undefined;
+        ((_a = Unit.type2units.get(event)) !== null && _a !== void 0 ? _a : []).forEach((unit) => {
+            var _a;
+            if (findSyncRoot(unit) !== root)
+                return;
+            if (event[0] === '-' && syncOf(unit).id !== syncId)
+                return;
+            (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(Object.assign({ id }, data)));
+        });
     }
     return root;
-}
-function bootClient(opts, parent, args) {
-    const { socket, room } = opts;
-    const info = { socket, clients: [], room };
-    roots.set(Unit.next, info);
-    const root = new Unit(parent, ...args);
-    const onSync = (tree) => applyStateTree(root, tree);
-    socket.on('sync', onSync);
-    const onStatus = (status) => {
-        var _a;
-        info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
-        dispatchSync(root, 'sync.statusupdate', undefined, undefined);
-    };
-    socket.on('status', onStatus);
-    root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root._.id); });
-    socket.onAny((event, payload) => dispatchSync(root, event, undefined, payload));
-    return root;
-}
-function dispatchSync(root, event, id, message) {
-    if (root._.status === 'finalized' || event === 'sync' || event === 'status') {
-        return;
-    }
-    const isEnvelope = message !== null && typeof message === 'object' && !Array.isArray(message);
-    const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
-    const props = Object.assign({ id }, data);
-    const targets = Unit.type2units.get(event);
-    if (targets === undefined) {
-        return;
-    }
-    const selfOnly = event[0] === '-';
-    const syncId = isEnvelope ? message.syncId : undefined;
-    targets.forEach((unit) => {
-        var _a;
-        if (findSyncRoot(unit) !== root) {
-            return;
-        }
-        if (selfOnly && syncOf(unit).id !== syncId) {
-            return;
-        }
-        (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
-    });
 }
 const sync = {
     server(callback, props) {
@@ -1596,30 +1559,34 @@ const sync = {
         }
     },
     state(initial = {}) {
-        return setState(Unit.currentUnit, initial);
+        const data = syncOf(Unit.currentUnit);
+        for (const key of Object.keys(initial)) {
+            if (!(key in data.state)) {
+                data.state[key] = initial[key];
+            }
+        }
+        return data.state;
     },
     register(Components) {
         const unit = Unit.currentUnit;
         if (unit._.status !== 'invoked') {
             throw new Error('xnew.sync.register must be called during component initialization.');
         }
-        setRegister(unit, Components);
+        Object.assign(syncOf(unit).registry, Components);
     },
     get status() {
-        if (getEnvironment() === 'server') {
-            const info = rootInfoOf(Unit.currentUnit);
-            return {
-                room: info.room, clients: info.clients,
-                get client() { throw new Error('sync.status.client is only available on the client side.'); },
-            };
-        }
-        else {
-            const info = rootInfoOf(Unit.currentUnit);
-            return {
-                room: info.room, clients: info.clients,
-                get client() { var _a; return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' }; },
-            };
-        }
+        const info = rootInfoOf(Unit.currentUnit);
+        return {
+            room: info.room, clients: info.clients,
+            get client() {
+                var _a;
+                if (getEnvironment() === 'server') {
+                    throw new Error('sync.status.client is only available on the client side.');
+                }
+                const ci = info;
+                return (_a = ci.clients.find((c) => c.id === ci.socket.id)) !== null && _a !== void 0 ? _a : { id: ci.socket.id, name: '' };
+            },
+        };
     },
     emit(event, payload = {}) {
         if (getEnvironment() === 'server') {
@@ -1635,12 +1602,7 @@ const sync = {
         if (Unit.engineRoot === undefined) {
             Unit.reset();
         }
-        if (getEnvironment() === 'server') {
-            return bootServer(opts, Unit.currentUnit, args);
-        }
-        else {
-            return bootClient(opts, Unit.currentUnit, args);
-        }
+        return boot(opts, Unit.currentUnit, args);
     },
 };
 
