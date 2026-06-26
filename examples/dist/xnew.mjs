@@ -1,10 +1,3 @@
-function getOrCreate(map, key, make) {
-    let value = map.get(key);
-    if (value === undefined) {
-        map.set(key, value = make());
-    }
-    return value;
-}
 class MapSet extends Map {
     has(key, value) {
         var _a, _b;
@@ -1397,14 +1390,32 @@ function getEnvironment() {
 }
 
 const syncData = new WeakMap();
-const pendingStates = new Map();
+const seededData = new Map();
 function syncOf(unit) {
-    return getOrCreate(syncData, unit, () => {
-        var _a;
-        const state = (_a = pendingStates.get(unit._.id)) !== null && _a !== void 0 ? _a : null;
-        pendingStates.delete(unit._.id);
-        return { id: null, state, registry: null };
-    });
+    var _a;
+    let data = syncData.get(unit);
+    if (data === undefined) {
+        data = (_a = seededData.get(unit._.id)) !== null && _a !== void 0 ? _a : { id: null, state: null, registry: null };
+        seededData.delete(unit._.id);
+        syncData.set(unit, data);
+    }
+    return data;
+}
+function setState(unit, initial) {
+    var _a;
+    const data = syncOf(unit);
+    (_a = data.state) !== null && _a !== void 0 ? _a : (data.state = {});
+    for (const key of Object.keys(initial)) {
+        if (!(key in data.state)) {
+            data.state[key] = initial[key];
+        }
+    }
+    return data.state;
+}
+function setRegister(unit, Components) {
+    var _a;
+    const data = syncOf(unit);
+    data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, Components);
 }
 const syncIdCounters = new WeakMap();
 function captureStateTree(root) {
@@ -1412,8 +1423,9 @@ function captureStateTree(root) {
     const nodes = [];
     let nextId = (_a = syncIdCounters.get(root)) !== null && _a !== void 0 ? _a : 1;
     const syncName = (unit) => {
-        const registry = unit._.parent ? syncOf(unit._.parent).registry : null;
-        if (registry === null) {
+        var _a;
+        const registry = unit._.parent ? (_a = syncData.get(unit._.parent)) === null || _a === void 0 ? void 0 : _a.registry : null;
+        if (registry === null || registry === undefined) {
             return undefined;
         }
         const entries = Object.entries(registry);
@@ -1427,9 +1439,9 @@ function captureStateTree(root) {
     };
     const walk = (unit, parentId) => {
         var _a, _b;
-        const data = syncOf(unit);
         const name = syncName(unit);
         if (name !== undefined) {
+            const data = syncOf(unit);
             (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
             nodes.push({ id: data.id, name, parentId, state: Object.assign({}, ((_b = data.state) !== null && _b !== void 0 ? _b : {})) });
             parentId = data.id;
@@ -1443,7 +1455,11 @@ function captureStateTree(root) {
 const reconcileMaps = new WeakMap();
 function applyStateTree(root, tree) {
     var _a, _b;
-    const map = getOrCreate(reconcileMaps, root, () => new Map());
+    let map = reconcileMaps.get(root);
+    if (map === undefined) {
+        map = new Map();
+        reconcileMaps.set(root, map);
+    }
     const incoming = new Set(tree.map((node) => node.id));
     for (const node of tree) {
         const existing = map.get(node.id);
@@ -1457,9 +1473,9 @@ function applyStateTree(root, tree) {
         if (!Component) {
             continue;
         }
-        pendingStates.set(Unit.next, Object.assign({}, node.state));
+        seededData.set(Unit.next, { id: node.id, state: Object.assign({}, node.state), registry: null });
         const unit = new Unit(parent, Component);
-        syncOf(unit).id = node.id;
+        syncOf(unit);
         map.set(node.id, unit);
     }
     for (const [id, unit] of [...map.entries()]) {
@@ -1580,30 +1596,20 @@ const sync = {
         }
     },
     state(initial = {}) {
-        var _a;
-        const data = syncOf(Unit.currentUnit);
-        (_a = data.state) !== null && _a !== void 0 ? _a : (data.state = {});
-        for (const key of Object.keys(initial)) {
-            if (!(key in data.state)) {
-                data.state[key] = initial[key];
-            }
-        }
-        return data.state;
+        return setState(Unit.currentUnit, initial);
     },
     register(Components) {
-        var _a;
         const unit = Unit.currentUnit;
         if (unit._.status !== 'invoked') {
             throw new Error('xnew.sync.register must be called during component initialization.');
         }
-        const data = syncOf(unit);
-        data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, Components);
+        setRegister(unit, Components);
     },
     get status() {
         if (getEnvironment() === 'server') {
             const info = rootInfoOf(Unit.currentUnit);
             return {
-                room: info.room, clients: [...info.clients],
+                room: info.room, clients: info.clients,
                 get client() { throw new Error('sync.status.client is only available on the client side.'); },
             };
         }
