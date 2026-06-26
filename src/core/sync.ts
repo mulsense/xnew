@@ -19,11 +19,8 @@ import { getEnvironment } from './env';
 interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 export type StateTree = SyncNode[];
 
-interface SyncData {
-    id: number | null;
-    state: Record<string, any>;
-    registry: Record<string, Function>; // {name: Component} allowed as direct sync children
-}
+// registry is {name: Component} allowed as direct sync children; state is the per-node key→value map.
+interface SyncData { id: number | null; state: Record<string, any>; registry: Record<string, Function>; }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 
@@ -79,7 +76,6 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         reconcileMaps.set(root, new Map<number, Unit>());
     }
     const map = reconcileMaps.get(root)!;
-
     const incoming = new Set<number>(tree.map((node) => node.id));
 
     // create / update (pre-order, so the parent already exists)
@@ -119,7 +115,7 @@ const roots: Map<Unit, ServerInfo | ClientInfo> = new Map();
 /** Nearest boot root walking up from unit (null if none). */
 function findSyncRoot(unit: Unit): Unit | null {
     for (let u: Unit | null = unit; u !== null; u = u._.parent) {
-        if (roots.has(u)) { return u; }
+        if (roots.has(u)) return u;
     }
     return null;
 }
