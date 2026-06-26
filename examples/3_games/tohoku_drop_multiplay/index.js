@@ -23,6 +23,7 @@ xnew(document.getElementById('app'), App);
 
 function Lobby(unit, { socket }) {
     const app = xnew.context(App);
+    xnew.extend(xnew.basics.Scene);   // シーン遷移（change）は呼び出し側の責務
     xnew.extend(xnew.basics.Lobby, { socket });
 
     let rooms = [];
@@ -79,6 +80,7 @@ function Room(unit, { socket, room }) {
     back.on('click', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));
     xnew.nest('<div class="relative w-[90vmin] max-w-[800px] aspect-[4/3]">');   // Game（Screen）の mount 先（高さを確定させる）
 
+    xnew.extend(xnew.basics.Scene);   // シーン遷移（change）は呼び出し側の責務
     xnew.extend(xnew.basics.Room, { socket, room, Component: Game });
 
     unit.on('-connect', () => app.setStatus(`ルーム ${room.id}: ${socket.id}`, true));

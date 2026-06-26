@@ -38,6 +38,8 @@ function Lobby(unit, { socket }) {
 
     // socket は呼び出し側が用意（room 無し = サーバーはロビー接続として扱う）。
     // Lobby が受信イベントを unit.on('-event') へ転送し、finalize で socket を切断する。
+    // シーン遷移（change/add）は呼び出し側の責務なので Scene をここで extend する。
+    xnew.extend(xnew.basics.Scene);
     xnew.extend(xnew.basics.Lobby, { socket });
 
     let rooms = [];
@@ -116,6 +118,8 @@ function Room(unit, { socket, room }) {
 
     // room 関連の配線は Room が引き受ける（boot(Game)、finalize で client 畳み + socket 切断）。
     // socket / room は boot へ渡され、基本イベントは Room が '-event' でこの Room の unit.on へ転送する。
+    // シーン遷移（change）は呼び出し側の責務なので Scene をここで extend する。
+    xnew.extend(xnew.basics.Scene);
     xnew.extend(xnew.basics.Room, { socket, room, Component: Game });
 
     unit.on('-connect', () => app.setStatus(`ルーム ${room.id}: ${socket.id}`, true));

@@ -3,7 +3,8 @@
 //
 // Wire socket.io handles to the host unit; server/client auto-detected (→ core/env: io vs socket).
 // The room ledger (id → Room unit) is module-global so Room self-removes/re-broadcasts without a
-// Lobby context; Lobby is its sole writer and clears it on finalize. The client side extends Scene.
+// Lobby context; Lobby is its sole writer and clears it on finalize. Scene navigation (change/add)
+// is the caller's concern — extend Scene on the host unit if you want it (see examples/network).
 //
 // - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes create().
 // - Room     : boots Component, forwards connect/disconnect/notfound; server counts members + cleanup.
@@ -14,7 +15,6 @@
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
 import { sync, BootServerOptions, RoomData } from '../core/sync';
-import { Scene } from './view';
 
 const rooms = new Map<string, Unit>();
 
@@ -56,8 +56,6 @@ export function Lobby(unit: Unit, props: any) {
     });
 
     sync.client(() => {
-        xnew.extend(Scene);
-
         const { socket } = props as { socket: any; };
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
@@ -120,7 +118,6 @@ export function Room(unit: Unit, props: any) {
     });
 
     sync.client(() => {
-        xnew.extend(Scene);
         const { socket, room, Component } = props as { socket: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
         // room は呼び出し側から必ず渡す（server status で上書きされるまでの初期値）。
         const client = sync.boot({ socket, room }, Component);
