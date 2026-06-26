@@ -20,9 +20,9 @@ interface SyncNode { id: number; name: string; parentId: number | null; state: R
 export type StateTree = SyncNode[];
 
 interface SyncData {
-    id: number | null;                 // 同期ノード id（capture 時に採番）
-    state: Record<string, any> | null; // synced state（sync.state で宣言 / apply がプリシード）
-    registry: Record<string, Function> | null;     // 直接の同期子として許可する {name: Component}
+    id: number | null;                  // 同期ノード id（capture 時に採番）
+    state: Record<string, any>;         // synced state（sync.state で宣言 / apply がプリシード）
+    registry: Record<string, Function>; // 直接の同期子として許可する {name: Component}
 }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
@@ -31,7 +31,7 @@ const syncData: WeakMap<Unit, SyncData> = new WeakMap();
 export function syncOf(unit: Unit): SyncData {
     let data = syncData.get(unit);
     if (data === undefined) {
-        data = { id: null, state: null, registry: null };
+        data = { id: null, state: {}, registry: {} };
         syncData.set(unit, data);
     }
     return data;
@@ -40,7 +40,6 @@ export function syncOf(unit: Unit): SyncData {
 /** unit の synced state を取得（既存キーは尊重し、無いキーだけ initial で補完）。 */
 export function setState(unit: Unit, initial: Record<string, any>): Record<string, any> {
     const data = syncOf(unit);
-    data.state ??= {};
     // 既存キーは尊重し、無いキーだけ initial で埋める（apply のプリシード/先行宣言を優先）。
     for (const key of Object.keys(initial)) {
         if (!(key in data.state)) { data.state[key] = initial[key]; }
@@ -50,8 +49,7 @@ export function setState(unit: Unit, initial: Record<string, any>): Record<strin
 
 /** unit のレジストリへ {name: Component} を追記する（無ければ生成）。 */
 export function setRegister(unit: Unit, Components: Record<string, Function>): void {
-    const data = syncOf(unit);
-    data.registry = Object.assign(data.registry ?? {}, Components);
+    Object.assign(syncOf(unit).registry, Components);
 }
 
 // 同期ノード id の採番カウンタ（identity 用）。root（boot ルート）ごとに独立して単調増加。
@@ -80,7 +78,7 @@ export function captureStateTree(root: Unit): StateTree {
         if (name !== undefined) {
             const data = syncOf(unit);
             data.id ??= nextId++;
-            nodes.push({ id: data.id, name, parentId, state: { ...(data.state ?? {}) } });
+            nodes.push({ id: data.id, name, parentId, state: { ...data.state } });
             parentId = data.id;
         }
         unit._.children.forEach((child) => walk(child, parentId));
@@ -108,17 +106,16 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
         const existing = map.get(node.id);
         if (existing !== undefined) {
             // update: 変更フィールドを上書き（一度入ったキーは消さない。v1 の割り切り）
-            const data = syncOf(existing);
-            data.state = Object.assign(data.state ?? {}, node.state);
+            Object.assign(syncOf(existing).state, node.state);
             continue;
         }
         const parent = node.parentId === null ? root : map.get(node.parentId);
-        const Component = parent && syncOf(parent).registry?.[node.name];
+        const Component = parent && syncOf(parent).registry[node.name];
         if (!Component) { continue; }   // 親が無い / 許可していない型は無視
         // body 未実行の unit を先に生成し、初期 SyncData（id + server state）を unit キーで仕込んでから
         // initialize で body を走らせる。これで body の sync.state より前に欠落キーが埋まり id も確定する。
         const unit = new Unit(parent);
-        syncData.set(unit, { id: node.id, state: { ...node.state }, registry: null });
+        syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
         Unit.initialize(unit, Component);
         map.set(node.id, unit);
     }
@@ -278,19 +275,17 @@ export const sync = {
         setRegister(unit, Components);
     },
     get status(): SyncStatus {
-        if (getEnvironment() === 'server') {
-            const info = rootInfoOf(Unit.currentUnit) as ServerInfo;
-            return {
-                room: info.room, clients: info.clients,
-                get client(): ClientData { throw new Error('sync.status.client is only available on the client side.'); },
-            };
-        } else {
-            const info = rootInfoOf(Unit.currentUnit) as ClientInfo;
-            return {
-                room: info.room, clients: info.clients,
-                get client(): ClientData { return info.clients.find((c) => c.id === info.socket.id) ?? { id: info.socket.id, name: '' }; },
-            };
-        }
+        const info = rootInfoOf(Unit.currentUnit);
+        return {
+            room: info.room, clients: info.clients,
+            get client(): ClientData {
+                if (getEnvironment() === 'server') {
+                    throw new Error('sync.status.client is only available on the client side.');
+                }
+                const ci = info as ClientInfo;
+                return ci.clients.find((c) => c.id === ci.socket.id) ?? { id: ci.socket.id, name: '' };
+            },
+        };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
         if (getEnvironment() === 'server') {
