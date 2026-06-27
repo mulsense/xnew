@@ -1,58 +1,81 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf, captureStateTree } from '../../../src/core/sync';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/index';
+import { ioMock, bootServer, asServer } from './io-mock';
+
+// capture は boot 内部へ移動したため、検証は boot 経由で行う:
+// server boot は root.on('update') で captureStateTree() を 'sync' として emit し、io-mock が
+// それを記録する。よって boot → start → update のあと hub.lastSync() で emit されたツリーを得る。
 
 function Player() {}
 
 describe('registry (scoped)', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
+    // component を server boot し 1 度 update して、emit された 'sync' ツリーを返す。
+    function capture(Component: any): any[] {
+        bootServer({ io: hub.io }, Component);
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(Unit.engineRoot));
+        return hub.lastSync() ?? [];
+    }
+
     it('a child is synced under the name its parent registered', () => {
-        const root = xnew(function Root() { xnew.sync.register({ Player }); xnew(Player); });
-        expect(captureStateTree(root).map(n => n.name)).toContain('Player');
+        const tree = capture(function Root() { xnew.sync.register({ Player }); xnew(Player); });
+        expect(tree.map((n: any) => n.name)).toContain('Player');
     });
 
     it('a child whose parent did not register it is not synced', () => {
-        const root = xnew(function Root() { xnew(Player); });   // register していない
-        expect(captureStateTree(root)).toHaveLength(0);
+        const tree = capture(function Root() { xnew(Player); });   // register していない
+        expect(tree).toHaveLength(0);
     });
 
     it('a unit whose parent has no registry is not synced', () => {
-        const unit = xnew((u: Unit) => {});
-        expect(captureStateTree(unit)).toHaveLength(0);
+        const tree = capture((u: Unit) => {});
+        expect(tree).toHaveLength(0);
     });
 });
 
 describe('captureStateTree', () => {
-    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); });
+    let hub: ReturnType<typeof ioMock>;
+    beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
     afterEach(() => { Unit.engineRoot?.finalize(); jest.useRealTimers(); });
 
     function World(unit: Unit) { xnew.sync.register({ Child }); xnew.sync.state({ tick: 0 }); xnew(Child); }
     function Child(unit: Unit) { xnew.sync.state({ position: 5 }); }
 
+    function capture(Component: any): any[] {
+        bootServer({ io: hub.io }, Component);
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(Unit.engineRoot));
+        return hub.lastSync() ?? [];
+    }
+
     it('captures a synced unit; parentId is null when no synced ancestor exists', () => {
-        const root = xnew(function Root() { xnew.sync.register({ World }); xnew(World); });
-        const tree = captureStateTree(root);
-        const worldNode = tree.find(n => n.name === 'World')!;
+        const tree = capture(function Root() { xnew.sync.register({ World }); xnew(World); });
+        const worldNode = tree.find((n: any) => n.name === 'World')!;
         expect(worldNode).toBeDefined();
         expect(worldNode.parentId).toBeNull();
         expect(worldNode.state).toEqual({ tick: 0 });
     });
 
     it('sets a child parentId to the nearest synced ancestor id', () => {
-        const root = xnew(function Root() { xnew.sync.register({ World }); xnew(World); });
-        const tree = captureStateTree(root);
-        const worldNode = tree.find(n => n.name === 'World')!;
-        const childNode = tree.find(n => n.name === 'Child')!;
+        const tree = capture(function Root() { xnew.sync.register({ World }); xnew(World); });
+        const worldNode = tree.find((n: any) => n.name === 'World')!;
+        const childNode = tree.find((n: any) => n.name === 'Child')!;
         expect(childNode.parentId).toBe(worldNode.id);
     });
 
     it('assigns stable ids and reflects mutated state on later captures', () => {
-        const root = xnew(function Root() { xnew.sync.register({ Child }); xnew(Child); });
-        const first = captureStateTree(root)[0];
-        syncOf(root._.children[0]).state!.position = 9;
-        const second = captureStateTree(root)[0];
+        const server = bootServer({ io: hub.io }, function Root() { xnew.sync.register({ Child }); xnew(Child); });
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(Unit.engineRoot));
+        const first = hub.lastSync()[0];
+        syncOf(server._.children[0]).state!.position = 9;
+        asServer(() => Unit.update(Unit.engineRoot));
+        const second = hub.lastSync()[0];
         expect(second.id).toBe(first.id);
         expect(second.state).toEqual({ position: 9 });
     });

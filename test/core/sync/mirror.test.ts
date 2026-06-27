@@ -1,5 +1,5 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf, captureStateTree, applyStateTree } from '../../../src/core/sync';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/index';
 import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
@@ -15,6 +15,9 @@ function Mover(unit: Unit) {
     });
 }
 
+// capture / apply は boot 内部に移動した。server boot は root.on('update') で 'sync' を broadcast し、
+// client boot は on('sync') で apply する。よって「server を update する」だけで client へ反映される
+// （明示の applyStateTree(client, captureStateTree(server)) 呼び出しは不要）。
 describe('server/client mirror (server/client blocks)', () => {
     let hub: ReturnType<typeof ioMock>;
     beforeEach(() => { jest.useFakeTimers({ now: 0 }); Unit.reset(); hub = ioMock(); });
@@ -26,10 +29,9 @@ describe('server/client mirror (server/client blocks)', () => {
 
         function cycle() {
             Unit.start(Unit.engineRoot);
-            Unit.update(Unit.engineRoot);                              // server Mover: position += 1
-            applyStateTree(client, captureStateTree(server));    // sync
-            Unit.start(Unit.engineRoot);                               // start newly-created replica units
-            Unit.render(Unit.engineRoot);                             // replica render
+            asServer(() => Unit.update(server));   // server Mover: position += 1 → 'sync' broadcast → client apply
+            Unit.start(Unit.engineRoot);            // start newly-created replica units
+            Unit.render(Unit.engineRoot);          // replica render
         }
 
         cycle();
@@ -56,21 +58,18 @@ describe('server/client mirror (server/client blocks)', () => {
         const server = bootServer({ io: hub.io }, Main);
         const client = bootClient({ socket: hub.connect() }, Main);
 
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(server));   // capture + 'sync' → client apply（同時にトポロジを確認）
+
         // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
-        const tree = captureStateTree(server);
+        const tree = hub.lastSync();
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Mover');
         expect(tree[0].parentId).toBeNull();
         expect(server._.children[0]._.Components).toContain(Mover);   // Main の server ブロックが生成した Mover
 
-        function cycle() {
-            Unit.start(Unit.engineRoot);
-            Unit.update(Unit.engineRoot);
-            applyStateTree(client, captureStateTree(server));
-            Unit.start(Unit.engineRoot);
-            Unit.render(Unit.engineRoot);
-        }
-        cycle();
+        Unit.start(Unit.engineRoot);
+        Unit.render(Unit.engineRoot);
 
         // client Main の下に replica Mover が生成され、nest した既存 view 要素の配下に mount される。
         const replicaMover = client._.children[0];
@@ -94,11 +93,10 @@ describe('server/client mirror (server/client blocks)', () => {
         const server = bootServer({ io: hub.io }, Server);
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Mover }); });
 
-        const sync = () => applyStateTree(client, captureStateTree(server));
         Unit.start(Unit.engineRoot);
-        asServer(() => Unit.update(Unit.engineRoot)); sync();   // server update が Mover を spawn（server 構築）
+        asServer(() => Unit.update(server)); // server update が Mover を spawn → 'sync' → client apply
         expect(client._.children.length).toBe(1);    // spawn mirrored
-        asServer(() => Unit.update(Unit.engineRoot)); sync();
+        asServer(() => Unit.update(server)); // server update が Mover を despawn → 'sync' → client remove
         expect(client._.children.length).toBe(0);     // despawn mirrored
     });
 });

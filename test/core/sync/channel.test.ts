@@ -1,6 +1,6 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/index';
-import { syncOf, captureStateTree, applyStateTree } from '../../../src/core/sync';
+import { syncOf } from '../../../src/core/sync';
 import { ioMock, bootServer, bootClient, asServer, asClient } from './io-mock';
 
 //----------------------------------------------------------------------------------------------------
@@ -103,18 +103,14 @@ describe('event channel (socket.io transport)', () => {
         const socket2 = hub.connect();
         const client2 = bootClient({ socket: socket2 }, World, { view: view2 });        // connect → presence に c2
 
-        const sync = () => {
-            const tree = captureStateTree(server);
-            applyStateTree(client1, tree);
-            applyStateTree(client2, tree);
-        };
         // server / client サブツリーを各々の環境で別々に tick する（emit/status は env で分岐するため、
         // 1 回の update で両側をまとめて回さない）。server を先に回して Player を spawn → client が emit。
+        // server update が root.on('update') で 'sync' を両 client へ broadcast し、各 client boot が apply する
+        // （明示の capture/apply は不要）。
         function cycle() {
             Unit.start(Unit.engineRoot);
-            asServer(() => Unit.update(server));                                // server: presence から Player を spawn
+            asServer(() => Unit.update(server));                                // server: presence から Player を spawn + 'sync' broadcast → 両 client apply
             asClient(() => { Unit.update(client1); Unit.update(client2); });    // client: on('update') の emit
-            sync();
             Unit.start(Unit.engineRoot);
             Unit.render(Unit.engineRoot);
         }
@@ -122,10 +118,9 @@ describe('event channel (socket.io transport)', () => {
         cycle();   // f2: client emit → 各 Player の on('move') が受信時に state を更新
         cycle();
 
-        const tree = captureStateTree(server);
-        const players = tree.filter((n) => n.name === 'Player');
+        const players = hub.lastSync().filter((n: any) => n.name === 'Player');   // 直近に broadcast された tree
         expect(players.length).toBe(2);
-        const byClient = Object.fromEntries(players.map((p) => [p.state.clientId, p.state]));
+        const byClient = Object.fromEntries(players.map((p: any) => [p.state.clientId, p.state]));
         expect(byClient.c1.x).toBeGreaterThanOrEqual(1);
         expect(byClient.c2.x).toBeGreaterThanOrEqual(1);
 
@@ -135,8 +130,8 @@ describe('event channel (socket.io transport)', () => {
 
         // 切断 → 次フレームで despawn
         socket2.disconnect();
-        asServer(() => Unit.update(server));   // server World が切断メンバの Player を despawn
-        expect(captureStateTree(server).filter((n) => n.name === 'Player').length).toBe(1);
+        asServer(() => Unit.update(server));   // server World が切断メンバの Player を despawn + 'sync' broadcast
+        expect(hub.lastSync().filter((n: any) => n.name === 'Player').length).toBe(1);
     });
 
     it('boot auto-wires the down-channel (server broadcast / client apply)', () => {
@@ -157,7 +152,7 @@ describe('event channel (socket.io transport)', () => {
 
         const replica = client._.children.find((c: Unit) => syncOf(c).state);
         expect(replica).toBeDefined();
-        expect(syncOf(replica!).state!.x).toBe(captureStateTree(server).find((n) => n.name === 'Mover')!.state.x);
+        expect(syncOf(replica!).state!.x).toBe(hub.lastSync().find((n: any) => n.name === 'Mover')!.state.x);
         expect(syncOf(replica!).state!.x).toBeGreaterThanOrEqual(1);
     });
 

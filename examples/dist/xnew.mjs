@@ -1393,71 +1393,6 @@ function syncOf(unit) {
     }
     return syncData.get(unit);
 }
-const syncIdCounters = new WeakMap();
-function captureStateTree(root) {
-    var _a;
-    const nodes = [];
-    let nextId = (_a = syncIdCounters.get(root)) !== null && _a !== void 0 ? _a : 1;
-    const syncName = (unit) => {
-        var _a;
-        const registry = unit._.parent ? (_a = syncData.get(unit._.parent)) === null || _a === void 0 ? void 0 : _a.registry : null;
-        if (registry === null || registry === undefined) {
-            return undefined;
-        }
-        const entries = Object.entries(registry);
-        for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
-            if (hit !== undefined) {
-                return hit[0];
-            }
-        }
-        return undefined;
-    };
-    const walk = (unit, parentId) => {
-        var _a;
-        const name = syncName(unit);
-        if (name !== undefined) {
-            const data = syncOf(unit);
-            (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
-            nodes.push({ id: data.id, name, parentId, state: Object.assign({}, data.state) });
-            parentId = data.id;
-        }
-        unit._.children.forEach((child) => walk(child, parentId));
-    };
-    walk(root, null);
-    syncIdCounters.set(root, nextId);
-    return nodes;
-}
-const reconcileMaps = new WeakMap();
-function applyStateTree(root, tree) {
-    if (reconcileMaps.has(root) === false) {
-        reconcileMaps.set(root, new Map());
-    }
-    const map = reconcileMaps.get(root);
-    const incoming = new Set(tree.map((node) => node.id));
-    for (const node of tree) {
-        const existing = map.get(node.id);
-        if (existing !== undefined) {
-            Object.assign(syncOf(existing).state, node.state);
-            continue;
-        }
-        const parent = node.parentId === null ? root : map.get(node.parentId);
-        const Component = parent && syncOf(parent).registry[node.name];
-        if (!Component) {
-            continue;
-        }
-        const unit = new Unit(parent);
-        syncData.set(unit, { id: node.id, state: Object.assign({}, node.state), registry: {} });
-        Unit.initialize(unit, Component);
-        map.set(node.id, unit);
-    }
-    for (const [id, unit] of [...map.entries()]) {
-        if (!incoming.has(id)) {
-            unit.finalize();
-            map.delete(id);
-        }
-    }
-}
 const roots = new Map();
 function findSyncRoot(unit) {
     for (let u = unit; u !== null; u = u._.parent) {
@@ -1491,8 +1426,40 @@ function boot(opts, parent, args) {
     Unit.initialize(root, ...args);
     if (getEnvironment() === 'server') {
         const { io } = info;
+        let nextId = 1;
+        const captureStateTree = () => {
+            const nodes = [];
+            const syncName = (unit) => {
+                var _a;
+                const registry = unit._.parent ? (_a = syncData.get(unit._.parent)) === null || _a === void 0 ? void 0 : _a.registry : null;
+                if (registry === null || registry === undefined) {
+                    return undefined;
+                }
+                const entries = Object.entries(registry);
+                for (let i = unit._.Components.length - 1; i >= 0; i--) {
+                    const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
+                    if (hit !== undefined) {
+                        return hit[0];
+                    }
+                }
+                return undefined;
+            };
+            const walk = (unit, parentId) => {
+                var _a;
+                const name = syncName(unit);
+                if (name !== undefined) {
+                    const data = syncOf(unit);
+                    (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
+                    nodes.push({ id: data.id, name, parentId, state: Object.assign({}, data.state) });
+                    parentId = data.id;
+                }
+                unit._.children.forEach((child) => walk(child, parentId));
+            };
+            walk(root, null);
+            return nodes;
+        };
         root.on('finalize', () => roots.delete(root));
-        root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
+        root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
         io.on('connection', (socket) => {
             var _a, _b;
             const query = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query;
@@ -1516,7 +1483,33 @@ function boot(opts, parent, args) {
     }
     else {
         const { socket } = info;
-        const onSync = (tree) => applyStateTree(root, tree);
+        const reconcileMap = new Map();
+        const applyStateTree = (tree) => {
+            const incoming = new Set(tree.map((node) => node.id));
+            for (const node of tree) {
+                const existing = reconcileMap.get(node.id);
+                if (existing !== undefined) {
+                    Object.assign(syncOf(existing).state, node.state);
+                    continue;
+                }
+                const parent = node.parentId === null ? root : reconcileMap.get(node.parentId);
+                const Component = parent && syncOf(parent).registry[node.name];
+                if (!Component) {
+                    continue;
+                }
+                const unit = new Unit(parent);
+                syncData.set(unit, { id: node.id, state: Object.assign({}, node.state), registry: {} });
+                Unit.initialize(unit, Component);
+                reconcileMap.set(node.id, unit);
+            }
+            for (const [id, unit] of [...reconcileMap.entries()]) {
+                if (!incoming.has(id)) {
+                    unit.finalize();
+                    reconcileMap.delete(id);
+                }
+            }
+        };
+        const onSync = (tree) => applyStateTree(tree);
         socket.on('sync', onSync);
         const onStatus = (status) => {
             var _a;

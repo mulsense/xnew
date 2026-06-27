@@ -1,7 +1,7 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf, captureStateTree, applyStateTree } from '../../../src/core/sync';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/index';
-import { ioMock, bootServer, bootClient } from './io-mock';
+import { ioMock, bootServer, bootClient, asServer } from './io-mock';
 
 describe('scoped registry isolation', () => {
     let hub: ReturnType<typeof ioMock>;
@@ -15,15 +15,17 @@ describe('scoped registry isolation', () => {
     function ParentB(unit: Unit) { xnew.sync.register({ Child: ChildB }); xnew(ChildB); }
 
     it('resolves the same name to different components per scope (capture)', () => {
-        const root = xnew(function Root() {
+        bootServer({ io: hub.io }, function Root() {
             xnew.sync.register({ ParentA, ParentB });
             xnew(ParentA);
             xnew(ParentB);
         });
-        const tree = captureStateTree(root);
-        const childNodes = tree.filter(n => n.name === 'Child');
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(Unit.engineRoot));   // root.on('update') が 'sync' を emit
+        const tree = hub.lastSync();
+        const childNodes = tree.filter((n: any) => n.name === 'Child');
         expect(childNodes).toHaveLength(2);
-        expect(childNodes.map(n => n.state.kind).sort()).toEqual(['A', 'B']);
+        expect(childNodes.map((n: any) => n.state.kind).sort()).toEqual(['A', 'B']);
     });
 
     it('apply re-creates each Child with the component its reconciled parent registered', () => {
@@ -34,7 +36,8 @@ describe('scoped registry isolation', () => {
         });
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ ParentA, ParentB }); });
 
-        applyStateTree(client, captureStateTree(server));
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(server));   // capture + 'sync' broadcast → client apply
 
         const replicaA = client._.children.find(c => c._.Components.includes(ParentA))!;
         const replicaB = client._.children.find(c => c._.Components.includes(ParentB))!;
@@ -46,9 +49,10 @@ describe('scoped registry isolation', () => {
 
     it('a child not registered by its parent is omitted from capture', () => {
         function Loose(unit: Unit) { xnew.sync.state({ v: 1 }); }
-        const root = xnew(function Root() { xnew(Loose); });   // Root は Loose を register しない
-        const tree = captureStateTree(root);
-        expect(tree).toHaveLength(0);
+        bootServer({ io: hub.io }, function Root() { xnew(Loose); });   // Root は Loose を register しない
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(Unit.engineRoot));
+        expect(hub.lastSync()).toHaveLength(0);
     });
 
     it('throws when register is called outside a component body', () => {

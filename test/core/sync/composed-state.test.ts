@@ -1,7 +1,10 @@
 import { Unit } from '../../../src/core/unit';
-import { syncOf, captureStateTree, applyStateTree } from '../../../src/core/sync';
+import { syncOf } from '../../../src/core/sync';
 import { xnew } from '../../../src/index';
-import { ioMock, bootServer, bootClient } from './io-mock';
+import { ioMock, bootServer, bootClient, asServer } from './io-mock';
+
+// capture / apply は boot 内部に移動した。server boot は root.on('update') で 'sync' を broadcast し、
+// client boot は on('sync') で apply するので、「server を update する」だけで client へ反映される。
 
 // Base: synced state を宣言する基底コンポーネント（最初の sync.state 宣言）
 function Base(unit: Unit) {
@@ -36,8 +39,7 @@ describe('composed synced state (base + extend)', () => {
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Enemy }); });
 
         Unit.start(Unit.engineRoot);
-        Unit.update(Unit.engineRoot);                              // server Enemy: hp=101, x=3
-        applyStateTree(client, captureStateTree(server));     // create replica
+        asServer(() => Unit.update(server));   // server Enemy: hp=101, x=3 → 'sync' → client が replica を生成
 
         const replica = client._.children[0];
         // Base(hp) と Enemy(x) の両宣言が、構築時点でサーバー値として読めている
@@ -67,8 +69,7 @@ describe('composed synced state (base + extend)', () => {
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Host }); });
 
         Unit.start(Unit.engineRoot);
-        Unit.update(Unit.engineRoot);                              // server Host: value=5
-        applyStateTree(client, captureStateTree(server));     // create replica Host + inline Child
+        asServer(() => Unit.update(server));   // server Host: value=5 → 'sync' → client が replica Host + inline Child を生成
 
         const replicaHost = client._.children[0];
         expect(syncOf(replicaHost).state!.value).toBe(5);             // Host は注入値
@@ -82,7 +83,9 @@ describe('composed synced state (base + extend)', () => {
         function EnemyDerived(unit: Unit, props: any = {}) { xnew.extend(ActorBase, props); xnew.sync.state({ hp: 3 }); }
         const server = bootServer({ io: hub.io }, function S() { xnew.sync.register({ ActorBase, EnemyDerived }); xnew(EnemyDerived, { y: 8 }); });
 
-        const tree = captureStateTree(server);
+        Unit.start(Unit.engineRoot);
+        asServer(() => Unit.update(server));
+        const tree = hub.lastSync();
         expect(tree).toHaveLength(1);
         expect(tree[0].name).toBe('EnemyDerived');   // 基底 ActorBase ではなく派生 EnemyDerived
         expect(tree[0].state).toEqual({ x: 0, y: 8, hp: 3 });
@@ -112,13 +115,12 @@ describe('composed synced state (base + extend)', () => {
         const client = bootClient({ socket: hub.connect() }, function ClientRoot() { xnew.sync.register({ Sprite }); });
 
         Unit.start(Unit.engineRoot);
-        Unit.update(Unit.engineRoot);                              // server Sprite: x=3, hp=2
+        asServer(() => Unit.update(server));   // server Sprite: x=3, hp=2 → 'sync' → client が replica を生成
 
-        const tree = captureStateTree(server);
+        const tree = hub.lastSync();
         expect(tree).toHaveLength(1);
         expect(tree[0].state).toEqual({ x: 3, y: 8, hp: 2 });    // Actor 由来(x,y) + Sprite 由来(hp) がマージ
 
-        applyStateTree(client, tree);                           // create replica
         Unit.start(Unit.engineRoot);
         Unit.render(Unit.engineRoot);                             // replica render（両 render ハンドラが走る）
 

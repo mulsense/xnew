@@ -30,16 +30,20 @@ export interface MockClientSocket {
     off(event: string, handler: Handler): void;
     onAny(handler: AnyHandler): void;
     disconnect(): void;
+    fire(event: string, payload?: any): void;   // server→client 受信を擬似発火（自分の on(event) を client 環境で呼ぶ）
 }
 
 export interface IoMock {
     io: any;                                  // socket.io の io 相当（server 側）
     connect(id?: string): MockClientSocket;   // 1 接続ぶんの client socket を生成
+    captured: any[];                          // server boot が emit した 'sync' ツリーの記録（capture-only テスト用）
+    lastSync(): any;                          // 直近に emit された 'sync' ツリー（capture は root.on('update') で走る）
 }
 
 export function ioMock(): IoMock {
     let connectionCb: ((socket: any) => void) | null = null;
     let seq = 0;   // clientId 自動発番（'c1', 'c2', ...）
+    const captured: any[] = [];   // boot が emit する 'sync' ツリーを記録（接続 client の有無に関わらず残す）
 
     interface Conn {
         clientHandlers: Map<string, Set<Handler>>;   // client.on(event)
@@ -61,11 +65,13 @@ export function ioMock(): IoMock {
     const io = {
         on(event: string, cb: (socket: any) => void): void { if (event === 'connection') { connectionCb = cb; } },
         emit(event: string, payload?: any): void {                 // broadcast（全 client へ）
+            if (event === 'sync') { captured.push(payload); }
             for (const conn of conns.values()) { deliverToClient(conn, event, payload); }
         },
         to(room: string) {
             // room に join した全 client へ配信する。
             return { emit(event: string, payload?: any): void {
+                if (event === 'sync') { captured.push(payload); }
                 for (const conn of conns.values()) {
                     if (conn.room === room) { deliverToClient(conn, event, payload); }
                 }
@@ -98,10 +104,12 @@ export function ioMock(): IoMock {
             off(event: string, handler: Handler): void { conn.clientHandlers.get(event)?.delete(handler); },
             onAny(handler: AnyHandler): void { conn.clientAny.add(handler); },
             disconnect(): void { conns.delete(clientId); conn.serverDisconnect.forEach((h) => h()); },
+            // server→client 受信を擬似発火: 自分の on(event) ハンドラ（boot の on('sync')→apply 等）を client 環境で呼ぶ。
+            fire(event: string, payload?: any): void { deliverToClient(conn, event, payload); },
         };
     }
 
-    return { io, connect };
+    return { io, connect, captured, lastSync: () => captured[captured.length - 1] };
 }
 
 // 実行環境（server/client）を固定して同期的な処理を走らせる。1 プロセスで両側を模すテスト用。

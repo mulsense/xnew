@@ -32,77 +32,6 @@ export function syncOf(unit: Unit): SyncData {
     return syncData.get(unit)!;
 }
 
-// Per-root monotonic id counter; ids only need to be unique within a root.
-const syncIdCounters: WeakMap<Unit, number> = new WeakMap();
-
-export function captureStateTree(root: Unit): StateTree {
-    const nodes: StateTree = [];
-    let nextId = syncIdCounters.get(root) ?? 1;
-
-    // Registered name in the parent's registry, or undefined if not a sync target.
-    // _.Components is [base..., most-derived], so match from the tail.
-    const syncName = (unit: Unit): string | undefined => {
-        const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
-        if (registry === null || registry === undefined) { return undefined; }
-        const entries = Object.entries(registry);
-        for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
-            if (hit !== undefined) { return hit[0]; }
-        }
-        return undefined;
-    };
-
-    const walk = (unit: Unit, parentId: number | null): void => {
-        const name = syncName(unit);
-        if (name !== undefined) {
-            const data = syncOf(unit);
-            data.id ??= nextId++;
-            nodes.push({ id: data.id, name, parentId, state: { ...data.state } });
-            parentId = data.id;
-        }
-        unit._.children.forEach((child) => walk(child, parentId));
-    };
-
-    walk(root, null);
-    syncIdCounters.set(root, nextId);
-    return nodes;
-}
-
-/** Per-client-root id→Unit map. */
-const reconcileMaps: WeakMap<Unit, Map<number, Unit>> = new WeakMap();
-
-/** Diff-apply a state tree to the client subtree (create/update/remove; tree is pre-order, client only). */
-export function applyStateTree(root: Unit, tree: StateTree): void {
-    if (reconcileMaps.has(root) === false) {
-        reconcileMaps.set(root, new Map<number, Unit>());
-    }
-    const map = reconcileMaps.get(root)!;
-    const incoming = new Set<number>(tree.map((node) => node.id));
-
-    // create / update (pre-order, so the parent already exists)
-    for (const node of tree) {
-        const existing = map.get(node.id);
-        if (existing !== undefined) {
-            // never delete a once-set key (v1 simplification)
-            Object.assign(syncOf(existing).state, node.state);
-            continue;
-        }
-        const parent = node.parentId === null ? root : map.get(node.parentId);
-        const Component = parent && syncOf(parent).registry[node.name];
-        if (!Component) { continue; }
-        // seed SyncData before initialize so the body's sync.state sees the server state and fixed id
-        const unit = new Unit(parent);
-        syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
-        Unit.initialize(unit, Component);
-        map.set(node.id, unit);
-    }
-
-    // remove replicas whose id vanished from the tree
-    for (const [id, unit] of [...map.entries()]) {
-        if (!incoming.has(id)) { unit.finalize(); map.delete(id); }
-    }
-}
-
 export interface ClientStatus { id: string; name: string; }
 export interface RoomStatus { id: string; name: string; count: number; }
 export interface SyncStatus { room: RoomStatus; clients: ClientStatus[]; client: ClientStatus; }
@@ -161,8 +90,40 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
 
     if (getEnvironment() === 'server') {
         const { io } = info as ServerInfo;
+
+        // capture this root's sync targets as a flat pre-order node list (closed over `root`).
+        // A sync target is a unit whose type is registered in its direct parent's registry.
+        // nextId is monotonic across captures so a unit keeps its id for its whole lifetime.
+        let nextId = 1;
+        const captureStateTree = (): StateTree => {
+            const nodes: StateTree = [];
+            // _.Components is [base..., most-derived]; match the registered name from the tail.
+            const syncName = (unit: Unit): string | undefined => {
+                const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
+                if (registry === null || registry === undefined) { return undefined; }
+                const entries = Object.entries(registry);
+                for (let i = unit._.Components.length - 1; i >= 0; i--) {
+                    const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
+                    if (hit !== undefined) { return hit[0]; }
+                }
+                return undefined;
+            };
+            const walk = (unit: Unit, parentId: number | null): void => {
+                const name = syncName(unit);
+                if (name !== undefined) {
+                    const data = syncOf(unit);
+                    data.id ??= nextId++;
+                    nodes.push({ id: data.id, name, parentId, state: { ...data.state } });
+                    parentId = data.id;
+                }
+                unit._.children.forEach((child) => walk(child, parentId));
+            };
+            walk(root, null);
+            return nodes;
+        };
+
         root.on('finalize', () => roots.delete(root));
-        root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
+        root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
         io.on('connection', (socket: any) => {
             const query = socket.handshake?.query;
             if (query?.roomId !== room.id) return; // ignore other rooms
@@ -183,7 +144,35 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         }
     } else {
         const { socket } = info as ClientInfo;
-        const onSync = (tree: StateTree) => applyStateTree(root, tree);
+
+        // diff-apply a captured tree onto this client root (create/update/remove; tree is pre-order).
+        // reconcileMap tracks node id → replica unit for this root only (closed over `root`).
+        const reconcileMap = new Map<number, Unit>();
+        const applyStateTree = (tree: StateTree): void => {
+            const incoming = new Set<number>(tree.map((node) => node.id));
+            // create / update (pre-order, so the parent already exists)
+            for (const node of tree) {
+                const existing = reconcileMap.get(node.id);
+                if (existing !== undefined) {
+                    Object.assign(syncOf(existing).state, node.state);   // never delete a once-set key (v1 simplification)
+                    continue;
+                }
+                const parent = node.parentId === null ? root : reconcileMap.get(node.parentId);
+                const Component = parent && syncOf(parent).registry[node.name];
+                if (!Component) { continue; }
+                // seed SyncData before initialize so the body's sync.state sees the server state and fixed id
+                const unit = new Unit(parent);
+                syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
+                Unit.initialize(unit, Component);
+                reconcileMap.set(node.id, unit);
+            }
+            // remove replicas whose id vanished from the tree
+            for (const [id, unit] of [...reconcileMap.entries()]) {
+                if (!incoming.has(id)) { unit.finalize(); reconcileMap.delete(id); }
+            }
+        };
+
+        const onSync = (tree: StateTree) => applyStateTree(tree);
         socket.on('sync', onSync);
         const onStatus = (status: { clients?: ClientStatus[] }) => {
             info.clients = status?.clients ?? [];

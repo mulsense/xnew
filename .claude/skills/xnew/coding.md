@@ -172,6 +172,16 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
 Append here when a mistake is found. Newest at the top. Keep each terse:
 the rule, then one line of why.
 
+- **`captureStateTree` / `applyStateTree` are boot-internal (not exported).** Capture lives
+  in boot's server branch (closes over `root` + a local `nextId`), apply in the client branch
+  (closes over `root` + a local `reconcileMap`). The only seams are: server emits `'sync'` on
+  `root.on('update')`, client applies on `socket.on('sync')`. To drive them in tests, go through
+  boot's wiring — `io-mock` records emitted `'sync'` trees (`hub.lastSync()`) and the mock client
+  socket has `fire(event, payload)` to inject a down-event (e.g. a hand-built tree) in client env.
+  Never re-add a direct `import { captureStateTree, applyStateTree }`.
+- **Capture runs after children update.** `Unit.update` recurses children *then* runs the unit's
+  own update systems, so boot's `root.on('update')` capture sees this tick's child mutations. A
+  single `asServer(() => Unit.update(server))` both advances server logic and broadcasts state.
 - **`sync.boot` (client) owns the socket — don't create it in callers.** Pass
   `{ io, client, room }` (`client` is `{ name }`); boot does
   `io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true })`
