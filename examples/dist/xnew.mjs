@@ -1656,8 +1656,9 @@ function Lobby(unit, props) {
                 }
                 const id = `r${++nextRoomNum}`;
                 const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                rooms.set(id, xnew$1(unit, Room, { io, room: { id, name, count: 0 } }));
-                conn.emit('roomcreated', { room: { id, name, count: 0 } });
+                const room = { id, name, count: 0 };
+                rooms.set(id, xnew$1(unit, Room, { io, room }));
+                conn.emit('roomcreated', { room });
                 broadcastRooms(io);
             }));
         });
@@ -1667,11 +1668,9 @@ function Lobby(unit, props) {
     sync.client(() => {
         const { io } = props;
         const socket = io({ forceNew: true });
-        socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
-        socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));
-        socket.on('statusupdate', xnew$1.scope((payload) => xnew$1.emit('-statusupdate', payload)));
-        socket.on('roomcreated', xnew$1.scope((payload) => xnew$1.emit('-roomcreated', payload)));
-        socket.on('roomrejected', xnew$1.scope((payload) => xnew$1.emit('-roomrejected', payload)));
+        for (const event of ['connect', 'disconnect', 'statusupdate', 'roomcreated', 'roomrejected']) {
+            socket.on(event, xnew$1.scope((payload) => xnew$1.emit('-' + event, payload !== null && payload !== void 0 ? payload : {})));
+        }
         unit.on('finalize', () => socket.disconnect());
         return { createRoom(name) { socket.emit('roomcreate', { name }); } };
     });
@@ -1680,8 +1679,7 @@ function Room(unit, props) {
     const members = new Set();
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props;
-        const client = sync.boot({ io, room }, Component);
-        unit.on('finalize', () => client.finalize());
+        sync.boot({ io, room }, Component);
         const isListed = () => rooms.has(room.id);
         let graceTimer = null;
         const cancelCleanup = () => { graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear(); graceTimer = null; };
@@ -1732,8 +1730,7 @@ function Room(unit, props) {
     });
     sync.client(() => {
         const { io, client, room, Component } = props;
-        const root = sync.boot({ io, client, room }, Component);
-        unit.on('finalize', () => root.finalize());
+        sync.boot({ io, client, room }, Component);
     });
 }
 

@@ -48,8 +48,9 @@ export function Lobby(unit: Unit, props: any) {
                 if (rooms.size >= maxRooms) { conn.emit('roomrejected', { message: 'room limit reached' }); return; }
                 const id = `r${++nextRoomNum}`;
                 const name = String(payload?.name ?? '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
-                rooms.set(id, xnew(unit, Room, { io, room: { id, name, count: 0 } }));
-                conn.emit('roomcreated', { room: { id, name, count: 0 } });
+                const room = { id, name, count: 0 };
+                rooms.set(id, xnew(unit, Room, { io, room }));
+                conn.emit('roomcreated', { room });
                 broadcastRooms(io);
             }));
         });
@@ -61,11 +62,10 @@ export function Lobby(unit: Unit, props: any) {
         const { io } = props as { io: any; };
         // ロビー接続は room を持たない（query なし → server はロビー接続として扱う）。socket は Lobby が所有する。
         const socket = io({ forceNew: true });
-        socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
-        socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
-        socket.on('statusupdate', xnew.scope((payload: any) => xnew.emit('-statusupdate', payload)));
-        socket.on('roomcreated', xnew.scope((payload: any) => xnew.emit('-roomcreated', payload)));
-        socket.on('roomrejected', xnew.scope((payload: any) => xnew.emit('-roomrejected', payload)));
+        // 受信イベントを host の '-event' へ転送する（connect/disconnect は payload なし → {}）。
+        for (const event of ['connect', 'disconnect', 'statusupdate', 'roomcreated', 'roomrejected']) {
+            socket.on(event, xnew.scope((payload: any) => xnew.emit('-' + event, payload ?? {})));
+        }
         unit.on('finalize', () => socket.disconnect());
         return { createRoom(name: string) { socket.emit('roomcreate', { name }); } };
     });
@@ -76,8 +76,8 @@ export function Room(unit: Unit, props: any) {
 
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props as { io: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
-        const client = sync.boot({ io, room }, Component);
-        unit.on('finalize', () => client.finalize());
+        // boot root は host の子 unit なので、host finalize 時に子カスケードで自動的に畳まれる（明示 finalize 不要）。
+        sync.boot({ io, room }, Component);
 
         // listed = tracked by a Lobby ledger; a standalone Room (id not in the ledger) skips broadcast/self-removal.
         const isListed = () => rooms.has(room.id);
@@ -124,8 +124,8 @@ export function Room(unit: Unit, props: any) {
     sync.client(() => {
         const { io, client, room, Component } = props as { io: any; client: any; room: RoomData; Component: Function; };
         // room / client は呼び出し側から渡す（room は server status で上書きされるまでの初期値）。
-        // boot が io から socket を生成し、connect/disconnect/notfound の '-event' 転送と finalize 切断まで担う。
-        const root = sync.boot({ io, client, room }, Component);
-        unit.on('finalize', () => root.finalize());
+        // boot が io から socket を生成し、connect/disconnect/notfound の '-event' 転送と socket 切断まで担う。
+        // boot root は host の子 unit なので、host finalize 時に子カスケードで自動的に畳まれる（明示 finalize 不要）。
+        sync.boot({ io, client, room }, Component);
     });
 }
