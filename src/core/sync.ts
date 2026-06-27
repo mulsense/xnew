@@ -10,7 +10,7 @@
 // - sync : xnew.sync facade (state / register / emit / status / boot / server / client)
 // - syncOf : per-unit sync data accessor (state fill / registry append live in sync.state / sync.register)
 // - StateTree : node list carried by capture / apply
-// - SyncStatus / ClientData / RoomData : room status types
+// - SyncStatus / ClientStatus / RoomStatus : room status types
 // - BootServerOptions / BootClientOptions : boot input for server / client
 //----------------------------------------------------------------------------------------------------
 
@@ -103,12 +103,12 @@ export function applyStateTree(root: Unit, tree: StateTree): void {
     }
 }
 
-export interface ClientData { id: string; name: string; }
-export interface RoomData { id: string; name: string; count: number; }
-export interface SyncStatus { room: RoomData; clients: ClientData[]; client: ClientData; }
+export interface ClientStatus { id: string; name: string; }
+export interface RoomStatus { id: string; name: string; count: number; }
+export interface SyncStatus { room: RoomStatus; clients: ClientStatus[]; client: ClientStatus; }
 
-interface ServerInfo { io: any; room: RoomData; clients: ClientData[]; }
-interface ClientInfo { socket: any; room: RoomData; clients: ClientData[]; }
+interface ServerInfo { io: any; room: RoomStatus; clients: ClientStatus[]; }
+interface ClientInfo { socket: any; room: RoomStatus; clients: ClientStatus[]; }
 
 const roots: Map<Unit, ServerInfo | ClientInfo> = new Map();
 
@@ -139,8 +139,8 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 //     and disconnect it on finalize. The host wiring lives here so callers just boot.
 //----------------------------------------------------------------------------------------------------
 
-export interface BootServerOptions { io: any; room: RoomData; }
-export interface BootClientOptions { io: any; client: any; room: RoomData; }
+export interface BootServerOptions { io: any; room: RoomStatus; }
+export interface BootClientOptions { io: any; client: any; room: RoomStatus; }
 
 function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { room } = opts;
@@ -185,7 +185,7 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         const { socket } = info as ClientInfo;
         const onSync = (tree: StateTree) => applyStateTree(root, tree);
         socket.on('sync', onSync);
-        const onStatus = (status: { clients?: ClientData[] }) => {
+        const onStatus = (status: { clients?: ClientStatus[] }) => {
             info.clients = status?.clients ?? [];
             dispatch('sync.statusupdate', undefined, undefined);
         };
@@ -268,7 +268,7 @@ export const sync = {
         const info = rootInfoOf(Unit.currentUnit);
         return {
             room: info.room, clients: info.clients,
-            get client(): ClientData {
+            get client(): ClientStatus {
                 if (getEnvironment() === 'server') {
                     throw new Error('sync.status.client is only available on the client side.');
                 }

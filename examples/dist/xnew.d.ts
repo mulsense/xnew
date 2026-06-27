@@ -152,28 +152,28 @@ interface XnewBase {
 
 type Environment = 'server' | 'client';
 
-interface ClientData {
+interface ClientStatus {
     id: string;
     name: string;
 }
-interface RoomData {
+interface RoomStatus {
     id: string;
     name: string;
     count: number;
 }
 interface SyncStatus {
-    room: RoomData;
-    clients: ClientData[];
-    client: ClientData;
+    room: RoomStatus;
+    clients: ClientStatus[];
+    client: ClientStatus;
 }
 interface BootServerOptions {
     io: any;
-    room: RoomData;
+    room: RoomStatus;
 }
 interface BootClientOptions {
     io: any;
     client: any;
-    room: RoomData;
+    room: RoomStatus;
 }
 
 interface TransitionOptions {
@@ -403,4 +403,4 @@ declare const xnew: XnewBase & {
 };
 
 export { xnew };
-export type { BootClientOptions, BootServerOptions, ClientData, RoomData, SyncStatus };
+export type { BootClientOptions, BootServerOptions, ClientStatus, RoomStatus, SyncStatus };

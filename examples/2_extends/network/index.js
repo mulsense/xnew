@@ -45,7 +45,7 @@ function Lobby(unit, { io }) {
 
     let rooms = [];
 
-    // 入室時に Room へ渡す client（ClientData）。name は空なら 'ゲスト' にフォールバックし、必ず非空にする（socket は boot が作る）。
+    // 入室時に Room へ渡す client（ClientStatus）。name は空なら 'ゲスト' にフォールバックし、必ず非空にする（socket は boot が作る）。
     const client = () => ({ name: app.playerName.trim() || 'ゲスト' });
 
     xnew.nest('<div class="max-w-md flex flex-col gap-3">');

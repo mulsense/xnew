@@ -35,7 +35,7 @@ describe('room status (sync.status / sync.statusupdate)', () => {
             xnew.sync.client(() => { unit.on('sync.statusupdate', () => { status = xnew.sync.status; }); });
         });
         hub.connect('c2');   // c2 の接続で server が status を全 client へ broadcast → 配線済みの c1 が受信
-        expect(status.client.id).toBe('c1');                                   // 自分自身の client（ClientData）
+        expect(status.client.id).toBe('c1');                                   // 自分自身の client（ClientStatus）
         expect(status.clients.map((c: any) => c.id).sort()).toEqual(['c1', 'c2']);
     });
 });

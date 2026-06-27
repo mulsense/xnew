@@ -11,17 +11,17 @@
 // - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes createRoom().
 // - Room     : boots Component (boot forwards connect/disconnect/notfound); server counts members + cleanup.
 //
-// A room-list row is core's RoomData { id, name, count } (count = live member count).
+// A room-list row is core's RoomStatus { id, name, count } (count = live member count).
 //----------------------------------------------------------------------------------------------------
 
 import { xnew } from '../core/xnew';
 import { Unit, UnitTimer } from '../core/unit';
-import { sync, BootServerOptions, RoomData } from '../core/sync';
+import { sync, BootServerOptions, RoomStatus } from '../core/sync';
 
 const rooms = new Map<string, Unit>();
 
-function roomList(): RoomData[] {
-    return [...rooms.values()].map((room) => room.info());
+function roomList(): RoomStatus[] {
+    return [...rooms.values()].map((room) => room.status());
 }
 
 function broadcastRooms(io: any): void {
@@ -76,7 +76,6 @@ export function Room(unit: Unit, props: any) {
 
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props as { io: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
-        // boot root は host の子 unit なので、host finalize 時に子カスケードで自動的に畳まれる（明示 finalize 不要）。
         sync.boot({ io, room }, Component);
 
         // listed = tracked by a Lobby ledger; a standalone Room (id not in the ledger) skips broadcast/self-removal.
@@ -115,17 +114,14 @@ export function Room(unit: Unit, props: any) {
 
         // exposed to the parent Lobby: one room-list row with the live member count.
         return {
-            info(): RoomData {
+            status(): RoomStatus {
                 return { id: room.id, name: room.name, count: members.size };
             },
         };
     });
 
     sync.client(() => {
-        const { io, client, room, Component } = props as { io: any; client: any; room: RoomData; Component: Function; };
-        // room / client は呼び出し側から渡す（room は server status で上書きされるまでの初期値）。
-        // boot が io から socket を生成し、connect/disconnect/notfound の '-event' 転送と socket 切断まで担う。
-        // boot root は host の子 unit なので、host finalize 時に子カスケードで自動的に畳まれる（明示 finalize 不要）。
+        const { io, client, room, Component } = props as { io: any; client: any; room: RoomStatus; Component: Function; };
         sync.boot({ io, client, room }, Component);
     });
 }

@@ -1627,7 +1627,7 @@ const sync = {
 
 const rooms = new Map();
 function roomList() {
-    return [...rooms.values()].map((room) => room.info());
+    return [...rooms.values()].map((room) => room.status());
 }
 function broadcastRooms(io) {
     io.to('lobby').emit('statusupdate', { rooms: roomList() });
@@ -1723,7 +1723,7 @@ function Room(unit, props) {
         unit.on('finalize', () => io.off('connection', connection));
         scheduleCleanup();
         return {
-            info() {
+            status() {
                 return { id: room.id, name: room.name, count: members.size };
             },
         };
