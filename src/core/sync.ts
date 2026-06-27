@@ -36,10 +36,9 @@ export interface ClientStatus { id: string; name: string; }
 export interface RoomStatus { id: string; name: string; count: number; }
 export interface SyncStatus { room: RoomStatus; clients: ClientStatus[]; client: ClientStatus; }
 
-interface ServerInfo { io: any; room: RoomStatus; clients: ClientStatus[]; }
-interface ClientInfo { socket: any; room: RoomStatus; clients: ClientStatus[]; }
+interface SyncInfo { io: any; socket: any; room: RoomStatus; clients: ClientStatus[]; }
 
-const roots: Map<Unit, ServerInfo | ClientInfo> = new Map();
+const roots: Map<Unit, SyncInfo> = new Map();
 
 /** Nearest boot root walking up from unit (null if none). */
 function findSyncRoot(unit: Unit): Unit | null {
@@ -50,7 +49,7 @@ function findSyncRoot(unit: Unit): Unit | null {
 }
 
 /** Internal info of the caller's sync root (throws if not booted). */
-function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
+function rootInfoOf(unit: Unit): SyncInfo {
     const root = findSyncRoot(unit);
     const info = root !== null ? roots.get(root) : undefined;
     if (info === undefined) {
@@ -69,31 +68,22 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 //----------------------------------------------------------------------------------------------------
 
 export interface BootServerOptions { io: any; room: RoomStatus; }
-export interface BootClientOptions { io: any; client: any; room: RoomStatus; }
+export interface BootClientOptions { io: any; room: RoomStatus; client: any; }
 
 function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { io, room } = opts;
-    let info: ServerInfo | ClientInfo;
-    if (getEnvironment() === 'server') {
-        info = { io, room, clients: [] };
-    } else {
-        // client owns its socket: io() with flat string query (roomId / clientName) on the handshake.
-        const { io, client } = opts as BootClientOptions;
-        const socket = io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true });
-        info = { socket, room, clients: [] };
-    }
+    // The client owns its socket and creates it here (before init) so the component body can already
+    // read it (e.g. sync.status.client / sync.emit); the server has no socket. Flat string handshake query.
+    const socket = getEnvironment() === 'server'
+        ? null
+        : io({ query: { roomId: room.id, clientName: (opts as BootClientOptions).client?.name ?? '' }, forceNew: true });
+    const info: SyncInfo = { io, socket, room, clients: [] };
 
-    // Bind root before init so sync functions in the body can resolve it via findSyncRoot.
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
 
     if (getEnvironment() === 'server') {
-        const { io } = info as ServerInfo;
-
-        // capture this root's sync targets as a flat pre-order node list (closed over `root`).
-        // A sync target is a unit whose type is registered in its direct parent's registry.
-        // nextId is monotonic across captures so a unit keeps its id for its whole lifetime.
         let nextId = 1;
         const captureStateTree = (): StateTree => {
             const nodes: StateTree = [];
@@ -143,7 +133,7 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
             dispatch('sync.statusupdate', undefined, undefined);
         }
     } else {
-        const { socket } = info as ClientInfo;
+        const socket = info.socket;   // created before init above (client always has one)
 
         // diff-apply a captured tree onto this client root (create/update/remove; tree is pre-order).
         // reconcileMap tracks node id → replica unit for this root only (closed over `root`).
@@ -218,15 +208,9 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
 
 export const sync = {
     server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.sync.server can not be called after initialized.');
-        }
         return getEnvironment() === 'server' ? Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C> : {};
     },
     client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.sync.client can not be called after initialized.');
-        }
         return getEnvironment() === 'client' ? Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C> : {};
     },
     state(initial: Record<string, any> = {}): Record<string, any> {
@@ -251,17 +235,16 @@ export const sync = {
                 if (getEnvironment() === 'server') {
                     throw new Error('sync.status.client is only available on the client side.');
                 }
-                const ci = info as ClientInfo;
-                return ci.clients.find((c) => c.id === ci.socket.id) ?? { id: ci.socket.id, name: '' };
+                return info.clients.find((c) => c.id === info.socket.id) ?? { id: info.socket.id, name: '' };
             },
         };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
         const info = rootInfoOf(Unit.currentUnit);
         if (getEnvironment() === 'server') {
-            (info as ServerInfo).io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            info.io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         } else {
-            (info as ClientInfo).socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            info.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {

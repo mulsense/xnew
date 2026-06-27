@@ -1410,22 +1410,16 @@ function rootInfoOf(unit) {
     return info;
 }
 function boot(opts, parent, args) {
-    var _a;
+    var _a, _b;
     const { io, room } = opts;
-    let info;
-    if (getEnvironment() === 'server') {
-        info = { io, room, clients: [] };
-    }
-    else {
-        const { io, client } = opts;
-        const socket = io({ query: { roomId: room.id, clientName: (_a = client === null || client === void 0 ? void 0 : client.name) !== null && _a !== void 0 ? _a : '' }, forceNew: true });
-        info = { socket, room, clients: [] };
-    }
+    const socket = getEnvironment() === 'server'
+        ? null
+        : io({ query: { roomId: room.id, clientName: (_b = (_a = opts.client) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : '' }, forceNew: true });
+    const info = { io, socket, room, clients: [] };
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
     if (getEnvironment() === 'server') {
-        const { io } = info;
         let nextId = 1;
         const captureStateTree = () => {
             const nodes = [];
@@ -1482,7 +1476,7 @@ function boot(opts, parent, args) {
         }
     }
     else {
-        const { socket } = info;
+        const socket = info.socket;
         const reconcileMap = new Map();
         const applyStateTree = (tree) => {
             const incoming = new Set(tree.map((node) => node.id));
@@ -1548,26 +1542,10 @@ function boot(opts, parent, args) {
 }
 const sync = {
     server(callback, props) {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.sync.server can not be called after initialized.');
-        }
-        if (getEnvironment() === 'server') {
-            return Unit.extend(Unit.currentUnit, callback, props);
-        }
-        else {
-            return {};
-        }
+        return getEnvironment() === 'server' ? Unit.extend(Unit.currentUnit, callback, props) : {};
     },
     client(callback, props) {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.sync.client can not be called after initialized.');
-        }
-        if (getEnvironment() === 'server') {
-            return {};
-        }
-        else {
-            return Unit.extend(Unit.currentUnit, callback, props);
-        }
+        return getEnvironment() === 'client' ? Unit.extend(Unit.currentUnit, callback, props) : {};
     },
     state(initial = {}) {
         const data = syncOf(Unit.currentUnit);
@@ -1594,18 +1572,16 @@ const sync = {
                 if (getEnvironment() === 'server') {
                     throw new Error('sync.status.client is only available on the client side.');
                 }
-                const ci = info;
-                return (_a = ci.clients.find((c) => c.id === ci.socket.id)) !== null && _a !== void 0 ? _a : { id: ci.socket.id, name: '' };
+                return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' };
             },
         };
     },
     emit(event, payload = {}) {
+        const info = rootInfoOf(Unit.currentUnit);
         if (getEnvironment() === 'server') {
-            const info = rootInfoOf(Unit.currentUnit);
             info.io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
         else {
-            const info = rootInfoOf(Unit.currentUnit);
             info.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
     },

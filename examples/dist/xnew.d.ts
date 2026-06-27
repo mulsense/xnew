@@ -172,8 +172,8 @@ interface BootServerOptions {
 }
 interface BootClientOptions {
     io: any;
-    client: any;
     room: RoomStatus;
+    client: any;
 }
 
 interface TransitionOptions {
