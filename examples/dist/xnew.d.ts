@@ -171,7 +171,8 @@ interface BootServerOptions {
     room: RoomData;
 }
 interface BootClientOptions {
-    socket: any;
+    io: any;
+    client: any;
     room: RoomData;
 }
 

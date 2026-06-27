@@ -218,9 +218,8 @@ describe('event channel (socket.io transport)', () => {
         expect(hits.sort()).toEqual(['A:1', 'B:1']);
     });
 
-    it('client boot does NOT forward basic socket events to the boot parent (basics/sync.ts Room の責務)', () => {
-        // 基本イベント(connect/disconnect/room:notfound)の host への転送は boot ではなく Room が担う。
-        // よって boot 単体では boot 親ユニットへは配らない。
+    it('client boot forwards the socket lifecycle to the boot parent as local -events', () => {
+        // boot が socket の connect/disconnect/notfound を host(=boot 親) の '-event' へ転送する。
         const handlers = new Map<string, Set<Function>>();
         const socket: any = {
             id: 'c1',
@@ -235,15 +234,15 @@ describe('event channel (socket.io transport)', () => {
         const parentLog: string[] = [];
         xnew(function Parent(unit: Unit) {
             bootClient({ socket }, function Client() {});
-            unit.on('connect', () => parentLog.push('connect'));
-            unit.on('disconnect', () => parentLog.push('disconnect'));
-            unit.on('room:notfound', ({ roomId }: any) => parentLog.push(`notfound:${roomId}`));
+            unit.on('-connect', ({ id }: any) => parentLog.push(`connect:${id}`));
+            unit.on('-disconnect', () => parentLog.push('disconnect'));
+            unit.on('-notfound', ({ roomId }: any) => parentLog.push(`notfound:${roomId}`));
         });
 
         fire('connect');
-        fire('room:notfound', { roomId: 'r1' });
+        fire('notfound', { roomId: 'r1' });
         fire('disconnect');
 
-        expect(parentLog).toEqual([]);   // boot は基本イベントを boot 親へ配らない
+        expect(parentLog).toEqual(['connect:c1', 'notfound:r1', 'disconnect']);
     });
 });

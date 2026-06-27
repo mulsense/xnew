@@ -58,7 +58,7 @@ function Lobby(unit, { socket }) {
                         xnew('<span class="text-xs text-gray-400 ml-2">', `(${room.count}人)`);
                     });
                     const enter = xnew('<button class="px-3 py-1 rounded border-0 bg-blue-500 hover:bg-blue-600 text-white text-sm cursor-pointer">', '入室');
-                    enter.on('click', () => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }), room: { id: room.id, name: room.name } }));
+                    enter.on('click', () => unit.change(Room, { io: window.io, client: { name: '' }, room: { id: room.id, name: room.name } }));
                 });
             }
         });
@@ -67,13 +67,13 @@ function Lobby(unit, { socket }) {
     unit.on('-connect', () => app.setStatus('ロビー', true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
     unit.on('-statusupdate', ({ rooms: list }) => { rooms = list; render(); });
-    unit.on('-roomcreated', ({ room }) => unit.change(Room, { socket: window.io({ query: { room: room.id }, forceNew: true }), room: { id: room.id, name: room.name } }));
+    unit.on('-roomcreated', ({ room }) => unit.change(Room, { io: window.io, client: { name: '' }, room: { id: room.id, name: room.name } }));
     unit.on('-roomrejected', ({ message }) => { hintEl.element.textContent = message; });
 
     render();
 }
 
-function Room(unit, { socket, room }) {
+function Room(unit, { io, client, room }) {
     const app = xnew.context(App);
 
     const back = xnew('<button class="px-3 py-1 mb-2 rounded border-0 bg-gray-500 hover:bg-gray-600 text-white text-sm cursor-pointer">', '← ロビーに戻る');
@@ -81,9 +81,9 @@ function Room(unit, { socket, room }) {
     xnew.nest('<div class="relative w-[90vmin] max-w-[800px] aspect-[4/3]">');   // Game（Screen）の mount 先（高さを確定させる）
 
     xnew.extend(xnew.basics.Scene);   // シーン遷移（change）は呼び出し側の責務
-    xnew.extend(xnew.basics.Room, { socket, room, Component: Game });
+    xnew.extend(xnew.basics.Room, { io, client, room, Component: Game });
 
-    unit.on('-connect', () => app.setStatus(`ルーム ${room.id}: ${socket.id}`, true));
+    unit.on('-connect', ({ id }) => app.setStatus(`ルーム ${room.id}: ${id}`, true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
     unit.on('-notfound', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));
 }

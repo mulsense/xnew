@@ -1,13 +1,14 @@
 //----------------------------------------------------------------------------------------------------
 // Sync — socket.io basics components (Lobby / Room)
 //
-// Wire socket.io handles to the host unit; server/client auto-detected (→ core/env: io vs socket).
+// Wire socket.io to the host unit; server/client auto-detected. Server is given io directly; the
+// client is given io + client identity and lets sync.boot create/own the socket (→ core/env).
 // The room ledger (id → Room unit) is module-global so Room self-removes/re-broadcasts without a
 // Lobby context; Lobby is its sole writer and clears it on finalize. Scene navigation (change/add)
 // is the caller's concern — extend Scene on the host unit if you want it (see examples/network).
 //
 // - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes create().
-// - Room     : boots Component, forwards connect/disconnect/notfound; server counts members + cleanup.
+// - Room     : boots Component (boot forwards connect/disconnect/notfound); server counts members + cleanup.
 //
 // A room-list row is core's RoomData { id, name, count } (count = live member count).
 //----------------------------------------------------------------------------------------------------
@@ -33,7 +34,7 @@ export function Lobby(unit: Unit, props: any) {
         let nextRoomNum = 0;
 
         const connection = xnew.scope((conn: any) => {
-            const roomId = conn.handshake?.query?.room;
+            const roomId = conn.handshake?.query?.roomId;
             if (roomId !== undefined && roomId !== '') {
                 // reject gone/invalid rooms (valid ones are handled by Room's boot wiring).
                 if (!rooms.has(roomId)) { conn.emit('notfound', { roomId }); conn.disconnect(true); }
@@ -92,7 +93,7 @@ export function Room(unit: Unit, props: any) {
 
         // socket.io の connection / disconnect を直接受けてこの room のメンバを計数する（room フィルタ付き）。
         const connection = xnew.scope((socket: any) => {
-            if (socket.handshake?.query?.room !== room.id) { return; }   // 別ルームは無視
+            if (socket.handshake?.query?.roomId !== room.id) { return; }   // 別ルームは無視
             cancelCleanup();
             members.add(socket.id);
             xnew.emit('-connect', { id: socket.id });
@@ -118,14 +119,10 @@ export function Room(unit: Unit, props: any) {
     });
 
     sync.client(() => {
-        const { socket, room, Component } = props as { socket: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
-        // room は呼び出し側から必ず渡す（server status で上書きされるまでの初期値）。
-        const client = sync.boot({ socket, room }, Component);
-        unit.on('finalize', () => client.finalize());
-
-        socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
-        socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
-        socket.on('notfound', xnew.scope((payload: any) => xnew.emit('-notfound', payload)));
-        unit.on('finalize', () => socket.disconnect());
+        const { io, client, room, Component } = props as { io: any; client: any; room: RoomData; Component: Function; };
+        // room / client は呼び出し側から渡す（room は server status で上書きされるまでの初期値）。
+        // boot が io から socket を生成し、connect/disconnect/notfound の '-event' 転送と finalize 切断まで担う。
+        const root = sync.boot({ io, client, room }, Component);
+        unit.on('finalize', () => root.finalize());
     });
 }

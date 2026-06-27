@@ -126,9 +126,14 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
   Split the props into explicit types and cast inside each block, e.g.
   `LobbyServerProps` / `LobbyClientProps`, then
   `const { io } = props as LobbyServerProps;`.
-- `sync.boot({ io }, Component)` (server) / `sync.boot({ socket }, Component)`
-  (client) creates a synced root. `sync.state`, `sync.register`, `sync.emit`,
-  `sync.status` operate on the current sync root.
+- `sync.boot({ io, room }, Component)` (server) / `sync.boot({ io, client, room }, Component)`
+  (client) creates a synced root. On the **client** side boot calls `io(...)` to
+  create **and own** the socket, with a **flat string** handshake query
+  (`io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true })`),
+  forwards the socket's `connect`/`disconnect`/`notfound` to the boot **parent** (host)
+  unit as `-connect`/`-disconnect`/`-notfound`, and disconnects it on finalize. Callers
+  (e.g. `basics.Room`) just boot — they no longer touch the socket. `sync.state`,
+  `sync.register`, `sync.emit`, `sync.status` operate on the current sync root.
 - Socket handlers run outside the tick → wrap them in `xnew.scope` (§7).
 - **Wire event names vs host event names are independent.** A socket/wire event
   (`'roomcreated'`) and the host-facing unit event it is forwarded to
@@ -167,6 +172,22 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
 Append here when a mistake is found. Newest at the top. Keep each terse:
 the rule, then one line of why.
 
+- **`sync.boot` (client) owns the socket — don't create it in callers.** Pass
+  `{ io, client, room }` (`client` is `{ name }`); boot does
+  `io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true })`
+  and the server reads `query.roomId` / `query.clientName`. Keep the query **flat
+  strings** (socket.io stringifies query values, so a nested object would arrive as
+  `[object Object]`). boot also forwards `connect`/`disconnect`/`notfound` to the boot
+  **parent** as `-events`. When you change a query key, update every reader in one pass:
+  core boot's connection handler **and** `basics` Lobby/Room server blocks **and** the
+  test mocks (`io-mock.ts`, `test/basics/sync.test.ts`).
+  The forward reaches up to the parent (the boot root is a *child* of the host), so it
+  bypasses the root-scoped `dispatch` on purpose — host listeners live above the root.
+- **When changing `BootServerOptions`/`BootClientOptions`, update the test `bootClient`
+  adapter in `test/core/sync/io-mock.ts` too.** It wraps a pre-made mock socket as
+  `io: () => socket` so the ~25 call sites stay unchanged; miss it and every sync test
+  throws `io is not a function`. Tests in `boot-api`/`channel` also *document* the
+  boot contract — update those assertions when the contract changes.
 - **When renaming a socket/wire event, update every endpoint in one pass:** the
   server `emit`, the client `on` (and the `-event` it forwards to if that changes),
   the tests that fire/expect it, and the examples that subscribe. Missing one half

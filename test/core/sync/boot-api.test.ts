@@ -18,7 +18,7 @@ describe('xnew.sync.boot({ socket, room }) — in-memory socket.io', () => {
     });
 
     it('delivers sync.connect to a unit inside the booted root with the clientId', () => {
-        // boot は sync.connect/sync.disconnect を root 配下の unit.on へ配る（host への転送は basics/sync.ts Room の責務）。
+        // boot は sync.connect/sync.disconnect を root 配下の unit.on へ配る（socket の connect/disconnect は別途 host へ '-event' 転送）。
         const seen: string[] = [];
         bootServer({ io: hub.io }, function Server(unit: Unit) {
             unit.on('sync.connect', ({ id }: any) => seen.push(id));

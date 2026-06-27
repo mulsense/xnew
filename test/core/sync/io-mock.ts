@@ -78,10 +78,10 @@ export function ioMock(): IoMock {
         const conn: Conn = { clientHandlers: new Map(), clientAny: new Set(), serverAny: new Set(), serverDisconnect: new Set() };
         conns.set(clientId, conn);
 
-        // server 側 socket（bootServer が onAny / on('disconnect') を張る）。query.room で入室先を伝える。
+        // server 側 socket（bootServer が onAny / on('disconnect') を張る）。query.roomId で入室先を伝える。
         connectionCb?.({
             id: clientId,
-            handshake: { query: { room: roomId } },
+            handshake: { query: { roomId } },
             join(room: string): void { conn.room = room; },
             onAny(handler: AnyHandler): void { conn.serverAny.add(handler); },
             on(event: string, handler: Handler): void { if (event === 'disconnect') { conn.serverDisconnect.add(handler); } },
@@ -127,7 +127,11 @@ export function bootServer(opts: { io: any; room?: any }, ...rest: any[]): Retur
     return asServer(() => xnew.sync.boot({ room: ROOM, ...opts }, ...rest));
 }
 
-/** xnew.sync.boot を client 環境で呼ぶ（room 未指定なら既定 ROOM を補う）。 */
-export function bootClient(opts: { socket: any; room?: any }, ...rest: any[]): ReturnType<typeof xnew.sync.boot> {
-    return asClient(() => xnew.sync.boot({ room: ROOM, ...opts }, ...rest));
+/**
+ * xnew.sync.boot を client 環境で呼ぶ（room 未指定なら既定 ROOM を補う）。
+ * boot は client 側で io() を呼んで socket を生成するため、事前生成した socket は io: () => socket で包む。
+ */
+export function bootClient(opts: { socket: any; room?: any; client?: any }, ...rest: any[]): ReturnType<typeof xnew.sync.boot> {
+    const { socket, room = ROOM, client } = opts;
+    return asClient(() => xnew.sync.boot({ room, client, io: () => socket }, ...rest));
 }

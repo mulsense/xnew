@@ -3,7 +3,7 @@ import { xnew } from '@mulsense/xnew';
 //----------------------------------------------------------------------------------------------------
 // game — multi-client のゲームロジック（socket.io 前提・無改変で動く）。
 //   ネットワークは xnew.sync（emit/on/state/status）だけに依存。transport は起動側が
-//   xnew.sync.boot({ socket, room }, ...) で渡す socket.io の socket。1 ブラウザ = 1 client。
+//   xnew.sync.boot({ io, client, room }, ...) で生成する socket.io の socket。1 ブラウザ = 1 client。
 //
 //   シーンは「サーバーが現在のシーンを synced child として 1 つだけ持ち、差し替える」ことで全員に
 //   同期される（phase はルーム全体で共有）。各シーンは自分宛ての '-event' を server で受け、

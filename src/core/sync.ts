@@ -3,7 +3,8 @@
 //
 // Captures the server tree's sync targets as a SyncNode list and diff-applies them to the client
 // tree. A sync target is only a type registered in its direct parent's registry. Transport is
-// socket.io: boot receives io (server) / socket (client) directly; there is no transport abstraction.
+// socket.io: the server boot receives io directly; the client boot receives io too and calls it to
+// create its own socket (query carries room.id + client). There is no transport abstraction.
 // Note: socket on-handlers run outside the tick/scope, so never create/finalize units there (spawn on update).
 //
 // - sync : xnew.sync facade (state / register / emit / status / boot / server / client)
@@ -124,7 +125,7 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
     const root = findSyncRoot(unit);
     const info = root !== null ? roots.get(root) : undefined;
     if (info === undefined) {
-        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ socket, room }, ...).');
+        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ io, room } | { io, client, room }, ...).');
     }
     return info;
 }
@@ -133,16 +134,25 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 // boot — root creation + wiring; the server/client split lives only inside this function.
 // (1) downstream state mirror (server: capture→broadcast on update / client: apply on 'sync')
 // (2) dispatcher (received events → unit.on under root: '-event'=same syncId / '+'·plain=whole tree)
+// (3) client only: create the socket from io (query: room.id + client), forward its
+//     connect/disconnect/notfound lifecycle to the host unit (boot parent) as local '-events',
+//     and disconnect it on finalize. The host wiring lives here so callers just boot.
 //----------------------------------------------------------------------------------------------------
 
 export interface BootServerOptions { io: any; room: RoomData; }
-export interface BootClientOptions { socket: any; room: RoomData; }
+export interface BootClientOptions { io: any; client: any; room: RoomData; }
 
 function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { room } = opts;
-    const info: ServerInfo | ClientInfo = getEnvironment() === 'server'
-        ? { io: (opts as BootServerOptions).io, room, clients: [] }
-        : { socket: (opts as BootClientOptions).socket, room, clients: [] };
+    let info: ServerInfo | ClientInfo;
+    if (getEnvironment() === 'server') {
+        info = { io: (opts as BootServerOptions).io, room, clients: [] };
+    } else {
+        // client owns its socket: io() with flat string query (roomId / clientName) on the handshake.
+        const { io, client } = opts as BootClientOptions;
+        const socket = io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true });
+        info = { socket, room, clients: [] };
+    }
 
     // Bind root before init so sync functions in the body can resolve it via findSyncRoot.
     const root = new Unit(parent);
@@ -155,9 +165,9 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         root.on('update', () => io.to(room.id).emit('sync', captureStateTree(root)));
         io.on('connection', (socket: any) => {
             const query = socket.handshake?.query;
-            if (query?.room !== room.id) return; // ignore other rooms
+            if (query?.roomId !== room.id) return; // ignore other rooms
             socket.join(room.id);
-            info.clients.push({ id: socket.id, name: query?.name ?? '' });
+            info.clients.push({ id: socket.id, name: query?.clientName ?? '' });
             dispatch('sync.connect', socket.id, undefined);
             statusUpdate();
             socket.onAny((event: string, payload: any) => dispatch(event, socket.id, payload));
@@ -180,8 +190,20 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
             dispatch('sync.statusupdate', undefined, undefined);
         };
         socket.on('status', onStatus);
-        root.on('finalize', () => { socket.off('sync', onSync); socket.off('status', onStatus); roots.delete(root); });
         socket.onAny((event: string, payload: any) => dispatch(event, undefined, payload));
+
+        // forward the socket's own lifecycle to the host unit (boot parent) as local '-events',
+        // so callers listen with unit.on('-connect' | '-disconnect' | '-notfound').
+        const forwardToHost = (type: string, props: object): void => {
+            parent?._.listeners.get(type)?.forEach((item) => item.execute(props));
+        };
+        socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
+        socket.on('disconnect', () => forwardToHost('-disconnect', {}));
+        socket.on('notfound', (payload: any) => forwardToHost('-notfound', payload ?? {}));
+        root.on('finalize', () => {
+            socket.off('sync', onSync); socket.off('status', onStatus);
+            socket.disconnect(); roots.delete(root);
+        });
     }
 
     function dispatch(event: string, id: string | undefined, payload: any): void {

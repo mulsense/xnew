@@ -89,7 +89,7 @@ function lobbyIo() {
 }
 
 let connSeq = 0;
-// 接続してくる socket のモック。handshake.query.room でロビー/ルーム接続を切り替える。
+// 接続してくる socket のモック。handshake.query.roomId でロビー/ルーム接続を切り替える。
 //   server→client: emit/_recv で受信（conn.sent に記録）。client→server: _emit で on(event)+onAny を発火。
 //   _leave: client 切断（adapter の on('disconnect') を発火）。
 function lobbyConn(io: ReturnType<typeof lobbyIo>, roomId?: string) {
@@ -98,7 +98,7 @@ function lobbyConn(io: ReturnType<typeof lobbyIo>, roomId?: string) {
     const on = (event: string, h: Function) => { if (!handlers.has(event)) { handlers.set(event, new Set()); } handlers.get(event)!.add(h); };
     const conn: any = {
         id: 'c' + (++connSeq),
-        handshake: { query: roomId !== undefined ? { room: roomId } : {} },
+        handshake: { query: roomId !== undefined ? { roomId } : {} },
         sent: [] as any[],
         join(room: string) { if (room === 'lobby') { io._lobby.add(conn); } },
         emit(event: string, payload?: any) { conn.sent.push([event, payload]); },   // server→client(direct)
@@ -190,8 +190,8 @@ describe('Room', () => {
         const socket = mockSocket();
         const log: string[] = [];
         xnew(function Scene(unit: Unit) {
-            xnew.extend(Room, { socket, room: { id: 'solo', name: 'solo' }, Component: World });
-            // Room が基本イベントを host unit（Scene）の '-event' へ転送する。
+            xnew.extend(Room, { io: () => socket, room: { id: 'solo', name: 'solo' }, Component: World });
+            // boot が基本イベントを host unit（Scene）の '-event' へ転送する。
             unit.on('-connect', () => log.push('connect'));
             unit.on('-disconnect', () => log.push('disconnect'));
             unit.on('-notfound', ({ roomId }: any) => log.push(`notfound:${roomId}`));
@@ -206,7 +206,7 @@ describe('Room', () => {
 
     it('boots the component as a client tree', () => {
         const socket = mockSocket();
-        xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, room: { id: 'solo', name: 'solo' }, Component: World }); });
+        xnew(function Scene(_: Unit) { xnew.extend(Room, { io: () => socket, room: { id: 'solo', name: 'solo' }, Component: World }); });
         const [root] = Unit.find(World);   // boot された root の Component は World
         expect((root.element as HTMLElement).tagName).toBe('DIV');   // client 環境: World の client ブロックが nest
         expect(root._.status).not.toBe('finalized');
@@ -214,7 +214,7 @@ describe('Room', () => {
 
     it('finalizes the client tree and disconnects the socket on finalize', () => {
         const socket = mockSocket();
-        const scene = xnew(function Scene(_: Unit) { xnew.extend(Room, { socket, room: { id: 'solo', name: 'solo' }, Component: World }); });
+        const scene = xnew(function Scene(_: Unit) { xnew.extend(Room, { io: () => socket, room: { id: 'solo', name: 'solo' }, Component: World }); });
         const [root] = Unit.find(World);
 
         expect(root._.status).not.toBe('finalized');
