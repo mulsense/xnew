@@ -221,25 +221,16 @@ export const sync = {
         if (Unit.currentUnit._.status !== 'invoked') {
             throw new Error('xnew.sync.server can not be called after initialized.');
         }
-        if (getEnvironment() === 'server') {
-            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
-        } else {
-            return {};
-        }
+        return getEnvironment() === 'server' ? Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C> : {};
     },
     client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
         if (Unit.currentUnit._.status !== 'invoked') {
             throw new Error('xnew.sync.client can not be called after initialized.');
         }
-        if (getEnvironment() === 'server') {
-            return {};
-        } else {
-            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
-        }
+        return getEnvironment() === 'client' ? Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C> : {};
     },
     state(initial: Record<string, any> = {}): Record<string, any> {
         const data = syncOf(Unit.currentUnit);
-        // fill only missing keys (apply's preseed / prior declaration wins)
         for (const key of Object.keys(initial)) {
             if (!(key in data.state)) { data.state[key] = initial[key]; }
         }
@@ -266,12 +257,11 @@ export const sync = {
         };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
+        const info = rootInfoOf(Unit.currentUnit);
         if (getEnvironment() === 'server') {
-            const info = rootInfoOf(Unit.currentUnit) as ServerInfo;
-            info.io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            (info as ServerInfo).io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         } else {
-            const info = rootInfoOf(Unit.currentUnit) as ClientInfo;
-            info.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            (info as ClientInfo).socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
         }
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {
