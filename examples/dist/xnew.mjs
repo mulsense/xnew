@@ -1680,17 +1680,15 @@ function Room(unit, props) {
     sync.server(() => {
         const { io, room, Component, graceMs = 3000 } = props;
         sync.boot({ io, room }, Component);
-        const isListed = () => rooms.has(room.id);
         let graceTimer = null;
-        const cancelCleanup = () => { graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
-            cancelCleanup();
+            graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
             graceTimer = xnew$1.timeout(() => {
                 if (members.size > 0) {
                     return;
                 }
                 xnew$1.emit('-empty', {});
-                if (isListed()) {
+                if (rooms.has(room.id)) {
                     rooms.delete(room.id);
                     broadcastRooms(io);
                     unit.finalize();
@@ -1702,16 +1700,16 @@ function Room(unit, props) {
             if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.roomId) !== room.id) {
                 return;
             }
-            cancelCleanup();
+            graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
             members.add(socket.id);
             xnew$1.emit('-connect', { id: socket.id });
-            if (isListed()) {
+            if (rooms.has(room.id)) {
                 broadcastRooms(io);
             }
             socket.on('disconnect', xnew$1.scope(() => {
                 members.delete(socket.id);
                 xnew$1.emit('-disconnect', { id: socket.id });
-                if (isListed()) {
+                if (rooms.has(room.id)) {
                     broadcastRooms(io);
                 }
                 if (members.size === 0) {

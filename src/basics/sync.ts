@@ -62,6 +62,7 @@ export function Lobby(unit: Unit, props: any) {
         const { io } = props as { io: any; };
         // ロビー接続は room を持たない（query なし → server はロビー接続として扱う）。socket は Lobby が所有する。
         const socket = io({ forceNew: true });
+        
         // 受信イベントを host の '-event' へ転送する（connect/disconnect は payload なし → {}）。
         for (const event of ['connect', 'disconnect', 'statusupdate', 'roomcreated', 'roomrejected']) {
             socket.on(event, xnew.scope((payload: any) => xnew.emit('-' + event, payload ?? {})));
@@ -78,32 +79,28 @@ export function Room(unit: Unit, props: any) {
         const { io, room, Component, graceMs = 3000 } = props as { io: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
         sync.boot({ io, room }, Component);
 
-        // listed = tracked by a Lobby ledger; a standalone Room (id not in the ledger) skips broadcast/self-removal.
-        const isListed = () => rooms.has(room.id);
-
         // drop the room once empty for graceMs (connect cancels, disconnect reschedules).
         let graceTimer: UnitTimer | null = null;
-        const cancelCleanup = () => { graceTimer?.clear(); graceTimer = null; };
         const scheduleCleanup = () => {
-            cancelCleanup();
+            graceTimer?.clear();
             graceTimer = xnew.timeout(() => {
                 if (members.size > 0) { return; }
                 xnew.emit('-empty', {});
-                if (isListed()) { rooms.delete(room.id); broadcastRooms(io); unit.finalize(); }
+                if (rooms.has(room.id)) { rooms.delete(room.id); broadcastRooms(io); unit.finalize(); }
             }, graceMs);
         };
 
         // socket.io の connection / disconnect を直接受けてこの room のメンバを計数する（room フィルタ付き）。
         const connection = xnew.scope((socket: any) => {
             if (socket.handshake?.query?.roomId !== room.id) { return; }   // 別ルームは無視
-            cancelCleanup();
+            graceTimer?.clear();
             members.add(socket.id);
             xnew.emit('-connect', { id: socket.id });
-            if (isListed()) { broadcastRooms(io); }
+            if (rooms.has(room.id)) { broadcastRooms(io); }
             socket.on('disconnect', xnew.scope(() => {
                 members.delete(socket.id);
                 xnew.emit('-disconnect', { id: socket.id });
-                if (isListed()) { broadcastRooms(io); }
+                if (rooms.has(room.id)) { broadcastRooms(io); }
                 if (members.size === 0) { scheduleCleanup(); }
             }));
         });
