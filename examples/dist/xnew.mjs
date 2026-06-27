@@ -1411,10 +1411,10 @@ function rootInfoOf(unit) {
 }
 function boot(opts, parent, args) {
     var _a;
-    const { room } = opts;
+    const { io, room } = opts;
     let info;
     if (getEnvironment() === 'server') {
-        info = { io: opts.io, room, clients: [] };
+        info = { io, room, clients: [] };
     }
     else {
         const { io, client } = opts;
@@ -1509,8 +1509,7 @@ function boot(opts, parent, args) {
                 }
             }
         };
-        const onSync = (tree) => applyStateTree(tree);
-        socket.on('sync', onSync);
+        socket.on('sync', applyStateTree);
         const onStatus = (status) => {
             var _a;
             info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
@@ -1526,7 +1525,7 @@ function boot(opts, parent, args) {
         socket.on('disconnect', () => forwardToHost('-disconnect', {}));
         socket.on('notfound', (payload) => forwardToHost('-notfound', payload !== null && payload !== void 0 ? payload : {}));
         root.on('finalize', () => {
-            socket.off('sync', onSync);
+            socket.off('sync', applyStateTree);
             socket.off('status', onStatus);
             socket.disconnect();
             roots.delete(root);

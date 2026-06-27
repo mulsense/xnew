@@ -72,10 +72,10 @@ export interface BootServerOptions { io: any; room: RoomStatus; }
 export interface BootClientOptions { io: any; client: any; room: RoomStatus; }
 
 function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
-    const { room } = opts;
+    const { io, room } = opts;
     let info: ServerInfo | ClientInfo;
     if (getEnvironment() === 'server') {
-        info = { io: (opts as BootServerOptions).io, room, clients: [] };
+        info = { io, room, clients: [] };
     } else {
         // client owns its socket: io() with flat string query (roomId / clientName) on the handshake.
         const { io, client } = opts as BootClientOptions;
@@ -172,8 +172,7 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
             }
         };
 
-        const onSync = (tree: StateTree) => applyStateTree(tree);
-        socket.on('sync', onSync);
+        socket.on('sync', applyStateTree);
         const onStatus = (status: { clients?: ClientStatus[] }) => {
             info.clients = status?.clients ?? [];
             dispatch('sync.statusupdate', undefined, undefined);
@@ -190,7 +189,7 @@ function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, 
         socket.on('disconnect', () => forwardToHost('-disconnect', {}));
         socket.on('notfound', (payload: any) => forwardToHost('-notfound', payload ?? {}));
         root.on('finalize', () => {
-            socket.off('sync', onSync); socket.off('status', onStatus);
+            socket.off('sync', applyStateTree); socket.off('status', onStatus);
             socket.disconnect(); roots.delete(root);
         });
     }
