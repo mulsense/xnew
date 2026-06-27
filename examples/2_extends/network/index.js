@@ -3,13 +3,13 @@ import { Game } from './game.js';
 
 //----------------------------------------------------------------------------------------------------
 // multi-client（client 側）— ロビーでルームを作成 / 入室してプレイする。
-//   socket.io 接続の扱いはシーンごとに異なる（どちらも forceNew で独立。サーバーは query.room の有無で
-//   lobby/game を判別）:
-//     - Lobby : 呼び出し側が window.io({ forceNew })（room 無し）を渡す → ロビー（ルーム一覧 / 作成）
-//     - Room  : 呼び出し側は io（factory）と client（表示名）/ room を渡し、socket は boot が
-//               io({ query:{ room, client }, forceNew }) で生成する → そのルームに参加
-//   Lobby は渡された socket を basics.Lobby に委ね、Room は io/client/room を basics.Room → boot に委ねる
-//   （どちらも finalize で切断）。ゲーム本体 game.js は Game が Title→Setup→World のシーン遷移を同期で処理する。
+//   呼び出し側は io（socket.io factory）を渡し、socket の生成は basics 側に委ねる（どちらも forceNew で
+//   独立。サーバーは query.roomId の有無で lobby/game を判別）:
+//     - Lobby : io を渡す → basics.Lobby が io({ forceNew }) を生成（room 無し）→ ロビー（一覧 / 作成）
+//     - Room  : io と client（{name}）/ room を渡す → basics.Room → sync.boot が
+//               io({ query:{ roomId, clientName }, forceNew }) を生成 → そのルームに参加
+//   どちらも受信イベントを unit.on('-event') へ転送し finalize で切断する。
+//   ゲーム本体 game.js は Game が Title→Setup→World のシーン遷移を同期で処理する。
 //----------------------------------------------------------------------------------------------------
 
 // App — #app を要素に持つコンテナ。ステータス表示(setStatus)を公開し、最初のシーンを mount する。
@@ -19,7 +19,7 @@ import { Game } from './game.js';
 function App() {
     const statusEl = document.getElementById('status');
     let playerName = '';   // プレイヤー名。Lobby の入力欄から更新され、シーンをまたいで保持される。
-    xnew(Lobby, { socket: window.io({ forceNew: true }) });
+    xnew(Lobby, { io: window.io });
     return {
         setStatus(text, ok) { statusEl.textContent = text; statusEl.className = ok ? 'text-green-600' : 'text-red-500'; },
         get playerName() { return playerName; },
@@ -34,14 +34,14 @@ xnew(document.getElementById('app'), App);
 //   入るべき roomId が返るので、そのまま Room へ遷移する。
 //----------------------------------------------------------------------------------------------------
 
-function Lobby(unit, { socket }) {
+function Lobby(unit, { io }) {
     const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
-    // socket は呼び出し側が用意（room 無し = サーバーはロビー接続として扱う）。
-    // Lobby が受信イベントを unit.on('-event') へ転送し、finalize で socket を切断する。
+    // io（socket.io factory）を渡すと basics.Lobby が socket を生成・所有する（room 無し = サーバーはロビー接続として扱う）。
+    // basics.Lobby が受信イベントを unit.on('-event') へ転送し、finalize で socket を切断する。
     // シーン遷移（change/add）は呼び出し側の責務なので Scene をここで extend する。
     xnew.extend(xnew.basics.Scene);
-    xnew.extend(xnew.basics.Lobby, { socket });
+    xnew.extend(xnew.basics.Lobby, { io });
 
     let rooms = [];
 
@@ -114,7 +114,7 @@ function Room(unit, { io, client, room }) {
     const app = xnew.context(App);   // ステータス表示はコンテナ App が持つ
 
     const back = xnew('<button class="px-3 py-1 mb-2 rounded border-0 bg-gray-500 hover:bg-gray-600 text-white text-sm cursor-pointer">', '← ロビーに戻る');
-    back.on('click', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));
+    back.on('click', () => unit.change(Lobby, { io: window.io }));
     xnew.nest('<div class="flex gap-4">');   // シーンの mount 先（Game の client が Title/Setup/World を nest する）
 
     // room 関連の配線は Room が引き受ける（boot(Game)、socket は boot が io から生成・所有し finalize で切断）。
@@ -125,5 +125,5 @@ function Room(unit, { io, client, room }) {
 
     unit.on('-connect', ({ id }) => app.setStatus(`ルーム ${room.id}: ${id}`, true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
-    unit.on('-notfound', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));   // 消滅ルームへ来たらロビーへ
+    unit.on('-notfound', () => unit.change(Lobby, { io: window.io }));   // 消滅ルームへ来たらロビーへ
 }

@@ -10,7 +10,7 @@ import { Game } from './game.js';
 
 function App() {
     const statusEl = document.getElementById('status');
-    xnew(Lobby, { socket: window.io({ forceNew: true }) });
+    xnew(Lobby, { io: window.io });
     return {
         setStatus(text, ok) { statusEl.textContent = text; statusEl.className = ok ? 'text-green-600' : 'text-red-500'; },
     };
@@ -21,10 +21,10 @@ xnew(document.getElementById('app'), App);
 // Lobby / Room — ルーム作成・一覧・入室（中身が Game なだけ）
 //----------------------------------------------------------------------------------------------------
 
-function Lobby(unit, { socket }) {
+function Lobby(unit, { io }) {
     const app = xnew.context(App);
     xnew.extend(xnew.basics.Scene);   // シーン遷移（change）は呼び出し側の責務
-    xnew.extend(xnew.basics.Lobby, { socket });
+    xnew.extend(xnew.basics.Lobby, { io });   // basics.Lobby が io から socket を生成・所有
 
     let rooms = [];
 
@@ -77,7 +77,7 @@ function Room(unit, { io, client, room }) {
     const app = xnew.context(App);
 
     const back = xnew('<button class="px-3 py-1 mb-2 rounded border-0 bg-gray-500 hover:bg-gray-600 text-white text-sm cursor-pointer">', '← ロビーに戻る');
-    back.on('click', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));
+    back.on('click', () => unit.change(Lobby, { io: window.io }));
     xnew.nest('<div class="relative w-[90vmin] max-w-[800px] aspect-[4/3]">');   // Game（Screen）の mount 先（高さを確定させる）
 
     xnew.extend(xnew.basics.Scene);   // シーン遷移（change）は呼び出し側の責務
@@ -85,5 +85,5 @@ function Room(unit, { io, client, room }) {
 
     unit.on('-connect', ({ id }) => app.setStatus(`ルーム ${room.id}: ${id}`, true));
     unit.on('-disconnect', () => app.setStatus('切断', false));
-    unit.on('-notfound', () => unit.change(Lobby, { socket: window.io({ forceNew: true }) }));
+    unit.on('-notfound', () => unit.change(Lobby, { io: window.io }));
 }

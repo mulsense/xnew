@@ -1,8 +1,9 @@
 //----------------------------------------------------------------------------------------------------
 // Sync — socket.io basics components (Lobby / Room)
 //
-// Wire socket.io to the host unit; server/client auto-detected. Server is given io directly; the
-// client is given io + client identity and lets sync.boot create/own the socket (→ core/env).
+// Wire socket.io to the host unit; server/client auto-detected. Both sides receive io: the server
+// uses it as the hub; the client calls io() to create its own socket — Lobby creates it inline,
+// Room hands io (+ client) to sync.boot which creates/owns it (→ core/env).
 // The room ledger (id → Room unit) is module-global so Room self-removes/re-broadcasts without a
 // Lobby context; Lobby is its sole writer and clears it on finalize. Scene navigation (change/add)
 // is the caller's concern — extend Scene on the host unit if you want it (see examples/network).
@@ -57,7 +58,9 @@ export function Lobby(unit: Unit, props: any) {
     });
 
     sync.client(() => {
-        const { socket } = props as { socket: any; };
+        const { io } = props as { io: any; };
+        // ロビー接続は room を持たない（query なし → server はロビー接続として扱う）。socket は Lobby が所有する。
+        const socket = io({ forceNew: true });
         socket.on('connect', xnew.scope(() => xnew.emit('-connect', {})));
         socket.on('disconnect', xnew.scope(() => xnew.emit('-disconnect', {})));
         socket.on('statusupdate', xnew.scope((payload: any) => xnew.emit('-statusupdate', payload)));

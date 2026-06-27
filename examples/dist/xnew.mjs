@@ -1665,7 +1665,8 @@ function Lobby(unit, props) {
         unit.on('finalize', () => { io.off('connection', connection); rooms.clear(); });
     });
     sync.client(() => {
-        const { socket } = props;
+        const { io } = props;
+        const socket = io({ forceNew: true });
         socket.on('connect', xnew$1.scope(() => xnew$1.emit('-connect', {})));
         socket.on('disconnect', xnew$1.scope(() => xnew$1.emit('-disconnect', {})));
         socket.on('statusupdate', xnew$1.scope((payload) => xnew$1.emit('-statusupdate', payload)));
