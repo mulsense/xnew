@@ -5,6 +5,9 @@
   "description": "xnew multi-client sample (socket.io). npm install && npm start, then open http://localhost:3001/ in multiple tabs.",
   "type": "module",
   "scripts": {
+    "sync-xnew": "node sync-xnew.js",
+    "prestart": "npm run sync-xnew",
+    "predev": "npm run sync-xnew",
     "start": "node server.js",
     "dev": "node --watch server.js"
   },

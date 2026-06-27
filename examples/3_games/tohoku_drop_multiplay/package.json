@@ -5,6 +5,9 @@
   "description": "とーほくドロップ 2人対戦（socket.io）。物理は server(matter-js)、描画は client(three/pixi)。npm install && npm start → http://localhost:3002/index-multiframe.html",
   "type": "module",
   "scripts": {
+    "sync-xnew": "node sync-xnew.js",
+    "prestart": "npm run sync-xnew",
+    "predev": "npm run sync-xnew",
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
