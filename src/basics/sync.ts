@@ -79,26 +79,19 @@ export function Room(unit: Unit, props: any) {
         const { io, room, Component, graceMs = 3000 } = props as { io: any; room: BootServerOptions['room']; Component: Function; graceMs?: number; };
         sync.boot({ io, room }, Component);
 
-        // drop the room once empty for graceMs (connect cancels, disconnect reschedules).
         let graceTimer: UnitTimer | null = null;
-        const scheduleCleanup = () => {
-            graceTimer?.clear();
-            graceTimer = xnew.timeout(() => {
-                if (members.size > 0) { return; }
-                xnew.emit('-empty', {});
-                if (rooms.has(room.id)) { rooms.delete(room.id); broadcastRooms(io); unit.finalize(); }
-            }, graceMs);
-        };
 
         // socket.io の connection / disconnect を直接受けてこの room のメンバを計数する（room フィルタ付き）。
         const connection = xnew.scope((socket: any) => {
             if (socket.handshake?.query?.roomId !== room.id) { return; }   // 別ルームは無視
             graceTimer?.clear();
             members.add(socket.id);
+            room.count = members.size;
             xnew.emit('-connect', { id: socket.id });
             if (rooms.has(room.id)) { broadcastRooms(io); }
             socket.on('disconnect', xnew.scope(() => {
                 members.delete(socket.id);
+                room.count = members.size;
                 xnew.emit('-disconnect', { id: socket.id });
                 if (rooms.has(room.id)) { broadcastRooms(io); }
                 if (members.size === 0) { scheduleCleanup(); }
@@ -108,12 +101,17 @@ export function Room(unit: Unit, props: any) {
         unit.on('finalize', () => io.off('connection', connection));
 
         scheduleCleanup();
+        function scheduleCleanup() {
+            graceTimer?.clear();
+            graceTimer = xnew.timeout(() => {
+                if (members.size > 0) { return; }
+                xnew.emit('-empty', {});
+                if (rooms.has(room.id)) { rooms.delete(room.id); broadcastRooms(io); unit.finalize(); }
+            }, graceMs);
+        }
 
-        // exposed to the parent Lobby: one room-list row with the live member count.
         return {
-            status(): RoomStatus {
-                return { id: room.id, name: room.name, count: members.size };
-            },
+            status(): RoomStatus { return room; },
         };
     });
 

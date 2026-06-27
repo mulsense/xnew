@@ -1681,20 +1681,6 @@ function Room(unit, props) {
         const { io, room, Component, graceMs = 3000 } = props;
         sync.boot({ io, room }, Component);
         let graceTimer = null;
-        const scheduleCleanup = () => {
-            graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
-            graceTimer = xnew$1.timeout(() => {
-                if (members.size > 0) {
-                    return;
-                }
-                xnew$1.emit('-empty', {});
-                if (rooms.has(room.id)) {
-                    rooms.delete(room.id);
-                    broadcastRooms(io);
-                    unit.finalize();
-                }
-            }, graceMs);
-        };
         const connection = xnew$1.scope((socket) => {
             var _a, _b;
             if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.roomId) !== room.id) {
@@ -1702,12 +1688,14 @@ function Room(unit, props) {
             }
             graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
             members.add(socket.id);
+            room.count = members.size;
             xnew$1.emit('-connect', { id: socket.id });
             if (rooms.has(room.id)) {
                 broadcastRooms(io);
             }
             socket.on('disconnect', xnew$1.scope(() => {
                 members.delete(socket.id);
+                room.count = members.size;
                 xnew$1.emit('-disconnect', { id: socket.id });
                 if (rooms.has(room.id)) {
                     broadcastRooms(io);
@@ -1720,10 +1708,22 @@ function Room(unit, props) {
         io.on('connection', connection);
         unit.on('finalize', () => io.off('connection', connection));
         scheduleCleanup();
+        function scheduleCleanup() {
+            graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
+            graceTimer = xnew$1.timeout(() => {
+                if (members.size > 0) {
+                    return;
+                }
+                xnew$1.emit('-empty', {});
+                if (rooms.has(room.id)) {
+                    rooms.delete(room.id);
+                    broadcastRooms(io);
+                    unit.finalize();
+                }
+            }, graceMs);
+        }
         return {
-            status() {
-                return { id: room.id, name: room.name, count: members.size };
-            },
+            status() { return room; },
         };
     });
     sync.client(() => {
