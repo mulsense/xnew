@@ -36,7 +36,7 @@ function Lobby(unit, { io }) {
             event.preventDefault();
             const name = nameInput.element.value.trim();
             if (!name) { return; }
-            unit.create(name);
+            unit.createRoom(name);
             nameInput.element.value = '';
         });
     });

@@ -64,7 +64,7 @@ function Lobby(unit, { io }) {
             event.preventDefault();
             const name = nameInput.element.value.trim();
             if (!name) { return; }
-            unit.create(name);   // Lobby が公開（内部で 'create' を emit）
+            unit.createRoom(name);   // Lobby が公開（内部で 'roomcreate' を emit）
             nameInput.element.value = '';
         });
     });

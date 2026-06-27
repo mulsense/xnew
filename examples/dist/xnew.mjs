@@ -1673,7 +1673,7 @@ function Lobby(unit, props) {
         socket.on('roomcreated', xnew$1.scope((payload) => xnew$1.emit('-roomcreated', payload)));
         socket.on('roomrejected', xnew$1.scope((payload) => xnew$1.emit('-roomrejected', payload)));
         unit.on('finalize', () => socket.disconnect());
-        return { create(name) { socket.emit('roomcreate', { name }); } };
+        return { createRoom(name) { socket.emit('roomcreate', { name }); } };
     });
 }
 function Room(unit, props) {

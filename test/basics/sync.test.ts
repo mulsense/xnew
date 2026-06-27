@@ -64,10 +64,10 @@ describe('Lobby', () => {
         expect(log).toEqual([]);
     });
 
-    it('exposes create(name) on the host unit that emits create', () => {
+    it('exposes createRoom(name) on the host unit that emits create', () => {
         const socket = mockSocket();
         const host = xnew(function Host() { xnew.extend(Lobby, { io: () => socket }); });
-        (host as any).create('my room');
+        (host as any).createRoom('my room');
         expect(socket.emit).toHaveBeenCalledWith('roomcreate', { name: 'my room' });
     });
 });

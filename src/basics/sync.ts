@@ -8,7 +8,7 @@
 // Lobby context; Lobby is its sole writer and clears it on finalize. Scene navigation (change/add)
 // is the caller's concern — extend Scene on the host unit if you want it (see examples/network).
 //
-// - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes create().
+// - Lobby    : lobby + dynamic rooms; client forwards events to '-<event>' and exposes createRoom().
 // - Room     : boots Component (boot forwards connect/disconnect/notfound); server counts members + cleanup.
 //
 // A room-list row is core's RoomData { id, name, count } (count = live member count).
@@ -67,7 +67,7 @@ export function Lobby(unit: Unit, props: any) {
         socket.on('roomcreated', xnew.scope((payload: any) => xnew.emit('-roomcreated', payload)));
         socket.on('roomrejected', xnew.scope((payload: any) => xnew.emit('-roomrejected', payload)));
         unit.on('finalize', () => socket.disconnect());
-        return { create(name: string) { socket.emit('roomcreate', { name }); } };
+        return { createRoom(name: string) { socket.emit('roomcreate', { name }); } };
     });
 }
 
