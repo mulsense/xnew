@@ -17,8 +17,6 @@ import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { getEnvironment } from './env';
 
 export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
-
-// registry is {name: Component} allowed as direct sync children; state is the per-node key→value map.
 interface SyncData { id: number | null; state: Record<string, any>; registry: Record<string, Function>; }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
