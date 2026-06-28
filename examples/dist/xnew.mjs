@@ -1409,135 +1409,136 @@ function rootInfoOf(unit) {
     }
     return info;
 }
-function boot(opts, parent, args) {
-    var _a, _b;
+function dispatch(root, event, id, payload) {
+    var _a;
+    const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
+    const syncId = payload ? payload.syncId : undefined;
+    ((_a = Unit.type2units.get(event)) !== null && _a !== void 0 ? _a : []).forEach((unit) => {
+        var _a;
+        if (findSyncRoot(unit) !== root)
+            return;
+        if (event[0] === '-' && syncOf(unit).id !== syncId)
+            return;
+        (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(Object.assign({ id }, data)));
+    });
+}
+function bootServer(opts, parent, args) {
     const { io, room } = opts;
-    const socket = getEnvironment() === 'server'
-        ? null
-        : io({ query: { roomId: room.id, clientName: (_b = (_a = opts.client) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : '' }, forceNew: true });
+    const info = { io, socket: null, room, clients: [] };
+    const root = new Unit(parent);
+    roots.set(root, info);
+    Unit.initialize(root, ...args);
+    root.on('finalize', () => roots.delete(root));
+    let nextId = 1;
+    const captureStateTree = () => {
+        const nodes = [];
+        const syncName = (unit) => {
+            var _a;
+            const registry = unit._.parent ? (_a = syncData.get(unit._.parent)) === null || _a === void 0 ? void 0 : _a.registry : null;
+            if (registry === null || registry === undefined) {
+                return undefined;
+            }
+            const entries = Object.entries(registry);
+            for (let i = unit._.Components.length - 1; i >= 0; i--) {
+                const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
+                if (hit !== undefined) {
+                    return hit[0];
+                }
+            }
+            return undefined;
+        };
+        const walk = (unit, parentId) => {
+            var _a;
+            const name = syncName(unit);
+            if (name !== undefined) {
+                const data = syncOf(unit);
+                (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
+                nodes.push({ id: data.id, name, parentId, state: Object.assign({}, data.state) });
+                parentId = data.id;
+            }
+            unit._.children.forEach((child) => walk(child, parentId));
+        };
+        walk(root, null);
+        return nodes;
+    };
+    root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
+    io.on('connection', (socket) => {
+        var _a, _b;
+        const query = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query;
+        if ((query === null || query === void 0 ? void 0 : query.roomId) !== room.id)
+            return;
+        socket.join(room.id);
+        info.clients.push({ id: socket.id, name: (_b = query === null || query === void 0 ? void 0 : query.clientName) !== null && _b !== void 0 ? _b : '' });
+        dispatch(root, 'sync.connect', socket.id, undefined);
+        statusUpdate();
+        socket.onAny((event, payload) => dispatch(root, event, socket.id, payload));
+        socket.on('disconnect', () => {
+            info.clients = info.clients.filter((c) => c.id !== socket.id);
+            dispatch(root, 'sync.disconnect', socket.id, undefined);
+            statusUpdate();
+        });
+    });
+    function statusUpdate() {
+        io.to(room.id).emit('status', { clients: info.clients });
+        dispatch(root, 'sync.statusupdate', undefined, undefined);
+    }
+    return root;
+}
+function bootClient(opts, parent, args) {
+    var _a;
+    const { io, room, client } = opts;
+    const socket = io({ query: { roomId: room.id, clientName: (_a = client === null || client === void 0 ? void 0 : client.name) !== null && _a !== void 0 ? _a : '' }, forceNew: true });
     const info = { io, socket, room, clients: [] };
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
-    if (getEnvironment() === 'server') {
-        let nextId = 1;
-        const captureStateTree = () => {
-            const nodes = [];
-            const syncName = (unit) => {
-                var _a;
-                const registry = unit._.parent ? (_a = syncData.get(unit._.parent)) === null || _a === void 0 ? void 0 : _a.registry : null;
-                if (registry === null || registry === undefined) {
-                    return undefined;
-                }
-                const entries = Object.entries(registry);
-                for (let i = unit._.Components.length - 1; i >= 0; i--) {
-                    const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
-                    if (hit !== undefined) {
-                        return hit[0];
-                    }
-                }
-                return undefined;
-            };
-            const walk = (unit, parentId) => {
-                var _a;
-                const name = syncName(unit);
-                if (name !== undefined) {
-                    const data = syncOf(unit);
-                    (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
-                    nodes.push({ id: data.id, name, parentId, state: Object.assign({}, data.state) });
-                    parentId = data.id;
-                }
-                unit._.children.forEach((child) => walk(child, parentId));
-            };
-            walk(root, null);
-            return nodes;
-        };
-        root.on('finalize', () => roots.delete(root));
-        root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
-        io.on('connection', (socket) => {
-            var _a, _b;
-            const query = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query;
-            if ((query === null || query === void 0 ? void 0 : query.roomId) !== room.id)
-                return;
-            socket.join(room.id);
-            info.clients.push({ id: socket.id, name: (_b = query === null || query === void 0 ? void 0 : query.clientName) !== null && _b !== void 0 ? _b : '' });
-            dispatch('sync.connect', socket.id, undefined);
-            statusUpdate();
-            socket.onAny((event, payload) => dispatch(event, socket.id, payload));
-            socket.on('disconnect', () => {
-                info.clients = info.clients.filter((c) => c.id !== socket.id);
-                dispatch('sync.disconnect', socket.id, undefined);
-                statusUpdate();
-            });
-        });
-        function statusUpdate() {
-            io.to(room.id).emit('status', { clients: info.clients });
-            dispatch('sync.statusupdate', undefined, undefined);
+    root.on('finalize', () => roots.delete(root));
+    const reconcileMap = new Map();
+    const applyStateTree = (tree) => {
+        const incoming = new Set(tree.map((node) => node.id));
+        for (const node of tree) {
+            const existing = reconcileMap.get(node.id);
+            if (existing !== undefined) {
+                Object.assign(syncOf(existing).state, node.state);
+                continue;
+            }
+            const nodeParent = node.parentId === null ? root : reconcileMap.get(node.parentId);
+            const Component = nodeParent && syncOf(nodeParent).registry[node.name];
+            if (!Component) {
+                continue;
+            }
+            const unit = new Unit(nodeParent);
+            syncData.set(unit, { id: node.id, state: Object.assign({}, node.state), registry: {} });
+            Unit.initialize(unit, Component);
+            reconcileMap.set(node.id, unit);
         }
-    }
-    else {
-        const socket = info.socket;
-        const reconcileMap = new Map();
-        const applyStateTree = (tree) => {
-            const incoming = new Set(tree.map((node) => node.id));
-            for (const node of tree) {
-                const existing = reconcileMap.get(node.id);
-                if (existing !== undefined) {
-                    Object.assign(syncOf(existing).state, node.state);
-                    continue;
-                }
-                const parent = node.parentId === null ? root : reconcileMap.get(node.parentId);
-                const Component = parent && syncOf(parent).registry[node.name];
-                if (!Component) {
-                    continue;
-                }
-                const unit = new Unit(parent);
-                syncData.set(unit, { id: node.id, state: Object.assign({}, node.state), registry: {} });
-                Unit.initialize(unit, Component);
-                reconcileMap.set(node.id, unit);
+        for (const [id, unit] of [...reconcileMap.entries()]) {
+            if (!incoming.has(id)) {
+                unit.finalize();
+                reconcileMap.delete(id);
             }
-            for (const [id, unit] of [...reconcileMap.entries()]) {
-                if (!incoming.has(id)) {
-                    unit.finalize();
-                    reconcileMap.delete(id);
-                }
-            }
-        };
-        socket.on('sync', applyStateTree);
-        const onStatus = (status) => {
-            var _a;
-            info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
-            dispatch('sync.statusupdate', undefined, undefined);
-        };
-        socket.on('status', onStatus);
-        socket.onAny((event, payload) => dispatch(event, undefined, payload));
-        const forwardToHost = (type, props) => {
-            var _a;
-            (_a = parent === null || parent === void 0 ? void 0 : parent._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
-        };
-        socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
-        socket.on('disconnect', () => forwardToHost('-disconnect', {}));
-        socket.on('notfound', (payload) => forwardToHost('-notfound', payload !== null && payload !== void 0 ? payload : {}));
-        root.on('finalize', () => {
-            socket.off('sync', applyStateTree);
-            socket.off('status', onStatus);
-            socket.disconnect();
-            roots.delete(root);
-        });
-    }
-    function dispatch(event, id, payload) {
+        }
+    };
+    socket.on('sync', applyStateTree);
+    const onStatus = (status) => {
         var _a;
-        const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
-        const syncId = payload ? payload.syncId : undefined;
-        ((_a = Unit.type2units.get(event)) !== null && _a !== void 0 ? _a : []).forEach((unit) => {
-            var _a;
-            if (findSyncRoot(unit) !== root)
-                return;
-            if (event[0] === '-' && syncOf(unit).id !== syncId)
-                return;
-            (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(Object.assign({ id }, data)));
-        });
-    }
+        info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
+        dispatch(root, 'sync.statusupdate', undefined, undefined);
+    };
+    socket.on('status', onStatus);
+    socket.onAny((event, payload) => dispatch(root, event, undefined, payload));
+    const forwardToHost = (type, props) => {
+        var _a;
+        (_a = parent === null || parent === void 0 ? void 0 : parent._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
+    };
+    socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
+    socket.on('disconnect', () => forwardToHost('-disconnect', {}));
+    socket.on('notfound', (payload) => forwardToHost('-notfound', payload !== null && payload !== void 0 ? payload : {}));
+    root.on('finalize', () => {
+        socket.off('sync', applyStateTree);
+        socket.off('status', onStatus);
+        socket.disconnect();
+    });
     return root;
 }
 const sync = {
@@ -1589,7 +1590,9 @@ const sync = {
         if (Unit.engineRoot === undefined) {
             Unit.reset();
         }
-        return boot(opts, Unit.currentUnit, args);
+        return getEnvironment() === 'server'
+            ? bootServer(opts, Unit.currentUnit, args)
+            : bootClient(opts, Unit.currentUnit, args);
     },
 };
 

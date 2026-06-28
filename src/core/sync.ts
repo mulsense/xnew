@@ -59,146 +59,157 @@ function rootInfoOf(unit: Unit): SyncInfo {
 }
 
 //----------------------------------------------------------------------------------------------------
-// boot — root creation + wiring; the server/client split lives only inside this function.
-// (1) downstream state mirror (server: capture→broadcast on update / client: apply on 'sync')
-// (2) dispatcher (received events → unit.on under root: '-event'=same syncId / '+'·plain=whole tree)
-// (3) client only: create the socket from io (query: room.id + client), forward its
-//     connect/disconnect/notfound lifecycle to the host unit (boot parent) as local '-events',
-//     and disconnect it on finalize. The host wiring lives here so callers just boot.
+// boot — root creation + wiring, split per runtime. Neither half branches on the environment;
+// sync.boot picks bootServer / bootClient once. dispatch is shared by both halves.
+//
+// - dispatch   : route a received event to listening units under a root ('-event'=same syncId / '+'·plain=whole tree)
+// - bootServer : server root — capture→broadcast on update; track members; dispatch incoming socket events
+// - bootClient : client root — own the socket, apply on 'sync', forward connect/disconnect/notfound to host
 //----------------------------------------------------------------------------------------------------
 
 export interface BootServerOptions { io: any; room: RoomStatus; }
 export interface BootClientOptions { io: any; room: RoomStatus; client: any; }
 
-function boot(opts: BootServerOptions | BootClientOptions, parent: Unit | null, args: any[]): Unit {
-    const { io, room } = opts;
-    // The client owns its socket and creates it here (before init) so the component body can already
-    // read it (e.g. sync.status.client / sync.emit); the server has no socket. Flat string handshake query.
-    const socket = getEnvironment() === 'server'
-        ? null
-        : io({ query: { roomId: room.id, clientName: (opts as BootClientOptions).client?.name ?? '' }, forceNew: true });
-    const info: SyncInfo = { io, socket, room, clients: [] };
+/** Route a received event to listening units under `root`. */
+function dispatch(root: Unit, event: string, id: string | undefined, payload: any): void {
+    const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
+    const syncId = payload ? payload.syncId : undefined;
+    (Unit.type2units.get(event) ?? []).forEach((unit) => {
+        if (findSyncRoot(unit) !== root) return; // skip units of another root
+        if (event[0] === '-' && syncOf(unit).id !== syncId) return; // skip units of another sync node
+        unit._.listeners.get(event)?.forEach((item) => item.execute({ id, ...data }));
+    });
+}
 
+function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
+    const { io, room } = opts;
+    const info: SyncInfo = { io, socket: null, room, clients: [] };
+
+    // Bind root before init so sync functions in the body can resolve it via findSyncRoot.
     const root = new Unit(parent);
     roots.set(root, info);
     Unit.initialize(root, ...args);
+    root.on('finalize', () => roots.delete(root));
 
-    if (getEnvironment() === 'server') {
-        let nextId = 1;
-        const captureStateTree = (): StateTree => {
-            const nodes: StateTree = [];
-            // _.Components is [base..., most-derived]; match the registered name from the tail.
-            const syncName = (unit: Unit): string | undefined => {
-                const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
-                if (registry === null || registry === undefined) { return undefined; }
-                const entries = Object.entries(registry);
-                for (let i = unit._.Components.length - 1; i >= 0; i--) {
-                    const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
-                    if (hit !== undefined) { return hit[0]; }
-                }
-                return undefined;
-            };
-            const walk = (unit: Unit, parentId: number | null): void => {
-                const name = syncName(unit);
-                if (name !== undefined) {
-                    const data = syncOf(unit);
-                    data.id ??= nextId++;
-                    nodes.push({ id: data.id, name, parentId, state: { ...data.state } });
-                    parentId = data.id;
-                }
-                unit._.children.forEach((child) => walk(child, parentId));
-            };
-            walk(root, null);
-            return nodes;
+    // capture this root's sync targets as a flat pre-order node list (closed over `root`).
+    // A sync target is a unit whose type is registered in its direct parent's registry.
+    // nextId is monotonic across captures so a unit keeps its id for its whole lifetime.
+    let nextId = 1;
+    const captureStateTree = (): StateTree => {
+        const nodes: StateTree = [];
+        // _.Components is [base..., most-derived]; match the registered name from the tail.
+        const syncName = (unit: Unit): string | undefined => {
+            const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
+            if (registry === null || registry === undefined) { return undefined; }
+            const entries = Object.entries(registry);
+            for (let i = unit._.Components.length - 1; i >= 0; i--) {
+                const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
+                if (hit !== undefined) { return hit[0]; }
+            }
+            return undefined;
         };
+        const walk = (unit: Unit, parentId: number | null): void => {
+            const name = syncName(unit);
+            if (name !== undefined) {
+                const data = syncOf(unit);
+                data.id ??= nextId++;
+                nodes.push({ id: data.id, name, parentId, state: { ...data.state } });
+                parentId = data.id;
+            }
+            unit._.children.forEach((child) => walk(child, parentId));
+        };
+        walk(root, null);
+        return nodes;
+    };
 
-        root.on('finalize', () => roots.delete(root));
-        root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
-        io.on('connection', (socket: any) => {
-            const query = socket.handshake?.query;
-            if (query?.roomId !== room.id) return; // ignore other rooms
-            socket.join(room.id);
-            info.clients.push({ id: socket.id, name: query?.clientName ?? '' });
-            dispatch('sync.connect', socket.id, undefined);
+    root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
+    io.on('connection', (socket: any) => {
+        const query = socket.handshake?.query;
+        if (query?.roomId !== room.id) return; // ignore other rooms
+        socket.join(room.id);
+        info.clients.push({ id: socket.id, name: query?.clientName ?? '' });
+        dispatch(root, 'sync.connect', socket.id, undefined);
+        statusUpdate();
+        socket.onAny((event: string, payload: any) => dispatch(root, event, socket.id, payload));
+        socket.on('disconnect', () => {
+            info.clients = info.clients.filter((c) => c.id !== socket.id);
+            dispatch(root, 'sync.disconnect', socket.id, undefined);
             statusUpdate();
-            socket.onAny((event: string, payload: any) => dispatch(event, socket.id, payload));
-            socket.on('disconnect', () => {
-                info.clients = info.clients.filter((c) => c.id !== socket.id);
-                dispatch('sync.disconnect', socket.id, undefined);
-                statusUpdate();
-            });
         });
-        function statusUpdate() {
-            io.to(room.id).emit('status', { clients: info.clients });
-            dispatch('sync.statusupdate', undefined, undefined);
+    });
+    function statusUpdate() {
+        io.to(room.id).emit('status', { clients: info.clients });
+        dispatch(root, 'sync.statusupdate', undefined, undefined);
+    }
+    return root;
+}
+
+function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
+    const { io, room, client } = opts;
+    // client owns its socket: io() with flat string query (roomId / clientName) on the handshake.
+    // create it before init so the component body can already read it (sync.status.client / sync.emit).
+    const socket = io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true });
+    const info: SyncInfo = { io, socket, room, clients: [] };
+
+    // Bind root before init so sync functions in the body can resolve it via findSyncRoot.
+    const root = new Unit(parent);
+    roots.set(root, info);
+    Unit.initialize(root, ...args);
+    root.on('finalize', () => roots.delete(root));
+
+    // diff-apply a captured tree onto this client root (create/update/remove; tree is pre-order).
+    // reconcileMap tracks node id → replica unit for this root only (closed over `root`).
+    const reconcileMap = new Map<number, Unit>();
+    const applyStateTree = (tree: StateTree): void => {
+        const incoming = new Set<number>(tree.map((node) => node.id));
+        // create / update (pre-order, so the parent already exists)
+        for (const node of tree) {
+            const existing = reconcileMap.get(node.id);
+            if (existing !== undefined) {
+                Object.assign(syncOf(existing).state, node.state);   // never delete a once-set key (v1 simplification)
+                continue;
+            }
+            const nodeParent = node.parentId === null ? root : reconcileMap.get(node.parentId);
+            const Component = nodeParent && syncOf(nodeParent).registry[node.name];
+            if (!Component) { continue; }
+            // seed SyncData before initialize so the body's sync.state sees the server state and fixed id
+            const unit = new Unit(nodeParent);
+            syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
+            Unit.initialize(unit, Component);
+            reconcileMap.set(node.id, unit);
         }
-    } else {
-        const socket = info.socket;   // created before init above (client always has one)
+        // remove replicas whose id vanished from the tree
+        for (const [id, unit] of [...reconcileMap.entries()]) {
+            if (!incoming.has(id)) { unit.finalize(); reconcileMap.delete(id); }
+        }
+    };
 
-        // diff-apply a captured tree onto this client root (create/update/remove; tree is pre-order).
-        // reconcileMap tracks node id → replica unit for this root only (closed over `root`).
-        const reconcileMap = new Map<number, Unit>();
-        const applyStateTree = (tree: StateTree): void => {
-            const incoming = new Set<number>(tree.map((node) => node.id));
-            // create / update (pre-order, so the parent already exists)
-            for (const node of tree) {
-                const existing = reconcileMap.get(node.id);
-                if (existing !== undefined) {
-                    Object.assign(syncOf(existing).state, node.state);   // never delete a once-set key (v1 simplification)
-                    continue;
-                }
-                const parent = node.parentId === null ? root : reconcileMap.get(node.parentId);
-                const Component = parent && syncOf(parent).registry[node.name];
-                if (!Component) { continue; }
-                // seed SyncData before initialize so the body's sync.state sees the server state and fixed id
-                const unit = new Unit(parent);
-                syncData.set(unit, { id: node.id, state: { ...node.state }, registry: {} });
-                Unit.initialize(unit, Component);
-                reconcileMap.set(node.id, unit);
-            }
-            // remove replicas whose id vanished from the tree
-            for (const [id, unit] of [...reconcileMap.entries()]) {
-                if (!incoming.has(id)) { unit.finalize(); reconcileMap.delete(id); }
-            }
-        };
+    socket.on('sync', applyStateTree);
+    const onStatus = (status: { clients?: ClientStatus[] }) => {
+        info.clients = status?.clients ?? [];
+        dispatch(root, 'sync.statusupdate', undefined, undefined);
+    };
+    socket.on('status', onStatus);
+    socket.onAny((event: string, payload: any) => dispatch(root, event, undefined, payload));
 
-        socket.on('sync', applyStateTree);
-        const onStatus = (status: { clients?: ClientStatus[] }) => {
-            info.clients = status?.clients ?? [];
-            dispatch('sync.statusupdate', undefined, undefined);
-        };
-        socket.on('status', onStatus);
-        socket.onAny((event: string, payload: any) => dispatch(event, undefined, payload));
-
-        // forward the socket's own lifecycle to the host unit (boot parent) as local '-events',
-        // so callers listen with unit.on('-connect' | '-disconnect' | '-notfound').
-        const forwardToHost = (type: string, props: object): void => {
-            parent?._.listeners.get(type)?.forEach((item) => item.execute(props));
-        };
-        socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
-        socket.on('disconnect', () => forwardToHost('-disconnect', {}));
-        socket.on('notfound', (payload: any) => forwardToHost('-notfound', payload ?? {}));
-        root.on('finalize', () => {
-            socket.off('sync', applyStateTree); socket.off('status', onStatus);
-            socket.disconnect(); roots.delete(root);
-        });
-    }
-
-    function dispatch(event: string, id: string | undefined, payload: any): void {
-        const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
-        const syncId = payload ? payload.syncId : undefined;
-        (Unit.type2units.get(event) ?? []).forEach((unit) => {
-            if (findSyncRoot(unit) !== root) return; // skip units of another root
-            if (event[0] === '-' && syncOf(unit).id !== syncId) return; // skip units of another sync node
-            unit._.listeners.get(event)?.forEach((item) => item.execute({ id, ...data }));
-        });
-    }
+    // forward the socket's own lifecycle to the host unit (boot parent) as local '-events',
+    // so callers listen with unit.on('-connect' | '-disconnect' | '-notfound').
+    const forwardToHost = (type: string, props: object): void => {
+        parent?._.listeners.get(type)?.forEach((item) => item.execute(props));
+    };
+    socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
+    socket.on('disconnect', () => forwardToHost('-disconnect', {}));
+    socket.on('notfound', (payload: any) => forwardToHost('-notfound', payload ?? {}));
+    root.on('finalize', () => {
+        socket.off('sync', applyStateTree); socket.off('status', onStatus); socket.disconnect();
+    });
     return root;
 }
 
 //----------------------------------------------------------------------------------------------------
 // xnew.sync facade — attached onto xnew by index.ts (post-hoc pattern).
 // Each method acts on the implicit Unit.currentUnit, so call them from a Component function / handler.
+// The server/client environment is branched here only (boot / emit / status); the boot halves don't.
 //
 // - state / register : declare synced state / register direct sync children {Name: Component}
 // - emit / status    : send an event / room status (room·clients on both sides, client only on client)
@@ -249,6 +260,8 @@ export const sync = {
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {
         if (Unit.engineRoot === undefined) { Unit.reset(); }
-        return boot(opts, Unit.currentUnit, args);
+        return getEnvironment() === 'server'
+            ? bootServer(opts as BootServerOptions, Unit.currentUnit, args)
+            : bootClient(opts as BootClientOptions, Unit.currentUnit, args);
     },
 };
