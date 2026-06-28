@@ -485,29 +485,24 @@ export class UnitPromise {
     public key?: string;
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
-    public then(callback: Function): UnitPromise {
+    // then / catch / finally は捕捉スコープで callback を実行し、戻り値をチェーン値にする。
+    // UnitPromise を返した場合は内部 promise に展開して非同期継続を表す。
+    private chain(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.then((...args: any[]) => {
-            const returned = Unit.scope(snapshot, callback, ...args);
-            return returned instanceof UnitPromise ? returned.promise : returned;
-        });
-        return this;
-    }
-    public catch(callback: Function): UnitPromise {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.catch((...args: any[]) => {
+        this.promise = (this.promise[method] as Function)((...args: any[]) => {
             const result = Unit.scope(snapshot, callback, ...args);
             return result instanceof UnitPromise ? result.promise : result;
         });
         return this;
     }
+    public then(callback: Function): UnitPromise {
+        return this.chain('then', callback);
+    }
+    public catch(callback: Function): UnitPromise {
+        return this.chain('catch', callback);
+    }
     public finally(callback: Function): UnitPromise {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.finally(() => {
-            const result = Unit.scope(snapshot, callback);
-            return result instanceof UnitPromise ? result.promise : result;
-        });
-        return this;
+        return this.chain('finally', callback);
     }
 
     // deferred な UnitPromise を生成し、settled ガード付きの resolve / reject と共に返す。
