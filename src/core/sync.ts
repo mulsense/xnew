@@ -1,17 +1,15 @@
 //----------------------------------------------------------------------------------------------------
 // sync — server→client state sync engine
 //
-// Captures the server tree's sync targets as a SyncNode list and diff-applies them to the client
-// tree. A sync target is only a type registered in its direct parent's registry. Transport is
-// socket.io: the server boot receives io directly; the client boot receives io too and calls it to
-// create its own socket (query carries room.id + client). There is no transport abstraction.
-// Note: socket on-handlers run outside the tick/scope, so never create/finalize units there (spawn on update).
+// Server tree (source of truth) is captured and diff-applied onto each client tree over socket.io.
 //
-// - sync : xnew.sync facade (state / register / emit / status / boot / server / client)
-// - syncOf : per-unit sync data accessor (state fill / registry append live in sync.state / sync.register)
-// - StateTree : node list carried by capture / apply
-// - SyncStatus / ClientStatus / RoomStatus : room status types
-// - BootServerOptions / BootClientOptions : boot input for server / client
+// Public facade (xnew.sync.*):
+// - server / client : extend the current unit only on its runtime (Node=server / browser=client)
+// - state           : declare synced state on the current unit (server authoritative)
+// - register        : declare the components allowed as direct sync children {Name: Component}
+// - emit            : send a custom event to the room (server→all clients / client→server)
+// - status          : current room / clients (plus this client on the client side)
+// - boot            : create a sync root bound to a socket (server/client auto-detected)
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
@@ -53,12 +51,7 @@ function rootInfoOf(unit: Unit): ServerInfo | ClientInfo {
 }
 
 //----------------------------------------------------------------------------------------------------
-// boot — root creation + wiring, split per runtime. Neither half branches on the environment;
-// sync.boot picks bootServer / bootClient once. dispatch is shared by both halves.
-//
-// - dispatch   : route a received event to listening units under a root ('-event'=same syncId / '+'·plain=whole tree)
-// - bootServer : server root — capture→broadcast on update; track members; dispatch incoming socket events
-// - bootClient : client root — own the socket, apply on 'sync', forward connect/disconnect/notfound to host
+// boot — per-runtime root creation + wiring (bootServer / bootClient); dispatch routes events per root.
 //----------------------------------------------------------------------------------------------------
 
 export interface BootServerOptions { io: any; room: RoomStatus; }
@@ -197,17 +190,6 @@ function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): 
     });
     return root;
 }
-
-//----------------------------------------------------------------------------------------------------
-// xnew.sync facade — attached onto xnew by index.ts (post-hoc pattern).
-// Each method acts on the implicit Unit.currentUnit, so call them from a Component function / handler.
-// The server/client environment is branched here only (boot / emit / status); the boot halves don't.
-//
-// - state / register : declare synced state / register direct sync children {Name: Component}
-// - emit / status    : send an event / room status (room·clients on both sides, client only on client)
-// - boot             : create a root bound to a socket (server/client auto-detected by environment)
-// - server / client  : extend block limited to the runtime (Node=server / browser=client)
-//----------------------------------------------------------------------------------------------------
 
 export const sync = {
     server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
