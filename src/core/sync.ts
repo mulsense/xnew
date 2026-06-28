@@ -8,15 +8,15 @@
 // - state           : declare synced state on the current unit (server authoritative)
 // - register        : declare the components allowed as direct sync children {Name: Component}
 // - emit            : send a custom event to the room (server→all clients / client→server)
-// - status          : current room / clients (plus this client on the client side)
+// - room / clients  : current room info / connected clients
+// - myself          : this client's entry (client side only)
 // - boot            : create a sync root bound to a socket (server/client auto-detected)
 //----------------------------------------------------------------------------------------------------
 
 import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { getEnvironment } from './env';
 
-interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
-export type StateTree = SyncNode[];
+export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
 
 // registry is {name: Component} allowed as direct sync children; state is the per-node key→value map.
 interface SyncData { id: number | null; state: Record<string, any>; registry: Record<string, Function>; }
@@ -32,7 +32,6 @@ export function syncOf(unit: Unit): SyncData {
 
 export interface ClientStatus { id: string; name: string; }
 export interface RoomStatus { id: string; name: string; count: number; }
-export interface SyncStatus { room: RoomStatus; clients: ClientStatus[]; client: ClientStatus; }
 
 interface ServerInfo { io: any; room: RoomStatus; clients: ClientStatus[]; }
 interface ClientInfo { socket: any; room: RoomStatus; clients: ClientStatus[]; }
@@ -81,8 +80,8 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
     // A sync target is a unit whose type is registered in its direct parent's registry.
     // nextId is monotonic across captures so a unit keeps its id for its whole lifetime.
     let nextId = 1;
-    const captureStateTree = (): StateTree => {
-        const nodes: StateTree = [];
+    const captureStateTree = (): SyncNode[] => {
+        const nodes: SyncNode[] = [];
         // _.Components is [base..., most-derived]; match the registered name from the tail.
         const syncName = (unit: Unit): string | undefined => {
             const registry = unit._.parent ? syncData.get(unit._.parent)?.registry : null;
@@ -133,7 +132,7 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
 function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
     const { io, room, client } = opts;
     // client owns its socket: io() with flat string query (roomId / clientName) on the handshake.
-    // create it before init so the component body can already read it (sync.status.client / sync.emit).
+    // create it before init so the component body can already read it (sync.myself / sync.emit).
     const socket = io({ query: { roomId: room.id, clientName: client?.name ?? '' }, forceNew: true });
     const info: ClientInfo = { socket, room, clients: [] };
 
@@ -145,7 +144,7 @@ function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): 
     // diff-apply a captured tree onto this client root (create/update/remove; tree is pre-order).
     // reconcileMap tracks node id → replica unit for this root only (closed over `root`).
     const reconcileMap = new Map<number, Unit>();
-    const applyStateTree = (tree: StateTree): void => {
+    const applyStateTree = (tree: SyncNode[]): void => {
         const incoming = new Set<number>(tree.map((node) => node.id));
         // create / update (pre-order, so the parent already exists)
         for (const node of tree) {
@@ -212,18 +211,18 @@ export const sync = {
         }
         Object.assign(syncOf(unit).registry, Components);
     },
-    get status(): SyncStatus {
-        const info = rootInfoOf(Unit.currentUnit);
-        return {
-            room: info.room, clients: info.clients,
-            get client(): ClientStatus {
-                if (getEnvironment() === 'server') {
-                    throw new Error('sync.status.client is only available on the client side.');
-                }
-                const { socket } = info as ClientInfo;
-                return info.clients.find((c) => c.id === socket.id) ?? { id: socket.id, name: '' };
-            },
-        };
+    get room(): RoomStatus {
+        return rootInfoOf(Unit.currentUnit).room;
+    },
+    get clients(): ClientStatus[] {
+        return rootInfoOf(Unit.currentUnit).clients;
+    },
+    get myself(): ClientStatus {
+        if (getEnvironment() === 'server') {
+            throw new Error('sync.myself is only available on the client side.');
+        }
+        const info = rootInfoOf(Unit.currentUnit) as ClientInfo;
+        return info.clients.find((c) => c.id === info.socket.id) ?? { id: info.socket.id, name: '' };
     },
     emit(event: string, payload: Record<string, any> = {}): void {
         const info = rootInfoOf(Unit.currentUnit);

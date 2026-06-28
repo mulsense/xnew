@@ -1,7 +1,7 @@
 import { Unit } from '../../../src/core/unit';
 import { xnew } from '../../../src/index';
 import { ioMock, bootClient } from './io-mock';
-import { syncOf, StateTree } from '../../../src/core/sync';
+import { syncOf, SyncNode } from '../../../src/core/sync';
 
 // apply は boot 内部へ移動したため、client boot の socket に 'sync' を fire して駆動する。
 // socket.fire は受信を client 環境で擬似発火し、boot の on('sync')→apply を呼ぶ（手で作ったツリーを流し込める）。
@@ -27,7 +27,7 @@ describe('applyStateTree create', () => {
 
     it('creates client units under the reconcile root with state applied', () => {
         const { view, socket } = makeView();
-        const tree: StateTree = [{ id: 1, name: 'Box', parentId: null, state: { value: 7 } }];
+        const tree: SyncNode[] = [{ id: 1, name: 'Box', parentId: null, state: { value: 7 } }];
         socket.fire('sync', tree);
         expect(view._.children.length).toBe(1);
         const child = view._.children[0];
