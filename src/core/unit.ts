@@ -365,7 +365,7 @@ export class Unit {
 
     static unit2Contexts: MapSet<Unit, Context> = new MapSet();
 
-    static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void {
+    static addContext(unit: Unit, orner: Unit, key: any, value?: any): void {
         unit._.currentContext = { previous: unit._.currentContext, key, value };
         Unit.unit2Contexts.add(orner, unit._.currentContext);
     }
