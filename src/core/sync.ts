@@ -67,7 +67,7 @@ function dispatch(info: ServerInfo | ClientInfo, event: string, id: string | und
     });
 }
 
-function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): Unit {
+function bootServer(opts: BootServerOptions, parent: Unit, args: any[]): Unit {
     const { io, room } = opts;
     const info: ServerInfo = { io, room, clients: [] };
 
@@ -129,7 +129,7 @@ function bootServer(opts: BootServerOptions, parent: Unit | null, args: any[]): 
     return root;
 }
 
-function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): Unit {
+function bootClient(opts: BootClientOptions, parent: Unit, args: any[]): Unit {
     const { io, room, client } = opts;
     // client owns its socket: io() with flat string query (roomId / clientName) on the handshake.
     // create it before init so the component body can already read it (sync.myself / sync.emit).
@@ -178,12 +178,9 @@ function bootClient(opts: BootClientOptions, parent: Unit | null, args: any[]): 
 
     // forward the socket's own lifecycle to the host unit (boot parent) as local '-events',
     // so callers listen with unit.on('-connect' | '-disconnect' | '-notfound').
-    const forwardToHost = (type: string, props: object): void => {
-        parent?._.listeners.get(type)?.forEach((item) => item.execute(props));
-    };
-    socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
-    socket.on('disconnect', () => forwardToHost('-disconnect', {}));
-    socket.on('notfound', (payload: any) => forwardToHost('-notfound', payload ?? {}));
+    socket.on('connect', () => Unit.emit(parent, '-connect', { id: socket.id }));
+    socket.on('disconnect', () => Unit.emit(parent, '-disconnect', {}));
+    socket.on('notfound', (payload: any) => Unit.emit(parent, '-notfound', payload ?? {}));
     root.on('finalize', () => {
         socket.off('sync', applyStateTree); socket.off('status', onStatus); socket.disconnect();
     });

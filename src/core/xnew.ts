@@ -118,7 +118,7 @@ export const xnew = Object.assign(
 
         /** Emits a custom event（'+event' = 全体へ / '-event' = 自 unit のみ）。 */
         emit(type: string, ...args: any[]): void {
-            return Unit.emit(type, ...args);
+            return Unit.emit(Unit.currentUnit, type, ...args);
         },
 
         /** Runs callback({ timer }) once after duration ms（timer は UnitTimer インスタンス。unit のライフサイクルに従う。clear() で中止）。 */

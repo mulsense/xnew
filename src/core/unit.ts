@@ -462,17 +462,16 @@ export class Unit {
         }
     }
 
-    static emit(type: string, props: object = {}): void {
-        const current = Unit.currentUnit;
+    static emit(unit: Unit, type: string, props: object = {}): void {
         if (type[0] === '+') {
-            const ancestors = Unit.ancestors(current);
-            Unit.type2units.get(type)?.forEach((unit) => {
-                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
-                    unit._.listeners.get(type)?.forEach((item) => item.execute(props));
+            const ancestors = Unit.ancestors(unit);
+            Unit.type2units.get(type)?.forEach((target) => {
+                if (Unit.isVisible(Unit.protectBoundary(target), unit, ancestors)) {
+                    target._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });
         } else if (type[0] === '-') {
-            current._.listeners.get(type)?.forEach((item) => item.execute(props));
+            unit._.listeners.get(type)?.forEach((item) => item.execute(props));
         }
     }
 }
