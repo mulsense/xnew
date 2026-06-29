@@ -1,4 +1,5 @@
 import { xnew } from '@mulsense/xnew';
+import { ChatView } from './chat.js';
 
 //----------------------------------------------------------------------------------------------------
 // game — multi-client のゲームロジック（socket.io 前提・無改変で動く）。
@@ -19,9 +20,9 @@ import { xnew } from '@mulsense/xnew';
 //              それ以外のクライアントは観戦（盤面を見るだけ）。途中参加（World フェーズで接続）した
 //              クライアントには Setup が存在しないので設定画面はスキップされ、自機も持たない＝観戦になる。
 //   - Player : synced state {x,y,clientId,slot}。server が移動、client が描画＋（自機なら）入力。
-//   - ChatPanel : 全シーン共通のルームチャット（client 専用・Game 直下に常駐）。xnew.sync.emit('+chat') で
-//              送信し、server(Game) が '+chat'（全体ブロードキャスト）を受けてルーム全員へ中継する（自分の発言も中継で返る）。
-//              名前は client 側で nameOf(id) に解決（pages/metaverse のチャットを sync 流に焼き直したもの）。
+//   - ChatView : 全シーン共通のルームチャット（chat.js に分離・server/client 両方で Game 直下に常駐）。
+//              ChatView 内部で分岐し、server 側が '+chat'（全体ブロードキャスト）を受けて整形しルーム全員へ
+//              中継、client 側が xnew.sync.emit('+chat') で送信し受信を表示する（自分の発言も中継で返る）。
 //
 //   sync イベント: 送信は xnew.sync.emit（payload はオブジェクト・syncId 自動付与）、受信は unit.on。
 //   プレフィックス '-'=同一コンポーネント(同じ syncId・replica↔server で一致) / '+'・無印=全体。
@@ -40,61 +41,17 @@ const nameOf = (id) => xnew.sync.clients.find((c) => c.id === id)?.name || (id ?
 export function Game(unit) {
     xnew.sync.register({ Title, Setup, World });   // 同期対象（= シーン）の型を宣言
 
-    // server: 最初のシーン Title を生成し、ルームチャットを中継する。
+    // server: 最初のシーン Title と、チャット中継器 ChatView（server 側）を生成する。
     xnew.sync.server(() => {
         xnew(Title);
-
-        // client の '+chat' を受けてルーム全員へ中継（'+' ブロードキャスト＝root 内の全 unit へ届く）。
-        unit.on('+chat', ({ id, text }) => {
-            const message = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
-
-            if (!message) {
-                return;
-            }
-
-            xnew.sync.emit('+chat', { id, text: message });
-        });
+        xnew(ChatView);   // ChatView の server 側＝ '+chat' の中継（chat.js で分岐）
     });
 
-    // client: 左にシーン（synced child）、右にルームチャットを横並びで置く。
+    // client: 左にシーン（synced child）、右にルームチャット（ChatView の client 側）を横並びで置く。
     xnew.sync.client(() => {
         const layout = xnew.nest('<div class="flex gap-4 items-start">');
         xnew.nest('<div class="flex flex-col gap-3">');   // シーン（synced child）の mount 先
-        xnew(layout, ChatPanel);   // 全シーン共通のルームチャット
-    });
-}
-
-// ---- ChatPanel: ルームチャットの表示 + 入力（client 専用）。server 中継の 'chat' を 1 行ずつ積む ----
-function ChatPanel(unit) {
-    xnew.nest('<div class="w-56 h-80 flex flex-col border border-gray-300 rounded bg-white">');
-    xnew('<div class="px-3 py-2 border-b border-gray-200 text-sm font-bold text-gray-700">', 'チャット');
-    const log = xnew('<div class="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1">');
-
-    xnew('<form class="flex gap-1 p-2 border-t border-gray-200">', (form) => {
-        const input = xnew('<input class="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-sm" type="text" maxlength="200" placeholder="メッセージ">');
-        xnew('<button type="submit" class="px-2 py-1 rounded border-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm cursor-pointer">', '送信');
-        form.on('submit', ({ event }) => {
-            event.preventDefault();
-            const text = input.element.value.trim();
-
-            if (!text) {
-                return;
-            }
-
-            xnew.sync.emit('+chat', { text });   // server が中継して全員（自分含む）へ返る
-            input.element.value = '';
-        });
-    });
-
-    const myId = xnew.sync.myself.id;
-    // server が中継した '+chat'（{ id, text }）を 1 行追加する。名前は client 側で nameOf に解決。
-    unit.on('+chat', ({ id, text }) => {
-        const mine = id === myId;
-        xnew(log, '<div class="text-sm leading-snug break-words">', () => {
-            xnew(`<span class="font-bold ${mine ? 'text-emerald-600' : 'text-gray-700'}">`, nameOf(id));
-            xnew('<span class="ml-1 text-gray-600">', text);
-        });
-        log.element.scrollTop = log.element.scrollHeight;
+        xnew(layout, ChatView);   // ChatView の client 側＝表示 + 入力（chat.js で分岐）
     });
 }
 
