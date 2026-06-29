@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { XReact } from './XReact';
+import { xreact } from '@mulsense/xnew/addons/xreact';
 import { Main } from './scene';
 
 //----------------------------------------------------------------------------------------------------
@@ -41,7 +41,7 @@ export function App() {
 
             <div className="stage-box">
                 {mounted ? (
-                    <XReact Component={Main} props={{ color: COLORS[colorName], running, onBounce }} />
+                    <xreact.Embed Component={Main} props={{ color: COLORS[colorName], running, onBounce }} />
                 ) : (
                     <div className="empty">（シーンは破棄されています）</div>
                 )}
