@@ -172,6 +172,14 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
 Append here when a mistake is found. Newest at the top. Keep each terse:
 the rule, then one line of why.
 
+- **Custom sync-event handlers get `{ id, ...data }`, but `id` (sender socket id) is set
+  only on the SERVER dispatch; on the CLIENT it is `undefined`.** So for a room-wide
+  (`+`-broadcast or no-prefix) event whose server broadcast must tell clients who sent it, put
+  the sender id into the relayed `data` server-side — don't rely on the injected `id` reaching clients.
+  (A room chat: client `sync.emit('+chat',{text})` → server `unit.on('+chat',({id,text})=>…)` has
+  the real `id`; it must re-emit `{ id, text }` so each client's `{ id: undefined, ...data }`
+  recovers the sender via the spread shadowing the undefined.)
+
 - **Addons are NAMED exports (`export const xmatter/xpixi/xthree`), not default.**
   Import as `import { xmatter } from '@mulsense/xnew/addons/xmatter'`, or for a
   conditional dynamic import read the named key:
