@@ -1454,7 +1454,15 @@ function bootServer(opts, parent, args) {
         info.clients.push({ id: socket.id, name: (_b = query === null || query === void 0 ? void 0 : query.clientName) !== null && _b !== void 0 ? _b : '' });
         dispatch(info, 'sync.connect', socket.id, undefined);
         statusUpdate();
-        socket.onAny((event, payload) => dispatch(info, event, socket.id, payload));
+        socket.onAny((event, payload) => {
+            if (event === 'message') {
+                const envelope = { id: socket.id, data: payload && typeof payload.data === 'object' ? payload.data : {} };
+                io.to(room.id).emit('message', envelope);
+                dispatch(info, 'sync.message', socket.id, envelope);
+                return;
+            }
+            dispatch(info, event, socket.id, payload);
+        });
         socket.on('disconnect', () => {
             info.clients = info.clients.filter((c) => c.id !== socket.id);
             dispatch(info, 'sync.disconnect', socket.id, undefined);
@@ -1508,7 +1516,13 @@ function bootClient(opts, parent, args) {
         dispatch(info, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
-    socket.onAny((event, payload) => dispatch(info, event, undefined, payload));
+    socket.onAny((event, payload) => {
+        if (event === 'message') {
+            dispatch(info, 'sync.message', payload ? payload.id : undefined, payload);
+            return;
+        }
+        dispatch(info, event, undefined, payload);
+    });
     socket.on('connect', () => Unit.emit(parent, '-connect', { id: socket.id }));
     socket.on('disconnect', () => Unit.emit(parent, '-disconnect', {}));
     socket.on('notfound', (payload) => Unit.emit(parent, '-notfound', payload !== null && payload !== void 0 ? payload : {}));
@@ -1564,6 +1578,17 @@ const sync = {
         }
         else {
             info.socket.emit(event, envelope);
+        }
+    },
+    message(payload = {}) {
+        const info = rootInfoOf(Unit.currentUnit);
+        if (getEnvironment() === 'server') {
+            const envelope = { id: undefined, data: payload };
+            info.io.to(info.room.id).emit('message', envelope);
+            dispatch(info, 'sync.message', undefined, envelope);
+        }
+        else {
+            info.socket.emit('message', { data: payload });
         }
     },
     boot(opts, ...args) {

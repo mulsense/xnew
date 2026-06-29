@@ -20,12 +20,13 @@ import { ChatView } from './chat.js';
 //              それ以外のクライアントは観戦（盤面を見るだけ）。途中参加（World フェーズで接続）した
 //              クライアントには Setup が存在しないので設定画面はスキップされ、自機も持たない＝観戦になる。
 //   - Player : synced state {x,y,clientId,slot}。server が移動、client が描画＋（自機なら）入力。
-//   - ChatView : 全シーン共通のルームチャット（chat.js に分離・server/client 両方で Game 直下に常駐）。
-//              ChatView 内部で分岐し、server 側が '+chat'（全体ブロードキャスト）を受けて整形しルーム全員へ
-//              中継、client 側が xnew.sync.emit('+chat') で送信し受信を表示する（自分の発言も中継で返る）。
+//   - ChatView : 全シーン共通のルームチャット（client 専用・Game の client 直下に常駐・chat.js）。
+//              送信は xnew.sync.message({ text })、受信は unit.on('sync.message', ({ id, text })=>…)。中継は
+//              core の sync 組み込みなので中継コンポーネントは不要（自分の発言も中継で返る）。
 //
 //   sync イベント: 送信は xnew.sync.emit（payload はオブジェクト・syncId 自動付与）、受信は unit.on。
 //   プレフィックス '-'=同一コンポーネント(同じ syncId・replica↔server で一致) / '+'・無印=全体。
+//   ルームチャットだけは組み込みの xnew.sync.message({…}) で送り、'sync.message' で全員が受信する（server 自動中継）。
 //   key: xnew(C,{key}) で同一性の目印、xnew.find(C,{key}) で引ける（key はグローバル一意の想定）。
 //----------------------------------------------------------------------------------------------------
 
@@ -41,17 +42,16 @@ const nameOf = (id) => xnew.sync.clients.find((c) => c.id === id)?.name || (id ?
 export function Game(unit) {
     xnew.sync.register({ Title, Setup, World });   // 同期対象（= シーン）の型を宣言
 
-    // server: 最初のシーン Title と、チャット中継器 ChatView（server 側）を生成する。
+    // server: 最初のシーン Title を生成する（チャット中継は core の sync.message が担うので不要）。
     xnew.sync.server(() => {
         xnew(Title);
-        xnew(ChatView);   // ChatView の server 側＝ '+chat' の中継（chat.js で分岐）
     });
 
-    // client: 左にシーン（synced child）、右にルームチャット（ChatView の client 側）を横並びで置く。
+    // client: 左にシーン（synced child）、右にルームチャット（ChatView）を横並びで置く。
     xnew.sync.client(() => {
         const layout = xnew.nest('<div class="flex gap-4 items-start">');
         xnew.nest('<div class="flex flex-col gap-3">');   // シーン（synced child）の mount 先
-        xnew(layout, ChatView);   // ChatView の client 側＝表示 + 入力（chat.js で分岐）
+        xnew(layout, ChatView);   // 全シーン共通のルームチャット（client 専用・chat.js）
     });
 }
 

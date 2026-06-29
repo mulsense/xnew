@@ -138,6 +138,13 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
 - **Wire event names vs host event names are independent.** A socket/wire event
   (`'roomcreated'`) and the host-facing unit event it is forwarded to
   (`'-roomcreated'`) are separate strings; keep their mapping deliberate.
+- **`sync.message(payload)` is the built-in room broadcast — use it instead of
+  hand-rolling a relay component.** The server auto-relays (boot handles the reserved
+  `'message'` wire event), so every unit in the room's sync root receives
+  `unit.on('sync.message', ({ id, ...payload }) => …)` (`id` = sender socket id;
+  `undefined` for a server-origin message; the sender gets its own message back).
+  Contrast with `sync.emit`, which is one-directional (no relay) and prefix-scoped.
+  Don't reuse the wire name `'message'` for a custom `sync.emit`.
 
 ## 12. TypeScript notes
 

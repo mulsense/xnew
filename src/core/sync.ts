@@ -8,6 +8,8 @@
 // - state           : declare synced state on the current unit (server authoritative)
 // - register        : declare the components allowed as direct sync children {Name: Component}
 // - emit            : send a custom event to the room (server→all clients / client→server)
+// - message         : built-in room chat; server auto-relays so every unit in the root receives
+//                     'sync.message' { id, ...payload } (id = sender; undefined for server-origin)
 // - room / clients  : current room info / connected clients
 // - myself          : this client's entry (client side only)
 // - boot            : create a sync root bound to a socket (server/client auto-detected)
@@ -113,7 +115,16 @@ function bootServer(opts: BootServerOptions, parent: Unit, args: any[]): Unit {
         info.clients.push({ id: socket.id, name: query?.clientName ?? '' });
         dispatch(info, 'sync.connect', socket.id, undefined);
         statusUpdate();
-        socket.onAny((event: string, payload: any) => dispatch(info, event, socket.id, payload));
+        socket.onAny((event: string, payload: any) => {
+            // built-in room message: attach the sender id, relay to everyone (incl. sender), and let server units observe.
+            if (event === 'message') {
+                const envelope = { id: socket.id, data: payload && typeof payload.data === 'object' ? payload.data : {} };
+                io.to(room.id).emit('message', envelope);
+                dispatch(info, 'sync.message', socket.id, envelope);
+                return;
+            }
+            dispatch(info, event, socket.id, payload);
+        });
         socket.on('disconnect', () => {
             info.clients = info.clients.filter((c) => c.id !== socket.id);
             dispatch(info, 'sync.disconnect', socket.id, undefined);
@@ -172,7 +183,11 @@ function bootClient(opts: BootClientOptions, parent: Unit, args: any[]): Unit {
         dispatch(info, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
-    socket.onAny((event: string, payload: any) => dispatch(info, event, undefined, payload));
+    socket.onAny((event: string, payload: any) => {
+        // built-in room message relayed by the server ({ id, data }) → local 'sync.message' for every unit in the root.
+        if (event === 'message') { dispatch(info, 'sync.message', payload ? payload.id : undefined, payload); return; }
+        dispatch(info, event, undefined, payload);
+    });
 
     // forward the socket's own lifecycle to the host unit (boot parent) as local '-events',
     // so callers listen with unit.on('-connect' | '-disconnect' | '-notfound').
@@ -226,6 +241,19 @@ export const sync = {
             (info as ServerInfo).io.to(info.room.id).emit(event, envelope);
         } else {
             (info as ClientInfo).socket.emit(event, envelope);
+        }
+    },
+    // Built-in room message: send once, every unit in the room's sync root (all clients, incl. the sender)
+    // receives it as 'sync.message' with { id, ...payload } (id = sender socket id; undefined for server-origin).
+    // The server relays automatically — no app-level relay component needed.
+    message(payload: Record<string, any> = {}): void {
+        const info = rootInfoOf(Unit.currentUnit);
+        if (getEnvironment() === 'server') {
+            const envelope = { id: undefined, data: payload };
+            (info as ServerInfo).io.to(info.room.id).emit('message', envelope);
+            dispatch(info, 'sync.message', undefined, envelope);   // server-origin: deliver to server units too
+        } else {
+            (info as ClientInfo).socket.emit('message', { data: payload });
         }
     },
     boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit {

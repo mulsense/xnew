@@ -396,6 +396,7 @@ declare const xnew: XnewBase & {
         readonly clients: ClientStatus[];
         readonly myself: ClientStatus;
         emit(event: string, payload?: Record<string, any>): void;
+        message(payload?: Record<string, any>): void;
         boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit;
     };
 };
