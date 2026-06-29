@@ -61,11 +61,11 @@ describe('server/client mirror (server/client blocks)', () => {
         Unit.start(Unit.engineRoot);
         asServer(() => Unit.update(server));   // capture + 'sync' → client apply（同時にトポロジを確認）
 
-        // 非同期の Main を挟んでもトポロジは不変: Mover の parentId は null のまま。
+        // 非同期の Main を挟んでもトポロジは不変: Mover の parent は null のまま。
         const tree = hub.lastSync();
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Mover');
-        expect(tree[0].parentId).toBeNull();
+        expect(tree[0].parent).toBeNull();
         expect(server._.children[0]._.Components).toContain(Mover);   // Main の server ブロックが生成した Mover
 
         Unit.start(Unit.engineRoot);

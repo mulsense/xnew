@@ -51,9 +51,9 @@ describe('2-level spawn hierarchy (Mover -> Enemy)', () => {
         const tree = hub.lastSync();
         const moverNode = tree.find((n: any) => n.name === 'Mover')!;
         const enemyNode = tree.find((n: any) => n.name === 'Enemy')!;
-        expect(moverNode.parentId).toBeNull();
+        expect(moverNode.parent).toBeNull();
         expect(enemyNode).toBeDefined();
-        expect(enemyNode.parentId).toBe(moverNode.id);       // 2 階層: Enemy の親は Mover
+        expect(enemyNode.parent).toBe(moverNode.id);       // 2 階層: Enemy の親は Mover
 
         Unit.start(Unit.engineRoot);
         Unit.render(Unit.engineRoot);

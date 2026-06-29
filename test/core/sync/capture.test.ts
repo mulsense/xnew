@@ -53,19 +53,19 @@ describe('captureStateTree', () => {
         return hub.lastSync() ?? [];
     }
 
-    it('captures a synced unit; parentId is null when no synced ancestor exists', () => {
+    it('captures a synced unit; parent is null when no synced ancestor exists', () => {
         const tree = capture(function Root() { xnew.sync.register({ World }); xnew(World); });
         const worldNode = tree.find((n: any) => n.name === 'World')!;
         expect(worldNode).toBeDefined();
-        expect(worldNode.parentId).toBeNull();
+        expect(worldNode.parent).toBeNull();
         expect(worldNode.state).toEqual({ tick: 0 });
     });
 
-    it('sets a child parentId to the nearest synced ancestor id', () => {
+    it('sets a child parent to the nearest synced ancestor id', () => {
         const tree = capture(function Root() { xnew.sync.register({ World }); xnew(World); });
         const worldNode = tree.find((n: any) => n.name === 'World')!;
         const childNode = tree.find((n: any) => n.name === 'Child')!;
-        expect(childNode.parentId).toBe(worldNode.id);
+        expect(childNode.parent).toBe(worldNode.id);
     });
 
     it('assigns stable ids and reflects mutated state on later captures', () => {
