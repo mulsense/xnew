@@ -22,15 +22,15 @@ import { xnew } from '@mulsense/xnew';
 const isServer = typeof window === 'undefined';
 
 const Matter = isServer ? (await import('matter-js')).default : null;
-const xmatter = isServer ? (await import('@mulsense/xnew/addons/xmatter')).default : null;
+const xmatter = isServer ? (await import('@mulsense/xnew/addons/xmatter')).xmatter : null;
 
 const PIXI = isServer ? null : await import('pixi.js');
 const THREE = isServer ? null : await import('three');
 const { GLTFLoader } = isServer ? {} : await import('three/addons/loaders/GLTFLoader.js');
 const { VRMLoaderPlugin } = isServer ? {} : await import('@pixiv/three-vrm');
 const voxelkit = isServer ? null : (await import('voxelkit')).default;
-const xpixi = isServer ? null : (await import('@mulsense/xnew/addons/xpixi')).default;
-const xthree = isServer ? null : (await import('@mulsense/xnew/addons/xthree')).default;
+const xpixi = isServer ? null : (await import('@mulsense/xnew/addons/xpixi')).xpixi;
+const xthree = isServer ? null : (await import('@mulsense/xnew/addons/xthree')).xthree;
 
 // ----- 定数・ルール（server / client 共通） -----
 const WIDTH = 800;

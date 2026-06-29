@@ -101,7 +101,7 @@ declare class Unit {
     static scope(snapshot: Snapshot, func: Function, ...args: any[]): any;
     static snapshot(unit: Unit): Snapshot;
     static unit2Contexts: MapSet<Unit, Context>;
-    static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void;
+    static addContext(unit: Unit, orner: Unit, key: any, value?: any): void;
     static getContext(unit: Unit, key: any): any;
     static component2units: MapSet<Function, Unit>;
     static ancestors(unit: Unit | null): Unit[];
@@ -113,12 +113,13 @@ declare class Unit {
     off(type?: string, listener?: Function): void;
     static on(unit: Unit, type: string, listener: Function, options?: boolean | AddEventListenerOptions): void;
     static off(unit: Unit, type: string, listener?: Function): void;
-    static emit(type: string, props?: object): void;
+    static emit(unit: Unit, type: string, props?: object): void;
 }
 declare class UnitPromise {
     private promise;
     key?: string;
     constructor(promise: Promise<any>, key?: string);
+    private chain;
     then(callback: Function): UnitPromise;
     catch(callback: Function): UnitPromise;
     finally(callback: Function): UnitPromise;
@@ -160,11 +161,6 @@ interface RoomStatus {
     id: string;
     name: string;
     count: number;
-}
-interface SyncStatus {
-    room: RoomStatus;
-    clients: ClientStatus[];
-    client: ClientStatus;
 }
 interface BootServerOptions {
     io: any;
@@ -396,11 +392,13 @@ declare const xnew: XnewBase & {
         client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {};
         state(initial?: Record<string, any>): Record<string, any>;
         register(Components: Record<string, Function>): void;
-        readonly status: SyncStatus;
+        readonly room: RoomStatus;
+        readonly clients: ClientStatus[];
+        readonly myself: ClientStatus;
         emit(event: string, payload?: Record<string, any>): void;
         boot(opts: BootServerOptions | BootClientOptions, ...args: any[]): Unit;
     };
 };
 
 export { xnew };
-export type { BootClientOptions, BootServerOptions, ClientStatus, RoomStatus, SyncStatus };
+export type { BootClientOptions, BootServerOptions, ClientStatus, RoomStatus };

@@ -769,20 +769,19 @@ class Unit {
             Unit.type2units.delete(type, unit);
         }
     }
-    static emit(type, props = {}) {
+    static emit(unit, type, props = {}) {
         var _a, _b;
-        const current = Unit.currentUnit;
         if (type[0] === '+') {
-            const ancestors = Unit.ancestors(current);
-            (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+            const ancestors = Unit.ancestors(unit);
+            (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((target) => {
                 var _a;
-                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
-                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
+                if (Unit.isVisible(Unit.protectBoundary(target), unit, ancestors)) {
+                    (_a = target._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
                 }
             });
         }
         else if (type[0] === '-') {
-            (_b = current._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(props));
+            (_b = unit._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(props));
         }
     }
 }
@@ -792,29 +791,22 @@ Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
 class UnitPromise {
     constructor(promise, key) { this.promise = promise; this.key = key; }
-    then(callback) {
+    chain(method, callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.then((...args) => {
-            const returned = Unit.scope(snapshot, callback, ...args);
-            return returned instanceof UnitPromise ? returned.promise : returned;
-        });
-        return this;
-    }
-    catch(callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.catch((...args) => {
+        this.promise = this.promise[method]((...args) => {
             const result = Unit.scope(snapshot, callback, ...args);
             return result instanceof UnitPromise ? result.promise : result;
         });
         return this;
     }
+    then(callback) {
+        return this.chain('then', callback);
+    }
+    catch(callback) {
+        return this.chain('catch', callback);
+    }
     finally(callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.finally(() => {
-            const result = Unit.scope(snapshot, callback);
-            return result instanceof UnitPromise ? result.promise : result;
-        });
-        return this;
+        return this.chain('finally', callback);
     }
     static defer(key) {
         let settled = false;
@@ -994,7 +986,7 @@ const xnew$1 = Object.assign((function (...args) {
         return Unit.find(Component, opts === null || opts === void 0 ? void 0 : opts.key);
     },
     emit(type, ...args) {
-        return Unit.emit(type, ...args);
+        return Unit.emit(Unit.currentUnit, type, ...args);
     },
     timeout(callback, duration = 0) {
         return new UnitTimer().timeout(callback, duration);
@@ -1393,29 +1385,21 @@ function syncOf(unit) {
     }
     return syncData.get(unit);
 }
-const roots = new Map();
-function findSyncRoot(unit) {
-    for (let u = unit; u !== null; u = u._.parent) {
-        if (roots.has(u))
-            return u;
-    }
-    return null;
-}
+const SYNC_KEY = Symbol('sync');
 function rootInfoOf(unit) {
-    const root = findSyncRoot(unit);
-    const info = root !== null ? roots.get(root) : undefined;
+    const info = Unit.getContext(unit, SYNC_KEY);
     if (info === undefined) {
         throw new Error('no socket bound to this root; create it with xnew.sync.boot({ io, room } | { io, client, room }, ...).');
     }
     return info;
 }
-function dispatch(root, event, id, payload) {
+function dispatch(info, event, id, payload) {
     var _a;
     const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
     const syncId = payload ? payload.syncId : undefined;
     ((_a = Unit.type2units.get(event)) !== null && _a !== void 0 ? _a : []).forEach((unit) => {
         var _a;
-        if (findSyncRoot(unit) !== root)
+        if (Unit.getContext(unit, SYNC_KEY) !== info)
             return;
         if (event[0] === '-' && syncOf(unit).id !== syncId)
             return;
@@ -1424,11 +1408,10 @@ function dispatch(root, event, id, payload) {
 }
 function bootServer(opts, parent, args) {
     const { io, room } = opts;
-    const info = { io, socket: null, room, clients: [] };
+    const info = { io, room, clients: [] };
     const root = new Unit(parent);
-    roots.set(root, info);
+    Unit.addContext(root, root, SYNC_KEY, info);
     Unit.initialize(root, ...args);
-    root.on('finalize', () => roots.delete(root));
     let nextId = 1;
     const captureStateTree = () => {
         const nodes = [];
@@ -1447,16 +1430,16 @@ function bootServer(opts, parent, args) {
             }
             return undefined;
         };
-        const walk = (unit, parentId) => {
+        const walk = (unit, parent) => {
             var _a;
             const name = syncName(unit);
             if (name !== undefined) {
                 const data = syncOf(unit);
                 (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
-                nodes.push({ id: data.id, name, parentId, state: Object.assign({}, data.state) });
-                parentId = data.id;
+                nodes.push({ id: data.id, name, parent, state: Object.assign({}, data.state) });
+                parent = data.id;
             }
-            unit._.children.forEach((child) => walk(child, parentId));
+            unit._.children.forEach((child) => walk(child, parent));
         };
         walk(root, null);
         return nodes;
@@ -1469,18 +1452,18 @@ function bootServer(opts, parent, args) {
             return;
         socket.join(room.id);
         info.clients.push({ id: socket.id, name: (_b = query === null || query === void 0 ? void 0 : query.clientName) !== null && _b !== void 0 ? _b : '' });
-        dispatch(root, 'sync.connect', socket.id, undefined);
+        dispatch(info, 'sync.connect', socket.id, undefined);
         statusUpdate();
-        socket.onAny((event, payload) => dispatch(root, event, socket.id, payload));
+        socket.onAny((event, payload) => dispatch(info, event, socket.id, payload));
         socket.on('disconnect', () => {
             info.clients = info.clients.filter((c) => c.id !== socket.id);
-            dispatch(root, 'sync.disconnect', socket.id, undefined);
+            dispatch(info, 'sync.disconnect', socket.id, undefined);
             statusUpdate();
         });
     });
     function statusUpdate() {
         io.to(room.id).emit('status', { clients: info.clients });
-        dispatch(root, 'sync.statusupdate', undefined, undefined);
+        dispatch(info, 'sync.statusupdate', undefined, undefined);
     }
     return root;
 }
@@ -1488,11 +1471,10 @@ function bootClient(opts, parent, args) {
     var _a;
     const { io, room, client } = opts;
     const socket = io({ query: { roomId: room.id, clientName: (_a = client === null || client === void 0 ? void 0 : client.name) !== null && _a !== void 0 ? _a : '' }, forceNew: true });
-    const info = { io, socket, room, clients: [] };
+    const info = { socket, room, clients: [] };
     const root = new Unit(parent);
-    roots.set(root, info);
+    Unit.addContext(root, root, SYNC_KEY, info);
     Unit.initialize(root, ...args);
-    root.on('finalize', () => roots.delete(root));
     const reconcileMap = new Map();
     const applyStateTree = (tree) => {
         const incoming = new Set(tree.map((node) => node.id));
@@ -1502,7 +1484,7 @@ function bootClient(opts, parent, args) {
                 Object.assign(syncOf(existing).state, node.state);
                 continue;
             }
-            const nodeParent = node.parentId === null ? root : reconcileMap.get(node.parentId);
+            const nodeParent = node.parent === null ? root : reconcileMap.get(node.parent);
             const Component = nodeParent && syncOf(nodeParent).registry[node.name];
             if (!Component) {
                 continue;
@@ -1523,17 +1505,13 @@ function bootClient(opts, parent, args) {
     const onStatus = (status) => {
         var _a;
         info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
-        dispatch(root, 'sync.statusupdate', undefined, undefined);
+        dispatch(info, 'sync.statusupdate', undefined, undefined);
     };
     socket.on('status', onStatus);
-    socket.onAny((event, payload) => dispatch(root, event, undefined, payload));
-    const forwardToHost = (type, props) => {
-        var _a;
-        (_a = parent === null || parent === void 0 ? void 0 : parent._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
-    };
-    socket.on('connect', () => forwardToHost('-connect', { id: socket.id }));
-    socket.on('disconnect', () => forwardToHost('-disconnect', {}));
-    socket.on('notfound', (payload) => forwardToHost('-notfound', payload !== null && payload !== void 0 ? payload : {}));
+    socket.onAny((event, payload) => dispatch(info, event, undefined, payload));
+    socket.on('connect', () => Unit.emit(parent, '-connect', { id: socket.id }));
+    socket.on('disconnect', () => Unit.emit(parent, '-disconnect', {}));
+    socket.on('notfound', (payload) => Unit.emit(parent, '-notfound', payload !== null && payload !== void 0 ? payload : {}));
     root.on('finalize', () => {
         socket.off('sync', applyStateTree);
         socket.off('status', onStatus);
@@ -1564,26 +1542,28 @@ const sync = {
         }
         Object.assign(syncOf(unit).registry, Components);
     },
-    get status() {
+    get room() {
+        return rootInfoOf(Unit.currentUnit).room;
+    },
+    get clients() {
+        return rootInfoOf(Unit.currentUnit).clients;
+    },
+    get myself() {
+        var _a;
+        if (getEnvironment() === 'server') {
+            throw new Error('sync.myself is only available on the client side.');
+        }
         const info = rootInfoOf(Unit.currentUnit);
-        return {
-            room: info.room, clients: info.clients,
-            get client() {
-                var _a;
-                if (getEnvironment() === 'server') {
-                    throw new Error('sync.status.client is only available on the client side.');
-                }
-                return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' };
-            },
-        };
+        return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' };
     },
     emit(event, payload = {}) {
         const info = rootInfoOf(Unit.currentUnit);
+        const envelope = { syncId: syncOf(Unit.currentUnit).id, data: payload };
         if (getEnvironment() === 'server') {
-            info.io.to(info.room.id).emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            info.io.to(info.room.id).emit(event, envelope);
         }
         else {
-            info.socket.emit(event, { syncId: syncOf(Unit.currentUnit).id, data: payload });
+            info.socket.emit(event, envelope);
         }
     },
     boot(opts, ...args) {

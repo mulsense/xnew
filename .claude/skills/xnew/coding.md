@@ -172,6 +172,14 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
 Append here when a mistake is found. Newest at the top. Keep each terse:
 the rule, then one line of why.
 
+- **Addons are NAMED exports (`export const xmatter/xpixi/xthree`), not default.**
+  Import as `import { xmatter } from '@mulsense/xnew/addons/xmatter'`, or for a
+  conditional dynamic import read the named key:
+  `(await import('.../xmatter')).xmatter` — **not** `.default` (which is `undefined`
+  and throws `Cannot read properties of undefined`). Bit the multiplay example whose
+  server-side `xmatter.initialize()` crashed on room boot, surfacing as the client
+  immediately showing "切断". (`matter-js`/`voxelkit` *do* default-export — per-package.)
+
 - **`captureStateTree` / `applyStateTree` are boot-internal (not exported).** Capture lives
   in boot's server branch (closes over `root` + a local `nextId`), apply in the client branch
   (closes over `root` + a local `reconcileMap`). The only seams are: server emits `'sync'` on
