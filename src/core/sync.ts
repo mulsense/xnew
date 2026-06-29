@@ -16,7 +16,7 @@
 import { Unit, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { getEnvironment } from './env';
 
-export interface SyncNode { id: number; name: string; parentId: number | null; state: Record<string, any>; }
+export interface SyncNode { id: number; name: string; parent: number | null; state: Record<string, any>; }
 interface SyncData { id: number | null; state: Record<string, any>; registry: Record<string, Function>; }
 
 const syncData: WeakMap<Unit, SyncData> = new WeakMap();
@@ -91,15 +91,15 @@ function bootServer(opts: BootServerOptions, parent: Unit, args: any[]): Unit {
             }
             return undefined;
         };
-        const walk = (unit: Unit, parentId: number | null): void => {
+        const walk = (unit: Unit, parent: number | null): void => {
             const name = syncName(unit);
             if (name !== undefined) {
                 const data = syncOf(unit);
                 data.id ??= nextId++;
-                nodes.push({ id: data.id, name, parentId, state: { ...data.state } });
-                parentId = data.id;
+                nodes.push({ id: data.id, name, parent, state: { ...data.state } });
+                parent = data.id;
             }
-            unit._.children.forEach((child) => walk(child, parentId));
+            unit._.children.forEach((child) => walk(child, parent));
         };
         walk(root, null);
         return nodes;
@@ -151,7 +151,7 @@ function bootClient(opts: BootClientOptions, parent: Unit, args: any[]): Unit {
                 Object.assign(syncOf(existing).state, node.state);   // never delete a once-set key (v1 simplification)
                 continue;
             }
-            const nodeParent = node.parentId === null ? root : reconcileMap.get(node.parentId);
+            const nodeParent = node.parent === null ? root : reconcileMap.get(node.parent);
             const Component = nodeParent && syncOf(nodeParent).registry[node.name];
             if (!Component) { continue; }
             // seed SyncData before initialize so the body's sync.state sees the server state and fixed id
