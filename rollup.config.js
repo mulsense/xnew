@@ -6,23 +6,22 @@ const configs = [];
 export default configs;
 
 append('', 'index', 'xnew');
-append('addons/', 'xpixi', 'xpixi',  { '@mulsense/xnew': 'xnew', 'pixi.js': 'PIXI' });
-append('addons/', 'xthree', 'xthree', { '@mulsense/xnew': 'xnew', 'three': 'THREE' });
-append('addons/', 'xmatter', 'xmatter', { '@mulsense/xnew': 'xnew', 'matter-js': 'Matter' });
-append('addons/', 'xrapier2d', 'xrapier2d', { '@mulsense/xnew': 'xnew', '@dimforge/rapier2d-compat': 'RAPIER' });
-append('addons/', 'xrapier3d', 'xrapier3d', { '@mulsense/xnew': 'xnew', '@dimforge/rapier3d-compat': 'RAPIER' });
+append('addons/', 'xpixi', 'xpixi',  ['@mulsense/xnew', 'pixi.js']);
+append('addons/', 'xthree', 'xthree', ['@mulsense/xnew', 'three']);
+append('addons/', 'xmatter', 'xmatter', ['@mulsense/xnew', 'matter-js']);
+append('addons/', 'xrapier2d', 'xrapier2d', ['@mulsense/xnew', '@dimforge/rapier2d-compat']);
+append('addons/', 'xrapier3d', 'xrapier3d', ['@mulsense/xnew', '@dimforge/rapier3d-compat']);
 
-function append(dir, src, name, globals = {}) {
+function append(dir, src, name, external = []) {
+    // ESM build — the only distribution format (`import { xnew } from '@mulsense/xnew'`).
     configs.push({
         input: `./src/${dir}${src}.ts`,
         output: [
-            { file: `./dist/${dir}${name}.js`, format: 'umd', extend: true, name, globals, },
             { file: `./dist/${dir}${name}.mjs`, format: 'es', },
         ],
-        external: Object.keys(globals),
+        external,
         plugins: [
             typescript({ removeComments: true }),
-            copyto(`./dist/${dir}${name}.js`, `./examples/dist/${dir}${name}.js`),
             copyto(`./dist/${dir}${name}.mjs`, `./examples/dist/${dir}${name}.mjs`),
         ],
     });

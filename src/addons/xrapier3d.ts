@@ -5,13 +5,13 @@
 // Unit that awaits RAPIER.init() (WASM is lazy-loaded) and creates a RAPIER.World; child
 // components read the world through xnew.context(Root).
 //
-// - default : { initialize, world }
+// - xrapier3d : { initialize, world }
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import RAPIER from '@dimforge/rapier3d-compat';
 
-export default {
+export const xrapier3d = {
     initialize ({ gravity = { x: 0.0, y: -9.81, z: 0.0 } }: any = {}) {
         xnew.promise(xnew(Root, { gravity }));
     },

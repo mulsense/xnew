@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 
-declare const _default: {
+declare const xpixi: {
     initialize({ canvas }: {
         canvas: HTMLCanvasElement;
     }): void;
@@ -14,4 +14,4 @@ declare const _default: {
     readonly canvas: HTMLCanvasElement;
 };
 
-export { _default as default };
+export { xpixi };

@@ -1,7 +1,7 @@
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import * as THREE from 'three';
 
-var xthree = {
+const xthree = {
     initialize({ canvas, camera = null }) {
         xnew.promise(xnew(Root, { canvas, camera }));
     },
@@ -104,4 +104,4 @@ function Add(unit, { object }) {
     attach(unit, object);
 }
 
-export { xthree as default };
+export { xthree };

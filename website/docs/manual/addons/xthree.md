@@ -10,24 +10,18 @@ sidebar_position: 502
 
 ### CDN
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xthree.js"></script>
-```
-
-### CDN (ESM)
-```html
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs",
-    "@mulsense/xnew/addons/xthree": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xthree.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs",
+    "@mulsense/xnew/addons/xthree": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/addons/xthree.mjs"
   }
 }
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew'
-import xthree from '@mulsense/xnew/addons/xthree'
+import { xnew } from '@mulsense/xnew'
+import { xthree } from '@mulsense/xnew/addons/xthree'
 
 // ...
 </script>
@@ -35,11 +29,11 @@ import xthree from '@mulsense/xnew/addons/xthree'
 
 ### npm
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 ```js
-import xnew from '@mulsense/xnew'
-import xthree from '@mulsense/xnew/addons/xthree'
+import { xnew } from '@mulsense/xnew'
+import { xthree } from '@mulsense/xnew/addons/xthree'
 ```
 
 ## コア API

@@ -11,24 +11,18 @@ providing a flexible architecture well-suited for applications with dynamic scen
 ## Setup
 
 ### Via CDN
-Include the following script in your HTML file:
-```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-```
-
-### Via CDN (ESM)
 Use the ES module version with an import map:
 ```html
 <script type="importmap">
 {
     "imports": {
-        "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+        "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
     }
 }
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 
 // Your code here
 </script>
@@ -37,10 +31,10 @@ import xnew from '@mulsense/xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 
 Then import it in your JavaScript file:
 ```js
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 ```

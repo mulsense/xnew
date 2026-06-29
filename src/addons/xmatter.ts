@@ -5,13 +5,13 @@
 // and its world through xnew.context(Root). Lifetime is tied to the Root Unit — engine is GC'd
 // when that Unit finalizes.
 //
-// - default : { initialize, engine, world }
+// - xmatter : { initialize, engine, world }
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import Matter from 'matter-js';
 
-export default {
+export const xmatter = {
     initialize ({}: any = {}) {
        xnew.promise(xnew(Root, {}));
     },

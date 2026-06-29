@@ -1,6 +1,6 @@
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
-import xthree from '@mulsense/xnew/addons/xthree';
+import { xnew } from '@mulsense/xnew';
+import { xpixi } from '@mulsense/xnew/addons/xpixi';
+import { xthree } from '@mulsense/xnew/addons/xthree';
 import * as PIXI from 'pixi.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -193,15 +193,16 @@ function BakedCharacters(unit) {
   jobs.forEach((job) => xnew.promise('vrms[]', xnew(VRMLoader, { url: job.url })));
 
   // 全 VRM ロード後に unit scope 内でベイク（xthree.add/remove が効く）。全キャラ焼き終えたら最終 dispose。
-  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（chunk の UnitPromise を return して直列化）。
+  // Contents は xnew.promise(child) 経由でこの焼き上がりまで待つ（焼き上がりの Promise を return して直列化）。
   xnew.promise(unit).then(({ vrms }) => {
     // VRM をマウントする回転リグ（scene 直下に1つだけ）。各キャラを付け外ししながら焼く。
-    let atlas;
+    let atlasCanvas;
+    let atlasContext; // アトラス canvas の 2D コンテキスト（各フレームをこの上に貼り込む）
     let source; // アトラス canvas を共有する唯一の GPU テクスチャ source（各フレームはこの sub-texture）
 
-    // 全キャラ × 各 BAKE_FRAMES をフラットな単一 chunk に畳む。キャラ境界は index 演算で判定。
-    // 時間予算（既定 8ms）で毎フレーム自動的に分散するため GPU スパイクを抑えられる。
-    return xnew.chunk(({ index }) => {
+    // 全キャラ × 各 BAKE_FRAMES をフラットに畳む。キャラ境界は index 演算で判定。
+    const total = jobs.length * BAKE_FRAMES;
+    const bakeFrame = (index) => {
       const j = Math.floor(index / BAKE_FRAMES); // どのキャラ
       const f = index % BAKE_FRAMES;             // そのキャラの何フレーム目
       const job = jobs[j];
@@ -210,10 +211,10 @@ function BakedCharacters(unit) {
       if (f === 0) {
         // startJob 相当: VRM をマウントし、貼り込み先アトラスと共有 source を用意。
         xthree.add(vrm.scene);
-        const atlasCanvas = document.createElement('canvas');
+        atlasCanvas = document.createElement('canvas');
         [atlasCanvas.width, atlasCanvas.height] = [cols * BAKE_FRAME_SIZE, rows * BAKE_FRAME_SIZE];
-        atlas = xnew.image.from(atlasCanvas);
-        source = PIXI.Texture.from(atlas.canvas).source;
+        atlasContext = atlasCanvas.getContext('2d');
+        source = PIXI.Texture.from(atlasCanvas).source;
         job.textures = [];
       }
 
@@ -245,7 +246,7 @@ function BakedCharacters(unit) {
       composer.render();
       // フレーム f のアトラス内左上座標。OffscreenCanvas は CanvasImageSource なので render 直後の canvas を直接貼り込む（中間 ImageBitmap 不要）
       const [x, y] = [(f % cols) * BAKE_FRAME_SIZE, Math.floor(f / cols) * BAKE_FRAME_SIZE];
-      atlas.paste(xthree.canvas, x, y);
+      atlasContext.drawImage(xthree.canvas, x, y);
       // 貼り込みと同じ座標で source 共有の sub-texture を切り出す（ピクセルコピーではなく矩形ビュー）
       job.textures.push(new PIXI.Texture({ source, frame: new PIXI.Rectangle(x, y, BAKE_FRAME_SIZE, BAKE_FRAME_SIZE) }));
 
@@ -254,7 +255,18 @@ function BakedCharacters(unit) {
         source.update();
         xthree.remove(vrm.scene);
       }
-    }, jobs.length * BAKE_FRAMES).then(() => {
+    };
+    // 時間予算（8ms）で毎フレーム分散し GPU スパイクを抑える。完了時 resolve するネイティブ
+    // Promise を return し、xnew.promise(unit) チェーンを焼き上がりまで直列化する。
+    return new Promise((resolve) => {
+      let index = 0;
+      const handler = () => {
+        const t0 = Date.now();
+        do { bakeFrame(index++); } while (index < total && Date.now() - t0 < 8);
+        if (index >= total) { unit.off('update', handler); resolve(); }
+      };
+      unit.on('update', handler);
+    }).then(() => {
       // 後段パスを解放し xthree.finalize で Root（renderer + WebGL コンテキスト）を畳む。
       composer.dispose();
       ssaoPass.dispose();
@@ -476,14 +488,16 @@ function StoryPageSwarm(unit) {
   xpixi.nest(new PIXI.Container());
 
   // 少しずつ湧いて増えていく（増殖感）。黒帯より上（テキスト帯に被らない領域）に位置・スケールをランダムに散らす。
-  xnew.interval(({ timer, count }) => {
+  let spawnedCount = 0;
+  xnew.interval(({ timer }) => {
+    spawnedCount++;
     xnew(DriftingFactor, {
       id: randInt(xnew.context(BakedCharacters).texturesList.length),
       x: randRange(90, 710),
       y: randRange(90, 360),
       scale: randRange(0.5, 1.0),
     });
-    if (count >= 64) timer.clear();
+    if (spawnedCount >= 64) timer.clear();
   }, 200);
 
   xnew(() => {
@@ -510,7 +524,7 @@ function GameScene(unit) {
   xnew(VolumeControl, { className: 'text-stone-300 z-10' });
 
   const bgm = xnew(() => {
-    xnew.audio.load(asset('maou_bgm_cyber31.mp3')).play({ fade: 1000, loop: true });
+    xnew(xnew.basics.AudioTrack, { url: asset('maou_bgm_cyber31.mp3') }).play({ fade: 1000, loop: true });
   });
 
   unit.on('+gameover', () => {
@@ -530,7 +544,7 @@ function GameScene(unit) {
 function ResultScene(unit, { image, score, wave, kills, cleared }) {
   xnew.extend(xnew.basics.Scene);
 
-  xnew.audio.load(asset('st005.mp3')).play({ fade: 1, loop: true });
+  xnew(xnew.basics.AudioTrack, { url: asset('st005.mp3') }).play({ fade: 1, loop: true });
 
   // popup
   xnew.nest(`<div class="absolute inset-0 size-full">`);
@@ -578,7 +592,9 @@ function WaveManager(unit) {
   xnew.context(xnew.basics.Scene).add(WaveTransition, { wave: 1 });
   xnew.timeout(() => { transitioning = false; }, 2800);
 
-  const spawn = xnew.interval(({ count }) => {
+  let spawnTick = 0;
+  const spawn = xnew.interval(() => {
+    spawnTick++;
     if (transitioning) return;
     // その wave の目標スコアに達したら次の wave へ（wave4 は到達してもエンドレスで移行しない）
     if (wave < 4 && xnew.context(ScoreManager).waveScore >= WAVE_GOALS[wave - 1]) {
@@ -590,7 +606,7 @@ function WaveManager(unit) {
     // 自動出現はその wave のキャラ1種のみ。下位キャラは被弾時の分裂で登場。
     const id = enemyIdForWave(wave);
     // 高い wave ほど分裂で増えるのでスポーン間隔を空ける
-    if (count % (id + 1) === 0) scene.add(Enemy, { id });
+    if (spawnTick % (id + 1) === 0) scene.add(Enemy, { id });
   }, 200);
 
   unit.on('+gameover', () => spawn.clear());
@@ -1536,13 +1552,13 @@ function ShotEnergy(unit) {
 // 効果音：ショット音と撃破音（ピン、というピアノ風のシンセ音）
 function SoundFX(unit) {
   // ショット：高めで少し下がるピッ
-  const shotSynth = xnew.audio.synthesizer({
+  const shotSynth = xnew(xnew.basics.Synthesizer, {
     oscillator: { type: 'triangle', envelope: { amount: -7, ADSR: [0, 90, 0, 0] } },
     filter: { type: 'lowpass', cutoff: 3500 },
     amp: { envelope: { amount: 0.3, ADSR: [0, 110, 0, 0] } },
   });
   // 撃破：ピン（ピアノ風の余韻のある短い音）。敵 id ごとに音程を変える。
-  const pinSynth = xnew.audio.synthesizer({
+  const pinSynth = xnew(xnew.basics.Synthesizer, {
     oscillator: { type: 'triangle' },
     filter: { type: 'lowpass', cutoff: 5000 },
     amp: { envelope: { amount: 0.8, ADSR: [2, 350, 0, 0] } },

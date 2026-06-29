@@ -10,7 +10,8 @@
 // Both tie the object's removal to Unit finalize, so the xnew tree and Pixi scene graph stay in
 // sync automatically. `remove(displayObject)` does that same detach + destroy on demand.
 // `xpixi.load(source)` loads textures via PIXI.Assets and registers the load on the current Unit
-// (symmetric to `xnew.audio.load`), so the Unit's promise aggregation waits for it.
+// (symmetric to the `xnew.basics.AudioTrack` component's load), so the Unit's promise aggregation
+// waits for it.
 //
 // Caveat: `nest` is stateful — two `nest` calls in the same unit produce two nesting levels.
 // Reach for `add` when you just want several objects under the same parent.
@@ -18,13 +19,13 @@
 // `finalize()` tears down the Root Unit, releasing the renderer (destroy). The same release also runs
 // on normal tree teardown, so the renderer is never leaked.
 //
-// - default : { initialize, nest, add, remove, load, finalize, renderer, scene, canvas }
+// - xpixi : { initialize, nest, add, remove, load, finalize, renderer, scene, canvas }
 //----------------------------------------------------------------------------------------------------
 
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 import * as PIXI from 'pixi.js'
 
-export default {
+export const xpixi = {
     initialize(
         { canvas }:
         { canvas: HTMLCanvasElement }

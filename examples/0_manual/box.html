@@ -5,11 +5,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <script src="../dist/xnew.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@mulsense/xnew": "../dist/xnew.mjs"
+      }
+    }
+  </script>
 </head>
 
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
+
     xnew(Component);
 
     function Component(unit) {
@@ -19,24 +27,15 @@
      
       let running = false;
       unit.on('click', ({ event }) => {
-        console.log('click');
-        running ? unit.stop() : unit.start();
-      });
-
-      unit.on('start', () => {
-        running = true;
-        text.element.textContent = 'start';
+        running ^= true;
+        text.element.textContent = running ? 'start' : 'stop';
       });
 
       let rotate = 0;
       unit.on('update', () => {
+        if (running === false) return;
         rotate++;
         unit.element.style.transform = `rotate(${rotate}deg)`;
-      });
-      
-      unit.on('stop', () => {
-        running = false;
-        text.element.textContent = 'stop';
       });
     }
   </script>

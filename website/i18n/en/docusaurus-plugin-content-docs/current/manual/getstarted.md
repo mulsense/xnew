@@ -19,24 +19,19 @@ The key features:
 
 Choose one of the following methods to include xnew in your project:
 
-### Via CDN (Recommended for beginners)
-Include the following script in your HTML file:
-```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-```
-### Via CDN (ESM)
+### Via CDN
 Use the ES module version with an import map:
 ```html
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
   }
 }
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 
 // Your code here
 </script>
@@ -45,12 +40,12 @@ import xnew from '@mulsense/xnew';
 ### Via npm
 Install `xnew` using npm:
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 
 Then import it in your JavaScript file:
 ```js
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 ```
 
 ## Tutorial
@@ -84,10 +79,17 @@ A minimal example that creates a single component and displays a message:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create your first component
     xnew(MyFirstComponent);
 
@@ -119,10 +121,17 @@ This will generate:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create main component
     xnew(MainComponent);
 
@@ -177,10 +186,17 @@ Click the box below to start and stop a CSS rotation animation.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     xnew(RotatingBox);
 
     function RotatingBox(unit) {
@@ -190,29 +206,19 @@ Click the box below to start and stop a CSS rotation animation.
       // Add text inside the box
       const text = xnew('<span style="color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; height: 100%;">');
 
-      // Handle click events - toggle start/stop
+      // Handle click events - toggle the rotation
       let running = false;
       unit.on('click', ({ event }) => {
-        running ? unit.stop() : unit.start();
-      });
-
-      // When animation starts
-      unit.on('start', () => {
-        running = true;
-        text.element.textContent = 'start';
+        running = !running;
+        text.element.textContent = running ? 'start' : 'stop';
       });
 
       // Update animation frame
       let rotate = 0;
       unit.on('update', () => {
+        if (running === false) return;
         rotate++;
         unit.element.style.transform = `rotate(${rotate}deg)`;
-      });
-
-      // When animation stops
-      unit.on('stop', () => {
-        running = false;
-        text.element.textContent = 'stop';
       });
     }
   </script>
@@ -222,8 +228,8 @@ Click the box below to start and stop a CSS rotation animation.
 
 **Key concepts:**
 - `unit.on()` adds event listeners to your component
-- `unit.start()` and `unit.stop()` control animations
-- The 'update' event fires continuously during animation
+- DOM events such as `click` fire in response to user interaction
+- The 'update' event fires every frame
 
 ## Next Steps
 

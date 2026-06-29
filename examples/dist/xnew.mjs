@@ -1,10 +1,3 @@
-function getOrCreate(map, key, make) {
-    let value = map.get(key);
-    if (value === undefined) {
-        map.set(key, value = make());
-    }
-    return value;
-}
 class MapSet extends Map {
     has(key, value) {
         var _a, _b;
@@ -448,56 +441,26 @@ function isSystemEvent(type) {
     return SYSTEM_EVENTS.includes(type);
 }
 class Unit {
-    constructor(options, parent, ...args) {
-        var _a, _b, _c, _d, _e;
-        let target;
-        let Component;
-        let props;
-        if (isDomElement(args[0]) || typeof args[0] === 'string') {
-            target = args[0];
-            Component = args[1];
-            props = args[2];
-        }
-        else {
-            target = null;
-            Component = args[0];
-            props = args[1];
-        }
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = this;
+    constructor(parent = null) {
+        var _a, _b;
         parent === null || parent === void 0 ? void 0 : parent._.children.push(this);
+        const baseContext = (_a = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _a !== void 0 ? _a : { previous: null };
         let baseElement;
-        if (isDomElement(target)) {
-            baseElement = target;
-        }
-        else if (parent !== null) {
+        if (parent !== null) {
             baseElement = parent._.currentElement;
         }
-        else if ((_a = globalThis.document) === null || _a === void 0 ? void 0 : _a.body) {
+        else if ((_b = globalThis.document) === null || _b === void 0 ? void 0 : _b.body) {
             baseElement = globalThis.document.body;
         }
         else {
             baseElement = null;
         }
-        let baseComponent;
-        if (typeof Component === 'function') {
-            baseComponent = Component;
-        }
-        else if (typeof Component === 'string' || typeof Component === 'number') {
-            baseComponent = (unit) => { unit.element.textContent = Component.toString(); };
-        }
-        else {
-            baseComponent = (unit) => { };
-        }
-        const baseContext = (_b = parent === null || parent === void 0 ? void 0 : parent._.currentContext) !== null && _b !== void 0 ? _b : { previous: null };
-        const key = (_c = props === null || props === void 0 ? void 0 : props.key) !== null && _c !== void 0 ? _c : null;
         this._ = {
+            id: Unit.nextId++,
             parent,
             status: 'invoked',
             tostart: true,
             protected: false,
-            updateCount: 0,
-            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -510,20 +473,42 @@ class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
-            key,
-            mode: parent ? ((_e = (_d = parent._.mode) !== null && _d !== void 0 ? _d : options === null || options === void 0 ? void 0 : options.mode) !== null && _e !== void 0 ? _e : null) : null,
+            key: null,
         };
-        if ((options === null || options === void 0 ? void 0 : options.setup) !== undefined) {
-            options.setup(this);
+    }
+    static create(parent, ...args) {
+        const unit = new Unit(parent);
+        Unit.initialize(unit, ...args);
+        return unit;
+    }
+    static initialize(unit, ...args) {
+        var _a;
+        if (isDomElement(args[0])) {
+            unit._.currentElement = args.shift();
         }
-        if (typeof target === 'string') {
-            Unit.nest(this, target);
+        else if (typeof args[0] === 'string') {
+            Unit.nest(unit, args.shift());
         }
-        Unit.extend(this, baseComponent, props);
-        if (this._.status === 'invoked') {
-            this._.status = 'initialized';
+        const Component = args[0];
+        const props = args[1];
+        let baseComponent;
+        if (typeof Component === 'function') {
+            baseComponent = Component;
         }
-        this._.afterSnapshot = Unit.snapshot(this);
+        else if (typeof Component === 'string' || typeof Component === 'number') {
+            baseComponent = (unit) => { unit.element.textContent = Component.toString(); };
+        }
+        else {
+            baseComponent = (unit) => { };
+        }
+        unit._.key = (_a = props === null || props === void 0 ? void 0 : props.key) !== null && _a !== void 0 ? _a : null;
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = unit;
+        Unit.extend(unit, baseComponent, props);
+        if (unit._.status === 'invoked') {
+            unit._.status = 'initialized';
+        }
+        unit._.afterSnapshot = Unit.snapshot(unit);
         Unit.currentUnit = backup;
     }
     get parent() {
@@ -659,21 +644,20 @@ class Unit {
     static update(unit, delta = 0) {
         if (unit._.status === 'started') {
             unit._.children.forEach((child) => Unit.update(child, delta));
-            const count = unit._.updateCount++;
-            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.update.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
     static render(unit, delta = 0) {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child) => Unit.render(child, delta));
-            const count = unit._.renderCount++;
-            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.render.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
     static reset() {
         var _a;
         (_a = Unit.engineRoot) === null || _a === void 0 ? void 0 : _a.finalize();
-        Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
+        Unit.nextId = 0;
+        Unit.currentUnit = Unit.engineRoot = Unit.create(null);
         const ticker = new Ticker((delta) => {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot, delta);
@@ -758,7 +742,7 @@ class Unit {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         };
         if (isSystemEvent(type)) {
-            unit._.systems[type].push({ listener, execute });
+            unit._.systems[type].push({ listener, execute, count: 0 });
         }
         if (unit._.listeners.has(type, listener) === false) {
             unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
@@ -785,51 +769,44 @@ class Unit {
             Unit.type2units.delete(type, unit);
         }
     }
-    static emit(type, props = {}) {
+    static emit(unit, type, props = {}) {
         var _a, _b;
-        const current = Unit.currentUnit;
         if (type[0] === '+') {
-            const ancestors = Unit.ancestors(current);
-            (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((unit) => {
+            const ancestors = Unit.ancestors(unit);
+            (_a = Unit.type2units.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((target) => {
                 var _a;
-                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
-                    (_a = unit._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
+                if (Unit.isVisible(Unit.protectBoundary(target), unit, ancestors)) {
+                    (_a = target._.listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
                 }
             });
         }
         else if (type[0] === '-') {
-            (_b = current._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(props));
+            (_b = unit._.listeners.get(type)) === null || _b === void 0 ? void 0 : _b.forEach((item) => item.execute(props));
         }
     }
 }
+Unit.nextId = 0;
 Unit.unit2Contexts = new MapSet();
 Unit.component2units = new MapSet();
 Unit.type2units = new MapSet();
 class UnitPromise {
     constructor(promise, key) { this.promise = promise; this.key = key; }
-    then(callback) {
+    chain(method, callback) {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.then((...args) => {
-            const returned = Unit.scope(snapshot, callback, ...args);
-            return returned instanceof UnitPromise ? returned.promise : returned;
-        });
-        return this;
-    }
-    catch(callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.catch((...args) => {
+        this.promise = this.promise[method]((...args) => {
             const result = Unit.scope(snapshot, callback, ...args);
             return result instanceof UnitPromise ? result.promise : result;
         });
         return this;
     }
+    then(callback) {
+        return this.chain('then', callback);
+    }
+    catch(callback) {
+        return this.chain('catch', callback);
+    }
     finally(callback) {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.finally(() => {
-            const result = Unit.scope(snapshot, callback);
-            return result instanceof UnitPromise ? result.promise : result;
-        });
-        return this;
+        return this.chain('finally', callback);
     }
     static defer(key) {
         let settled = false;
@@ -901,7 +878,7 @@ class UnitTimer {
             let current = new Timer(onTimeout, onTransition, duration, easing);
             function onTimeout() {
                 if (timeout)
-                    Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                    Unit.scope(snapshot, timeout, { timer });
                 if (unit._.status === 'finalized') {
                     return;
                 }
@@ -920,7 +897,7 @@ class UnitTimer {
             unit.on('finalize', () => current.clear());
         };
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(null, Unit.currentUnit, Component);
+            timer.unit = Unit.create(Unit.currentUnit, Component);
         }
         else if (timer.queue.length === 0) {
             timer.queue.push(Component);
@@ -933,7 +910,7 @@ class UnitTimer {
     }
     static next(timer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
+            timer.unit = Unit.create(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
@@ -946,11 +923,11 @@ const xnew$1 = Object.assign((function (...args) {
     if (args[0] instanceof Unit) {
         const parent = args.shift();
         const snapshot = (_a = parent._.afterSnapshot) !== null && _a !== void 0 ? _a : Unit.snapshot(parent);
-        return Unit.scope(snapshot, () => new Unit(null, parent, ...args));
+        return Unit.scope(snapshot, () => Unit.create(parent, ...args));
     }
     else {
         const parent = (_b = Unit.currentUnit) !== null && _b !== void 0 ? _b : null;
-        return new Unit(null, parent, ...args);
+        return Unit.create(parent, ...args);
     }
 }), {
     nest(target) {
@@ -1009,7 +986,7 @@ const xnew$1 = Object.assign((function (...args) {
         return Unit.find(Component, opts === null || opts === void 0 ? void 0 : opts.key);
     },
     emit(type, ...args) {
-        return Unit.emit(type, ...args);
+        return Unit.emit(Unit.currentUnit, type, ...args);
     },
     timeout(callback, duration = 0) {
         return new UnitTimer().timeout(callback, duration);
@@ -1020,62 +997,8 @@ const xnew$1 = Object.assign((function (...args) {
     transition(transition, duration = 0, easing = 'linear') {
         return new UnitTimer().transition(transition, duration, easing);
     },
-    chunk(callback, max, options = {}) {
-        var _a;
-        if (!Number.isInteger(max) || max < 0) {
-            throw new Error('xnew.chunk: max must be a non-negative integer');
-        }
-        const unit = Unit.currentUnit;
-        if (!unit) {
-            throw new Error('xnew.chunk must be called within a unit scope');
-        }
-        const budgetMs = (_a = options.budgetMs) !== null && _a !== void 0 ? _a : 8;
-        const { unitPromise, resolve, reject } = UnitPromise.defer();
-        if (max === 0) {
-            resolve();
-            return unitPromise;
-        }
-        let index = 0;
-        const handler = () => {
-            const t0 = Date.now();
-            try {
-                do {
-                    callback({ index: index++ });
-                } while (index < max && Date.now() - t0 < budgetMs);
-            }
-            catch (error) {
-                unit.off('update', handler);
-                reject(error);
-                return;
-            }
-            if (index >= max) {
-                unit.off('update', handler);
-                resolve();
-            }
-        };
-        unit.on('update', handler);
-        return unitPromise;
-    },
     protect() {
         Unit.currentUnit._.protected = true;
-    },
-    server(callback, props) {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.server can not be called after initialized.');
-        }
-        if (Unit.currentUnit._.mode === 'client') {
-            return {};
-        }
-        return Unit.extend(Unit.currentUnit, callback, props);
-    },
-    client(callback, props) {
-        if (Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.client can not be called after initialized.');
-        }
-        if (Unit.currentUnit._.mode === 'server') {
-            return {};
-        }
-        return Unit.extend(Unit.currentUnit, callback, props);
     },
 });
 
@@ -1175,12 +1098,22 @@ function Aspect(unit, { aspect = 1.0, fit = 'contain' } = {}) {
         unit.element.style.width = `max(100cqw, calc(100cqh * ${aspect}))`;
     }
 }
-
 function Screen(unit, { width = 800, height = 600, fit = 'contain' } = {}) {
     xnew$1.extend(Aspect, { aspect: width / height, fit });
     const canvas = xnew$1(`<canvas width="${width}" height="${height}" style="width: 100%; height: 100%; vertical-align: bottom;">`);
     return {
         get canvas() { return canvas.element; },
+    };
+}
+function Scene(unit) {
+    return {
+        change(Component, props) {
+            xnew$1(unit.parent, Component, props);
+            unit.finalize();
+        },
+        add(Component, props) {
+            xnew$1(unit, Component, props);
+        }
     };
 }
 
@@ -1275,7 +1208,7 @@ function DPad(unit, { diagonal = true, stroke = 'currentColor', strokeOpacity = 
     });
 }
 
-const paleColor$1 = 'color-mix(in srgb, currentColor 20%, transparent)';
+const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
 const hiddenInput = 'position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;';
 function Panel(unit, { params }) {
     const object = params !== null && params !== void 0 ? params : {};
@@ -1333,7 +1266,7 @@ function Button(unit, { key = '' }) {
     xnew$1.nest('<button style="margin: 0.125em 0; height: 2em; border: 1px solid; border-radius: 0.25em; cursor: pointer;">');
     unit.element.textContent = key;
     unit.on('pointerover', () => {
-        Object.assign(unit.element.style, { background: paleColor$1, borderColor: 'currentColor' });
+        Object.assign(unit.element.style, { background: paleColor, borderColor: 'currentColor' });
     });
     unit.on('pointerout', () => {
         Object.assign(unit.element.style, { background: '', borderColor: '' });
@@ -1352,7 +1285,7 @@ function Range(unit, { key = '', value, min = 0, max = 100, step = 1 }) {
     value = value !== null && value !== void 0 ? value : min;
     xnew$1.nest(`<div style="position: relative; height: 2em; margin: 0.125em 0; cursor: pointer; user-select: none;">`);
     const ratio = (value - min) / (max - min);
-    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor$1}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
+    const fill = xnew$1(`<div style="position: absolute; top: 0; left: 0; bottom: 0; width: ${ratio * 100}%; background: ${paleColor}; border: 1px solid currentColor; border-radius: 0.25em; transition: width 0.05s;">`);
     const status = xnew$1('<div style="position: absolute; inset: 0; padding: 0 0.5em; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">', (unit) => {
         xnew$1('<div>', key);
         xnew$1('<div key="status">', value);
@@ -1376,7 +1309,7 @@ function Checkbox(unit, { key = '', value } = {}) {
     });
     const check = box.element.querySelector('svg');
     const update = (checked) => {
-        box.element.style.background = checked ? paleColor$1 : '';
+        box.element.style.background = checked ? paleColor : '';
         check.style.opacity = checked ? '1' : '0';
     };
     update(!!value);
@@ -1415,7 +1348,7 @@ function Select(_, { key = '', value, items = [] } = {}) {
             xnew$1.nest(`<div style="position: relative; border: 1px solid currentColor; border-radius: 0.25em; overflow: hidden;">`);
             for (const item of items) {
                 const div = xnew$1(`<div style="height: 2em; padding: 0 0.5em; display: flex; align-items: center; cursor: pointer; user-select: none;">`, item);
-                div.on('pointerover', () => div.element.style.background = paleColor$1);
+                div.on('pointerover', () => div.element.style.background = paleColor);
                 div.on('pointerout', () => div.element.style.background = '');
                 div.on('click', () => {
                     button.element.textContent = item;
@@ -1440,413 +1373,314 @@ function Select(_, { key = '', value, items = [] } = {}) {
     }
 }
 
-function Scene(unit) {
-    return {
-        change(Component, props) {
-            xnew$1(unit.parent, Component, props);
-            unit.finalize();
-        },
-        add(Component, props) {
-            xnew$1(unit, Component, props);
-        }
-    };
+const detected = (typeof window === 'undefined' || typeof window.document === 'undefined') ? 'server' : 'client';
+function getEnvironment() {
+    return detected;
 }
 
 const syncData = new WeakMap();
 function syncOf(unit) {
-    return getOrCreate(syncData, unit, () => ({ id: null, state: null, registry: null }));
-}
-let syncIdCounter = 1;
-function nextSyncId() {
-    return syncIdCounter++;
-}
-function registerOnUnit(unit, components) {
-    var _a;
-    const data = syncOf(unit);
-    data.registry = Object.assign((_a = data.registry) !== null && _a !== void 0 ? _a : {}, components);
-}
-function captureStateTree(root) {
-    const nodes = [];
-    const syncName = (unit) => {
-        var _a;
-        const parent = unit._.parent;
-        const registry = parent ? syncOf(parent).registry : null;
-        if (registry === null) {
-            return undefined;
-        }
-        const entries = Object.entries(registry);
-        for (let i = unit._.Components.length - 1; i >= 0; i--) {
-            const name = (_a = entries.find(([, Component]) => Component === unit._.Components[i])) === null || _a === void 0 ? void 0 : _a[0];
-            if (name !== undefined) {
-                return name;
-            }
-        }
-        return undefined;
-    };
-    const walk = (unit, nearestSyncedId) => {
-        var _a;
-        let parentForChildren = nearestSyncedId;
-        const data = syncOf(unit);
-        const name = syncName(unit);
-        if (name !== undefined) {
-            if (data.id === null) {
-                data.id = nextSyncId();
-            }
-            nodes.push({
-                id: data.id,
-                name,
-                parentId: nearestSyncedId,
-                state: Object.assign({}, ((_a = data.state) !== null && _a !== void 0 ? _a : {})),
-            });
-            parentForChildren = data.id;
-        }
-        unit._.children.forEach((child) => walk(child, parentForChildren));
-    };
-    walk(root, null);
-    return nodes;
-}
-const reconcileMaps = new WeakMap();
-function applyStateTree(root, tree) {
-    var _a;
-    const map = getOrCreate(reconcileMaps, root, () => new Map());
-    const incoming = new Set(tree.map((node) => node.id));
-    for (const node of tree) {
-        const existing = map.get(node.id);
-        if (existing === undefined) {
-            const parent = node.parentId === null ? root : map.get(node.parentId);
-            if (parent === undefined) {
-                continue;
-            }
-            const Component = (_a = syncOf(parent).registry) === null || _a === void 0 ? void 0 : _a[node.name];
-            if (Component === undefined) {
-                continue;
-            }
-            const unit = new Unit({ setup: (u) => { syncOf(u).state = Object.assign({}, node.state); } }, parent, Component);
-            syncOf(unit).id = node.id;
-            map.set(node.id, unit);
-        }
-        else {
-            const data = syncOf(existing);
-            if (data.state === null) {
-                data.state = {};
-            }
-            for (const key of Object.keys(node.state)) {
-                if (data.state[key] !== node.state[key]) {
-                    data.state[key] = node.state[key];
-                }
-            }
-        }
+    if (syncData.has(unit) === false) {
+        syncData.set(unit, { id: null, state: {}, registry: {} });
     }
-    for (const [id, unit] of [...map.entries()]) {
-        if (incoming.has(id) === false) {
-            unit.finalize();
-            map.delete(id);
-        }
-    }
+    return syncData.get(unit);
 }
-const syncRoots = new WeakMap();
-function registerSyncRoot(root, info) {
-    syncRoots.set(root, info);
-}
-const BASIC_EVENTS = ['connect', 'disconnect', 'room:notfound'];
-function deliver(unit, event, props) {
-    var _a;
-    (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(props));
-}
-function dispatchBasicEvent(parent, event, payload) {
-    if (parent === null || parent._.status === 'finalized') {
-        return;
-    }
-    const props = (payload !== null && typeof payload === 'object') ? payload : {};
-    deliver(parent, event, props);
-}
-function findSyncRoot(unit) {
-    for (let u = unit; u !== null; u = u._.parent) {
-        if (syncRoots.has(u)) {
-            return u;
-        }
-    }
-    return null;
-}
+const SYNC_KEY = Symbol('sync');
 function rootInfoOf(unit) {
-    const root = findSyncRoot(unit);
-    const info = root !== null ? syncRoots.get(root) : undefined;
-    if (info === undefined || info.socket === null) {
-        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ mode }, ...).');
+    const info = Unit.getContext(unit, SYNC_KEY);
+    if (info === undefined) {
+        throw new Error('no socket bound to this root; create it with xnew.sync.boot({ io, room } | { io, client, room }, ...).');
     }
     return info;
 }
-function getRootSocket(unit) {
-    return rootInfoOf(unit).socket;
+function dispatch(info, event, id, payload) {
+    var _a;
+    const data = payload && payload.data !== null && typeof payload.data === 'object' ? payload.data : {};
+    const syncId = payload ? payload.syncId : undefined;
+    ((_a = Unit.type2units.get(event)) !== null && _a !== void 0 ? _a : []).forEach((unit) => {
+        var _a;
+        if (Unit.getContext(unit, SYNC_KEY) !== info)
+            return;
+        if (event[0] === '-' && syncOf(unit).id !== syncId)
+            return;
+        (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(Object.assign({ id }, data)));
+    });
 }
-function getRootClient(unit) {
-    const info = rootInfoOf(unit);
-    return { id: info.socket.id, name: info.name };
-}
-function getRootClients(unit) {
-    return [...rootInfoOf(unit).roster.values()];
-}
-const loopbackHubs = new WeakMap();
-function loopbackHub() {
-    return getOrCreate(loopbackHubs, Unit.engineRoot, () => loopback());
-}
-function resolveRootSocket(opts) {
-    if (opts.socket !== undefined) {
-        const transport = socketio(opts.socket, opts.room !== undefined ? { room: opts.room } : {});
-        return opts.mode === 'server' ? transport.server : transport.connect();
-    }
-    const hub = loopbackHub();
-    return opts.mode === 'server' ? hub.server : hub.connect();
-}
-function bootSyncRoot(opts, parent, ...args) {
-    const mode = opts.mode;
-    const socket = resolveRootSocket(opts);
-    const info = { socket, name: opts.name, roster: new Map() };
-    const root = new Unit({ mode, setup: (unit) => registerSyncRoot(unit, info) }, parent, ...args);
-    if (mode === 'server') {
-        const server = socket;
-        const broadcastRoster = () => server.emit('sync:roster', { clients: [...info.roster.values()] });
-        root.on('update', () => server.emit('sync', captureStateTree(root)));
-        server.onAny((event, clientId, message) => dispatchSync(root, event, clientId, message));
-        server.on('connect', (clientId) => {
-            info.roster.set(clientId, { id: clientId, name: undefined });
-            broadcastRoster();
-            dispatchSync(root, 'connect', clientId, undefined);
-            dispatchBasicEvent(parent, 'connect', { id: clientId });
-        });
-        server.on('disconnect', (clientId) => {
-            info.roster.delete(clientId);
-            broadcastRoster();
-            dispatchSync(root, 'disconnect', clientId, undefined);
-            dispatchBasicEvent(parent, 'disconnect', { id: clientId });
-        });
-        server.on('sync:hello', (clientId, payload) => {
-            const name = (payload !== null && typeof payload === 'object') ? payload.name : undefined;
-            info.roster.set(clientId, { id: clientId, name });
-            broadcastRoster();
-        });
-    }
-    else {
-        const client = socket;
-        const handler = (tree) => applyStateTree(root, tree);
-        client.on('sync', handler);
-        root.on('finalize', () => client.off('sync', handler));
-        client.onAny((event, message) => dispatchSync(root, event, undefined, message));
-        BASIC_EVENTS.forEach((event) => client.on(event, (payload) => dispatchBasicEvent(parent, event, payload)));
-        client.on('sync:roster', (payload) => {
-            info.roster.clear();
-            const list = (payload !== null && typeof payload === 'object' && Array.isArray(payload.clients)) ? payload.clients : [];
-            for (const c of list) {
-                info.roster.set(c.id, { id: c.id, name: c.name });
+function bootServer(opts, parent, args) {
+    const { io, room } = opts;
+    const info = { io, room, clients: [] };
+    const root = new Unit(parent);
+    Unit.addContext(root, root, SYNC_KEY, info);
+    Unit.initialize(root, ...args);
+    let nextId = 1;
+    const captureStateTree = () => {
+        const nodes = [];
+        const syncName = (unit) => {
+            var _a;
+            const registry = unit._.parent ? (_a = syncData.get(unit._.parent)) === null || _a === void 0 ? void 0 : _a.registry : null;
+            if (registry === null || registry === undefined) {
+                return undefined;
             }
+            const entries = Object.entries(registry);
+            for (let i = unit._.Components.length - 1; i >= 0; i--) {
+                const hit = entries.find(([, Component]) => Component === unit._.Components[i]);
+                if (hit !== undefined) {
+                    return hit[0];
+                }
+            }
+            return undefined;
+        };
+        const walk = (unit, parent) => {
+            var _a;
+            const name = syncName(unit);
+            if (name !== undefined) {
+                const data = syncOf(unit);
+                (_a = data.id) !== null && _a !== void 0 ? _a : (data.id = nextId++);
+                nodes.push({ id: data.id, name, parent, state: Object.assign({}, data.state) });
+                parent = data.id;
+            }
+            unit._.children.forEach((child) => walk(child, parent));
+        };
+        walk(root, null);
+        return nodes;
+    };
+    root.on('update', () => io.to(room.id).emit('sync', captureStateTree()));
+    io.on('connection', (socket) => {
+        var _a, _b;
+        const query = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query;
+        if ((query === null || query === void 0 ? void 0 : query.roomId) !== room.id)
+            return;
+        socket.join(room.id);
+        info.clients.push({ id: socket.id, name: (_b = query === null || query === void 0 ? void 0 : query.clientName) !== null && _b !== void 0 ? _b : '' });
+        dispatch(info, 'sync.connect', socket.id, undefined);
+        statusUpdate();
+        socket.onAny((event, payload) => dispatch(info, event, socket.id, payload));
+        socket.on('disconnect', () => {
+            info.clients = info.clients.filter((c) => c.id !== socket.id);
+            dispatch(info, 'sync.disconnect', socket.id, undefined);
+            statusUpdate();
         });
-        const sendHello = () => client.emit('sync:hello', { name: info.name });
-        if (client.id) {
-            sendHello();
-        }
-        client.on('connect', sendHello);
+    });
+    function statusUpdate() {
+        io.to(room.id).emit('status', { clients: info.clients });
+        dispatch(info, 'sync.statusupdate', undefined, undefined);
     }
     return root;
 }
-function dispatchSync(root, event, id, message) {
-    if (root._.status === 'finalized') {
-        return;
-    }
-    if (event.startsWith('sync:')) {
-        return;
-    }
-    const isEnvelope = message !== null && typeof message === 'object' && Array.isArray(message) === false;
-    const data = isEnvelope && message.data !== null && typeof message.data === 'object' ? message.data : {};
-    const props = Object.assign({ id }, data);
-    const targets = Unit.type2units.get(event);
-    if (targets === undefined) {
-        return;
-    }
-    const selfOnly = event[0] === '-';
-    const syncId = isEnvelope ? message.syncId : undefined;
-    targets.forEach((unit) => {
-        if (findSyncRoot(unit) !== root) {
-            return;
+function bootClient(opts, parent, args) {
+    var _a;
+    const { io, room, client } = opts;
+    const socket = io({ query: { roomId: room.id, clientName: (_a = client === null || client === void 0 ? void 0 : client.name) !== null && _a !== void 0 ? _a : '' }, forceNew: true });
+    const info = { socket, room, clients: [] };
+    const root = new Unit(parent);
+    Unit.addContext(root, root, SYNC_KEY, info);
+    Unit.initialize(root, ...args);
+    const reconcileMap = new Map();
+    const applyStateTree = (tree) => {
+        const incoming = new Set(tree.map((node) => node.id));
+        for (const node of tree) {
+            const existing = reconcileMap.get(node.id);
+            if (existing !== undefined) {
+                Object.assign(syncOf(existing).state, node.state);
+                continue;
+            }
+            const nodeParent = node.parent === null ? root : reconcileMap.get(node.parent);
+            const Component = nodeParent && syncOf(nodeParent).registry[node.name];
+            if (!Component) {
+                continue;
+            }
+            const unit = new Unit(nodeParent);
+            syncData.set(unit, { id: node.id, state: Object.assign({}, node.state), registry: {} });
+            Unit.initialize(unit, Component);
+            reconcileMap.set(node.id, unit);
         }
-        if (selfOnly && syncOf(unit).id !== syncId) {
-            return;
+        for (const [id, unit] of [...reconcileMap.entries()]) {
+            if (!incoming.has(id)) {
+                unit.finalize();
+                reconcileMap.delete(id);
+            }
         }
-        deliver(unit, event, props);
+    };
+    socket.on('sync', applyStateTree);
+    const onStatus = (status) => {
+        var _a;
+        info.clients = (_a = status === null || status === void 0 ? void 0 : status.clients) !== null && _a !== void 0 ? _a : [];
+        dispatch(info, 'sync.statusupdate', undefined, undefined);
+    };
+    socket.on('status', onStatus);
+    socket.onAny((event, payload) => dispatch(info, event, undefined, payload));
+    socket.on('connect', () => Unit.emit(parent, '-connect', { id: socket.id }));
+    socket.on('disconnect', () => Unit.emit(parent, '-disconnect', {}));
+    socket.on('notfound', (payload) => Unit.emit(parent, '-notfound', payload !== null && payload !== void 0 ? payload : {}));
+    root.on('finalize', () => {
+        socket.off('sync', applyStateTree);
+        socket.off('status', onStatus);
+        socket.disconnect();
     });
-}
-function eventBus() {
-    const handlers = new Map();
-    const anyHandlers = new Set();
-    return {
-        on(event, handler) { getOrCreate(handlers, event, () => new Set()).add(handler); },
-        off(event, handler) { var _a; (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.delete(handler); },
-        onAny(handler) { anyHandlers.add(handler); },
-        fire(event, withAny, ...args) {
-            var _a;
-            (_a = handlers.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((handler) => handler(...args));
-            if (withAny) {
-                anyHandlers.forEach((handler) => handler(event, ...args));
-            }
-        },
-    };
-}
-const isAppEvent = (event) => event !== 'connect' && event !== 'disconnect';
-function loopback() {
-    const serverBus = eventBus();
-    const clients = new Map();
-    let seq = 0;
-    const server = {
-        on: serverBus.on,
-        off: serverBus.off,
-        emit(event, payload) { for (const bus of clients.values()) {
-            bus.fire(event, true, payload);
-        } },
-        to(clientId) { return { emit(event, payload) { var _a; (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.fire(event, true, payload); } }; },
-        onAny: serverBus.onAny,
-    };
-    function connect(clientId) {
-        if (clientId === undefined) {
-            clientId = 'c' + (++seq);
-        }
-        const bus = eventBus();
-        clients.set(clientId, bus);
-        serverBus.fire('connect', false, clientId, undefined);
-        return {
-            id: clientId,
-            emit(event, payload) { serverBus.fire(event, isAppEvent(event), clientId, payload); },
-            on(event, handler) { var _a; (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.on(event, handler); },
-            off(event, handler) { var _a; (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.off(event, handler); },
-            onAny(handler) { var _a; (_a = clients.get(clientId)) === null || _a === void 0 ? void 0 : _a.onAny(handler); },
-            disconnect() { clients.delete(clientId); serverBus.fire('disconnect', false, clientId, undefined); },
-        };
-    }
-    return { server, connect };
-}
-function socketio(ioOrSocket, opts = {}) {
-    const room = opts.room;
-    let serverAdapter = null;
-    return {
-        get server() {
-            if (serverAdapter !== null) {
-                return serverAdapter;
-            }
-            const io = ioOrSocket;
-            const bus = eventBus();
-            io.on('connection', (socket) => {
-                var _a, _b;
-                if (room !== undefined && ((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.room) !== room) {
-                    return;
-                }
-                if (room !== undefined) {
-                    socket.join(room);
-                }
-                bus.fire('connect', false, socket.id, undefined);
-                socket.onAny((event, payload) => bus.fire(event, true, socket.id, payload));
-                socket.on('disconnect', () => bus.fire('disconnect', false, socket.id, undefined));
-            });
-            const target = () => (room !== undefined ? io.to(room) : io);
-            serverAdapter = {
-                on: bus.on,
-                off: bus.off,
-                emit: (event, payload) => target().emit(event, payload),
-                to: (clientId) => ({ emit: (event, payload) => io.to(clientId).emit(event, payload) }),
-                onAny: bus.onAny,
-            };
-            return serverAdapter;
-        },
-        connect() {
-            const socket = ioOrSocket;
-            return {
-                get id() { return socket.id; },
-                emit: (event, payload) => socket.emit(event, payload),
-                on: (event, handler) => socket.on(event, handler),
-                off: (event, handler) => socket.off(event, handler),
-                onAny: (handler) => socket.onAny(handler),
-                disconnect: () => socket.disconnect(),
-            };
-        },
-    };
-}
-function activeUnit(api) {
-    if (Unit.currentUnit === null) {
-        throw new Error(`xnew.sync.${api} can not be called outside a component.`);
-    }
-    return Unit.currentUnit;
+    return root;
 }
 const sync = {
+    server(callback, props) {
+        return getEnvironment() === 'server' ? Unit.extend(Unit.currentUnit, callback, props) : {};
+    },
+    client(callback, props) {
+        return getEnvironment() === 'client' ? Unit.extend(Unit.currentUnit, callback, props) : {};
+    },
     state(initial = {}) {
         const data = syncOf(Unit.currentUnit);
-        if (data.state === null) {
-            data.state = {};
-        }
         for (const key of Object.keys(initial)) {
-            if ((key in data.state) === false) {
+            if (!(key in data.state)) {
                 data.state[key] = initial[key];
             }
         }
         return data.state;
     },
-    register(components) {
-        if (Unit.currentUnit == null || Unit.currentUnit._.status !== 'invoked') {
-            throw new Error('xnew.sync.register can not be called outside a component.');
+    register(Components) {
+        const unit = Unit.currentUnit;
+        if (unit._.status !== 'invoked') {
+            throw new Error('xnew.sync.register must be called during component initialization.');
         }
-        registerOnUnit(Unit.currentUnit, components);
+        Object.assign(syncOf(unit).registry, Components);
     },
-    capture(root) {
-        return captureStateTree(root);
-    },
-    apply(root, tree) {
-        applyStateTree(root, tree);
-    },
-    get client() {
-        return getRootClient(activeUnit('client'));
+    get room() {
+        return rootInfoOf(Unit.currentUnit).room;
     },
     get clients() {
-        return getRootClients(activeUnit('clients'));
+        return rootInfoOf(Unit.currentUnit).clients;
+    },
+    get myself() {
+        var _a;
+        if (getEnvironment() === 'server') {
+            throw new Error('sync.myself is only available on the client side.');
+        }
+        const info = rootInfoOf(Unit.currentUnit);
+        return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' };
     },
     emit(event, payload = {}) {
-        const unit = activeUnit('emit');
-        getRootSocket(unit).emit(event, { syncId: syncOf(unit).id, data: payload });
+        const info = rootInfoOf(Unit.currentUnit);
+        const envelope = { syncId: syncOf(Unit.currentUnit).id, data: payload };
+        if (getEnvironment() === 'server') {
+            info.io.to(info.room.id).emit(event, envelope);
+        }
+        else {
+            info.socket.emit(event, envelope);
+        }
     },
     boot(opts, ...args) {
         if (Unit.engineRoot === undefined) {
             Unit.reset();
         }
-        return bootSyncRoot(opts, Unit.currentUnit, ...args);
+        return getEnvironment() === 'server'
+            ? bootServer(opts, Unit.currentUnit, args)
+            : bootClient(opts, Unit.currentUnit, args);
     },
 };
 
-function Room(unit, { mode, socket, room, name, component }) {
-    var _a;
-    const client = sync.boot({ mode, socket, room, name }, component);
-    if (mode === 'server') {
-        unit.on('finalize', () => client.finalize());
-    }
-    else {
-        (_a = client.select) === null || _a === void 0 ? void 0 : _a.call(client);
-        unit.on('finalize', () => { var _a; client.finalize(); (_a = socket === null || socket === void 0 ? void 0 : socket.disconnect) === null || _a === void 0 ? void 0 : _a.call(socket); });
-    }
-    return {
-        get client() { return client; },
-    };
+const rooms = new Map();
+function roomList() {
+    return [...rooms.values()].map((room) => room.status());
 }
-
-function Selectable(unit, { selected = false } = {}) {
-    let current = selected;
-    const change = (next) => {
-        if (current === next) {
-            return;
+function broadcastRooms(io) {
+    io.to('lobby').emit('statusupdate', { rooms: roomList() });
+}
+function Lobby(unit, props) {
+    sync.server(() => {
+        const { io, Room, maxRooms = 20, roomNameMax = 16 } = props;
+        let nextRoomNum = 0;
+        const connection = xnew$1.scope((conn) => {
+            var _a, _b;
+            const roomId = (_b = (_a = conn.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.roomId;
+            if (roomId !== undefined && roomId !== '') {
+                if (!rooms.has(roomId)) {
+                    conn.emit('notfound', { roomId });
+                    conn.disconnect(true);
+                }
+                return;
+            }
+            conn.join('lobby');
+            conn.emit('statusupdate', { rooms: roomList() });
+            conn.on('roomcreate', xnew$1.scope((payload) => {
+                var _a;
+                if (rooms.size >= maxRooms) {
+                    conn.emit('roomrejected', { message: 'room limit reached' });
+                    return;
+                }
+                const id = `r${++nextRoomNum}`;
+                const name = String((_a = payload === null || payload === void 0 ? void 0 : payload.name) !== null && _a !== void 0 ? _a : '').trim().slice(0, roomNameMax) || `Room ${nextRoomNum}`;
+                const room = { id, name, count: 0 };
+                rooms.set(id, xnew$1(unit, Room, { io, room }));
+                conn.emit('roomcreated', { room });
+                broadcastRooms(io);
+            }));
+        });
+        io.on('connection', connection);
+        unit.on('finalize', () => { io.off('connection', connection); rooms.clear(); });
+    });
+    sync.client(() => {
+        const { io } = props;
+        const socket = io({ forceNew: true });
+        for (const event of ['connect', 'disconnect', 'statusupdate', 'roomcreated', 'roomrejected']) {
+            socket.on(event, xnew$1.scope((payload) => xnew$1.emit('-' + event, payload !== null && payload !== void 0 ? payload : {})));
         }
-        current = next;
-        xnew$1.emit(current ? '-select' : '-deselect');
-    };
-    unit.on('click', () => change(true));
-    unit.on('click.outside', () => change(false));
-    return {
-        get selected() { return current; },
-        select() { change(true); },
-        deselect() { change(false); },
-    };
+        unit.on('finalize', () => socket.disconnect());
+        return { createRoom(name) { socket.emit('roomcreate', { name }); } };
+    });
+}
+function Room(unit, props) {
+    const members = new Set();
+    sync.server(() => {
+        const { io, room, Component, graceMs = 3000 } = props;
+        sync.boot({ io, room }, Component);
+        let graceTimer = null;
+        const connection = xnew$1.scope((socket) => {
+            var _a, _b;
+            if (((_b = (_a = socket.handshake) === null || _a === void 0 ? void 0 : _a.query) === null || _b === void 0 ? void 0 : _b.roomId) !== room.id) {
+                return;
+            }
+            graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
+            members.add(socket.id);
+            room.count = members.size;
+            xnew$1.emit('-connect', { id: socket.id });
+            if (rooms.has(room.id)) {
+                broadcastRooms(io);
+            }
+            socket.on('disconnect', xnew$1.scope(() => {
+                members.delete(socket.id);
+                room.count = members.size;
+                xnew$1.emit('-disconnect', { id: socket.id });
+                if (rooms.has(room.id)) {
+                    broadcastRooms(io);
+                }
+                if (members.size === 0) {
+                    scheduleCleanup();
+                }
+            }));
+        });
+        io.on('connection', connection);
+        unit.on('finalize', () => io.off('connection', connection));
+        scheduleCleanup();
+        function scheduleCleanup() {
+            graceTimer === null || graceTimer === void 0 ? void 0 : graceTimer.clear();
+            graceTimer = xnew$1.timeout(() => {
+                if (members.size > 0) {
+                    return;
+                }
+                xnew$1.emit('-empty', {});
+                if (rooms.has(room.id)) {
+                    rooms.delete(room.id);
+                    broadcastRooms(io);
+                    unit.finalize();
+                }
+            }, graceMs);
+        }
+        return {
+            status() { return room; },
+        };
+    });
+    sync.client(() => {
+        const { io, client, room, Component } = props;
+        sync.boot({ io, client, room }, Component);
+    });
 }
 
 var _a;
@@ -1860,127 +1694,118 @@ if (context !== null && master !== null) {
     master.gain.value = DEFAULT_MASTER_GAIN;
     master.connect(context.destination);
 }
-class AudioTrack {
-    constructor(path) {
-        this.promise = fetch(path)
-            .then((response) => response.arrayBuffer())
-            .then((response) => context.decodeAudioData(response))
-            .then((response) => { this.buffer = response; });
-        this.amp = context.createGain();
-        this.amp.gain.value = 1.0;
-        this.amp.connect(master);
-        this.fade = context.createGain();
-        this.fade.gain.value = 1.0;
-        this.fade.connect(this.amp);
-        this.source = null;
-        this.startedAt = null;
-        this.pausedOffsetMs = 0;
-        this.loop = false;
-    }
-    get isPlaying() {
-        return this.startedAt !== null;
-    }
-    get isLoaded() {
-        return this.buffer !== undefined;
-    }
-    set volume(value) {
-        this.amp.gain.value = value;
-    }
-    get volume() {
-        return this.amp.gain.value;
-    }
-    play({ offset, fade = 0, loop } = {}) {
-        if (this.buffer === undefined) {
-            this.promise.then(() => this.play({ offset, fade, loop }));
-            return;
-        }
-        if (loop !== undefined) {
-            this.loop = loop;
-        }
-        if (this.startedAt !== null) {
-            this.forceStop();
-            this.startSource(offset !== null && offset !== void 0 ? offset : 0, fade);
-            return;
-        }
-        this.startSource(offset !== null && offset !== void 0 ? offset : this.pausedOffsetMs, fade);
-    }
-    pause({ fade = 0 } = {}) {
-        if (this.buffer === undefined || this.startedAt === null) {
-            return;
-        }
-        const elapsedSec = context.currentTime - this.startedAt;
-        const positionSec = this.loop ? elapsedSec % this.buffer.duration : Math.min(elapsedSec, this.buffer.duration);
-        this.pausedOffsetMs = positionSec * 1000;
-        const source = this.source;
-        this.source = null;
-        this.startedAt = null;
-        this.stopSource(source, fade);
-    }
-    stop({ fade = 0 } = {}) {
-        if (this.startedAt !== null) {
-            const source = this.source;
-            this.source = null;
-            this.startedAt = null;
-            this.stopSource(source, fade);
-        }
-        this.pausedOffsetMs = 0;
-    }
-    clear() {
-        this.forceStop();
-        this.amp.disconnect();
-        this.fade.disconnect();
-        this.pausedOffsetMs = 0;
-    }
-    forceStop() {
-        if (this.source !== null) {
-            this.source.onended = null;
+function AudioTrack(unit, { url, volume, loop = false }) {
+    let buffer;
+    let source = null;
+    let startedAt = null;
+    let pausedOffsetMs = 0;
+    let looping = loop;
+    const amp = context.createGain();
+    amp.gain.value = volume !== null && volume !== void 0 ? volume : 1.0;
+    amp.connect(master);
+    const fade = context.createGain();
+    fade.gain.value = 1.0;
+    fade.connect(amp);
+    const promise = fetch(url)
+        .then((response) => response.arrayBuffer())
+        .then((response) => context.decodeAudioData(response))
+        .then((response) => { buffer = response; });
+    xnew$1.promise(promise);
+    function forceStop() {
+        if (source !== null) {
+            source.onended = null;
             try {
-                this.source.stop();
+                source.stop();
             }
             catch (_a) {
             }
-            this.source.disconnect();
-            this.source = null;
+            source.disconnect();
+            source = null;
         }
-        this.startedAt = null;
+        startedAt = null;
     }
-    startSource(offsetMs, fadeMs) {
-        const source = context.createBufferSource();
-        this.source = source;
-        source.buffer = this.buffer;
-        source.loop = this.loop;
-        source.connect(this.fade);
+    function startSource(offsetMs, fadeMs) {
+        const node = context.createBufferSource();
+        source = node;
+        node.buffer = buffer;
+        node.loop = looping;
+        node.connect(fade);
         const now = context.currentTime;
-        this.startedAt = now - offsetMs / 1000;
-        source.start(now, offsetMs / 1000);
-        this.fade.gain.cancelScheduledValues(now);
+        startedAt = now - offsetMs / 1000;
+        node.start(now, offsetMs / 1000);
+        fade.gain.cancelScheduledValues(now);
         if (fadeMs > 0) {
-            this.fade.gain.setValueAtTime(0, now);
-            this.fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
+            fade.gain.setValueAtTime(0, now);
+            fade.gain.linearRampToValueAtTime(1.0, now + fadeMs / 1000);
         }
         else {
-            this.fade.gain.setValueAtTime(1.0, now);
+            fade.gain.setValueAtTime(1.0, now);
         }
-        source.onended = () => {
-            source.disconnect();
-            if (this.source === source) {
-                this.source = null;
-                this.startedAt = null;
-                this.pausedOffsetMs = 0;
+        node.onended = () => {
+            node.disconnect();
+            if (source === node) {
+                source = null;
+                startedAt = null;
+                pausedOffsetMs = 0;
             }
         };
     }
-    stopSource(source, fadeMs) {
+    function stopSource(node, fadeMs) {
         const now = context.currentTime;
         if (fadeMs > 0) {
-            this.fade.gain.setValueAtTime(1.0, now);
-            this.fade.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
-            source.stop(now + fadeMs / 1000);
+            fade.gain.setValueAtTime(1.0, now);
+            fade.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
+            node.stop(now + fadeMs / 1000);
         }
         else {
-            source.stop(now);
+            node.stop(now);
         }
     }
+    unit.on('finalize', () => {
+        forceStop();
+        amp.disconnect();
+        fade.disconnect();
+        pausedOffsetMs = 0;
+    });
+    return {
+        play: function play({ offset, fade: fadeMs = 0, loop: loopArg } = {}) {
+            if (buffer === undefined) {
+                promise.then(() => play({ offset, fade: fadeMs, loop: loopArg }));
+                return;
+            }
+            if (loopArg !== undefined) {
+                looping = loopArg;
+            }
+            if (startedAt !== null) {
+                forceStop();
+            }
+            startSource(offset !== null && offset !== void 0 ? offset : pausedOffsetMs, fadeMs);
+        },
+        pause({ fade: fadeMs = 0 } = {}) {
+            if (buffer === undefined || startedAt === null) {
+                return;
+            }
+            const elapsedSec = context.currentTime - startedAt;
+            const positionSec = looping ? elapsedSec % buffer.duration : Math.min(elapsedSec, buffer.duration);
+            pausedOffsetMs = positionSec * 1000;
+            const node = source;
+            source = null;
+            startedAt = null;
+            stopSource(node, fadeMs);
+        },
+        get isPlaying() {
+            return startedAt !== null;
+        },
+        get isLoaded() {
+            return buffer !== undefined;
+        },
+        get volume() {
+            return amp.gain.value;
+        },
+        set volume(value) {
+            amp.gain.value = value;
+        },
+    };
 }
 const keymap = {
     'A0': 27.500, 'A#0': 29.135, 'B0': 30.868,
@@ -2072,11 +1897,9 @@ function attachReverb(amp, target, reverb) {
     depth.connect(master);
     return { convolver, depth };
 }
-class Synthesizer {
-    constructor(props) { this.props = props; }
-    press(frequency, duration, wait) {
+function Synthesizer(unit, props) {
+    function press(frequency, duration, wait) {
         var _a;
-        const props = this.props;
         const freq = resolveFrequency(frequency);
         const dv = resolveDurationSeconds(duration, (_a = props.bpm) !== null && _a !== void 0 ? _a : DEFAULT_BPM);
         const start = context.currentTime + (wait !== null && wait !== void 0 ? wait : 0) / 1000;
@@ -2159,124 +1982,23 @@ class Synthesizer {
             return { release };
         }
     }
+    return { press };
 }
-const audio = {
-    AudioTrack,
-    load(path) {
-        const track = new AudioTrack(path);
-        const unit = new Unit(null, Unit.currentUnit);
-        unit.on('finalize', () => track.pause({ fade: 500 }));
-        return track;
-    },
-    synthesizer(props) {
-        return new Synthesizer(props);
-    },
-    get volume() {
-        return master.gain.value;
-    },
-    set volume(value) {
-        master.gain.value = value;
-    },
-};
-
-const paleColor = 'color-mix(in srgb, currentColor 20%, transparent)';
-function SpeakerIcon(unit, { muted = false } = {}) {
-    xnew$1.extend(SVG, { viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.5 });
-    const path = muted
-        ? 'M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z'
-        : 'M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9 9 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25z';
-    xnew$1(`<path d="${path}" />`);
+function Volume(unit) {
+    return {
+        get volume() {
+            return master.gain.value;
+        },
+        set volume(value) {
+            master.gain.value = value;
+        },
+    };
 }
-function VolumeController(unit, { anchor = 'left' } = {}) {
-    xnew$1.extend(Aspect, { aspect: 1.0, fit: 'contain' });
-    unit.on('pointerdown', ({ event }) => event.stopPropagation());
-    const system = xnew$1(OpenAndClose, { open: false, transition: { duration: 250, easing: 'ease' } });
-    const button = xnew$1((unit) => {
-        xnew$1.nest('<div style="width: 100%; height: 100%; cursor: pointer;">');
-        unit.on('click', () => system.toggle());
-        let icon = xnew$1(SpeakerIcon, { muted: master.gain.value === 0 });
-        return {
-            update() {
-                icon === null || icon === void 0 ? void 0 : icon.finalize();
-                icon = xnew$1(SpeakerIcon, { muted: master.gain.value === 0 });
-            }
-        };
-    });
-    xnew$1(() => {
-        const isHoriz = anchor === 'left' || anchor === 'right';
-        const unit = isHoriz ? 'cqw' : 'cqh';
-        const fillProp = isHoriz ? 'width' : 'height';
-        const pct = master.gain.value * 100;
-        const outerSize = isHoriz ? `top: 20%; bottom: 20%; width: 0${unit}` : `left: 20%; right: 20%; height: 0${unit}`;
-        const fillSize = isHoriz ? `top: 0; left: 0; bottom: 0; width: ${pct}%; height: 100%` : `bottom: 0; left: 0; right: 0; width: 100%; height: ${pct}%`;
-        const outer = xnew$1.nest(`<div style="position: absolute; ${outerSize};">`);
-        xnew$1.nest(`<div style="position: relative; width: 100%; height: 100%; border: 1px solid currentColor; border-radius: 0.25em; box-sizing: border-box;">`);
-        const fill = xnew$1(`<div style="position: absolute; ${fillSize}; background: ${paleColor};">`);
-        const input = xnew$1(`<input type="range" min="0" max="100" value="${pct}" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0;${isHoriz ? '' : ' writing-mode: vertical-lr; direction: rtl;'}">`);
-        const css = (el) => el.style;
-        input.on('input', ({ event }) => {
-            const v = Number(event.target.value);
-            css(fill.element)[fillProp] = `${v}%`;
-            master.gain.value = v / 100;
-            button.update();
-        });
-        system.on('-transition', ({ value }) => {
-            css(outer)[anchor] = `-${value * 400 + 20}${unit}`;
-            css(outer)[fillProp] = `${value * 400}${unit}`;
-            outer.style.opacity = value.toString();
-            outer.style.pointerEvents = value < 0.9 ? 'none' : 'auto';
-        });
-    });
-    unit.on('click.outside', () => system.close());
-}
-
-class ImageData {
-    constructor(...args) {
-        if (args[0] instanceof HTMLCanvasElement) {
-            this.canvas = args[0];
-        }
-        else {
-            const canvas = document.createElement('canvas');
-            canvas.width = args[0];
-            canvas.height = args[1];
-            this.canvas = canvas;
-        }
-    }
-    crop(x, y, width, height) {
-        var _a;
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        (_a = canvas.getContext('2d')) === null || _a === void 0 ? void 0 : _a.drawImage(this.canvas, x, y, width, height, 0, 0, width, height);
-        return new ImageData(canvas);
-    }
-    paste(source, x, y, width, height) {
-        const patch = source instanceof ImageData ? source.canvas : source;
-        const context = this.canvas.getContext('2d');
-        if (width !== undefined && height !== undefined) {
-            context === null || context === void 0 ? void 0 : context.drawImage(patch, x, y, width, height);
-        }
-        else {
-            context === null || context === void 0 ? void 0 : context.drawImage(patch, x, y);
-        }
-        return this;
-    }
-    download(filename) {
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = this.canvas.toDataURL('image/png');
-        link.click();
-    }
-}
-const image = {
-    from(canvas) {
-        return new ImageData(canvas);
-    },
-};
 
 const basics = {
     SVG,
     SVGText,
+    Aspect,
     Screen,
     OpenAndClose,
     AnalogStick,
@@ -2285,10 +2007,12 @@ const basics = {
     Accordion,
     Popup,
     Scene,
+    Lobby,
     Room,
-    Selectable,
-    VolumeController,
+    AudioTrack: AudioTrack,
+    Synthesizer,
+    Volume,
 };
-const xnew = Object.assign(xnew$1, { basics, audio, image, sync });
+const xnew = Object.assign(xnew$1, { basics, sync });
 
-export { xnew as default };
+export { xnew };

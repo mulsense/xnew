@@ -21,8 +21,8 @@ jest.mock('pixi.js', () => {
 const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 import * as PIXI from 'pixi.js';
-import xnew from '../../src/index';
-import xpixi from '../../src/addons/xpixi';
+import { xnew } from '../../src/index';
+import { xpixi } from '../../src/addons/xpixi';
 
 function setup() {
     return document.createElement('canvas');

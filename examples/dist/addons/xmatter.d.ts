@@ -1,7 +1,7 @@
-declare const _default: {
+declare const xmatter: {
     initialize({}?: any): void;
     readonly engine: any;
     readonly world: any;
 };
 
-export { _default as default };
+export { xmatter };

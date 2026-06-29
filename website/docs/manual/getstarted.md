@@ -17,26 +17,21 @@ xnew の特徴は次のとおりです。
 
 ## セットアップ
 
-導入方法は次の 3 通りから選べます。
+導入方法は次の 2 通りから選べます。
 
-### CDN (初心者向け)
-HTML に次のスクリプトタグを追加します。
-```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-```
-### CDN (ESM)
+### CDN
 ES モジュール版は import map で読み込みます。
 ```html
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
   }
 }
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 
 // Your code here
 </script>
@@ -45,12 +40,12 @@ import xnew from '@mulsense/xnew';
 ### npm
 npm でインストールします。
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 
 JavaScript ファイルからインポートして使用します。
 ```js
-import xnew from '@mulsense/xnew';
+import { xnew } from '@mulsense/xnew';
 ```
 
 ## チュートリアル
@@ -84,10 +79,17 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create your first component
     xnew(MyFirstComponent);
 
@@ -119,10 +121,17 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     // Create main component
     xnew(MainComponent);
 
@@ -177,10 +186,17 @@ unit.element; // Access the created DOM element
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script>
+  <script type="module">
+    import { xnew } from '@mulsense/xnew';
     xnew(RotatingBox);
 
     function RotatingBox(unit) {
@@ -190,29 +206,19 @@ unit.element; // Access the created DOM element
       // Add text inside the box
       const text = xnew('<span style="color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; height: 100%;">');
 
-      // Handle click events - toggle start/stop
+      // Handle click events - toggle the rotation
       let running = false;
       unit.on('click', ({ event }) => {
-        running ? unit.stop() : unit.start();
-      });
-
-      // When animation starts
-      unit.on('start', () => {
-        running = true;
-        text.element.textContent = 'start';
+        running = !running;
+        text.element.textContent = running ? 'start' : 'stop';
       });
 
       // Update animation frame
       let rotate = 0;
       unit.on('update', () => {
+        if (running === false) return;
         rotate++;
         unit.element.style.transform = `rotate(${rotate}deg)`;
-      });
-
-      // When animation stops
-      unit.on('stop', () => {
-        running = false;
-        text.element.textContent = 'stop';
       });
     }
   </script>
@@ -222,8 +228,8 @@ unit.element; // Access the created DOM element
 
 **ポイント:**
 - `unit.on()` でイベントリスナーを登録します
-- `unit.start()` / `unit.stop()` で更新ループを制御します
-- `update` イベントは更新中、毎フレーム発火します
+- `click` などの DOM イベントはユーザー操作に応じて発火します
+- `update` イベントは毎フレーム発火します
 
 ## 次のステップ
 

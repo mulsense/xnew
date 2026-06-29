@@ -9,24 +9,18 @@ sidebar_position: 501
 ## Setup
 ### Via CDN
 ```html
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.js"></script>
-<script src="https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xpixi.js"></script>
-```
-
-### Via CDN (ESM)
-```html
 <script type="importmap">
 {
   "imports": {
-    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/xnew.mjs",
-    "@mulsense/xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.8.x/dist/addons/xpixi.mjs"
+    "@mulsense/xnew": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/xnew.mjs",
+    "@mulsense/xnew/addons/xpixi": "https://unpkg.com/@mulsense/xnew@0.9.x/dist/addons/xpixi.mjs"
   }
 }
 </script>
 
 <script type="module">
-import xnew from '@mulsense/xnew'
-import xpixi from '@mulsense/xnew/addons/xpixi'
+import { xnew } from '@mulsense/xnew'
+import { xpixi } from '@mulsense/xnew/addons/xpixi'
 
 // ...
 </script>
@@ -34,11 +28,11 @@ import xpixi from '@mulsense/xnew/addons/xpixi'
 
 ### Via npm
 ```bash
-npm install @mulsense/xnew@0.8.x
+npm install @mulsense/xnew@0.9.x
 ```
 ```js
-import xnew from '@mulsense/xnew'
-import xpixi from '@mulsense/xnew/addons/xpixi'
+import { xnew } from '@mulsense/xnew'
+import { xpixi } from '@mulsense/xnew/addons/xpixi'
 ```
 
 ## Core API

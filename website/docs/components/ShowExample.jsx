@@ -1,7 +1,7 @@
 import CodeBlock from '@theme/CodeBlock';
 
 export default function ShowExample({ height, name, code }) {
-    const xnewpath = 'https://unpkg.com/@mulsense/xnew@0.8.x/dist/';
+    const xnewpath = 'https://unpkg.com/@mulsense/xnew@0.9.x/dist/';
 
     code = code.replace('../../thirdparty/matter/matter.min.mjs', 'https://cdn.jsdelivr.net/npm/matter-js@0.20.0/+esm');
     code = code.replace('../../thirdparty/three/three.module.js', 'https://cdn.jsdelivr.net/npm/three@0.176.0/+esm');
@@ -21,13 +21,6 @@ export default function ShowExample({ height, name, code }) {
     
     code = code.replace('../../thirdparty/three-vrm/three-vrm.module.min.js', 'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js');
 
-    code = code.replace('../../dist/xnew.js', xnewpath + 'xnew.js');
-    code = code.replace('../../dist/addons/xpixi.js', xnewpath + 'addons/xpixi.js');
-    code = code.replace('../../dist/addons/xthree.js', xnewpath + 'addons/xthree.js');
-    code = code.replace('../../dist/addons/xmatter.js', xnewpath + 'addons/xmatter.js');
-    code = code.replace('../../dist/addons/xrapier2d.js', xnewpath + 'addons/xrapier2d.js');
-    code = code.replace('../../dist/addons/xrapier3d.js', xnewpath + 'addons/xrapier3d.js');
-    code = code.replace('../../dist/addons/xaudio.js', xnewpath + 'addons/xaudio.js');
  
     code = code.replace('../../thirdparty/tailwindcss/playcdn.js', 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4');
  

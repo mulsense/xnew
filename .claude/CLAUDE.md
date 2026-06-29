@@ -28,10 +28,9 @@ Integrations for games and interactive apps.
 
 ## Directory Layout
 
-- `src/core/` — `xnew` core, `unit`, event, time, map
+- `src/core/` — `xnew` core, `unit`, event, time, map, sync
 - `src/basics/` — built-in basic components
 - `src/addons/` — third-party library integrations
-- `src/utils/` — image / audio utilities
 - `examples/` — runnable samples
 - `website/` — Docusaurus documentation site
 - `test/` — Jest tests
@@ -52,10 +51,12 @@ for a reference.
 **Required elements**
 
 1. **Role** — one-line title naming the file's responsibility (not just its filename).
-2. **Why** — 1–3 lines on what problem the file solves / why it exists. Write the
-   design intent that is not derivable from the code itself.
-3. **Public API inventory** — bullet list of the exported types / classes / functions,
-   each with a one-line description.
+2. **Why** — ideally one line (two at most) on the design intent that the code itself
+   does not reveal. Keep it terse; do not restate the implementation.
+3. **Public API inventory** — bullet list of **only the features consumed from outside**
+   (the public surface callers use), each with a one-line description. Omit internal
+   exports, transport types, and helper accessors. For a facade file, list the facade
+   methods (e.g. `xnew.sync.*`), not every `export`.
 
 **Optional, add when they aid comprehension**
 
@@ -80,7 +81,6 @@ for a reference.
 | `src/core/`   | Role, invariants, relationship to other core files                   |
 | `src/basics/` | User-facing component behavior and a small usage example             |
 | `src/addons/` | Integration target (and version), boundary with xnew, lifetime model |
-| `src/utils/`  | I/O contract, side effects, location of any global dependency        |
 
 **Template**
 
@@ -88,10 +88,10 @@ for a reference.
 //----------------------------------------------------------------------------------------------------
 // <Role: one line>
 //
-// <Why: 1–3 lines on the design intent that the code itself does not reveal.>
+// <Why: one line (two at most) of design intent the code does not reveal.>
 //
-// - <ExportedA> : <one-line description>
-// - <ExportedB> : <one-line description>
+// - <PublicFeatureA> : <one-line description>   // only externally-consumed features
+// - <PublicFeatureB> : <one-line description>
 //
 // (optional) Relationships / Invariants / Caveats / Example
 //----------------------------------------------------------------------------------------------------

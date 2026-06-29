@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-declare const _default: {
+declare const xthree: {
     initialize({ canvas, camera }: {
         canvas: HTMLCanvasElement;
         camera?: THREE.Camera | null;
@@ -16,4 +16,4 @@ declare const _default: {
     readonly canvas: HTMLCanvasElement;
 };
 
-export { _default as default };
+export { xthree };

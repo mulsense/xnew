@@ -75,7 +75,7 @@ The whole lifecycle is covered by five events. Subscribe only to the ones you ne
 | `start`     | once, just before the first `update`        |
 | `update`    | every frame (roughly 60fps)                 |
 | `render`    | after each `update`                         |
-| `stop`      | when the update loop is stopped             |
+| `stop`      | once, just before the unit is destroyed (before `finalize`) |
 | `finalize`  | when the unit is destroyed                  |
 
 ```js
@@ -91,10 +91,8 @@ function AnimatedBox(unit) {
 
 ### Lifecycle control methods
 
-A unit's lifecycle is controlled with three methods.
+A unit starts automatically when it is created, and its `update` loop begins running. Use `finalize` to destroy it.
 
-- `unit.start()` — start the update loop (units start automatically by default).
-- `unit.stop()` — stop the update loop (the unit stays alive, but `update` no longer fires).
 - `unit.finalize()` — destroy the unit and remove the elements it created from the DOM.
 
 ```js
@@ -182,7 +180,7 @@ console.log(counter.value); // 1
 
 These names are already used by the unit, so they cannot be used for custom properties.
 
-- `start`, `stop`, `finalize`
+- `finalize`
 - `element`, `parent`, `promise`, `on`, `off`
 - `_` (internal)
 

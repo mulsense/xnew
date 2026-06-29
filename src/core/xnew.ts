@@ -10,9 +10,9 @@
 // - xnew.promise                         : Unit に promise を登録（集約リザルトは xnew.promise(unit) で取得し .then/.catch/.finally）
 // - xnew.scope / emit / protect          : スコープ捕捉 / '+global' '-local' イベント / 可視性境界
 // - xnew.timeout / interval / transition : UnitTimer によるスケジューリング
-// - xnew.chunk                           : 時間予算でフレーム分散する回数ループ（完了で UnitPromise を解決）
-// - xnew.server / client                 : mode 限定の extend
 //----------------------------------------------------------------------------------------------------
+//
+// 実行環境限定の extend（旧 xnew.server / xnew.client）は sync 配下へ移動した（src/core/sync.ts）。
 
 import { Unit, UnitPromise, UnitTimer, ComponentFn, DefinesOf, PropsOf } from './unit';
 import { DomElement } from './dom';
@@ -35,10 +35,10 @@ export const xnew = Object.assign(
         if (args[0] instanceof Unit) {
             const parent = args.shift() as Unit;
             const snapshot = parent._.afterSnapshot ?? Unit.snapshot(parent);
-            return Unit.scope(snapshot, () => new Unit(null, parent, ...args)) as Unit;
+            return Unit.scope(snapshot, () => Unit.create(parent, ...args)) as Unit;
         } else {
             const parent = Unit.currentUnit ?? null;
-            return new Unit(null, parent, ...args);
+            return Unit.create(parent, ...args);
         }
     }) as unknown as XnewBase,
     {
@@ -118,15 +118,15 @@ export const xnew = Object.assign(
 
         /** Emits a custom event（'+event' = 全体へ / '-event' = 自 unit のみ）。 */
         emit(type: string, ...args: any[]): void {
-            return Unit.emit(type, ...args);
+            return Unit.emit(Unit.currentUnit, type, ...args);
         },
 
-        /** Runs callback({ count, timer }) once after duration ms（count は呼び出し回数で常に 1。timer は UnitTimer インスタンス。unit のライフサイクルに従う。clear() で中止）。 */
+        /** Runs callback({ timer }) once after duration ms（timer は UnitTimer インスタンス。unit のライフサイクルに従う。clear() で中止）。 */
         timeout(callback: Function, duration: number = 0): UnitTimer {
             return new UnitTimer().timeout(callback, duration);
         },
 
-        /** Runs callback({ count, timer }) every duration ms（count は 1 始まりの呼び出し回数。timer は UnitTimer インスタンス（timer.clear() で停止）。iterations 回。0 は無限）。 */
+        /** Runs callback({ timer }) every duration ms（timer は UnitTimer インスタンス（timer.clear() で停止）。iterations 回。0 は無限）。 */
         interval(callback: Function, duration: number, iterations: number = 0): UnitTimer {
             return new UnitTimer().interval(callback, duration, iterations);
         },
@@ -136,74 +136,12 @@ export const xnew = Object.assign(
             return new UnitTimer().transition(transition, duration, easing);
         },
 
-        /** Runs callback({ index }) for index 0..max-1, spread across the current unit's update ticks within a per-frame time budget (options.budgetMs, 既定 8ms; 最低1回/フレームは保証)。完了で解決する UnitPromise を返す（集約プールには積まない）。budgetMs はウォールクロック計測（Date.now）。同期的に軽いコールバックは1フレームで全消化されうる。確実に分散したい場合は budgetMs: 0 で「1 iteration/フレーム」になる。引数はオブジェクトで渡す（将来フィールドを足してもシグネチャを壊さないため）。 */
-        chunk(callback: (arg: { index: number }) => void, max: number, options: { budgetMs?: number } = {}): UnitPromise {
-            if (!Number.isInteger(max) || max < 0) {
-                throw new Error('xnew.chunk: max must be a non-negative integer');
-            }
-            const unit = Unit.currentUnit;
-            if (!unit) {
-                throw new Error('xnew.chunk must be called within a unit scope');
-            }
-            const budgetMs = options.budgetMs ?? 8;
-
-            const { unitPromise, resolve, reject } = UnitPromise.defer();
-
-            if (max === 0) {
-                resolve();
-                return unitPromise;
-            }
-
-            let index = 0;
-            const handler = (): void => {
-                const t0 = Date.now();
-                try {
-                    do {
-                        callback({ index: index++ });
-                    } while (index < max && Date.now() - t0 < budgetMs);
-                } catch (error) {
-                    unit.off('update', handler);
-                    reject(error);
-                    return;
-                }
-                if (index >= max) {
-                    unit.off('update', handler);
-                    resolve();
-                }
-            };
-            // unit finalize 時は teardown が listener を外し、promise は意図的に未解決のまま（xnew の deferred と同じ）。
-            unit.on('update', handler);
-            return unitPromise;
-        },
-
         /**
          * Marks the current unit as a protection boundary: 子孫はサブツリー外からの '+event' emit /
          * find に映らなくなる（unit 自身は可視のまま。サブツリー内からの emit / find は通常どおり）。
          */
         protect(): void {
             Unit.currentUnit._.protected = true;
-        },
-
-        /** Extend 相当。ただし client では実行されない（server / standalone のみ。skip 時は {} を返す）。 */
-        server<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.server can not be called after initialized.');
-            }
-            if (Unit.currentUnit._.mode === 'client') {
-                return {};
-            }
-            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
-        },
-
-        /** Extend 相当。ただし server では実行されない（client / standalone のみ。skip 時は {} を返す）。 */
-        client<C extends ComponentFn<any, any>>(callback: C, props?: PropsOf<C>): DefinesOf<C> | {} {
-            if (Unit.currentUnit._.status !== 'invoked') {
-                throw new Error('xnew.client can not be called after initialized.');
-            }
-            if (Unit.currentUnit._.mode === 'server') {
-                return {};
-            }
-            return Unit.extend(Unit.currentUnit, callback, props) as DefinesOf<C>;
         },
 
     }

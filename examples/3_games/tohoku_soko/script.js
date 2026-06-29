@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
-import xnew from '@mulsense/xnew';
-import xpixi from '@mulsense/xnew/addons/xpixi';
-import xthree from '@mulsense/xnew/addons/xthree';
+import { xnew } from '@mulsense/xnew';
+import { xpixi } from '@mulsense/xnew/addons/xpixi';
+import { xthree } from '@mulsense/xnew/addons/xthree';
 import { Background, BlockBUtton, GrowText, TextStream } from './util.js';
 
 xnew(document.querySelector('#main'), Main);

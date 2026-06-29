@@ -29,17 +29,6 @@ interface Snapshot { unit: Unit; context: Context; element: DomElement; Componen
 // lifecycle phase: invoked → initialized → started ↔ stopped → finalizing → finalized
 export type Status = 'invoked' | 'initialized' | 'started' | 'stopped' | 'finalizing' | 'finalized';
 
-// engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)
-export type Mode = 'server' | 'client' | null;
-
-// Unit 構築時の補助パラメータ。
-// - mode  : サブツリールートのエンジンモード（親 mode が null のときの fallback）
-// - setup : 構築直後・body 実行前に呼ばれるフック（sync.ts が boot 登録 / state プリシードに使う）
-export interface UnitOptions {
-    mode?: Mode;
-    setup?: (unit: Unit) => void;
-}
-
 // Component 関数の型。戻り値 defines は xnew(...) の戻り値に合成される(Unit & A)。
 export type ComponentFn<P extends object = any, A extends object = {}> =
     (unit: Unit, props: P) => A | void;
@@ -65,19 +54,20 @@ function isSystemEvent(type: string): type is SystemEvent {
 //----------------------------------------------------------------------------------------------------
 
 export class Unit {
+    [key: string]: any;
 
     public _: {
+        id: number;
         parent: Unit | null;
         children: Unit[];
 
         status: Status;
         tostart: boolean;
         protected: boolean;
-        updateCount: number;   // この unit が受け取った update tick 数（update リスナの count として渡す）
-        renderCount: number;   // 同上（render 側）
         promises: UnitPromise[];
         defines: Record<string, any>;
-        systems: Record<SystemEvent, { listener: Function, execute: Function }[]>;
+        // count はリスナ登録ごとに保持する（そのリスナが呼ばれた回数。後から登録したものは 0 始まり）。
+        systems: Record<SystemEvent, { listener: Function, execute: Function, count: number }[]>;
 
         currentElement: DomElement;
         currentContext: Context;
@@ -91,34 +81,15 @@ export class Unit {
         eventor: Eventor;
 
         key: any;   // reserved prop for find(key) (global unique assumed)
-        mode: Mode;   // engine mode: 'server'(権威) / 'client'(複製) / null(スタンドアロン)。親から継承
     };
 
-    constructor(options: UnitOptions | null, parent: Unit | null, ...args: any[]) {
-        let target: DomElement | string | null;
-        let Component: Function | string | number | undefined;
-        let props: Object | undefined;
-
-        // parse arguments: (target,) Component, props 
-        if (isDomElement(args[0]) || typeof args[0] === 'string') {
-            target = args[0] as DomElement | string;
-            Component = args[1] as Function | string | number | undefined;
-            props = args[2] as Object | undefined;
-        } else {
-            target = null;
-            Component = args[0] as Function | string | number | undefined;
-            props = args[1] as Object | undefined;
-        }
-
-        const backup = Unit.currentUnit;
-        Unit.currentUnit = this;
-
+    constructor(parent: Unit | null = null) {
         parent?._.children.push(this);
 
+        const baseContext = parent?._.currentContext ?? { previous: null };
+
         let baseElement: DomElement;
-        if (isDomElement(target)) {
-            baseElement = target;
-        } else if (parent !== null) {
+        if (parent !== null) {
             baseElement = parent._.currentElement;
         } else if (globalThis.document?.body) {
             baseElement = globalThis.document.body;
@@ -126,26 +97,12 @@ export class Unit {
             baseElement = null as unknown as DomElement;
         }
 
-        let baseComponent: Function;
-        if (typeof Component === 'function') {
-            baseComponent = Component;
-        } else if (typeof Component === 'string' || typeof Component === 'number') {
-            baseComponent = (unit: Unit) => { unit.element.textContent = Component.toString(); };
-        } else {
-            baseComponent = (unit: Unit) => {};
-        }
-
-        const baseContext = parent?._.currentContext ?? { previous: null };
-
-        const key = (props as any)?.key ?? null;
-     
         this._ = {
+            id: Unit.nextId++,
             parent,
             status: 'invoked',
             tostart: true,
             protected: false,
-            updateCount: 0,
-            renderCount: 0,
             currentElement: baseElement,
             currentContext: baseContext,
             currentComponent: null,
@@ -158,24 +115,48 @@ export class Unit {
             defines: {},
             systems: { start: [], update: [], render: [], stop: [], finalize: [] },
             eventor: new Eventor(),
-            key,
-            mode: parent ? (parent._.mode ?? options?.mode ?? null) : null,
+            key: null,
         };
+    }
 
-        if (options?.setup !== undefined) {
-            options.setup(this);
+    static create(parent: Unit | null, ...args: any[]): Unit {
+        const unit = new Unit(parent);
+
+        Unit.initialize(unit, ...args);
+
+        return unit;
+    }
+
+    static initialize(unit: Unit, ...args: any[]): void {
+        if (isDomElement(args[0])) {
+            unit._.currentElement = args.shift() as DomElement;
+        } else if (typeof args[0] === 'string') {
+            Unit.nest(unit, args.shift() as string);
         }
 
-        if (typeof target === 'string') {
-            Unit.nest(this, target);
+        const Component = args[0] as Function | string | number | undefined;
+        const props = args[1] as Object | undefined;
+
+        let baseComponent: Function;
+        if (typeof Component === 'function') {
+            baseComponent = Component;
+        } else if (typeof Component === 'string' || typeof Component === 'number') {
+            baseComponent = (unit: Unit) => { unit.element.textContent = Component.toString(); };
+        } else {
+            baseComponent = (unit: Unit) => {};
         }
 
-        Unit.extend(this, baseComponent, props);
+        unit._.key = (props as any)?.key ?? null;
 
-        if (this._.status === 'invoked') {
-            this._.status = 'initialized';
+        const backup = Unit.currentUnit;
+        Unit.currentUnit = unit;
+
+        Unit.extend(unit, baseComponent, props);
+
+        if (unit._.status === 'invoked') {
+            unit._.status = 'initialized';
         }
-        this._.afterSnapshot = Unit.snapshot(this);
+        unit._.afterSnapshot = Unit.snapshot(unit);
         Unit.currentUnit = backup;
     }
 
@@ -187,11 +168,14 @@ export class Unit {
         return this._.currentElement;
     }
 
-    public start(): void {
+    // 非公開のライフサイクル制御。公開 API には載せないが、停止/再開の能力は内部に残す。
+    // start: 次フレーム以降の自動 start を許可（実際の起動はエンジンの cascade が行う）。
+    // stop:  自動 start を抑止し、即座に stop 遷移する。
+    private start(): void {
         this._.tostart = true;
     }
 
-    public stop(): void {
+    private stop(): void {
         this._.tostart = false;
         Unit.stop(this);
     }
@@ -230,7 +214,7 @@ export class Unit {
             unit._.currentContext = { previous: null };
 
             Object.keys(unit._.defines).forEach((key) => {
-                delete unit[key as keyof Unit];
+                delete unit[key];
             });
             unit._.defines = {};
             unit._.status = 'finalized';
@@ -280,7 +264,7 @@ export class Unit {
         unit._.Components.push(Component);
 
         Object.keys(defines).forEach((key) => {
-            if ((unit as any)[key] !== undefined && unit._.defines[key] === undefined) {
+            if (unit[key] !== undefined && unit._.defines[key] === undefined) {
                 throw new Error(`The property "${key}" already exists.`);
             }
             const descriptor = Object.getOwnPropertyDescriptor(defines, key);
@@ -323,29 +307,30 @@ export class Unit {
         }
     }
 
-    // count = この unit の update tick 数（起動後 0 始まり）, delta = 前フレームからの経過 ms。
-    // リスナは ({ count, delta }) で受け取れる（同 tick 内の同 unit のリスナは同じ count）。
+    // count = そのリスナが呼ばれた回数（登録後 0 始まり）, delta = 前フレームからの経過 ms。
+    // リスナは ({ count, delta }) で受け取れる。count はリスナ登録ごとに独立し、
+    // 後から登録したリスナは 0 から数え始める。
     static update(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started') {
             unit._.children.forEach((child: Unit) => Unit.update(child, delta));
-            const count = unit._.updateCount++;
-            unit._.systems.update.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.update.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
 
     static render(unit: Unit, delta: number = 0): void {
         if (unit._.status === 'started' || unit._.status === 'stopped') {
             unit._.children.forEach((child: Unit) => Unit.render(child, delta));
-            const count = unit._.renderCount++;
-            unit._.systems.render.forEach(({ execute }) => execute({ count, delta }));
+            unit._.systems.render.forEach((entry) => entry.execute({ count: entry.count++, delta }));
         }
     }
 
     static engineRoot: Unit;
     static currentUnit: Unit;
+    static nextId: number = 0;   // unit ごとに 0 から順番に採番する id（reset でリセット）
     static reset(): void {
         Unit.engineRoot?.finalize();
-        Unit.currentUnit = Unit.engineRoot = new Unit(null, null);
+        Unit.nextId = 0;
+        Unit.currentUnit = Unit.engineRoot = Unit.create(null);
         const ticker = new Ticker((delta: number) => {
             Unit.start(Unit.engineRoot);
             Unit.update(Unit.engineRoot, delta);
@@ -380,7 +365,7 @@ export class Unit {
 
     static unit2Contexts: MapSet<Unit, Context> = new MapSet();
 
-    static addContext(unit: Unit, orner: Unit, key: any, value?: Unit): void {
+    static addContext(unit: Unit, orner: Unit, key: any, value?: any): void {
         unit._.currentContext = { previous: unit._.currentContext, key, value };
         Unit.unit2Contexts.add(orner, unit._.currentContext);
     }
@@ -449,7 +434,7 @@ export class Unit {
             Unit.scope(snapshot, listener, Object.assign({ type }, props));
         }
         if (isSystemEvent(type)) {
-            unit._.systems[type].push({ listener, execute });
+            unit._.systems[type].push({ listener, execute, count: 0 });
         }
         if (unit._.listeners.has(type, listener) === false) {
             unit._.listeners.set(type, listener, { element: unit.element, Component: unit._.currentComponent, execute });
@@ -477,17 +462,16 @@ export class Unit {
         }
     }
 
-    static emit(type: string, props: object = {}): void {
-        const current = Unit.currentUnit;
+    static emit(unit: Unit, type: string, props: object = {}): void {
         if (type[0] === '+') {
-            const ancestors = Unit.ancestors(current);
-            Unit.type2units.get(type)?.forEach((unit) => {
-                if (Unit.isVisible(Unit.protectBoundary(unit), current, ancestors)) {
-                    unit._.listeners.get(type)?.forEach((item) => item.execute(props));
+            const ancestors = Unit.ancestors(unit);
+            Unit.type2units.get(type)?.forEach((target) => {
+                if (Unit.isVisible(Unit.protectBoundary(target), unit, ancestors)) {
+                    target._.listeners.get(type)?.forEach((item) => item.execute(props));
                 }
             });
         } else if (type[0] === '-') {
-            current._.listeners.get(type)?.forEach((item) => item.execute(props));
+            unit._.listeners.get(type)?.forEach((item) => item.execute(props));
         }
     }
 }
@@ -501,34 +485,29 @@ export class UnitPromise {
     public key?: string;
     constructor(promise: Promise<any>, key?: string) { this.promise = promise; this.key = key; }
 
-    public then(callback: Function): UnitPromise {
+    // then / catch / finally は捕捉スコープで callback を実行し、戻り値をチェーン値にする。
+    // UnitPromise を返した場合は内部 promise に展開して非同期継続を表す。
+    private chain(method: 'then' | 'catch' | 'finally', callback: Function): UnitPromise {
         const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.then((...args: any[]) => {
-            const returned = Unit.scope(snapshot, callback, ...args);
-            return returned instanceof UnitPromise ? returned.promise : returned;
-        });
-        return this;
-    }
-    public catch(callback: Function): UnitPromise {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.catch((...args: any[]) => {
+        this.promise = (this.promise[method] as Function)((...args: any[]) => {
             const result = Unit.scope(snapshot, callback, ...args);
             return result instanceof UnitPromise ? result.promise : result;
         });
         return this;
     }
+    public then(callback: Function): UnitPromise {
+        return this.chain('then', callback);
+    }
+    public catch(callback: Function): UnitPromise {
+        return this.chain('catch', callback);
+    }
     public finally(callback: Function): UnitPromise {
-        const snapshot = Unit.snapshot(Unit.currentUnit);
-        this.promise = this.promise.finally(() => {
-            const result = Unit.scope(snapshot, callback);
-            return result instanceof UnitPromise ? result.promise : result;
-        });
-        return this;
+        return this.chain('finally', callback);
     }
 
     // deferred な UnitPromise を生成し、settled ガード付きの resolve / reject と共に返す。
-    // xnew.promise() の deferred 形と xnew.chunk が共有する（Promise 構築と executor からの
-    // resolve / reject 取り出しの重複を排除する）。
+    // xnew.promise() の deferred 形が使う（Promise 構築と executor からの resolve / reject
+    // 取り出しの重複を排除する）。
     public static defer(key?: string): {
         unitPromise: UnitPromise;
         resolve: (value?: unknown) => void;
@@ -609,7 +588,7 @@ export class UnitTimer {
             let current = new Timer(onTimeout, onTransition, duration, easing);
 
             function onTimeout() {
-                if (timeout) Unit.scope(snapshot, timeout, { count: counter + 1, timer });
+                if (timeout) Unit.scope(snapshot, timeout, { timer });
                 // コールバック内で timer.clear() された場合は unit が finalize 済みなので再スケジュールしない。
                 if (unit._.status === 'finalized') { return; }
                 if (iterations <= 0 || counter < iterations - 1) {
@@ -627,7 +606,7 @@ export class UnitTimer {
         };
 
         if (timer.unit === null || timer.unit._.status === 'finalized') {
-            timer.unit = new Unit(null, Unit.currentUnit, Component);
+            timer.unit = Unit.create(Unit.currentUnit, Component);
         } else if (timer.queue.length === 0) {
             timer.queue.push(Component);
             timer.unit.on('finalize', () => UnitTimer.next(timer));
@@ -639,7 +618,7 @@ export class UnitTimer {
 
     private static next(timer: UnitTimer) {
         if (timer.queue.length > 0) {
-            timer.unit = new Unit(null, Unit.currentUnit, timer.queue.shift());
+            timer.unit = Unit.create(Unit.currentUnit, timer.queue.shift());
             timer.unit.on('finalize', () => UnitTimer.next(timer));
         }
     }
