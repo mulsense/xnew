@@ -248,9 +248,6 @@ export const sync = {
         const info = rootInfoOf(Unit.currentUnit) as ClientInfo;
         return info.clients.find((c) => c.id === info.socket.id) ?? { id: info.socket.id, name: '' };
     },
-    // Fire `type` on the SERVER. Receivers use unit.on(type, ({ id, ...props }) => …) (id = sender socket id).
-    //   client → travels to the server; '-type' is scoped to the unit sharing the sender's syncId.
-    //   server → local emit on the spot (identical to xnew.emit; '+'/'-' only).
     toServer(type: string, props: Record<string, any> = {}): void {
         const info = rootInfoOf(Unit.currentUnit);
         if (getEnvironment() === 'server') {
@@ -259,10 +256,6 @@ export const sync = {
             (info as ClientInfo).socket.emit(WIRE_TO_SERVER, { type, syncId: syncOf(Unit.currentUnit).id, data: props });
         }
     },
-    // Fire `type` on the CLIENTS (via the server). Receivers use unit.on(type, ({ id, ...props }) => …).
-    //   client → travels to the server, which relays to the target clients (incl. the sender). id = sender.
-    //   server → broadcasts to the target clients. id = undefined.
-    //   ids = target client ids (default: every client in the room).
     toClient(type: string, props: Record<string, any> = {}, ids?: string[]): void {
         const info = rootInfoOf(Unit.currentUnit);
         const syncId = syncOf(Unit.currentUnit).id;
