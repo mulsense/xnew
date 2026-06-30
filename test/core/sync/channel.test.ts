@@ -25,7 +25,7 @@ describe('event channel (socket.io transport)', () => {
         let id1: string | undefined;
         let id2: string | undefined;
         bootClient({ socket: hub.connect() }, function Client(unit: Unit) {
-            xnew.sync.client(() => { id1 = xnew.sync.myself.id; unit.on('update', () => xnew.sync.emit('move', { x: 1 })); });
+            xnew.sync.client(() => { id1 = xnew.sync.myself.id; unit.on('update', () => xnew.sync.toServer('move', { x: 1 })); });
         });
         bootClient({ socket: hub.connect() }, function Client(unit: Unit) {
             xnew.sync.client(() => { id2 = xnew.sync.myself.id; });
@@ -52,9 +52,9 @@ describe('event channel (socket.io transport)', () => {
         });
 
         const socket = hub.connect();   // 同じ hub の生 client
-        // 生 socket から送るときも xnew.sync.emit と同じ封筒 { syncId, data } で送る。
-        socket.emit('move', { data: { dx: 5 } });
-        socket.emit('move', { data: { dx: 2 } });
+        // 生 socket から送るときも xnew.sync.toServer と同じ封筒（予約 wire 'sync:toServer' + { type, data }）で送る。
+        socket.emit('sync:toServer', { type: 'move', data: { dx: 5 } });
+        socket.emit('sync:toServer', { type: 'move', data: { dx: 2 } });
         expect(state.x).toBe(7);
     });
 
@@ -91,7 +91,7 @@ describe('event channel (socket.io transport)', () => {
             });
             xnew.sync.client(() => {
                 if (props.view) { xnew.nest(props.view); }
-                unit.on('update', () => { xnew.sync.emit('move', { dx: 1, dy: 0 }); });
+                unit.on('update', () => { xnew.sync.toServer('move', { dx: 1, dy: 0 }); });
             });
         }
 
@@ -167,7 +167,7 @@ describe('event channel (socket.io transport)', () => {
         bootServer({ io: hub.io }, World);
 
         // 同じ hub の生 client が join を送ると server の on('join') が発火する（id=clientId）。
-        hub.connect('c1').emit('join');
+        hub.connect('c1').emit('sync:toServer', { type: 'join' });
 
         const child = xnew.find(Child, { key: 'c1' })[0];
         expect(child).toBeDefined();
@@ -189,7 +189,7 @@ describe('event channel (socket.io transport)', () => {
         bootClient({ socket: hub.connect() }, function Client(unit: Unit) {
             xnew.sync.client(() => {
                 syncOf(unit).id = 10;
-                xnew.sync.emit('-move', { vector: { x: 1 } });
+                xnew.sync.toServer('-move', { vector: { x: 1 } });
             });
         });
 
@@ -207,7 +207,7 @@ describe('event channel (socket.io transport)', () => {
         });
         // 送信ユニットの syncId に関係なく、'+ping' は両方のユニットへ届く（全体）。
         bootClient({ socket: hub.connect() }, function Client(unit: Unit) {
-            xnew.sync.client(() => { syncOf(unit).id = 10; xnew.sync.emit('+ping', { n: 1 }); });
+            xnew.sync.client(() => { syncOf(unit).id = 10; xnew.sync.toServer('+ping', { n: 1 }); });
         });
 
         expect(hits.sort()).toEqual(['A:1', 'B:1']);

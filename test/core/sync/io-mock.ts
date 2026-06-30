@@ -50,7 +50,7 @@ export function ioMock(): IoMock {
         clientAny: Set<AnyHandler>;                   // client.onAny
         serverAny: Set<AnyHandler>;                   // server 側 socket.onAny（bootServer が張る）
         serverDisconnect: Set<Handler>;              // server 側 socket.on('disconnect')
-        room?: string;                                // server が socket.join(room) で設定する所属 room
+        rooms: Set<string>;                           // 所属 room 群（自分の id room + socket.join(room) ぶん）
     }
     const conns = new Map<string, Conn>();
 
@@ -69,11 +69,11 @@ export function ioMock(): IoMock {
             for (const conn of conns.values()) { deliverToClient(conn, event, payload); }
         },
         to(room: string) {
-            // room に join した全 client へ配信する。
+            // room に join した全 client へ配信する（room は room.id でも client の id でも可）。
             return { emit(event: string, payload?: any): void {
                 if (event === 'sync') { captured.push(payload); }
                 for (const conn of conns.values()) {
-                    if (conn.room === room) { deliverToClient(conn, event, payload); }
+                    if (conn.rooms.has(room)) { deliverToClient(conn, event, payload); }
                 }
             } };
         },
@@ -81,14 +81,15 @@ export function ioMock(): IoMock {
 
     function connect(id?: string, roomId: string = ROOM.id): MockClientSocket {
         const clientId = id ?? 'c' + (++seq);
-        const conn: Conn = { clientHandlers: new Map(), clientAny: new Set(), serverAny: new Set(), serverDisconnect: new Set() };
+        // socket.io と同様、各 socket は自分の id の room に自動 join 済み（io.to(clientId) で個別宛が届く）。
+        const conn: Conn = { clientHandlers: new Map(), clientAny: new Set(), serverAny: new Set(), serverDisconnect: new Set(), rooms: new Set([clientId]) };
         conns.set(clientId, conn);
 
         // server 側 socket（bootServer が onAny / on('disconnect') を張る）。query.roomId で入室先を伝える。
         connectionCb?.({
             id: clientId,
             handshake: { query: { roomId } },
-            join(room: string): void { conn.room = room; },
+            join(room: string): void { conn.rooms.add(room); },
             onAny(handler: AnyHandler): void { conn.serverAny.add(handler); },
             on(event: string, handler: Handler): void { if (event === 'disconnect') { conn.serverDisconnect.add(handler); } },
         });
@@ -113,8 +114,8 @@ export function ioMock(): IoMock {
 }
 
 // 実行環境（server/client）を固定して同期的な処理を走らせる。1 プロセスで両側を模すテスト用。
-// 構築（component body / xnew(...) / apply）に加え、sync.myself / sync.emit も env で server/client を
-// 分岐する。よって server 側の処理（boot / server update での spawn / status・emit）は asServer、client 側は
+// 構築（component body / xnew(...) / apply）に加え、sync.myself / sync.toServer / sync.toClient も env で
+// server/client を分岐する。よって server 側の処理（boot / server update での spawn / status）は asServer、client 側は
 // asClient で囲む。両側を 1 回の update でまとめて回すと env がどちらかにしか合わないので、サブツリーを
 // 各々の env で別々に tick する（例: channel.test の cycle）。apply は src 側で常に client 環境を強制する。
 

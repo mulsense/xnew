@@ -3,8 +3,8 @@ import { xnew } from '@mulsense/xnew';
 //----------------------------------------------------------------------------------------------------
 // ChatView — 全シーン共通のルームチャット（client 専用・Game の client 直下に常駐）。
 //   送受信は core の sync 組み込みプリミティブだけで完結する（中継コンポーネントは不要）:
-//     - 送信: xnew.sync.message({ text })  → server が自動中継し、ルーム全員（自分含む）へ返る
-//     - 受信: unit.on('sync.message', ({ id, text }) => …)  → root 内の全 unit が受け取る
+//     - 送信: xnew.sync.toClient('chat', { text })  → server 経由でルーム全員（自分含む）へ届く
+//     - 受信: unit.on('chat', ({ id, text }) => …)  → root 内の全 client が受け取る（id = 送信者）
 //   名前は client 側で nameOf(id) に解決する（表示は例側の責務）。
 //----------------------------------------------------------------------------------------------------
 
@@ -27,14 +27,14 @@ export function ChatView(unit) {
                 return;
             }
 
-            xnew.sync.message({ text });   // server が中継してルーム全員（自分含む）へ返る
+            xnew.sync.toClient('chat', { text });   // server 経由でルーム全員（自分含む）へ届く
             input.element.value = '';
         });
     });
 
     const myId = xnew.sync.myself.id;
-    // server が中継した 'sync.message'（{ id, text }）を 1 行追加する。名前は client 側で nameOf に解決。
-    unit.on('sync.message', ({ id, text }) => {
+    // server 経由で届いた 'chat'（{ id, text }）を 1 行追加する。名前は client 側で nameOf に解決。
+    unit.on('chat', ({ id, text }) => {
         const mine = id === myId;
         xnew(log, '<div class="text-sm leading-snug break-words">', () => {
             xnew(`<span class="font-bold ${mine ? 'text-emerald-600' : 'text-gray-700'}">`, nameOf(id));

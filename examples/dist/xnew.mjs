@@ -1406,6 +1406,18 @@ function dispatch(info, event, id, payload) {
         (_a = unit._.listeners.get(event)) === null || _a === void 0 ? void 0 : _a.forEach((item) => item.execute(Object.assign({ id }, data)));
     });
 }
+const WIRE_TO_SERVER = 'sync:toServer';
+const WIRE_TO_CLIENT = 'sync:toClient';
+const WIRE_DELIVER = 'sync:deliver';
+function relayToClients(info, type, senderId, syncId, data, ids) {
+    const envelope = { type, syncId, id: senderId, data };
+    if (Array.isArray(ids) && ids.length > 0) {
+        ids.forEach((cid) => info.io.to(cid).emit(WIRE_DELIVER, envelope));
+    }
+    else {
+        info.io.to(info.room.id).emit(WIRE_DELIVER, envelope);
+    }
+}
 function bootServer(opts, parent, args) {
     const { io, room } = opts;
     const info = { io, room, clients: [] };
@@ -1455,13 +1467,13 @@ function bootServer(opts, parent, args) {
         dispatch(info, 'sync.connect', socket.id, undefined);
         statusUpdate();
         socket.onAny((event, payload) => {
-            if (event === 'message') {
-                const envelope = { id: socket.id, data: payload && typeof payload.data === 'object' ? payload.data : {} };
-                io.to(room.id).emit('message', envelope);
-                dispatch(info, 'sync.message', socket.id, envelope);
-                return;
+            var _a;
+            if (event === WIRE_TO_SERVER) {
+                dispatch(info, payload === null || payload === void 0 ? void 0 : payload.type, socket.id, payload);
             }
-            dispatch(info, event, socket.id, payload);
+            else if (event === WIRE_TO_CLIENT) {
+                relayToClients(info, payload === null || payload === void 0 ? void 0 : payload.type, socket.id, (_a = payload === null || payload === void 0 ? void 0 : payload.syncId) !== null && _a !== void 0 ? _a : null, payload === null || payload === void 0 ? void 0 : payload.data, payload === null || payload === void 0 ? void 0 : payload.ids);
+            }
         });
         socket.on('disconnect', () => {
             info.clients = info.clients.filter((c) => c.id !== socket.id);
@@ -1517,11 +1529,9 @@ function bootClient(opts, parent, args) {
     };
     socket.on('status', onStatus);
     socket.onAny((event, payload) => {
-        if (event === 'message') {
-            dispatch(info, 'sync.message', payload ? payload.id : undefined, payload);
-            return;
+        if (event === WIRE_DELIVER) {
+            dispatch(info, payload === null || payload === void 0 ? void 0 : payload.type, payload === null || payload === void 0 ? void 0 : payload.id, payload);
         }
-        dispatch(info, event, undefined, payload);
     });
     socket.on('connect', () => Unit.emit(parent, '-connect', { id: socket.id }));
     socket.on('disconnect', () => Unit.emit(parent, '-disconnect', {}));
@@ -1570,25 +1580,23 @@ const sync = {
         const info = rootInfoOf(Unit.currentUnit);
         return (_a = info.clients.find((c) => c.id === info.socket.id)) !== null && _a !== void 0 ? _a : { id: info.socket.id, name: '' };
     },
-    emit(event, payload = {}) {
+    toServer(type, props = {}) {
         const info = rootInfoOf(Unit.currentUnit);
-        const envelope = { syncId: syncOf(Unit.currentUnit).id, data: payload };
         if (getEnvironment() === 'server') {
-            info.io.to(info.room.id).emit(event, envelope);
+            Unit.emit(Unit.currentUnit, type, props);
         }
         else {
-            info.socket.emit(event, envelope);
+            info.socket.emit(WIRE_TO_SERVER, { type, syncId: syncOf(Unit.currentUnit).id, data: props });
         }
     },
-    message(payload = {}) {
+    toClient(type, props = {}, ids) {
         const info = rootInfoOf(Unit.currentUnit);
+        const syncId = syncOf(Unit.currentUnit).id;
         if (getEnvironment() === 'server') {
-            const envelope = { id: undefined, data: payload };
-            info.io.to(info.room.id).emit('message', envelope);
-            dispatch(info, 'sync.message', undefined, envelope);
+            relayToClients(info, type, undefined, syncId, props, ids);
         }
         else {
-            info.socket.emit('message', { data: payload });
+            info.socket.emit(WIRE_TO_CLIENT, { type, syncId, data: props, ids });
         }
     },
     boot(opts, ...args) {

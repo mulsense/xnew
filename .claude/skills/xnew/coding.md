@@ -133,18 +133,26 @@ socket.on('statusupdate', xnew.scope((payload) => xnew.emit('-update', payload))
   forwards the socket's `connect`/`disconnect`/`notfound` to the boot **parent** (host)
   unit as `-connect`/`-disconnect`/`-notfound`, and disconnects it on finalize. Callers
   (e.g. `basics.Room`) just boot — they no longer touch the socket. `sync.state`,
-  `sync.register`, `sync.emit`, `sync.status` operate on the current sync root.
+  `sync.register`, `sync.toServer`, `sync.toClient` operate on the current sync root.
 - Socket handlers run outside the tick → wrap them in `xnew.scope` (§7).
 - **Wire event names vs host event names are independent.** A socket/wire event
   (`'roomcreated'`) and the host-facing unit event it is forwarded to
   (`'-roomcreated'`) are separate strings; keep their mapping deliberate.
-- **`sync.message(payload)` is the built-in room broadcast — use it instead of
-  hand-rolling a relay component.** The server auto-relays (boot handles the reserved
-  `'message'` wire event), so every unit in the room's sync root receives
-  `unit.on('sync.message', ({ id, ...payload }) => …)` (`id` = sender socket id;
-  `undefined` for a server-origin message; the sender gets its own message back).
-  Contrast with `sync.emit`, which is one-directional (no relay) and prefix-scoped.
-  Don't reuse the wire name `'message'` for a custom `sync.emit`.
+- **Send events with `sync.toServer` / `sync.toClient` — they name the side the
+  event fires on, not the direction you happen to call from.** Receive both with
+  `unit.on(type, ({ id, ...props }) => …)` (`id` = sender socket id).
+  - `sync.toServer(type, props)` → fires `type` on the **server**. From a client it
+    travels over the socket (a `'-type'` is scoped to the server unit sharing the
+    sender's `syncId`); on the server it is a local emit (identical to `xnew.emit`,
+    so `'+'`/`'-'` only).
+  - `sync.toClient(type, props, ids?)` → fires `type` on the **clients** via the
+    server. From a client it round-trips through the server to every client incl. the
+    sender (`id` = sender); from the server it broadcasts (`id` = `undefined`). `ids`
+    limits delivery to those client ids (default: the whole room). This is the
+    built-in room broadcast — don't hand-roll a relay component.
+  - There is **no** `sync.emit`/`sync.message` anymore. The wire events
+    `sync:toServer` / `sync:toClient` / `sync:deliver` are reserved — don't use them
+    as app `type`s.
 
 ## 12. TypeScript notes
 
