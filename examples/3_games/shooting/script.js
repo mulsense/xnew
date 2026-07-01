@@ -10,7 +10,7 @@ function Main(unit) {
 
   // setup pixi
   xpixi.initialize({ canvas: unit.canvas });
-  unit.on('render', () => {
+  unit.on('update', () => {
     xpixi.renderer.render(xpixi.scene);
   });
 

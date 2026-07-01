@@ -74,12 +74,12 @@ export function Game(unit) {
         xthree.initialize({ canvas: new OffscreenCanvas(WIDTH, HEIGHT) });
         xthree.renderer.shadowMap.enabled = true;
         xthree.camera.position.set(0, 0, 10);
-        unit.on('render', () => xthree.renderer.render(xthree.scene, xthree.camera));
+        unit.on('update', () => xthree.renderer.render(xthree.scene, xthree.camera));
 
         xpixi.initialize({ canvas: unit.canvas });
         const threeTexture = PIXI.Texture.from(xthree.canvas);
-        unit.on('render', () => { threeTexture.source.update(); xpixi.renderer.render(xpixi.scene); });
-
+        unit.on('update', () => { threeTexture.source.update(); xpixi.renderer.render(xpixi.scene); });
+    
         // pixi の描画順 = 重なり順。Status / Ball の replica は sync が同じ Game の下へ生成する。
         xnew(Background);
         xnew(ShadowPlane);
@@ -194,7 +194,7 @@ function Status(unit) {
     // client: 同期 state を毎フレーム '+status' として盤面（Cursor / QueuePreview / HUD）へ配る。
     xnew.sync.client(() => {
         const myId = xnew.sync.myself.id;
-        unit.on('render', () => {
+        unit.on('update', () => {
             const myNo = myId === state.p1 ? 1 : myId === state.p2 ? 2 : 0;
             xnew.emit('+status', {
                 phase: state.phase, myNo, turn: state.turn, dropping: state.dropping,

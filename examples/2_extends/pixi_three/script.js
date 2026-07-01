@@ -13,14 +13,12 @@ function Main(unit) {
   // three setup
   xthree.initialize({ canvas: new OffscreenCanvas(width, height) });
   xthree.camera.position.set(0, 0, +100);
-  unit.on('render', () => {
-    xthree.renderer.render(xthree.scene, xthree.camera);
-  });
 
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
   const texture = PIXI.Texture.from(xthree.canvas);
-  unit.on('render', () => {
+  unit.on('update', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
     texture.source.update();
     xpixi.renderer.render(xpixi.scene);
   });

@@ -35,14 +35,13 @@ function Main(unit) {
   xthree.camera.position.set(0, 0, +10);
   xthree.scene.rotation.x = -40 / 180 * Math.PI;
   xthree.scene.fog = new THREE.Fog(0x000000, 10, 18);
-  unit.on('render', () => {
-    xthree.renderer.render(xthree.scene, xthree.camera);
-  });
 
   // pixi setup
   xpixi.initialize({ canvas: unit.canvas });
+
   const texture = PIXI.Texture.from(xthree.canvas);
-  unit.on('render', () => {
+  unit.on('update', () => {
+    xthree.renderer.render(xthree.scene, xthree.camera);
     texture.source.update();
     xpixi.renderer.render(xpixi.scene);
   });
@@ -495,7 +494,7 @@ function RightBlock(unit, { id }) {
     xthree.scene.rotation.x = -80 / 180 * Math.PI;
     xthree.scene.rotation.z = -30 / 180 * Math.PI;
     xthree.scene.position.y = -0.9;
-    unit.on('render', () => {
+    unit.on('update', () => {
       xthree.renderer.render(xthree.scene, xthree.camera);
     });
     
